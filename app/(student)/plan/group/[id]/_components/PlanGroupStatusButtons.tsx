@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 
@@ -57,6 +57,15 @@ export function PlanGroupStatusButtons({
 
     startTransition(async () => {
       try {
+        // 활성화 시 플랜이 생성되었는지 확인
+        if (newStatus === "active") {
+          const checkResult = await checkPlansExistAction(groupId);
+          if (!checkResult.hasPlans) {
+            alert("플랜이 생성되지 않았습니다. 플랜을 먼저 생성해주세요.");
+            return;
+          }
+        }
+
         await updatePlanGroupStatus(groupId, newStatus);
         router.refresh();
         // 활성화 성공 시 플랜 그룹 상세 페이지로 리다이렉트

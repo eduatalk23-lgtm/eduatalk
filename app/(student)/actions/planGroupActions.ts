@@ -3640,6 +3640,49 @@ async function _getPlansByGroupId(groupId: string): Promise<{
 export const getPlansByGroupIdAction = withErrorHandling(_getPlansByGroupId);
 
 /**
+ * 플랜 그룹에 플랜이 생성되었는지 확인
+ */
+async function _checkPlansExist(groupId: string): Promise<{
+  hasPlans: boolean;
+  planCount: number;
+}> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { count, error } = await supabase
+    .from("student_plan")
+    .select("*", { count: "exact", head: true })
+    .eq("plan_group_id", groupId)
+    .eq("student_id", user.userId);
+
+  if (error) {
+    console.error("[planGroupActions] 플랜 개수 확인 실패", error);
+    throw new AppError(
+      error.message || "플랜 개수 확인에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true,
+      { supabaseError: error }
+    );
+  }
+
+  return {
+    hasPlans: (count ?? 0) > 0,
+    planCount: count ?? 0,
+  };
+}
+
+export const checkPlansExistAction = withErrorHandling(_checkPlansExist);
+
+/**
  * 플랜 그룹의 스케줄 결과 데이터 조회 (표 형식 변환용)
  */
 async function _getScheduleResultData(groupId: string): Promise<{

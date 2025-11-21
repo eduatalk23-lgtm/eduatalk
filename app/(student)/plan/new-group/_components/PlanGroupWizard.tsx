@@ -13,6 +13,7 @@ import {
   updatePlanGroupAction,
   generatePlansFromGroupAction,
   updatePlanGroupStatus,
+  checkPlansExistAction,
 } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { PlanValidator } from "@/lib/validation/planValidator";
@@ -728,7 +729,23 @@ export function PlanGroupWizard({
         {currentStep === 7 && draftGroupId && (
           <Step7ScheduleResult
             groupId={draftGroupId}
-            onComplete={() => {
+            onComplete={async () => {
+              // 플랜이 실제로 생성되었는지 확인
+              try {
+                const checkResult = await checkPlansExistAction(draftGroupId);
+                if (!checkResult.hasPlans) {
+                  alert("플랜이 생성되지 않았습니다. 플랜을 먼저 생성해주세요.");
+                  return;
+                }
+              } catch (error) {
+                alert(
+                  error instanceof Error
+                    ? `플랜 확인 중 오류: ${error.message}`
+                    : "플랜 확인 중 오류가 발생했습니다."
+                );
+                return;
+              }
+
               // 완료 버튼을 눌렀을 때만 리다이렉트
               // 다른 활성 플랜 그룹이 있으면 활성화 다이얼로그 표시
               if (activeGroupNames.length > 0) {

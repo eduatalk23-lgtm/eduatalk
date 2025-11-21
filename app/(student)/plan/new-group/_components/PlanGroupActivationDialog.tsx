@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
-import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanGroupActivationDialogProps = {
@@ -26,6 +26,13 @@ export function PlanGroupActivationDialog({
   const handleActivate = () => {
     startTransition(async () => {
       try {
+        // 플랜이 실제로 생성되었는지 확인
+        const checkResult = await checkPlansExistAction(groupId);
+        if (!checkResult.hasPlans) {
+          toast.showError("플랜이 생성되지 않았습니다. 플랜을 먼저 생성해주세요.");
+          return;
+        }
+
         // 활성화 시 다른 활성 플랜 그룹들이 자동으로 비활성화됨
         await updatePlanGroupStatus(groupId, "active");
         toast.showSuccess(

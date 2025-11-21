@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { X } from "lucide-react";
-import { previewPlansFromGroupAction, generatePlansFromGroupAction } from "@/app/(student)/actions/planGroupActions";
+import { previewPlansFromGroupAction, generatePlansFromGroupAction, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
 
 type PlanPreview = {
   plan_date: string;
@@ -130,6 +130,14 @@ export function PlanPreviewDialog({
     startGenerateTransition(async () => {
       try {
         const result = await generatePlansFromGroupAction(groupId);
+        
+        // 플랜이 실제로 생성되었는지 확인
+        const checkResult = await checkPlansExistAction(groupId);
+        if (!checkResult.hasPlans) {
+          alert("플랜 생성에 실패했습니다. 플랜이 생성되지 않았습니다.");
+          return;
+        }
+        
         alert(`${result.count}개의 플랜이 생성되었습니다.`);
         onPlansGenerated?.();
         onOpenChange(false);
