@@ -78,12 +78,30 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   const { studentContents, recommendedContents } =
     await classifyPlanContents(contents, user.id);
 
+  // scheduler_options에서 time_settings 추출
+  const schedulerOptions = (group.scheduler_options as any) || {};
+  const timeSettings = {
+    lunch_time: schedulerOptions.lunch_time,
+    camp_study_hours: schedulerOptions.camp_study_hours,
+    camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+    designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+    use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
+  };
+  
+  // time_settings가 모두 undefined가 아닌 경우에만 포함
+  const hasTimeSettings = Object.values(timeSettings).some(v => v !== undefined);
+  
+  // scheduler_options에서 time_settings 필드 제거
+  const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
+  
   // 초기 데이터 구성
   const initialData = {
     groupId: group.id,
     name: group.name || "",
     plan_purpose: group.plan_purpose || "",
     scheduler_type: group.scheduler_type || "",
+    scheduler_options: Object.keys(schedulerOptionsWithoutTimeSettings).length > 0 ? schedulerOptionsWithoutTimeSettings : undefined,
+    time_settings: hasTimeSettings ? timeSettings : undefined,
     period_start: group.period_start,
     period_end: group.period_end,
     target_date: group.target_date || undefined,

@@ -364,11 +364,17 @@ export function PlanGroupWizard({
 
     startTransition(async () => {
       try {
+        // time_settings를 scheduler_options에 병합
+        const mergedSchedulerOptions = {
+          ...(wizardData.scheduler_options || {}),
+          ...(wizardData.time_settings || {}),
+        };
+        
         const creationData: PlanGroupCreationData = {
           name: wizardData.name,
           plan_purpose: wizardData.plan_purpose as any,
           scheduler_type: wizardData.scheduler_type as any,
-          scheduler_options: wizardData.scheduler_options || null,
+          scheduler_options: Object.keys(mergedSchedulerOptions).length > 0 ? mergedSchedulerOptions : null,
           period_start: wizardData.period_start,
           period_end: wizardData.period_end,
           target_date: wizardData.target_date || null,
@@ -430,11 +436,17 @@ export function PlanGroupWizard({
 
     startTransition(async () => {
       try {
+        // time_settings를 scheduler_options에 병합
+        const mergedSchedulerOptions = {
+          ...(wizardData.scheduler_options || {}),
+          ...(wizardData.time_settings || {}),
+        };
+        
         const creationData: PlanGroupCreationData = {
           name: wizardData.name,
           plan_purpose: wizardData.plan_purpose as any,
           scheduler_type: wizardData.scheduler_type as any,
-          scheduler_options: wizardData.scheduler_options || null,
+          scheduler_options: Object.keys(mergedSchedulerOptions).length > 0 ? mergedSchedulerOptions : null,
           period_start: wizardData.period_start,
           period_end: wizardData.period_end,
           target_date: wizardData.target_date || null,
