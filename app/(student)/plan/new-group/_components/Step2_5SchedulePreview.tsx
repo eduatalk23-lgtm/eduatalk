@@ -539,7 +539,13 @@ function WeekSection({ weekNum, schedules }: { weekNum: number | undefined; sche
   const weekTotalHours = schedules.reduce((sum, s) => sum + s.study_hours, 0);
   
   // 주차별 자율학습 시간 계산
+  // 지정휴일의 경우 study_hours가 이미 자율학습 시간을 포함하므로 중복 계산 방지
   const weekSelfStudyHours = schedules.reduce((sum, s) => {
+    // 지정휴일인 경우 study_hours가 자율학습 시간이므로 그대로 사용
+    if (s.day_type === "지정휴일") {
+      return sum + s.study_hours;
+    }
+    // 일반 학습일/복습일의 경우 time_slots에서 자율학습 시간 계산
     if (!s.time_slots) return sum;
     const selfStudyMinutes = s.time_slots
       .filter((slot) => slot.type === "자율학습")
@@ -626,7 +632,11 @@ function ScheduleItem({ schedule }: { schedule: DailySchedule }) {
     return minutes / 60;
   };
 
-  const selfStudyHours = calculateTimeFromSlots("자율학습");
+  // 지정휴일인 경우 study_hours가 자율학습 시간이므로 별도 계산 불필요
+  const isDesignatedHoliday = schedule.day_type === "지정휴일";
+  const selfStudyHours = isDesignatedHoliday 
+    ? schedule.study_hours 
+    : calculateTimeFromSlots("자율학습");
   const travelHours = calculateTimeFromSlots("이동시간");
   const academyHours = calculateTimeFromSlots("학원일정");
 
@@ -660,23 +670,37 @@ function ScheduleItem({ schedule }: { schedule: DailySchedule }) {
               </span>
             </div>
             <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600">
-              <div className="flex items-center gap-4">
-                <span className="font-medium">
-                  학습 시간: {formatNumber(schedule.study_hours)}시간
-                </span>
-                <span>
-                  자율 학습 시간: {formatNumber(selfStudyHours)}시간
-                </span>
-              </div>
-              {(travelHours > 0 || academyHours > 0) && (
+              {isDesignatedHoliday ? (
+                // 지정휴일인 경우 자율학습 시간만 표기
                 <div className="flex items-center gap-4">
-                  {travelHours > 0 && (
-                    <span>이동시간: {formatNumber(travelHours)}시간</span>
-                  )}
-                  {academyHours > 0 && (
-                    <span>학원 시간: {formatNumber(academyHours)}시간</span>
-                  )}
+                  <span className="font-medium">
+                    자율 학습 시간: {formatNumber(selfStudyHours)}시간
+                  </span>
                 </div>
+              ) : (
+                // 일반 학습일/복습일인 경우 학습 시간과 자율학습 시간 별도 표기
+                <>
+                  <div className="flex items-center gap-4">
+                    <span className="font-medium">
+                      학습 시간: {formatNumber(schedule.study_hours)}시간
+                    </span>
+                    {selfStudyHours > 0 && (
+                      <span>
+                        자율 학습 시간: {formatNumber(selfStudyHours)}시간
+                      </span>
+                    )}
+                  </div>
+                  {(travelHours > 0 || academyHours > 0) && (
+                    <div className="flex items-center gap-4">
+                      {travelHours > 0 && (
+                        <span>이동시간: {formatNumber(travelHours)}시간</span>
+                      )}
+                      {academyHours > 0 && (
+                        <span>학원 시간: {formatNumber(academyHours)}시간</span>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
