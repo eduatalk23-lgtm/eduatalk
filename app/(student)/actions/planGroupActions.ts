@@ -3719,6 +3719,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
   const supabase = await createSupabaseServerClient();
 
+  // tenantId 조회
+  const tenantContext = await getTenantContext();
+  const tenantId = tenantContext?.tenantId || null;
+
   // 1. 플랜 그룹 정보 조회 (daily_schedule 포함)
   const { data: group, error: groupError } = await supabase
     .from("plan_groups")
@@ -3994,21 +3998,18 @@ async function _getScheduleResultData(groupId: string): Promise<{
       "@/lib/scheduler/calculateAvailableDates"
     );
 
-    // 제외일 조회
-    const { data: exclusions } = await supabase
-      .from("student_plan_exclusions")
-      .select("exclusion_date, exclusion_type, reason")
-      .eq("student_id", user.userId)
-      .gte("exclusion_date", group.period_start || "")
-      .lte("exclusion_date", group.period_end || "");
+    // 제외일 및 학원 일정 조회 (getPlanGroupWithDetails 사용 - 일관성 유지)
+    const { exclusions, academySchedules } = await getPlanGroupWithDetails(
+      groupId,
+      user.userId,
+      tenantId
+    );
 
-    // 학원 일정 조회
-    const { data: academySchedules } = await supabase
-      .from("student_academy_schedules")
-      .select(
-        "day_of_week, start_time, end_time, academy_name, subject, travel_time"
-      )
-      .eq("student_id", user.userId);
+    // 기간 필터링 (제외일만)
+    const filteredExclusions = (exclusions || []).filter((e) => {
+      if (!group.period_start || !group.period_end) return true;
+      return e.exclusion_date >= group.period_start && e.exclusion_date <= group.period_end;
+    });
 
     // 블록 세트에서 기본 블록 정보 가져오기
     let baseBlocks: Array<{
@@ -4054,7 +4055,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
             start_time: b.start_time,
             end_time: b.end_time,
           })),
-          (exclusions || []).map((e) => ({
+          filteredExclusions.map((e) => ({
             exclusion_date: e.exclusion_date,
             exclusion_type: e.exclusion_type as
               | "휴가"

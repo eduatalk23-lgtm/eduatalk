@@ -1,6 +1,7 @@
 # Step 7 일별 스케줄 문제 점검 결과
 
 ## 작업 일시
+
 2025-01-22
 
 ## 문제점 요약
@@ -10,10 +11,11 @@
 **원인**: `_getScheduleResultData` 함수에서 제외일을 잘못된 테이블에서 조회하고 있습니다.
 
 **현재 코드 (3998-4003번 라인)**:
+
 ```typescript
 // 제외일 조회
 const { data: exclusions } = await supabase
-  .from("student_plan_exclusions")  // ❌ 잘못된 테이블
+  .from("student_plan_exclusions") // ❌ 잘못된 테이블
   .select("exclusion_date, exclusion_type, reason")
   .eq("student_id", user.userId)
   .gte("exclusion_date", group.period_start || "")
@@ -21,14 +23,20 @@ const { data: exclusions } = await supabase
 ```
 
 **문제점**:
+
 - `student_plan_exclusions` 테이블은 존재하지 않거나 다른 용도로 사용됨
 - 플랜 그룹별 제외일은 `plan_exclusions` 테이블에 `plan_group_id`로 저장됨
 - `getPlanGroupWithDetails` 함수는 올바르게 `plan_exclusions`에서 조회함
 
 **올바른 방법**:
+
 ```typescript
 // 방법 1: getPlanGroupWithDetails 사용
-const { exclusions } = await getPlanGroupWithDetails(groupId, user.userId, tenantId);
+const { exclusions } = await getPlanGroupWithDetails(
+  groupId,
+  user.userId,
+  tenantId
+);
 
 // 방법 2: 직접 plan_exclusions에서 조회
 const { data: exclusions } = await supabase
@@ -42,6 +50,7 @@ const { data: exclusions } = await supabase
 ### 2. Step 7에서 daily_schedule을 재계산하는 이유
 
 **현재 로직 (3974-3990번 라인)**:
+
 ```typescript
 // 저장된 dailySchedule이 있는지 확인
 // 자율학습 시간 배정 옵션이 활성화되어 있으면 항상 재계산
@@ -67,27 +76,31 @@ if (
 ```
 
 **재계산하는 이유**:
+
 1. **자율학습 시간 배정 옵션이 활성화된 경우**: 옵션이 변경되었을 수 있으므로 재계산하여 최신 옵션을 반영
 2. **저장된 daily_schedule이 없는 경우**: 플랜 그룹 생성 시 저장되지 않았을 수 있음
 
 **문제점**:
+
 - Step 3에서 이미 완벽하게 계산된 `daily_schedule`이 있음에도 불구하고 재계산하고 있음
 - 재계산 시 제외일을 잘못된 테이블에서 조회하여 지정 휴일 정보가 누락됨
 
 ### 3. Step 3 vs Step 7 비교
 
-| 항목 | Step 3 (Step2_5SchedulePreview) | Step 7 (_getScheduleResultData) |
-|------|--------------------------------|----------------------------------|
-| 데이터 소스 | WizardData의 `data.exclusions` | DB에서 조회 |
-| 제외일 조회 | `data.exclusions` 직접 사용 | `student_plan_exclusions` 테이블 (❌ 잘못됨) |
-| 계산 함수 | `calculateScheduleAvailability` | `calculateAvailableDates` |
-| 결과 저장 | `WizardData.schedule_summary`에 저장 | `group.daily_schedule`에 저장 (재계산 시) |
+| 항목        | Step 3 (Step2_5SchedulePreview)      | Step 7 (\_getScheduleResultData)             |
+| ----------- | ------------------------------------ | -------------------------------------------- |
+| 데이터 소스 | WizardData의 `data.exclusions`       | DB에서 조회                                  |
+| 제외일 조회 | `data.exclusions` 직접 사용          | `student_plan_exclusions` 테이블 (❌ 잘못됨) |
+| 계산 함수   | `calculateScheduleAvailability`      | `calculateAvailableDates`                    |
+| 결과 저장   | `WizardData.schedule_summary`에 저장 | `group.daily_schedule`에 저장 (재계산 시)    |
 
 **Step 3의 장점**:
+
 - WizardData에서 직접 제외일 정보를 가져오므로 정확함
 - 플랜 그룹 생성 전이므로 최신 정보 사용
 
 **Step 7의 문제점**:
+
 - 잘못된 테이블에서 제외일 조회
 - 재계산 시 제외일 정보가 누락되어 지정 휴일이 반영되지 않음
 
@@ -105,7 +118,7 @@ if (
   group.daily_schedule.length > 0
 ) {
   dailySchedule = group.daily_schedule as typeof dailySchedule;
-  
+
   // 자율학습 옵션이 변경되었는지 확인 (옵션 변경 시에만 재계산)
   // 옵션 변경 감지는 scheduler_options의 변경 시간 또는 버전으로 확인 가능
 } else {
@@ -131,7 +144,11 @@ const { data: exclusions } = await supabase
 또는 `getPlanGroupWithDetails` 사용:
 
 ```typescript
-const { exclusions } = await getPlanGroupWithDetails(groupId, user.userId, tenantId);
+const { exclusions } = await getPlanGroupWithDetails(
+  groupId,
+  user.userId,
+  tenantId
+);
 ```
 
 ## 권장 사항
@@ -145,4 +162,3 @@ const { exclusions } = await getPlanGroupWithDetails(groupId, user.userId, tenan
 - `createPlanExclusions`: `plan_exclusions` 테이블에 `plan_group_id`로 저장
 - `getPlanGroupWithDetails`: `plan_exclusions` 테이블에서 `plan_group_id`로 조회
 - `_getScheduleResultData`: 현재 `student_plan_exclusions` 테이블에서 조회 (❌ 잘못됨)
-
