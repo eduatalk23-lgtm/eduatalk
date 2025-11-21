@@ -3975,8 +3975,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     }>;
   }> = [];
 
-  // 저장된 dailySchedule이 있는지 확인
-  // 자율학습 시간 배정 옵션이 활성화되어 있으면 항상 재계산
+  // 저장된 dailySchedule이 있는지 확인 및 유효성 검증
   const enableSelfStudyForHolidays =
     (group.scheduler_options as any)?.enable_self_study_for_holidays === true;
   const enableSelfStudyForStudyDays =
@@ -3984,15 +3983,72 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const hasSelfStudyOptions =
     enableSelfStudyForHolidays || enableSelfStudyForStudyDays;
 
+  // 저장된 daily_schedule 유효성 검증 함수
+  const isValidDailySchedule = (
+    storedSchedule: any[],
+    periodStart: string | null,
+    periodEnd: string | null
+  ): boolean => {
+    if (!storedSchedule || !Array.isArray(storedSchedule) || storedSchedule.length === 0) {
+      return false;
+    }
+
+    // 기간 확인: 저장된 스케줄의 날짜 범위가 현재 기간과 일치하는지 확인
+    if (periodStart && periodEnd) {
+      const scheduleDates = storedSchedule.map((d) => d.date).sort();
+      const firstDate = scheduleDates[0];
+      const lastDate = scheduleDates[scheduleDates.length - 1];
+
+      if (firstDate !== periodStart || lastDate !== periodEnd) {
+        console.log("[planGroupActions] 저장된 daily_schedule 기간 불일치:", {
+          stored: { first: firstDate, last: lastDate },
+          expected: { first: periodStart, last: periodEnd },
+        });
+        return false;
+      }
+    }
+
+    // 기본 구조 확인: 각 항목에 필수 필드가 있는지 확인
+    const hasRequiredFields = storedSchedule.every(
+      (d) => d.date && d.day_type !== undefined && d.study_hours !== undefined
+    );
+
+    if (!hasRequiredFields) {
+      console.log("[planGroupActions] 저장된 daily_schedule 필수 필드 누락");
+      return false;
+    }
+
+    return true;
+  };
+
+  // 저장된 daily_schedule이 있고 유효하면 우선 사용
   if (
     group.daily_schedule &&
     Array.isArray(group.daily_schedule) &&
-    group.daily_schedule.length > 0 &&
-    !hasSelfStudyOptions
+    group.daily_schedule.length > 0
   ) {
-    // 저장된 데이터 사용 (자율학습 시간 배정 옵션이 없을 때만)
-    dailySchedule = group.daily_schedule as typeof dailySchedule;
-  } else {
+    const isValid = isValidDailySchedule(
+      group.daily_schedule,
+      group.period_start,
+      group.period_end
+    );
+
+    if (isValid) {
+      // 저장된 데이터 사용
+      dailySchedule = group.daily_schedule as typeof dailySchedule;
+      console.log(
+        "[planGroupActions] 저장된 daily_schedule 사용:",
+        dailySchedule.length,
+        "일"
+      );
+    } else {
+      // 유효하지 않으면 재계산
+      console.log("[planGroupActions] 저장된 daily_schedule이 유효하지 않아 재계산");
+    }
+  }
+
+  // 저장된 데이터가 없거나 유효하지 않으면 재계산
+  if (dailySchedule.length === 0) {
     // 저장된 데이터가 없으면 계산
     const { calculateAvailableDates } = await import(
       "@/lib/scheduler/calculateAvailableDates"
