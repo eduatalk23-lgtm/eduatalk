@@ -149,9 +149,12 @@ export function normalizeError(error: unknown): AppError {
  * 서버 액션에서 사용할 에러 핸들러 래퍼
  */
 export function withErrorHandling<
-  T extends (...args: unknown[]) => Promise<unknown>
->(fn: T): T {
-  return (async (...args: Parameters<T>) => {
+  TArgs extends readonly unknown[],
+  TReturn
+>(
+  fn: (...args: TArgs) => Promise<TReturn>
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args: TArgs): Promise<TReturn> => {
     try {
       return await fn(...args);
     } catch (error) {
@@ -200,6 +203,6 @@ export function withErrorHandling<
         true
       );
     }
-  }) as T;
+  };
 }
 
