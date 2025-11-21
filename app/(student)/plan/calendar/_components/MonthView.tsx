@@ -49,6 +49,60 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     return map;
   }, [plans]);
 
+  // 같은 plan_number를 가진 플랜들의 연결 상태 계산
+  const getPlanConnectionState = useMemo(() => {
+    const connectionMap = new Map<string, {
+      isConnected: boolean;
+      isFirst: boolean;
+      isLast: boolean;
+      isMiddle: boolean;
+    }>();
+    
+    // 날짜별로 그룹화
+    plansByDate.forEach((dayPlans, date) => {
+      // 같은 plan_number를 가진 플랜들을 그룹화
+      const planNumberGroups = new Map<number | null, PlanWithContent[]>();
+      
+      dayPlans.forEach((plan) => {
+        const planNumber = plan.plan_number;
+        if (!planNumberGroups.has(planNumber)) {
+          planNumberGroups.set(planNumber, []);
+        }
+        planNumberGroups.get(planNumber)!.push(plan);
+      });
+      
+      // 각 그룹에서 2개 이상인 경우 연결 상태 계산
+      planNumberGroups.forEach((groupPlans, planNumber) => {
+        if (groupPlans.length >= 2 && planNumber !== null) {
+          // block_index 순으로 정렬
+          const sortedPlans = [...groupPlans].sort((a, b) => a.block_index - b.block_index);
+          
+          sortedPlans.forEach((plan, index) => {
+            const isFirst = index === 0;
+            const isLast = index === sortedPlans.length - 1;
+            const isMiddle = !isFirst && !isLast;
+            
+            connectionMap.set(`${date}-${plan.id}`, {
+              isConnected: true,
+              isFirst,
+              isLast,
+              isMiddle,
+            });
+          });
+        }
+      });
+    });
+    
+    return (date: string, planId: string) => {
+      return connectionMap.get(`${date}-${planId}`) || {
+        isConnected: false,
+        isFirst: false,
+        isLast: false,
+        isMiddle: false,
+      };
+    };
+  }, [plansByDate]);
+
   // 날짜별 휴일 그룹화 (메모이제이션)
   const exclusionsByDate = useMemo(() => {
     const map = new Map<string, PlanExclusion[]>();
@@ -228,6 +282,9 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                     }
                     addedPlanIds.add(plan.id);
                     
+                    // 연결 상태 계산
+                    const connectionState = getPlanConnectionState(dateStr, plan.id);
+                    
                     items.push(
                       <PlanCard
                         key={plan.id}
@@ -235,6 +292,10 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                         compact={true}
                         showTime={false}
                         showProgress={false}
+                        isConnected={connectionState.isConnected}
+                        isFirst={connectionState.isFirst}
+                        isLast={connectionState.isLast}
+                        isMiddle={connectionState.isMiddle}
                       />
                     );
                     displayedCount++;
@@ -249,6 +310,9 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                 .sort((a, b) => a.block_index - b.block_index)
                 .slice(0, maxDisplay - displayedCount)
                 .forEach((plan) => {
+                  // 연결 상태 계산
+                  const connectionState = getPlanConnectionState(dateStr, plan.id);
+                  
                   items.push(
                     <PlanCard
                       key={plan.id}
@@ -256,6 +320,10 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                       compact={true}
                       showTime={false}
                       showProgress={false}
+                      isConnected={connectionState.isConnected}
+                      isFirst={connectionState.isFirst}
+                      isLast={connectionState.isLast}
+                      isMiddle={connectionState.isMiddle}
                     />
                   );
                   displayedCount++;
