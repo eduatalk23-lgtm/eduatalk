@@ -1154,6 +1154,9 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
     );
   }
 
+  // schedulerOptions 변수 선언 (나중에 사용하기 위해)
+  const schedulerOptions = (group.scheduler_options as any) || {};
+
   // calculateAvailableDates 호출하여 Step 2.5 스케줄 결과 가져오기
   const scheduleResult = calculateAvailableDates(
     group.period_start,
@@ -1178,7 +1181,7 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
     })),
     {
       scheduler_type: group.scheduler_type as "1730_timetable" | "자동스케줄러",
-      scheduler_options: (group as any).scheduler_options || null,
+      scheduler_options: schedulerOptions || null,
       use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
     }
   );
