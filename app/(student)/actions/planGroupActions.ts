@@ -1142,6 +1142,7 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
     {
       scheduler_type: group.scheduler_type as "1730_timetable" | "자동스케줄러",
       scheduler_options: (group as any).scheduler_options || null,
+      use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
     }
   );
 
@@ -2480,6 +2481,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     })),
     {
       scheduler_type: group.scheduler_type || "1730_timetable",
+      use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
     }
   );
 
@@ -3012,7 +3014,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       blockIndex++;
     }
 
-    // 비학습 항목 저장 (학원일정, 이동시간, 점심시간)
+    // 비학습 항목 저장 (학원일정, 이동시간, 점심시간, 자율학습)
+    // 자율학습은 일반 학습일/복습일의 경우 time_slots에 포함되므로 여기서도 처리
     const nonStudySlots = timeSlotsForDate.filter(
       (slot) => slot.type !== "학습시간"
     );
@@ -3611,6 +3614,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
           {
             scheduler_type: (group.scheduler_type || "자동스케줄러") as "1730_timetable" | "자동스케줄러",
             scheduler_options: group.scheduler_options || null,
+            use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
           }
         );
 

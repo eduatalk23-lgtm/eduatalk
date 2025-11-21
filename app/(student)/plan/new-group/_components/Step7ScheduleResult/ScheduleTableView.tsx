@@ -622,6 +622,11 @@ function TimeSlotsWithPlans({
                 ) : null}
               </>
             )}
+            {slot.type === "자율학습" && (
+              <div className="ml-4 text-xs text-gray-600 italic">
+                (자율 학습 시간)
+              </div>
+            )}
           </div>
         );
       })}
