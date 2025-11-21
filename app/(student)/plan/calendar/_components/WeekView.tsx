@@ -88,7 +88,18 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
   return (
     <>
       <div className="w-full">
-        {/* 요일 헤더 */}
+        {/* 요일 헤더 (카드 영역 밖 상단) */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {weekdays.map((day, index) => (
+            <div key={index} className="text-center">
+              <div className="text-sm font-semibold text-gray-700">
+                {day}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 날짜 카드들 */}
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((date, index) => {
           const dateStr = formatDateString(date);
@@ -161,9 +172,6 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
               {/* 날짜 헤더 */}
               <div className="mb-1.5 flex items-center justify-between">
                 <div className="flex flex-col gap-0.5">
-                  <div className={`text-xs font-medium ${textColorClass}`}>
-                    {weekdays[index]}
-                  </div>
                   <div className={`text-lg font-bold ${boldTextColorClass}`}>
                     {date.getDate()}
                   </div>
