@@ -946,9 +946,7 @@ export const syncTimeManagementExclusionsAction = withErrorHandling(
 /**
  * 시간 관리 데이터 반영 (학원일정)
  */
-async function _syncTimeManagementAcademySchedules(
-  groupId: string
-): Promise<{
+async function _syncTimeManagementAcademySchedules(groupId: string): Promise<{
   count: number;
   academySchedules: Array<{
     day_of_week: number;
@@ -3975,21 +3973,23 @@ async function _getScheduleResultData(groupId: string): Promise<{
     }>;
   }> = [];
 
-  // 저장된 dailySchedule이 있는지 확인 및 유효성 검증
-  const enableSelfStudyForHolidays =
-    (group.scheduler_options as any)?.enable_self_study_for_holidays === true;
-  const enableSelfStudyForStudyDays =
-    (group.scheduler_options as any)?.enable_self_study_for_study_days === true;
-  const hasSelfStudyOptions =
-    enableSelfStudyForHolidays || enableSelfStudyForStudyDays;
-
-  // 저장된 daily_schedule 유효성 검증 함수
+  /**
+   * 저장된 daily_schedule 유효성 검증 함수
+   * @param storedSchedule 저장된 daily_schedule 배열
+   * @param periodStart 기간 시작일
+   * @param periodEnd 기간 종료일
+   * @returns 유효성 여부
+   */
   const isValidDailySchedule = (
     storedSchedule: any[],
     periodStart: string | null,
     periodEnd: string | null
   ): boolean => {
-    if (!storedSchedule || !Array.isArray(storedSchedule) || storedSchedule.length === 0) {
+    if (
+      !storedSchedule ||
+      !Array.isArray(storedSchedule) ||
+      storedSchedule.length === 0
+    ) {
       return false;
     }
 
@@ -4021,12 +4021,32 @@ async function _getScheduleResultData(groupId: string): Promise<{
     return true;
   };
 
-  // 저장된 daily_schedule이 있고 유효하면 우선 사용
-  if (
-    group.daily_schedule &&
-    Array.isArray(group.daily_schedule) &&
-    group.daily_schedule.length > 0
-  ) {
+  /**
+   * 재계산 필요 여부 판단 함수
+   * @param group 플랜 그룹 정보
+   * @returns 재계산 필요 여부와 사용 가능한 저장된 daily_schedule
+   */
+  const shouldRecalculateDailySchedule = (
+    group: {
+      daily_schedule: any;
+      period_start: string | null;
+      period_end: string | null;
+    }
+  ): {
+    shouldRecalculate: boolean;
+    storedSchedule: typeof dailySchedule | null;
+  } => {
+    // 저장된 daily_schedule이 없으면 재계산 필요
+    if (
+      !group.daily_schedule ||
+      !Array.isArray(group.daily_schedule) ||
+      group.daily_schedule.length === 0
+    ) {
+      console.log("[planGroupActions] 저장된 daily_schedule이 없어 재계산 필요");
+      return { shouldRecalculate: true, storedSchedule: null };
+    }
+
+    // 유효성 검증
     const isValid = isValidDailySchedule(
       group.daily_schedule,
       group.period_start,
@@ -4035,36 +4055,111 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
     if (isValid) {
       // 저장된 데이터 사용
-      dailySchedule = group.daily_schedule as typeof dailySchedule;
       console.log(
         "[planGroupActions] 저장된 daily_schedule 사용:",
-        dailySchedule.length,
+        group.daily_schedule.length,
         "일"
       );
+      return {
+        shouldRecalculate: false,
+        storedSchedule: group.daily_schedule as typeof dailySchedule,
+      };
     } else {
       // 유효하지 않으면 재계산
-      console.log("[planGroupActions] 저장된 daily_schedule이 유효하지 않아 재계산");
+      console.log(
+        "[planGroupActions] 저장된 daily_schedule이 유효하지 않아 재계산"
+      );
+      return { shouldRecalculate: true, storedSchedule: null };
     }
-  }
+  };
 
-  // 저장된 데이터가 없거나 유효하지 않으면 재계산
-  if (dailySchedule.length === 0) {
+  // 재계산 필요 여부 판단
+  const { shouldRecalculate, storedSchedule } = shouldRecalculateDailySchedule(
+    group
+  );
+
+  if (!shouldRecalculate && storedSchedule) {
+    // 저장된 데이터 사용
+    dailySchedule = storedSchedule;
+  } else {
+    // 재계산 필요
     // 저장된 데이터가 없으면 계산
     const { calculateAvailableDates } = await import(
       "@/lib/scheduler/calculateAvailableDates"
     );
 
     // 제외일 및 학원 일정 조회 (getPlanGroupWithDetails 사용 - 일관성 유지)
-    const { exclusions, academySchedules } = await getPlanGroupWithDetails(
-      groupId,
-      user.userId,
-      tenantId
-    );
+    let exclusions: Array<{
+      exclusion_date: string;
+      exclusion_type: string;
+      reason?: string | null;
+    }> = [];
+    let academySchedules: Array<{
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+      academy_name?: string | null;
+      subject?: string | null;
+      travel_time?: number | null;
+    }> = [];
+
+    try {
+      const result = await getPlanGroupWithDetails(
+        groupId,
+        user.userId,
+        tenantId
+      );
+      exclusions = result.exclusions || [];
+      academySchedules = result.academySchedules || [];
+    } catch (error) {
+      console.error(
+        "[planGroupActions] 제외일/학원일정 조회 실패, 폴백 로직 사용:",
+        error
+      );
+
+      // 폴백: 저장된 daily_schedule에서 exclusion 정보 추출
+      if (group.daily_schedule && Array.isArray(group.daily_schedule)) {
+        exclusions = group.daily_schedule
+          .filter((d) => d.exclusion)
+          .map((d) => ({
+            exclusion_date: d.date,
+            exclusion_type: d.exclusion!.exclusion_type,
+            reason: d.exclusion!.reason || null,
+          }));
+        console.log(
+          "[planGroupActions] 저장된 daily_schedule에서 제외일 정보 추출:",
+          exclusions.length,
+          "개"
+        );
+      }
+
+      // 학원 일정은 별도 조회 시도
+      try {
+        const { data: academyData } = await supabase
+          .from("student_academy_schedules")
+          .select(
+            "day_of_week, start_time, end_time, academy_name, subject, travel_time"
+          )
+          .eq("student_id", user.userId);
+
+        if (academyData) {
+          academySchedules = academyData;
+        }
+      } catch (academyError) {
+        console.error(
+          "[planGroupActions] 학원 일정 조회 실패 (무시됨):",
+          academyError
+        );
+      }
+    }
 
     // 기간 필터링 (제외일만)
     const filteredExclusions = (exclusions || []).filter((e) => {
       if (!group.period_start || !group.period_end) return true;
-      return e.exclusion_date >= group.period_start && e.exclusion_date <= group.period_end;
+      return (
+        e.exclusion_date >= group.period_start &&
+        e.exclusion_date <= group.period_end
+      );
     });
 
     // 블록 세트에서 기본 블록 정보 가져오기
