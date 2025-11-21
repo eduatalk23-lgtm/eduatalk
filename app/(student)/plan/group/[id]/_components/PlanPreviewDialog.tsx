@@ -105,8 +105,10 @@ export function PlanPreviewDialog({
   const handlePreview = async () => {
     setLoading(true);
     try {
+      // 미리보기는 실제 플랜을 생성하지 않음 (데이터만 반환)
       const result = await previewPlansFromGroupAction(groupId);
       setPlans(result.plans);
+      // 미리보기에서는 onPlansGenerated를 호출하지 않음 (실제 생성이 아니므로)
     } catch (error) {
       alert(
         error instanceof Error
@@ -129,6 +131,7 @@ export function PlanPreviewDialog({
 
     startGenerateTransition(async () => {
       try {
+        // 실제 플랜 생성
         const result = await generatePlansFromGroupAction(groupId);
         
         // 플랜이 실제로 생성되었는지 확인
@@ -139,6 +142,8 @@ export function PlanPreviewDialog({
         }
         
         alert(`${result.count}개의 플랜이 생성되었습니다.`);
+        
+        // 실제 플랜 생성이 완료된 경우에만 콜백 호출
         onPlansGenerated?.();
         onOpenChange(false);
       } catch (error) {
@@ -147,6 +152,7 @@ export function PlanPreviewDialog({
             ? error.message
             : "플랜 생성에 실패했습니다."
         );
+        // 에러 발생 시 콜백 호출하지 않음
       }
     });
   };

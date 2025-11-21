@@ -49,6 +49,7 @@ export function GeneratePlansButton({
   };
 
   const handlePlansGenerated = () => {
+    // 실제 플랜 생성이 완료된 경우에만 호출됨 (미리보기에서는 호출되지 않음)
     setHasPlans(true);
     router.refresh();
     onPlansGenerated?.();
