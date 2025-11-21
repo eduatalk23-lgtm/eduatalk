@@ -256,18 +256,57 @@ export async function createPlanGroup(
     .select("id")
     .single();
 
+  // 컬럼이 없는 경우 fallback 처리
   if (error && error.code === "42703") {
-    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-    ({ data, error } = await supabase
-      .from("plan_groups")
-      .insert(fallbackPayload)
-      .select("id")
-      .single());
+    // scheduler_options가 포함된 경우 제외하고 재시도
+    if (payload.scheduler_options !== undefined) {
+      console.warn("[data/planGroups] scheduler_options 컬럼이 없어 fallback 생성 사용", {
+        studentId: group.student_id,
+        tenantId: group.tenant_id,
+      });
+      
+      const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+      ({ data, error } = await supabase
+        .from("plan_groups")
+        .insert(fallbackPayload)
+        .select("id")
+        .single());
+      
+      // fallback 성공 시 경고만 출력
+      if (!error) {
+        console.warn("[data/planGroups] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요.");
+      }
+    } else {
+      // 다른 컬럼 문제인 경우 일반 fallback
+      const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+      ({ data, error } = await supabase
+        .from("plan_groups")
+        .insert(fallbackPayload)
+        .select("id")
+        .single());
+    }
   }
 
   if (error) {
-    console.error("[data/planGroups] 플랜 그룹 생성 실패", error);
-    return { success: false, error: error.message };
+    // 에러 객체의 모든 속성을 안전하게 추출
+    const errorInfo: Record<string, unknown> = {
+      message: error.message || String(error),
+      code: error.code || "UNKNOWN",
+    };
+    
+    // 에러 객체의 다른 속성들도 추출
+    if ("details" in error) errorInfo.details = (error as { details?: unknown }).details;
+    if ("hint" in error) errorInfo.hint = (error as { hint?: unknown }).hint;
+    if ("statusCode" in error) errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+    
+    console.error("[data/planGroups] 플랜 그룹 생성 실패", {
+      error: errorInfo,
+      studentId: group.student_id,
+      tenantId: group.tenant_id,
+      payload: Object.keys(payload),
+      errorString: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+    });
+    return { success: false, error: error.message || String(error) };
   }
 
   return { success: true, groupId: data?.id };
@@ -315,6 +354,11 @@ export async function updatePlanGroup(
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
     // scheduler_options가 포함된 경우 제외하고 재시도
     if (payload.scheduler_options !== undefined) {
+      console.warn("[data/planGroups] scheduler_options 컬럼이 없어 fallback 업데이트 사용", {
+        groupId,
+        studentId,
+      });
+      
       const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
       ({ error } = await supabase
         .from("plan_groups")
@@ -325,7 +369,7 @@ export async function updatePlanGroup(
       
       // scheduler_options가 없어도 다른 필드는 업데이트 성공
       if (!error) {
-        console.warn("[data/planGroups] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다.");
+        console.warn("[data/planGroups] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요.");
         return { success: true };
       }
     }
@@ -338,8 +382,25 @@ export async function updatePlanGroup(
   }
 
   if (error) {
-    console.error("[data/planGroups] 플랜 그룹 업데이트 실패", error);
-    return { success: false, error: error.message };
+    // 에러 객체의 모든 속성을 안전하게 추출
+    const errorInfo: Record<string, unknown> = {
+      message: error.message || String(error),
+      code: error.code || "UNKNOWN",
+    };
+    
+    // 에러 객체의 다른 속성들도 추출
+    if ("details" in error) errorInfo.details = (error as { details?: unknown }).details;
+    if ("hint" in error) errorInfo.hint = (error as { hint?: unknown }).hint;
+    if ("statusCode" in error) errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+    
+    console.error("[data/planGroups] 플랜 그룹 업데이트 실패", {
+      error: errorInfo,
+      groupId,
+      studentId,
+      payload: Object.keys(payload),
+      errorString: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+    });
+    return { success: false, error: error.message || String(error) };
   }
 
   return { success: true };
