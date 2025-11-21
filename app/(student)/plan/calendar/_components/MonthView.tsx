@@ -170,18 +170,18 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     return (
       <div
         key={day}
-        className={`min-h-[140px] cursor-pointer rounded-lg border-2 p-3 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${bgColorClass}`}
+        className={`min-h-[120px] cursor-pointer rounded-lg border-2 p-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${bgColorClass}`}
         onClick={handleDateClick}
       >
         {/* 날짜 헤더 */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className={`text-xl font-bold ${textColorClass}`}>
+        <div className="mb-1.5 flex items-center justify-between">
+          <div className={`text-lg font-bold ${textColorClass}`}>
             {day}
           </div>
           {/* 날짜 타입 배지 - 아이콘만 표시 */}
           {dayTypeInfo && dayType !== "normal" && (
             <span 
-              className={`rounded-full p-1.5 text-base border shadow-sm ${dayTypeBadgeClass}`}
+              className={`rounded-full p-1 text-sm border shadow-sm ${dayTypeBadgeClass}`}
               title={dayTypeInfo.label}
             >
               {dayTypeInfo.icon}
@@ -224,9 +224,9 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             const items: JSX.Element[] = [];
             const addedPlanIds = new Set<string>();
             
-            // 최대 3개까지만 표시 (공간 제약)
+            // 최대 6개까지만 표시 (공간 제약)
             let displayedCount = 0;
-            const maxDisplay = 3;
+            const maxDisplay = 6;
             
             filteredSlots.forEach((slot) => {
               if (displayedCount >= maxDisplay) return;
@@ -342,9 +342,12 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               <>
                 {items}
                 {totalItems > maxDisplay && (
-                  <button className="mt-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 transition hover:bg-gray-200">
-                    +{totalItems - maxDisplay}개 더
-                  </button>
+                  <div 
+                    className="mt-1 flex items-center justify-center rounded-md bg-gray-100 px-1.5 py-1 text-gray-600"
+                    title={`${totalItems - maxDisplay}개 더 있음`}
+                  >
+                    <span className="text-xs">⋯</span>
+                  </div>
                 )}
               </>
             );

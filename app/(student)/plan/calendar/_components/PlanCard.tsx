@@ -64,7 +64,7 @@ export function PlanCard({
     
     return (
       <div
-        className={`group border p-1.5 text-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md relative ${connectionClasses} ${borderColorClass} ${bgColorClass} ${borderClasses}`}
+        className={`group border p-1 py-0.5 text-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md relative ${connectionClasses} ${borderColorClass} ${bgColorClass} ${borderClasses}`}
       >
         {/* 연결선 표시 (아래쪽에 연결선) */}
         {isConnected && !isLast && (
@@ -73,23 +73,23 @@ export function PlanCard({
             style={{ height: "3px", transform: "translateY(6px)", zIndex: 10 }} 
           />
         )}
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="text-sm shrink-0">{contentTypeIcon}</span>
-          <span className="truncate font-medium text-gray-900 min-w-0 flex-1">
+        <div className="flex items-center gap-0.5 min-w-0">
+          <span className="text-xs shrink-0">{contentTypeIcon}</span>
+          <span className="truncate font-medium text-gray-900 min-w-0 flex-1 text-[10px] leading-tight">
             {plan.contentSubjectCategory || plan.contentSubject || "-"}
           </span>
           {plan.contentEpisode && (
-            <span className="shrink-0 text-xs text-gray-600">
+            <span className="shrink-0 text-[10px] text-gray-600">
               {plan.contentEpisode}
             </span>
           )}
           {isCompleted && (
-            <span className="shrink-0 rounded-full bg-green-500 px-1.5 py-0.5 text-xs font-semibold text-white ml-1">
+            <span className="shrink-0 rounded-full bg-green-500 px-1 py-0.5 text-[10px] font-semibold text-white ml-0.5">
               ✅
             </span>
           )}
           {isActive && !isCompleted && (
-            <span className="shrink-0 rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-semibold text-white ml-1">
+            <span className="shrink-0 rounded-full bg-blue-500 px-1 py-0.5 text-[10px] font-semibold text-white ml-0.5">
               ⏱️
             </span>
           )}
