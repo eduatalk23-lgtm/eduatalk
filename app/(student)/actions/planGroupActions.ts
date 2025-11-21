@@ -1454,8 +1454,7 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
 
   // 7. Risk Index 조회 (취약과목 로직용)
   let riskIndexMap: Map<string, { riskScore: number }> | undefined;
-  // scheduler_options는 테이블에 컬럼이 없으므로 null로 처리
-  const schedulerOptions = (group as any).scheduler_options || null;
+  // schedulerOptions는 위에서 이미 선언되었으므로 재사용
   const weakSubjectFocus = schedulerOptions?.weak_subject_focus === "high" || schedulerOptions?.weak_subject_focus === true;
   
   if (weakSubjectFocus) {
