@@ -1,0 +1,545 @@
+"use client";
+
+import React, { useMemo } from "react";
+import type { PlanWithContent } from "../_types/plan";
+import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
+import { formatDateString, formatDateFull, isToday } from "@/lib/date/calendarUtils";
+import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
+import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
+import type { DailyScheduleInfo } from "@/lib/types/plan";
+import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
+import { StatCard } from "./StatCard";
+import { PlanCard } from "./PlanCard";
+import { TimelineItem } from "./TimelineItem";
+
+type DayViewProps = {
+  plans: PlanWithContent[];
+  currentDate: Date;
+  exclusions: PlanExclusion[];
+  academySchedules: AcademySchedule[];
+  dayTypes: Map<string, DayTypeInfo>;
+  dailyScheduleMap: Map<string, DailyScheduleInfo>;
+  showOnlyStudyTime?: boolean;
+};
+
+export function DayView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: DayViewProps) {
+  const dateStr = formatDateString(currentDate);
+  const dayTypeInfo = dayTypes.get(dateStr);
+  const dayType = dayTypeInfo?.type || "normal";
+  
+  // 해당 날짜의 daily_schedule 가져오기
+  const dailySchedule = dailyScheduleMap.get(dateStr);
+  
+  // 해당 날짜의 플랜만 필터링 (메모이제이션)
+  const dayPlans = useMemo(
+    () => plans.filter((plan) => plan.plan_date === dateStr),
+    [plans, dateStr]
+  );
+
+  // 해당 날짜의 학원일정 (요일 기반)
+  const dayAcademySchedules = useMemo(() => {
+    const dayOfWeek = currentDate.getDay();
+    return academySchedules.filter((schedule) => schedule.day_of_week === dayOfWeek);
+  }, [academySchedules, currentDate]);
+
+  // 해당 날짜의 휴일
+  const dayExclusions = useMemo(
+    () => exclusions.filter((exclusion) => exclusion.exclusion_date === dateStr),
+    [exclusions, dateStr]
+  );
+
+  // 타임라인 슬롯 생성
+  const timelineSlots = useMemo(() => {
+    return buildTimelineSlots(
+      dateStr,
+      dailySchedule,
+      dayPlans,
+      dayAcademySchedules,
+      dayExclusions
+    );
+  }, [dateStr, dailySchedule, dayPlans, dayAcademySchedules, dayExclusions]);
+
+  // TIME_BLOCKS와 plansByBlock 생성 (타임라인 슬롯 기반)
+  // 모든 타임슬롯을 시간 순서대로 포함 (학습시간, 점심시간, 학원일정 등)
+  // showOnlyStudyTime이 true면 학습시간만 필터링
+  // 시간 순서대로 정렬 (타입 무관)
+  const { TIME_BLOCKS, plansByBlock, slotTypes, academyByBlock } = useMemo(() => {
+    // 시간 순서대로 정렬 (start 시간 기준)
+    const sortedSlots = [...timelineSlots].sort((a, b) => {
+      const aStart = timeToMinutes(a.start);
+      const bStart = timeToMinutes(b.start);
+      return aStart - bStart;
+    });
+    
+    const filteredSlots = showOnlyStudyTime
+      ? sortedSlots.filter((slot) => slot.type === "학습시간")
+      : sortedSlots;
+    
+    const blocks = filteredSlots.map((slot, index) => ({
+      index,
+      label: slot.label || `${slot.start} ~ ${slot.end}`,
+      time: `${slot.start} ~ ${slot.end}`,
+      startTime: slot.start,
+      endTime: slot.end,
+    }));
+
+    const plansMap = new Map<number, PlanWithContent[]>();
+    const typesMap = new Map<number, TimeSlotType>();
+    const academyMap = new Map<number, AcademySchedule>();
+    
+    filteredSlots.forEach((slot, index) => {
+      typesMap.set(index, slot.type);
+      if (slot.type === "학습시간" && slot.plans && slot.plans.length > 0) {
+        plansMap.set(index, slot.plans);
+      }
+      if (slot.type === "학원일정" && slot.academy) {
+        academyMap.set(index, slot.academy);
+      }
+    });
+
+    return {
+      TIME_BLOCKS: blocks,
+      plansByBlock: plansMap,
+      slotTypes: typesMap,
+      academyByBlock: academyMap,
+    };
+  }, [timelineSlots, showOnlyStudyTime]);
+
+  // dayType 기반으로 스타일 결정
+  const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
+  const isStudyDay = dayType === "학습일";
+  const isReviewDay = dayType === "복습일";
+  const isTodayDate = isToday(currentDate);
+
+  // 배경색 결정
+  const bgColorClass = isHoliday
+    ? "border-red-300 bg-red-50"
+    : isTodayDate
+    ? "border-indigo-300 bg-indigo-50"
+    : isStudyDay
+    ? "border-blue-300 bg-blue-50"
+    : isReviewDay
+    ? "border-amber-300 bg-amber-50"
+    : "border-gray-200 bg-white";
+
+  // 텍스트 색상 결정
+  const textColorClass = isHoliday
+    ? "text-red-900"
+    : isTodayDate
+    ? "text-indigo-900"
+    : isStudyDay
+    ? "text-blue-900"
+    : isReviewDay
+    ? "text-amber-900"
+    : "text-gray-900";
+
+  const subtitleColorClass = isHoliday
+    ? "text-red-700"
+    : isStudyDay
+    ? "text-blue-700"
+    : isReviewDay
+    ? "text-amber-700"
+    : "text-gray-700";
+
+  // 플랜 통계 계산
+  const totalPlans = dayPlans.length;
+  const completedPlans = dayPlans.filter((p) => p.progress !== null && p.progress >= 100).length;
+  const activePlans = dayPlans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
+  const averageProgress = totalPlans > 0
+    ? Math.round(
+        dayPlans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans
+      )
+    : 0;
+
+  // 날짜 타입 배지 스타일
+  const dayTypeBadgeClass = isHoliday
+    ? "bg-red-100 text-red-800"
+    : isStudyDay
+    ? "bg-blue-100 text-blue-800"
+    : isReviewDay
+    ? "bg-amber-100 text-amber-800"
+    : "bg-gray-100 text-gray-800";
+
+  return (
+    <div className="flex w-full flex-col gap-6">
+      {/* 날짜 헤더 및 요약 정보 */}
+      <div className={`rounded-xl border-2 p-6 shadow-lg ${bgColorClass}`}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className={`text-3xl font-bold mb-2 ${textColorClass}`}>
+              {formatDateFull(currentDate)}
+            </h2>
+            {/* 날짜 타입 배지 */}
+            {dayTypeInfo && dayType !== "normal" && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <span className={`rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-sm ${dayTypeBadgeClass}`}>
+                  {dayTypeInfo.icon} {dayTypeInfo.label}
+                </span>
+                {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
+                  <span className="text-sm font-medium text-gray-600">
+                    ({dayExclusions[0].exclusion_type})
+                  </span>
+                )}
+                {dayExclusions.length > 0 && dayExclusions[0].reason && (
+                  <span className="text-sm font-medium text-gray-600">- {dayExclusions[0].reason}</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 통계 대시보드 */}
+          {(totalPlans > 0 || dayAcademySchedules.length > 0) && (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {totalPlans > 0 && (
+                <>
+                  <StatCard label="총 플랜" value={totalPlans} color="gray" />
+                  <StatCard label="완료" value={completedPlans} color="green" />
+                  {activePlans > 0 && (
+                    <StatCard label="진행중" value={activePlans} color="blue" />
+                  )}
+                  {averageProgress > 0 && (
+                    <StatCard label="평균 진행률" value={`${averageProgress}%`} color="indigo" />
+                  )}
+                </>
+              )}
+              {dayAcademySchedules.length > 0 && (
+                <StatCard label="학원 일정" value={dayAcademySchedules.length} color="purple" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 타임라인 뷰 (시간 순서대로) */}
+      <div className="rounded-xl border-2 border-gray-200 bg-white shadow-md">
+        <div className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 py-4">
+          <h3 className="text-xl font-bold text-gray-900">📚 학습 플랜 타임라인</h3>
+        </div>
+        <div className="p-6">
+          {TIME_BLOCKS.length === 0 ? (
+            <div className="py-12 text-center text-gray-400">
+              <div className="text-4xl mb-2">📅</div>
+              <div className="text-lg font-medium">이 날짜에는 플랜이 없습니다</div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {TIME_BLOCKS.map((block, index) => {
+                const slotType = slotTypes.get(block.index);
+                const blockPlans = (plansByBlock.get(block.index) || [])
+                  .sort((a, b) => a.block_index - b.block_index);
+                const blockAcademy = academyByBlock.get(block.index);
+
+                // 타임라인 슬롯 생성
+                const slot = {
+                  start: block.startTime,
+                  end: block.endTime,
+                  type: slotType || "학습시간",
+                  label: block.label,
+                  plans: slotType === "학습시간" ? blockPlans : undefined,
+                  academy: slotType === "학원일정" ? blockAcademy : undefined,
+                };
+
+                return (
+                  <TimelineItem
+                    key={block.index}
+                    slot={slot}
+                    isLast={index === TIME_BLOCKS.length - 1}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 기존 테이블 뷰 (숨김 처리 - 필요시 주석 해제) */}
+      {false && (
+      <div className="rounded-lg border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+          <h3 className="text-lg font-semibold text-gray-900">📚 학습 플랜</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b-2 border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">시간대</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">콘텐츠</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">교과/과목</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">범위/시간</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">상태</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">진행률/시간</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TIME_BLOCKS.map((block) => {
+                const slotType = slotTypes.get(block.index);
+                const blockPlans = (plansByBlock.get(block.index) || [])
+                  .sort((a, b) => a.block_index - b.block_index);
+                const blockAcademy = academyByBlock.get(block.index);
+
+                // 학원일정 처리
+                if (slotType === "학원일정" && blockAcademy) {
+                  const colorClass = getTimeSlotColorClass(slotType);
+                  const icon = getTimeSlotIcon(slotType);
+                  
+                  return (
+                    <tr key={block.index} className={`border-b border-gray-100 ${colorClass}`}>
+                      <td className="px-4 py-3 text-sm font-medium">
+                        <div className="flex flex-col gap-0.5">
+                          <span>{block.label}</span>
+                          <span className="text-xs opacity-75">{block.time}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <span>{icon}</span>
+                          <span>{blockAcademy.academy_name || "학원"}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {blockAcademy.subject || "-"}
+                      </td>
+                      <td colSpan={3} className="px-4 py-3 text-center text-sm text-gray-400">
+                        학원일정
+                      </td>
+                    </tr>
+                  );
+                }
+
+                // 점심시간, 이동시간, 자율학습 등 특수 타임슬롯 처리
+                if (slotType && slotType !== "학습시간" && slotType !== "학원일정") {
+                  const colorClass = getTimeSlotColorClass(slotType);
+                  const icon = getTimeSlotIcon(slotType);
+                  
+                  return (
+                    <tr key={block.index} className={`border-b border-gray-100 ${colorClass}`}>
+                      <td className="px-4 py-3 text-sm font-medium">
+                        <div className="flex flex-col gap-0.5">
+                          <span>{block.label}</span>
+                          <span className="text-xs opacity-75">{block.time}</span>
+                        </div>
+                      </td>
+                      <td colSpan={5} className="px-4 py-3 text-center text-sm font-medium">
+                        <div className="flex items-center justify-center gap-2">
+                          <span>{icon}</span>
+                          <span>{slotType}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                // 학습시간 처리
+                return (
+                  <React.Fragment key={block.index}>
+                    {/* 플랜 행들 */}
+                    {blockPlans.length > 0 ? (
+                      blockPlans.map((plan, planIndex) => {
+                        const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type];
+                        const isCompleted = plan.progress !== null && plan.progress >= 100;
+                        const isActive = plan.actual_start_time && !plan.actual_end_time;
+                        const progressPercentage = plan.progress !== null ? Math.round(plan.progress) : null;
+
+                        return (
+                          <tr
+                            key={plan.id}
+                            className={`border-b border-gray-100 hover:bg-gray-50 ${
+                              isCompleted
+                                ? "bg-green-50/50"
+                                : isActive
+                                ? "bg-blue-50/50"
+                                : ""
+                            }`}
+                          >
+                            {/* 시간대 (첫 번째 플랜만 표시) */}
+                            {planIndex === 0 && (
+                              <td
+                                className="px-4 py-3 align-top text-sm font-medium text-gray-700"
+                                rowSpan={blockPlans.length}
+                              >
+                                <div className="flex flex-col gap-0.5">
+                                  <span>{block.label}</span>
+                                  <span className="text-xs text-gray-500">{block.time}</span>
+                                </div>
+                              </td>
+                            )}
+                            {/* 콘텐츠 */}
+                            <td className="px-4 py-3 align-top">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base">{contentTypeIcon}</span>
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-medium text-gray-900">
+                                    {plan.contentTitle}
+                                  </span>
+                                  {plan.contentCategory && (
+                                    <span className="text-xs text-gray-500">
+                                      {plan.contentCategory}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            {/* 교과/과목 */}
+                            <td className="px-4 py-3 align-top text-sm text-gray-700">
+                              <div className="flex flex-col gap-1">
+                                {plan.contentSubjectCategory && (
+                                  <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                                    {plan.contentSubjectCategory}
+                                  </span>
+                                )}
+                                {plan.contentSubject && (
+                                  <span className="text-xs text-gray-600">
+                                    {plan.contentSubject}
+                                  </span>
+                                )}
+                                {!plan.contentSubjectCategory && !plan.contentSubject && (
+                                  <span className="text-xs text-gray-400">-</span>
+                                )}
+                              </div>
+                            </td>
+                            {/* 범위 */}
+                            <td className="px-4 py-3 align-top text-sm text-gray-700">
+                              <div className="flex flex-col gap-1">
+                                {plan.planned_start_page_or_time !== null &&
+                                plan.planned_end_page_or_time !== null ? (
+                                  <>
+                                    {plan.content_type === "book" ? (
+                                      <span>📖 {plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</span>
+                                    ) : (
+                                      <span>🎧 {plan.planned_start_page_or_time}강</span>
+                                    )}
+                                    {plan.chapter && (
+                                      <span className="text-xs text-gray-500">
+                                        챕터: {plan.chapter}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-gray-400">-</span>
+                                )}
+                                {/* 시간 정보 */}
+                                {plan.start_time && plan.end_time && (
+                                  <div className="mt-1 flex items-center gap-1 text-xs text-blue-600">
+                                    <span>⏰</span>
+                                    <span>{plan.start_time} ~ {plan.end_time}</span>
+                                  </div>
+                                )}
+                                {/* 블록 인덱스 */}
+                                <div className="text-xs text-gray-400">
+                                  블록 {plan.block_index}
+                                </div>
+                              </div>
+                            </td>
+                            {/* 상태 */}
+                            <td className="px-4 py-3 align-top">
+                              <div className="flex flex-col gap-1">
+                                {isCompleted && (
+                                  <span className="inline-block w-fit rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                    ✅ 완료
+                                  </span>
+                                )}
+                                {isActive && (
+                                  <span className="inline-block w-fit rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                    ⏱️ 학습 중
+                                  </span>
+                                )}
+                                {!isCompleted && !isActive && (
+                                  <span className="text-xs text-gray-400">대기</span>
+                                )}
+                              </div>
+                            </td>
+                            {/* 진행률 */}
+                            <td className="px-4 py-3 align-top">
+                              <div className="flex flex-col gap-1">
+                                {progressPercentage !== null ? (
+                                  <>
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {progressPercentage}%
+                                    </span>
+                                    <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200">
+                                      <div
+                                        className={`h-full transition-all ${
+                                          isCompleted
+                                            ? "bg-green-500"
+                                            : isActive
+                                            ? "bg-blue-500"
+                                            : "bg-gray-400"
+                                        }`}
+                                        style={{ width: `${progressPercentage}%` }}
+                                      />
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-gray-400">-</span>
+                                )}
+                                {/* 완료량 */}
+                                {plan.completed_amount !== null && plan.planned_end_page_or_time !== null && (
+                                  <div className="text-xs text-gray-500">
+                                    완료: {plan.completed_amount} / {plan.planned_end_page_or_time}
+                                  </div>
+                                )}
+                                {/* 실제 시간 정보 */}
+                                {plan.actual_start_time && (
+                                  <div className="text-xs text-gray-500">
+                                    시작: {new Date(plan.actual_start_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                )}
+                                {plan.actual_end_time && (
+                                  <div className="text-xs text-gray-500">
+                                    종료: {new Date(plan.actual_end_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                )}
+                                {/* 소요 시간 */}
+                                {plan.total_duration_seconds !== null && (
+                                  <div className="text-xs text-gray-500">
+                                    소요: {Math.floor(plan.total_duration_seconds / 60)}분
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      // 플랜이 없는 학습시간대
+                      <tr className="border-b border-gray-100">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{block.label}</span>
+                            <span className="text-xs text-gray-500">{block.time}</span>
+                          </div>
+                        </td>
+                        <td colSpan={5} className="px-4 py-3 text-center text-sm text-gray-400">
+                          플랜 없음
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+
+      {/* 플랜이 없는 경우 */}
+      {dayPlans.length === 0 && dayAcademySchedules.length === 0 && (
+        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+          <div className="flex flex-col gap-4">
+            <div className="text-4xl">📅</div>
+            <div className="flex flex-col gap-2">
+              <div className="text-lg font-semibold text-gray-900">
+                이 날짜에는 플랜이 없습니다
+              </div>
+              <div className="text-sm text-gray-600">
+                다른 날짜를 선택하거나 새로운 플랜을 추가해주세요
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

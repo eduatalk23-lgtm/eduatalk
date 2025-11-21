@@ -1,0 +1,668 @@
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+// 통합 성적 타입 (student_scores 테이블)
+export type StudentScore = {
+  id: string;
+  tenant_id?: string | null;
+  student_id: string;
+  subject_type: string;
+  semester?: string | null;
+  course: string;
+  course_detail: string;
+  raw_score: number;
+  grade: number;
+  score_type_detail?: string | null;
+  test_date?: string | null;
+  created_at?: string | null;
+};
+
+// 내신 성적 타입
+export type SchoolScore = {
+  id: string;
+  tenant_id?: string | null;
+  student_id: string;
+  grade: number;
+  semester: number;
+  subject_group: string;
+  subject_type?: string | null;
+  subject_name?: string | null;
+  credit_hours?: number | null;
+  raw_score?: number | null;
+  subject_average?: number | null;
+  standard_deviation?: number | null;
+  grade_score?: number | null;
+  total_students?: number | null;
+  rank_grade?: number | null;
+  created_at?: string | null;
+};
+
+// 모의고사 성적 타입
+export type MockScore = {
+  id: string;
+  tenant_id?: string | null;
+  student_id: string;
+  grade: number;
+  subject_group: string;
+  exam_type: string;
+  subject_name?: string | null;
+  raw_score?: number | null;
+  standard_score?: number | null;
+  percentile?: number | null;
+  grade_score?: number | null;
+  exam_round?: string | null;
+  test_date?: string | null;
+  created_at?: string | null;
+};
+
+/**
+ * 통합 성적 목록 조회 (student_scores)
+ */
+export async function getStudentScores(
+  studentId: string,
+  tenantId?: string | null,
+  filters?: {
+    subjectType?: string;
+    semester?: string;
+    course?: string;
+  }
+): Promise<StudentScore[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const selectScores = () =>
+    supabase
+      .from("student_scores")
+      .select("*")
+      .eq("student_id", studentId);
+
+  let query = selectScores();
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  if (filters?.subjectType) {
+    query = query.eq("subject_type", filters.subjectType);
+  }
+
+  if (filters?.semester) {
+    query = query.eq("semester", filters.semester);
+  }
+
+  if (filters?.course) {
+    query = query.eq("course", filters.course);
+  }
+
+  query = query
+    .order("test_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  let { data, error } = await query;
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const fallbackQuery = supabase.from("student_scores").select("*");
+
+    if (filters?.subjectType) {
+      fallbackQuery.eq("subject_type", filters.subjectType);
+    }
+
+    if (filters?.semester) {
+      fallbackQuery.eq("semester", filters.semester);
+    }
+
+    if (filters?.course) {
+      fallbackQuery.eq("course", filters.course);
+    }
+
+    ({ data, error } = await fallbackQuery
+      .order("test_date", { ascending: false })
+      .order("created_at", { ascending: false }));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 통합 성적 조회 실패", error);
+    return [];
+  }
+
+  return (data as StudentScore[] | null) ?? [];
+}
+
+/**
+ * 통합 성적 생성
+ */
+export async function createStudentScore(
+  score: {
+    tenant_id?: string | null;
+    student_id: string;
+    subject_type: string;
+    semester?: string | null;
+    course: string;
+    course_detail: string;
+    raw_score: number;
+    grade: number;
+    score_type_detail?: string | null;
+    test_date?: string | null;
+  }
+): Promise<{ success: boolean; scoreId?: string; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload = {
+    tenant_id: score.tenant_id || null,
+    student_id: score.student_id,
+    subject_type: score.subject_type,
+    semester: score.semester || null,
+    course: score.course,
+    course_detail: score.course_detail,
+    raw_score: score.raw_score,
+    grade: score.grade,
+    score_type_detail: score.score_type_detail || null,
+    test_date: score.test_date || null,
+  };
+
+  let { data, error } = await supabase
+    .from("student_scores")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+    ({ data, error } = await supabase
+      .from("student_scores")
+      .insert(fallbackPayload)
+      .select("id")
+      .single());
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 통합 성적 생성 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, scoreId: data?.id };
+}
+
+/**
+ * 통합 성적 업데이트
+ */
+export async function updateStudentScore(
+  scoreId: string,
+  studentId: string,
+  updates: Partial<Omit<StudentScore, "id" | "student_id" | "created_at">>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload: Record<string, any> = {};
+  if (updates.subject_type !== undefined) payload.subject_type = updates.subject_type;
+  if (updates.semester !== undefined) payload.semester = updates.semester;
+  if (updates.course !== undefined) payload.course = updates.course;
+  if (updates.course_detail !== undefined) payload.course_detail = updates.course_detail;
+  if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
+  if (updates.grade !== undefined) payload.grade = updates.grade;
+  if (updates.score_type_detail !== undefined) payload.score_type_detail = updates.score_type_detail;
+  if (updates.test_date !== undefined) payload.test_date = updates.test_date;
+
+  let { error } = await supabase
+    .from("student_scores")
+    .update(payload)
+    .eq("id", scoreId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase
+      .from("student_scores")
+      .update(payload)
+      .eq("id", scoreId));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 통합 성적 업데이트 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 통합 성적 삭제
+ */
+export async function deleteStudentScore(
+  scoreId: string,
+  studentId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  let { error } = await supabase
+    .from("student_scores")
+    .delete()
+    .eq("id", scoreId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase.from("student_scores").delete().eq("id", scoreId));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 통합 성적 삭제 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 내신 성적 목록 조회
+ */
+export async function getSchoolScores(
+  studentId: string,
+  tenantId?: string | null,
+  filters?: {
+    grade?: number;
+    semester?: number;
+    subjectGroup?: string;
+  }
+): Promise<SchoolScore[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const selectScores = () =>
+    supabase
+      .from("student_school_scores")
+      .select("*")
+      .eq("student_id", studentId);
+
+  let query = selectScores();
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  if (filters?.grade) {
+    query = query.eq("grade", filters.grade);
+  }
+
+  if (filters?.semester) {
+    query = query.eq("semester", filters.semester);
+  }
+
+  if (filters?.subjectGroup) {
+    query = query.eq("subject_group", filters.subjectGroup);
+  }
+
+  query = query
+    .order("grade", { ascending: true })
+    .order("semester", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  let { data, error } = await query;
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const fallbackQuery = supabase.from("student_school_scores").select("*");
+
+    if (filters?.grade) {
+      fallbackQuery.eq("grade", filters.grade);
+    }
+
+    if (filters?.semester) {
+      fallbackQuery.eq("semester", filters.semester);
+    }
+
+    if (filters?.subjectGroup) {
+      fallbackQuery.eq("subject_group", filters.subjectGroup);
+    }
+
+    ({ data, error } = await fallbackQuery
+      .order("grade", { ascending: true })
+      .order("semester", { ascending: true })
+      .order("created_at", { ascending: false }));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 조회 실패", error);
+    return [];
+  }
+
+  return (data as SchoolScore[] | null) ?? [];
+}
+
+/**
+ * 모의고사 성적 목록 조회
+ */
+export async function getMockScores(
+  studentId: string,
+  tenantId?: string | null,
+  filters?: {
+    grade?: number;
+    examType?: string;
+    subjectGroup?: string;
+  }
+): Promise<MockScore[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const selectScores = () =>
+    supabase
+      .from("student_mock_scores")
+      .select("*")
+      .eq("student_id", studentId);
+
+  let query = selectScores();
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  if (filters?.grade) {
+    query = query.eq("grade", filters.grade);
+  }
+
+  if (filters?.examType) {
+    query = query.eq("exam_type", filters.examType);
+  }
+
+  if (filters?.subjectGroup) {
+    query = query.eq("subject_group", filters.subjectGroup);
+  }
+
+  query = query
+    .order("grade", { ascending: true })
+    .order("test_date", { ascending: true });
+
+  let { data, error } = await query;
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const fallbackQuery = supabase.from("student_mock_scores").select("*");
+
+    if (filters?.grade) {
+      fallbackQuery.eq("grade", filters.grade);
+    }
+
+    if (filters?.examType) {
+      fallbackQuery.eq("exam_type", filters.examType);
+    }
+
+    if (filters?.subjectGroup) {
+      fallbackQuery.eq("subject_group", filters.subjectGroup);
+    }
+
+    ({ data, error } = await fallbackQuery
+      .order("grade", { ascending: true })
+      .order("test_date", { ascending: true }));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 모의고사 성적 조회 실패", error);
+    return [];
+  }
+
+  return (data as MockScore[] | null) ?? [];
+}
+
+/**
+ * 내신 성적 생성
+ */
+export async function createSchoolScore(
+  score: {
+    tenant_id?: string | null;
+    student_id: string;
+    grade: number;
+    semester: number;
+    subject_group: string;
+    subject_type?: string | null;
+    subject_name?: string | null;
+    credit_hours?: number | null;
+    raw_score?: number | null;
+    subject_average?: number | null;
+    standard_deviation?: number | null;
+    grade_score?: number | null;
+    total_students?: number | null;
+    rank_grade?: number | null;
+  }
+): Promise<{ success: boolean; scoreId?: string; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload = {
+    tenant_id: score.tenant_id || null,
+    student_id: score.student_id,
+    grade: score.grade,
+    semester: score.semester,
+    subject_group: score.subject_group,
+    subject_type: score.subject_type || null,
+    subject_name: score.subject_name || null,
+    credit_hours: score.credit_hours || null,
+    raw_score: score.raw_score || null,
+    subject_average: score.subject_average || null,
+    standard_deviation: score.standard_deviation || null,
+    grade_score: score.grade_score || null,
+    total_students: score.total_students || null,
+    rank_grade: score.rank_grade || null,
+  };
+
+  let { data, error } = await supabase
+    .from("student_school_scores")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+    ({ data, error } = await supabase
+      .from("student_school_scores")
+      .insert(fallbackPayload)
+      .select("id")
+      .single());
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 생성 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, scoreId: data?.id };
+}
+
+/**
+ * 모의고사 성적 생성
+ */
+export async function createMockScore(
+  score: {
+    tenant_id?: string | null;
+    student_id: string;
+    grade: number;
+    subject_group: string;
+    exam_type: string;
+    subject_name?: string | null;
+    raw_score?: number | null;
+    standard_score?: number | null;
+    percentile?: number | null;
+    grade_score?: number | null;
+    exam_round?: string | null;
+    test_date?: string | null;
+  }
+): Promise<{ success: boolean; scoreId?: string; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload = {
+    tenant_id: score.tenant_id || null,
+    student_id: score.student_id,
+    grade: score.grade,
+    subject_group: score.subject_group,
+    exam_type: score.exam_type,
+    subject_name: score.subject_name || null,
+    raw_score: score.raw_score || null,
+    standard_score: score.standard_score || null,
+    percentile: score.percentile || null,
+    grade_score: score.grade_score || null,
+    exam_round: score.exam_round || null,
+    test_date: score.test_date || null,
+  };
+
+  let { data, error } = await supabase
+    .from("student_mock_scores")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+    ({ data, error } = await supabase
+      .from("student_mock_scores")
+      .insert(fallbackPayload)
+      .select("id")
+      .single());
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 모의고사 성적 생성 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, scoreId: data?.id };
+}
+
+/**
+ * 내신 성적 업데이트
+ */
+export async function updateSchoolScore(
+  scoreId: string,
+  studentId: string,
+  updates: Partial<Omit<SchoolScore, "id" | "student_id" | "created_at">>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload: Record<string, any> = {};
+  if (updates.grade !== undefined) payload.grade = updates.grade;
+  if (updates.semester !== undefined) payload.semester = updates.semester;
+  if (updates.subject_group !== undefined) payload.subject_group = updates.subject_group;
+  if (updates.subject_type !== undefined) payload.subject_type = updates.subject_type;
+  if (updates.subject_name !== undefined) payload.subject_name = updates.subject_name;
+  if (updates.credit_hours !== undefined) payload.credit_hours = updates.credit_hours;
+  if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
+  if (updates.subject_average !== undefined) payload.subject_average = updates.subject_average;
+  if (updates.standard_deviation !== undefined) payload.standard_deviation = updates.standard_deviation;
+  if (updates.grade_score !== undefined) payload.grade_score = updates.grade_score;
+  if (updates.total_students !== undefined) payload.total_students = updates.total_students;
+  if (updates.rank_grade !== undefined) payload.rank_grade = updates.rank_grade;
+
+  let { error } = await supabase
+    .from("student_school_scores")
+    .update(payload)
+    .eq("id", scoreId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase
+      .from("student_school_scores")
+      .update(payload)
+      .eq("id", scoreId));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 업데이트 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 모의고사 성적 업데이트
+ */
+export async function updateMockScore(
+  scoreId: string,
+  studentId: string,
+  updates: Partial<Omit<MockScore, "id" | "student_id" | "created_at">>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload: Record<string, any> = {};
+  if (updates.grade !== undefined) payload.grade = updates.grade;
+  if (updates.subject_group !== undefined) payload.subject_group = updates.subject_group;
+  if (updates.exam_type !== undefined) payload.exam_type = updates.exam_type;
+  if (updates.subject_name !== undefined) payload.subject_name = updates.subject_name;
+  if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
+  if (updates.standard_score !== undefined) payload.standard_score = updates.standard_score;
+  if (updates.percentile !== undefined) payload.percentile = updates.percentile;
+  if (updates.grade_score !== undefined) payload.grade_score = updates.grade_score;
+  if (updates.exam_round !== undefined) payload.exam_round = updates.exam_round;
+  if (updates.test_date !== undefined) payload.test_date = updates.test_date;
+
+  let { error } = await supabase
+    .from("student_mock_scores")
+    .update(payload)
+    .eq("id", scoreId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase
+      .from("student_mock_scores")
+      .update(payload)
+      .eq("id", scoreId));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 모의고사 성적 업데이트 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 내신 성적 삭제
+ */
+export async function deleteSchoolScore(
+  scoreId: string,
+  studentId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  let { error } = await supabase
+    .from("student_school_scores")
+    .delete()
+    .eq("id", scoreId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase.from("student_school_scores").delete().eq("id", scoreId));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 삭제 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 모의고사 성적 삭제
+ */
+export async function deleteMockScore(
+  scoreId: string,
+  studentId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  let { error } = await supabase
+    .from("student_mock_scores")
+    .delete()
+    .eq("id", scoreId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase.from("student_mock_scores").delete().eq("id", scoreId));
+  }
+
+  if (error) {
+    console.error("[data/studentScores] 모의고사 성적 삭제 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}

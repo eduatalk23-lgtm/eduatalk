@@ -1,0 +1,227 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import type { MockScoreRow } from "../_utils/scoreQueries";
+
+type MockExamTrendSectionProps = {
+  mockScores: MockScoreRow[];
+};
+
+type MetricType = "percentile" | "grade_score" | "raw_score";
+
+export function MockExamTrendSection({
+  mockScores,
+}: MockExamTrendSectionProps) {
+  const [metric, setMetric] = useState<MetricType>("percentile");
+
+  // exam_round별로 데이터 그룹화
+  const chartData = React.useMemo(() => {
+    const roundMap = new Map<string, MockScoreRow[]>();
+
+    mockScores.forEach((score) => {
+      if (!score.exam_round) return;
+      const round = score.exam_round;
+      if (!roundMap.has(round)) {
+        roundMap.set(round, []);
+      }
+      roundMap.get(round)!.push(score);
+    });
+
+    // exam_round 순서 정의
+    const roundOrder = ["3월", "4월", "6월", "9월", "11월", "사설"];
+    const sortedRounds = Array.from(roundMap.entries()).sort((a, b) => {
+      const indexA = roundOrder.indexOf(a[0]);
+      const indexB = roundOrder.indexOf(b[0]);
+      if (indexA === -1 && indexB === -1) return 0;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+
+    // exam_type별로 평균 계산
+    const typeMap = new Map<string, number[]>();
+
+    sortedRounds.forEach(([round, scores]) => {
+      scores.forEach((score) => {
+        const type = score.exam_type;
+        let value: number | null = null;
+
+        if (metric === "percentile" && score.percentile !== null) {
+          value = score.percentile;
+        } else if (metric === "grade_score" && score.grade_score !== null) {
+          value = score.grade_score;
+        } else if (metric === "raw_score" && score.raw_score !== null) {
+          value = score.raw_score;
+        }
+
+        if (value !== null) {
+          if (!typeMap.has(`${round}_${type}`)) {
+            typeMap.set(`${round}_${type}`, []);
+          }
+          typeMap.get(`${round}_${type}`)!.push(value);
+        }
+      });
+    });
+
+    // 차트 데이터 생성
+    const result: Array<Record<string, number | null | string>> = [];
+
+    sortedRounds.forEach(([round]) => {
+      const dataPoint: Record<string, number | null | string> = { round };
+      const types = ["평가원", "교육청", "사설"];
+
+      types.forEach((type) => {
+        const key = `${round}_${type}`;
+        const values = typeMap.get(key);
+        if (values && values.length > 0) {
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          dataPoint[type] = Number(avg.toFixed(1));
+        } else {
+          dataPoint[type] = null;
+        }
+      });
+
+      result.push(dataPoint);
+    });
+
+    return result;
+  }, [mockScores, metric]);
+
+  const hasData = mockScores.length > 0 && chartData.length > 0;
+
+  if (!hasData) {
+    return (
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+        <div className="mx-auto max-w-md">
+          <div className="mb-4 text-6xl">📊</div>
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+            모의고사 성적 트렌드 데이터가 없습니다
+          </h3>
+          <p className="text-sm text-gray-500">
+            모의고사 성적을 등록하면 변화 그래프가 표시됩니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const metricLabel =
+    metric === "percentile"
+      ? "백분위"
+      : metric === "grade_score"
+      ? "등급"
+      : "원점수";
+
+  const yAxisDomain =
+    metric === "percentile"
+      ? [0, 100]
+      : metric === "grade_score"
+      ? [1, 9]
+      : undefined;
+
+  const yAxisReversed = metric === "grade_score";
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900">
+          모의고사 성적 트렌드
+        </h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setMetric("percentile")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              metric === "percentile"
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            백분위
+          </button>
+          <button
+            onClick={() => setMetric("grade_score")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              metric === "grade_score"
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            등급
+          </button>
+          <button
+            onClick={() => setMetric("raw_score")}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              metric === "raw_score"
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            원점수
+          </button>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="round" />
+          <YAxis
+            domain={yAxisDomain}
+            reversed={yAxisReversed}
+            label={{
+              value: metricLabel,
+              angle: -90,
+              position: "insideLeft",
+            }}
+          />
+          <Tooltip
+            formatter={(value: any) => {
+              if (value === null || value === undefined) return "데이터 없음";
+              if (metric === "percentile") return `${value}%`;
+              if (metric === "grade_score") return `${value}등급`;
+              return value;
+            }}
+          />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey="평가원"
+            stroke="#6366f1"
+            strokeWidth={2}
+            name="평가원"
+            dot={{ r: 4 }}
+            connectNulls={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="교육청"
+            stroke="#8b5cf6"
+            strokeWidth={2}
+            name="교육청"
+            dot={{ r: 4 }}
+            connectNulls={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="사설"
+            stroke="#ec4899"
+            strokeWidth={2}
+            name="사설"
+            dot={{ r: 4 }}
+            connectNulls={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+

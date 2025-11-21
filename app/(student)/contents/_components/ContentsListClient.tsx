@@ -1,0 +1,128 @@
+"use client";
+
+import Link from "next/link";
+import { ContentCard } from "./ContentCard";
+import { Pagination } from "./Pagination";
+import { useSelection } from "./SelectionContext";
+import {
+  deleteBook,
+  deleteLecture,
+} from "@/app/(student)/actions/contentActions";
+
+type TabKey = "books" | "lectures";
+
+type ContentListItem = {
+  id: string;
+  title: string;
+  [key: string]: any;
+};
+
+type Row = { label: string; value: string | number | null };
+
+type ContentsListClientProps = {
+  list: ContentListItem[];
+  activeTab: TabKey;
+  deleteBook: (id: string) => Promise<void>;
+  deleteLecture: (id: string) => Promise<void>;
+};
+
+function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
+  if (tab === "books") {
+    return [
+      { label: "개정교육과정", value: item.revision },
+      { label: "학년/학기", value: item.semester },
+      { label: "교과", value: item.subject_category },
+      { label: "과목", value: item.subject },
+      { label: "출판사", value: item.publisher },
+      { label: "난이도", value: item.difficulty_level },
+      {
+        label: "총 페이지",
+        value: item.total_pages ? `${item.total_pages}p` : null,
+      },
+    ];
+  }
+
+  if (tab === "lectures") {
+    return [
+      { label: "개정교육과정", value: item.revision },
+      { label: "학년/학기", value: item.semester },
+      { label: "교과", value: item.subject_category },
+      { label: "과목", value: item.subject },
+      { label: "플랫폼", value: item.platform },
+      { label: "난이도", value: item.difficulty_level },
+      {
+        label: "총 회차",
+        value: item.total_episodes ? `${item.total_episodes}회` : null,
+      },
+      {
+        label: "재생 시간",
+        value: item.duration ? `${item.duration}분` : null,
+      },
+    ];
+  }
+
+  return [];
+}
+
+function getSubText(tab: TabKey, item: ContentListItem): string {
+  if (tab === "books") return item.publisher || "출판사 정보 없음";
+  if (tab === "lectures") return item.platform || "플랫폼 정보 없음";
+  return "";
+}
+
+export function ContentsListClient({
+  list,
+  activeTab,
+  deleteBook,
+  deleteLecture,
+}: ContentsListClientProps) {
+  const { selectedIds, select, selectAll } = useSelection();
+
+  const allIds = list.map((item) => item.id);
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
+  const someSelected = allIds.some((id) => selectedIds.has(id));
+
+  return (
+    <div>
+      {/* 전체 선택 체크박스 */}
+      {list.length > 0 && (
+        <div className="mb-3 flex items-center gap-2 px-1">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            ref={(input) => {
+              if (input) {
+                input.indeterminate = someSelected && !allSelected;
+              }
+            }}
+            onChange={(e) => selectAll(e.target.checked, allIds)}
+            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <label 
+            className="text-sm font-medium text-gray-700 cursor-pointer"
+            onClick={() => selectAll(!allSelected, allIds)}
+          >
+            전체 선택
+          </label>
+        </div>
+      )}
+
+      <ul className="grid gap-4 mb-6">
+        {list.map((item) => (
+          <ContentCard
+            key={item.id}
+            item={item}
+            activeTab={activeTab}
+            onDelete={activeTab === "books" ? deleteBook : deleteLecture}
+            detailRows={getDetailRows(activeTab, item)}
+            subText={getSubText(activeTab, item)}
+            linkedBook={(item as any).linkedBook}
+            isSelected={selectedIds.has(item.id)}
+            onSelect={(checked) => select(item.id, checked)}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+

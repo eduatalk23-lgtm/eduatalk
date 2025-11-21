@@ -1,0 +1,95 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+
+type TabKey =
+  | "basic"
+  | "plan"
+  | "content"
+  | "score"
+  | "session"
+  | "analysis"
+  | "consulting";
+
+type Tab = {
+  key: TabKey;
+  label: string;
+  icon: string;
+};
+
+const tabs: Tab[] = [
+  { key: "basic", label: "기본정보", icon: "👤" },
+  { key: "plan", label: "학습계획", icon: "📅" },
+  { key: "content", label: "콘텐츠", icon: "📚" },
+  { key: "score", label: "성적", icon: "📊" },
+  { key: "session", label: "학습기록", icon: "⏱️" },
+  { key: "analysis", label: "분석 리포트", icon: "📈" },
+  { key: "consulting", label: "상담노트", icon: "📝" },
+];
+
+export function StudentDetailTabs({
+  defaultTab = "basic",
+  children,
+}: {
+  defaultTab?: TabKey;
+  children: React.ReactNode;
+}) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabFromUrl = (searchParams.get("tab") as TabKey) || defaultTab;
+  const [activeTab, setActiveTab] = useState<TabKey>(tabFromUrl);
+
+  useEffect(() => {
+    const tab = (searchParams.get("tab") as TabKey) || defaultTab;
+    setActiveTab(tab);
+  }, [searchParams, defaultTab]);
+
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+
+  return (
+    <div>
+      {/* 탭 네비게이션 */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition ${
+                activeTab === tab.key
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              }`}
+            >
+              <span className="mr-2">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* 탭 컨텐츠 */}
+      <div>
+        {React.Children.map(children, (child) => {
+          if (
+            React.isValidElement(child) &&
+            typeof child.props === "object" &&
+            child.props !== null &&
+            "tab" in child.props &&
+            (child.props as { tab?: TabKey }).tab === activeTab
+          ) {
+            return child;
+          }
+          return null;
+        })}
+      </div>
+    </div>
+  );
+}
+

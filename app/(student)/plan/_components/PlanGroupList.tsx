@@ -1,0 +1,159 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { Trash2, CheckSquare, Square } from "lucide-react";
+import { PlanGroup } from "@/lib/types/plan";
+import { PlanGroupListItem } from "./PlanGroupListItem";
+import { PlanGroupBulkDeleteDialog } from "./PlanGroupBulkDeleteDialog";
+
+type PlanGroupListProps = {
+  groups: PlanGroup[];
+  planCounts: Map<string, number>; // groupId -> 플랜 개수
+  planProgressData: Map<string, { completedCount: number; totalCount: number }>; // groupId -> 진행 상황
+};
+
+export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGroupListProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  const handleToggleSelect = (groupId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === groups.length) {
+      // 전체 해제
+      setSelectedIds(new Set());
+    } else {
+      // 전체 선택
+      setSelectedIds(new Set(groups.map((g) => g.id)));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) {
+      return;
+    }
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteComplete = () => {
+    setSelectedIds(new Set());
+    setBulkDeleteDialogOpen(false);
+  };
+
+  const selectedGroups = groups.filter((g) => selectedIds.has(g.id));
+  const selectedGroupNames = selectedGroups.map((g) => g.name);
+
+  if (groups.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+        <div className="mx-auto flex max-w-md flex-col gap-6">
+          <div className="text-6xl">📋</div>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-gray-900">
+              등록된 플랜 그룹이 없습니다
+            </h3>
+            <p className="text-sm text-gray-500">
+              새로운 플랜 그룹을 만들어 기간별 학습 계획을 세워보세요.
+            </p>
+          </div>
+          <Link
+            href="/plan/new-group"
+            className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+          >
+            플랜 그룹 생성하기
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const allSelected = selectedIds.size === groups.length && groups.length > 0;
+
+  return (
+    <>
+      {/* 다중 선택 헤더 */}
+      {groups.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+            title={allSelected ? "전체 해제" : "전체 선택"}
+          >
+            {allSelected ? (
+              <CheckSquare className="h-4 w-4" />
+            ) : (
+              <Square className="h-4 w-4" />
+            )}
+            <span>{allSelected ? "전체 해제" : "전체 선택"}</span>
+          </button>
+
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">
+                {selectedIds.size}개 선택됨
+              </span>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                title="선택 삭제"
+              >
+                <Trash2 className="h-4 w-4" />
+                선택 삭제
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {groups.map((group) => {
+          const planCount = planCounts.get(group.id) || 0;
+          const hasPlans = planCount > 0;
+          const isSelected = selectedIds.has(group.id);
+          const progressData = planProgressData.get(group.id);
+          const completedCount = progressData?.completedCount || 0;
+          const totalCount = progressData?.totalCount || planCount;
+          
+          return (
+            <PlanGroupListItem
+              key={group.id}
+              group={group}
+              planCount={planCount}
+              hasPlans={hasPlans}
+              completedCount={completedCount}
+              totalCount={totalCount}
+              isSelected={isSelected}
+              onToggleSelect={() => handleToggleSelect(group.id)}
+            />
+          );
+        })}
+      </ul>
+
+      <PlanGroupBulkDeleteDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setBulkDeleteDialogOpen(open);
+          if (!open) {
+            setSelectedIds(new Set());
+          }
+        }}
+        groupIds={Array.from(selectedIds)}
+        groupNames={selectedGroupNames}
+      />
+    </>
+  );
+}
+
