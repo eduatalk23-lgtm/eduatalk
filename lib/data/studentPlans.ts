@@ -26,6 +26,7 @@ export type Plan = {
   pause_count?: number | null;
   // 플랜 메타데이터 필드
   plan_number?: number | null;
+  sequence?: number | null; // 플랜 그룹 내에서 같은 콘텐츠의 회차 번호
   day_type?: string | null;
   week?: number | null;
   day?: number | null;
@@ -64,7 +65,7 @@ export async function getPlansForStudent(
     supabase
       .from("student_plan")
       .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,created_at,updated_at"
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,created_at,updated_at"
       )
       .eq("student_id", filters.studentId);
 
@@ -310,7 +311,7 @@ export async function getPlanById(
     supabase
       .from("student_plan")
       .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,created_at,updated_at"
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,created_at,updated_at"
       )
       .eq("id", planId)
       .eq("student_id", studentId);

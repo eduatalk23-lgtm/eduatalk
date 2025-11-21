@@ -198,10 +198,10 @@ export default async function PlanCalendarPage({
       const contentSubjectCategory = plan.content_subject_category || contentSubjectInfo?.subjectCategory || null;
       const contentSubject = plan.content_subject || contentSubjectInfo?.subject || null;
       
-      // 플랜 회차 정보 (plan_number 사용)
+      // 플랜 회차 정보 (sequence 사용)
       let contentEpisode: string | null = null;
-      if (plan.plan_number !== null && plan.plan_number !== undefined) {
-        contentEpisode = `${plan.plan_number}회차`;
+      if (plan.sequence !== null && plan.sequence !== undefined) {
+        contentEpisode = `${plan.sequence}회차`;
       }
       
       return {

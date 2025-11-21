@@ -2696,7 +2696,7 @@ async function _generatePlansFromGroup(
 
       // 각 content_id별로 회차 계산
       const sequenceUpdates: Array<{ id: string; sequence: number }> = [];
-      
+
       for (const [contentId, contentPlans] of plansByContent.entries()) {
         // 날짜와 block_index 순으로 정렬
         const sortedPlans = [...contentPlans].sort((a, b) => {
@@ -2713,7 +2713,7 @@ async function _generatePlansFromGroup(
 
         for (const plan of sortedPlans) {
           const pn = plan.plan_number;
-          
+
           if (pn === null) {
             // plan_number가 null이면 개별 카운트
             planSequenceMap.set(plan.id, currentSequence);
@@ -2723,7 +2723,9 @@ async function _generatePlansFromGroup(
             if (!seenPlanNumbers.has(pn)) {
               seenPlanNumbers.add(pn);
               // 같은 plan_number를 가진 모든 플랜에 같은 회차 부여
-              const plansWithSameNumber = sortedPlans.filter((p) => p.plan_number === pn);
+              const plansWithSameNumber = sortedPlans.filter(
+                (p) => p.plan_number === pn
+              );
               const sequence = currentSequence;
               plansWithSameNumber.forEach((p) => {
                 planSequenceMap.set(p.id, sequence);
