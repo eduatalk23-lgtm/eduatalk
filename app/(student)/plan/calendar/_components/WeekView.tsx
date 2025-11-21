@@ -171,20 +171,18 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
             >
               {/* 날짜 헤더 */}
               <div className="mb-1.5 flex items-center justify-between">
-                <div className="flex flex-col gap-0.5">
-                  <div className={`text-lg font-bold ${boldTextColorClass}`}>
-                    {formatDate(date)}
-                  </div>
-                  {/* 학습일/복습일일 때 아이콘 + 텍스트 표시 */}
-                  {(isStudyDay || isReviewDay) && dayTypeInfo && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs">{dayTypeInfo.icon}</span>
-                      <span className={`text-xs font-medium ${textColorClass}`}>
-                        {dayTypeInfo.label}
-                      </span>
-                    </div>
-                  )}
+                <div className={`text-lg font-bold ${boldTextColorClass}`}>
+                  {formatDate(date)}
                 </div>
+                {/* 학습일/복습일일 때 아이콘 + 텍스트 표시 */}
+                {(isStudyDay || isReviewDay) && dayTypeInfo && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs">{dayTypeInfo.icon}</span>
+                    <span className={`text-xs font-medium ${textColorClass}`}>
+                      {dayTypeInfo.label}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* 플랜 및 학원일정 통계 */}
