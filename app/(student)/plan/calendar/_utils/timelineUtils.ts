@@ -238,7 +238,7 @@ export function getTimeSlotColorClass(type: TimeSlotType): string {
 export function getTimeSlotIcon(type: TimeSlotType): string {
   switch (type) {
     case "학습시간":
-      return "📚";
+      return "⏰"; // 콘텐츠 아이콘(📚, 🎧, 📝)과 구분하기 위해 시계 아이콘 사용
     case "점심시간":
       return "🍽️";
     case "학원일정":
