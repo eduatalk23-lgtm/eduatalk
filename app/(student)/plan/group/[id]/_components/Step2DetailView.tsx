@@ -9,16 +9,6 @@ type Step2DetailViewProps = {
 };
 
 export function Step2DetailView({ group, exclusions, academySchedules }: Step2DetailViewProps) {
-  // scheduler_options에서 time_settings 추출
-  const schedulerOptions = (group.scheduler_options as any) || {};
-  const timeSettings = {
-    lunch_time: schedulerOptions.lunch_time,
-    camp_study_hours: schedulerOptions.camp_study_hours,
-    camp_self_study_hours: schedulerOptions.camp_self_study_hours,
-    designated_holiday_hours: schedulerOptions.designated_holiday_hours,
-    use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
-  };
-
   return (
     <div className="space-y-6">
       <div>
@@ -27,23 +17,6 @@ export function Step2DetailView({ group, exclusions, academySchedules }: Step2De
           학습 시간 블록과 제외일, 학원 일정을 확인할 수 있습니다.
         </p>
       </div>
-
-      {/* 1730 Timetable 전용 설정 표시 */}
-      {group.scheduler_type === "1730_timetable" && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-gray-900">1730 Timetable 전용 설정</h3>
-          <div className="space-y-2 text-sm text-gray-700">
-            {timeSettings.use_self_study_with_blocks !== undefined && (
-              <div className="flex items-center gap-2">
-                <span className="font-medium">자율학습시간 사용 가능:</span>
-                <span className={timeSettings.use_self_study_with_blocks ? "text-green-600" : "text-gray-500"}>
-                  {timeSettings.use_self_study_with_blocks ? "✓ 사용 가능" : "✗ 사용 안 함"}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* 블록 세트 정보 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
