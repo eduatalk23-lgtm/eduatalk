@@ -231,7 +231,7 @@ function ScheduleItem({
             </div>
             {/* 시간 슬롯에서 각 타입별 시간 계산 (시간 단위) */}
             {(() => {
-              const calculateTimeFromSlots = (type: "자율학습" | "이동시간" | "학원일정"): number => {
+              const calculateTimeFromSlots = (type: "학습시간" | "자율학습" | "이동시간" | "학원일정"): number => {
                 if (!schedule.time_slots) return 0;
                 const minutes = schedule.time_slots
                   .filter((slot) => slot.type === type)
@@ -247,6 +247,9 @@ function ScheduleItem({
 
               // 지정휴일인 경우 study_hours가 자율학습 시간이므로 별도 계산 불필요
               const isDesignatedHoliday = schedule.day_type === "지정휴일";
+              
+              // 순수 학습 시간: time_slots에서 "학습시간" 타입만 계산
+              const studyHours = calculateTimeFromSlots("학습시간");
               const selfStudyHours = isDesignatedHoliday 
                 ? schedule.study_hours 
                 : calculateTimeFromSlots("자율학습");
@@ -267,7 +270,7 @@ function ScheduleItem({
                     <>
                       <div className="flex items-center gap-4">
                         <span className="font-medium">
-                          학습 시간: {formatNumber(schedule.study_hours)}시간
+                          학습 시간: {formatNumber(studyHours)}시간
                         </span>
                         {selfStudyHours > 0 && (
                           <span>
@@ -948,7 +951,23 @@ function WeekSection({
   const weekExclusionDays = schedules.filter((s) => 
     s.day_type === "휴가" || s.day_type === "개인일정" || s.day_type === "지정휴일"
   ).length;
-  const weekTotalHours = schedules.reduce((sum, s) => sum + s.study_hours, 0);
+  
+  // 주차별 순수 학습 시간 계산 (time_slots에서 "학습시간" 타입만)
+  const weekTotalHours = schedules.reduce((sum, s) => {
+    // 지정휴일은 학습 시간이 없으므로 제외
+    if (s.day_type === "지정휴일") return sum;
+    if (!s.time_slots) return sum;
+    const studyMinutes = s.time_slots
+      .filter((slot) => slot.type === "학습시간")
+      .reduce((slotSum, slot) => {
+        const [startHour, startMin] = slot.start.split(":").map(Number);
+        const [endHour, endMin] = slot.end.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        return slotSum + (endMinutes - startMinutes);
+      }, 0);
+    return sum + studyMinutes / 60;
+  }, 0);
   
   // 주차별 자율학습 시간 계산
   // 지정휴일의 경우 study_hours가 이미 자율학습 시간을 포함하므로 중복 계산 방지
