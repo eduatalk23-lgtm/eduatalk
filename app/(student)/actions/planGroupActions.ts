@@ -22,7 +22,7 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
-import { PlanGroupCreationData, AcademySchedule } from "@/lib/types/plan";
+import { PlanGroupCreationData, AcademySchedule, PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import {
   copyMasterBookToStudent,
@@ -769,7 +769,7 @@ async function _syncTimeManagementExclusions(
   groupId: string,
   periodStart: string,
   periodEnd: string
-): Promise<{ count: number }> {
+): Promise<{ count: number; exclusions: Array<{ exclusion_date: string; exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타"; reason?: string }> }> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
@@ -830,7 +830,7 @@ export const syncTimeManagementExclusionsAction = withErrorHandling(_syncTimeMan
 /**
  * 시간 관리 데이터 반영 (학원일정)
  */
-async function _syncTimeManagementAcademySchedules(groupId: string): Promise<{ count: number }> {
+async function _syncTimeManagementAcademySchedules(groupId: string): Promise<{ count: number; academySchedules: Array<{ day_of_week: number; start_time: string; end_time: string; academy_name?: string; subject?: string }> }> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
@@ -1246,7 +1246,7 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
         weekDatesMap.set(daily.week_number, []);
       }
       // 제외일이 아닌 날짜만 주차에 포함 (1730 Timetable의 경우)
-      if (daily.day_type && daily.day_type !== "휴가" && daily.day_type !== "개인사정" && daily.day_type !== "지정휴일") {
+      if (daily.day_type && daily.day_type !== "휴가" && daily.day_type !== "개인일정" && daily.day_type !== "지정휴일") {
         weekDatesMap.get(daily.week_number)!.push(daily.date);
       }
     }
@@ -2244,7 +2244,7 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
         const cacheKey = `${planPayload.content_type}:${planPayload.content_id}:${planPayload.planned_start_page_or_time}`;
         
         if (chapterCache.has(cacheKey)) {
-          planPayload.chapter = chapterCache.get(cacheKey);
+          planPayload.chapter = chapterCache.get(cacheKey) ?? null;
           return;
         }
 
@@ -2386,7 +2386,7 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
 
   // 15. 플랜 생성 완료 시 자동으로 saved 상태로 변경
   // draft 상태에서 플랜이 생성되면 saved 상태로 변경
-  if (group.status === "draft") {
+  if ((group.status as PlanStatus) === "draft") {
     try {
       await updatePlanGroupStatus(groupId, "saved");
     } catch (error) {
@@ -2581,7 +2581,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         weekDatesMap.set(daily.week_number, []);
       }
       // 제외일이 아닌 날짜만 주차에 포함 (1730 Timetable의 경우)
-      if (daily.day_type && daily.day_type !== "휴가" && daily.day_type !== "개인사정" && daily.day_type !== "지정휴일") {
+      if (daily.day_type && daily.day_type !== "휴가" && daily.day_type !== "개인일정" && daily.day_type !== "지정휴일") {
         weekDatesMap.get(daily.week_number)!.push(daily.date);
       }
     }
@@ -3348,10 +3348,9 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const supabase = await createSupabaseServerClient();
 
   // 1. 플랜 그룹 정보 조회 (daily_schedule 포함)
-  // scheduler_options는 현재 테이블에 컬럼이 없으므로 제외
   const { data: group, error: groupError } = await supabase
     .from("plan_groups")
-    .select("period_start, period_end, block_set_id, scheduler_type, daily_schedule")
+    .select("period_start, period_end, block_set_id, scheduler_type, scheduler_options, daily_schedule")
     .eq("id", groupId)
     .eq("student_id", user.userId)
     .maybeSingle();
@@ -3760,6 +3759,20 @@ async function _getScheduleResultData(groupId: string): Promise<{
     }
   }
 
+  // dateTimeSlots 생성 (dailySchedule의 time_slots를 날짜별로 매핑)
+  const dateTimeSlots: Record<string, Array<{
+    type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
+    start: string;
+    end: string;
+    label?: string;
+  }>> = {};
+  
+  dailySchedule.forEach((daily) => {
+    if (daily.time_slots && daily.time_slots.length > 0) {
+      dateTimeSlots[daily.date] = daily.time_slots;
+    }
+  });
+
   return {
     plans: (plans || []).map((p) => ({
       id: p.id,
@@ -3778,6 +3791,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     schedulerOptions: group.scheduler_options || null,
     contents: Array.from(contentsMap.values()),
     blocks,
+    dateTimeSlots, // 날짜별 time_slots 매핑
     dailySchedule, // Step 2.5와 동일한 daily_schedule 구조
   };
 }
@@ -3862,6 +3876,15 @@ async function _addPlanExclusion(formData: FormData): Promise<void> {
         );
       }
     }
+  }
+
+  if (!targetGroupId) {
+    throw new AppError(
+      "제외일을 추가하려면 먼저 플랜 그룹을 생성해주세요.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
   }
 
   // 플랜 그룹별로 제외일 추가

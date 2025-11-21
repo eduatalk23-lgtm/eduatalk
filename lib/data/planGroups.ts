@@ -39,7 +39,7 @@ export async function getPlanGroupsForStudent(
     supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
       )
       .eq("student_id", filters.studentId);
 
@@ -115,7 +115,7 @@ export async function getPlanGroupById(
     supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
       )
       .eq("id", groupId)
       .eq("student_id", studentId)
