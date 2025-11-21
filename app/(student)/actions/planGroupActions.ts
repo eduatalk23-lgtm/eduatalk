@@ -3673,49 +3673,30 @@ async function _getScheduleResultData(groupId: string): Promise<{
             subject: a.subject || undefined,
             travel_time: a.travel_time || undefined,
           })),
-          {
-            scheduler_type: (group.scheduler_type || "자동스케줄러") as "1730_timetable" | "자동스케줄러",
-            scheduler_options: group.scheduler_options || null,
-            use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
-            enable_self_study_for_holidays: (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
-            enable_self_study_for_study_days: (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
-            lunch_time: (group.scheduler_options as any)?.lunch_time,
-            camp_study_hours: (group.scheduler_options as any)?.camp_study_hours,
-            camp_self_study_hours: (group.scheduler_options as any)?.camp_self_study_hours,
-            designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
-          };
-          
-          // 디버깅: 전달된 옵션 확인
-          console.log("[planGroupActions] calculateAvailableDates 옵션:", {
-            enable_self_study_for_holidays: options.enable_self_study_for_holidays,
-            enable_self_study_for_study_days: options.enable_self_study_for_study_days,
-            camp_self_study_hours: options.camp_self_study_hours,
-            designated_holiday_hours: options.designated_holiday_hours,
-            use_self_study_with_blocks: options.use_self_study_with_blocks,
-          });
-          
-          const scheduleResult = calculateAvailableDates(
-            group.period_start,
-            group.period_end,
-            baseBlocks.map((b) => ({
-              day_of_week: b.day_of_week,
-              start_time: b.start_time,
-              end_time: b.end_time,
-            })),
-            (exclusions || []).map((e) => ({
-              exclusion_date: e.exclusion_date,
-              exclusion_type: e.exclusion_type as "휴가" | "개인사정" | "휴일지정" | "기타",
-              reason: e.reason || undefined,
-            })),
-            (academySchedules || []).map((a) => ({
-              day_of_week: a.day_of_week,
-              start_time: a.start_time,
-              end_time: a.end_time,
-              academy_name: a.academy_name || undefined,
-              subject: a.subject || undefined,
-              travel_time: a.travel_time || undefined,
-            })),
-            options
+          (() => {
+            const options = {
+              scheduler_type: (group.scheduler_type || "자동스케줄러") as "1730_timetable" | "자동스케줄러",
+              scheduler_options: group.scheduler_options || null,
+              use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+              enable_self_study_for_holidays: (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
+              enable_self_study_for_study_days: (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
+              lunch_time: (group.scheduler_options as any)?.lunch_time,
+              camp_study_hours: (group.scheduler_options as any)?.camp_study_hours,
+              camp_self_study_hours: (group.scheduler_options as any)?.camp_self_study_hours,
+              designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
+            };
+            
+            // 디버깅: 전달된 옵션 확인
+            console.log("[planGroupActions] calculateAvailableDates 옵션:", {
+              enable_self_study_for_holidays: options.enable_self_study_for_holidays,
+              enable_self_study_for_study_days: options.enable_self_study_for_study_days,
+              camp_self_study_hours: options.camp_self_study_hours,
+              designated_holiday_hours: options.designated_holiday_hours,
+              use_self_study_with_blocks: options.use_self_study_with_blocks,
+            });
+            
+            return options;
+          })()
         );
 
         // daily_schedule 전체 정보 저장 (Step 2.5와 동일한 구조)
