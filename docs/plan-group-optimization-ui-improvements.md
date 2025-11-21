@@ -466,13 +466,16 @@ step2에서 "자율학습시간 사용 가능" 체크박스의 변경사항이 �
 ## 🎨 UI 개선: step7 자율 학습 시간 텍스트 제거
 
 ### 변경 사항
+
 step7의 시간 구성에서 자율학습 슬롯에 표시되던 "(자율 학습 시간)" 텍스트를 제거했습니다.
 
 ### 이유
+
 - 자율학습 슬롯은 이미 색상과 시간 범위로 구분되어 있어 추가 텍스트가 불필요합니다.
 - UI를 더 깔끔하게 만들기 위해 제거했습니다.
 
 ### 변경 파일
+
 - `app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView.tsx`
 
 ---

@@ -31,6 +31,22 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
       setError(null);
 
       try {
+        // scheduler_options에서 time_settings 추출
+        const schedulerOptions = (group.scheduler_options as any) || {};
+        const timeSettings = {
+          lunch_time: schedulerOptions.lunch_time,
+          camp_study_hours: schedulerOptions.camp_study_hours,
+          camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+          designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+          use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
+        };
+        
+        // time_settings가 모두 undefined가 아닌 경우에만 포함
+        const hasTimeSettings = Object.values(timeSettings).some(v => v !== undefined);
+        
+        // scheduler_options에서 time_settings 필드 제거
+        const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
+
         const response = await calculateScheduleAvailability({
           periodStart: group.period_start,
           periodEnd: group.period_end,
@@ -49,8 +65,8 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
             travel_time: s.travel_time,
           })),
           schedulerType: group.scheduler_type as "1730_timetable" | "자동스케줄러",
-          schedulerOptions: group.scheduler_options || undefined,
-          timeSettings: undefined,
+          schedulerOptions: Object.keys(schedulerOptionsWithoutTimeSettings).length > 0 ? schedulerOptionsWithoutTimeSettings : undefined,
+          timeSettings: hasTimeSettings ? timeSettings : undefined,
         });
 
         if (response.success && response.data) {
@@ -118,32 +134,65 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
       </div>
 
       {/* 요약 정보 */}
-      <div className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-6 sm:grid-cols-4">
-        <div>
-          <div className="text-xs font-medium text-gray-500">총 일수</div>
-          <div className="mt-1 text-2xl font-semibold text-gray-900">
-            {result.summary.total_days}
+      {(() => {
+        // 자율학습 시간 계산 (summary에 없으면 daily_schedule에서 계산)
+        const totalSelfStudyHours = result.summary.total_self_study_hours ?? 
+          (result.daily_schedule?.reduce((sum, day) => {
+            // 지정휴일인 경우 study_hours가 자율학습 시간이므로 그대로 사용
+            if (day.day_type === "지정휴일") {
+              return sum + day.study_hours;
+            }
+            // 일반 학습일/복습일의 경우 time_slots에서 자율학습 시간 계산
+            if (!day.time_slots) return sum;
+            const selfStudyMinutes = day.time_slots
+              .filter((slot) => slot.type === "자율학습")
+              .reduce((slotSum, slot) => {
+                const [startHour, startMin] = slot.start.split(":").map(Number);
+                const [endHour, endMin] = slot.end.split(":").map(Number);
+                const startMinutes = startHour * 60 + startMin;
+                const endMinutes = endHour * 60 + endMin;
+                return slotSum + (endMinutes - startMinutes);
+              }, 0);
+            return sum + selfStudyMinutes / 60;
+          }, 0) || 0);
+
+        return (
+          <div className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-6 sm:grid-cols-5">
+            <div>
+              <div className="text-xs font-medium text-gray-500">총 일수</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-900">
+                {result.summary.total_days}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium text-gray-500">학습일</div>
+              <div className="mt-1 text-2xl font-semibold text-blue-600">
+                {result.summary.total_study_days}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium text-gray-500">복습일</div>
+              <div className="mt-1 text-2xl font-semibold text-green-600">
+                {result.summary.total_review_days}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-medium text-gray-500">총 학습 시간</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-900">
+                {formatNumber(result.summary.total_study_hours)}시간
+              </div>
+            </div>
+            {totalSelfStudyHours > 0 && (
+              <div>
+                <div className="text-xs font-medium text-gray-500">자율학습 시간</div>
+                <div className="mt-1 text-2xl font-semibold text-yellow-600">
+                  {formatNumber(totalSelfStudyHours)}시간
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-        <div>
-          <div className="text-xs font-medium text-gray-500">학습일</div>
-          <div className="mt-1 text-2xl font-semibold text-blue-600">
-            {result.summary.total_study_days}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs font-medium text-gray-500">복습일</div>
-          <div className="mt-1 text-2xl font-semibold text-green-600">
-            {result.summary.total_review_days}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs font-medium text-gray-500">총 학습 시간</div>
-          <div className="mt-1 text-2xl font-semibold text-gray-900">
-            {formatNumber(result.summary.total_study_hours)}시간
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* 주차별 스케줄 (간단 버전) */}
       {result.daily_schedule && result.daily_schedule.length > 0 && (
@@ -169,10 +218,37 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
                     new Date(a.date).getTime() - new Date(b.date).getTime()
                   );
 
+                  // 주차별 자율학습 시간 계산
+                  const weekSelfStudyHours = days.reduce((sum, day) => {
+                    // 지정휴일인 경우 study_hours가 자율학습 시간이므로 그대로 사용
+                    if (day.day_type === "지정휴일") {
+                      return sum + day.study_hours;
+                    }
+                    // 일반 학습일/복습일의 경우 time_slots에서 자율학습 시간 계산
+                    if (!day.time_slots) return sum;
+                    const selfStudyMinutes = day.time_slots
+                      .filter((slot) => slot.type === "자율학습")
+                      .reduce((slotSum, slot) => {
+                        const [startHour, startMin] = slot.start.split(":").map(Number);
+                        const [endHour, endMin] = slot.end.split(":").map(Number);
+                        const startMinutes = startHour * 60 + startMin;
+                        const endMinutes = endHour * 60 + endMin;
+                        return slotSum + (endMinutes - startMinutes);
+                      }, 0);
+                    return sum + selfStudyMinutes / 60;
+                  }, 0);
+
                   return (
                     <div key={weekNum} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <div className="mb-2 text-sm font-semibold text-gray-900">
-                        {weekNum}주차
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {weekNum}주차
+                        </div>
+                        {weekSelfStudyHours > 0 && (
+                          <div className="text-xs text-gray-600">
+                            자율학습 {formatNumber(weekSelfStudyHours)}시간
+                          </div>
+                        )}
                       </div>
                       <div className="grid grid-cols-7 gap-2">
                         {sortedDays.map((day, dayIndex) => (
