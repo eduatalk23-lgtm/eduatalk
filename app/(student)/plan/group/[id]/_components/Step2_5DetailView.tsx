@@ -153,10 +153,11 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
           입력하신 정보를 바탕으로 계산된 학습 가능한 날짜와 시간입니다.
         </p>
         
-        {/* 1730 Timetable 전용 설정 표시 */}
-        {group.scheduler_type === "1730_timetable" && (
+        {/* 자율학습 시간 배정 설정 표시 */}
+        {(timeSettings.enable_self_study_for_holidays !== undefined || 
+          timeSettings.enable_self_study_for_study_days !== undefined) && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="mb-2 text-sm font-semibold text-gray-900">1730 Timetable 전용 설정</h3>
+            <h3 className="mb-2 text-sm font-semibold text-gray-900">자율학습 시간 배정 설정</h3>
             <div className="space-y-2 text-sm text-gray-700">
               {timeSettings.enable_self_study_for_holidays !== undefined && (
                 <div className="flex items-center gap-2">
@@ -177,6 +178,11 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
                   <span className={timeSettings.enable_self_study_for_study_days ? "text-green-600" : "text-gray-500"}>
                     {timeSettings.enable_self_study_for_study_days ? "✓ 활성화" : "✗ 비활성화"}
                   </span>
+                  {timeSettings.enable_self_study_for_study_days && timeSettings.camp_self_study_hours && (
+                    <span className="text-xs text-gray-600">
+                      ({timeSettings.camp_self_study_hours.start} ~ {timeSettings.camp_self_study_hours.end})
+                    </span>
+                  )}
                 </div>
               )}
             </div>
