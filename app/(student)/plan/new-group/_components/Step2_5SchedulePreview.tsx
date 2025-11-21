@@ -537,6 +537,21 @@ function WeekSection({ weekNum, schedules }: { weekNum: number | undefined; sche
     s.day_type === "휴가" || s.day_type === "개인일정" || s.day_type === "지정휴일"
   ).length;
   const weekTotalHours = schedules.reduce((sum, s) => sum + s.study_hours, 0);
+  
+  // 주차별 자율학습 시간 계산
+  const weekSelfStudyHours = schedules.reduce((sum, s) => {
+    if (!s.time_slots) return sum;
+    const selfStudyMinutes = s.time_slots
+      .filter((slot) => slot.type === "자율학습")
+      .reduce((slotSum, slot) => {
+        const [startHour, startMin] = slot.start.split(":").map(Number);
+        const [endHour, endMin] = slot.end.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        return slotSum + (endMinutes - startMinutes);
+      }, 0);
+    return sum + selfStudyMinutes / 60;
+  }, 0);
 
   // 날짜 순으로 정렬
   const sortedSchedules = [...schedules].sort((a, b) => 
@@ -567,6 +582,9 @@ function WeekSection({ weekNum, schedules }: { weekNum: number | undefined; sche
                   <span className="text-gray-500">제외일 {weekExclusionDays}일</span>
                 )}
                 <span>총 {formatNumber(weekTotalHours)}시간</span>
+                {weekSelfStudyHours > 0 && (
+                  <span>자율학습 {formatNumber(weekSelfStudyHours)}시간</span>
+                )}
               </div>
             </div>
           </div>
@@ -592,6 +610,25 @@ function ScheduleItem({ schedule }: { schedule: DailySchedule }) {
     const weekday = weekdays[date.getDay()];
     return `${dateStr} (${weekday})`;
   };
+
+  // 시간 슬롯에서 각 타입별 시간 계산 (시간 단위)
+  const calculateTimeFromSlots = (type: "자율학습" | "이동시간" | "학원일정"): number => {
+    if (!schedule.time_slots) return 0;
+    const minutes = schedule.time_slots
+      .filter((slot) => slot.type === type)
+      .reduce((sum, slot) => {
+        const [startHour, startMin] = slot.start.split(":").map(Number);
+        const [endHour, endMin] = slot.end.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        return sum + (endMinutes - startMinutes);
+      }, 0);
+    return minutes / 60;
+  };
+
+  const selfStudyHours = calculateTimeFromSlots("자율학습");
+  const travelHours = calculateTimeFromSlots("이동시간");
+  const academyHours = calculateTimeFromSlots("학원일정");
 
   const hasDetails =
     schedule.academy_schedules && schedule.academy_schedules.length > 0;
@@ -622,21 +659,26 @@ function ScheduleItem({ schedule }: { schedule: DailySchedule }) {
                 {dayTypeLabels[schedule.day_type] || schedule.day_type}
               </span>
             </div>
-            <div className="mt-2 flex items-center gap-4 text-xs text-gray-600">
-              <span className="font-medium">
-                학습 시간: {formatNumber(schedule.study_hours)}시간
-              </span>
-              {schedule.available_time_ranges.length > 0 && (
-                <span>
-                  {schedule.available_time_ranges
-                    .map((r) => `${r.start}~${r.end}`)
-                    .join(", ")}
+            <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600">
+              <div className="flex items-center gap-4">
+                <span className="font-medium">
+                  학습 시간: {formatNumber(schedule.study_hours)}시간
                 </span>
+                <span>
+                  자율 학습 시간: {formatNumber(selfStudyHours)}시간
+                </span>
+              </div>
+              {(travelHours > 0 || academyHours > 0) && (
+                <div className="flex items-center gap-4">
+                  {travelHours > 0 && (
+                    <span>이동시간: {formatNumber(travelHours)}시간</span>
+                  )}
+                  {academyHours > 0 && (
+                    <span>학원 시간: {formatNumber(academyHours)}시간</span>
+                  )}
+                </div>
               )}
             </div>
-            {schedule.note && (
-              <div className="mt-1 text-xs text-gray-500">{schedule.note}</div>
-            )}
           </div>
             {(hasDetails || hasExclusion || hasTimeSlots) && (
             <div className="flex-shrink-0">
