@@ -3590,8 +3590,13 @@ async function _getScheduleResultData(groupId: string): Promise<{
   }> = [];
 
   // 저장된 dailySchedule이 있는지 확인
-  if (group.daily_schedule && Array.isArray(group.daily_schedule) && group.daily_schedule.length > 0) {
-    // 저장된 데이터 사용
+  // 자율학습 시간 배정 옵션이 활성화되어 있으면 항상 재계산
+  const enableSelfStudyForHolidays = (group.scheduler_options as any)?.enable_self_study_for_holidays === true;
+  const enableSelfStudyForStudyDays = (group.scheduler_options as any)?.enable_self_study_for_study_days === true;
+  const hasSelfStudyOptions = enableSelfStudyForHolidays || enableSelfStudyForStudyDays;
+  
+  if (group.daily_schedule && Array.isArray(group.daily_schedule) && group.daily_schedule.length > 0 && !hasSelfStudyOptions) {
+    // 저장된 데이터 사용 (자율학습 시간 배정 옵션이 없을 때만)
     dailySchedule = group.daily_schedule as typeof dailySchedule;
   } else {
     // 저장된 데이터가 없으면 계산
