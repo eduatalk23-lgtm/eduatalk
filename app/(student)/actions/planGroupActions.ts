@@ -3696,6 +3696,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     planned_start_page_or_time: number | null;
     planned_end_page_or_time: number | null;
     completed_amount: number | null;
+    plan_number: number | null;
   }>;
   periodStart: string;
   periodEnd: string | null;
@@ -3802,7 +3803,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const { data: plans, error: plansError } = await supabase
     .from("student_plan")
     .select(
-      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount"
+      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number"
     )
     .eq("plan_group_id", groupId)
     .eq("student_id", user.userId)
@@ -4411,6 +4412,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
       planned_start_page_or_time: p.planned_start_page_or_time,
       planned_end_page_or_time: p.planned_end_page_or_time,
       completed_amount: p.completed_amount,
+      plan_number: p.plan_number ?? null,
     })),
     periodStart: group.period_start || "",
     periodEnd: group.period_end || "",

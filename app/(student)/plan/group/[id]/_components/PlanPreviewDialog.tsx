@@ -77,18 +77,55 @@ function formatLearningAmount(plan: PlanPreview): string {
   return `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
 }
 
-// 회차 계산 (같은 콘텐츠의 날짜 순서대로)
+// 회차 계산 (같은 콘텐츠의 날짜 순서대로, plan_number를 고려)
+// 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
 function calculateSequence(
   plans: PlanPreview[],
   currentIndex: number,
-  contentId: string
+  contentId: string,
+  planNumber: number | null
 ): number {
-  let sequence = 1;
-  for (let i = 0; i < currentIndex; i++) {
-    if (plans[i].content_id === contentId) {
-      sequence++;
+  // 같은 content_id를 가진 플랜들 중에서
+  // plan_number가 null이 아닌 경우, 같은 plan_number를 가진 첫 번째 플랜의 회차를 사용
+  // plan_number가 null인 경우, 날짜 순서대로 카운트
+  
+  if (planNumber !== null) {
+    // 같은 plan_number를 가진 첫 번째 플랜 찾기
+    const firstPlanWithSameNumber = plans.findIndex(
+      (p, idx) => 
+        p.content_id === contentId && 
+        p.plan_number === planNumber &&
+        idx < currentIndex
+    );
+    
+    if (firstPlanWithSameNumber >= 0) {
+      // 같은 plan_number를 가진 첫 번째 플랜의 회차 계산
+      return calculateSequence(plans, firstPlanWithSameNumber, contentId, null);
     }
   }
+  
+  // plan_number가 null이거나 같은 plan_number를 가진 첫 번째 플랜인 경우
+  // 날짜 순서대로 카운트
+  let sequence = 1;
+  const seenPlanNumbers = new Set<number | null>();
+  
+  for (let i = 0; i < currentIndex; i++) {
+    if (plans[i].content_id === contentId) {
+      const pn = plans[i].plan_number;
+      
+      // plan_number가 null이면 개별 카운트
+      if (pn === null) {
+        sequence++;
+      } else {
+        // plan_number가 있으면 같은 번호를 가진 그룹은 한 번만 카운트
+        if (!seenPlanNumbers.has(pn)) {
+          seenPlanNumbers.add(pn);
+          sequence++;
+        }
+      }
+    }
+  }
+  
   return sequence;
 }
 
@@ -287,7 +324,7 @@ export function PlanPreviewDialog({
                     const duration = plan.start_time && plan.end_time
                       ? timeToMinutes(plan.end_time) - timeToMinutes(plan.start_time)
                       : 0;
-                    const sequence = calculateSequence(sortedPlans, index, plan.content_id);
+                    const sequence = calculateSequence(sortedPlans, index, plan.content_id, plan.plan_number);
                     const dateObj = new Date(plan.plan_date);
                     const formattedDate = dateObj.toLocaleDateString("ko-KR", {
                       month: "short",

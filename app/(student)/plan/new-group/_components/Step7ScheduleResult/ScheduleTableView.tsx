@@ -38,6 +38,7 @@ type Plan = {
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   completed_amount: number | null;
+  plan_number: number | null;
 };
 
 type ScheduleTableViewProps = {
@@ -48,13 +49,29 @@ type ScheduleTableViewProps = {
 };
 
 // 전체 플랜에서 회차 계산을 위한 헬퍼
+// 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
 function calculateSequenceForPlan(
   plan: Plan,
   allPlans: Plan[]
 ): number {
-  // 같은 content_id를 가진 플랜들을 날짜와 planned_start_page_or_time 순으로 정렬
-  const sameContentPlans = allPlans
-    .filter((p) => p.content_id === plan.content_id)
+  // 같은 content_id를 가진 플랜들 필터링
+  const sameContentPlans = allPlans.filter((p) => p.content_id === plan.content_id);
+  
+  // plan_number가 null이 아닌 경우, 같은 plan_number를 가진 첫 번째 플랜의 회차를 사용
+  if (plan.plan_number !== null) {
+    const firstPlanWithSameNumber = sameContentPlans.find(
+      (p) => p.plan_number === plan.plan_number
+    );
+    
+    if (firstPlanWithSameNumber && firstPlanWithSameNumber.id !== plan.id) {
+      // 같은 plan_number를 가진 첫 번째 플랜의 회차 계산 (재귀 호출)
+      return calculateSequenceForPlan(firstPlanWithSameNumber, allPlans);
+    }
+  }
+  
+  // plan_number가 null이거나 같은 plan_number를 가진 첫 번째 플랜인 경우
+  // 날짜와 planned_start_page_or_time 순으로 정렬하여 회차 계산
+  const sortedPlans = sameContentPlans
     .sort((a, b) => {
       // 날짜 순
       if (a.plan_date !== b.plan_date) {
@@ -66,8 +83,30 @@ function calculateSequenceForPlan(
       return aStart - bStart;
     });
   
-  const index = sameContentPlans.findIndex((p) => p.id === plan.id);
-  return index >= 0 ? index + 1 : 1;
+  // plan_number를 고려하여 회차 계산
+  const seenPlanNumbers = new Set<number | null>();
+  let sequence = 1;
+  
+  for (const p of sortedPlans) {
+    if (p.id === plan.id) {
+      break;
+    }
+    
+    const pn = p.plan_number;
+    
+    // plan_number가 null이면 개별 카운트
+    if (pn === null) {
+      sequence++;
+    } else {
+      // plan_number가 있으면 같은 번호를 가진 그룹은 한 번만 카운트
+      if (!seenPlanNumbers.has(pn)) {
+        seenPlanNumbers.add(pn);
+        sequence++;
+      }
+    }
+  }
+  
+  return sequence;
 }
 
 const dayTypeLabels: Record<string, string> = {
