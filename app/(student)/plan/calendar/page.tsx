@@ -193,30 +193,24 @@ export default async function PlanCalendarPage({
     
     // 플랜에 콘텐츠 정보 추가 (denormalized 필드 사용 + 조회한 정보 보완)
     const plansWithContent = filteredPlans.map((plan) => {
-      // 콘텐츠 회차 정보 생성
-      let contentEpisode: string | null = null;
-      if (plan.planned_start_page_or_time !== null) {
-        if (plan.content_type === "lecture") {
-          contentEpisode = `${plan.planned_start_page_or_time}강`;
-        } else if (plan.content_type === "book" && plan.chapter) {
-          contentEpisode = plan.chapter;
-        } else if (plan.content_type === "custom") {
-          contentEpisode = `${plan.planned_start_page_or_time}회차`;
-        }
-      }
-      
-      // 교과 정보 (denormalized 필드 우선, 없으면 조회한 정보 사용)
+      // 교과 정보 (denormalized 필드 우선, 없으면 조회한 정보 사용, 둘 다 없으면 null)
       const contentSubjectInfo = plan.content_id ? contentSubjectMap.get(plan.content_id) : null;
       const contentSubjectCategory = plan.content_subject_category || contentSubjectInfo?.subjectCategory || null;
       const contentSubject = plan.content_subject || contentSubjectInfo?.subject || null;
+      
+      // 플랜 회차 정보 (plan_number 사용)
+      let contentEpisode: string | null = null;
+      if (plan.plan_number !== null && plan.plan_number !== undefined) {
+        contentEpisode = `${plan.plan_number}회차`;
+      }
       
       return {
         ...plan,
         contentTitle: plan.content_title || "제목 없음",
         contentSubject,
-        contentSubjectCategory, // 교과
+        contentSubjectCategory, // 교과 (항상 일관되게 표시)
         contentCategory: plan.content_category || null, // 유형
-        contentEpisode, // 콘텐츠 회차
+        contentEpisode, // 플랜 회차
       };
     });
 

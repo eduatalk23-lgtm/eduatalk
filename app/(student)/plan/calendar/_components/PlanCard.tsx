@@ -31,7 +31,7 @@ export function PlanCard({ plan, compact = false, showTime = true, showProgress 
         <div className="flex items-center gap-1 min-w-0">
           <span className="text-sm shrink-0">{contentTypeIcon}</span>
           <span className="truncate font-medium text-gray-900 min-w-0 flex-1">
-            {plan.contentSubjectCategory || plan.contentSubject || ""}
+            {plan.contentSubjectCategory || plan.contentSubject || "-"}
           </span>
           {plan.contentEpisode && (
             <span className="shrink-0 text-xs text-gray-600">
