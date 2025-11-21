@@ -46,15 +46,19 @@ export function TimelineItem({ slot, isLast = false }: TimelineItemProps) {
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{icon}</span>
-              <span className="text-lg font-bold text-gray-900">
-                {slot.start} ~ {slot.end}
-              </span>
+              {(slot.type === "학습시간" || slot.type === "학원일정") && (
+                <span className="text-lg font-bold text-gray-900">
+                  {slot.start} ~ {slot.end}
+                </span>
+              )}
             </div>
             <span className={`rounded-full px-4 py-1.5 text-xs font-bold shadow-sm ${
               slot.type === "학습시간"
                 ? "bg-blue-500 text-white"
                 : slot.type === "학원일정"
                 ? "bg-purple-500 text-white"
+                : slot.type === "자율학습"
+                ? "bg-green-500 text-white"
                 : "bg-orange-500 text-white"
             }`}>
               {slot.type}
@@ -107,10 +111,16 @@ export function TimelineItem({ slot, isLast = false }: TimelineItemProps) {
             </div>
           )}
 
-          {/* 특수 타임슬롯 (점심시간, 이동시간 등) */}
+          {/* 특수 타임슬롯 (점심시간, 이동시간, 자율학습 등) */}
           {slot.type !== "학습시간" && slot.type !== "학원일정" && (
             <div className="rounded-lg bg-white/60 p-3">
-              <div className="font-medium">{slot.label || slot.type}</div>
+              {slot.type === "점심시간" ? (
+                <div className="font-medium text-gray-900">맛있는 점심식사 드세요.</div>
+              ) : slot.type === "자율학습" ? (
+                <div className="font-medium text-gray-900">완료하지 못한 학습 또는 복습을 진행하세요.</div>
+              ) : (
+                <div className="font-medium">{slot.label || slot.type}</div>
+              )}
             </div>
           )}
         </div>
