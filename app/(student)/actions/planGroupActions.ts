@@ -1138,6 +1138,10 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
   }
 
   // calculateAvailableDates 호출하여 Step 2.5 스케줄 결과 가져오기
+  // scheduler_options에서 time_settings 추출
+  const schedulerOptions = (group.scheduler_options as any) || {};
+  const useSelfStudyWithBlocks = schedulerOptions.use_self_study_with_blocks ?? false;
+  
   const scheduleResult = calculateAvailableDates(
     group.period_start,
     group.period_end,
@@ -1161,8 +1165,15 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
     })),
     {
       scheduler_type: group.scheduler_type as "1730_timetable" | "자동스케줄러",
-      scheduler_options: (group as any).scheduler_options || null,
-      use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+      scheduler_options: {
+        study_days: schedulerOptions.study_days,
+        review_days: schedulerOptions.review_days,
+      },
+      lunch_time: schedulerOptions.lunch_time,
+      camp_study_hours: schedulerOptions.camp_study_hours,
+      camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+      designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+      use_self_study_with_blocks: useSelfStudyWithBlocks,
     }
   );
 
@@ -2478,6 +2489,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
   }
 
   // Step 2.5 스케줄 결과 가져오기
+  // scheduler_options에서 time_settings 추출
+  const schedulerOptions = (group.scheduler_options as any) || {};
+  const useSelfStudyWithBlocks = schedulerOptions.use_self_study_with_blocks ?? false;
+  
   const scheduleResult = calculateAvailableDates(
     group.period_start,
     group.period_end,
@@ -2501,7 +2516,15 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     })),
     {
       scheduler_type: group.scheduler_type || "1730_timetable",
-      use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+      scheduler_options: {
+        study_days: schedulerOptions.study_days,
+        review_days: schedulerOptions.review_days,
+      },
+      lunch_time: schedulerOptions.lunch_time,
+      camp_study_hours: schedulerOptions.camp_study_hours,
+      camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+      designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+      use_self_study_with_blocks: useSelfStudyWithBlocks,
     }
   );
 
@@ -3610,6 +3633,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
     if (baseBlocks.length > 0 && group.period_start && group.period_end) {
       try {
+        // scheduler_options에서 time_settings 추출
+        const schedulerOptions = (group.scheduler_options as any) || {};
+        const useSelfStudyWithBlocks = schedulerOptions.use_self_study_with_blocks ?? false;
+        
         const scheduleResult = calculateAvailableDates(
           group.period_start,
           group.period_end,
@@ -3633,8 +3660,15 @@ async function _getScheduleResultData(groupId: string): Promise<{
           })),
           {
             scheduler_type: (group.scheduler_type || "자동스케줄러") as "1730_timetable" | "자동스케줄러",
-            scheduler_options: group.scheduler_options || null,
-            use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+            scheduler_options: {
+              study_days: schedulerOptions.study_days,
+              review_days: schedulerOptions.review_days,
+            },
+            lunch_time: schedulerOptions.lunch_time,
+            camp_study_hours: schedulerOptions.camp_study_hours,
+            camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+            designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+            use_self_study_with_blocks: useSelfStudyWithBlocks,
           }
         );
 
