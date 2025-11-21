@@ -815,40 +815,83 @@ export function Step2BlocksAndExclusions({
                   defaultEnd="22:00"
                 />
 
-                <TimeRangeInput
-                  label="자율학습 항목"
-                  description="지정휴일의 학습 가능 시간대"
-                  value={data.time_settings?.designated_holiday_hours}
-                  onChange={(range) => updateTimeSetting("designated_holiday_hours", range)}
-                  defaultStart="13:00"
-                  defaultEnd="19:00"
-                />
+                {/* 자율학습 시간 배정 토글 */}
+                <div className="space-y-3">
+                  {/* 지정휴일 자율학습 시간 배정하기 토글 */}
+                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
+                    <input
+                      type="checkbox"
+                      id="enable_self_study_for_holidays"
+                      checked={data.time_settings?.enable_self_study_for_holidays ?? false}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        onUpdate({
+                          time_settings: {
+                            ...data.time_settings,
+                            enable_self_study_for_holidays: enabled,
+                            // 토글이 켜지면 기본 시간 설정, 꺼지면 undefined
+                            designated_holiday_hours: enabled
+                              ? data.time_settings?.designated_holiday_hours || { start: "13:00", end: "19:00" }
+                              : undefined,
+                          },
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                    />
+                    <label
+                      htmlFor="enable_self_study_for_holidays"
+                      className="flex-1 cursor-pointer text-sm text-gray-700"
+                    >
+                      <div className="font-medium">지정휴일 자율학습 시간 배정하기</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        지정휴일에 자율학습 시간을 배정합니다.
+                      </div>
+                    </label>
+                  </div>
 
-                {/* 자율학습시간 사용 가능 체크박스 */}
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
-                  <input
-                    type="checkbox"
-                    id="use_self_study_with_blocks"
-                    checked={data.time_settings?.use_self_study_with_blocks ?? false}
-                    onChange={(e) =>
-                      onUpdate({
-                        time_settings: {
-                          ...data.time_settings,
-                          use_self_study_with_blocks: e.target.checked,
-                        },
-                      })
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                  />
-                  <label
-                    htmlFor="use_self_study_with_blocks"
-                    className="flex-1 cursor-pointer text-sm text-gray-700"
-                  >
-                    <div className="font-medium">자율학습시간 사용 가능</div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      학생/등록 시간블록이 있으면 피해서 조율합니다. 자율학습시간을 시간블록과 함께 사용할 수 있습니다.
+                  {/* 지정휴일 시간 설정 (토글이 켜져있을 때만 표시) */}
+                  {data.time_settings?.enable_self_study_for_holidays && (
+                    <div className="ml-7">
+                      <TimeRangeInput
+                        label="지정휴일 자율학습 시간"
+                        description="지정휴일의 자율학습 시간대"
+                        value={data.time_settings?.designated_holiday_hours}
+                        onChange={(range) => updateTimeSetting("designated_holiday_hours", range)}
+                        defaultStart="13:00"
+                        defaultEnd="19:00"
+                      />
                     </div>
-                  </label>
+                  )}
+
+                  {/* 학습일/복습일 자율학습 시간 배정하기 토글 */}
+                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
+                    <input
+                      type="checkbox"
+                      id="enable_self_study_for_study_days"
+                      checked={data.time_settings?.enable_self_study_for_study_days ?? false}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        onUpdate({
+                          time_settings: {
+                            ...data.time_settings,
+                            enable_self_study_for_study_days: enabled,
+                            // 토글이 켜지면 기존 자율학습시간 사용 가능 설정 활성화
+                            use_self_study_with_blocks: enabled ? true : undefined,
+                          },
+                        });
+                      }}
+                      className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                    />
+                    <label
+                      htmlFor="enable_self_study_for_study_days"
+                      className="flex-1 cursor-pointer text-sm text-gray-700"
+                    >
+                      <div className="font-medium">학습일/복습일 자율학습 시간 배정하기</div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        학습일과 복습일에 자율학습 시간을 배정합니다. 시간블록이 있어도 자율학습 시간을 함께 사용할 수 있습니다.
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </>
             )}

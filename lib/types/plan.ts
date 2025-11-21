@@ -301,6 +301,9 @@ export type TimeSettings = {
   camp_self_study_hours?: { start: string; end: string };
   designated_holiday_hours?: { start: string; end: string };
   use_self_study_with_blocks?: boolean;
+  // 자율학습 시간 배정 토글
+  enable_self_study_for_holidays?: boolean; // 지정휴일 자율학습 시간 배정
+  enable_self_study_for_study_days?: boolean; // 학습일/복습일 자율학습 시간 배정
 };
 
 /**

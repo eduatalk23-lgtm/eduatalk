@@ -31,27 +31,30 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
       setError(null);
 
       try {
-        // scheduler_options에서 time_settings 추출
-        const schedulerOptions = (group.scheduler_options as any) || {};
-        const timeSettings = {
-          lunch_time: schedulerOptions.lunch_time,
-          camp_study_hours: schedulerOptions.camp_study_hours,
-          camp_self_study_hours: schedulerOptions.camp_self_study_hours,
-          designated_holiday_hours: schedulerOptions.designated_holiday_hours,
-          use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
-        };
-        
-        // time_settings 필드 중 하나라도 값이 있으면 포함
-        // use_self_study_with_blocks는 boolean이므로 false일 때도 명시적으로 포함해야 함
-        const hasTimeSettings = 
-          timeSettings.lunch_time !== undefined ||
-          timeSettings.camp_study_hours !== undefined ||
-          timeSettings.camp_self_study_hours !== undefined ||
-          timeSettings.designated_holiday_hours !== undefined ||
-          timeSettings.use_self_study_with_blocks !== undefined;
+  // scheduler_options에서 time_settings 추출
+  const schedulerOptions = (group.scheduler_options as any) || {};
+  const timeSettings = {
+    lunch_time: schedulerOptions.lunch_time,
+    camp_study_hours: schedulerOptions.camp_study_hours,
+    camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+    designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+    use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
+    enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays,
+    enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days,
+  };
+  
+  // time_settings 필드 중 하나라도 값이 있으면 포함
+  const hasTimeSettings = 
+    timeSettings.lunch_time !== undefined ||
+    timeSettings.camp_study_hours !== undefined ||
+    timeSettings.camp_self_study_hours !== undefined ||
+    timeSettings.designated_holiday_hours !== undefined ||
+    timeSettings.use_self_study_with_blocks !== undefined ||
+    timeSettings.enable_self_study_for_holidays !== undefined ||
+    timeSettings.enable_self_study_for_study_days !== undefined;
         
         // scheduler_options에서 time_settings 필드 제거
-        const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
+        const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, enable_self_study_for_holidays, enable_self_study_for_study_days, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
 
         const response = await calculateScheduleAvailability({
           periodStart: group.period_start,
@@ -138,6 +141,8 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
     camp_self_study_hours: schedulerOptions.camp_self_study_hours,
     designated_holiday_hours: schedulerOptions.designated_holiday_hours,
     use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
+    enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays,
+    enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days,
   };
   
   return (
@@ -153,11 +158,24 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-900">1730 Timetable 전용 설정</h3>
             <div className="space-y-2 text-sm text-gray-700">
-              {timeSettings.use_self_study_with_blocks !== undefined && (
+              {timeSettings.enable_self_study_for_holidays !== undefined && (
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">자율학습시간 사용 가능:</span>
-                  <span className={timeSettings.use_self_study_with_blocks ? "text-green-600" : "text-gray-500"}>
-                    {timeSettings.use_self_study_with_blocks ? "✓ 사용 가능" : "✗ 사용 안 함"}
+                  <span className="font-medium">지정휴일 자율학습 시간 배정:</span>
+                  <span className={timeSettings.enable_self_study_for_holidays ? "text-green-600" : "text-gray-500"}>
+                    {timeSettings.enable_self_study_for_holidays ? "✓ 활성화" : "✗ 비활성화"}
+                  </span>
+                  {timeSettings.enable_self_study_for_holidays && timeSettings.designated_holiday_hours && (
+                    <span className="text-xs text-gray-600">
+                      ({timeSettings.designated_holiday_hours.start} ~ {timeSettings.designated_holiday_hours.end})
+                    </span>
+                  )}
+                </div>
+              )}
+              {timeSettings.enable_self_study_for_study_days !== undefined && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">학습일/복습일 자율학습 시간 배정:</span>
+                  <span className={timeSettings.enable_self_study_for_study_days ? "text-green-600" : "text-gray-500"}>
+                    {timeSettings.enable_self_study_for_study_days ? "✓ 활성화" : "✗ 비활성화"}
                   </span>
                 </div>
               )}

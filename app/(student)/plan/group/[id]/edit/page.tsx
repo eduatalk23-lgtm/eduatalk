@@ -86,19 +86,22 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
     camp_self_study_hours: schedulerOptions.camp_self_study_hours,
     designated_holiday_hours: schedulerOptions.designated_holiday_hours,
     use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
+    enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays,
+    enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days,
   };
   
   // time_settings 필드 중 하나라도 값이 있으면 포함
-  // use_self_study_with_blocks는 boolean이므로 false일 때도 명시적으로 포함해야 함
   const hasTimeSettings = 
     timeSettings.lunch_time !== undefined ||
     timeSettings.camp_study_hours !== undefined ||
     timeSettings.camp_self_study_hours !== undefined ||
     timeSettings.designated_holiday_hours !== undefined ||
-    timeSettings.use_self_study_with_blocks !== undefined;
+    timeSettings.use_self_study_with_blocks !== undefined ||
+    timeSettings.enable_self_study_for_holidays !== undefined ||
+    timeSettings.enable_self_study_for_study_days !== undefined;
   
   // scheduler_options에서 time_settings 필드 제거
-  const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
+  const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, enable_self_study_for_holidays, enable_self_study_for_study_days, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
   
   // 초기 데이터 구성
   const initialData = {
