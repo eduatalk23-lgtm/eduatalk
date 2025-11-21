@@ -28,24 +28,15 @@ export function PlanCard({ plan, compact = false, showTime = true, showProgress 
             : "border-gray-200 bg-white"
         }`}
       >
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center gap-1 min-w-0">
           <span className="text-sm shrink-0">{contentTypeIcon}</span>
-          <span className="text-gray-500 shrink-0">-</span>
           <span className="truncate font-medium text-gray-900 min-w-0 flex-1">
-            {plan.contentSubjectCategory || plan.contentSubject || "-"}
+            {plan.contentSubjectCategory || plan.contentSubject || ""}
           </span>
-          {plan.planned_start_page_or_time !== null && (
-            <>
-              <span className="text-gray-500 shrink-0">-</span>
-              <span className="shrink-0 text-xs text-gray-600">
-                {plan.content_type === "lecture" 
-                  ? `${plan.planned_start_page_or_time}강`
-                  : plan.content_type === "book"
-                  ? `${plan.planned_start_page_or_time}페이지`
-                  : `${plan.planned_start_page_or_time}`
-                }
-              </span>
-            </>
+          {plan.contentEpisode && (
+            <span className="shrink-0 text-xs text-gray-600">
+              {plan.contentEpisode}
+            </span>
           )}
           {isCompleted && (
             <span className="shrink-0 rounded-full bg-green-500 px-1.5 py-0.5 text-xs font-semibold text-white ml-1">
