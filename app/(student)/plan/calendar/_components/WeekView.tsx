@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
-import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
 import { getWeekStart, formatDateString, isToday } from "@/lib/date/calendarUtils";
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
 import { DayTimelineModal } from "./DayTimelineModal";
+import { PlanCard } from "./PlanCard";
 
 type WeekViewProps = {
   plans: PlanWithContent[];
@@ -48,6 +48,60 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
     });
     return map;
   }, [plans]);
+
+  // 같은 plan_number를 가진 플랜들의 연결 상태 계산
+  const getPlanConnectionState = useMemo(() => {
+    const connectionMap = new Map<string, {
+      isConnected: boolean;
+      isFirst: boolean;
+      isLast: boolean;
+      isMiddle: boolean;
+    }>();
+    
+    // 날짜별로 그룹화
+    plansByDate.forEach((dayPlans, date) => {
+      // 같은 plan_number를 가진 플랜들을 그룹화
+      const planNumberGroups = new Map<number | null, PlanWithContent[]>();
+      
+      dayPlans.forEach((plan) => {
+        const planNumber = plan.plan_number;
+        if (!planNumberGroups.has(planNumber)) {
+          planNumberGroups.set(planNumber, []);
+        }
+        planNumberGroups.get(planNumber)!.push(plan);
+      });
+      
+      // 각 그룹에서 2개 이상인 경우 연결 상태 계산
+      planNumberGroups.forEach((groupPlans, planNumber) => {
+        if (groupPlans.length >= 2 && planNumber !== null) {
+          // block_index 순으로 정렬
+          const sortedPlans = [...groupPlans].sort((a, b) => a.block_index - b.block_index);
+          
+          sortedPlans.forEach((plan, index) => {
+            const isFirst = index === 0;
+            const isLast = index === sortedPlans.length - 1;
+            const isMiddle = !isFirst && !isLast;
+            
+            connectionMap.set(`${date}-${plan.id}`, {
+              isConnected: true,
+              isFirst,
+              isLast,
+              isMiddle,
+            });
+          });
+        }
+      });
+    });
+    
+    return (date: string, planId: string) => {
+      return connectionMap.get(`${date}-${planId}`) || {
+        isConnected: false,
+        isFirst: false,
+        isLast: false,
+        isMiddle: false,
+      };
+    };
+  }, [plansByDate]);
 
   // 날짜별 휴일 그룹화 (메모이제이션)
   const exclusionsByDate = useMemo(() => {
@@ -275,49 +329,21 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                             }
                             addedPlanIds.add(plan.id);
 
-                            const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type] || "📚";
-                            const isCompleted = plan.progress !== null && plan.progress >= 100;
-                            const isActive = plan.actual_start_time && !plan.actual_end_time;
-                            
-                            // 플랜 카드 스타일
-                            const cardBorderClass = isCompleted
-                              ? "border-green-300 bg-green-50"
-                              : isActive
-                              ? "border-blue-300 bg-blue-50"
-                              : "border-gray-200 bg-white";
+                            // 연결 상태 계산
+                            const connectionState = getPlanConnectionState(dateStr, plan.id);
 
                             items.push(
-                              <div
+                              <PlanCard
                                 key={`${dateStr}-plan-${plan.id}`}
-                                className={`rounded border p-2 text-xs ${cardBorderClass}`}
-                              >
-                                {/* 1행: 플랜 시작시간 */}
-                                {plan.start_time && (
-                                  <div className="mb-1 font-semibold text-gray-900">
-                                    {plan.start_time}
-                                  </div>
-                                )}
-                                {/* 2행: 아이콘 + 교과 + 회차 */}
-                                <div className="mb-1 flex items-center gap-1">
-                                  <span className="text-sm">{contentTypeIcon}</span>
-                                  {plan.contentSubjectCategory && (
-                                    <span className="font-medium text-gray-700">
-                                      {plan.contentSubjectCategory}
-                                    </span>
-                                  )}
-                                  {plan.contentEpisode && (
-                                    <span className="text-gray-600">
-                                      {plan.contentEpisode}
-                                    </span>
-                                  )}
-                                </div>
-                                {/* 3행: 과목 */}
-                                {plan.contentSubject && (
-                                  <div className="text-gray-600">
-                                    {plan.contentSubject}
-                                  </div>
-                                )}
-                              </div>
+                                plan={plan}
+                                compact={true}
+                                showTime={false}
+                                showProgress={false}
+                                isConnected={connectionState.isConnected}
+                                isFirst={connectionState.isFirst}
+                                isLast={connectionState.isLast}
+                                isMiddle={connectionState.isMiddle}
+                              />
                             );
                           });
                       } else {
