@@ -39,6 +39,7 @@ export type PlanData = {
   planned_end_page_or_time: number | null;
   completed_amount: number | null;
   plan_number: number | null;
+  sequence: number | null;
 };
 
 export type ContentData = {
@@ -384,7 +385,10 @@ export function transformPlansToScheduleTable(
   return sortedPlans.map((plan, index) => {
     const content = contents.get(plan.content_id);
     const { week, day } = calculateWeekNumber(plan.plan_date, periodStart);
-    const sequence = calculateSequence(sortedPlans, index, plan.content_id, plan.plan_number);
+    // 저장된 sequence가 있으면 사용하고, 없으면 계산
+    const sequence = plan.sequence !== null && plan.sequence !== undefined
+      ? plan.sequence
+      : calculateSequence(sortedPlans, index, plan.content_id, plan.plan_number);
     
     // dayType을 먼저 계산 (estimatedTime 계산에 필요)
     const dayType = calculateDayType(

@@ -39,6 +39,7 @@ type Plan = {
   planned_end_page_or_time: number | null;
   completed_amount: number | null;
   plan_number: number | null;
+  sequence: number | null;
 };
 
 type ScheduleTableViewProps = {
@@ -49,23 +50,39 @@ type ScheduleTableViewProps = {
 };
 
 // 전체 플랜에서 회차 계산을 위한 헬퍼
+// 저장된 sequence가 있으면 사용하고, 없으면 계산
 // 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
 function calculateSequenceForPlan(
   plan: Plan,
   allPlans: Plan[]
 ): number {
+  // 저장된 sequence가 있으면 사용
+  if (plan.sequence !== null && plan.sequence !== undefined) {
+    return plan.sequence;
+  }
+  
   // 같은 content_id를 가진 플랜들 필터링
   const sameContentPlans = allPlans.filter((p) => p.content_id === plan.content_id);
   
   // plan_number가 null이 아닌 경우, 같은 plan_number를 가진 첫 번째 플랜의 회차를 사용
   if (plan.plan_number !== null) {
     const firstPlanWithSameNumber = sameContentPlans.find(
+      (p) => p.plan_number === plan.plan_number && p.sequence !== null && p.sequence !== undefined
+    );
+    
+    if (firstPlanWithSameNumber) {
+      // 같은 plan_number를 가진 플랜의 저장된 회차 사용
+      return firstPlanWithSameNumber.sequence!;
+    }
+    
+    // 저장된 회차가 없으면 계산
+    const firstPlanWithSameNumberForCalc = sameContentPlans.find(
       (p) => p.plan_number === plan.plan_number
     );
     
-    if (firstPlanWithSameNumber && firstPlanWithSameNumber.id !== plan.id) {
+    if (firstPlanWithSameNumberForCalc && firstPlanWithSameNumberForCalc.id !== plan.id) {
       // 같은 plan_number를 가진 첫 번째 플랜의 회차 계산 (재귀 호출)
-      return calculateSequenceForPlan(firstPlanWithSameNumber, allPlans);
+      return calculateSequenceForPlan(firstPlanWithSameNumberForCalc, allPlans);
     }
   }
   

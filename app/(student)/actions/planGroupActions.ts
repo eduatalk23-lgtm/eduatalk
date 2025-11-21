@@ -2062,6 +2062,8 @@ async function _generatePlansFromGroup(
     is_continued: boolean;
     // 플랜 번호 (같은 논리적 플랜은 같은 번호)
     plan_number: number | null;
+    // 회차 (나중에 계산하여 업데이트)
+    sequence: number | null;
   }> = [];
 
   // 플랜 번호 부여를 위한 매핑 (논리적 플랜 키 -> 플랜 번호)
@@ -2219,6 +2221,8 @@ async function _generatePlansFromGroup(
         is_continued: segment.isContinued,
         // 플랜 번호
         plan_number: planNumber,
+        // 회차 (나중에 계산하여 업데이트)
+        sequence: null,
       });
 
       nextBlockIndex++;
@@ -2364,6 +2368,8 @@ async function _generatePlansFromGroup(
         is_continued: false,
         // 플랜 번호 (비학습 항목은 null)
         plan_number: null,
+        // 회차 (비학습 항목은 null)
+        sequence: null,
       });
 
       nextBlockIndex++;
@@ -2474,6 +2480,8 @@ async function _generatePlansFromGroup(
           is_continued: false,
           // 플랜 번호 (자율학습은 null)
           plan_number: null,
+          // 회차 (자율학습은 null)
+          sequence: null,
         });
 
         nextBlockIndex++;
@@ -2662,7 +2670,95 @@ async function _generatePlansFromGroup(
     // 저장 실패해도 플랜 생성은 성공했으므로 계속 진행
   }
 
-  // 15. 플랜 생성 완료 시 자동으로 saved 상태로 변경
+  // 15. 회차 계산 및 저장
+  // 플랜 생성 후 같은 content_id를 가진 플랜들에 대해 회차 계산
+  try {
+    // 생성된 플랜 조회 (일반 플랜만, 더미 플랜 제외)
+    const { data: createdPlans, error: fetchError } = await supabase
+      .from("student_plan")
+      .select("id, plan_date, content_id, plan_number, block_index")
+      .eq("plan_group_id", groupId)
+      .eq("student_id", user.userId)
+      .not("content_id", "eq", DUMMY_NON_LEARNING_CONTENT_ID)
+      .not("content_id", "eq", DUMMY_SELF_STUDY_CONTENT_ID)
+      .order("plan_date", { ascending: true })
+      .order("block_index", { ascending: true });
+
+    if (!fetchError && createdPlans && createdPlans.length > 0) {
+      // content_id별로 그룹화
+      const plansByContent = new Map<string, typeof createdPlans>();
+      createdPlans.forEach((plan) => {
+        if (!plansByContent.has(plan.content_id)) {
+          plansByContent.set(plan.content_id, []);
+        }
+        plansByContent.get(plan.content_id)!.push(plan);
+      });
+
+      // 각 content_id별로 회차 계산
+      const sequenceUpdates: Array<{ id: string; sequence: number }> = [];
+      
+      for (const [contentId, contentPlans] of plansByContent.entries()) {
+        // 날짜와 block_index 순으로 정렬
+        const sortedPlans = [...contentPlans].sort((a, b) => {
+          if (a.plan_date !== b.plan_date) {
+            return a.plan_date.localeCompare(b.plan_date);
+          }
+          return (a.block_index || 0) - (b.block_index || 0);
+        });
+
+        // 회차 계산 (plan_number 고려)
+        const seenPlanNumbers = new Set<number | null>();
+        let currentSequence = 1;
+        const planSequenceMap = new Map<string, number>();
+
+        for (const plan of sortedPlans) {
+          const pn = plan.plan_number;
+          
+          if (pn === null) {
+            // plan_number가 null이면 개별 카운트
+            planSequenceMap.set(plan.id, currentSequence);
+            currentSequence++;
+          } else {
+            // plan_number가 있으면 같은 번호를 가진 그룹은 한 번만 카운트
+            if (!seenPlanNumbers.has(pn)) {
+              seenPlanNumbers.add(pn);
+              // 같은 plan_number를 가진 모든 플랜에 같은 회차 부여
+              const plansWithSameNumber = sortedPlans.filter((p) => p.plan_number === pn);
+              const sequence = currentSequence;
+              plansWithSameNumber.forEach((p) => {
+                planSequenceMap.set(p.id, sequence);
+              });
+              currentSequence++;
+            }
+          }
+        }
+
+        // 회차 업데이트 목록에 추가
+        planSequenceMap.forEach((sequence, planId) => {
+          sequenceUpdates.push({ id: planId, sequence });
+        });
+      }
+
+      // 배치로 회차 업데이트
+      if (sequenceUpdates.length > 0) {
+        // Supabase는 배치 업데이트를 직접 지원하지 않으므로 Promise.all 사용
+        await Promise.all(
+          sequenceUpdates.map((update) =>
+            supabase
+              .from("student_plan")
+              .update({ sequence: update.sequence })
+              .eq("id", update.id)
+              .eq("student_id", user.userId)
+          )
+        );
+      }
+    }
+  } catch (error) {
+    // 회차 계산 실패는 경고만 (플랜 생성은 성공했으므로)
+    console.warn("[planGroupActions] 회차 계산 및 저장 실패:", error);
+  }
+
+  // 16. 플랜 생성 완료 시 자동으로 saved 상태로 변경
   // draft 상태에서 플랜이 생성되면 saved 상태로 변경
   if ((group.status as PlanStatus) === "draft") {
     try {
@@ -3587,6 +3683,7 @@ async function _getPlansByGroupId(groupId: string): Promise<{
     planned_end_page_or_time: number | null;
     completed_amount: number | null;
     is_reschedulable: boolean;
+    sequence: number | null;
   }>;
 }> {
   const user = await getCurrentUser();
@@ -3603,7 +3700,7 @@ async function _getPlansByGroupId(groupId: string): Promise<{
   const { data, error } = await supabase
     .from("student_plan")
     .select(
-      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,is_reschedulable"
+      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,is_reschedulable,sequence"
     )
     .eq("plan_group_id", groupId)
     .eq("student_id", user.userId)
@@ -3633,6 +3730,7 @@ async function _getPlansByGroupId(groupId: string): Promise<{
       planned_end_page_or_time: plan.planned_end_page_or_time,
       completed_amount: plan.completed_amount,
       is_reschedulable: plan.is_reschedulable || false,
+      sequence: (plan as any).sequence ?? null,
     })),
   };
 }
@@ -3697,6 +3795,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     planned_end_page_or_time: number | null;
     completed_amount: number | null;
     plan_number: number | null;
+    sequence: number | null;
   }>;
   periodStart: string;
   periodEnd: string | null;
@@ -3803,7 +3902,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const { data: plans, error: plansError } = await supabase
     .from("student_plan")
     .select(
-      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number"
+      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number,sequence"
     )
     .eq("plan_group_id", groupId)
     .eq("student_id", user.userId)
@@ -4413,6 +4512,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
       planned_end_page_or_time: p.planned_end_page_or_time,
       completed_amount: p.completed_amount,
       plan_number: p.plan_number ?? null,
+      sequence: p.sequence ?? null,
     })),
     periodStart: group.period_start || "",
     periodEnd: group.period_end || "",
