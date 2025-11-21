@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
 import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
@@ -41,15 +41,19 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
   const planRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const weekStart = getWeekStart(currentDate);
-  const weekDays: Date[] = [];
-
-  // 주의 7일 생성
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(weekStart);
-    date.setDate(weekStart.getDate() + i);
-    weekDays.push(date);
-  }
+  // 주 시작일 계산 (메모이제이션)
+  const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
+  
+  // 주의 7일 생성 (메모이제이션)
+  const weekDays = useMemo(() => {
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      days.push(date);
+    }
+    return days;
+  }, [weekStart]);
 
   const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
 
@@ -130,49 +134,78 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
     );
   }, [plans]);
 
-  // 플랜 카드 위치 업데이트
-  useEffect(() => {
-    const updatePositions = () => {
-      if (!containerRef.current) return;
-      
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newPositions = new Map<string, PlanPosition>();
-      
-      planRefs.current.forEach((element, planId) => {
-        if (!element) return;
-        
-        const rect = element.getBoundingClientRect();
-        newPositions.set(planId, {
-          planId,
-          date: "", // 나중에 설정
-          x: rect.left - containerRect.left + rect.width / 2,
-          y: rect.top - containerRect.top + rect.height / 2,
-          width: rect.width,
-          height: rect.height,
-        });
-      });
-      
-      // 날짜 정보 추가
-      plans.forEach((plan) => {
-        const position = newPositions.get(plan.id);
-        if (position) {
-          position.date = plan.plan_date;
-        }
-      });
-      
-      setPlanPositions(newPositions);
-    };
+  // 플랜 카드 위치 업데이트 함수 (메모이제이션)
+  const updatePositions = useCallback(() => {
+    if (!containerRef.current) return;
     
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newPositions = new Map<string, PlanPosition>();
+    
+    planRefs.current.forEach((element, planId) => {
+      if (!element) return;
+      
+      const rect = element.getBoundingClientRect();
+      newPositions.set(planId, {
+        planId,
+        date: "", // 나중에 설정
+        x: rect.left - containerRect.left + rect.width / 2,
+        y: rect.top - containerRect.top + rect.height / 2,
+        width: rect.width,
+        height: rect.height,
+      });
+    });
+    
+    // 날짜 정보 추가
+    plans.forEach((plan) => {
+      const position = newPositions.get(plan.id);
+      if (position) {
+        position.date = plan.plan_date;
+      }
+    });
+    
+    // 실제로 변경이 있는지 확인 (무한 루프 방지)
+    setPlanPositions((prevPositions) => {
+      // 크기 비교
+      if (prevPositions.size !== newPositions.size) {
+        return newPositions;
+      }
+      
+      // 각 위치 비교 (5px 이상 차이나는 경우만 업데이트)
+      let hasChanged = false;
+      for (const [planId, newPos] of newPositions) {
+        const prevPos = prevPositions.get(planId);
+        if (!prevPos) {
+          hasChanged = true;
+          break;
+        }
+        const dx = Math.abs(prevPos.x - newPos.x);
+        const dy = Math.abs(prevPos.y - newPos.y);
+        if (dx > 5 || dy > 5) {
+          hasChanged = true;
+          break;
+        }
+      }
+      
+      return hasChanged ? newPositions : prevPositions;
+    });
+  }, [plans]);
+
+  // 플랜 카드 위치 업데이트 (초기 렌더링 및 레이아웃 변경 시)
+  useEffect(() => {
+    // 초기 업데이트는 즉시 실행
     updatePositions();
-    window.addEventListener("resize", updatePositions);
-    // 약간의 지연을 두고 다시 업데이트 (레이아웃 안정화 후)
+    
+    // 레이아웃 안정화 후 업데이트
     const timeoutId = setTimeout(updatePositions, 100);
+    
+    // 리사이즈 이벤트 리스너
+    window.addEventListener("resize", updatePositions);
     
     return () => {
       window.removeEventListener("resize", updatePositions);
       clearTimeout(timeoutId);
     };
-  }, [plans, weekDays]);
+  }, [updatePositions]);
 
   // 연결선 경로 계산
   const connectionPaths = useMemo(() => {
