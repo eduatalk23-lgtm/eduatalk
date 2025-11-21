@@ -90,6 +90,49 @@ type PlanConnection = {
 2. **명확한 표시**: 연결된 플랜 카드에 ring 효과로 강조
 3. **부드러운 애니메이션**: 연결선에 transition 효과 적용
 
+## 버그 수정 이력
+
+### 무한 루프 에러 수정 (2025-01-XX)
+
+**문제**: `useEffect`에서 `setPlanPositions`를 호출할 때 무한 루프 발생
+
+**원인**:
+1. `weekDays` 배열이 매 렌더마다 새로 생성되어 `useEffect` 의존성이 계속 변경됨
+2. `setPlanPositions` 호출 시 실제 변경 여부를 확인하지 않음
+
+**해결**:
+1. `weekDays`와 `weekStart`를 `useMemo`로 메모이제이션
+2. `updatePositions`를 `useCallback`으로 메모이제이션
+3. 위치 변경 체크 로직 추가 (5px 이상 차이날 때만 업데이트)
+
+```typescript
+// 위치 변경 체크
+setPlanPositions((prevPositions) => {
+  // 크기 비교
+  if (prevPositions.size !== newPositions.size) {
+    return newPositions;
+  }
+  
+  // 각 위치 비교 (5px 이상 차이나는 경우만 업데이트)
+  let hasChanged = false;
+  for (const [planId, newPos] of newPositions) {
+    const prevPos = prevPositions.get(planId);
+    if (!prevPos) {
+      hasChanged = true;
+      break;
+    }
+    const dx = Math.abs(prevPos.x - newPos.x);
+    const dy = Math.abs(prevPos.y - newPos.y);
+    if (dx > 5 || dy > 5) {
+      hasChanged = true;
+      break;
+    }
+  }
+  
+  return hasChanged ? newPositions : prevPositions;
+});
+```
+
 ## 향후 개선 가능 사항
 
 1. **곡선 연결선**: 현재는 직선으로 연결하지만, 베지어 곡선을 사용하여 더 부드러운 연결선 구현 가능

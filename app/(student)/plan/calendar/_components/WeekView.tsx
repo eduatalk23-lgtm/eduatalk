@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
+import { Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
 import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
@@ -20,15 +21,6 @@ type WeekViewProps = {
   showOnlyStudyTime?: boolean;
 };
 
-type PlanPosition = {
-  planId: string;
-  date: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
 type PlanConnection = {
   planIds: string[];
   groupKey: string;
@@ -37,9 +29,6 @@ type PlanConnection = {
 export function WeekView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: WeekViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [planPositions, setPlanPositions] = useState<Map<string, PlanPosition>>(new Map());
-  const planRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // 주 시작일 계산 (메모이제이션)
   const weekStart = useMemo(() => getWeekStart(currentDate), [currentDate]);
@@ -134,110 +123,18 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
     );
   }, [plans]);
 
-  // 플랜 카드 위치 업데이트 함수 (메모이제이션)
-  const updatePositions = useCallback(() => {
-    if (!containerRef.current) return;
-    
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const newPositions = new Map<string, PlanPosition>();
-    
-    planRefs.current.forEach((element, planId) => {
-      if (!element) return;
-      
-      const rect = element.getBoundingClientRect();
-      newPositions.set(planId, {
-        planId,
-        date: "", // 나중에 설정
-        x: rect.left - containerRect.left + rect.width / 2,
-        y: rect.top - containerRect.top + rect.height / 2,
-        width: rect.width,
-        height: rect.height,
-      });
+  // 연결된 플랜 ID Set 생성 (빠른 조회를 위해)
+  const connectedPlanIds = useMemo(() => {
+    const ids = new Set<string>();
+    planConnections.forEach((conn) => {
+      conn.planIds.forEach((id) => ids.add(id));
     });
-    
-    // 날짜 정보 추가
-    plans.forEach((plan) => {
-      const position = newPositions.get(plan.id);
-      if (position) {
-        position.date = plan.plan_date;
-      }
-    });
-    
-    // 실제로 변경이 있는지 확인 (무한 루프 방지)
-    setPlanPositions((prevPositions) => {
-      // 크기 비교
-      if (prevPositions.size !== newPositions.size) {
-        return newPositions;
-      }
-      
-      // 각 위치 비교 (5px 이상 차이나는 경우만 업데이트)
-      let hasChanged = false;
-      for (const [planId, newPos] of newPositions) {
-        const prevPos = prevPositions.get(planId);
-        if (!prevPos) {
-          hasChanged = true;
-          break;
-        }
-        const dx = Math.abs(prevPos.x - newPos.x);
-        const dy = Math.abs(prevPos.y - newPos.y);
-        if (dx > 5 || dy > 5) {
-          hasChanged = true;
-          break;
-        }
-      }
-      
-      return hasChanged ? newPositions : prevPositions;
-    });
-  }, [plans]);
-
-  // 플랜 카드 위치 업데이트 (초기 렌더링 및 레이아웃 변경 시)
-  useEffect(() => {
-    // 초기 업데이트는 즉시 실행
-    updatePositions();
-    
-    // 레이아웃 안정화 후 업데이트
-    const timeoutId = setTimeout(updatePositions, 100);
-    
-    // 리사이즈 이벤트 리스너
-    window.addEventListener("resize", updatePositions);
-    
-    return () => {
-      window.removeEventListener("resize", updatePositions);
-      clearTimeout(timeoutId);
-    };
-  }, [updatePositions]);
-
-  // 연결선 경로 계산
-  const connectionPaths = useMemo(() => {
-    if (!containerRef.current) return [];
-    
-    return planConnections.map((connection) => {
-      const positions = connection.planIds
-        .map((planId) => planPositions.get(planId))
-        .filter((pos): pos is PlanPosition => pos !== undefined)
-        .sort((a, b) => {
-          // 날짜 순으로 정렬
-          const dateA = weekDays.findIndex((d) => formatDateString(d) === a.date);
-          const dateB = weekDays.findIndex((d) => formatDateString(d) === b.date);
-          return dateA - dateB;
-        });
-      
-      if (positions.length < 2) return null;
-      
-      // 각 위치를 연결하는 경로 생성
-      const pathPoints = positions.map((pos) => ({ x: pos.x, y: pos.y }));
-      
-      return {
-        groupKey: connection.groupKey,
-        pathPoints,
-        planIds: connection.planIds,
-      };
-    }).filter((path): path is NonNullable<typeof path> => path !== null);
-  }, [planConnections, planPositions, weekDays]);
+    return ids;
+  }, [planConnections]);
 
   return (
     <>
-      <div className="w-full relative" ref={containerRef}>
+      <div className="w-full">
         {/* 요일 헤더 (카드 영역 밖 상단) */}
         <div className="grid grid-cols-7 gap-2 mb-2">
           {weekdays.map((day, index) => (
@@ -249,59 +146,8 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
           ))}
         </div>
 
-        {/* 연결선 SVG 오버레이 */}
-        {connectionPaths.length > 0 && containerRef.current && (() => {
-          const containerRect = containerRef.current.getBoundingClientRect();
-          return (
-            <svg
-              className="absolute pointer-events-none z-10"
-              style={{
-                top: '2rem', // 요일 헤더 높이만큼 아래로
-                left: 0,
-                width: '100%',
-                height: containerRect.height > 32 ? containerRect.height - 32 : containerRect.height,
-              }}
-            >
-              {connectionPaths.map((path, index) => {
-                if (path.pathPoints.length < 2) return null;
-                
-                // 날짜 순으로 정렬 (이미 connectionPaths에서 정렬됨)
-                const sortedPoints = path.pathPoints;
-                
-                // 간단한 직선 연결 또는 부드러운 곡선
-                let pathData = `M ${sortedPoints[0].x} ${sortedPoints[0].y}`;
-                
-                if (sortedPoints.length === 2) {
-                  // 두 점만 있는 경우 직선
-                  pathData += ` L ${sortedPoints[1].x} ${sortedPoints[1].y}`;
-                } else {
-                  // 여러 점이 있는 경우 각 점을 순서대로 연결
-                  for (let i = 1; i < sortedPoints.length; i++) {
-                    pathData += ` L ${sortedPoints[i].x} ${sortedPoints[i].y}`;
-                  }
-                }
-                
-                return (
-                  <path
-                    key={`connection-${path.groupKey}-${index}`}
-                    d={pathData}
-                    fill="none"
-                    stroke="rgb(99, 102, 241)" // indigo-500
-                    strokeWidth="2"
-                    strokeDasharray="5 3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity="0.6"
-                    className="transition-opacity duration-200"
-                  />
-                );
-              })}
-            </svg>
-          );
-        })()}
-
         {/* 날짜 카드들 */}
-        <div className="grid grid-cols-7 gap-2 relative z-0">
+        <div className="grid grid-cols-7 gap-2">
           {weekDays.map((date, index) => {
           const dateStr = formatDateString(date);
           const dayPlans = plansByDate.get(dateStr) || [];
@@ -490,23 +336,12 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                               : "border-gray-200 bg-white";
 
                             // 연결된 플랜인지 확인
-                            const isConnected = planConnections.some((conn) =>
-                              conn.planIds.includes(plan.id)
-                            );
+                            const isConnected = connectedPlanIds.has(plan.id);
                             
                             items.push(
                               <div
                                 key={`${dateStr}-plan-${plan.id}`}
-                                ref={(el) => {
-                                  if (el) {
-                                    planRefs.current.set(plan.id, el);
-                                  } else {
-                                    planRefs.current.delete(plan.id);
-                                  }
-                                }}
-                                className={`rounded border p-2 text-xs relative ${cardBorderClass} ${
-                                  isConnected ? "ring-2 ring-indigo-300 ring-opacity-50" : ""
-                                }`}
+                                className={`rounded border p-2 text-xs relative ${cardBorderClass}`}
                               >
                                 {/* 1행: 플랜 시작시간 */}
                                 {plan.start_time && (
@@ -532,6 +367,16 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                                 {plan.contentSubject && (
                                   <div className="text-gray-600">
                                     {plan.contentSubject}
+                                  </div>
+                                )}
+                                {/* 연결 아이콘 (오른쪽 상단) */}
+                                {isConnected && (
+                                  <div className="absolute top-1.5 right-1.5">
+                                    <Link2 
+                                      size={14} 
+                                      className="text-indigo-500 opacity-70" 
+                                      strokeWidth={2}
+                                    />
                                   </div>
                                 )}
                               </div>
