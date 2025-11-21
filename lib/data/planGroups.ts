@@ -240,7 +240,26 @@ export async function updatePlanGroup(
     .eq("student_id", studentId)
     .is("deleted_at", null);
 
-  if (error && error.code === "42703") {
+  // 컬럼이 없는 경우 fallback 처리
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    // scheduler_options가 포함된 경우 제외하고 재시도
+    if (payload.scheduler_options !== undefined) {
+      const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+      ({ error } = await supabase
+        .from("plan_groups")
+        .update(fallbackPayload)
+        .eq("id", groupId)
+        .eq("student_id", studentId)
+        .is("deleted_at", null));
+      
+      // scheduler_options가 없어도 다른 필드는 업데이트 성공
+      if (!error) {
+        console.warn("[data/planGroups] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다.");
+        return { success: true };
+      }
+    }
+    
+    // 다른 컬럼 문제인 경우 일반 fallback
     ({ error } = await supabase
       .from("plan_groups")
       .update(payload)

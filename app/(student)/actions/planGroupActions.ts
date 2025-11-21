@@ -323,7 +323,15 @@ async function _updatePlanGroupDraft(
 
   // saved 상태라면 draft로 변경 (수정 후 다시 saved로 변경 가능)
   if (group.status === "saved") {
-    await updatePlanGroup(groupId, user.userId, { status: "draft" });
+    const statusUpdateResult = await updatePlanGroup(groupId, user.userId, { status: "draft" });
+    if (!statusUpdateResult.success) {
+      throw new AppError(
+        statusUpdateResult.error || "플랜 그룹 상태 업데이트에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
   }
 
   // 플랜 그룹 메타데이터 업데이트
@@ -334,7 +342,7 @@ async function _updatePlanGroupDraft(
   }
   
   if (data.name !== undefined || data.plan_purpose !== undefined || data.scheduler_type !== undefined || data.scheduler_options !== undefined || data.time_settings !== undefined) {
-    await updatePlanGroup(groupId, user.userId, {
+    const updateResult = await updatePlanGroup(groupId, user.userId, {
       name: data.name || null,
       plan_purpose: normalizePlanPurpose(data.plan_purpose),
       scheduler_type: data.scheduler_type || null,
@@ -344,6 +352,15 @@ async function _updatePlanGroupDraft(
       target_date: data.target_date || null,
       block_set_id: data.block_set_id || null,
     });
+    
+    if (!updateResult.success) {
+      throw new AppError(
+        updateResult.error || "플랜 그룹 업데이트에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
   }
 
   // 콘텐츠 업데이트 (기존 삭제 후 재생성)
