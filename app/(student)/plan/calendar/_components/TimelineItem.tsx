@@ -17,9 +17,10 @@ type TimelineSlot = {
 type TimelineItemProps = {
   slot: TimelineSlot;
   isLast?: boolean;
+  connectedPlanIds?: Set<string>;
 };
 
-export function TimelineItem({ slot, isLast = false }: TimelineItemProps) {
+export function TimelineItem({ slot, isLast = false, connectedPlanIds }: TimelineItemProps) {
   const colorClass = getTimeSlotColorClass(slot.type);
   const icon = getTimeSlotIcon(slot.type);
 
@@ -99,6 +100,7 @@ export function TimelineItem({ slot, isLast = false }: TimelineItemProps) {
                     compact={false}
                     showTime={true}
                     showProgress={true}
+                    isConnected={connectedPlanIds?.has(plan.id) || false}
                   />
                 ))}
             </div>

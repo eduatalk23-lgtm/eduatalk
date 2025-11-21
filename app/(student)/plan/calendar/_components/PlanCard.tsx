@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock } from "lucide-react";
+import { Clock, Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
 
@@ -100,7 +100,7 @@ export function PlanCard({
 
   return (
     <div
-      className={`group rounded-lg border-2 p-3 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${
+      className={`group rounded-lg border-2 p-3 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg relative ${
         isCompleted
           ? "border-green-300 bg-green-50"
           : isActive
@@ -192,6 +192,16 @@ export function PlanCard({
           </div>
         )}
       </div>
+      {/* 연결 아이콘 (오른쪽 상단) */}
+      {isConnected && (
+        <div className="absolute top-2 right-2">
+          <Link2 
+            size={14} 
+            className="text-indigo-500 opacity-70" 
+            strokeWidth={2}
+          />
+        </div>
+      )}
     </div>
   );
 }
