@@ -564,6 +564,57 @@ if (dateBlocks.length === 0 || options.use_self_study_with_blocks) {
 
 ---
 
+## 🔍 버그 수정: scheduler_options 저장 누락 문제
+
+### 문제
+
+사용자가 보고한 문제:
+1. "자율학습시간 사용 가능" 체크 후 플랜 생성까지 진행
+2. 목록으로 돌아와서 스케줄 미리보기에서 자율학습 시간이 생성 시 계산되던 수치와 다름
+3. 상세페이지의 스케줄 결과에는 자율학습(시간 구성)이 잘 나타나 있음
+4. 플랜 그룹 수정을 들어가서 step2의 체크박스를 확인하면 체크가 풀려있음
+
+### 원인 분석
+
+1. **`Step2_5DetailView.tsx`의 `hasTimeSettings` 체크 로직 불일치**
+   - `edit/page.tsx`와 다른 로직을 사용하여 `use_self_study_with_blocks`가 `false`일 때 제대로 처리되지 않음
+
+2. **`_updatePlanGroupDraft`에서 `scheduler_options` 업데이트 누락**
+   - `_updatePlanGroupDraft` 함수에서 `scheduler_options`를 업데이트하는 로직이 없었음
+   - `updatePlanGroup` 함수의 `updates` 타입에도 `scheduler_options`가 포함되어 있지 않았음
+   - 결과적으로 `time_settings`를 `scheduler_options`에 병합하여 저장했지만, 실제로 데이터베이스에 업데이트되지 않았음
+
+### 해결 방법
+
+1. **`Step2_5DetailView.tsx`의 `hasTimeSettings` 체크 로직 수정**
+   - `edit/page.tsx`와 동일한 로직으로 변경하여 각 필드를 개별적으로 확인하도록 수정
+
+2. **`updatePlanGroup` 함수에 `scheduler_options` 지원 추가**
+   - `lib/data/planGroups.ts`의 `updatePlanGroup` 함수에 `scheduler_options` 파라미터 추가
+   - `scheduler_options`가 `undefined`가 아닌 경우 `payload`에 포함하도록 수정
+
+3. **`_updatePlanGroupDraft`에서 `scheduler_options` 업데이트 추가**
+   - `_updatePlanGroupDraft` 함수에서 `scheduler_options`를 업데이트하는 로직 추가
+   - 조건문에 `data.scheduler_options !== undefined` 체크 추가
+
+4. **`_updatePlanGroup` 함수 타입 확장**
+   - `_updatePlanGroup` 함수의 `updates` 타입에 `scheduler_options` 추가
+
+### 변경 파일
+
+- `app/(student)/plan/group/[id]/_components/Step2_5DetailView.tsx`
+- `app/(student)/actions/planGroupActions.ts`
+- `lib/data/planGroups.ts`
+
+### 결과
+
+이제 "자율학습시간 사용 가능" 체크박스를 체크하고 플랜을 생성한 후:
+1. `scheduler_options`에 `use_self_study_with_blocks: true`가 제대로 저장됨
+2. 목록의 스케줄 미리보기에서 자율학습 시간이 올바르게 계산됨
+3. 플랜 그룹 수정 모드에서 체크박스 상태가 올바르게 복원됨
+
+---
+
 ## 🎯 결론
 
 플랜 그룹 상세 페이지는 기능적으로는 잘 구현되어 있으나, 성능 최적화와 UI/UX 개선의 여지가 있습니다. 특히 데이터 페칭 최적화와 컴포넌트 레이지 로딩을 통해 사용자 경험을 크게 개선할 수 있습니다.
