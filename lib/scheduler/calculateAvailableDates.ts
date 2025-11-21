@@ -513,22 +513,17 @@ function generateTimeSlots(
   }
 
   // 블록이 있으면 블록 사용, 없으면 캠프 시간 사용
+  // 주의: 자율학습 시간은 baseRanges에 포함하지 않고 마지막에 별도로 추가
   let baseRanges: TimeRange[] = [];
   if (dateBlocks.length > 0) {
     baseRanges = dateBlocks.map((block) => ({
       start: block.start_time,
       end: block.end_time,
     }));
-    // 블록이 있을 때: use_self_study_with_blocks가 true이고 enable_self_study_for_study_days가 true이면 자율학습 시간 추가
-    if (options.use_self_study_with_blocks && options.enable_self_study_for_study_days && campSelfStudyHours) {
-      baseRanges.push(campSelfStudyHours);
-    }
+    // 블록이 있을 때는 자율학습 시간을 baseRanges에 추가하지 않음 (마지막에 별도 추가)
   } else {
     baseRanges = [campStudyHours];
-    // 블록이 없을 때: enable_self_study_for_study_days가 true이면 자율학습 시간 추가
-    if (options.enable_self_study_for_study_days && campSelfStudyHours) {
-      baseRanges.push(campSelfStudyHours);
-    }
+    // 블록이 없을 때도 자율학습 시간을 baseRanges에 추가하지 않음 (마지막에 별도 추가)
   }
 
   // 각 블록/캠프 시간 범위에 대해 타임라인 생성
