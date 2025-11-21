@@ -124,10 +124,13 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
           <div className={`text-xl font-bold ${textColorClass}`}>
             {day}
           </div>
-          {/* 날짜 타입 배지 */}
+          {/* 날짜 타입 배지 - 아이콘만 표시 */}
           {dayTypeInfo && dayType !== "normal" && (
-            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold border shadow-sm ${dayTypeBadgeClass}`}>
-              {dayTypeInfo.icon} {dayTypeInfo.label}
+            <span 
+              className={`rounded-full p-1.5 text-base border shadow-sm ${dayTypeBadgeClass}`}
+              title={dayTypeInfo.label}
+            >
+              {dayTypeInfo.icon}
             </span>
           )}
         </div>
