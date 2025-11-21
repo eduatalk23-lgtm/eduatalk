@@ -252,10 +252,14 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               if (slot.type !== "학습시간") {
                 if (displayedCount < maxDisplay && !showOnlyStudyTime) {
                   const icon = slot.type === "점심시간" ? "🍽️" : slot.type === "이동시간" ? "🚶" : slot.type === "자율학습" ? "📖" : "⏰";
+                  // 자율학습은 초록색, 나머지는 주황색
+                  const colorClass = slot.type === "자율학습" 
+                    ? "bg-green-100 text-green-800"
+                    : "bg-orange-100 text-orange-800";
                   items.push(
                     <div
                       key={`slot-${slot.start}-${slot.end}-${slot.type}`}
-                      className="truncate rounded bg-orange-100 px-1.5 py-0.5 text-xs text-orange-800"
+                      className={`truncate rounded px-1.5 py-0.5 text-xs ${colorClass}`}
                       title={`${slot.type}: ${slot.start} ~ ${slot.end}`}
                     >
                       {icon} {slot.type}
