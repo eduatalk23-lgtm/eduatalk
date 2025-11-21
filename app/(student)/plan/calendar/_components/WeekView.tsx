@@ -155,24 +155,28 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
           return (
             <div
               key={dateStr}
-              className={`cursor-pointer rounded-lg border-2 p-3 transition hover:shadow-lg ${bgColorClass}`}
+              className={`cursor-pointer rounded-lg border-2 p-2 transition hover:shadow-lg ${bgColorClass}`}
               onClick={handleDateClick}
             >
-              <div className="mb-2 flex flex-col gap-1 text-center">
-                <div className={`text-sm font-medium ${textColorClass}`}>
-                  {weekdays[index]}
-                </div>
-                <div className={`text-lg font-bold ${boldTextColorClass}`}>
-                  {date.getDate()}
-                </div>
-                <div className="text-xs text-gray-500">{formatDate(date)}</div>
-                {/* 날짜 타입 배지 */}
-                {dayTypeInfo && dayType !== "normal" && (
-                  <div className="mt-1">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${dayTypeBadgeClass}`}>
-                      {dayTypeInfo.icon} {dayTypeInfo.label}
-                    </span>
+              {/* 날짜 헤더 */}
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="flex flex-col gap-0.5">
+                  <div className={`text-xs font-medium ${textColorClass}`}>
+                    {weekdays[index]}
                   </div>
+                  <div className={`text-lg font-bold ${boldTextColorClass}`}>
+                    {date.getDate()}
+                  </div>
+                  <div className="text-[10px] text-gray-500">{formatDate(date)}</div>
+                </div>
+                {/* 날짜 타입 배지 - 아이콘만 표시 */}
+                {dayTypeInfo && dayType !== "normal" && (
+                  <span 
+                    className={`rounded-full p-1 text-sm border shadow-sm ${dayTypeBadgeClass}`}
+                    title={dayTypeInfo.label}
+                  >
+                    {dayTypeInfo.icon}
+                  </span>
                 )}
               </div>
 
