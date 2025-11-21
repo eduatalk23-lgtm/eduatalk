@@ -4026,13 +4026,11 @@ async function _getScheduleResultData(groupId: string): Promise<{
    * @param group 플랜 그룹 정보
    * @returns 재계산 필요 여부와 사용 가능한 저장된 daily_schedule
    */
-  const shouldRecalculateDailySchedule = (
-    group: {
-      daily_schedule: any;
-      period_start: string | null;
-      period_end: string | null;
-    }
-  ): {
+  const shouldRecalculateDailySchedule = (group: {
+    daily_schedule: any;
+    period_start: string | null;
+    period_end: string | null;
+  }): {
     shouldRecalculate: boolean;
     storedSchedule: typeof dailySchedule | null;
   } => {
@@ -4042,7 +4040,9 @@ async function _getScheduleResultData(groupId: string): Promise<{
       !Array.isArray(group.daily_schedule) ||
       group.daily_schedule.length === 0
     ) {
-      console.log("[planGroupActions] 저장된 daily_schedule이 없어 재계산 필요");
+      console.log(
+        "[planGroupActions] 저장된 daily_schedule이 없어 재계산 필요"
+      );
       return { shouldRecalculate: true, storedSchedule: null };
     }
 
@@ -4074,9 +4074,8 @@ async function _getScheduleResultData(groupId: string): Promise<{
   };
 
   // 재계산 필요 여부 판단
-  const { shouldRecalculate, storedSchedule } = shouldRecalculateDailySchedule(
-    group
-  );
+  const { shouldRecalculate, storedSchedule } =
+    shouldRecalculateDailySchedule(group);
 
   if (!shouldRecalculate && storedSchedule) {
     // 저장된 데이터 사용
