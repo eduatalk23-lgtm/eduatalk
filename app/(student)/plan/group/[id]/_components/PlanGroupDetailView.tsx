@@ -4,7 +4,8 @@ import { useState, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { GeneratePlansButton } from "./GeneratePlansButton";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
-import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import { ErrorBoundary } from "./ErrorBoundary";
+import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
 
 // 동적 임포트로 레이지 로딩 (named export를 default로 변환)
@@ -160,7 +161,15 @@ export function PlanGroupDetailView({
       />
       
       <div className="mt-6">
-        {renderTabContent()}
+        <ErrorBoundary>
+          <div
+            role="tabpanel"
+            id={`tabpanel-${currentTab}`}
+            aria-labelledby={`tab-${currentTab}`}
+          >
+            {renderTabContent()}
+          </div>
+        </ErrorBoundary>
       </div>
 
       {/* 플랜 생성은 Step 7에서만 표시 */}
@@ -173,7 +182,7 @@ export function PlanGroupDetailView({
             </p>
             <GeneratePlansButton
               groupId={groupId}
-              currentStatus={group.status as any}
+              currentStatus={group.status as PlanStatus}
               onPlansGenerated={handlePlansGenerated}
             />
           </div>

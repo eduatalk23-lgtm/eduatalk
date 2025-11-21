@@ -7,6 +7,7 @@ import { PlanGroupDetailView } from "./_components/PlanGroupDetailView";
 import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { classifyPlanContents } from "@/lib/data/planContents";
+import type { PlanStatus } from "@/lib/types/plan";
 
 type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -99,8 +100,8 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
     };
   });
 
-  const canEdit = PlanStatusManager.canEdit(group.status as any);
-  const canDelete = PlanStatusManager.canDelete(group.status as any);
+  const canEdit = PlanStatusManager.canEdit(group.status as PlanStatus);
+  const canDelete = PlanStatusManager.canDelete(group.status as PlanStatus);
 
   // 플랜 데이터 조회 (단일 쿼리로 통합)
   const { data: plans } = await supabase
@@ -161,7 +162,7 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
           <PlanGroupActionButtons
             groupId={id}
             groupName={group.name}
-            groupStatus={isCompleted ? ("completed" as any) : (group.status as any)}
+            groupStatus={isCompleted ? "completed" : (group.status as PlanStatus)}
             canEdit={canEdit}
             canDelete={canDelete || isCompleted}
           />
