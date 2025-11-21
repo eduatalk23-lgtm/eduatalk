@@ -275,6 +275,23 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
                     new Date(a.date).getTime() - new Date(b.date).getTime()
                   );
 
+                  // 주차별 학습 시간 계산 (time_slots에서 "학습시간" 타입만)
+                  const weekStudyHours = days.reduce((sum, day) => {
+                    // 지정휴일은 학습 시간이 없으므로 제외
+                    if (day.day_type === "지정휴일") return sum;
+                    if (!day.time_slots) return sum;
+                    const studyMinutes = day.time_slots
+                      .filter((slot) => slot.type === "학습시간")
+                      .reduce((slotSum, slot) => {
+                        const [startHour, startMin] = slot.start.split(":").map(Number);
+                        const [endHour, endMin] = slot.end.split(":").map(Number);
+                        const startMinutes = startHour * 60 + startMin;
+                        const endMinutes = endHour * 60 + endMin;
+                        return slotSum + (endMinutes - startMinutes);
+                      }, 0);
+                    return sum + studyMinutes / 60;
+                  }, 0);
+
                   // 주차별 자율학습 시간 계산
                   const weekSelfStudyHours = days.reduce((sum, day) => {
                     // 지정휴일인 경우 study_hours가 자율학습 시간이므로 그대로 사용
@@ -301,11 +318,14 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
                         <div className="text-sm font-semibold text-gray-900">
                           {weekNum}주차
                         </div>
-                        {weekSelfStudyHours > 0 && (
-                          <div className="text-xs text-gray-600">
-                            자율학습 {formatNumber(weekSelfStudyHours)}시간
-                          </div>
-                        )}
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          {weekStudyHours > 0 && (
+                            <span>학습 {formatNumber(weekStudyHours)}시간</span>
+                          )}
+                          {weekSelfStudyHours > 0 && (
+                            <span>자율학습 {formatNumber(weekSelfStudyHours)}시간</span>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-7 gap-2">
                         {sortedDays.map((day, dayIndex) => (
@@ -326,9 +346,55 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
                               })}
                             </div>
                             <div className="mt-1">{day.day_type}</div>
-                            {day.study_hours > 0 && (
-                              <div className="mt-1 text-xs">{formatNumber(day.study_hours)}시간</div>
-                            )}
+                            {(() => {
+                              // 일별 학습 시간과 자율학습 시간 계산
+                              let studyHours = 0;
+                              let selfStudyHours = 0;
+                              
+                              if (day.day_type === "지정휴일") {
+                                // 지정휴일인 경우 study_hours가 자율학습 시간
+                                selfStudyHours = day.study_hours;
+                              } else if (day.time_slots) {
+                                // 학습 시간 계산 (time_slots에서 "학습시간" 타입만)
+                                const studyMinutes = day.time_slots
+                                  .filter((slot) => slot.type === "학습시간")
+                                  .reduce((sum, slot) => {
+                                    const [startHour, startMin] = slot.start.split(":").map(Number);
+                                    const [endHour, endMin] = slot.end.split(":").map(Number);
+                                    const startMinutes = startHour * 60 + startMin;
+                                    const endMinutes = endHour * 60 + endMin;
+                                    return sum + (endMinutes - startMinutes);
+                                  }, 0);
+                                studyHours = studyMinutes / 60;
+                                
+                                // 자율학습 시간 계산 (time_slots에서 "자율학습" 타입만)
+                                const selfStudyMinutes = day.time_slots
+                                  .filter((slot) => slot.type === "자율학습")
+                                  .reduce((sum, slot) => {
+                                    const [startHour, startMin] = slot.start.split(":").map(Number);
+                                    const [endHour, endMin] = slot.end.split(":").map(Number);
+                                    const startMinutes = startHour * 60 + startMin;
+                                    const endMinutes = endHour * 60 + endMin;
+                                    return sum + (endMinutes - startMinutes);
+                                  }, 0);
+                                selfStudyHours = selfStudyMinutes / 60;
+                              }
+                              
+                              // 학습 시간과 자율학습 시간 모두 표시
+                              if (studyHours > 0 || selfStudyHours > 0) {
+                                return (
+                                  <div className="mt-1 space-y-0.5 text-xs">
+                                    {studyHours > 0 && (
+                                      <div>학습 {formatNumber(studyHours)}시간</div>
+                                    )}
+                                    {selfStudyHours > 0 && (
+                                      <div>자율 {formatNumber(selfStudyHours)}시간</div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                         ))}
                       </div>
