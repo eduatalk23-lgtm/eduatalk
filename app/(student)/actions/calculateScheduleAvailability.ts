@@ -26,6 +26,8 @@ type CalculateScheduleAvailabilityParams = {
     camp_self_study_hours?: { start: string; end: string };
     designated_holiday_hours?: { start: string; end: string };
     use_self_study_with_blocks?: boolean;
+    enable_self_study_for_holidays?: boolean;
+    enable_self_study_for_study_days?: boolean;
   };
 };
 
@@ -80,6 +82,8 @@ export async function calculateScheduleAvailability(
       camp_self_study_hours: params.timeSettings?.camp_self_study_hours,
       designated_holiday_hours: params.timeSettings?.designated_holiday_hours,
       use_self_study_with_blocks: params.timeSettings?.use_self_study_with_blocks,
+      enable_self_study_for_holidays: params.timeSettings?.enable_self_study_for_holidays,
+      enable_self_study_for_study_days: params.timeSettings?.enable_self_study_for_study_days,
     };
 
     // 계산 실행

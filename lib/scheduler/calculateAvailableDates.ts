@@ -108,6 +108,8 @@ type CalculateOptions = {
   lunch_time?: TimeRange; // 점심시간 (기본: 12:00~13:00)
   designated_holiday_hours?: TimeRange; // 지정휴일 학습시간 (기본: 13:00~19:00)
   use_self_study_with_blocks?: boolean; // 블록이 있어도 자율학습시간 사용 (기본: false)
+  enable_self_study_for_holidays?: boolean; // 지정휴일 자율학습 시간 배정 (기본: false)
+  enable_self_study_for_study_days?: boolean; // 학습일/복습일 자율학습 시간 배정 (기본: false)
 };
 
 /**
@@ -494,11 +496,14 @@ function generateTimeSlots(
 
   // 지정휴일 처리
   if (dayType === "지정휴일") {
-    slots.push({
-      type: "자율학습",
-      start: designatedHolidayHours.start,
-      end: designatedHolidayHours.end,
-    });
+    // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
+    if (options.enable_self_study_for_holidays) {
+      slots.push({
+        type: "자율학습",
+        start: designatedHolidayHours.start,
+        end: designatedHolidayHours.end,
+      });
+    }
     return slots;
   }
 
@@ -712,7 +717,12 @@ function calculateAvailableTimeForDate(
 
   // 1. 지정휴일 처리
   if (dayType === "지정휴일") {
-    availableRanges = [designatedHolidayHours];
+    // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
+    if (options.enable_self_study_for_holidays) {
+      availableRanges = [designatedHolidayHours];
+    } else {
+      availableRanges = [];
+    }
   }
   // 2. 휴가/개인일정 처리
   else if (dayType === "휴가" || dayType === "개인일정") {

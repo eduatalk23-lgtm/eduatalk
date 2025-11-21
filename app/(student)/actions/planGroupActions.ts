@@ -1183,6 +1183,12 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
       scheduler_type: group.scheduler_type as "1730_timetable" | "자동스케줄러",
       scheduler_options: schedulerOptions || null,
       use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+      enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays === true,
+      enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days === true,
+      lunch_time: schedulerOptions.lunch_time,
+      camp_study_hours: schedulerOptions.camp_study_hours,
+      camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+      designated_holiday_hours: schedulerOptions.designated_holiday_hours,
     }
   );
 
@@ -2120,7 +2126,9 @@ async function _generatePlansFromGroup(groupId: string): Promise<{ count: number
     }
 
     // 지정휴일의 경우 배정된 학습시간을 자율학습으로 저장
-    if (dateMetadata.day_type === "지정휴일" && studyTimeSlots.length > 0) {
+    // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
+    const enableSelfStudyForHolidays = schedulerOptions.enable_self_study_for_holidays === true;
+    if (dateMetadata.day_type === "지정휴일" && studyTimeSlots.length > 0 && enableSelfStudyForHolidays) {
       // 자율학습을 위한 더미 custom content ID
       const DUMMY_SELF_STUDY_CONTENT_ID = "00000000-0000-0000-0000-000000000001";
       
@@ -2520,7 +2528,14 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     })),
     {
       scheduler_type: group.scheduler_type || "1730_timetable",
+      scheduler_options: (group.scheduler_options as any) || null,
       use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+      enable_self_study_for_holidays: (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
+      enable_self_study_for_study_days: (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
+      lunch_time: (group.scheduler_options as any)?.lunch_time,
+      camp_study_hours: (group.scheduler_options as any)?.camp_study_hours,
+      camp_self_study_hours: (group.scheduler_options as any)?.camp_self_study_hours,
+      designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
     }
   );
 
@@ -3131,7 +3146,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     }
 
     // 지정휴일의 경우 배정된 학습시간을 자율학습으로 저장
-    if (dateMetadata.day_type === "지정휴일" && studyTimeSlots.length > 0) {
+    // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
+    const schedulerOptionsPreview = (group.scheduler_options as any) || {};
+    const enableSelfStudyForHolidaysPreview = schedulerOptionsPreview.enable_self_study_for_holidays === true;
+    if (dateMetadata.day_type === "지정휴일" && studyTimeSlots.length > 0 && enableSelfStudyForHolidaysPreview) {
       for (const studySlot of studyTimeSlots) {
         // 주차별 일차(day) 계산
         let weekDay: number | null = null;
