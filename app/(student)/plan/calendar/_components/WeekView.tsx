@@ -8,8 +8,6 @@ import { getWeekStart, formatDateString, isToday } from "@/lib/date/calendarUtil
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
-import { PlanCard } from "./PlanCard";
-import { StatCard } from "./StatCard";
 import { DayTimelineModal } from "./DayTimelineModal";
 
 type WeekViewProps = {
@@ -203,7 +201,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                 </div>
               )}
 
-              <div className="flex max-h-[300px] flex-col gap-1.5 overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
                 {/* 타임라인 슬롯 표시 (시간 순서대로 정렬) */}
                 {(() => {
                   const dailySchedule = dailyScheduleMap.get(dateStr);
@@ -277,14 +275,49 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                             }
                             addedPlanIds.add(plan.id);
 
+                            const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type] || "📚";
+                            const isCompleted = plan.progress !== null && plan.progress >= 100;
+                            const isActive = plan.actual_start_time && !plan.actual_end_time;
+                            
+                            // 플랜 카드 스타일
+                            const cardBorderClass = isCompleted
+                              ? "border-green-300 bg-green-50"
+                              : isActive
+                              ? "border-blue-300 bg-blue-50"
+                              : "border-gray-200 bg-white";
+
                             items.push(
-                              <PlanCard
+                              <div
                                 key={`${dateStr}-plan-${plan.id}`}
-                                plan={plan}
-                                compact={false}
-                                showTime={true}
-                                showProgress={true}
-                              />
+                                className={`rounded border p-2 text-xs ${cardBorderClass}`}
+                              >
+                                {/* 1행: 플랜 시작시간 */}
+                                {plan.start_time && (
+                                  <div className="mb-1 font-semibold text-gray-900">
+                                    {plan.start_time}
+                                  </div>
+                                )}
+                                {/* 2행: 아이콘 + 교과 + 회차 */}
+                                <div className="mb-1 flex items-center gap-1">
+                                  <span className="text-sm">{contentTypeIcon}</span>
+                                  {plan.contentSubjectCategory && (
+                                    <span className="font-medium text-gray-700">
+                                      {plan.contentSubjectCategory}
+                                    </span>
+                                  )}
+                                  {plan.contentEpisode && (
+                                    <span className="text-gray-600">
+                                      {plan.contentEpisode}
+                                    </span>
+                                  )}
+                                </div>
+                                {/* 3행: 과목 */}
+                                {plan.contentSubject && (
+                                  <div className="text-gray-600">
+                                    {plan.contentSubject}
+                                  </div>
+                                )}
+                              </div>
                             );
                           });
                       } else {
