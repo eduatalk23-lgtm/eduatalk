@@ -1,8 +1,8 @@
-# 주별 플랜 캘린더 연결 아이콘 디자인 구현
+# 플랜 캘린더 연결 아이콘 디자인 구현
 
 ## 작업 개요
 
-주별 플랜 캘린더(WeekView)에서 같은 플랜의 동일 회차를 시각적으로 표시하기 위해 플랜 카드 오른쪽 상단에 연결 아이콘을 추가했습니다.
+주별 플랜 캘린더(WeekView)와 일별 플랜 캘린더(DayView)에서 같은 플랜의 동일 회차를 시각적으로 표시하기 위해 플랜 카드 오른쪽 상단에 연결 아이콘을 추가했습니다.
 
 ## 구현 내용
 
@@ -137,9 +137,25 @@ setPlanPositions((prevPositions) => {
 
 ## 파일 변경 사항
 
+### WeekView
 - `app/(student)/plan/calendar/_components/WeekView.tsx`
   - 플랜 그룹화 로직 추가
   - 연결된 플랜 ID Set 생성 (빠른 조회)
   - 플랜 카드 오른쪽 상단에 연결 아이콘 추가
   - 불필요한 위치 추적 및 SVG 렌더링 코드 제거
+
+### DayView
+- `app/(student)/plan/calendar/_components/DayView.tsx`
+  - 플랜 그룹화 로직 추가
+  - 연결된 플랜 ID Set 생성
+  - TimelineItem에 연결 정보 전달
+
+- `app/(student)/plan/calendar/_components/TimelineItem.tsx`
+  - `connectedPlanIds` prop 추가
+  - PlanCard에 연결 정보 전달
+
+- `app/(student)/plan/calendar/_components/PlanCard.tsx`
+  - `Link2` 아이콘 import 추가
+  - 연결 아이콘을 오른쪽 상단에 표시 (`absolute top-2 right-2`)
+  - `isConnected` prop이 true일 때만 아이콘 표시
 
