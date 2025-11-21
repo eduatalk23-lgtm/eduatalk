@@ -1,17 +1,34 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
-import { Step1DetailView } from "./Step1DetailView";
-import { Step2DetailView } from "./Step2DetailView";
-import { Step2_5DetailView } from "./Step2_5DetailView";
-import { Step3DetailView } from "./Step3DetailView";
-import { Step4DetailView } from "./Step4DetailView";
-import { Step6DetailView } from "./Step6DetailView";
-import { Step7DetailView } from "./Step7DetailView";
 import { GeneratePlansButton } from "./GeneratePlansButton";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
+
+// 동적 임포트로 레이지 로딩 (named export를 default로 변환)
+const Step1DetailView = lazy(() => 
+  import("./Step1DetailView").then(module => ({ default: module.Step1DetailView }))
+);
+const Step2DetailView = lazy(() => 
+  import("./Step2DetailView").then(module => ({ default: module.Step2DetailView }))
+);
+const Step2_5DetailView = lazy(() => 
+  import("./Step2_5DetailView").then(module => ({ default: module.Step2_5DetailView }))
+);
+const Step3DetailView = lazy(() => 
+  import("./Step3DetailView").then(module => ({ default: module.Step3DetailView }))
+);
+const Step4DetailView = lazy(() => 
+  import("./Step4DetailView").then(module => ({ default: module.Step4DetailView }))
+);
+const Step6DetailView = lazy(() => 
+  import("./Step6DetailView").then(module => ({ default: module.Step6DetailView }))
+);
+const Step7DetailView = lazy(() => 
+  import("./Step7DetailView").then(module => ({ default: module.Step7DetailView }))
+);
 
 type PlanGroupDetailViewProps = {
   group: PlanGroup;
@@ -81,26 +98,56 @@ export function PlanGroupDetailView({
   const renderTabContent = () => {
     switch (currentTab) {
       case 1:
-        return <Step1DetailView group={group} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step1DetailView group={group} />
+          </Suspense>
+        );
       case 2:
-        return <Step2DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step2DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />
+          </Suspense>
+        );
       case 3:
-        return <Step2_5DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step2_5DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />
+          </Suspense>
+        );
       case 4:
-        return <Step3DetailView contents={studentContents} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step3DetailView contents={studentContents} />
+          </Suspense>
+        );
       case 5:
-        return <Step4DetailView contents={recommendedContents} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step4DetailView contents={recommendedContents} />
+          </Suspense>
+        );
       case 6:
-        return <Step6DetailView group={group} contents={contentsWithDetails} exclusions={exclusions} academySchedules={academySchedules} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step6DetailView group={group} contents={contentsWithDetails} exclusions={exclusions} academySchedules={academySchedules} />
+          </Suspense>
+        );
       case 7:
         return (
-          <Step7DetailView
-            groupId={groupId}
-            onScheduleViewReady={handleScheduleViewReady}
-          />
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step7DetailView
+              groupId={groupId}
+              onScheduleViewReady={handleScheduleViewReady}
+            />
+          </Suspense>
         );
       default:
-        return <Step1DetailView group={group} />;
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <Step1DetailView group={group} />
+          </Suspense>
+        );
     }
   };
 
