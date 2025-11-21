@@ -519,9 +519,14 @@ function generateTimeSlots(
       start: block.start_time,
       end: block.end_time,
     }));
+    // 블록이 있을 때: use_self_study_with_blocks가 true이고 enable_self_study_for_study_days가 true이면 자율학습 시간 추가
+    if (options.use_self_study_with_blocks && options.enable_self_study_for_study_days && campSelfStudyHours) {
+      baseRanges.push(campSelfStudyHours);
+    }
   } else {
     baseRanges = [campStudyHours];
-    if (campSelfStudyHours) {
+    // 블록이 없을 때: enable_self_study_for_study_days가 true이면 자율학습 시간 추가
+    if (options.enable_self_study_for_study_days && campSelfStudyHours) {
       baseRanges.push(campSelfStudyHours);
     }
   }
@@ -666,9 +671,10 @@ function generateTimeSlots(
   }
 
   // 자율학습 시간 추가
-  // - 블록이 없을 때: 항상 추가
-  // - 블록이 있을 때: use_self_study_with_blocks가 true이면 추가
-  if (campSelfStudyHours) {
+  // - enable_self_study_for_study_days가 true일 때만 추가
+  // - 블록이 없을 때: enable_self_study_for_study_days가 true이면 추가
+  // - 블록이 있을 때: use_self_study_with_blocks가 true이고 enable_self_study_for_study_days가 true이면 추가
+  if (campSelfStudyHours && options.enable_self_study_for_study_days) {
     if (dateBlocks.length === 0 || options.use_self_study_with_blocks) {
       slots.push({
         type: "자율학습",
@@ -737,9 +743,17 @@ function calculateAvailableTimeForDate(
         start: block.start_time,
         end: block.end_time,
       }));
+      // 블록이 있을 때: use_self_study_with_blocks가 true이고 enable_self_study_for_study_days가 true이면 자율학습 시간 추가
+      if (options.use_self_study_with_blocks && options.enable_self_study_for_study_days && campSelfStudyHours) {
+        availableRanges.push(campSelfStudyHours);
+      }
     } else {
       // 캠프 시간 사용 (학습시간 + 자율학습)
-      availableRanges = [campStudyHours, campSelfStudyHours];
+      availableRanges = [campStudyHours];
+      // 블록이 없을 때: enable_self_study_for_study_days가 true이면 자율학습 시간 추가
+      if (options.enable_self_study_for_study_days && campSelfStudyHours) {
+        availableRanges.push(campSelfStudyHours);
+      }
     }
 
     // 점심시간 제외
