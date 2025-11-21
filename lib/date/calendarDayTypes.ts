@@ -26,7 +26,7 @@ export const DAY_TYPE_INFO: Record<DayType, DayTypeInfo> = {
   학습일: {
     type: "학습일",
     label: "학습일",
-    icon: "📚",
+    icon: "✏️",
     description: "새로운 내용을 학습하는 날",
   },
   복습일: {
