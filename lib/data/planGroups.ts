@@ -128,21 +128,55 @@ export async function getPlanGroupById(
 
   let { data, error } = await query.maybeSingle<PlanGroup>();
 
+  // 컬럼이 없는 경우 fallback (scheduler_options 제외)
   if (error && error.code === "42703") {
-    ({ data, error } = await selectGroup().maybeSingle<PlanGroup>());
-  }
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/planGroups] 플랜 그룹 조회 실패", {
-      error: {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-      },
+    console.warn("[data/planGroups] scheduler_options 컬럼이 없어 fallback 쿼리 사용", {
       groupId,
       studentId,
       tenantId,
+    });
+    
+    const fallbackSelect = () =>
+      supabase
+        .from("plan_groups")
+        .select(
+          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+        )
+        .eq("id", groupId)
+        .eq("student_id", studentId)
+        .is("deleted_at", null);
+    
+    let fallbackQuery = fallbackSelect();
+    if (tenantId) {
+      fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+    }
+    
+    ({ data, error } = await fallbackQuery.maybeSingle<PlanGroup>());
+    
+    // fallback 성공 시 scheduler_options를 null로 설정
+    if (data && !error) {
+      data = { ...data, scheduler_options: null } as PlanGroup;
+    }
+  }
+
+  if (error && error.code !== "PGRST116") {
+    // 에러 객체의 모든 속성을 안전하게 추출
+    const errorInfo: Record<string, unknown> = {
+      message: error.message || String(error),
+      code: error.code || "UNKNOWN",
+    };
+    
+    // 에러 객체의 다른 속성들도 추출
+    if ("details" in error) errorInfo.details = (error as { details?: unknown }).details;
+    if ("hint" in error) errorInfo.hint = (error as { hint?: unknown }).hint;
+    if ("statusCode" in error) errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+    
+    console.error("[data/planGroups] 플랜 그룹 조회 실패", {
+      error: errorInfo,
+      groupId,
+      studentId,
+      tenantId,
+      errorString: JSON.stringify(error, Object.getOwnPropertyNames(error)),
     });
     return null;
   }
