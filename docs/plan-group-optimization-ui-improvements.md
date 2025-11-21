@@ -513,6 +513,54 @@ step7의 시간 구성에서 자율학습 슬롯에 표시되던 "(자율 학습
 
 ---
 
+## 🔍 버그 수정: 자율학습시간 사용 가능 체크박스 복원 문제
+
+### 문제
+
+1. **로직 점검 요청**: "자율학습시간 사용 가능" 체크박스의 로직이 맞는지 확인 필요
+2. **체크가 풀리는 문제**: 체크 후 저장하고 목록으로 돌아갔다가 다시 수정을 열면 체크가 풀려있음
+
+### 로직 점검 결과
+
+`lib/scheduler/calculateAvailableDates.ts`의 667번 줄 로직을 확인한 결과:
+
+```typescript
+if (dateBlocks.length === 0 || options.use_self_study_with_blocks) {
+  slots.push({
+    type: "자율학습",
+    start: campSelfStudyHours.start,
+    end: campSelfStudyHours.end,
+  });
+}
+```
+
+**로직이 올바릅니다:**
+- 블록이 없을 때: 항상 자율학습 시간 추가
+- 블록이 있을 때: `use_self_study_with_blocks`가 `true`이면 자율학습 시간 추가
+
+체크박스를 체크하면 `use_self_study_with_blocks`가 `true`가 되어, 블록이 있어도 자율학습 시간이 추가됩니다.
+
+### 체크가 풀리는 문제 해결
+
+**원인:**
+- `edit/page.tsx`에서 `time_settings`를 추출할 때, `hasTimeSettings` 체크 로직이 `Object.values(timeSettings).some(v => v !== undefined)`를 사용했습니다.
+- `use_self_study_with_blocks`가 `false`일 때도 `undefined`가 아니므로 문제가 없어야 하지만, 다른 필드들이 모두 `undefined`일 때 `hasTimeSettings`가 `false`가 될 수 있었습니다.
+- 더 중요한 것은, `use_self_study_with_blocks`가 `false`일 때도 명시적으로 복원되어야 한다는 점입니다.
+
+**해결 방법:**
+- `hasTimeSettings` 체크 로직을 개선하여 각 필드를 개별적으로 확인하도록 변경했습니다.
+- `use_self_study_with_blocks`가 `undefined`가 아닌 경우(즉, `true` 또는 `false`)에도 `time_settings`에 포함되도록 수정했습니다.
+
+### 변경 파일
+
+- `app/(student)/plan/group/[id]/edit/page.tsx`
+
+### 결과
+
+이제 "자율학습시간 사용 가능" 체크박스를 체크하거나 해제한 후 저장하고, 다시 수정 모드로 열어도 체크 상태가 올바르게 복원됩니다.
+
+---
+
 ## 🎯 결론
 
 플랜 그룹 상세 페이지는 기능적으로는 잘 구현되어 있으나, 성능 최적화와 UI/UX 개선의 여지가 있습니다. 특히 데이터 페칭 최적화와 컴포넌트 레이지 로딩을 통해 사용자 경험을 크게 개선할 수 있습니다.
