@@ -3672,6 +3672,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
             scheduler_type: (group.scheduler_type || "자동스케줄러") as "1730_timetable" | "자동스케줄러",
             scheduler_options: group.scheduler_options || null,
             use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
+            enable_self_study_for_holidays: (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
+            enable_self_study_for_study_days: (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
+            lunch_time: (group.scheduler_options as any)?.lunch_time,
+            camp_study_hours: (group.scheduler_options as any)?.camp_study_hours,
+            camp_self_study_hours: (group.scheduler_options as any)?.camp_self_study_hours,
+            designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
           }
         );
 
