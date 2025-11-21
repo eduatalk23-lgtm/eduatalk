@@ -3683,7 +3683,39 @@ async function _getScheduleResultData(groupId: string): Promise<{
             camp_study_hours: (group.scheduler_options as any)?.camp_study_hours,
             camp_self_study_hours: (group.scheduler_options as any)?.camp_self_study_hours,
             designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
-          }
+          };
+          
+          // 디버깅: 전달된 옵션 확인
+          console.log("[planGroupActions] calculateAvailableDates 옵션:", {
+            enable_self_study_for_holidays: options.enable_self_study_for_holidays,
+            enable_self_study_for_study_days: options.enable_self_study_for_study_days,
+            camp_self_study_hours: options.camp_self_study_hours,
+            designated_holiday_hours: options.designated_holiday_hours,
+            use_self_study_with_blocks: options.use_self_study_with_blocks,
+          });
+          
+          const scheduleResult = calculateAvailableDates(
+            group.period_start,
+            group.period_end,
+            baseBlocks.map((b) => ({
+              day_of_week: b.day_of_week,
+              start_time: b.start_time,
+              end_time: b.end_time,
+            })),
+            (exclusions || []).map((e) => ({
+              exclusion_date: e.exclusion_date,
+              exclusion_type: e.exclusion_type as "휴가" | "개인사정" | "휴일지정" | "기타",
+              reason: e.reason || undefined,
+            })),
+            (academySchedules || []).map((a) => ({
+              day_of_week: a.day_of_week,
+              start_time: a.start_time,
+              end_time: a.end_time,
+              academy_name: a.academy_name || undefined,
+              subject: a.subject || undefined,
+              travel_time: a.travel_time || undefined,
+            })),
+            options
         );
 
         // daily_schedule 전체 정보 저장 (Step 2.5와 동일한 구조)
@@ -3701,8 +3733,32 @@ async function _getScheduleResultData(groupId: string): Promise<{
           d.time_slots?.some((slot) => slot.type === "자율학습") || 
           (d.day_type === "지정휴일" && d.study_hours > 0)
         );
+        
+        console.log("[planGroupActions] daily_schedule 분석:", {
+          총_날짜수: dailySchedule.length,
+          자율학습_포함_날짜수: selfStudyDays.length,
+          지정휴일_수: dailySchedule.filter((d) => d.day_type === "지정휴일").length,
+          학습일_수: dailySchedule.filter((d) => d.day_type === "학습일").length,
+          복습일_수: dailySchedule.filter((d) => d.day_type === "복습일").length,
+          time_slots_있는_날짜수: dailySchedule.filter((d) => d.time_slots && d.time_slots.length > 0).length,
+        });
+        
         if (selfStudyDays.length > 0) {
           console.log("[planGroupActions] 자율학습 시간이 포함된 날짜:", selfStudyDays.length, "일");
+          selfStudyDays.forEach((d) => {
+            const selfStudySlots = d.time_slots?.filter((slot) => slot.type === "자율학습") || [];
+            console.log(`  - ${d.date} (${d.day_type}): 자율학습 슬롯 ${selfStudySlots.length}개`, selfStudySlots);
+          });
+        } else {
+          console.warn("[planGroupActions] ⚠️ 자율학습 시간이 포함된 날짜가 없습니다!");
+          console.log("[planGroupActions] time_slots 샘플 (첫 3개 날짜):", 
+            dailySchedule.slice(0, 3).map((d) => ({
+              date: d.date,
+              day_type: d.day_type,
+              time_slots_count: d.time_slots?.length || 0,
+              time_slots_types: d.time_slots?.map((s) => s.type) || [],
+            }))
+          );
         }
 
         // 계산한 결과를 저장 (다음 조회 시 사용)
