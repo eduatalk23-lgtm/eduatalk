@@ -9,6 +9,7 @@ type DailySchedule = {
   date: string;
   day_type: string;
   study_hours: number;
+  week_number?: number; // 주차 번호 (선택적)
   time_slots?: Array<{
     type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
     start: string;
@@ -129,10 +130,8 @@ export function ScheduleTableView({
     });
   }
 
-  // 날짜 순으로 정렬
-  const sortedSchedule = [...(dailySchedule || [])].sort((a, b) =>
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
+  // 주차별 그룹화가 가능한지 확인 (week_number가 있는지)
+  const hasWeekNumbers = dailySchedule.some((s) => s.week_number !== undefined);
 
   return (
     <div className="w-full rounded-lg border border-gray-200 bg-white">
@@ -142,21 +141,36 @@ export function ScheduleTableView({
         </h3>
       </div>
       <div className="max-h-[800px] overflow-y-auto">
-        {sortedSchedule.map((schedule) => {
-          const datePlans = plansByDate.get(schedule.date) || [];
-          return (
-            <ScheduleItem
-              key={schedule.date}
-              schedule={schedule}
-              datePlans={datePlans}
-              contents={contents}
-              blocks={blocks}
-              sequenceMap={sequenceMap}
-              isExpanded={expandedDates.has(schedule.date)}
-              onToggle={() => toggleDate(schedule.date)}
-            />
-          );
-        })}
+        {hasWeekNumbers ? (
+          <ScheduleListByWeek
+            schedules={dailySchedule}
+            plansByDate={plansByDate}
+            contents={contents}
+            blocks={blocks}
+            sequenceMap={sequenceMap}
+            expandedDates={expandedDates}
+            onToggleDate={toggleDate}
+          />
+        ) : (
+          // 주차 정보가 없으면 날짜 순으로 정렬하여 표시
+          [...(dailySchedule || [])]
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .map((schedule) => {
+              const datePlans = plansByDate.get(schedule.date) || [];
+              return (
+                <ScheduleItem
+                  key={schedule.date}
+                  schedule={schedule}
+                  datePlans={datePlans}
+                  contents={contents}
+                  blocks={blocks}
+                  sequenceMap={sequenceMap}
+                  isExpanded={expandedDates.has(schedule.date)}
+                  onToggle={() => toggleDate(schedule.date)}
+                />
+              );
+            })
+        )}
       </div>
     </div>
   );
@@ -215,14 +229,70 @@ function ScheduleItem({
                 {dayTypeLabels[schedule.day_type] || schedule.day_type}
               </span>
             </div>
-            <div className="mt-2 flex items-center gap-4 text-xs text-gray-600">
-              <span className="font-medium">
-                학습 시간: {formatNumber(schedule.study_hours)}시간
-              </span>
-              {datePlans.length > 0 && (
-                <span>플랜: {datePlans.length}개</span>
-              )}
-            </div>
+            {/* 시간 슬롯에서 각 타입별 시간 계산 (시간 단위) */}
+            {(() => {
+              const calculateTimeFromSlots = (type: "자율학습" | "이동시간" | "학원일정"): number => {
+                if (!schedule.time_slots) return 0;
+                const minutes = schedule.time_slots
+                  .filter((slot) => slot.type === type)
+                  .reduce((sum, slot) => {
+                    const [startHour, startMin] = slot.start.split(":").map(Number);
+                    const [endHour, endMin] = slot.end.split(":").map(Number);
+                    const startMinutes = startHour * 60 + startMin;
+                    const endMinutes = endHour * 60 + endMin;
+                    return sum + (endMinutes - startMinutes);
+                  }, 0);
+                return minutes / 60;
+              };
+
+              // 지정휴일인 경우 study_hours가 자율학습 시간이므로 별도 계산 불필요
+              const isDesignatedHoliday = schedule.day_type === "지정휴일";
+              const selfStudyHours = isDesignatedHoliday 
+                ? schedule.study_hours 
+                : calculateTimeFromSlots("자율학습");
+              const travelHours = calculateTimeFromSlots("이동시간");
+              const academyHours = calculateTimeFromSlots("학원일정");
+
+              return (
+                <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600">
+                  {isDesignatedHoliday ? (
+                    // 지정휴일인 경우 자율학습 시간만 표기
+                    <div className="flex items-center gap-4">
+                      <span className="font-medium">
+                        자율 학습 시간: {formatNumber(selfStudyHours)}시간
+                      </span>
+                    </div>
+                  ) : (
+                    // 일반 학습일/복습일인 경우 학습 시간과 자율학습 시간 별도 표기
+                    <>
+                      <div className="flex items-center gap-4">
+                        <span className="font-medium">
+                          학습 시간: {formatNumber(schedule.study_hours)}시간
+                        </span>
+                        {selfStudyHours > 0 && (
+                          <span>
+                            자율 학습 시간: {formatNumber(selfStudyHours)}시간
+                          </span>
+                        )}
+                        {datePlans.length > 0 && (
+                          <span>플랜: {datePlans.length}개</span>
+                        )}
+                      </div>
+                      {(travelHours > 0 || academyHours > 0) && (
+                        <div className="flex items-center gap-4">
+                          {travelHours > 0 && (
+                            <span>이동시간: {formatNumber(travelHours)}시간</span>
+                          )}
+                          {academyHours > 0 && (
+                            <span>학원 시간: {formatNumber(academyHours)}시간</span>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             {schedule.note && (
               <div className="mt-1 text-xs text-gray-500">{schedule.note}</div>
             )}
@@ -761,6 +831,204 @@ function getPlanStartTime(plan: Plan, date: string, blocks: BlockData[]): string
   }
 
   return null;
+}
+
+// 주차별 그룹화 컴포넌트
+function ScheduleListByWeek({
+  schedules,
+  plansByDate,
+  contents,
+  blocks,
+  sequenceMap,
+  expandedDates,
+  onToggleDate,
+}: {
+  schedules: DailySchedule[];
+  plansByDate: Map<string, Plan[]>;
+  contents: Map<string, ContentData>;
+  blocks: BlockData[];
+  sequenceMap: Map<string, number>;
+  expandedDates: Set<string>;
+  onToggleDate: (date: string) => void;
+}) {
+  // 주차별로 그룹화
+  const schedulesByWeek = new Map<number | undefined, DailySchedule[]>();
+  
+  for (const schedule of schedules) {
+    const weekNum = schedule.week_number;
+    if (!schedulesByWeek.has(weekNum)) {
+      schedulesByWeek.set(weekNum, []);
+    }
+    schedulesByWeek.get(weekNum)!.push(schedule);
+  }
+
+  // 주차 번호로 정렬 (undefined는 마지막)
+  const sortedWeeks = Array.from(schedulesByWeek.entries()).sort((a, b) => {
+    if (a[0] === undefined) return 1;
+    if (b[0] === undefined) return -1;
+    return a[0] - b[0];
+  });
+
+  return (
+    <div>
+      {sortedWeeks.map(([weekNum, weekSchedules]) => (
+        <WeekSection
+          key={weekNum ?? "no-week"}
+          weekNum={weekNum}
+          schedules={weekSchedules}
+          plansByDate={plansByDate}
+          contents={contents}
+          blocks={blocks}
+          sequenceMap={sequenceMap}
+          expandedDates={expandedDates}
+          onToggleDate={onToggleDate}
+        />
+      ))}
+    </div>
+  );
+}
+
+// 주차 섹션 컴포넌트
+function WeekSection({
+  weekNum,
+  schedules,
+  plansByDate,
+  contents,
+  blocks,
+  sequenceMap,
+  expandedDates,
+  onToggleDate,
+}: {
+  weekNum: number | undefined;
+  schedules: DailySchedule[];
+  plansByDate: Map<string, Plan[]>;
+  contents: Map<string, ContentData>;
+  blocks: BlockData[];
+  sequenceMap: Map<string, number>;
+  expandedDates: Set<string>;
+  onToggleDate: (date: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  if (weekNum === undefined) {
+    // 주차 정보가 없는 경우 (자동 스케줄러 등)
+    return (
+      <div>
+        {schedules.map((schedule) => {
+          const datePlans = plansByDate.get(schedule.date) || [];
+          return (
+            <ScheduleItem
+              key={schedule.date}
+              schedule={schedule}
+              datePlans={datePlans}
+              contents={contents}
+              blocks={blocks}
+              sequenceMap={sequenceMap}
+              isExpanded={expandedDates.has(schedule.date)}
+              onToggle={() => onToggleDate(schedule.date)}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  const weekStart = schedules[0]?.date;
+  const weekEnd = schedules[schedules.length - 1]?.date;
+  const weekStartDate = weekStart ? new Date(weekStart) : null;
+  const weekEndDate = weekEnd ? new Date(weekEnd) : null;
+
+  const formatDateRange = () => {
+    if (!weekStartDate || !weekEndDate) return "";
+    return `${weekStart} ~ ${weekEnd}`;
+  };
+
+  const weekStudyDays = schedules.filter((s) => s.day_type === "학습일").length;
+  const weekReviewDays = schedules.filter((s) => s.day_type === "복습일").length;
+  const weekExclusionDays = schedules.filter((s) => 
+    s.day_type === "휴가" || s.day_type === "개인일정" || s.day_type === "지정휴일"
+  ).length;
+  const weekTotalHours = schedules.reduce((sum, s) => sum + s.study_hours, 0);
+  
+  // 주차별 자율학습 시간 계산
+  // 지정휴일의 경우 study_hours가 이미 자율학습 시간을 포함하므로 중복 계산 방지
+  const weekSelfStudyHours = schedules.reduce((sum, s) => {
+    // 지정휴일인 경우 study_hours가 자율학습 시간이므로 그대로 사용
+    if (s.day_type === "지정휴일") {
+      return sum + s.study_hours;
+    }
+    // 일반 학습일/복습일의 경우 time_slots에서 자율학습 시간 계산
+    if (!s.time_slots) return sum;
+    const selfStudyMinutes = s.time_slots
+      .filter((slot) => slot.type === "자율학습")
+      .reduce((slotSum, slot) => {
+        const [startHour, startMin] = slot.start.split(":").map(Number);
+        const [endHour, endMin] = slot.end.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        return slotSum + (endMinutes - startMinutes);
+      }, 0);
+    return sum + selfStudyMinutes / 60;
+  }, 0);
+
+  // 날짜 순으로 정렬
+  const sortedSchedules = [...schedules].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  return (
+    <div className="border-b border-gray-200 last:border-b-0">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full bg-gray-50 px-4 py-3 text-left hover:bg-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {isExpanded ? (
+              <ChevronUp className="h-5 w-5 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-gray-400" />
+            )}
+            <div>
+              <div className="text-sm font-semibold text-gray-900">
+                {weekNum}주차 {formatDateRange()}
+              </div>
+              <div className="mt-1 flex items-center gap-3 text-xs text-gray-600">
+                <span>학습일 {weekStudyDays}일</span>
+                <span>복습일 {weekReviewDays}일</span>
+                {weekExclusionDays > 0 && (
+                  <span className="text-gray-500">제외일 {weekExclusionDays}일</span>
+                )}
+                <span>총 {formatNumber(weekTotalHours)}시간</span>
+                {weekSelfStudyHours > 0 && (
+                  <span>자율학습 {formatNumber(weekSelfStudyHours)}시간</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </button>
+      {isExpanded && (
+        <div>
+          {sortedSchedules.map((schedule) => {
+            const datePlans = plansByDate.get(schedule.date) || [];
+            return (
+              <ScheduleItem
+                key={schedule.date}
+                schedule={schedule}
+                datePlans={datePlans}
+                contents={contents}
+                blocks={blocks}
+                sequenceMap={sequenceMap}
+                isExpanded={expandedDates.has(schedule.date)}
+                onToggle={() => onToggleDate(schedule.date)}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function calculateEstimatedTime(plan: Plan, contents: Map<string, ContentData>, dayType?: string): number {
