@@ -102,23 +102,16 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
   const canEdit = PlanStatusManager.canEdit(group.status as any);
   const canDelete = PlanStatusManager.canDelete(group.status as any);
 
-  // 플랜 개수 조회
-  const { data: planCounts } = await supabase
-    .from("student_plan")
-    .select("id")
-    .eq("plan_group_id", id)
-    .eq("student_id", user.id);
-
-  const planCount = planCounts?.length || 0;
-  const hasPlans = planCount > 0;
-
-  // 플랜 완료 상태 조회
+  // 플랜 데이터 조회 (단일 쿼리로 통합)
   const { data: plans } = await supabase
     .from("student_plan")
-    .select("planned_end_page_or_time,completed_amount")
+    .select("id,planned_end_page_or_time,completed_amount")
     .eq("plan_group_id", id)
     .eq("student_id", user.id)
     .not("plan_group_id", "is", null);
+
+  const planCount = plans?.length || 0;
+  const hasPlans = planCount > 0;
 
   // 완료 여부 및 완료 개수 계산
   let isCompleted = false;

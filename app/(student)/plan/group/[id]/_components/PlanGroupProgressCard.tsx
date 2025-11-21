@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { PlanGroup } from "@/lib/types/plan";
 
 type PlanGroupProgressCardProps = {
@@ -15,7 +16,15 @@ export function PlanGroupProgressCard({
   completedCount,
   hasPlans,
 }: PlanGroupProgressCardProps) {
-  const progressPercentage = planCount > 0 ? Math.round((completedCount / planCount) * 100) : 0;
+  // 진행률 계산 메모이제이션
+  const progressPercentage = useMemo(() => {
+    return planCount > 0 ? Math.round((completedCount / planCount) * 100) : 0;
+  }, [planCount, completedCount]);
+
+  // 진행 중 플랜 개수 메모이제이션
+  const inProgressCount = useMemo(() => {
+    return planCount - completedCount;
+  }, [planCount, completedCount]);
 
   if (!hasPlans || planCount === 0) {
     return (
@@ -59,17 +68,23 @@ export function PlanGroupProgressCard({
       </div>
 
       {/* 상세 정보 */}
-      <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+      <div className="mt-4 grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
         <div>
-          <p className="text-xs text-gray-500">진행 중</p>
-          <p className="mt-1 text-lg font-semibold text-orange-600">
-            {planCount - completedCount}개
+          <p className="text-xs text-gray-500">완료</p>
+          <p className="mt-1 text-lg font-semibold text-green-600">
+            {completedCount}개
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">남은 플랜</p>
+          <p className="text-xs text-gray-500">진행 중</p>
+          <p className="mt-1 text-lg font-semibold text-orange-600">
+            {inProgressCount}개
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500">전체</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">
-            {planCount - completedCount}개
+            {planCount}개
           </p>
         </div>
       </div>

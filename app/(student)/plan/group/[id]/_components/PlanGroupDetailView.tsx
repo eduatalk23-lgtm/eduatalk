@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { Step1DetailView } from "./Step1DetailView";
 import { Step2DetailView } from "./Step2DetailView";
@@ -41,7 +41,8 @@ export function PlanGroupDetailView({
   const [currentTab, setCurrentTab] = useState(1);
   const scheduleViewRef = useRef<PlanScheduleViewRef | null>(null);
 
-  const tabs = [
+  // 탭 정보 메모이제이션
+  const tabs = useMemo(() => [
     { id: 1, label: "기본 정보", completed: !!group.name && !!group.plan_purpose && !!group.scheduler_type },
     { id: 2, label: "블록 및 제외일", completed: !!group.block_set_id },
     { id: 3, label: "스케줄 미리보기", completed: true },
@@ -49,7 +50,33 @@ export function PlanGroupDetailView({
     { id: 5, label: "추천 콘텐츠", completed: contentsWithDetails.some(c => c.isRecommended) },
     { id: 6, label: "최종 검토", completed: true },
     { id: 7, label: "스케줄 결과", completed: hasPlans },
-  ];
+  ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, contentsWithDetails, hasPlans]);
+
+  // 필터링된 콘텐츠 메모이제이션
+  const studentContents = useMemo(() => 
+    contentsWithDetails.filter(c => !c.isRecommended),
+    [contentsWithDetails]
+  );
+  
+  const recommendedContents = useMemo(() => 
+    contentsWithDetails.filter(c => c.isRecommended),
+    [contentsWithDetails]
+  );
+
+  // 탭 변경 핸들러 메모이제이션
+  const handleTabChange = useCallback((tab: number) => {
+    setCurrentTab(tab);
+  }, []);
+
+  // 스케줄 뷰 준비 핸들러 메모이제이션
+  const handleScheduleViewReady = useCallback((ref: PlanScheduleViewRef | null) => {
+    scheduleViewRef.current = ref;
+  }, []);
+
+  // 플랜 생성 후 콜백 메모이제이션
+  const handlePlansGenerated = useCallback(() => {
+    scheduleViewRef.current?.refresh();
+  }, []);
 
   const renderTabContent = () => {
     switch (currentTab) {
@@ -60,18 +87,16 @@ export function PlanGroupDetailView({
       case 3:
         return <Step2_5DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />;
       case 4:
-        return <Step3DetailView contents={contentsWithDetails.filter(c => !c.isRecommended)} />;
+        return <Step3DetailView contents={studentContents} />;
       case 5:
-        return <Step4DetailView contents={contentsWithDetails.filter(c => c.isRecommended)} />;
+        return <Step4DetailView contents={recommendedContents} />;
       case 6:
         return <Step6DetailView group={group} contents={contentsWithDetails} exclusions={exclusions} academySchedules={academySchedules} />;
       case 7:
         return (
           <Step7DetailView
             groupId={groupId}
-            onScheduleViewReady={(ref) => {
-              scheduleViewRef.current = ref;
-            }}
+            onScheduleViewReady={handleScheduleViewReady}
           />
         );
       default:
@@ -83,7 +108,7 @@ export function PlanGroupDetailView({
     <div className="space-y-6">
       <PlanGroupDetailTabs
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
         tabs={tabs}
       />
       
@@ -102,10 +127,7 @@ export function PlanGroupDetailView({
             <GeneratePlansButton
               groupId={groupId}
               currentStatus={group.status as any}
-              onPlansGenerated={() => {
-                // 플랜 생성 후 스케줄 결과 재로딩
-                scheduleViewRef.current?.refresh();
-              }}
+              onPlansGenerated={handlePlansGenerated}
             />
           </div>
         </div>

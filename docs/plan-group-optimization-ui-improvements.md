@@ -11,6 +11,7 @@
 ### 1. 데이터 페칭 최적화
 
 #### 현재 문제점
+
 ```typescript:app/(student)/plan/group/[id]/page.tsx
 // 여러 개의 개별 쿼리 실행
 const { data: planCounts } = await supabase
@@ -28,6 +29,7 @@ const { data: plans } = await supabase
 ```
 
 #### 개선 제안
+
 - **단일 쿼리로 통합**: `planCounts`와 `plans` 쿼리를 하나로 통합하여 네트워크 요청 감소
 - **필요한 필드만 선택**: `id`만 선택하는 대신 필요한 모든 필드를 한 번에 조회
 - **캐싱 전략**: React Query 또는 Next.js 캐싱을 활용하여 불필요한 재요청 방지
@@ -48,28 +50,33 @@ const completedCount = plans?.filter(/* ... */).length || 0;
 ### 2. 컴포넌트 레이지 로딩
 
 #### 현재 문제점
+
 - 모든 탭의 컴포넌트가 한 번에 로드됨
 - 사용하지 않는 탭의 데이터도 페칭됨
 
 #### 개선 제안
+
 - **동적 임포트**: 탭 전환 시에만 해당 컴포넌트 로드
 - **데이터 페칭 지연**: 각 탭의 데이터를 탭 활성화 시에만 페칭
 
 ```typescript
 // 개선 예시
-const Step7DetailView = lazy(() => import('./Step7DetailView'));
+const Step7DetailView = lazy(() => import("./Step7DetailView"));
 
 // 탭 전환 시에만 로드
-{currentTab === 7 && (
-  <Suspense fallback={<TabLoadingSkeleton />}>
-    <Step7DetailView groupId={groupId} />
-  </Suspense>
-)}
+{
+  currentTab === 7 && (
+    <Suspense fallback={<TabLoadingSkeleton />}>
+      <Step7DetailView groupId={groupId} />
+    </Suspense>
+  );
+}
 ```
 
 ### 3. 메모이제이션 최적화
 
 #### 개선 제안
+
 - **useMemo**: 복잡한 계산 로직 메모이제이션 (완료 개수, 진행률 등)
 - **useCallback**: 이벤트 핸들러 메모이제이션
 - **React.memo**: 불필요한 리렌더링 방지
@@ -78,10 +85,12 @@ const Step7DetailView = lazy(() => import('./Step7DetailView'));
 // 개선 예시
 const completedCount = useMemo(() => {
   if (!plans || plans.length === 0) return 0;
-  return plans.filter(plan => {
+  return plans.filter((plan) => {
     if (!plan.planned_end_page_or_time) return false;
-    return plan.completed_amount !== null && 
-           plan.completed_amount >= plan.planned_end_page_or_time;
+    return (
+      plan.completed_amount !== null &&
+      plan.completed_amount >= plan.planned_end_page_or_time
+    );
   }).length;
 }, [plans]);
 ```
@@ -89,6 +98,7 @@ const completedCount = useMemo(() => {
 ### 4. 스케줄 뷰 최적화
 
 #### 현재 문제점
+
 ```typescript:app/(student)/plan/group/[id]/_components/PlanScheduleView.tsx
 // useEffect 의존성 배열에 refreshKey 포함으로 인한 불필요한 재렌더링 가능성
 useEffect(() => {
@@ -97,6 +107,7 @@ useEffect(() => {
 ```
 
 #### 개선 제안
+
 - **React Query 사용**: 서버 상태 관리 및 자동 캐싱
 - **낙관적 업데이트**: 플랜 생성 후 즉시 UI 업데이트
 - **무한 스크롤 또는 페이지네이션**: 대량의 플랜 데이터 처리
@@ -108,10 +119,12 @@ useEffect(() => {
 ### 1. 탭 네비게이션 개선
 
 #### 현재 상태
+
 - 탭이 많아서 모바일에서 가로 스크롤 필요
 - 완료 상태 표시가 있지만 시각적 피드백 부족
 
 #### 개선 제안
+
 - **드롭다운 메뉴**: 모바일에서는 드롭다운으로 변경
 - **진행 상태 표시**: 각 단계의 진행률을 시각적으로 표시
 - **단계별 안내**: 각 탭에 대한 간단한 설명 툴팁 추가
@@ -125,12 +138,10 @@ useEffect(() => {
       className={`
         relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm
         transition-all hover:bg-gray-50
-        ${currentTab === tab.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600'}
+        ${currentTab === tab.id ? "bg-blue-50 text-blue-700" : "text-gray-600"}
       `}
     >
-      {tab.completed && (
-        <CheckCircle2 className="h-4 w-4 text-green-500" />
-      )}
+      {tab.completed && <CheckCircle2 className="h-4 w-4 text-green-500" />}
       <span>{tab.label}</span>
       {tab.id < currentTab && (
         <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500" />
@@ -143,10 +154,12 @@ useEffect(() => {
 ### 2. 로딩 상태 개선
 
 #### 현재 상태
+
 - 단순한 스피너만 표시
 - 로딩 시간이 길 경우 사용자 경험 저하
 
 #### 개선 제안
+
 - **스켈레톤 UI**: 실제 콘텐츠 구조를 반영한 스켈레톤
 - **진행률 표시**: 데이터 페칭 진행률 표시
 - **부분 로딩**: 먼저 로드된 데이터부터 표시
@@ -167,10 +180,12 @@ if (loading) {
 ### 3. 에러 처리 개선
 
 #### 현재 상태
+
 - 기본적인 에러 메시지만 표시
 - 에러 복구 옵션 부족
 
 #### 개선 제안
+
 - **에러 바운더리**: React Error Boundary로 에러 격리
 - **재시도 버튼**: 에러 발생 시 재시도 옵션 제공
 - **상세 에러 정보**: 개발 모드에서만 상세 에러 표시
@@ -201,6 +216,7 @@ if (error) {
 ### 4. 진행 상황 카드 개선
 
 #### 현재 상태
+
 ```typescript:app/(student)/plan/group/[id]/_components/PlanGroupProgressCard.tsx
 // "진행 중"과 "남은 플랜"이 동일한 값 표시 (중복)
 <div>
@@ -218,6 +234,7 @@ if (error) {
 ```
 
 #### 개선 제안
+
 - **중복 제거**: "진행 중"과 "남은 플랜" 통합 또는 다른 지표 표시
 - **시각적 개선**: 차트나 그래프로 진행률 시각화
 - **추가 정보**: 예상 완료일, 일일 평균 진행률 등
@@ -249,10 +266,12 @@ if (error) {
 ### 5. 액션 버튼 개선
 
 #### 현재 상태
+
 - 아이콘만 표시되어 기능 파악이 어려움
 - 모바일에서 터치 영역이 작을 수 있음
 
 #### 개선 제안
+
 - **레이블 추가**: 모바일에서는 텍스트 레이블 표시
 - **툴팁**: 데스크톱에서 호버 시 설명 표시
 - **확인 다이얼로그**: 복사/삭제 시 더 명확한 확인 다이얼로그
@@ -276,6 +295,7 @@ if (error) {
 ### 6. 반응형 디자인 개선
 
 #### 개선 제안
+
 - **모바일 최적화**: 작은 화면에서도 모든 정보가 잘 보이도록 조정
 - **터치 친화적**: 버튼 크기 및 간격 조정
 - **가로 스크롤 최소화**: 탭 네비게이션을 모바일에서 드롭다운으로 변경
@@ -287,6 +307,7 @@ if (error) {
 ### 1. 타입 안정성 강화
 
 #### 개선 제안
+
 - **엄격한 타입 정의**: `any` 타입 제거
 - **타입 가드**: 런타임 타입 검증 추가
 - **공통 타입**: 재사용 가능한 타입 정의
@@ -304,6 +325,7 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ### 2. 컴포넌트 분리
 
 #### 개선 제안
+
 - **작은 컴포넌트**: 큰 컴포넌트를 더 작은 단위로 분리
 - **재사용 가능한 컴포넌트**: 공통 UI 요소 추출
 - **컨테이너/프레젠테이션 분리**: 로직과 UI 분리
@@ -311,6 +333,7 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ### 3. 에러 바운더리 추가
 
 #### 개선 제안
+
 - **React Error Boundary**: 각 탭을 에러 바운더리로 감싸기
 - **폴백 UI**: 에러 발생 시 대체 UI 표시
 - **에러 로깅**: 에러 발생 시 로깅 시스템 연동
@@ -325,6 +348,7 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ### 4. 접근성 개선
 
 #### 개선 제안
+
 - **ARIA 레이블**: 스크린 리더 지원
 - **키보드 네비게이션**: 탭 전환을 키보드로 가능하도록
 - **포커스 관리**: 모달 및 다이얼로그의 포커스 관리
@@ -351,11 +375,13 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ## 📊 성능 지표 개선 목표
 
 ### 현재 예상 문제점
+
 1. **초기 로딩 시간**: 여러 개의 개별 쿼리로 인한 지연
 2. **리렌더링**: 불필요한 리렌더링 발생 가능
 3. **번들 크기**: 모든 컴포넌트가 한 번에 로드됨
 
 ### 개선 목표
+
 - **초기 로딩 시간**: 30% 감소
 - **리렌더링 횟수**: 50% 감소
 - **번들 크기**: 레이지 로딩으로 40% 감소
@@ -365,16 +391,19 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ## 🔄 마이그레이션 우선순위
 
 ### Phase 1: 즉시 적용 가능 (High Impact, Low Effort)
+
 1. ✅ 데이터 페칭 쿼리 통합
 2. ✅ 진행 상황 카드 중복 제거
 3. ✅ 에러 처리 개선 (재시도 버튼 추가)
 
 ### Phase 2: 중기 개선 (High Impact, Medium Effort)
+
 1. ✅ React Query 도입
 2. ✅ 컴포넌트 레이지 로딩
 3. ✅ 스켈레톤 UI 적용
 
 ### Phase 3: 장기 개선 (Medium Impact, High Effort)
+
 1. ✅ 에러 바운더리 추가
 2. ✅ 접근성 전면 개선
 3. ✅ 성능 모니터링 도구 연동
@@ -384,14 +413,17 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ## 📝 추가 고려사항
 
 ### 1. SEO 최적화
+
 - 메타 태그 추가
 - 구조화된 데이터 (JSON-LD)
 
 ### 2. 분석 도구 연동
+
 - 사용자 행동 추적
 - 성능 메트릭 수집
 
 ### 3. 테스트
+
 - 단위 테스트 추가
 - 통합 테스트 추가
 - E2E 테스트 추가
@@ -403,4 +435,3 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 플랜 그룹 상세 페이지는 기능적으로는 잘 구현되어 있으나, 성능 최적화와 UI/UX 개선의 여지가 있습니다. 특히 데이터 페칭 최적화와 컴포넌트 레이지 로딩을 통해 사용자 경험을 크게 개선할 수 있습니다.
 
 위 제안사항들을 단계적으로 적용하면 더 빠르고 사용자 친화적인 페이지를 만들 수 있을 것입니다.
-
