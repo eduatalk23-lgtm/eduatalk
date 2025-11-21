@@ -110,10 +110,9 @@ export function PlanCard({
     >
       <div className="flex items-start justify-between gap-3">
         {/* 왼쪽: 콘텐츠 정보 */}
-        <div className="flex-1 min-w-0">
-          <div className="mb-2 flex items-center gap-2 flex-wrap">
-            <span className="text-xl">{contentTypeIcon}</span>
-            <h3 className="truncate text-lg font-semibold text-gray-900">{plan.contentTitle}</h3>
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          {/* 1행: 상태 뱃지 + 시간 표기 */}
+          <div className="flex items-center gap-2 flex-wrap">
             {/* 상태 뱃지 */}
             {isCompleted && (
               <span className="shrink-0 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
@@ -130,39 +129,51 @@ export function PlanCard({
                 ⏸️ 대기
               </span>
             )}
-          </div>
-
-          {/* 메타 정보 */}
-          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-            {plan.contentSubjectCategory && (
-              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">{plan.contentSubjectCategory}</span>
-            )}
-            {plan.contentSubject && <span className="text-xs font-medium">{plan.contentSubject}</span>}
+            {/* 시간 표기 */}
             {showTime && plan.start_time && plan.end_time && (
               <span className="flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                <Clock className="h-3 w-3" />
+                <Clock className="h-3 w-3" aria-hidden="true" />
                 {plan.start_time} ~ {plan.end_time}
               </span>
             )}
           </div>
 
-          {/* 범위 정보 */}
+          {/* 2행: 교과 과목 */}
+          {(plan.contentSubjectCategory || plan.contentSubject) && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {plan.contentSubjectCategory && (
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                  {plan.contentSubjectCategory}
+                </span>
+              )}
+              {plan.contentSubject && (
+                <span className="text-xs font-medium text-gray-600">
+                  {plan.contentSubject}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 3행: 교재명(또는 강의명) 출판사(플랫폼) 회차 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xl">{contentTypeIcon}</span>
+            <h3 className="truncate text-lg font-semibold text-gray-900">{plan.contentTitle}</h3>
+            {plan.contentEpisode && (
+              <span className="shrink-0 text-xs text-gray-600">
+                {plan.contentEpisode}
+              </span>
+            )}
+          </div>
+
+          {/* 4행: 학습 범위 */}
           {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="text-xs text-gray-500">
               {plan.content_type === "book" ? (
                 <>📖 {plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</>
               ) : (
                 <>🎧 {plan.planned_start_page_or_time}강</>
               )}
               {plan.chapter && <span className="ml-1">({plan.chapter})</span>}
-            </div>
-          )}
-
-          {/* 플랜 시간 정보 (타임라인 뷰용) */}
-          {plan.start_time && plan.end_time && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-blue-600">
-              <Clock className="h-3 w-3" />
-              <span className="font-medium">{plan.start_time} ~ {plan.end_time}</span>
             </div>
           )}
         </div>
