@@ -433,14 +433,18 @@ type PlanStatus = "active" | "paused" | "completed" | "cancelled";
 ## 🐛 버그 수정: step2 자율학습시간 사용 가능 체크박스 저장 문제
 
 ### 문제
+
 step2에서 "자율학습시간 사용 가능" 체크박스의 변경사항이 저장되지 않는 문제가 있었습니다.
 
 ### 원인
+
 - `time_settings`는 `wizardData`에 저장되지만, `PlanGroupWizard.tsx`의 `handleSaveDraft`와 `handleSubmit`에서 `creationData`를 만들 때 `time_settings`가 포함되지 않았습니다.
 - `PlanGroupCreationData` 타입에 `time_settings` 필드가 없어서 데이터베이스에 저장되지 않았습니다.
 
 ### 해결 방법
+
 1. **저장 시**: `time_settings`를 `scheduler_options`에 병합하여 저장
+
    - `PlanGroupWizard.tsx`의 `handleSaveDraft`와 `handleSubmit`에서 `time_settings`를 `scheduler_options`에 병합
    - 데이터베이스 스키마 변경 없이 기존 `scheduler_options` 필드에 저장
 
@@ -449,10 +453,12 @@ step2에서 "자율학습시간 사용 가능" 체크박스의 변경사항이 �
    - `PlanGroupWizard`의 `initialData`에 `time_settings`와 `scheduler_options`를 분리하여 전달
 
 ### 변경 파일
+
 - `app/(student)/plan/new-group/_components/PlanGroupWizard.tsx`
 - `app/(student)/plan/group/[id]/edit/page.tsx`
 
 ### 결과
+
 이제 step2에서 "자율학습시간 사용 가능" 체크박스를 변경하면 정상적으로 저장되고, 편집 모드에서도 올바르게 복원됩니다.
 
 ---
