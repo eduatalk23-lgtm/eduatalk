@@ -12,9 +12,40 @@
 
 ## 수정 내용
 
-### `getScheduleResultDataAction` 수정
+### 1. `getScheduleResultDataAction` 수정
 
+#### 옵션 전달 추가
 `calculateAvailableDates` 호출 시 자율학습 시간 배정 옵션을 전달하도록 수정했습니다.
+
+#### 저장된 데이터 재계산 로직 추가
+저장된 `daily_schedule`이 있어도 자율학습 시간 배정 옵션이 활성화되어 있으면 재계산하도록 수정했습니다.
+
+**수정 전:**
+```typescript
+// 저장된 dailySchedule이 있는지 확인
+if (group.daily_schedule && Array.isArray(group.daily_schedule) && group.daily_schedule.length > 0) {
+  // 저장된 데이터 사용
+  dailySchedule = group.daily_schedule as typeof dailySchedule;
+} else {
+  // 재계산
+}
+```
+
+**수정 후:**
+```typescript
+// 저장된 dailySchedule이 있는지 확인
+// 자율학습 시간 배정 옵션이 활성화되어 있으면 항상 재계산
+const enableSelfStudyForHolidays = (group.scheduler_options as any)?.enable_self_study_for_holidays === true;
+const enableSelfStudyForStudyDays = (group.scheduler_options as any)?.enable_self_study_for_study_days === true;
+const hasSelfStudyOptions = enableSelfStudyForHolidays || enableSelfStudyForStudyDays;
+
+if (group.daily_schedule && Array.isArray(group.daily_schedule) && group.daily_schedule.length > 0 && !hasSelfStudyOptions) {
+  // 저장된 데이터 사용 (자율학습 시간 배정 옵션이 없을 때만)
+  dailySchedule = group.daily_schedule as typeof dailySchedule;
+} else {
+  // 재계산 (자율학습 시간 배정 옵션이 있으면 항상 재계산)
+}
+```
 
 **수정 전:**
 ```typescript

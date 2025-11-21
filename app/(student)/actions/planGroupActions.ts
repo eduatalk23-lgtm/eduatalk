@@ -3691,10 +3691,19 @@ async function _getScheduleResultData(groupId: string): Promise<{
           date: daily.date,
           day_type: daily.day_type,
           study_hours: daily.study_hours,
-          time_slots: daily.time_slots,
+          time_slots: daily.time_slots, // 자율학습 시간이 포함된 time_slots
           exclusion: daily.exclusion,
           academy_schedules: daily.academy_schedules,
         }));
+        
+        // 디버깅: 자율학습 시간이 포함된 날짜 확인
+        const selfStudyDays = dailySchedule.filter((d) => 
+          d.time_slots?.some((slot) => slot.type === "자율학습") || 
+          (d.day_type === "지정휴일" && d.study_hours > 0)
+        );
+        if (selfStudyDays.length > 0) {
+          console.log("[planGroupActions] 자율학습 시간이 포함된 날짜:", selfStudyDays.length, "일");
+        }
 
         // 계산한 결과를 저장 (다음 조회 시 사용)
         const { error: updateScheduleError } = await supabase
