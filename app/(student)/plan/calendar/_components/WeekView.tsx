@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
+import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
 import { getWeekStart, formatDateString, isToday } from "@/lib/date/calendarUtils";
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
 import { DayTimelineModal } from "./DayTimelineModal";
-import { PlanCard } from "./PlanCard";
 
 type WeekViewProps = {
   plans: PlanWithContent[];
@@ -20,9 +20,26 @@ type WeekViewProps = {
   showOnlyStudyTime?: boolean;
 };
 
+type PlanPosition = {
+  planId: string;
+  date: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type PlanConnection = {
+  planIds: string[];
+  groupKey: string;
+};
+
 export function WeekView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: WeekViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [planPositions, setPlanPositions] = useState<Map<string, PlanPosition>>(new Map());
+  const planRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const weekStart = getWeekStart(currentDate);
   const weekDays: Date[] = [];
@@ -48,60 +65,6 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
     });
     return map;
   }, [plans]);
-
-  // 같은 plan_number를 가진 플랜들의 연결 상태 계산
-  const getPlanConnectionState = useMemo(() => {
-    const connectionMap = new Map<string, {
-      isConnected: boolean;
-      isFirst: boolean;
-      isLast: boolean;
-      isMiddle: boolean;
-    }>();
-    
-    // 날짜별로 그룹화
-    plansByDate.forEach((dayPlans, date) => {
-      // 같은 plan_number를 가진 플랜들을 그룹화
-      const planNumberGroups = new Map<number | null, PlanWithContent[]>();
-      
-      dayPlans.forEach((plan) => {
-        const planNumber = plan.plan_number;
-        if (!planNumberGroups.has(planNumber)) {
-          planNumberGroups.set(planNumber, []);
-        }
-        planNumberGroups.get(planNumber)!.push(plan);
-      });
-      
-      // 각 그룹에서 2개 이상인 경우 연결 상태 계산
-      planNumberGroups.forEach((groupPlans, planNumber) => {
-        if (groupPlans.length >= 2 && planNumber !== null) {
-          // block_index 순으로 정렬
-          const sortedPlans = [...groupPlans].sort((a, b) => a.block_index - b.block_index);
-          
-          sortedPlans.forEach((plan, index) => {
-            const isFirst = index === 0;
-            const isLast = index === sortedPlans.length - 1;
-            const isMiddle = !isFirst && !isLast;
-            
-            connectionMap.set(`${date}-${plan.id}`, {
-              isConnected: true,
-              isFirst,
-              isLast,
-              isMiddle,
-            });
-          });
-        }
-      });
-    });
-    
-    return (date: string, planId: string) => {
-      return connectionMap.get(`${date}-${planId}`) || {
-        isConnected: false,
-        isFirst: false,
-        isLast: false,
-        isMiddle: false,
-      };
-    };
-  }, [plansByDate]);
 
   // 날짜별 휴일 그룹화 (메모이제이션)
   const exclusionsByDate = useMemo(() => {
@@ -137,9 +100,111 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
+  // 같은 플랜의 동일 회차를 그룹화 (plan_number 또는 content_id + sequence 기준)
+  const planConnections = useMemo(() => {
+    const connectionMap = new Map<string, PlanConnection>();
+    
+    plans.forEach((plan) => {
+      // 그룹 키 생성: plan_number가 있으면 사용, 없으면 content_id + sequence 조합
+      const groupKey = plan.plan_number !== null && plan.plan_number !== undefined
+        ? `plan_number_${plan.plan_number}`
+        : plan.sequence !== null && plan.sequence !== undefined
+        ? `content_${plan.content_id}_seq_${plan.sequence}`
+        : null;
+      
+      if (!groupKey) return;
+      
+      if (!connectionMap.has(groupKey)) {
+        connectionMap.set(groupKey, {
+          planIds: [],
+          groupKey,
+        });
+      }
+      
+      connectionMap.get(groupKey)!.planIds.push(plan.id);
+    });
+    
+    // 2개 이상의 플랜이 있는 그룹만 반환
+    return Array.from(connectionMap.values()).filter(
+      (conn) => conn.planIds.length >= 2
+    );
+  }, [plans]);
+
+  // 플랜 카드 위치 업데이트
+  useEffect(() => {
+    const updatePositions = () => {
+      if (!containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newPositions = new Map<string, PlanPosition>();
+      
+      planRefs.current.forEach((element, planId) => {
+        if (!element) return;
+        
+        const rect = element.getBoundingClientRect();
+        newPositions.set(planId, {
+          planId,
+          date: "", // 나중에 설정
+          x: rect.left - containerRect.left + rect.width / 2,
+          y: rect.top - containerRect.top + rect.height / 2,
+          width: rect.width,
+          height: rect.height,
+        });
+      });
+      
+      // 날짜 정보 추가
+      plans.forEach((plan) => {
+        const position = newPositions.get(plan.id);
+        if (position) {
+          position.date = plan.plan_date;
+        }
+      });
+      
+      setPlanPositions(newPositions);
+    };
+    
+    updatePositions();
+    window.addEventListener("resize", updatePositions);
+    // 약간의 지연을 두고 다시 업데이트 (레이아웃 안정화 후)
+    const timeoutId = setTimeout(updatePositions, 100);
+    
+    return () => {
+      window.removeEventListener("resize", updatePositions);
+      clearTimeout(timeoutId);
+    };
+  }, [plans, weekDays]);
+
+  // 연결선 경로 계산
+  const connectionPaths = useMemo(() => {
+    if (!containerRef.current) return [];
+    
+    return planConnections.map((connection) => {
+      const positions = connection.planIds
+        .map((planId) => planPositions.get(planId))
+        .filter((pos): pos is PlanPosition => pos !== undefined)
+        .sort((a, b) => {
+          // 날짜 순으로 정렬
+          const dateA = weekDays.findIndex((d) => formatDateString(d) === a.date);
+          const dateB = weekDays.findIndex((d) => formatDateString(d) === b.date);
+          return dateA - dateB;
+        });
+      
+      if (positions.length < 2) return null;
+      
+      // 각 위치를 연결하는 경로 생성
+      const pathPoints = positions.map((pos) => ({ x: pos.x, y: pos.y }));
+      
+      return {
+        groupKey: connection.groupKey,
+        pathPoints,
+        planIds: connection.planIds,
+      };
+    }).filter((path): path is NonNullable<typeof path> => path !== null);
+  }, [planConnections, planPositions, weekDays]);
+
   return (
     <>
-      <div className="w-full">
+      <div className="w-full relative" ref={containerRef}>
         {/* 요일 헤더 (카드 영역 밖 상단) */}
         <div className="grid grid-cols-7 gap-2 mb-2">
           {weekdays.map((day, index) => (
@@ -151,8 +216,59 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
           ))}
         </div>
 
+        {/* 연결선 SVG 오버레이 */}
+        {connectionPaths.length > 0 && containerRef.current && (() => {
+          const containerRect = containerRef.current.getBoundingClientRect();
+          return (
+            <svg
+              className="absolute pointer-events-none z-10"
+              style={{
+                top: '2rem', // 요일 헤더 높이만큼 아래로
+                left: 0,
+                width: '100%',
+                height: containerRect.height > 32 ? containerRect.height - 32 : containerRect.height,
+              }}
+            >
+              {connectionPaths.map((path, index) => {
+                if (path.pathPoints.length < 2) return null;
+                
+                // 날짜 순으로 정렬 (이미 connectionPaths에서 정렬됨)
+                const sortedPoints = path.pathPoints;
+                
+                // 간단한 직선 연결 또는 부드러운 곡선
+                let pathData = `M ${sortedPoints[0].x} ${sortedPoints[0].y}`;
+                
+                if (sortedPoints.length === 2) {
+                  // 두 점만 있는 경우 직선
+                  pathData += ` L ${sortedPoints[1].x} ${sortedPoints[1].y}`;
+                } else {
+                  // 여러 점이 있는 경우 각 점을 순서대로 연결
+                  for (let i = 1; i < sortedPoints.length; i++) {
+                    pathData += ` L ${sortedPoints[i].x} ${sortedPoints[i].y}`;
+                  }
+                }
+                
+                return (
+                  <path
+                    key={`connection-${path.groupKey}-${index}`}
+                    d={pathData}
+                    fill="none"
+                    stroke="rgb(99, 102, 241)" // indigo-500
+                    strokeWidth="2"
+                    strokeDasharray="5 3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.6"
+                    className="transition-opacity duration-200"
+                  />
+                );
+              })}
+            </svg>
+          );
+        })()}
+
         {/* 날짜 카드들 */}
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-2 relative z-0">
           {weekDays.map((date, index) => {
           const dateStr = formatDateString(date);
           const dayPlans = plansByDate.get(dateStr) || [];
@@ -329,21 +445,63 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                             }
                             addedPlanIds.add(plan.id);
 
-                            // 연결 상태 계산
-                            const connectionState = getPlanConnectionState(dateStr, plan.id);
+                            const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type] || "📚";
+                            const isCompleted = plan.progress !== null && plan.progress >= 100;
+                            const isActive = plan.actual_start_time && !plan.actual_end_time;
+                            
+                            // 플랜 카드 스타일
+                            const cardBorderClass = isCompleted
+                              ? "border-green-300 bg-green-50"
+                              : isActive
+                              ? "border-blue-300 bg-blue-50"
+                              : "border-gray-200 bg-white";
 
+                            // 연결된 플랜인지 확인
+                            const isConnected = planConnections.some((conn) =>
+                              conn.planIds.includes(plan.id)
+                            );
+                            
                             items.push(
-                              <PlanCard
+                              <div
                                 key={`${dateStr}-plan-${plan.id}`}
-                                plan={plan}
-                                compact={true}
-                                showTime={false}
-                                showProgress={false}
-                                isConnected={connectionState.isConnected}
-                                isFirst={connectionState.isFirst}
-                                isLast={connectionState.isLast}
-                                isMiddle={connectionState.isMiddle}
-                              />
+                                ref={(el) => {
+                                  if (el) {
+                                    planRefs.current.set(plan.id, el);
+                                  } else {
+                                    planRefs.current.delete(plan.id);
+                                  }
+                                }}
+                                className={`rounded border p-2 text-xs relative ${cardBorderClass} ${
+                                  isConnected ? "ring-2 ring-indigo-300 ring-opacity-50" : ""
+                                }`}
+                              >
+                                {/* 1행: 플랜 시작시간 */}
+                                {plan.start_time && (
+                                  <div className="mb-1 font-semibold text-gray-900">
+                                    {plan.start_time}
+                                  </div>
+                                )}
+                                {/* 2행: 아이콘 + 교과 + 회차 */}
+                                <div className="mb-1 flex items-center gap-1">
+                                  <span className="text-sm">{contentTypeIcon}</span>
+                                  {plan.contentSubjectCategory && (
+                                    <span className="font-medium text-gray-700">
+                                      {plan.contentSubjectCategory}
+                                    </span>
+                                  )}
+                                  {plan.contentEpisode && (
+                                    <span className="text-gray-600">
+                                      {plan.contentEpisode}
+                                    </span>
+                                  )}
+                                </div>
+                                {/* 3행: 과목 */}
+                                {plan.contentSubject && (
+                                  <div className="text-gray-600">
+                                    {plan.contentSubject}
+                                  </div>
+                                )}
+                              </div>
                             );
                           });
                       } else {
