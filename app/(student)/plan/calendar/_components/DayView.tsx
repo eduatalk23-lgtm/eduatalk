@@ -214,7 +214,7 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
       {/* 타임라인 뷰 (시간 순서대로) */}
       <div className="rounded-xl border-2 border-gray-200 bg-white shadow-md">
         <div className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 py-4">
-          <h3 className="text-xl font-bold text-gray-900">📚 학습 플랜 타임라인</h3>
+          <h3 className="text-xl font-bold text-gray-900">학습 플랜 타임라인</h3>
         </div>
         <div className="p-6">
           {TIME_BLOCKS.length === 0 ? (
@@ -257,7 +257,7 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
       {false && (
       <div className="rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-          <h3 className="text-lg font-semibold text-gray-900">📚 학습 플랜</h3>
+          <h3 className="text-lg font-semibold text-gray-900">학습 플랜</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
