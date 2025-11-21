@@ -133,7 +133,17 @@ export async function getPlanGroupById(
   }
 
   if (error && error.code !== "PGRST116") {
-    console.error("[data/planGroups] 플랜 그룹 조회 실패", error);
+    console.error("[data/planGroups] 플랜 그룹 조회 실패", {
+      error: {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      },
+      groupId,
+      studentId,
+      tenantId,
+    });
     return null;
   }
 

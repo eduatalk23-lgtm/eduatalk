@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { PlanGroupDetailView } from "./_components/PlanGroupDetailView";
 import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
@@ -61,10 +62,14 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
     redirect("/login");
   }
 
+  // tenantId 조회
+  const tenantContext = await getTenantContext();
+
   // 플랜 그룹 및 관련 데이터 조회
   const { group, contents, exclusions, academySchedules } = await getPlanGroupWithDetails(
     id,
-    user.id
+    user.id,
+    tenantContext?.tenantId || null
   );
 
   if (!group) {
