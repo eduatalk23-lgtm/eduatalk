@@ -41,17 +41,6 @@ export function PlanCard({ plan, compact = false, showTime = true, showProgress 
               ⏱️
             </span>
           )}
-          {/* 플랜 쪼갠 상태 뱃지 (compact 모드) */}
-          {plan.is_partial && (
-            <span className="shrink-0 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white">
-              (일부)
-            </span>
-          )}
-          {plan.is_continued && (
-            <span className="shrink-0 rounded-full bg-indigo-500 px-1.5 py-0.5 text-xs font-semibold text-white">
-              [이어서]
-            </span>
-          )}
         </div>
       </div>
     );
@@ -87,17 +76,6 @@ export function PlanCard({ plan, compact = false, showTime = true, showProgress 
             {!isCompleted && !isActive && (
               <span className="shrink-0 rounded-full bg-gray-400 px-3 py-1 text-xs font-bold text-white shadow-sm">
                 ⏸️ 대기
-              </span>
-            )}
-            {/* 플랜 쪼갠 상태 뱃지 */}
-            {plan.is_partial && (
-              <span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
-                (일부)
-              </span>
-            )}
-            {plan.is_continued && (
-              <span className="shrink-0 rounded-full bg-indigo-500 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
-                [이어서]
               </span>
             )}
           </div>
