@@ -516,34 +516,19 @@ export function PlanGroupWizard({
           setDraftGroupId(finalGroupId);
           setCurrentStep(7);
           
-          // 플랜 생성 후 자동 활성화를 위해 다른 활성 플랜 그룹 확인
-          // (완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 상태 저장)
+          // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
+          // (자동 활성화는 하지 않음 - 사용자가 완료 버튼을 눌렀을 때만 활성화)
           try {
             const activeGroups = await getActivePlanGroups(finalGroupId);
             if (activeGroups.length > 0) {
               // 다른 활성 플랜 그룹이 있으면 이름 저장 (완료 버튼 클릭 시 다이얼로그 표시)
               setActiveGroupNames(activeGroups.map(g => g.name || "플랜 그룹"));
-            } else {
-              // 다른 활성 플랜 그룹이 없으면 바로 활성화
-              // draft -> active 전이는 불가능하므로, saved 상태로 먼저 변경 후 active로 전이
-              try {
-                // saved 상태로 먼저 변경 시도 (이미 saved 상태면 에러 없이 성공)
-                try {
-                  await updatePlanGroupStatus(finalGroupId, "saved");
-                } catch (savedError) {
-                  // saved 상태 변경 실패는 무시 (이미 saved 상태일 수 있음)
-                  console.warn("플랜 그룹 saved 상태 변경 실패 (무시):", savedError);
-                }
-                // saved 상태에서 active로 전이
-                await updatePlanGroupStatus(finalGroupId, "active");
-              } catch (statusError) {
-                // 활성화 실패는 경고만 (필수가 아니므로)
-                console.warn("플랜 그룹 자동 활성화 실패:", statusError);
-              }
             }
+            // 다른 활성 플랜 그룹이 없어도 자동 활성화하지 않음
+            // 사용자가 완료 버튼을 눌렀을 때만 활성화됨
           } catch (error) {
-            // 활성화 실패는 경고만 (필수가 아니므로)
-            console.warn("플랜 그룹 자동 활성화 확인 실패:", error);
+            // 활성 그룹 확인 실패는 경고만 (필수가 아니므로)
+            console.warn("플랜 그룹 활성 그룹 확인 실패:", error);
           }
         } catch (error) {
           // 플랜 생성 실패 시에도 Step 7로 이동 (에러 표시)
@@ -746,14 +731,30 @@ export function PlanGroupWizard({
                 return;
               }
 
-              // 완료 버튼을 눌렀을 때만 리다이렉트
+              // 완료 버튼을 눌렀을 때만 활성화 및 리다이렉트
               // 다른 활성 플랜 그룹이 있으면 활성화 다이얼로그 표시
               if (activeGroupNames.length > 0) {
                 setActivationDialogOpen(true);
               } else {
-                // 다른 활성 플랜 그룹이 없으면 바로 리다이렉트
-                router.refresh(); // 캐시 갱신
-                router.push(`/plan/group/${draftGroupId}`);
+                // 다른 활성 플랜 그룹이 없으면 활성화 후 리다이렉트
+                try {
+                  // saved 상태로 먼저 변경 시도 (이미 saved 상태면 에러 없이 성공)
+                  try {
+                    await updatePlanGroupStatus(draftGroupId, "saved");
+                  } catch (savedError) {
+                    // saved 상태 변경 실패는 무시 (이미 saved 상태일 수 있음)
+                    console.warn("플랜 그룹 saved 상태 변경 실패 (무시):", savedError);
+                  }
+                  // saved 상태에서 active로 전이
+                  await updatePlanGroupStatus(draftGroupId, "active");
+                  router.refresh(); // 캐시 갱신
+                  router.push(`/plan/group/${draftGroupId}`);
+                } catch (statusError) {
+                  // 활성화 실패 시에도 리다이렉트 (경고만)
+                  console.warn("플랜 그룹 활성화 실패:", statusError);
+                  router.refresh(); // 캐시 갱신
+                  router.push(`/plan/group/${draftGroupId}`);
+                }
               }
             }}
           />
