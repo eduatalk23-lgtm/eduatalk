@@ -154,7 +154,7 @@ export function PlanCard({
             <span className="text-base shrink-0">{contentTypeIcon}</span>
             <h3 className="truncate text-sm font-semibold text-gray-900 min-w-0 flex-1">{plan.contentTitle}</h3>
             {plan.contentEpisode && (
-              <span className="shrink-0 text-[10px] text-gray-600">
+              <span className="shrink-0 text-xs font-medium text-gray-600">
                 {plan.contentEpisode}
               </span>
             )}
