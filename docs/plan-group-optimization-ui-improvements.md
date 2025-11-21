@@ -535,6 +535,7 @@ if (dateBlocks.length === 0 || options.use_self_study_with_blocks) {
 ```
 
 **로직이 올바릅니다:**
+
 - 블록이 없을 때: 항상 자율학습 시간 추가
 - 블록이 있을 때: `use_self_study_with_blocks`가 `true`이면 자율학습 시간 추가
 
@@ -543,11 +544,13 @@ if (dateBlocks.length === 0 || options.use_self_study_with_blocks) {
 ### 체크가 풀리는 문제 해결
 
 **원인:**
+
 - `edit/page.tsx`에서 `time_settings`를 추출할 때, `hasTimeSettings` 체크 로직이 `Object.values(timeSettings).some(v => v !== undefined)`를 사용했습니다.
 - `use_self_study_with_blocks`가 `false`일 때도 `undefined`가 아니므로 문제가 없어야 하지만, 다른 필드들이 모두 `undefined`일 때 `hasTimeSettings`가 `false`가 될 수 있었습니다.
 - 더 중요한 것은, `use_self_study_with_blocks`가 `false`일 때도 명시적으로 복원되어야 한다는 점입니다.
 
 **해결 방법:**
+
 - `hasTimeSettings` 체크 로직을 개선하여 각 필드를 개별적으로 확인하도록 변경했습니다.
 - `use_self_study_with_blocks`가 `undefined`가 아닌 경우(즉, `true` 또는 `false`)에도 `time_settings`에 포함되도록 수정했습니다.
 

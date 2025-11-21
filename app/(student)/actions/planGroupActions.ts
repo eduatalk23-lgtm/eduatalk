@@ -315,11 +315,12 @@ async function _updatePlanGroupDraft(
   }
 
   // 플랜 그룹 메타데이터 업데이트
-  if (data.name !== undefined || data.plan_purpose !== undefined || data.scheduler_type !== undefined) {
+  if (data.name !== undefined || data.plan_purpose !== undefined || data.scheduler_type !== undefined || data.scheduler_options !== undefined) {
     await updatePlanGroup(groupId, user.userId, {
       name: data.name || null,
       plan_purpose: normalizePlanPurpose(data.plan_purpose),
       scheduler_type: data.scheduler_type || null,
+      scheduler_options: data.scheduler_options || null,
       period_start: data.period_start,
       period_end: data.period_end,
       target_date: data.target_date || null,
@@ -553,6 +554,7 @@ async function _updatePlanGroup(
     name?: string | null;
     plan_purpose?: string | null;
     scheduler_type?: string | null;
+    scheduler_options?: any | null;
     period_start?: string;
     period_end?: string;
     target_date?: string | null;

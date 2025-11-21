@@ -41,8 +41,14 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
           use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
         };
         
-        // time_settings가 모두 undefined가 아닌 경우에만 포함
-        const hasTimeSettings = Object.values(timeSettings).some(v => v !== undefined);
+        // time_settings 필드 중 하나라도 값이 있으면 포함
+        // use_self_study_with_blocks는 boolean이므로 false일 때도 명시적으로 포함해야 함
+        const hasTimeSettings = 
+          timeSettings.lunch_time !== undefined ||
+          timeSettings.camp_study_hours !== undefined ||
+          timeSettings.camp_self_study_hours !== undefined ||
+          timeSettings.designated_holiday_hours !== undefined ||
+          timeSettings.use_self_study_with_blocks !== undefined;
         
         // scheduler_options에서 time_settings 필드 제거
         const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;

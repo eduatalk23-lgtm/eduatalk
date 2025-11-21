@@ -212,6 +212,7 @@ export async function updatePlanGroup(
     name?: string | null;
     plan_purpose?: string | null;
     scheduler_type?: string | null;
+    scheduler_options?: any | null;
     period_start?: string;
     period_end?: string;
     target_date?: string | null;
@@ -225,6 +226,7 @@ export async function updatePlanGroup(
   if (updates.name !== undefined) payload.name = updates.name;
   if (updates.plan_purpose !== undefined) payload.plan_purpose = updates.plan_purpose;
   if (updates.scheduler_type !== undefined) payload.scheduler_type = updates.scheduler_type;
+  if (updates.scheduler_options !== undefined) payload.scheduler_options = updates.scheduler_options;
   if (updates.period_start !== undefined) payload.period_start = updates.period_start;
   if (updates.period_end !== undefined) payload.period_end = updates.period_end;
   if (updates.target_date !== undefined) payload.target_date = updates.target_date;
