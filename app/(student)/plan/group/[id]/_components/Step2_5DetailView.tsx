@@ -130,6 +130,16 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
     return null;
   }
 
+  // scheduler_options에서 time_settings 추출
+  const schedulerOptions = (group.scheduler_options as any) || {};
+  const timeSettings = {
+    lunch_time: schedulerOptions.lunch_time,
+    camp_study_hours: schedulerOptions.camp_study_hours,
+    camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+    designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+    use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
+  };
+  
   return (
     <div className="space-y-6">
       <div>
@@ -137,6 +147,23 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
         <p className="mt-1 text-sm text-gray-500">
           입력하신 정보를 바탕으로 계산된 학습 가능한 날짜와 시간입니다.
         </p>
+        
+        {/* 1730 Timetable 전용 설정 표시 */}
+        {group.scheduler_type === "1730_timetable" && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-2 text-sm font-semibold text-gray-900">1730 Timetable 전용 설정</h3>
+            <div className="space-y-2 text-sm text-gray-700">
+              {timeSettings.use_self_study_with_blocks !== undefined && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">자율학습시간 사용 가능:</span>
+                  <span className={timeSettings.use_self_study_with_blocks ? "text-green-600" : "text-gray-500"}>
+                    {timeSettings.use_self_study_with_blocks ? "✓ 사용 가능" : "✗ 사용 안 함"}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 요약 정보 */}

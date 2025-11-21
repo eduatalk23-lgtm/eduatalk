@@ -293,6 +293,17 @@ export type SchedulerOptions = {
 };
 
 /**
+ * 시간 설정
+ */
+export type TimeSettings = {
+  lunch_time?: { start: string; end: string };
+  camp_study_hours?: { start: string; end: string };
+  camp_self_study_hours?: { start: string; end: string };
+  designated_holiday_hours?: { start: string; end: string };
+  use_self_study_with_blocks?: boolean;
+};
+
+/**
  * 플랜 그룹 생성 데이터
  */
 export type PlanGroupCreationData = {
@@ -300,6 +311,7 @@ export type PlanGroupCreationData = {
   plan_purpose: PlanPurpose;
   scheduler_type: SchedulerType;
   scheduler_options?: SchedulerOptions | null;
+  time_settings?: TimeSettings; // time_settings는 scheduler_options에 병합되어 저장됨
   period_start: string; // date
   period_end: string; // date
   target_date?: string | null; // date

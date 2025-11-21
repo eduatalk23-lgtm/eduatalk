@@ -71,13 +71,19 @@ async function _createPlanGroup(data: PlanGroupCreationData): Promise<{ groupId:
   }
 
   // 플랜 그룹 생성
-  // scheduler_options는 데이터베이스에 컬럼이 없으므로 전달하지 않음
+  // time_settings를 scheduler_options에 병합
+  const mergedSchedulerOptions = data.scheduler_options || {};
+  if (data.time_settings) {
+    Object.assign(mergedSchedulerOptions, data.time_settings);
+  }
+  
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,
     student_id: user.userId,
     name: data.name || null,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type,
+    scheduler_options: Object.keys(mergedSchedulerOptions).length > 0 ? mergedSchedulerOptions : null,
     period_start: data.period_start,
     period_end: data.period_end,
     target_date: data.target_date || null,
@@ -198,13 +204,19 @@ async function _savePlanGroupDraft(data: PlanGroupCreationData): Promise<{ group
   }
 
   // 플랜 그룹 생성 (draft 상태)
-  // scheduler_options는 데이터베이스에 컬럼이 없으므로 전달하지 않음
+  // time_settings를 scheduler_options에 병합
+  const mergedSchedulerOptions = data.scheduler_options || {};
+  if (data.time_settings) {
+    Object.assign(mergedSchedulerOptions, data.time_settings);
+  }
+  
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,
     student_id: user.userId,
     name: data.name || null,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type || null,
+    scheduler_options: Object.keys(mergedSchedulerOptions).length > 0 ? mergedSchedulerOptions : null,
     period_start: data.period_start || new Date().toISOString().slice(0, 10),
     period_end: data.period_end || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     target_date: data.target_date || null,
@@ -315,12 +327,18 @@ async function _updatePlanGroupDraft(
   }
 
   // 플랜 그룹 메타데이터 업데이트
-  if (data.name !== undefined || data.plan_purpose !== undefined || data.scheduler_type !== undefined || data.scheduler_options !== undefined) {
+  // time_settings를 scheduler_options에 병합
+  let mergedSchedulerOptions = data.scheduler_options || {};
+  if (data.time_settings) {
+    mergedSchedulerOptions = { ...mergedSchedulerOptions, ...data.time_settings };
+  }
+  
+  if (data.name !== undefined || data.plan_purpose !== undefined || data.scheduler_type !== undefined || data.scheduler_options !== undefined || data.time_settings !== undefined) {
     await updatePlanGroup(groupId, user.userId, {
       name: data.name || null,
       plan_purpose: normalizePlanPurpose(data.plan_purpose),
       scheduler_type: data.scheduler_type || null,
-      scheduler_options: data.scheduler_options || null,
+      scheduler_options: Object.keys(mergedSchedulerOptions).length > 0 ? mergedSchedulerOptions : null,
       period_start: data.period_start,
       period_end: data.period_end,
       target_date: data.target_date || null,
