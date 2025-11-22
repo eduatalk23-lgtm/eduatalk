@@ -6,7 +6,7 @@ import { ViewMode } from "./ViewModeSelector";
 
 type DailyPlanViewProps = {
   groups: PlanGroup[];
-  sessions: Map<string, { isPaused: boolean }>;
+  sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
   planDate: string;
   memos: Map<number | null, string | null>; // planNumber -> memo
   totalPagesMap: Map<string, number>; // contentKey -> totalPages

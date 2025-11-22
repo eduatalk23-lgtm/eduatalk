@@ -194,11 +194,15 @@ export type TimeStats = {
   firstStartTime: string | null; // 첫 시작 시간
   lastEndTime: string | null; // 마지막 종료 시간
   isActive: boolean; // 진행 중인지 여부
+  isCompleted: boolean; // 모든 플랜이 완료되었는지 여부
+  currentPausedAt: string | null; // 현재 일시정지 시간 (진행 중이고 일시정지된 경우)
+  lastResumedAt: string | null; // 마지막 재시작 시간
 };
 
 export function getTimeStats(
   plans: PlanWithContent[],
-  activePlan: Plan | null
+  activePlan: Plan | null,
+  sessions?: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>
 ): TimeStats {
   const totalDuration = plans.reduce(
     (sum, plan) => sum + (plan.total_duration_seconds ?? 0),
@@ -241,6 +245,21 @@ export function getTimeStats(
   const lastEndTime =
     plansWithEndTime.length > 0 ? plansWithEndTime[0].actual_end_time! : null;
 
+  // 모든 플랜이 완료되었는지 확인
+  const isCompleted = plans.length > 0 && plans.every((p) => !!p.actual_end_time);
+
+  // 현재 일시정지 시간 및 마지막 재시작 시간 조회
+  let currentPausedAt: string | null = null;
+  let lastResumedAt: string | null = null;
+
+  if (activePlan && sessions) {
+    const session = sessions.get(activePlan.id);
+    if (session) {
+      currentPausedAt = session.isPaused ? (session.pausedAt || null) : null;
+      lastResumedAt = session.resumedAt || null;
+    }
+  }
+
   return {
     totalDuration,
     pureStudyTime,
@@ -248,7 +267,10 @@ export function getTimeStats(
     pauseCount,
     firstStartTime,
     lastEndTime,
-    isActive: !!activePlan,
+    isActive: !!activePlan && !isCompleted,
+    isCompleted,
+    currentPausedAt,
+    lastResumedAt,
   };
 }
 

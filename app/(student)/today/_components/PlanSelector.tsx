@@ -9,7 +9,7 @@ type PlanSelectorProps = {
   groups: PlanGroup[];
   selectedPlanNumber: number | null;
   onSelect: (planNumber: number | null) => void;
-  sessions: Map<string, { isPaused: boolean }>;
+  sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
 };
 
 export function PlanSelector({

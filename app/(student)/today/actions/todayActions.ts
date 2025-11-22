@@ -243,10 +243,10 @@ export async function completePlan(
       totalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
     }
 
-    // 활성 세션 조회하여 일시정지 정보 가져오기
+    // 활성 세션 조회하여 일시정지 정보 가져오기 및 종료
     const { data: activeSession } = await supabase
       .from("student_study_sessions")
-      .select("paused_duration_seconds")
+      .select("id, paused_duration_seconds, paused_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
@@ -254,8 +254,23 @@ export async function completePlan(
 
     const sessionPausedDuration = activeSession?.paused_duration_seconds || 0;
     const planPausedDuration = planData?.paused_duration_seconds || 0;
-    const totalPausedDuration = sessionPausedDuration + planPausedDuration;
+    
+    // 현재 일시정지 중인 경우 일시정지 시간 추가 계산
+    let currentPauseDuration = sessionPausedDuration;
+    if (activeSession?.paused_at && !activeSession.resumed_at) {
+      const pausedAt = new Date(activeSession.paused_at);
+      const now = new Date();
+      const currentPauseSeconds = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
+      currentPauseDuration += currentPauseSeconds;
+    }
+    
+    const totalPausedDuration = currentPauseDuration + planPausedDuration;
     const pauseCount = planData?.pause_count || 0;
+
+    // 활성 세션 종료
+    if (activeSession?.id) {
+      await endStudySession(activeSession.id);
+    }
 
     // 플랜 시간 정보 업데이트
     await supabase

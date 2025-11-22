@@ -37,7 +37,8 @@ export function TimeCheckSection({
 
   // 실시간 타이머 계산
   useEffect(() => {
-    if (!timeStats.isActive || !normalizedStartTime || isPaused) {
+    // 완료되었거나 비활성 상태면 타이머 중지
+    if (timeStats.isCompleted || !timeStats.isActive || !normalizedStartTime || isPaused) {
       setElapsedSeconds(0);
       return;
     }
@@ -78,6 +79,22 @@ export function TimeCheckSection({
             <span className="text-sm text-gray-600">시작 시간</span>
             <span className="text-sm font-medium text-gray-900">
               {formatTimestamp(timeStats.firstStartTime)}
+            </span>
+          </div>
+        )}
+        {timeStats.currentPausedAt && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-amber-600">일시정지 시간</span>
+            <span className="text-sm font-medium text-amber-900">
+              {formatTimestamp(timeStats.currentPausedAt)}
+            </span>
+          </div>
+        )}
+        {timeStats.lastResumedAt && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-blue-600">재시작 시간</span>
+            <span className="text-sm font-medium text-blue-900">
+              {formatTimestamp(timeStats.lastResumedAt)}
             </span>
           </div>
         )}
@@ -141,7 +158,7 @@ export function TimeCheckSection({
       )}
 
       {/* 완료 상태 표시 */}
-      {!timeStats.isActive && timeStats.lastEndTime && (
+      {timeStats.isCompleted && (
         <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-green-50 p-3">
           <CheckCircle className="h-5 w-5 text-green-600" />
           <span className="text-sm font-semibold text-green-900">학습 완료</span>

@@ -207,11 +207,15 @@ export async function TodayPlanList() {
     .eq("student_id", user.userId)
     .is("ended_at", null);
 
-  const sessionMap = new Map<string, { isPaused: boolean }>();
+  const sessionMap = new Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>();
   activeSessions?.forEach((session) => {
     if (session.plan_id) {
       const isPaused = !!session.paused_at && !session.resumed_at;
-      sessionMap.set(session.plan_id, { isPaused });
+      sessionMap.set(session.plan_id, { 
+        isPaused,
+        pausedAt: session.paused_at,
+        resumedAt: session.resumed_at,
+      });
     }
   });
 
@@ -234,7 +238,7 @@ export async function TodayPlanList() {
   const groups = groupPlansByPlanNumber(plansWithContent);
 
   // 세션 맵 생성 (컴포넌트에 전달하기 위해 Map으로 변환)
-  const sessionsMap = new Map<string, { isPaused: boolean }>();
+  const sessionsMap = new Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>();
   sessionMap.forEach((value, key) => {
     sessionsMap.set(key, value);
   });

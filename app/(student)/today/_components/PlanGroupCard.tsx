@@ -29,7 +29,7 @@ import type { TimerLog } from "../actions/timerLogActions";
 type PlanGroupCardProps = {
   group: PlanGroup;
   viewMode: "daily" | "single";
-  sessions: Map<string, { isPaused: boolean }>;
+  sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
   planDate: string; // 플랜 날짜 (메모 조회용)
   memo?: string | null; // 메모 내용
   totalPages?: number; // 콘텐츠 총량 (범위 조정용)
@@ -74,7 +74,7 @@ export function PlanGroupCard({
     group.plans.some((plan) => sessions.get(plan.id)?.isPaused);
 
   // 시간 통계 계산
-  const timeStats = getTimeStats(group.plans, activePlan);
+  const timeStats = getTimeStats(group.plans, activePlan, sessions);
 
   // 그룹 타이머 제어 핸들러
   const handleGroupStart = async () => {
