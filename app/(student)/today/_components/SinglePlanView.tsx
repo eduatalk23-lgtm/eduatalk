@@ -28,12 +28,14 @@ export function SinglePlanView({
 
   if (!selectedGroup) {
     return (
-      <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">📚</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            선택할 플랜이 없습니다
-          </h3>
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <div className="mx-auto flex max-w-md flex-col gap-4">
+          <div className="text-6xl">📚</div>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-gray-900">
+              선택할 플랜이 없습니다
+            </h3>
+          </div>
         </div>
       </div>
     );
@@ -46,7 +48,7 @@ export function SinglePlanView({
   const memo = memos.get(selectedGroup.planNumber);
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <PlanSelector
         groups={groups}
         selectedPlanNumber={selectedPlanNumber ?? groups[0]?.planNumber ?? null}
