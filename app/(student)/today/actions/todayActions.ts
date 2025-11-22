@@ -405,31 +405,36 @@ export async function pausePlan(
     const supabase = await createSupabaseServerClient();
     console.log(`[pausePlan] 플랜 ${planId} 일시정지 시도, 사용자: ${user.userId}`);
 
-    // 활성 세션 조회
-    const { data: activeSession, error: sessionError } = await supabase
+    // 활성 세션 조회 (여러 개일 수 있으므로 배열로 조회)
+    const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
       .select("id, paused_at, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
-      .maybeSingle();
+      .order("started_at", { ascending: false }); // 최신 세션 우선
 
     if (sessionError) {
       console.error("[todayActions] 세션 조회 오류:", sessionError);
       return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
     }
 
-    console.log(`[pausePlan] 활성 세션 조회 결과:`, activeSession ? `세션 ID: ${activeSession.id}` : "세션 없음");
+    // 여러 세션이 있는 경우 가장 최근 세션 사용
+    const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
+
+    console.log(`[pausePlan] 활성 세션 조회 결과:`, activeSession ? `세션 ID: ${activeSession.id} (총 ${activeSessions?.length || 0}개)` : "세션 없음");
 
     if (!activeSession) {
       // plan_id가 null인 세션도 확인 (일부 세션은 plan_id 없이 생성될 수 있음)
-      const { data: anyActiveSession } = await supabase
+      const { data: anyActiveSessions } = await supabase
         .from("student_study_sessions")
         .select("id, plan_id")
         .eq("student_id", user.userId)
         .is("ended_at", null)
-        .maybeSingle();
+        .order("started_at", { ascending: false })
+        .limit(1);
       
+      const anyActiveSession = anyActiveSessions && anyActiveSessions.length > 0 ? anyActiveSessions[0] : null;
       console.log(`[pausePlan] plan_id 없는 활성 세션 확인:`, anyActiveSession);
       
       return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
@@ -528,14 +533,22 @@ export async function resumePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 활성 세션 조회
-    const { data: activeSession } = await supabase
+    // 활성 세션 조회 (여러 개일 수 있으므로 배열로 조회)
+    const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
       .select("id, paused_at, paused_duration_seconds")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
-      .maybeSingle();
+      .order("started_at", { ascending: false }); // 최신 세션 우선
+
+    if (sessionError) {
+      console.error("[todayActions] 세션 조회 오류:", sessionError);
+      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
+    }
+
+    // 여러 세션이 있는 경우 가장 최근 세션 사용
+    const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
 
     if (!activeSession) {
       return { success: false, error: "활성 세션을 찾을 수 없습니다." };
