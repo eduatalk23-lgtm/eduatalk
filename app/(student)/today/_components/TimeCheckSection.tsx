@@ -55,6 +55,12 @@ export function TimeCheckSection({
   
   // props가 변경되면 optimistic 상태 초기화 (서버 상태와 동기화)
   // 단, 일시정지 타임스탬프는 서버에 저장된 값이 없을 때만 optimistic 유지
+  // 의존성 배열의 값들을 안정화하여 배열 크기가 변경되지 않도록 함
+  const firstStartTime = timeStats.firstStartTime ?? null;
+  const currentPausedAt = timeStats.currentPausedAt ?? null;
+  const lastPausedAt = timeStats.lastPausedAt ?? null;
+  const lastResumedAt = timeStats.lastResumedAt ?? null;
+  
   useEffect(() => {
     setOptimisticIsPaused(null);
     setOptimisticIsActive(null);
@@ -63,14 +69,14 @@ export function TimeCheckSection({
     // 단, 일시정지 타임스탬프는 서버에 저장된 값이 없을 때만 optimistic 유지
     setOptimisticTimestamps((prev) => {
       // 서버에 저장된 일시정지 타임스탬프가 있으면 optimistic 제거
-      if (timeStats.currentPausedAt) {
+      if (currentPausedAt || lastPausedAt) {
         const { pause, ...rest } = prev;
         return rest;
       }
       // 서버에 저장된 값이 없으면 optimistic 유지 (일시정지 직후)
       return prev;
     });
-  }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastPausedAt, timeStats.lastResumedAt]);
+  }, [isPaused, isActive, firstStartTime, currentPausedAt, lastPausedAt, lastResumedAt]);
 
   // 시간 이벤트 조회는 제거
   // 클라이언트에서 타임스탬프를 생성해서 서버에 전달하므로, 서버에서 다시 조회할 필요 없음
