@@ -12,6 +12,7 @@ type TimeCheckSectionProps = {
   planId: string; // 타이머 컨트롤용 플랜 ID
   isActive: boolean; // 진행 중인지 여부
   isLoading?: boolean; // 로딩 상태
+  hasOtherActivePlan?: boolean; // 다른 플랜의 타이머가 실행 중인지 여부
   planNumber: number | null; // 플랜 그룹 번호 (초기화용)
   planDate: string; // 플랜 날짜 (초기화용)
   onStart: (timestamp?: string) => void; // 시작 핸들러 (타임스탬프 전달)

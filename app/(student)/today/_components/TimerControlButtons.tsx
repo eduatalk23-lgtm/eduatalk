@@ -9,6 +9,7 @@ type TimerControlButtonsProps = {
   isPaused: boolean;
   isCompleted: boolean;
   isLoading?: boolean;
+  hasOtherActivePlan?: boolean;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
