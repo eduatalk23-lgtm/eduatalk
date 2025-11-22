@@ -330,7 +330,7 @@ export function PlanGroupCard({
           activePlanStartTime={activePlan?.actual_start_time ?? null}
           planId={activePlan?.id || group.plans[0]?.id || ""}
           isActive={isGroupRunning}
-          isLoading={isLoading}
+          isLoading={isLoading || isPending}
           planNumber={group.planNumber}
           planDate={planDate}
           onStart={handleGroupStart}

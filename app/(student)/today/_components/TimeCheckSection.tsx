@@ -41,9 +41,19 @@ export function TimeCheckSection({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerLogs, setTimerLogs] = useState<TimerLog[]>([]);
   const [isPending, startTransition] = useTransition();
+  
+  // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
+  const [optimisticIsPaused, setOptimisticIsPaused] = useState<boolean | null>(null);
+  const [optimisticIsActive, setOptimisticIsActive] = useState<boolean | null>(null);
 
   // activePlanStartTime을 정규화 (null 또는 문자열로 통일)
   const normalizedStartTime = activePlanStartTime ?? null;
+  
+  // props가 변경되면 optimistic 상태 초기화 (서버 상태와 동기화)
+  useEffect(() => {
+    setOptimisticIsPaused(null);
+    setOptimisticIsActive(null);
+  }, [isPaused, isActive]);
 
   // 타이머 로그 조회
   useEffect(() => {
@@ -58,9 +68,10 @@ export function TimeCheckSection({
 
   // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
   const isCompleted = Boolean(timeStats.isCompleted);
-  const isActiveState = Boolean(isActive); // props의 isActive와 구분
+  // Optimistic 상태가 있으면 우선 사용, 없으면 props 사용
+  const isActiveState = optimisticIsActive !== null ? optimisticIsActive : Boolean(isActive);
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
-  const isPausedState = Boolean(isPaused);
+  const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : Boolean(isPaused);
 
   // 실시간 타이머 계산
   useEffect(() => {
@@ -253,9 +264,19 @@ export function TimeCheckSection({
           isPaused={isPaused}
           isCompleted={!!timeStats.lastEndTime}
           isLoading={isLoading || isPending}
-          onStart={onStart}
-          onPause={onPause}
-          onResume={onResume}
+          onStart={() => {
+            setOptimisticIsActive(true);
+            setOptimisticIsPaused(false);
+            onStart();
+          }}
+          onPause={() => {
+            setOptimisticIsPaused(true);
+            onPause();
+          }}
+          onResume={() => {
+            setOptimisticIsPaused(false);
+            onResume();
+          }}
           onComplete={onComplete}
         />
       </div>
