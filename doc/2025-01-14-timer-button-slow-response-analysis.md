@@ -253,20 +253,36 @@ const { mutate } = useMutation({
 ## ✅ 완료된 개선 사항
 
 ### 1. 중복 revalidatePath 제거 ✅
+
 - `startStudySession` 함수에서 중복된 `revalidatePath("/today")` 호출 제거
 - `startPlan`에서만 재검증하도록 변경
 
 ### 2. startTransition 적용 ✅
+
 - `TimeCheckSection`의 `onStart`, `onPause`, `onResume` 핸들러에 `startTransition` 적용
 - `PlanGroupCard`의 `handleGroupStart`에 `startTransition` 적용
 - 서버 동기화를 백그라운드에서 처리하여 UI 반응성 향상
 
 ### 3. pause_count 업데이트 최적화 ✅
+
 - RPC 함수 `increment_pause_count` 생성
 - 2번의 쿼리(조회 + 업데이트)를 1번의 RPC 호출로 최적화
 - Migration 파일: `20250114000000_create_increment_pause_count_function.sql`
 
+### 4. actual_start_time 업데이트 최적화 ✅
+
+- `startPlan`에서 `actual_start_time` 조회 쿼리 제거
+- `UPDATE ... WHERE actual_start_time IS NULL`로 직접 업데이트
+- 1번의 쿼리(조회) 제거로 성능 향상
+
+### 5. 활성 세션 조회 최적화 ✅
+
+- `pausePlan`과 `resumePlan`에서 활성 세션 조회 최적화
+- 배열 조회 대신 `limit(1).maybeSingle()` 사용
+- 불필요한 데이터 전송 감소 및 네트워크 트래픽 최적화
+
 ### 예상 성능 개선
+
 - **즉시 적용 가능 항목**: 20-30% 성능 향상
-- **쿼리 최적화**: 추가 10-20% 성능 향상
-- **총 예상 개선**: 30-50% 성능 향상
+- **쿼리 최적화**: 추가 15-25% 성능 향상
+- **총 예상 개선**: 35-55% 성능 향상
