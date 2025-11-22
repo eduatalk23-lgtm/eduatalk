@@ -300,14 +300,35 @@ export function getTimeStats(
   const isCompleted = plans.length > 0 && plans.every((p) => !!p.actual_end_time);
 
   // 현재 일시정지 시간 및 마지막 재시작 시간 조회
+  // 일시정지된 플랜도 찾아서 currentPausedAt 계산 (activePlan이 null일 수 있음)
   let currentPausedAt: string | null = null;
   let lastResumedAt: string | null = null;
 
-  if (activePlan && sessions) {
-    const session = sessions.get(activePlan.id);
-    if (session) {
-      currentPausedAt = session.isPaused ? (session.pausedAt || null) : null;
-      lastResumedAt = session.resumedAt || null;
+  if (sessions) {
+    // 일시정지된 플랜 찾기 (activePlan이 없어도 일시정지된 플랜은 찾을 수 있음)
+    const pausedPlan = plans.find((plan) => {
+      const session = sessions.get(plan.id);
+      return (
+        plan.actual_start_time &&
+        !plan.actual_end_time &&
+        session &&
+        session.isPaused
+      );
+    });
+
+    if (pausedPlan) {
+      const session = sessions.get(pausedPlan.id);
+      if (session) {
+        currentPausedAt = session.pausedAt || null;
+        lastResumedAt = session.resumedAt || null;
+      }
+    } else if (activePlan) {
+      // 일시정지된 플랜이 없으면 활성 플랜의 세션 정보 사용
+      const session = sessions.get(activePlan.id);
+      if (session) {
+        currentPausedAt = session.isPaused ? (session.pausedAt || null) : null;
+        lastResumedAt = session.resumedAt || null;
+      }
     }
   }
 

@@ -67,9 +67,17 @@ export function PlanGroupCard({
   const activePlan = getActivePlan(group, sessions);
 
   const isGroupRunning = !!activePlan;
-  const isGroupPaused =
-    activePlansCount > 0 &&
-    group.plans.some((plan) => sessions.get(plan.id)?.isPaused);
+  // 일시정지된 플랜이 있으면 일시정지 상태로 간주
+  // (activePlansCount가 0이어도 일시정지된 플랜이 있으면 일시정지 상태)
+  const isGroupPaused = group.plans.some((plan) => {
+    const session = sessions.get(plan.id);
+    return (
+      plan.actual_start_time &&
+      !plan.actual_end_time &&
+      session &&
+      session.isPaused
+    );
+  });
 
   // 다른 플랜이 활성화되어 있는지 확인 (현재 그룹의 플랜 제외)
   const currentGroupPlanIds = new Set(group.plans.map((p) => p.id));

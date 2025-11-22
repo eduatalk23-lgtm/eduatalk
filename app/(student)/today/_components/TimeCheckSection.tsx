@@ -54,13 +54,22 @@ export function TimeCheckSection({
   const normalizedStartTime = activePlanStartTime ?? null;
   
   // props가 변경되면 optimistic 상태 초기화 (서버 상태와 동기화)
+  // 단, 일시정지 타임스탬프는 서버에 저장된 값이 없을 때만 optimistic 유지
   useEffect(() => {
     setOptimisticIsPaused(null);
     setOptimisticIsActive(null);
-    // 서버에서 props가 업데이트되면 optimistic 타임스탬프도 제거
-    // 클라이언트에서 보낸 타임스탬프를 서버에서 그대로 저장하므로, props가 변경되면 이미 서버에 저장된 것
-    // 같은 국가에서 사용한다면 클라이언트 타임스탬프를 그대로 사용해도 문제없음
-    setOptimisticTimestamps({});
+    
+    // 서버에서 props가 업데이트되면 optimistic 타임스탬프 제거
+    // 단, 일시정지 타임스탬프는 서버에 저장된 값이 없을 때만 optimistic 유지
+    setOptimisticTimestamps((prev) => {
+      // 서버에 저장된 일시정지 타임스탬프가 있으면 optimistic 제거
+      if (timeStats.currentPausedAt) {
+        const { pause, ...rest } = prev;
+        return rest;
+      }
+      // 서버에 저장된 값이 없으면 optimistic 유지 (일시정지 직후)
+      return prev;
+    });
   }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastResumedAt]);
 
   // 시간 이벤트 조회는 제거
