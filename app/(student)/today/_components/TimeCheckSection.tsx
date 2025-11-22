@@ -61,11 +61,15 @@ export function TimeCheckSection({
       const result = await getTimerLogsByPlanNumber(planNumber, planDate);
       if (result.success && result.logs) {
         setTimerLogs(result.logs);
+      } else {
+        // 로그가 없으면 빈 배열로 설정 (초기화 후 상태 반영)
+        setTimerLogs([]);
       }
     };
-    // planNumber나 planDate가 변경될 때만 조회 (서버 상태 변경 시)
+    // planNumber, planDate, timeStats의 주요 필드가 변경될 때 조회
+    // 초기화 후 timeStats가 변경되면 로그도 다시 조회됨
     loadTimerLogs();
-  }, [planNumber, planDate]);
+  }, [planNumber, planDate, timeStats.firstStartTime, timeStats.lastEndTime, timeStats.totalDuration]);
 
   // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
   const isCompleted = Boolean(timeStats.isCompleted);
@@ -291,7 +295,20 @@ export function TimeCheckSection({
       {(timeStats.firstStartTime || timeStats.lastEndTime || timeStats.totalDuration > 0) && onReset && (
         <div className="mt-4 border-t border-gray-200 pt-4">
           <button
-            onClick={onReset}
+            onClick={async () => {
+              if (onReset) {
+                await onReset();
+                // 초기화 후 서버 상태 반영을 위해 약간의 딜레이 후 타이머 로그 다시 조회
+                setTimeout(async () => {
+                  const result = await getTimerLogsByPlanNumber(planNumber, planDate);
+                  if (result.success && result.logs) {
+                    setTimerLogs(result.logs);
+                  } else {
+                    setTimerLogs([]);
+                  }
+                }, 100);
+              }
+            }}
             disabled={isLoading}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
           >
