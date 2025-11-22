@@ -44,6 +44,33 @@ async function fetchProgressMap(
   }
 }
 
+/**
+ * 날짜를 한국어 형식으로 포맷팅 (예: 2024년 1월 15일)
+ */
+function formatDateKorean(dateStr: string): string {
+  const date = new Date(dateStr + "T00:00:00");
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return `${year}년 ${month}월 ${day}일`;
+}
+
+/**
+ * 날짜 차이를 계산하여 상대적 표현 반환 (예: "내일", "3일 후")
+ */
+function getRelativeDateLabel(targetDateStr: string, todayDateStr: string): string {
+  const target = new Date(targetDateStr + "T00:00:00");
+  const today = new Date(todayDateStr + "T00:00:00");
+  const diffTime = target.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "오늘";
+  if (diffDays === 1) return "내일";
+  if (diffDays === 2) return "모레";
+  if (diffDays <= 7) return `${diffDays}일 후`;
+  return formatDateKorean(targetDateStr);
+}
+
 export async function TodayPlanList() {
   try {
     const user = await getCurrentUser();
@@ -56,7 +83,8 @@ export async function TodayPlanList() {
     today.setHours(0, 0, 0, 0);
     const todayDate = today.toISOString().slice(0, 10);
 
-    const [plansResult, progressMapResult] = await Promise.allSettled([
+    // 1. 오늘 플랜 조회
+    const [todayPlansResult, progressMapResult] = await Promise.allSettled([
       getPlansForStudent({
         studentId: user.userId,
         tenantId: tenantContext?.tenantId || null,
@@ -65,28 +93,65 @@ export async function TodayPlanList() {
       fetchProgressMap(user.userId),
     ]);
 
-    const plans =
-      plansResult.status === "fulfilled" ? plansResult.value : [];
+    const todayPlans =
+      todayPlansResult.status === "fulfilled" ? todayPlansResult.value : [];
     const progressMap =
       progressMapResult.status === "fulfilled"
         ? progressMapResult.value
         : {};
 
-  if (plans.length === 0) {
-    return (
-      <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">📚</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            오늘 배울 내용이 없습니다
-          </h3>
-          <p className="text-sm text-gray-500">
-            자동 스케줄러를 실행해보세요.
-          </p>
+    let plans = todayPlans;
+    let displayDate = todayDate;
+    let isToday = true;
+
+    // 2. 오늘 플랜이 없으면 가장 가까운 미래 날짜의 플랜 찾기
+    if (plans.length === 0) {
+      const futureEndDate = new Date(today);
+      futureEndDate.setDate(futureEndDate.getDate() + 30); // 30일 후까지 조회
+      const futureEndDateStr = futureEndDate.toISOString().slice(0, 10);
+
+      const futurePlansResult = await getPlansForStudent({
+        studentId: user.userId,
+        tenantId: tenantContext?.tenantId || null,
+        dateRange: {
+          start: todayDate,
+          end: futureEndDateStr,
+        },
+      });
+
+      if (futurePlansResult.length > 0) {
+        // 가장 가까운 날짜 찾기 (plan_date 기준으로 정렬)
+        const sortedPlans = futurePlansResult.sort((a, b) => {
+          if (!a.plan_date || !b.plan_date) return 0;
+          return a.plan_date.localeCompare(b.plan_date);
+        });
+
+        // 첫 번째 플랜의 날짜를 기준으로 해당 날짜의 모든 플랜 가져오기
+        const nearestDate = sortedPlans[0].plan_date;
+        if (nearestDate) {
+          displayDate = nearestDate;
+          isToday = false;
+          plans = sortedPlans.filter((p) => p.plan_date === nearestDate);
+        }
+      }
+    }
+
+    // 3. 여전히 플랜이 없으면 빈 상태 표시
+    if (plans.length === 0) {
+      return (
+        <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <div className="mx-auto max-w-md">
+            <div className="mb-4 text-6xl">📚</div>
+            <h3 className="mb-2 text-lg font-semibold text-gray-900">
+              오늘 배울 내용이 없습니다
+            </h3>
+            <p className="text-sm text-gray-500">
+              자동 스케줄러를 실행해보세요.
+            </p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
   // 콘텐츠 정보 조회
   const bookIds = plans
@@ -147,7 +212,31 @@ export async function TodayPlanList() {
     };
   });
 
-  return <DraggablePlanList plans={plansWithContent} planDate={todayDate} />;
+  // 날짜 표시 레이블 생성
+  const dateLabel = isToday 
+    ? "오늘" 
+    : getRelativeDateLabel(displayDate, todayDate);
+
+  return (
+    <div className="mb-6">
+      {!isToday && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📅</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">
+                {dateLabel}의 플랜을 표시하고 있습니다
+              </p>
+              <p className="text-xs text-amber-700">
+                {formatDateKorean(displayDate)} ({dateLabel})
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      <DraggablePlanList plans={plansWithContent} planDate={displayDate} />
+    </div>
+  );
   } catch (error) {
     console.error("[TodayPlanList] 컴포넌트 렌더링 실패", error);
     return (
