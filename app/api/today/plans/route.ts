@@ -147,14 +147,24 @@ export async function GET() {
     });
 
     // 플랜 데이터를 PlanWithContent 형식으로 변환
+    // denormalized 필드 제거 (content 객체에 이미 포함되어 있음)
     const plansWithContent: PlanWithContent[] = plans.map((plan) => {
       const contentKey = `${plan.content_type}:${plan.content_id}`;
       const content = contentMap.get(contentKey);
       const progress = progressMap.get(contentKey) ?? null;
       const session = sessionMap.get(plan.id);
 
+      // denormalized 필드 제거 (content 객체에 이미 포함)
+      const {
+        content_title,
+        content_subject,
+        content_subject_category,
+        content_category,
+        ...planWithoutDenormalized
+      } = plan;
+
       return {
-        ...plan,
+        ...planWithoutDenormalized,
         content,
         progress,
         session: session ? {

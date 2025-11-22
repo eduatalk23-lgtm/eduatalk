@@ -5,21 +5,21 @@
 ```
 1. 클라이언트 (PlanViewContainer)
    ↓ fetch("/api/today/plans")
-   
+
 2. API 엔드포인트 (/api/today/plans/route.ts)
    ↓ getPlansForStudent()
-   
+
 3. 데이터베이스 (student_plan 테이블)
    ↓ 조회된 플랜 데이터
-   
+
 4. 추가 데이터 조회
    - 콘텐츠 정보 (books, lectures, custom_contents)
    - 진행률 (student_content_progress)
    - 활성 세션 (student_study_sessions)
-   
+
 5. 데이터 변환 및 조합
    ↓ PlanWithContent 형식으로 변환
-   
+
 6. JSON 응답 반환
    ↓ 클라이언트로 전달
 ```
@@ -33,6 +33,7 @@
 **요청**: `GET /api/today/plans`
 
 **처리 과정**:
+
 1. 사용자 인증 확인
 2. 오늘 날짜 계산 (`YYYY-MM-DD` 형식)
 3. 오늘 플랜 조회
@@ -44,8 +45,9 @@
 **위치**: `lib/data/studentPlans.ts`
 
 **SQL 쿼리** (실제 실행되는 쿼리):
+
 ```sql
-SELECT 
+SELECT
   id,
   tenant_id,
   student_id,
@@ -89,11 +91,13 @@ ORDER BY plan_date ASC, block_index ASC
 ```
 
 **필터 조건**:
+
 - `student_id`: 현재 로그인한 학생 ID
 - `plan_date`: 오늘 날짜 (YYYY-MM-DD)
 - `tenant_id`: 테넌트 ID (있는 경우)
 
 **오늘 플랜이 없을 경우**:
+
 1. 30일 범위로 미래 플랜 조회
 2. 없으면 180일 범위로 확장 조회
 3. 가장 가까운 날짜의 플랜 선택
@@ -101,11 +105,13 @@ ORDER BY plan_date ASC, block_index ASC
 ### 3단계: 콘텐츠 정보 조회
 
 **조회 대상**:
+
 - `books` 테이블 (content_type = "book")
 - `lectures` 테이블 (content_type = "lecture")
 - `student_custom_contents` 테이블 (content_type = "custom")
 
 **함수**:
+
 - `getBooks(userId, tenantId)`
 - `getLectures(userId, tenantId)`
 - `getCustomContents(userId, tenantId)`
@@ -115,8 +121,9 @@ ORDER BY plan_date ASC, block_index ASC
 **테이블**: `student_content_progress`
 
 **SQL 쿼리**:
+
 ```sql
-SELECT 
+SELECT
   content_type,
   content_id,
   progress
@@ -131,8 +138,9 @@ WHERE student_id = :studentId
 **테이블**: `student_study_sessions`
 
 **SQL 쿼리**:
+
 ```sql
-SELECT 
+SELECT
   plan_id,
   paused_at,
   resumed_at
@@ -146,6 +154,7 @@ WHERE student_id = :studentId
 ### 6단계: 데이터 변환
 
 **변환 로직**:
+
 ```typescript
 plans.map((plan) => {
   const contentKey = `${plan.content_type}:${plan.content_id}`;
@@ -154,14 +163,16 @@ plans.map((plan) => {
   const session = sessionMap.get(plan.id);
 
   return {
-    ...plan,  // 원본 플랜 데이터
-    content,  // 콘텐츠 상세 정보
+    ...plan, // 원본 플랜 데이터
+    content, // 콘텐츠 상세 정보
     progress, // 진행률
-    session: session ? {
-      isPaused: session.isPaused,
-      pausedAt: session.pausedAt,
-      resumedAt: session.resumedAt,
-    } : undefined,
+    session: session
+      ? {
+          isPaused: session.isPaused,
+          pausedAt: session.pausedAt,
+          resumedAt: session.resumedAt,
+        }
+      : undefined,
   };
 });
 ```
@@ -195,9 +206,10 @@ plans.map((plan) => {
 
 ```typescript
 type PlanWithContent = Plan & {
-  content?: Book | Lecture | CustomContent;  // 콘텐츠 상세 정보
-  progress?: number | null;                  // 진행률 (0-100)
-  session?: {                                 // 세션 정보
+  content?: Book | Lecture | CustomContent; // 콘텐츠 상세 정보
+  progress?: number | null; // 진행률 (0-100)
+  session?: {
+    // 세션 정보
     isPaused: boolean;
     pausedAt?: string | null;
     resumedAt?: string | null;
@@ -263,4 +275,3 @@ API 엔드포인트에 `console.log`를 추가하여 서버 콘솔에서 확인 
 - 진행률은 `student_content_progress` 테이블에서 조회
 - 활성 세션은 `student_study_sessions` 테이블에서 조회
 - 같은 `plan_number`를 가진 플랜들은 하나의 논리적 플랜으로 그룹화됨
-
