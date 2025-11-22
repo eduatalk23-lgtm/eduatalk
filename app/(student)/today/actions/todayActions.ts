@@ -6,7 +6,6 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanById, updatePlan } from "@/lib/data/studentPlans";
 import { startStudySession, endStudySession } from "@/app/(student)/actions/studySessionActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { recordTimerLog } from "./timerLogActions";
 
 type PlanRecordPayload = {
   startPageOrTime: number;
@@ -57,9 +56,6 @@ export async function startPlan(
         .eq("id", planId)
         .eq("student_id", user.userId);
     }
-
-    // 타이머 로그 기록 (시작)
-    await recordTimerLog(planId, "start", 0);
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
@@ -290,9 +286,6 @@ export async function completePlan(
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
     const finalDuration = totalDurationSeconds ? Math.max(0, totalDurationSeconds - totalPausedDuration) : 0;
 
-    // 타이머 로그 기록 (완료)
-    await recordTimerLog(planId, "complete", finalDuration);
-
     // 필요한 경로만 재검증 (성능 최적화)
     // 완료 시에는 대시보드도 업데이트 필요
     revalidatePath("/today");
@@ -515,9 +508,6 @@ export async function pausePlan(
       currentDuration = Math.max(0, totalSeconds - pausedSeconds);
     }
 
-    // 타이머 로그 기록 (일시정지)
-    await recordTimerLog(planId, "pause", currentDuration);
-
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
     return { success: true };
@@ -617,9 +607,6 @@ export async function resumePlan(
       const pausedSeconds = planForDuration.paused_duration_seconds || 0;
       currentDuration = Math.max(0, totalSeconds - pausedSeconds);
     }
-
-    // 타이머 로그 기록 (재개)
-    await recordTimerLog(planId, "resume", currentDuration);
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");

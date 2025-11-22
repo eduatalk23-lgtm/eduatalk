@@ -4,8 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import { Clock, Play, Pause, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTime, formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
-import { getTimerLogsByPlanNumber } from "../actions/timerLogActions";
-import type { TimerLog } from "../actions/timerLogActions";
+import { getTimeEventsByPlanNumber } from "../actions/sessionTimeActions";
+import type { TimeEvent } from "../actions/sessionTimeActions";
 
 type TimeCheckSectionProps = {
   timeStats: TimeStats;
@@ -39,7 +39,7 @@ export function TimeCheckSection({
   onReset,
 }: TimeCheckSectionProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [timerLogs, setTimerLogs] = useState<TimerLog[]>([]);
+  const [timeEvents, setTimeEvents] = useState<TimeEvent[]>([]);
   const [isPending, startTransition] = useTransition();
   
   // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
@@ -55,20 +55,19 @@ export function TimeCheckSection({
     setOptimisticIsActive(null);
   }, [isPaused, isActive]);
 
-  // 타이머 로그 조회 (서버 상태 변경 시에만 조회, optimistic 상태 변경은 제외)
+  // 시간 이벤트 조회 (세션 데이터로 계산)
   useEffect(() => {
-    const loadTimerLogs = async () => {
-      const result = await getTimerLogsByPlanNumber(planNumber, planDate);
-      if (result.success && result.logs) {
-        setTimerLogs(result.logs);
+    const loadTimeEvents = async () => {
+      const result = await getTimeEventsByPlanNumber(planNumber, planDate);
+      if (result.success && result.events) {
+        setTimeEvents(result.events);
       } else {
-        // 로그가 없으면 빈 배열로 설정 (초기화 후 상태 반영)
-        setTimerLogs([]);
+        // 이벤트가 없으면 빈 배열로 설정
+        setTimeEvents([]);
       }
     };
     // planNumber, planDate, timeStats의 모든 필드가 변경될 때 조회
-    // 초기화 후 timeStats가 변경되면 로그도 다시 조회됨
-    loadTimerLogs();
+    loadTimeEvents();
   }, [
     planNumber,
     planDate,
@@ -158,59 +157,59 @@ export function TimeCheckSection({
         시간 정보
       </h3>
 
-      {/* 시작/종료 시간 및 타이머 로그 */}
+      {/* 시작/종료 시간 및 시간 이벤트 */}
       <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
-        {/* 타이머 로그에서 시작/일시정지/재개/완료 시간 표시 */}
-        {timerLogs.length > 0 ? (
+        {/* 세션 데이터로 계산한 시간 이벤트 표시 */}
+        {timeEvents.length > 0 ? (
           <>
-            {timerLogs
-              .filter((log) => log.event_type === "start")
+            {timeEvents
+              .filter((event) => event.type === "start")
               .slice(0, 1)
-              .map((log) => (
-                <div key={log.id} className="flex items-center justify-between">
+              .map((event, idx) => (
+                <div key={`start-${idx}`} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">시작 시간</span>
                   <span className="text-sm font-medium text-gray-900">
-                    {formatTimestamp(log.timestamp)}
+                    {formatTimestamp(event.timestamp)}
                   </span>
                 </div>
               ))}
-            {timerLogs
-              .filter((log) => log.event_type === "pause")
+            {timeEvents
+              .filter((event) => event.type === "pause")
               .slice(-1)
-              .map((log) => (
-                <div key={log.id} className="flex items-center justify-between">
+              .map((event, idx) => (
+                <div key={`pause-${idx}`} className="flex items-center justify-between">
                   <span className="text-sm text-amber-600">일시정지 시간</span>
                   <span className="text-sm font-medium text-amber-900">
-                    {formatTimestamp(log.timestamp)}
+                    {formatTimestamp(event.timestamp)}
                   </span>
                 </div>
               ))}
-            {timerLogs
-              .filter((log) => log.event_type === "resume")
+            {timeEvents
+              .filter((event) => event.type === "resume")
               .slice(-1)
-              .map((log) => (
-                <div key={log.id} className="flex items-center justify-between">
+              .map((event, idx) => (
+                <div key={`resume-${idx}`} className="flex items-center justify-between">
                   <span className="text-sm text-blue-600">재시작 시간</span>
                   <span className="text-sm font-medium text-blue-900">
-                    {formatTimestamp(log.timestamp)}
+                    {formatTimestamp(event.timestamp)}
                   </span>
                 </div>
               ))}
-            {timerLogs
-              .filter((log) => log.event_type === "complete")
+            {timeEvents
+              .filter((event) => event.type === "complete")
               .slice(0, 1)
-              .map((log) => (
-                <div key={log.id} className="flex items-center justify-between">
+              .map((event, idx) => (
+                <div key={`complete-${idx}`} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">종료 시간</span>
                   <span className="text-sm font-medium text-gray-900">
-                    {formatTimestamp(log.timestamp)}
+                    {formatTimestamp(event.timestamp)}
                   </span>
                 </div>
               ))}
           </>
         ) : (
           <>
-            {/* 로그가 없을 때는 기존 방식으로 표시 */}
+            {/* 이벤트가 없을 때는 timeStats로 표시 (fallback) */}
             {timeStats.firstStartTime && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">시작 시간</span>
@@ -342,16 +341,16 @@ export function TimeCheckSection({
           <button
             onClick={async () => {
               if (onReset) {
-                // 즉시 타이머 로그를 빈 배열로 설정하여 UI 업데이트
-                setTimerLogs([]);
+                // 즉시 시간 이벤트를 빈 배열로 설정하여 UI 업데이트
+                setTimeEvents([]);
                 await onReset();
-                // 초기화 후 서버 상태 반영을 위해 약간의 딜레이 후 타이머 로그 다시 조회
+                // 초기화 후 서버 상태 반영을 위해 약간의 딜레이 후 시간 이벤트 다시 조회
                 setTimeout(async () => {
-                  const result = await getTimerLogsByPlanNumber(planNumber, planDate);
-                  if (result.success && result.logs) {
-                    setTimerLogs(result.logs);
+                  const result = await getTimeEventsByPlanNumber(planNumber, planDate);
+                  if (result.success && result.events) {
+                    setTimeEvents(result.events);
                   } else {
-                    setTimerLogs([]);
+                    setTimeEvents([]);
                   }
                 }, 300);
               }

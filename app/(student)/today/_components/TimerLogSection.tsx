@@ -2,19 +2,19 @@
 
 import { Play, Pause, CheckCircle } from "lucide-react";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
-import type { TimerLog } from "../actions/timerLogActions";
+import type { TimeEvent } from "../actions/sessionTimeActions";
 
 type TimerLogSectionProps = {
-  logs: TimerLog[];
+  events: TimeEvent[];
 };
 
-export function TimerLogSection({ logs }: TimerLogSectionProps) {
-  if (logs.length === 0) {
+export function TimerLogSection({ events }: TimerLogSectionProps) {
+  if (events.length === 0) {
     return null;
   }
 
   // 최신순 정렬 (이미 서버에서 정렬되어 있지만 확실히 하기 위해)
-  const sortedLogs = [...logs].sort((a, b) => 
+  const sortedEvents = [...events].sort((a, b) => 
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
@@ -71,27 +71,27 @@ export function TimerLogSection({ logs }: TimerLogSectionProps) {
       </h3>
       
       <div className="space-y-2 max-h-64 overflow-y-auto">
-        {sortedLogs.map((log) => {
-          const timeStr = formatTimestamp(log.timestamp);
+        {sortedEvents.map((event, index) => {
+          const timeStr = formatTimestamp(event.timestamp);
           const timeOnly = timeStr.split(" ")[1] || timeStr; // 시간 부분만 추출
           
           return (
             <div
-              key={log.id}
-              className={`flex items-center justify-between rounded-lg border p-3 ${getEventColor(log.event_type)}`}
+              key={`${event.type}-${event.timestamp}-${index}`}
+              className={`flex items-center justify-between rounded-lg border p-3 ${getEventColor(event.type)}`}
             >
               <div className="flex items-center gap-3">
-                {getEventIcon(log.event_type)}
+                {getEventIcon(event.type)}
                 <div>
                   <div className="text-sm font-semibold text-gray-900">
-                    {getEventLabel(log.event_type)}
+                    {getEventLabel(event.type)}
                   </div>
                   <div className="text-xs text-gray-600">{timeOnly}</div>
                 </div>
               </div>
-              {log.duration_seconds !== null && log.duration_seconds > 0 && (
+              {event.durationSeconds !== null && event.durationSeconds > 0 && (
                 <div className="text-xs font-medium text-gray-700">
-                  {formatTime(log.duration_seconds)}
+                  {formatTime(event.durationSeconds)}
                 </div>
               )}
             </div>

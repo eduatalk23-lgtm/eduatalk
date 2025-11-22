@@ -24,8 +24,8 @@ import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
-import { getTimerLogsByPlanNumber } from "../actions/timerLogActions";
-import type { TimerLog } from "../actions/timerLogActions";
+import { getTimeEventsByPlanNumber } from "../actions/sessionTimeActions";
+import type { TimeEvent } from "../actions/sessionTimeActions";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -51,7 +51,20 @@ export function PlanGroupCard({
   const [isPending, startTransition] = useTransition();
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
-  const [timerLogs, setTimerLogs] = useState<TimerLog[]>([]);
+  const [timeEvents, setTimeEvents] = useState<TimeEvent[]>([]);
+
+  // 시간 이벤트 조회 (세션 데이터로 계산)
+  useEffect(() => {
+    const loadTimeEvents = async () => {
+      const result = await getTimeEventsByPlanNumber(group.planNumber, planDate);
+      if (result.success && result.events) {
+        setTimeEvents(result.events);
+      } else {
+        setTimeEvents([]);
+      }
+    };
+    loadTimeEvents();
+  }, [group.planNumber, planDate, group.plans]);
 
   const contentTitle = group.content?.title || "제목 없음";
   const contentTypeIcon =
@@ -298,8 +311,8 @@ export function PlanGroupCard({
     try {
       const result = await resetPlanTimer(group.planNumber, planDate);
       if (result.success) {
-        // 즉시 타이머 로그를 빈 배열로 설정하여 UI 업데이트
-        setTimerLogs([]);
+        // 즉시 시간 이벤트를 빈 배열로 설정하여 UI 업데이트
+        setTimeEvents([]);
         // 서버 상태 반영을 위해 페이지 새로고침
         startTransition(() => {
           router.refresh();
@@ -372,7 +385,7 @@ export function PlanGroupCard({
         />
 
         {/* 타이머 로그 섹션 */}
-        <TimerLogSection logs={timerLogs} />
+        <TimerLogSection events={timeEvents} />
 
         {/* 전체 진행률 및 시간 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
