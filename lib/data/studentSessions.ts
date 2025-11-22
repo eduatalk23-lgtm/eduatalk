@@ -42,7 +42,7 @@ export async function getSessionsInRange(
     supabase
       .from("student_study_sessions")
       .select(
-        "id,tenant_id,student_id,plan_id,content_type,content_id,started_at,ended_at,duration_seconds,paused_at,resumed_at,paused_duration_seconds,created_at,updated_at"
+        "id,tenant_id,student_id,plan_id,content_type,content_id,started_at,ended_at,duration_seconds,paused_at,resumed_at,paused_duration_seconds,created_at"
       )
       .eq("student_id", filters.studentId);
 
@@ -140,7 +140,7 @@ export async function getSessionById(
     supabase
       .from("student_study_sessions")
       .select(
-        "id,tenant_id,student_id,plan_id,content_type,content_id,started_at,ended_at,duration_seconds,paused_at,resumed_at,paused_duration_seconds,created_at,updated_at"
+        "id,tenant_id,student_id,plan_id,content_type,content_id,started_at,ended_at,duration_seconds,paused_at,resumed_at,paused_duration_seconds,created_at"
       )
       .eq("id", sessionId)
       .eq("student_id", studentId);
