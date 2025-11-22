@@ -96,13 +96,19 @@ export async function createGoalAction(formData: FormData): Promise<void> {
 
   // 히스토리 기록
   const supabase = await createSupabaseClient();
-  await recordHistory(supabase, user.userId, "goal_created", {
-    goal_type: goalType,
-    title,
-    subject: subject || null,
-    start_date: startDate,
-    end_date: endDate,
-  });
+  await recordHistory(
+    supabase,
+    user.userId,
+    "goal_created",
+    {
+      goal_type: goalType,
+      title,
+      subject: subject || null,
+      start_date: startDate,
+      end_date: endDate,
+    },
+    tenantContext.tenantId
+  );
 
   revalidatePath("/today");
   redirect("/today");
@@ -295,12 +301,18 @@ export async function recordGoalProgressAction(
 
     // 히스토리 기록
     const supabase = await createSupabaseClient();
-    await recordHistory(supabase, user.userId, "goal_progress", {
-      goal_id: goalId,
-      progress_amount: calculatedAmount,
-      plan_id: planId || null,
-      session_id: sessionId || null,
-    });
+    await recordHistory(
+      supabase,
+      user.userId,
+      "goal_progress",
+      {
+        goal_id: goalId,
+        progress_amount: calculatedAmount,
+        plan_id: planId || null,
+        session_id: sessionId || null,
+      },
+      tenantContext.tenantId
+    );
 
     revalidatePath("/today");
     revalidatePath("/today");

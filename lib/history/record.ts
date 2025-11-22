@@ -28,11 +28,25 @@ export async function recordHistory(
   supabase: SupabaseServerClient,
   studentId: string,
   eventType: HistoryEventType,
-  detail: HistoryDetail
+  detail: HistoryDetail,
+  tenantId?: string | null
 ): Promise<void> {
   try {
+    // tenant_id가 제공되지 않은 경우 studentId로부터 조회
+    let finalTenantId = tenantId;
+    if (!finalTenantId) {
+      const { data: student } = await supabase
+        .from("students")
+        .select("tenant_id")
+        .eq("id", studentId)
+        .maybeSingle();
+      
+      finalTenantId = student?.tenant_id || null;
+    }
+
     const payload = {
       student_id: studentId,
+      tenant_id: finalTenantId,
       event_type: eventType,
       detail,
     };
@@ -40,8 +54,9 @@ export async function recordHistory(
     let { error } = await supabase.from("student_history").insert(payload);
 
     if (error && error.code === "42703") {
-      const { student_id: _studentId, ...fallbackPayload } = payload;
-      void _studentId;
+      // fallback: tenant_id 컬럼이 없는 경우
+      const { tenant_id: _tenantId, ...fallbackPayload } = payload;
+      void _tenantId;
       ({ error } = await supabase.from("student_history").insert(fallbackPayload));
     }
 

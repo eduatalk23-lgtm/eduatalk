@@ -128,13 +128,19 @@ export async function endStudySession(
     if (session.content_type && session.content_id) {
       const sessionDate = new Date(session.started_at).toISOString().slice(0, 10);
       const supabase = await createSupabaseServerClient();
-      await recordHistory(supabase, user.userId, "study_session", {
-        session_id: sessionId,
-        duration: result.durationSeconds || 0,
-        content_type: session.content_type,
-        content_id: session.content_id,
-        date: sessionDate,
-      });
+      await recordHistory(
+        supabase,
+        user.userId,
+        "study_session",
+        {
+          session_id: sessionId,
+          duration: result.durationSeconds || 0,
+          content_type: session.content_type,
+          content_id: session.content_id,
+          date: sessionDate,
+        },
+        tenantContext?.tenantId || null
+      );
     }
 
     revalidatePath("/today");

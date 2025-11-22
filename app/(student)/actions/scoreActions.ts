@@ -113,14 +113,20 @@ export async function addSchoolScore(formData: FormData): Promise<void> {
 
   // 히스토리 기록
   const supabase = await createSupabaseServerClient();
-  await recordHistory(supabase, user.userId, "score_added", {
-    score_type: "school",
-    grade,
-    semester,
-    subject_group: subjectGroup,
-    subject_name: subjectName,
-    grade_score: gradeScore,
-  });
+  await recordHistory(
+    supabase,
+    user.userId,
+    "score_added",
+    {
+      score_type: "school",
+      grade,
+      semester,
+      subject_group: subjectGroup,
+      subject_name: subjectName,
+      grade_score: gradeScore,
+    },
+    tenantContext.tenantId
+  );
 
   revalidatePath(`/scores/school/${grade}/${semester}`);
   redirect(`/scores/school/${grade}/${semester}?success=created`);
@@ -294,15 +300,21 @@ export async function addMockScore(formData: FormData): Promise<void> {
 
   // 히스토리 기록
   const supabase = await createSupabaseServerClient();
-  await recordHistory(supabase, user.userId, "score_added", {
-    score_type: "mock",
-    grade,
-    exam_type: examType,
-    subject_group: subjectGroup,
-    subject_name: subjectName,
-    grade_score: gradeScore,
-    test_date: testDate,
-  });
+  await recordHistory(
+    supabase,
+    user.userId,
+    "score_added",
+    {
+      score_type: "mock",
+      grade,
+      exam_type: examType,
+      subject_group: subjectGroup,
+      subject_name: subjectName,
+      grade_score: gradeScore,
+      test_date: testDate,
+    },
+    tenantContext.tenantId
+  );
 
   // exam_round를 month로 사용하여 새로운 경로 구조로 redirect (학년-월-시험유형)
   const month = examRound || "3"; // 기본값 3월
