@@ -70,21 +70,25 @@ GRANT EXECUTE ON FUNCTION public.increment_pause_count(UUID, UUID) TO authentica
 
 ## 📝 적용 방법
 
-### 방법 1: Supabase Dashboard SQL Editor 사용 (권장)
+### 방법 1: Supabase CLI 사용 (권장)
 
-1. Supabase Dashboard → SQL Editor로 이동
-2. 마이그레이션 파일 내용을 복사하여 실행
-3. 실행 후 PostgREST 스키마 캐시가 자동으로 업데이트됨
-
-### 방법 2: Supabase CLI 사용
+**중요**: 원격 데이터베이스에 더 최근 타임스탬프의 마이그레이션이 이미 적용되어 있는 경우, `--include-all` 플래그를 사용해야 합니다.
 
 ```bash
 # Supabase 프로젝트 연결 (이미 연결된 경우 생략)
 supabase link --project-ref your-project-ref
 
-# 마이그레이션 실행
-supabase db push
+# 마이그레이션 실행 (과거 타임스탬프 마이그레이션 포함)
+npx supabase db push --include-all
 ```
+
+**참고**: `--include-all` 플래그는 로컬에 있는 모든 마이그레이션 파일을 원격 데이터베이스에 적용합니다. 타임스탬프 순서와 관계없이 누락된 마이그레이션을 적용할 수 있습니다.
+
+### 방법 2: Supabase Dashboard SQL Editor 사용
+
+1. Supabase Dashboard → SQL Editor로 이동
+2. 마이그레이션 파일 내용을 복사하여 실행
+3. 실행 후 PostgREST 스키마 캐시가 자동으로 업데이트됨
 
 ## ✅ 검증 방법
 
@@ -107,6 +111,15 @@ SELECT
 FROM information_schema.routine_privileges
 WHERE routine_name = 'increment_pause_count'
   AND routine_schema = 'public';
+```
+
+## ✅ 적용 완료
+
+마이그레이션이 성공적으로 적용되었습니다:
+
+```
+Applying migration 20250114000000_create_increment_pause_count_function.sql...
+Finished supabase db push.
 ```
 
 ## 🎯 예상 효과
