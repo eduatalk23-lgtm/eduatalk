@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
@@ -6,10 +6,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "./_components/TodayHeader";
-import { TodayGoals } from "./_components/TodayGoals";
-import { TodayRecommendations } from "./_components/TodayRecommendations";
 import { TodayPlanList } from "./_components/TodayPlanList";
-import { TodayFocusPreview } from "./_components/TodayFocusPreview";
 import { TodayAchievements } from "./_components/TodayAchievements";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
 
@@ -23,7 +20,7 @@ export default async function TodayPage() {
   // 페이지 레벨에서 공통 데이터 한 번만 페칭
   const user = await getCurrentUser();
   const tenantContext = await getTenantContext();
-  
+
   // calculateTodayProgress는 무거운 작업이므로 한 번만 호출하고 결과를 공유
   // 여러 컴포넌트에서 중복 호출되던 것을 제거하여 성능 개선
   const todayProgressPromise = calculateTodayProgress(
@@ -41,20 +38,14 @@ export default async function TodayPage() {
   });
 
   // 병렬 처리 가능한 데이터 페칭
-  const [todayProgress] = await Promise.all([
-    todayProgressPromise,
-  ]);
+  const [todayProgress] = await Promise.all([todayProgressPromise]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       <TodayHeader />
       <CurrentLearningSection />
-      <TodayGoals todayProgress={todayProgress} />
-      <TodayRecommendations />
       <TodayPlanList />
-      <TodayFocusPreview todayProgress={todayProgress} />
       <TodayAchievements todayProgress={todayProgress} />
     </div>
   );
 }
-
