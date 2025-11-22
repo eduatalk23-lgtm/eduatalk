@@ -220,7 +220,8 @@ useEffect(() => {
 
 **문제**: 일시정지 시간과 재시작 시간이 중복으로 표시되는 문제
 
-**원인**: 
+**원인**:
+
 1. `currentPausedAt`과 `lastPausedAt`이 같은 값일 때 둘 다 표시됨
 2. Optimistic 타임스탬프와 서버 타임스탬프가 중복으로 수집됨
 3. `includes()` 체크만으로는 완전한 중복 제거가 어려움
@@ -257,7 +258,7 @@ const resumeSet = new Set<string>();
 
 // Optimistic 타임스탬프 추가
 if (optimisticTimestamps.pauses) {
-  optimisticTimestamps.pauses.forEach(ts => pauseSet.add(ts));
+  optimisticTimestamps.pauses.forEach((ts) => pauseSet.add(ts));
 }
 
 // 서버 타임스탬프 추가 (Set이므로 자동으로 중복 제거)
@@ -269,7 +270,7 @@ if (timeStats.currentPausedAt) {
 
 // 재시작 타임스탬프도 동일하게 처리
 if (optimisticTimestamps.resumes) {
-  optimisticTimestamps.resumes.forEach(ts => resumeSet.add(ts));
+  optimisticTimestamps.resumes.forEach((ts) => resumeSet.add(ts));
 }
 if (timeStats.lastResumedAt) {
   resumeSet.add(timeStats.lastResumedAt);
@@ -277,9 +278,17 @@ if (timeStats.lastResumedAt) {
 
 // Set을 배열로 변환하여 시간순 정렬
 const allEvents = [
-  ...Array.from(pauseSet).map(ts => ({ type: "pause" as const, timestamp: ts })),
-  ...Array.from(resumeSet).map(ts => ({ type: "resume" as const, timestamp: ts })),
-].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  ...Array.from(pauseSet).map((ts) => ({
+    type: "pause" as const,
+    timestamp: ts,
+  })),
+  ...Array.from(resumeSet).map((ts) => ({
+    type: "resume" as const,
+    timestamp: ts,
+  })),
+].sort(
+  (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+);
 ```
 
 ## ✅ 테스트 시나리오
@@ -304,12 +313,14 @@ const allEvents = [
 **변경 파일**: `app/(student)/today/_components/TimeCheckSection.tsx`
 
 **핵심 변경**:
+
 - `allPauses`와 `allResumes` 배열 대신 `Set` 사용
 - Optimistic 타임스탬프와 서버 타임스탬프를 모두 Set에 추가
 - Set의 자동 중복 제거 기능으로 완전한 중복 방지
 - 최종적으로 Set을 배열로 변환하여 시간순 정렬
 
 **효과**:
+
 - ✅ 일시정지 시간 중복 표시 완전 제거
 - ✅ 재시작 시간 중복 표시 완전 제거
 - ✅ Optimistic과 서버 값이 동일할 때 자동으로 하나만 표시
