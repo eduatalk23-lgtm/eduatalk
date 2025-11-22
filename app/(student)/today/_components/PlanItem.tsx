@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlanWithContent, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -25,10 +25,23 @@ export function PlanItem({
 }: PlanItemProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
+  const [optimisticIsPaused, setOptimisticIsPaused] = useState<boolean | null>(null);
+  const [optimisticIsActive, setOptimisticIsActive] = useState<boolean | null>(null);
 
-  const isRunning =
-    !!plan.actual_start_time && !plan.actual_end_time && !plan.session?.isPaused;
-  const isPaused = plan.session?.isPaused ?? false;
+  // props가 변경되면 optimistic 상태 초기화 (서버 상태와 동기화)
+  useEffect(() => {
+    setOptimisticIsPaused(null);
+    setOptimisticIsActive(null);
+  }, [plan.session?.isPaused, plan.actual_start_time, plan.actual_end_time]);
+
+  // Optimistic 상태가 있으면 우선 사용, 없으면 props 사용
+  const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : (plan.session?.isPaused ?? false);
+  const isActiveState = optimisticIsActive !== null ? optimisticIsActive : (!!plan.actual_start_time && !plan.actual_end_time);
+  
+  const isRunning = isActiveState && !isPausedState;
+  const isPaused = isPausedState;
   const isCompleted = !!plan.actual_end_time;
 
   // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
@@ -39,6 +52,10 @@ export function PlanItem({
   );
 
   const handleStart = async () => {
+    // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
+    setOptimisticIsActive(true);
+    setOptimisticIsPaused(false);
+    
     setIsLoading(true);
     try {
       // 클라이언트에서 타임스탬프 생성
@@ -46,11 +63,17 @@ export function PlanItem({
       const result = await startPlan(plan.id, timestamp);
       if (result.success) {
         // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
-        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
+        // Optimistic 상태는 useEffect에서 서버 상태와 동기화됨
       } else {
+        // 실패 시 optimistic 상태 롤백
+        setOptimisticIsActive(null);
+        setOptimisticIsPaused(null);
         alert(result.error || "플랜 시작에 실패했습니다.");
       }
     } catch (error) {
+      // 실패 시 optimistic 상태 롤백
+      setOptimisticIsActive(null);
+      setOptimisticIsPaused(null);
       alert("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -63,6 +86,10 @@ export function PlanItem({
       return;
     }
 
+    // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
+    setOptimisticIsPaused(true);
+    setOptimisticIsActive(false);
+    
     setIsLoading(true);
     try {
       // 클라이언트에서 타임스탬프 생성
@@ -70,13 +97,20 @@ export function PlanItem({
       const result = await pausePlan(plan.id, timestamp);
       if (result.success) {
         // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // Optimistic 상태는 useEffect에서 서버 상태와 동기화됨
       } else {
+        // 실패 시 optimistic 상태 롤백
+        setOptimisticIsPaused(null);
+        setOptimisticIsActive(null);
         // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
         if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
           alert(result.error || "플랜 일시정지에 실패했습니다.");
         }
       }
     } catch (error) {
+      // 실패 시 optimistic 상태 롤백
+      setOptimisticIsPaused(null);
+      setOptimisticIsActive(null);
       alert("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -84,6 +118,10 @@ export function PlanItem({
   };
 
   const handleResume = async () => {
+    // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
+    setOptimisticIsPaused(false);
+    setOptimisticIsActive(true);
+    
     setIsLoading(true);
     try {
       // 클라이언트에서 타임스탬프 생성
@@ -91,10 +129,17 @@ export function PlanItem({
       const result = await resumePlan(plan.id, timestamp);
       if (result.success) {
         // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // Optimistic 상태는 useEffect에서 서버 상태와 동기화됨
       } else {
+        // 실패 시 optimistic 상태 롤백
+        setOptimisticIsPaused(null);
+        setOptimisticIsActive(null);
         alert(result.error || "플랜 재개에 실패했습니다.");
       }
     } catch (error) {
+      // 실패 시 optimistic 상태 롤백
+      setOptimisticIsPaused(null);
+      setOptimisticIsActive(null);
       alert("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
