@@ -127,20 +127,23 @@ export function PlanGroupCard({
   const handleGroupPause = async () => {
     // 이미 로딩 중이면 중복 호출 방지
     if (isLoading) {
-      console.log("[PlanGroupCard] 이미 일시정지 처리 중입니다.");
       return;
     }
 
-    // 모든 활성 플랜 일시정지 (중복 제거 및 이미 일시정지된 플랜 제외)
+    // 실제로 세션이 있는 활성 플랜만 일시정지 (세션 데이터 기반)
     const activePlanIds = Array.from(
       new Set(
         group.plans
-          .filter(
-            (plan) =>
+          .filter((plan) => {
+            const session = sessions.get(plan.id);
+            // 세션이 있고, 일시정지되지 않은 플랜만
+            return (
               plan.actual_start_time &&
               !plan.actual_end_time &&
-              (!sessions.get(plan.id)?.isPaused)
-          )
+              session &&
+              !session.isPaused
+            );
+          })
           .map((plan) => plan.id)
       )
     );
@@ -152,42 +155,40 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
-      console.log("[PlanGroupCard] 일시정지 시작, 활성 플랜 IDs:", activePlanIds);
-      
       const results = await Promise.all(
         activePlanIds.map(async (planId) => {
           try {
-            console.log(`[PlanGroupCard] 플랜 ${planId} 일시정지 시도...`);
             const result = await pausePlan(planId);
-            console.log(`[PlanGroupCard] 플랜 ${planId} 일시정지 결과:`, result);
-            if (!result.success) {
-              console.error(`[PlanGroupCard] 플랜 ${planId} 일시정지 실패:`, result.error);
-            }
             return result;
           } catch (error) {
-            console.error(`[PlanGroupCard] 플랜 ${planId} 일시정지 예외:`, error);
-            return { success: false, error: error instanceof Error ? error.message : String(error) };
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            };
           }
         })
       );
-      
+
       const failedResults = results.filter((r) => !r.success);
-      // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
+      // "이미 일시정지된 상태입니다" 또는 "활성 세션을 찾을 수 없습니다" 에러는 무시
+      // (세션 상태 동기화 문제로 인한 에러일 수 있음)
       const criticalErrors = failedResults.filter(
-        (r) => r.error && !r.error.includes("이미 일시정지된 상태입니다")
+        (r) =>
+          r.error &&
+          !r.error.includes("이미 일시정지된 상태입니다") &&
+          !r.error.includes("활성 세션을 찾을 수 없습니다")
       );
-      
+
       if (criticalErrors.length > 0) {
-        const errorMessages = criticalErrors.map((r) => r.error || "알 수 없는 오류").join(", ");
-        console.error("[PlanGroupCard] 일시정지 실패 상세:", JSON.stringify(criticalErrors, null, 2));
+        const errorMessages = criticalErrors
+          .map((r) => r.error || "알 수 없는 오류")
+          .join(", ");
         alert(`일시정지에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
-        // 에러 발생 시에만 페이지 새로고침하여 optimistic 상태 롤백
         startTransition(() => {
           router.refresh();
         });
       } else {
-        console.log("[PlanGroupCard] 모든 플랜 일시정지 성공");
         // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         startTransition(() => {
           router.refresh();
@@ -202,20 +203,46 @@ export function PlanGroupCard({
   };
 
   const handleGroupResume = async () => {
-    // 모든 일시정지된 플랜 재개
+    // 실제로 세션이 있고 일시정지된 플랜만 재개 (세션 데이터 기반)
     const pausedPlanIds = group.plans
-      .filter((plan) => sessions.get(plan.id)?.isPaused)
+      .filter((plan) => {
+        const session = sessions.get(plan.id);
+        return session && session.isPaused;
+      })
       .map((plan) => plan.id);
+
+    if (pausedPlanIds.length === 0) {
+      alert("재개할 일시정지된 플랜이 없습니다.");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const results = await Promise.all(pausedPlanIds.map((planId) => resumePlan(planId)));
+      const results = await Promise.all(
+        pausedPlanIds.map(async (planId) => {
+          try {
+            return await resumePlan(planId);
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+        })
+      );
+
       const failedResults = results.filter((r) => !r.success);
-      if (failedResults.length > 0) {
-        const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
+      // "활성 세션을 찾을 수 없습니다" 에러는 무시 (세션 상태 동기화 문제)
+      const criticalErrors = failedResults.filter(
+        (r) => r.error && !r.error.includes("활성 세션을 찾을 수 없습니다")
+      );
+
+      if (criticalErrors.length > 0) {
+        const errorMessages = criticalErrors
+          .map((r) => r.error || "알 수 없는 오류")
+          .join(", ");
         alert(`재개에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
-        // 에러 발생 시에만 페이지 새로고침하여 optimistic 상태 롤백
         startTransition(() => {
           router.refresh();
         });
