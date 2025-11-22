@@ -117,13 +117,6 @@ export default async function PlanCalendarPage({
     // 활성 플랜 그룹 ID 목록
     const activeGroupIds = activePlanGroups.map((g) => g.id);
 
-    // 디버깅: 활성 플랜 그룹 정보 로그
-    console.log("[calendar] 활성 플랜 그룹:", {
-      count: activePlanGroups.length,
-      groupIds: activeGroupIds,
-      groupNames: activePlanGroups.map((g) => ({ id: g.id, name: g.name, status: g.status })),
-    });
-
     // 활성 플랜 그룹에 속한 플랜만 조회 (데이터베이스 레벨 필터링)
     // 날짜 형식이 문자열(YYYY-MM-DD)임을 보장
     const filteredPlans = await getPlansForStudent({
@@ -139,14 +132,6 @@ export default async function PlanCalendarPage({
     const planGroupIdsInPlans = [...new Set(filteredPlans.map((p) => p.plan_group_id).filter(Boolean))];
     const unmatchedGroupIds = planGroupIdsInPlans.filter((id) => !activeGroupIds.includes(id));
     const hasUnmatchedPlans = unmatchedGroupIds.length > 0 || filteredPlans.some((p) => !p.plan_group_id);
-    
-    // 디버깅: 조회된 플랜 정보 로그
-    console.log("[calendar] 조회된 플랜:", {
-      totalCount: filteredPlans.length,
-      planGroupIds: planGroupIdsInPlans,
-      unmatchedGroupIds,
-      plansWithoutGroup: filteredPlans.filter((p) => !p.plan_group_id).length,
-    });
 
     // 교과 정보가 없는 플랜의 콘텐츠 ID 수집
     const missingContentIds = new Map<"book" | "lecture" | "custom", Set<string>>();

@@ -1,0 +1,122 @@
+-- ============================================
+-- ERD Cloud Import: Foreign Key Constraints (Optional)
+-- 명시적 외래키 제약조건 추가 (선택사항)
+-- ============================================
+-- 
+-- 참고: 이 파일은 ERD Cloud에서 관계를 명확히 하기 위한 선택적 제약조건입니다.
+-- 테이블 생성 시 이미 외래키 참조는 포함되어 있으므로, 이 파일은 생략 가능합니다.
+-- ERD Cloud가 자동으로 관계를 인식하지 못할 경우에만 사용하세요.
+--
+
+-- Core Tables 외래키
+-- ALTER TABLE users ADD CONSTRAINT fk_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE admin_users ADD CONSTRAINT fk_admin_users_user FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE admin_users ADD CONSTRAINT fk_admin_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE students ADD CONSTRAINT fk_students_user FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE students ADD CONSTRAINT fk_students_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE parent_users ADD CONSTRAINT fk_parent_users_user FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE parent_users ADD CONSTRAINT fk_parent_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+
+-- Education Metadata 외래키
+-- ALTER TABLE subjects ADD CONSTRAINT fk_subjects_category FOREIGN KEY (subject_category_id) REFERENCES subject_categories(id) ON DELETE RESTRICT;
+-- ALTER TABLE schools ADD CONSTRAINT fk_schools_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+
+-- Content Tables 외래키
+-- ALTER TABLE master_books ADD CONSTRAINT fk_master_books_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE master_lectures ADD CONSTRAINT fk_master_lectures_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE master_lectures ADD CONSTRAINT fk_master_lectures_book FOREIGN KEY (linked_book_id) REFERENCES master_books(id) ON DELETE SET NULL;
+-- ALTER TABLE lecture_episodes ADD CONSTRAINT fk_lecture_episodes_lecture FOREIGN KEY (lecture_id) REFERENCES master_lectures(id) ON DELETE CASCADE;
+-- ALTER TABLE student_books ADD CONSTRAINT fk_student_books_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_books ADD CONSTRAINT fk_student_books_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE student_books ADD CONSTRAINT fk_student_books_master FOREIGN KEY (master_book_id) REFERENCES master_books(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_lectures ADD CONSTRAINT fk_student_lectures_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_lectures ADD CONSTRAINT fk_student_lectures_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE student_lectures ADD CONSTRAINT fk_student_lectures_master FOREIGN KEY (master_lecture_id) REFERENCES master_lectures(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_custom_contents ADD CONSTRAINT fk_student_custom_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_custom_contents ADD CONSTRAINT fk_student_custom_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+
+-- Scores Tables 외래키
+-- ALTER TABLE school_scores ADD CONSTRAINT fk_school_scores_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE school_scores ADD CONSTRAINT fk_school_scores_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE school_scores ADD CONSTRAINT fk_school_scores_school FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE SET NULL;
+-- ALTER TABLE school_scores ADD CONSTRAINT fk_school_scores_category FOREIGN KEY (subject_category_id) REFERENCES subject_categories(id) ON DELETE SET NULL;
+-- ALTER TABLE school_scores ADD CONSTRAINT fk_school_scores_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL;
+-- ALTER TABLE mock_scores ADD CONSTRAINT fk_mock_scores_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE mock_scores ADD CONSTRAINT fk_mock_scores_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE student_analysis ADD CONSTRAINT fk_student_analysis_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_analysis ADD CONSTRAINT fk_student_analysis_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+
+-- Plan Tables 외래키
+-- ALTER TABLE plan_groups ADD CONSTRAINT fk_plan_groups_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE plan_groups ADD CONSTRAINT fk_plan_groups_creator FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE student_plans ADD CONSTRAINT fk_student_plans_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_plans ADD CONSTRAINT fk_student_plans_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE student_plans ADD CONSTRAINT fk_student_plans_group FOREIGN KEY (plan_group_id) REFERENCES plan_groups(id) ON DELETE SET NULL;
+-- ALTER TABLE plan_timer_logs ADD CONSTRAINT fk_plan_timer_logs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE plan_timer_logs ADD CONSTRAINT fk_plan_timer_logs_plan FOREIGN KEY (plan_id) REFERENCES student_plans(id) ON DELETE CASCADE;
+-- ALTER TABLE study_sessions ADD CONSTRAINT fk_study_sessions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE study_sessions ADD CONSTRAINT fk_study_sessions_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE study_sessions ADD CONSTRAINT fk_study_sessions_plan FOREIGN KEY (plan_id) REFERENCES student_plans(id) ON DELETE SET NULL;
+-- ALTER TABLE plan_recommendations ADD CONSTRAINT fk_plan_recommendations_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE plan_recommendations ADD CONSTRAINT fk_plan_recommendations_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+
+-- Management Tables 외래키
+-- ALTER TABLE attendance_records ADD CONSTRAINT fk_attendance_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE attendance_records ADD CONSTRAINT fk_attendance_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE tuition_fees ADD CONSTRAINT fk_tuition_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE tuition_fees ADD CONSTRAINT fk_tuition_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE payment_records ADD CONSTRAINT fk_payment_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE payment_records ADD CONSTRAINT fk_payment_tuition FOREIGN KEY (tuition_fee_id) REFERENCES tuition_fees(id) ON DELETE SET NULL;
+-- ALTER TABLE payment_records ADD CONSTRAINT fk_payment_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE boards ADD CONSTRAINT fk_boards_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE posts ADD CONSTRAINT fk_posts_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE posts ADD CONSTRAINT fk_posts_board FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE;
+-- ALTER TABLE posts ADD CONSTRAINT fk_posts_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE post_comments ADD CONSTRAINT fk_post_comments_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE post_comments ADD CONSTRAINT fk_post_comments_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE;
+-- ALTER TABLE post_comments ADD CONSTRAINT fk_post_comments_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE post_comments ADD CONSTRAINT fk_post_comments_parent FOREIGN KEY (parent_comment_id) REFERENCES post_comments(id) ON DELETE CASCADE;
+-- ALTER TABLE inquiries ADD CONSTRAINT fk_inquiries_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE inquiries ADD CONSTRAINT fk_inquiries_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE inquiries ADD CONSTRAINT fk_inquiries_assigned FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE inquiry_replies ADD CONSTRAINT fk_inquiry_replies_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE inquiry_replies ADD CONSTRAINT fk_inquiry_replies_inquiry FOREIGN KEY (inquiry_id) REFERENCES inquiries(id) ON DELETE CASCADE;
+-- ALTER TABLE inquiry_replies ADD CONSTRAINT fk_inquiry_replies_author FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE consulting_notes ADD CONSTRAINT fk_consulting_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE consulting_notes ADD CONSTRAINT fk_consulting_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE consulting_notes ADD CONSTRAINT fk_consulting_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE;
+
+-- Communication Tables 외래키
+-- ALTER TABLE messages ADD CONSTRAINT fk_messages_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE messages ADD CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE messages ADD CONSTRAINT fk_messages_receiver FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE message_attachments ADD CONSTRAINT fk_message_attachments_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE message_attachments ADD CONSTRAINT fk_message_attachments_message FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE;
+-- ALTER TABLE notifications ADD CONSTRAINT fk_notifications_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE notifications ADD CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE notification_preferences ADD CONSTRAINT fk_notification_preferences_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+-- ALTER TABLE sms_logs ADD CONSTRAINT fk_sms_logs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE sms_logs ADD CONSTRAINT fk_sms_logs_recipient FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE email_logs ADD CONSTRAINT fk_email_logs_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE email_logs ADD CONSTRAINT fk_email_logs_recipient FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- Additional Tables 외래키
+-- ALTER TABLE goals ADD CONSTRAINT fk_goals_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE goals ADD CONSTRAINT fk_goals_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE block_sets ADD CONSTRAINT fk_block_sets_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_global_settings ADD CONSTRAINT fk_student_global_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_global_settings ADD CONSTRAINT fk_student_global_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE academies ADD CONSTRAINT fk_academies_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE academy_schedules ADD CONSTRAINT fk_academy_schedules_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE academy_schedules ADD CONSTRAINT fk_academy_schedules_academy FOREIGN KEY (academy_id) REFERENCES academies(id) ON DELETE CASCADE;
+-- ALTER TABLE academy_schedules ADD CONSTRAINT fk_academy_schedules_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE reports ADD CONSTRAINT fk_reports_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE reports ADD CONSTRAINT fk_reports_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE reports ADD CONSTRAINT fk_reports_generator FOREIGN KEY (generated_by) REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE student_history ADD CONSTRAINT fk_student_history_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE student_history ADD CONSTRAINT fk_student_history_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE;
+-- ALTER TABLE student_history ADD CONSTRAINT fk_student_history_changer FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL;
+-- ALTER TABLE user_sessions ADD CONSTRAINT fk_user_sessions_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE RESTRICT;
+-- ALTER TABLE user_sessions ADD CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+

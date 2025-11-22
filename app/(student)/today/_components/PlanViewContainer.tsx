@@ -33,7 +33,7 @@ export function PlanViewContainer({
   const [planDate, setPlanDate] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-  // 데이터 로딩 (한 번만)
+  // 데이터 로딩
   useEffect(() => {
     async function loadData() {
       try {
@@ -41,18 +41,6 @@ export function PlanViewContainer({
         if (!response.ok) throw new Error("플랜 조회 실패");
         
         const data = await response.json();
-        
-        // 디버깅: 받은 데이터 로그 출력 (개발 환경에서만)
-        if (process.env.NODE_ENV === "development") {
-          console.log("[PlanViewContainer] 받은 데이터:", {
-            plansCount: data.plans?.length || 0,
-            sessionsCount: Object.keys(data.sessions || {}).length,
-            planDate: data.planDate,
-            isToday: data.isToday,
-            plans: data.plans, // 전체 플랜 데이터
-            sessions: data.sessions, // 세션 데이터
-          });
-        }
         
         const grouped = groupPlansByPlanNumber(data.plans);
         setGroups(grouped);
@@ -72,8 +60,10 @@ export function PlanViewContainer({
     
     loadData();
     
-    // 주기적으로 데이터 갱신 (타이머 업데이트용)
-    const interval = setInterval(loadData, 1000);
+    // 세션 상태 동기화를 위한 주기적 갱신
+    // 타이머는 클라이언트에서 계산되므로 30초 간격으로 충분
+    const interval = setInterval(loadData, 30000); // 30초 간격으로 변경
+    
     return () => clearInterval(interval);
   }, [selectedPlanNumber]);
 

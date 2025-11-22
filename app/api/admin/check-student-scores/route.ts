@@ -76,9 +76,6 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // 디버깅: student_id 확인
-    console.log("[check-student-scores] 조회 시작:", { studentId, email: targetEmail });
-    
     // 1. 내신 성적 조회
     const selectSchoolScores = () =>
       supabase
@@ -93,7 +90,6 @@ export async function GET(request: NextRequest) {
     
     // fallback: student_id 컬럼이 없는 경우
     if (schoolError && schoolError.code === "42703") {
-      console.log("[check-student-scores] student_id 컬럼 없음, 전체 조회 시도");
       ({ data: schoolScores, error: schoolError } = await supabase
         .from("student_school_scores")
         .select("*")
@@ -104,8 +100,6 @@ export async function GET(request: NextRequest) {
     
     if (schoolError) {
       console.error("[check-student-scores] 내신 성적 조회 오류:", schoolError);
-    } else {
-      console.log("[check-student-scores] 내신 성적 조회 결과:", schoolScores?.length || 0, "개");
     }
     
     // 2. 모의고사 성적 조회
@@ -121,7 +115,6 @@ export async function GET(request: NextRequest) {
     
     // fallback: student_id 컬럼이 없는 경우
     if (mockError && mockError.code === "42703") {
-      console.log("[check-student-scores] student_id 컬럼 없음, 전체 조회 시도");
       ({ data: mockScores, error: mockError } = await supabase
         .from("student_mock_scores")
         .select("*")
@@ -131,8 +124,6 @@ export async function GET(request: NextRequest) {
     
     if (mockError) {
       console.error("[check-student-scores] 모의고사 성적 조회 오류:", mockError);
-    } else {
-      console.log("[check-student-scores] 모의고사 성적 조회 결과:", mockScores?.length || 0, "개");
     }
     
     // 디버깅: 테이블에 데이터가 있는지 확인 (student_id 무관)

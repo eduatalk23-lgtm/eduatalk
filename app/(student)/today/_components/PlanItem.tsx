@@ -30,19 +30,6 @@ export function PlanItem({
   const isActive = !!plan.actual_start_time && !plan.actual_end_time;
   const isRunning = isActive && !isPaused;
 
-  // 디버깅: 타이머 활성 상태 확인
-  useEffect(() => {
-    if (plan.actual_start_time) {
-      console.log(`[PlanItem ${plan.id}] 타이머 상태:`, {
-        actual_start_time: plan.actual_start_time,
-        actual_end_time: plan.actual_end_time,
-        isActive,
-        isPaused,
-        isRunning,
-        session: plan.session
-      });
-    }
-  }, [plan.id, plan.actual_start_time, plan.actual_end_time, isActive, isPaused, isRunning, plan.session]);
 
   const isCompleted = !!plan.actual_end_time;
 

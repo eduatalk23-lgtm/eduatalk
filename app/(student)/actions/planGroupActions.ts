@@ -633,10 +633,6 @@ async function _updatePlanGroupStatus(
           deactivateError
         );
         // 비활성화 실패해도 계속 진행 (경고만)
-      } else {
-        console.log(
-          `[planGroupActions] ${activeGroupIds.length}개의 활성 플랜 그룹을 비활성화했습니다.`
-        );
       }
     }
   }
@@ -1148,11 +1144,6 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
     }
     */
 
-    // 임시: 백업 데이터를 콘솔에 기록 (운영 환경에서는 로그 시스템 사용)
-    console.log(
-      "[planGroupActions] 플랜 그룹 삭제 백업 데이터:",
-      JSON.stringify(backupData, null, 2)
-    );
   } catch (backupError) {
     console.error("[planGroupActions] 백업 정보 수집 실패", backupError);
     // 백업 실패해도 삭제는 진행
@@ -1183,10 +1174,6 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
   if (deletePlansError) {
     console.error("[planGroupActions] 플랜 삭제 실패", deletePlansError);
     // 플랜 삭제 실패해도 플랜 그룹 삭제는 완료됨 (경고만)
-  } else {
-    console.log(
-      `[planGroupActions] 플랜 그룹 ${groupId}의 관련 플랜이 삭제되었습니다.`
-    );
   }
 
   revalidatePath("/plan");
@@ -1888,11 +1875,8 @@ async function _generatePlansFromGroup(
     );
   }
 
-  // 삭제 확인 (디버깅용)
+  // 삭제 확인
   if (existingPlans && existingPlans.length > 0) {
-    console.log(
-      `[planGroupActions] ${existingPlans.length}개의 기존 플랜 삭제 완료`
-    );
 
     // 삭제 확인: 실제로 삭제되었는지 재확인
     const { data: verifyPlans, error: verifyError } = await supabase
@@ -4145,10 +4129,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
       const lastDate = scheduleDates[scheduleDates.length - 1];
 
       if (firstDate !== periodStart || lastDate !== periodEnd) {
-        console.log("[planGroupActions] 저장된 daily_schedule 기간 불일치:", {
-          stored: { first: firstDate, last: lastDate },
-          expected: { first: periodStart, last: periodEnd },
-        });
         return false;
       }
     }
@@ -4159,7 +4139,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
     );
 
     if (!hasRequiredFields) {
-      console.log("[planGroupActions] 저장된 daily_schedule 필수 필드 누락");
       return false;
     }
 
@@ -4185,9 +4164,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
       !Array.isArray(group.daily_schedule) ||
       group.daily_schedule.length === 0
     ) {
-      console.log(
-        "[planGroupActions] 저장된 daily_schedule이 없어 재계산 필요"
-      );
       return { shouldRecalculate: true, storedSchedule: null };
     }
 
@@ -4200,20 +4176,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
     if (isValid) {
       // 저장된 데이터 사용
-      console.log(
-        "[planGroupActions] 저장된 daily_schedule 사용:",
-        group.daily_schedule.length,
-        "일"
-      );
       return {
         shouldRecalculate: false,
         storedSchedule: group.daily_schedule as typeof dailySchedule,
       };
     } else {
       // 유효하지 않으면 재계산
-      console.log(
-        "[planGroupActions] 저장된 daily_schedule이 유효하지 않아 재계산"
-      );
       return { shouldRecalculate: true, storedSchedule: null };
     }
   };
@@ -4389,16 +4357,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
                 ?.designated_holiday_hours,
             };
 
-            // 디버깅: 전달된 옵션 확인
-            console.log("[planGroupActions] calculateAvailableDates 옵션:", {
-              enable_self_study_for_holidays:
-                options.enable_self_study_for_holidays,
-              enable_self_study_for_study_days:
-                options.enable_self_study_for_study_days,
-              camp_self_study_hours: options.camp_self_study_hours,
-              designated_holiday_hours: options.designated_holiday_hours,
-              use_self_study_with_blocks: options.use_self_study_with_blocks,
-            });
 
             return options;
           })()
@@ -4414,55 +4372,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
           academy_schedules: daily.academy_schedules,
         }));
 
-        // 디버깅: 자율학습 시간이 포함된 날짜 확인
+        // 자율학습 시간이 포함된 날짜 확인
         const selfStudyDays = dailySchedule.filter(
           (d) =>
             d.time_slots?.some((slot) => slot.type === "자율학습") ||
             (d.day_type === "지정휴일" && d.study_hours > 0)
         );
-
-        console.log("[planGroupActions] daily_schedule 분석:", {
-          총_날짜수: dailySchedule.length,
-          자율학습_포함_날짜수: selfStudyDays.length,
-          지정휴일_수: dailySchedule.filter((d) => d.day_type === "지정휴일")
-            .length,
-          학습일_수: dailySchedule.filter((d) => d.day_type === "학습일")
-            .length,
-          복습일_수: dailySchedule.filter((d) => d.day_type === "복습일")
-            .length,
-          time_slots_있는_날짜수: dailySchedule.filter(
-            (d) => d.time_slots && d.time_slots.length > 0
-          ).length,
-        });
-
-        if (selfStudyDays.length > 0) {
-          console.log(
-            "[planGroupActions] 자율학습 시간이 포함된 날짜:",
-            selfStudyDays.length,
-            "일"
-          );
-          selfStudyDays.forEach((d) => {
-            const selfStudySlots =
-              d.time_slots?.filter((slot) => slot.type === "자율학습") || [];
-            console.log(
-              `  - ${d.date} (${d.day_type}): 자율학습 슬롯 ${selfStudySlots.length}개`,
-              selfStudySlots
-            );
-          });
-        } else {
-          console.warn(
-            "[planGroupActions] ⚠️ 자율학습 시간이 포함된 날짜가 없습니다!"
-          );
-          console.log(
-            "[planGroupActions] time_slots 샘플 (첫 3개 날짜):",
-            dailySchedule.slice(0, 3).map((d) => ({
-              date: d.date,
-              day_type: d.day_type,
-              time_slots_count: d.time_slots?.length || 0,
-              time_slots_types: d.time_slots?.map((s) => s.type) || [],
-            }))
-          );
-        }
 
         // 계산한 결과를 저장 (다음 조회 시 사용)
         const { error: updateScheduleError } = await supabase

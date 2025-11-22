@@ -255,8 +255,6 @@ export async function getPlansForStudent(
             .order("block_index", { ascending: true });
           
           if (!retryError && retryData) {
-            console.log(`[data/studentPlans] 재시도 ${attempt}번째 성공`);
-            
             // 애플리케이션 레벨에서 추가 필터링
             let filtered = retryData as Plan[];
             
