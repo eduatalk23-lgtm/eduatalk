@@ -304,11 +304,32 @@ export function PlanCard({
                   </button>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-gray-900">
-                      {representativePlan.chapter ? (
-                        <>챕터: {representativePlan.chapter}</>
-                      ) : (
-                        <>블록: {blockDisplay.replace("블록 ", "")}</>
-                      )}
+                      {(() => {
+                        const contentType = representativePlan.content_type;
+                        const contentTypeIcon = contentType === "book"
+                          ? "📚"
+                          : contentType === "lecture"
+                          ? "🎧"
+                          : "📝";
+                        
+                        const blockText = blockDisplay.replace("블록 ", "");
+                        const chapterText = representativePlan.chapter;
+                        
+                        // 중복기재 형식: 블록 정보와 챕터 정보를 모두 표시
+                        if (chapterText) {
+                          return (
+                            <>
+                              {contentTypeIcon} 블록: {blockText} (챕터: {chapterText})
+                            </>
+                          );
+                        } else {
+                          return (
+                            <>
+                              {contentTypeIcon} 블록: {blockText}
+                            </>
+                          );
+                        }
+                      })()}
                     </div>
                     <div className="text-xs text-gray-500">
                       {(() => {
@@ -316,12 +337,13 @@ export function PlanCard({
                         const start = representativePlan.planned_start_page_or_time;
                         const end = representativePlan.planned_end_page_or_time;
                         
+                        // 아이콘과 함께 중복기재 형식으로 표시
                         if (contentType === "book") {
-                          return <>페이지: {start} ~ {end}</>;
+                          return <>📄 페이지: {start} ~ {end}</>;
                         } else if (contentType === "lecture") {
-                          return <>강: {start} ~ {end}</>;
+                          return <>🎧 강: {start} ~ {end}</>;
                         } else {
-                          return <>범위: {start} ~ {end}</>;
+                          return <>📝 범위: {start} ~ {end}</>;
                         }
                       })()}
                     </div>
@@ -464,11 +486,32 @@ export function PlanCard({
                   </button>
                   <div className="flex-1 text-xs">
                     <div className="font-medium text-gray-900">
-                      {representativePlan.chapter ? (
-                        <>챕터: {representativePlan.chapter}</>
-                      ) : (
-                        <>블록: {blockDisplay.replace("블록 ", "")}</>
-                      )}
+                      {(() => {
+                        const contentType = representativePlan.content_type;
+                        const contentTypeIcon = contentType === "book"
+                          ? "📚"
+                          : contentType === "lecture"
+                          ? "🎧"
+                          : "📝";
+                        
+                        const blockText = blockDisplay.replace("블록 ", "");
+                        const chapterText = representativePlan.chapter;
+                        
+                        // 중복기재 형식: 블록 정보와 챕터 정보를 모두 표시
+                        if (chapterText) {
+                          return (
+                            <>
+                              {contentTypeIcon} 블록: {blockText} (챕터: {chapterText})
+                            </>
+                          );
+                        } else {
+                          return (
+                            <>
+                              {contentTypeIcon} 블록: {blockText}
+                            </>
+                          );
+                        }
+                      })()}
                     </div>
                     <div className="text-gray-500">
                       {(() => {
@@ -476,12 +519,13 @@ export function PlanCard({
                         const start = representativePlan.planned_start_page_or_time;
                         const end = representativePlan.planned_end_page_or_time;
                         
+                        // 아이콘과 함께 중복기재 형식으로 표시
                         if (contentType === "book") {
-                          return <>페이지: {start} ~ {end}</>;
+                          return <>📄 페이지: {start} ~ {end}</>;
                         } else if (contentType === "lecture") {
-                          return <>강: {start} ~ {end}</>;
+                          return <>🎧 강: {start} ~ {end}</>;
                         } else {
-                          return <>범위: {start} ~ {end}</>;
+                          return <>📝 범위: {start} ~ {end}</>;
                         }
                       })()}
                     </div>
