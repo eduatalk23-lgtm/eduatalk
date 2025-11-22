@@ -321,8 +321,6 @@ export function PlanGroupCard({
     try {
       const result = await resetPlanTimer(group.planNumber, planDate);
       if (result.success) {
-        // 즉시 시간 이벤트를 빈 배열로 설정하여 UI 업데이트
-        setTimeEvents([]);
         // 서버 상태 반영을 위해 페이지 새로고침
         startTransition(() => {
           router.refresh();

@@ -229,18 +229,7 @@ export function TimeCheckSection({
           <button
             onClick={async () => {
               if (onReset) {
-                // 즉시 시간 이벤트를 빈 배열로 설정하여 UI 업데이트
-                setTimeEvents([]);
                 await onReset();
-                // 초기화 후 서버 상태 반영을 위해 약간의 딜레이 후 시간 이벤트 다시 조회
-                setTimeout(async () => {
-                  const result = await getTimeEventsByPlanNumber(planNumber, planDate);
-                  if (result.success && result.events) {
-                    setTimeEvents(result.events);
-                  } else {
-                    setTimeEvents([]);
-                  }
-                }, 300);
               }
             }}
             disabled={isLoading}
