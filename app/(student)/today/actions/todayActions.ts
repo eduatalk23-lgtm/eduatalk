@@ -400,7 +400,6 @@ export async function pausePlan(
 
   try {
     const supabase = await createSupabaseServerClient();
-    console.log(`[pausePlan] 플랜 ${planId} 일시정지 시도, 사용자: ${user.userId}`);
 
     // 활성 세션 조회 (여러 개일 수 있으므로 배열로 조회)
     // 일시정지된 세션도 포함하여 조회 (이미 일시정지된 경우를 확인하기 위해)
@@ -420,33 +419,12 @@ export async function pausePlan(
     // 여러 세션이 있는 경우 가장 최근 세션 사용
     const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
 
-    console.log(`[pausePlan] 활성 세션 조회 결과:`, activeSession ? `세션 ID: ${activeSession.id} (총 ${activeSessions?.length || 0}개)` : "세션 없음");
-
     if (!activeSession) {
-      // plan_id가 null인 세션도 확인 (디버깅용)
-      const { data: anyActiveSessions } = await supabase
-        .from("student_study_sessions")
-        .select("id, plan_id")
-        .eq("student_id", user.userId)
-        .is("ended_at", null)
-        .order("started_at", { ascending: false })
-        .limit(1);
-      
-      const anyActiveSession = anyActiveSessions && anyActiveSessions.length > 0 ? anyActiveSessions[0] : null;
-      if (anyActiveSession) {
-        console.log(`[pausePlan] plan_id 없는 활성 세션 확인:`, anyActiveSession);
-        // plan_id가 다른 경우 경고만 로그하고 계속 진행
-        if (anyActiveSession.plan_id && anyActiveSession.plan_id !== planId) {
-          console.warn(`[pausePlan] 다른 플랜(${anyActiveSession.plan_id})의 활성 세션이 발견되었습니다.`);
-        }
-      }
-      
       return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
     }
 
     // 이미 일시정지된 상태인지 확인
     if (activeSession.paused_at && !activeSession.resumed_at) {
-      console.log(`[pausePlan] 이미 일시정지된 상태입니다. 세션 ID: ${activeSession.id}`);
       return { success: false, error: "이미 일시정지된 상태입니다." };
     }
 
