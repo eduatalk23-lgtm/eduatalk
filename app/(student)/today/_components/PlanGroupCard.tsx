@@ -21,7 +21,7 @@ import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useTransition, useMemo } from "react";
+import { useState, useEffect, useTransition, useMemo, memo } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
 
 type PlanGroupCardProps = {
@@ -34,7 +34,7 @@ type PlanGroupCardProps = {
   onViewDetail?: () => void; // 일일 뷰에서 단일 뷰로 전환할 때
 };
 
-export function PlanGroupCard({
+function PlanGroupCardComponent({
   group,
   viewMode,
   sessions,
@@ -596,4 +596,6 @@ export function PlanGroupCard({
     </div>
   );
 }
+
+export const PlanGroupCard = memo(PlanGroupCardComponent);
 
