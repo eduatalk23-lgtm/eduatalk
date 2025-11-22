@@ -64,7 +64,7 @@ export function TimeCheckSection({
     const interval = setInterval(updateElapsed, 1000);
 
     return () => clearInterval(interval);
-  }, [timeStats.isActive, normalizedStartTime, isPaused]);
+  }, [timeStats.isCompleted, timeStats.isActive, normalizedStartTime, isPaused]);
 
   // 현재 진행 중인 총 시간 계산 (기존 시간 + 경과 시간)
   const currentTotalSeconds = timeStats.isActive
