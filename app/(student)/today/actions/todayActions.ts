@@ -228,9 +228,6 @@ export async function completePlan(
     const now = new Date();
     const actualEndTime = now.toISOString();
 
-    // 완료 시점의 누적 학습 시간 계산
-    let finalDuration = 0;
-
     // 플랜의 actual_start_time 조회
     const { data: planData } = await supabase
       .from("student_plan")
