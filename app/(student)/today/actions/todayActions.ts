@@ -377,6 +377,7 @@ export async function pausePlan(
 
   try {
     const supabase = await createSupabaseServerClient();
+    console.log(`[pausePlan] 플랜 ${planId} 일시정지 시도, 사용자: ${user.userId}`);
 
     // 활성 세션 조회
     const { data: activeSession, error: sessionError } = await supabase
@@ -389,10 +390,22 @@ export async function pausePlan(
 
     if (sessionError) {
       console.error("[todayActions] 세션 조회 오류:", sessionError);
-      return { success: false, error: "세션 조회 중 오류가 발생했습니다." };
+      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
     }
 
+    console.log(`[pausePlan] 활성 세션 조회 결과:`, activeSession ? `세션 ID: ${activeSession.id}` : "세션 없음");
+
     if (!activeSession) {
+      // plan_id가 null인 세션도 확인 (일부 세션은 plan_id 없이 생성될 수 있음)
+      const { data: anyActiveSession } = await supabase
+        .from("student_study_sessions")
+        .select("id, plan_id")
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .maybeSingle();
+      
+      console.log(`[pausePlan] plan_id 없는 활성 세션 확인:`, anyActiveSession);
+      
       return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
     }
 

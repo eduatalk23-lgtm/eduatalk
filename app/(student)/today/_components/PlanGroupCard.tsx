@@ -113,16 +113,32 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
+      console.log("[PlanGroupCard] 일시정지 시작, 활성 플랜 IDs:", activePlanIds);
+      
       const results = await Promise.all(
-        activePlanIds.map((planId) => pausePlan(planId))
+        activePlanIds.map(async (planId) => {
+          try {
+            console.log(`[PlanGroupCard] 플랜 ${planId} 일시정지 시도...`);
+            const result = await pausePlan(planId);
+            console.log(`[PlanGroupCard] 플랜 ${planId} 일시정지 결과:`, result);
+            if (!result.success) {
+              console.error(`[PlanGroupCard] 플랜 ${planId} 일시정지 실패:`, result.error);
+            }
+            return result;
+          } catch (error) {
+            console.error(`[PlanGroupCard] 플랜 ${planId} 일시정지 예외:`, error);
+            return { success: false, error: error instanceof Error ? error.message : String(error) };
+          }
+        })
       );
       
       const failedResults = results.filter((r) => !r.success);
       if (failedResults.length > 0) {
-        const errorMessage = failedResults[0].error || "일시정지에 실패했습니다.";
-        alert(errorMessage);
-        console.error("[PlanGroupCard] 일시정지 실패:", failedResults);
+        const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
+        console.error("[PlanGroupCard] 일시정지 실패 상세:", JSON.stringify(failedResults, null, 2));
+        alert(`일시정지에 실패했습니다: ${errorMessages}`);
       } else {
+        console.log("[PlanGroupCard] 모든 플랜 일시정지 성공, 페이지 새로고침");
         router.refresh();
       }
     } catch (error) {
