@@ -32,17 +32,19 @@ export async function startStudySession(
   try {
     // 기존 활성 세션 확인 (planId가 있는 경우 해당 플랜의 세션만 확인)
     if (planId) {
-      // 특정 플랜의 활성 세션이 있는지 확인
+      // 특정 플랜의 활성 세션이 있는지 확인 (일시정지된 세션 제외)
       const supabase = await createSupabaseServerClient();
       const { data: existingSession } = await supabase
         .from("student_study_sessions")
-        .select("id")
+        .select("id, paused_at, resumed_at")
         .eq("plan_id", planId)
         .eq("student_id", user.userId)
         .is("ended_at", null)
         .maybeSingle();
 
-      if (existingSession) {
+      // 일시정지되지 않은 실제 활성 세션이 있으면 에러 반환
+      // 일시정지된 세션(paused_at이 있고 resumed_at이 없는 경우)은 허용
+      if (existingSession && (!existingSession.paused_at || existingSession.resumed_at)) {
         // 이미 해당 플랜의 세션이 활성화되어 있으면 에러 반환
         return { success: false, error: "이미 해당 플랜의 타이머가 실행 중입니다." };
       }

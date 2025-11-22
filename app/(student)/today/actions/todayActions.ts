@@ -29,10 +29,11 @@ export async function startPlan(
     const supabase = await createSupabaseServerClient();
     const tenantContext = await getTenantContext();
 
-    // 다른 플랜이 활성화되어 있는지 확인 (현재 플랜 제외)
+    // 다른 플랜이 활성화되어 있는지 확인 (현재 플랜 제외, 일시정지된 세션 제외)
+    // 일시정지된 세션은 paused_at이 있고 resumed_at이 없는 상태
     const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("plan_id")
+      .select("plan_id, paused_at, resumed_at")
       .eq("student_id", user.userId)
       .is("ended_at", null)
       .neq("plan_id", planId);
@@ -42,8 +43,13 @@ export async function startPlan(
       return { success: false, error: "활성 세션 조회 중 오류가 발생했습니다." };
     }
 
+    // 일시정지되지 않은 실제 활성 세션만 필터링
+    const trulyActiveSessions = activeSessions?.filter(
+      (session) => !session.paused_at || session.resumed_at
+    ) || [];
+
     // 다른 플랜이 활성화되어 있으면 에러 반환
-    if (activeSessions && activeSessions.length > 0) {
+    if (trulyActiveSessions.length > 0) {
       return { 
         success: false, 
         error: "다른 플랜의 타이머가 실행 중입니다. 먼저 해당 플랜의 타이머를 중지해주세요." 
