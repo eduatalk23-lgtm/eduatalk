@@ -74,6 +74,7 @@ export function PlanItem({
     try {
       const result = await startPlan(plan.id);
       if (result.success) {
+        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         router.refresh();
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
@@ -95,6 +96,7 @@ export function PlanItem({
     try {
       const result = await pausePlan(plan.id);
       if (result.success) {
+        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         router.refresh();
       } else {
         // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
@@ -114,6 +116,7 @@ export function PlanItem({
     try {
       const result = await resumePlan(plan.id);
       if (result.success) {
+        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         router.refresh();
       } else {
         alert(result.error || "플랜 재개에 실패했습니다.");

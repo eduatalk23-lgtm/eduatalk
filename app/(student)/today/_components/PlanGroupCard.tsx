@@ -90,11 +90,10 @@ export function PlanGroupCard({
     try {
       const result = await startPlan(waitingPlan.id);
       if (result.success) {
-        // 즉시 UI 업데이트를 위해 startTransition 사용
+        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         startTransition(() => {
           router.refresh();
         });
-        // startTransition은 비동기 작업을 시작하지만 즉시 반환되므로 isLoading을 false로 설정
         setIsLoading(false);
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
@@ -164,11 +163,13 @@ export function PlanGroupCard({
         console.error("[PlanGroupCard] 일시정지 실패 상세:", JSON.stringify(criticalErrors, null, 2));
         alert(`일시정지에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
-        // 에러 발생 시 페이지 새로고침하여 optimistic 상태 롤백
-        router.refresh();
+        // 에러 발생 시에만 페이지 새로고침하여 optimistic 상태 롤백
+        startTransition(() => {
+          router.refresh();
+        });
       } else {
-        console.log("[PlanGroupCard] 모든 플랜 일시정지 성공, 페이지 새로고침");
-        // 즉시 UI 업데이트
+        console.log("[PlanGroupCard] 모든 플랜 일시정지 성공");
+        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         startTransition(() => {
           router.refresh();
         });
@@ -195,14 +196,15 @@ export function PlanGroupCard({
         const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
         alert(`재개에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
-        // 에러 발생 시 페이지 새로고침하여 optimistic 상태 롤백
-        router.refresh();
-      } else {
-        // 즉시 UI 업데이트
+        // 에러 발생 시에만 페이지 새로고침하여 optimistic 상태 롤백
         startTransition(() => {
           router.refresh();
         });
-        // startTransition은 비동기 작업을 시작하지만 즉시 반환되므로 isLoading을 false로 설정
+      } else {
+        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
+        startTransition(() => {
+          router.refresh();
+        });
         setIsLoading(false);
       }
     } catch (error) {

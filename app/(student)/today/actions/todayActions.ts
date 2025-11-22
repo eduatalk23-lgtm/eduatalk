@@ -61,9 +61,8 @@ export async function startPlan(
     // 타이머 로그 기록 (시작)
     await recordTimerLog(planId, "start", 0);
 
+    // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
-    revalidatePath("/dashboard");
-    revalidatePath(`/today/plan/${planId}`);
     return { success: true, sessionId: result.sessionId };
   } catch (error) {
     console.error("[todayActions] 플랜 시작 실패", error);
@@ -294,9 +293,10 @@ export async function completePlan(
     // 타이머 로그 기록 (완료)
     await recordTimerLog(planId, "complete", finalDuration);
 
+    // 필요한 경로만 재검증 (성능 최적화)
+    // 완료 시에는 대시보드도 업데이트 필요
     revalidatePath("/today");
     revalidatePath("/dashboard");
-    revalidatePath(`/today/plan/${planId}`);
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 플랜 완료 실패", error);
@@ -518,9 +518,8 @@ export async function pausePlan(
     // 타이머 로그 기록 (일시정지)
     await recordTimerLog(planId, "pause", currentDuration);
 
+    // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
-    revalidatePath("/dashboard");
-    revalidatePath(`/today/plan/${planId}`);
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 플랜 일시정지 실패", error);
@@ -622,9 +621,8 @@ export async function resumePlan(
     // 타이머 로그 기록 (재개)
     await recordTimerLog(planId, "resume", currentDuration);
 
+    // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
-    revalidatePath("/dashboard");
-    revalidatePath(`/today/plan/${planId}`);
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 플랜 재개 실패", error);
