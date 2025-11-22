@@ -45,8 +45,8 @@ export function PlanItem({
       const timestamp = new Date().toISOString();
       const result = await startPlan(plan.id, timestamp);
       if (result.success) {
-        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
-        router.refresh();
+        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
       }
@@ -69,8 +69,7 @@ export function PlanItem({
       const timestamp = new Date().toISOString();
       const result = await pausePlan(plan.id, timestamp);
       if (result.success) {
-        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
-        router.refresh();
+        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
       } else {
         // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
         if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
@@ -91,8 +90,7 @@ export function PlanItem({
       const timestamp = new Date().toISOString();
       const result = await resumePlan(plan.id, timestamp);
       if (result.success) {
-        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
-        router.refresh();
+        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
       } else {
         alert(result.error || "플랜 재개에 실패했습니다.");
       }
