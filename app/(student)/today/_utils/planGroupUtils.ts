@@ -184,6 +184,57 @@ export function getTotalRange(plans: PlanWithContent[]): number {
 }
 
 /**
+ * 타임스탬프 기반 총 학습 시간 계산
+ * @param startTime 시작 타임스탬프
+ * @param endTime 종료 타임스탬프 (없으면 현재 시간 사용)
+ * @param pausedDurationSeconds 일시정지된 총 시간 (초)
+ * @returns 순수 학습 시간 (초)
+ */
+export function calculateStudyTimeFromTimestamps(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  pausedDurationSeconds: number | null | undefined
+): number {
+  if (!startTime) return 0;
+
+  const start = new Date(startTime).getTime();
+  const end = endTime ? new Date(endTime).getTime() : Date.now();
+  const totalSeconds = Math.floor((end - start) / 1000);
+  const pausedSeconds = pausedDurationSeconds || 0;
+
+  return Math.max(0, totalSeconds - pausedSeconds);
+}
+
+/**
+ * 세션 타임스탬프 기반 총 학습 시간 계산
+ * @param session 세션 정보 (started_at, ended_at, paused_at, resumed_at, paused_duration_seconds)
+ * @returns 순수 학습 시간 (초)
+ */
+export function calculateStudyTimeFromSession(session: {
+  started_at: string;
+  ended_at?: string | null;
+  paused_at?: string | null;
+  resumed_at?: string | null;
+  paused_duration_seconds?: number | null;
+}): number {
+  const start = new Date(session.started_at).getTime();
+  const end = session.ended_at ? new Date(session.ended_at).getTime() : Date.now();
+  const totalSeconds = Math.floor((end - start) / 1000);
+  
+  // 일시정지 시간 계산
+  let pausedSeconds = session.paused_duration_seconds || 0;
+  
+  // 현재 일시정지 중인 경우 추가 계산
+  if (session.paused_at && !session.resumed_at && !session.ended_at) {
+    const pausedAt = new Date(session.paused_at).getTime();
+    const now = Date.now();
+    pausedSeconds += Math.floor((now - pausedAt) / 1000);
+  }
+
+  return Math.max(0, totalSeconds - pausedSeconds);
+}
+
+/**
  * 시간 통계 계산
  */
 export type TimeStats = {

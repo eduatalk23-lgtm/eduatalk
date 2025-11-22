@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Clock, Play, Pause, CheckCircle, RotateCcw } from "lucide-react";
-import { formatTime, formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
+import { formatTime, formatTimestamp, type TimeStats, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
 import { getTimeEventsByPlanNumber } from "../actions/sessionTimeActions";
 import type { TimeEvent } from "../actions/sessionTimeActions";
@@ -38,7 +38,6 @@ export function TimeCheckSection({
   onComplete,
   onReset,
 }: TimeCheckSectionProps) {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timeEvents, setTimeEvents] = useState<TimeEvent[]>([]);
   const [isPending, startTransition] = useTransition();
   
@@ -101,33 +100,19 @@ export function TimeCheckSection({
     }
   })();
 
-  // 실시간 타이머 계산
-  useEffect(() => {
-    // 완료되었거나 비활성 상태면 타이머 중지
-    if (isCompleted || !isActiveState || !hasStartTime || isPausedState) {
-      setElapsedSeconds(0);
-      return;
+  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
+  const elapsedSeconds = (() => {
+    if (isCompleted || !isActiveState || !hasStartTime) {
+      return 0;
     }
-
-    const updateElapsed = () => {
-      try {
-        const start = new Date(normalizedStartTime!).getTime();
-        const now = Date.now();
-        const total = Math.floor((now - start) / 1000);
-        // 일시정지 시간 제외 (PlanItem과 동일한 로직)
-        // timeStats.pausedDuration은 이미 저장된 일시정지 시간
-        const pausedSeconds = timeStats.pausedDuration || 0;
-        setElapsedSeconds(Math.max(0, total - pausedSeconds));
-      } catch {
-        setElapsedSeconds(0);
-      }
-    };
-
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
-
-    return () => clearInterval(interval);
-  }, [isCompleted, isActiveState, hasStartTime, isPausedState, normalizedStartTime, timeStats.pausedDuration]);
+    // 현재 일시정지 중인 시간 포함하여 계산
+    const totalPausedDuration = timeStats.pausedDuration + (isPausedState ? currentPauseSeconds : 0);
+    return calculateStudyTimeFromTimestamps(
+      normalizedStartTime,
+      null, // 진행 중이므로 종료 시간 없음
+      totalPausedDuration
+    );
+  })();
 
   // 현재 진행 중인 총 시간 계산
   // 총 학습 시간 = 완료된 세션들의 시간 + 진행 중인 세션의 총 시간

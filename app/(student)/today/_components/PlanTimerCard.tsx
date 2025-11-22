@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Play, Pause, Square, Clock } from "lucide-react";
 import { startPlan, pausePlan, resumePlan, completePlan } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
+import { formatTime, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 
 type PlanTimerCardProps = {
   planId: string;
@@ -37,53 +38,15 @@ export function PlanTimerCard({
   const router = useRouter();
   const [isRunning, setIsRunning] = useState(!!actualStartTime && !actualEndTime && !initialIsPaused);
   const [isPaused, setIsPaused] = useState(initialIsPaused);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 경과 시간 계산
-  useEffect(() => {
-    if (!isRunning || isPaused || actualEndTime) {
-      return;
-    }
+  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
+  const elapsedSeconds = calculateStudyTimeFromTimestamps(
+    actualStartTime,
+    actualEndTime,
+    pausedDurationSeconds
+  );
 
-    const calculateElapsed = () => {
-      if (actualStartTime) {
-        const start = new Date(actualStartTime);
-        const now = new Date();
-        const total = Math.floor((now.getTime() - start.getTime()) / 1000);
-        const paused = pausedDurationSeconds || 0;
-        return Math.max(0, total - paused);
-      }
-      return 0;
-    };
-
-    setElapsedSeconds(calculateElapsed());
-
-    const interval = setInterval(() => {
-      setElapsedSeconds(calculateElapsed());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isRunning, isPaused, actualStartTime, actualEndTime, pausedDurationSeconds]);
-
-  // 완료된 경우 총 소요 시간 표시
-  useEffect(() => {
-    if (actualEndTime && totalDurationSeconds !== null) {
-      const paused = pausedDurationSeconds || 0;
-      setElapsedSeconds(Math.max(0, totalDurationSeconds - paused));
-    }
-  }, [actualEndTime, totalDurationSeconds, pausedDurationSeconds]);
-
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-    }
-    return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
 
   const handleStart = async () => {
     setIsLoading(true);

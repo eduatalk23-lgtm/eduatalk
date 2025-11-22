@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock } from "lucide-react";
-import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
+import { formatTime, formatTimestamp, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 
 type TimestampDisplayProps = {
   actualStartTime?: string | null;
@@ -12,7 +12,6 @@ type TimestampDisplayProps = {
   isRunning: boolean;
   isPaused: boolean;
   isCompleted: boolean;
-  elapsedSeconds?: number; // 실시간 경과 시간 (클라이언트에서 계산)
   className?: string;
 };
 
@@ -25,11 +24,14 @@ export function TimestampDisplay({
   isRunning,
   isPaused,
   isCompleted,
-  elapsedSeconds,
   className,
 }: TimestampDisplayProps) {
-  // 표시할 시간 계산
-  const displaySeconds = elapsedSeconds ?? (totalDurationSeconds ?? 0);
+  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
+  const displaySeconds = calculateStudyTimeFromTimestamps(
+    actualStartTime,
+    actualEndTime,
+    pausedDurationSeconds
+  );
 
   return (
     <div className={`rounded-lg bg-gray-50 p-3 ${className || ""}`}>
@@ -41,9 +43,6 @@ export function TimestampDisplay({
       </div>
       <div className="mb-2 text-lg font-bold text-indigo-600">
         {formatTime(displaySeconds)}
-        {isRunning && !isPaused && (
-          <span className="ml-2 text-xs text-gray-500">(실시간 업데이트)</span>
-        )}
         {isPaused && (
           <span className="ml-2 text-xs text-gray-500">(일시정지 중)</span>
         )}

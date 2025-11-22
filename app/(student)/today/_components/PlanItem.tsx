@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { PlanWithContent } from "../_utils/planGroupUtils";
+import { useState } from "react";
+import { PlanWithContent, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
@@ -24,7 +24,6 @@ export function PlanItem({
   viewMode = "daily",
 }: PlanItemProps) {
   const router = useRouter();
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   const isRunning =
@@ -32,42 +31,12 @@ export function PlanItem({
   const isPaused = plan.session?.isPaused ?? false;
   const isCompleted = !!plan.actual_end_time;
 
-  // 경과 시간 계산 (실시간 업데이트)
-  useEffect(() => {
-    if (!isRunning || isPaused || isCompleted || !plan.actual_start_time) {
-      return;
-    }
-
-    const calculateElapsed = () => {
-      const start = new Date(plan.actual_start_time!);
-      const now = new Date();
-      const total = Math.floor((now.getTime() - start.getTime()) / 1000);
-      const paused = plan.paused_duration_seconds || 0;
-      return Math.max(0, total - paused);
-    };
-
-    setElapsedSeconds(calculateElapsed());
-
-    const interval = setInterval(() => {
-      setElapsedSeconds(calculateElapsed());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [
-    isRunning,
-    isPaused,
-    isCompleted,
+  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
+  const elapsedSeconds = calculateStudyTimeFromTimestamps(
     plan.actual_start_time,
-    plan.paused_duration_seconds,
-  ]);
-
-  // 완료된 경우 총 소요 시간 표시
-  useEffect(() => {
-    if (isCompleted && plan.total_duration_seconds !== null) {
-      const paused = plan.paused_duration_seconds || 0;
-      setElapsedSeconds(Math.max(0, plan.total_duration_seconds - paused));
-    }
-  }, [isCompleted, plan.total_duration_seconds, plan.paused_duration_seconds]);
+    plan.actual_end_time,
+    plan.paused_duration_seconds
+  );
 
   const handleStart = async () => {
     setIsLoading(true);
@@ -204,7 +173,6 @@ export function PlanItem({
               isRunning={isRunning}
               isPaused={isPaused}
               isCompleted={isCompleted}
-              elapsedSeconds={elapsedSeconds}
             />
           )}
 
