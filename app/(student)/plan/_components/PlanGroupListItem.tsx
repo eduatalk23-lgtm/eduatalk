@@ -9,6 +9,8 @@ import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { Badge } from "@/components/ui/Badge";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
 
@@ -155,40 +157,54 @@ export function PlanGroupListItem({
         ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
         : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5"
     }`}>
-      {/* 1줄: 체크박스 + 뱃지 (좌측) / 아이콘들 (우측) */}
-      <div className="mb-3 flex items-center justify-between gap-3">
-        {/* 좌측: 체크박스 + 뱃지 */}
-        <div className="flex items-center gap-2">
-          {onToggleSelect && (
-            <button
-              type="button"
-              onClick={onToggleSelect}
-              className="inline-flex items-center justify-center rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-              title={isSelected ? "선택 해제" : "선택"}
-              aria-label={isSelected ? "선택 해제" : "선택"}
-            >
-              {isSelected ? (
-                <CheckSquare className="h-5 w-5 text-blue-600" />
-              ) : (
-                <Square className="h-5 w-5" />
+      <div className="flex flex-col gap-3">
+        {/* 1줄: 체크박스 + 뱃지 (좌측) / 아이콘들 (우측) */}
+        <div className="flex items-center justify-between gap-3">
+          {/* 좌측: 체크박스 + 뱃지 */}
+          <div className="flex items-center gap-2">
+            {onToggleSelect && (
+              <button
+                type="button"
+                onClick={onToggleSelect}
+                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                title={isSelected ? "선택 해제" : "선택"}
+                aria-label={isSelected ? "선택 해제" : "선택"}
+              >
+                {isSelected ? (
+                  <CheckSquare className="h-5 w-5 text-blue-600" />
+                ) : (
+                  <Square className="h-5 w-5" />
+                )}
+              </button>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* 플랜 생성 완료 뱃지 */}
+              {hasPlans && planCount > 0 && (
+                <Badge variant="info" size="sm">
+                  플랜 생성 완료
+                </Badge>
               )}
-            </button>
-          )}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {/* 플랜 생성 완료 뱃지 */}
-            {hasPlans && planCount > 0 && (
-              <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
-                플랜 생성 완료
-              </span>
-            )}
-            {/* 상태 뱃지 */}
-            {displayStatus && (
-              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${displayStatus.color}`}>
-                {displayStatus.label}
-              </span>
-            )}
+              {/* 상태 뱃지 */}
+              {displayStatus && (
+                <Badge
+                  variant={
+                    displayStatus.label === "완료"
+                      ? "success"
+                      : displayStatus.label === "활성"
+                      ? "success"
+                      : displayStatus.label === "일시정지"
+                      ? "warning"
+                      : displayStatus.label === "중단"
+                      ? "error"
+                      : "default"
+                  }
+                  size="sm"
+                >
+                  {displayStatus.label}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
 
         {/* 우측: 아이콘 버튼들 */}
         <div className="flex shrink-0 items-center gap-1">
@@ -232,40 +248,43 @@ export function PlanGroupListItem({
         </div>
       </div>
 
-      {/* 제목 */}
-      <h3 className="mb-3 break-words text-base font-semibold text-gray-900">
-        {group.name || "플랜 그룹"}
-      </h3>
+        {/* 제목 */}
+        <h3 className="break-words text-base font-semibold text-gray-900">
+          {group.name || "플랜 그룹"}
+        </h3>
 
-      <div className="flex flex-col gap-3">
-        {/* 진행률 */}
-        {hasPlans && planCount > 0 && totalCount > 0 && (
-          <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-gray-600">진행률</span>
-              <span className="text-xs font-semibold text-gray-900">
-                {completedCount}/{totalCount}개 완료
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    completedCount === totalCount
-                      ? "bg-green-600"
-                      : completedCount > 0
-                      ? "bg-blue-600"
-                      : "bg-gray-300"
-                  }`}
-                  style={{ width: `${Math.round((completedCount / totalCount) * 100)}%` }}
-                />
+        <div className="flex flex-col gap-3">
+          {/* 진행률 */}
+          {hasPlans && planCount > 0 && totalCount > 0 && (
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-gray-600">진행률</span>
+                  <span className="text-xs font-semibold text-gray-900">
+                    {completedCount}/{totalCount}개 완료
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <ProgressBar
+                      value={Math.round((completedCount / totalCount) * 100)}
+                      height="sm"
+                      color={
+                        completedCount === totalCount
+                          ? "green"
+                          : completedCount > 0
+                          ? "blue"
+                          : "gray"
+                      }
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-600">
+                    {Math.round((completedCount / totalCount) * 100)}%
+                  </span>
+                </div>
               </div>
-              <span className="text-xs font-medium text-gray-600">
-                {Math.round((completedCount / totalCount) * 100)}%
-              </span>
             </div>
-          </div>
-        )}
+          )}
 
         {/* 목적 */}
         <div className="break-words text-sm text-gray-600">
@@ -297,8 +316,8 @@ export function PlanGroupListItem({
           </span>
         </div>
 
-        {/* 하단 메타 정보 */}
-        <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-2">
+          {/* 하단 메타 정보 */}
+          <div className="flex items-center justify-between border-t border-gray-100 pt-2">
           <p className="text-xs text-gray-500">
             {group.created_at
               ? new Date(group.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
