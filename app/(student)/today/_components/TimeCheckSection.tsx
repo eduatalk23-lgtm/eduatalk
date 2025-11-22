@@ -246,8 +246,8 @@ export function TimeCheckSection({
       <div className="mt-6">
         <TimerControlButtons
           planId={planId}
-          isActive={isActive}
-          isPaused={isPaused}
+          isActive={isActiveState}
+          isPaused={isPausedState}
           isCompleted={!!timeStats.lastEndTime}
           isLoading={isLoading || isPending}
           onStart={() => {
