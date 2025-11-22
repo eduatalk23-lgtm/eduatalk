@@ -341,7 +341,7 @@ export function PlanCard({
                         if (contentType === "book") {
                           return <>📄 페이지: {start} ~ {end}</>;
                         } else if (contentType === "lecture") {
-                          return <>🎧 강: {start} ~ {end}</>;
+                          return <>🎧 강의: {start} ~ {end}</>;
                         } else {
                           return <>📝 범위: {start} ~ {end}</>;
                         }
@@ -523,7 +523,7 @@ export function PlanCard({
                         if (contentType === "book") {
                           return <>📄 페이지: {start} ~ {end}</>;
                         } else if (contentType === "lecture") {
-                          return <>🎧 강: {start} ~ {end}</>;
+                          return <>🎧 강의: {start} ~ {end}</>;
                         } else {
                           return <>📝 범위: {start} ~ {end}</>;
                         }
