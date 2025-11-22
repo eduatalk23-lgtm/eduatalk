@@ -116,7 +116,10 @@ export function TimeCheckSection({
   }, [isCompleted, isActiveState, hasStartTime, isPausedState, normalizedStartTime, timeStats.pausedDuration]);
 
   // 현재 진행 중인 총 시간 계산 (기존 시간 + 경과 시간)
-  const currentTotalSeconds = timeStats.isActive
+  // 완료되었으면 경과 시간을 더하지 않음
+  const currentTotalSeconds = isCompleted
+    ? timeStats.totalDuration
+    : timeStats.isActive
     ? timeStats.totalDuration + elapsedSeconds
     : timeStats.totalDuration;
 
@@ -227,7 +230,11 @@ export function TimeCheckSection({
         <div className="rounded-lg bg-green-50 p-3">
           <div className="text-xs text-green-600">순수 학습</div>
           <div className="mt-1 text-lg font-bold text-green-900">
-            {formatTime(timeStats.pureStudyTime + (timeStats.isActive && !isPausedState ? elapsedSeconds : 0))}
+            {formatTime(
+              isCompleted
+                ? timeStats.pureStudyTime
+                : timeStats.pureStudyTime + (timeStats.isActive && !isPausedState ? elapsedSeconds : 0)
+            )}
           </div>
         </div>
       </div>
@@ -244,8 +251,8 @@ export function TimeCheckSection({
         </div>
       )}
 
-      {/* 현재 진행 시간 (진행 중인 경우) */}
-      {timeStats.isActive && (
+      {/* 현재 진행 시간 (진행 중인 경우, 완료되지 않은 경우만) */}
+      {timeStats.isActive && !isCompleted && (
         <div className={`mt-4 rounded-lg p-4 ${isPaused ? "bg-gray-50" : "bg-indigo-50"}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
