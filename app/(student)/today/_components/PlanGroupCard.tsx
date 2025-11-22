@@ -17,7 +17,7 @@ import { PlanRangeAdjustModal } from "./PlanRangeAdjustModal";
 import { PlanDetailInfo } from "./PlanDetailInfo";
 import { TimeCheckSection } from "./TimeCheckSection";
 import { TimerLogSection } from "./TimerLogSection";
-import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
+import { startPlan, pausePlan, resumePlan, stopAllActiveSessionsForPlan } from "../actions/todayActions";
 import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { resetPlanTimer } from "../actions/timerResetActions";
@@ -171,10 +171,50 @@ export function PlanGroupCard({
     }
   };
 
-  const handleGroupComplete = () => {
-    // 완료 페이지는 개별 플랜 단위로 처리
-    if (activePlan) {
+  const handleGroupComplete = async () => {
+    // 완료 버튼을 누르면 활성 세션을 먼저 종료하여 타이머 중지
+    if (!activePlan) {
+      // 활성 플랜이 없으면 상세보기 페이지로 이동
+      if (group.plans.length > 0) {
+        router.push(`/today/plan/${group.plans[0].id}`);
+      }
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 활성 플랜의 모든 활성 세션 종료
+      const result = await stopAllActiveSessionsForPlan(activePlan.id);
+      
+      if (!result.success) {
+        alert(result.error || "세션 종료에 실패했습니다.");
+        return;
+      }
+
+      // 그룹 내 다른 활성 플랜들의 세션도 종료
+      const activePlanIds = group.plans
+        .filter(
+          (plan) =>
+            plan.actual_start_time &&
+            !plan.actual_end_time &&
+            plan.id !== activePlan.id
+        )
+        .map((plan) => plan.id);
+
+      for (const planId of activePlanIds) {
+        await stopAllActiveSessionsForPlan(planId);
+      }
+
+      // 페이지 새로고침하여 타이머 중지 확인
+      router.refresh();
+
+      // 상세보기 페이지로 이동
       router.push(`/today/plan/${activePlan.id}`);
+    } catch (error) {
+      console.error("[PlanGroupCard] 완료 처리 오류:", error);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
