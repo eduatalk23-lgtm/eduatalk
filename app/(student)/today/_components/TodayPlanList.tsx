@@ -315,7 +315,7 @@ export async function TodayPlanList() {
         planDate={displayDate}
         memos={memosMap}
         totalPagesMap={totalPagesMap}
-        initialMode="daily"
+        initialMode="single"
         initialSelectedPlanNumber={groups[0]?.planNumber ?? null}
       />
     </div>

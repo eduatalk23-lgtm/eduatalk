@@ -22,7 +22,7 @@ export function TodayPlanListView({
   planDate,
   memos,
   totalPagesMap,
-  initialMode = "daily",
+  initialMode = "single",
   initialSelectedPlanNumber = null,
 }: TodayPlanListViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);

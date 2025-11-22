@@ -14,11 +14,14 @@ import { TimerControlButtons } from "./TimerControlButtons";
 import { PlanGroupActions } from "./PlanGroupActions";
 import { PlanMemoModal } from "./PlanMemoModal";
 import { PlanRangeAdjustModal } from "./PlanRangeAdjustModal";
+import { PlanDetailInfo } from "./PlanDetailInfo";
+import { TimeCheckSection } from "./TimeCheckSection";
 import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
 import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -59,17 +62,15 @@ export function PlanGroupCard({
   const completedPlansCount = getCompletedPlansCount(group);
 
   // 활성 플랜 찾기
-  const activePlan = group.plans.find(
-    (plan) =>
-      plan.actual_start_time &&
-      !plan.actual_end_time &&
-      (!sessions.get(plan.id)?.isPaused)
-  );
+  const activePlan = getActivePlan(group, sessions);
 
   const isGroupRunning = !!activePlan;
   const isGroupPaused =
     activePlansCount > 0 &&
     group.plans.some((plan) => sessions.get(plan.id)?.isPaused);
+
+  // 시간 통계 계산
+  const timeStats = getTimeStats(group.plans, activePlan);
 
   // 그룹 타이머 제어 핸들러
   const handleGroupStart = async () => {
@@ -200,10 +201,17 @@ export function PlanGroupCard({
           </div>
           <div className="mb-2 text-4xl">{contentTypeIcon}</div>
           <h2 className="text-2xl font-bold text-gray-900">{contentTitle}</h2>
-          {group.sequence && (
-            <p className="mt-1 text-sm text-gray-600">({sequenceText})</p>
-          )}
         </div>
+
+        {/* 플랜 상세 정보 */}
+        <PlanDetailInfo group={group} />
+
+        {/* 시간 체크 섹션 */}
+        <TimeCheckSection
+          timeStats={timeStats}
+          isPaused={isGroupPaused}
+          activePlanStartTime={activePlan?.actual_start_time ?? null}
+        />
 
         {/* 전체 진행률 및 시간 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -287,27 +295,26 @@ export function PlanGroupCard({
             </p>
           </div>
         </div>
+
+        {/* 메모 모달 */}
+        <PlanMemoModal
+          group={group}
+          memo={memo}
+          isOpen={isMemoModalOpen}
+          onClose={() => setIsMemoModalOpen(false)}
+          onSave={handleSaveMemo}
+        />
+
+        {/* 범위 조정 모달 */}
+        <PlanRangeAdjustModal
+          group={group}
+          isOpen={isRangeModalOpen}
+          onClose={() => setIsRangeModalOpen(false)}
+          onSave={handleSaveRanges}
+          totalPages={getTotalPages()}
+          isBook={isBook}
+        />
       </div>
-
-      {/* 메모 모달 */}
-      <PlanMemoModal
-        group={group}
-        memo={memo}
-        isOpen={isMemoModalOpen}
-        onClose={() => setIsMemoModalOpen(false)}
-        onSave={handleSaveMemo}
-      />
-
-      {/* 범위 조정 모달 */}
-      <PlanRangeAdjustModal
-        group={group}
-        isOpen={isRangeModalOpen}
-        onClose={() => setIsRangeModalOpen(false)}
-        onSave={handleSaveRanges}
-        totalPages={getTotalPages()}
-        isBook={isBook}
-      />
-    </div>
     );
   }
 
