@@ -29,17 +29,6 @@ export async function startPlan(
     const supabase = await createSupabaseServerClient();
     const tenantContext = await getTenantContext();
 
-    // 플랜 조회
-    const plan = await getPlanById(
-      planId,
-      user.userId,
-      tenantContext?.tenantId || null
-    );
-
-    if (!plan) {
-      return { success: false, error: "플랜을 찾을 수 없습니다." };
-    }
-
     // 다른 플랜이 활성화되어 있는지 확인 (현재 플랜 제외)
     const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
@@ -61,16 +50,23 @@ export async function startPlan(
       };
     }
 
-    // 학습 세션 시작
+    // 학습 세션 시작 (내부에서 플랜 조회 및 검증 수행)
     const result = await startStudySession(planId);
     if (!result.success) {
       return { success: false, error: result.error };
     }
 
     // 플랜의 actual_start_time 업데이트 (처음 시작하는 경우만)
-    // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
+    // startStudySession 내부에서 이미 플랜을 조회하므로 여기서는 직접 업데이트만 수행
     const startTime = timestamp || new Date().toISOString();
-    if (!plan.actual_start_time) {
+    const { data: planData } = await supabase
+      .from("student_plan")
+      .select("actual_start_time")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planData && !planData.actual_start_time) {
       await supabase
         .from("student_plan")
         .update({
@@ -468,7 +464,7 @@ export async function pausePlan(
       return { success: false, error: "세션 일시정지에 실패했습니다." };
     }
 
-    // 플랜의 pause_count 증가
+    // 플랜의 pause_count 증가 (한 번의 쿼리로 조회 및 업데이트)
     const { data: planData, error: planError } = await supabase
       .from("student_plan")
       .select("pause_count")
@@ -479,38 +475,23 @@ export async function pausePlan(
     if (planError) {
       console.error("[todayActions] 플랜 조회 오류:", planError);
       // 일시정지는 성공했으므로 계속 진행
+    } else {
+      const currentPauseCount = planData?.pause_count || 0;
+      const { error: updateError } = await supabase
+        .from("student_plan")
+        .update({
+          pause_count: currentPauseCount + 1,
+        })
+        .eq("id", planId)
+        .eq("student_id", user.userId);
+
+      if (updateError) {
+        console.error("[todayActions] 플랜 업데이트 오류:", updateError);
+        // 일시정지는 성공했으므로 경고만 로그
+      }
     }
 
-    const currentPauseCount = planData?.pause_count || 0;
-    const { error: updateError } = await supabase
-      .from("student_plan")
-      .update({
-        pause_count: currentPauseCount + 1,
-      })
-      .eq("id", planId)
-      .eq("student_id", user.userId);
-
-    if (updateError) {
-      console.error("[todayActions] 플랜 업데이트 오류:", updateError);
-      // 일시정지는 성공했으므로 경고만 로그
-    }
-
-    // 현재 누적 학습 시간 계산 (일시정지 시간 제외)
-    const { data: planForDuration } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, paused_duration_seconds, total_duration_seconds")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
-
-    let currentDuration = 0;
-    if (planForDuration?.actual_start_time) {
-      const startTime = new Date(planForDuration.actual_start_time);
-      const now = new Date();
-      const totalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
-      const pausedSeconds = planForDuration.paused_duration_seconds || 0;
-      currentDuration = Math.max(0, totalSeconds - pausedSeconds);
-    }
+    // duration 계산은 클라이언트에서 타임스탬프 기반으로 수행하므로 서버에서 불필요
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
@@ -580,7 +561,7 @@ export async function resumePlan(
       })
       .eq("id", activeSession.id);
 
-    // 플랜의 paused_duration_seconds 업데이트
+    // 플랜의 paused_duration_seconds 업데이트 (한 번의 쿼리로 조회 및 업데이트)
     const { data: planData } = await supabase
       .from("student_plan")
       .select("paused_duration_seconds")
@@ -597,22 +578,7 @@ export async function resumePlan(
       .eq("id", planId)
       .eq("student_id", user.userId);
 
-    // 현재 누적 학습 시간 계산 (일시정지 시간 제외)
-    const { data: planForDuration } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, paused_duration_seconds, total_duration_seconds")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
-
-    let currentDuration = 0;
-    if (planForDuration?.actual_start_time) {
-      const startTime = new Date(planForDuration.actual_start_time);
-      const now = new Date();
-      const totalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
-      const pausedSeconds = planForDuration.paused_duration_seconds || 0;
-      currentDuration = Math.max(0, totalSeconds - pausedSeconds);
-    }
+    // duration 계산은 클라이언트에서 타임스탬프 기반으로 수행하므로 서버에서 불필요
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
