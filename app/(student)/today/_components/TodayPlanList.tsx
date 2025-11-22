@@ -2,7 +2,8 @@ import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { getBooks, getLectures, getCustomContents } from "@/lib/data/studentContents";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { DraggablePlanList } from "./DraggablePlanList";
+import { TodayPlanListView } from "./TodayPlanListView";
+import { groupPlansByPlanNumber, PlanWithContent } from "../_utils/planGroupUtils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type ProgressRow = {
@@ -214,8 +215,8 @@ export async function TodayPlanList() {
     }
   });
 
-  // 플랜 데이터를 DraggablePlanList에 전달할 형식으로 변환
-  const plansWithContent = plans.map((plan) => {
+  // 플랜 데이터를 PlanWithContent 형식으로 변환
+  const plansWithContent: PlanWithContent[] = plans.map((plan) => {
     const contentKey = `${plan.content_type}:${plan.content_id}`;
     const content = contentMap.get(contentKey);
     const progress = progressMap[contentKey] ?? null;
@@ -227,6 +228,15 @@ export async function TodayPlanList() {
       progress,
       session: session ? { isPaused: session.isPaused } : undefined,
     };
+  });
+
+  // 같은 plan_number를 가진 플랜들을 그룹화
+  const groups = groupPlansByPlanNumber(plansWithContent);
+
+  // 세션 맵 생성 (컴포넌트에 전달하기 위해 Map으로 변환)
+  const sessionsMap = new Map<string, { isPaused: boolean }>();
+  sessionMap.forEach((value, key) => {
+    sessionsMap.set(key, value);
   });
 
   // 날짜 표시 레이블 생성
@@ -251,7 +261,12 @@ export async function TodayPlanList() {
           </div>
         </div>
       )}
-      <DraggablePlanList plans={plansWithContent} planDate={displayDate} />
+      <TodayPlanListView
+        groups={groups}
+        sessions={sessionsMap}
+        initialMode="daily"
+        initialSelectedPlanNumber={groups[0]?.planNumber ?? null}
+      />
     </div>
   );
   } catch (error) {

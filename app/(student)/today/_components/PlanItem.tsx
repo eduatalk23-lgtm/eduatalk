@@ -1,0 +1,279 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { PlanWithContent } from "../_utils/planGroupUtils";
+import { TimestampDisplay } from "./TimestampDisplay";
+import { TimerControlButtons } from "./TimerControlButtons";
+import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
+import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
+import { useRouter } from "next/navigation";
+
+type PlanItemProps = {
+  plan: PlanWithContent;
+  isGrouped: boolean; // 같은 plan_number를 가진 그룹의 일부인지
+  isActive: boolean; // 현재 활성화된 플랜인지
+  showTimer?: boolean; // 타이머 표시 여부
+  viewMode?: "daily" | "single"; // 뷰 모드에 따라 레이아웃 다름
+};
+
+export function PlanItem({
+  plan,
+  isGrouped,
+  isActive,
+  showTimer = false,
+  viewMode = "daily",
+}: PlanItemProps) {
+  const router = useRouter();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const isRunning =
+    !!plan.actual_start_time && !plan.actual_end_time && !plan.session?.isPaused;
+  const isPaused = plan.session?.isPaused ?? false;
+  const isCompleted = !!plan.actual_end_time;
+
+  // 경과 시간 계산 (실시간 업데이트)
+  useEffect(() => {
+    if (!isRunning || isPaused || isCompleted || !plan.actual_start_time) {
+      return;
+    }
+
+    const calculateElapsed = () => {
+      const start = new Date(plan.actual_start_time!);
+      const now = new Date();
+      const total = Math.floor((now.getTime() - start.getTime()) / 1000);
+      const paused = plan.paused_duration_seconds || 0;
+      return Math.max(0, total - paused);
+    };
+
+    setElapsedSeconds(calculateElapsed());
+
+    const interval = setInterval(() => {
+      setElapsedSeconds(calculateElapsed());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [
+    isRunning,
+    isPaused,
+    isCompleted,
+    plan.actual_start_time,
+    plan.paused_duration_seconds,
+  ]);
+
+  // 완료된 경우 총 소요 시간 표시
+  useEffect(() => {
+    if (isCompleted && plan.total_duration_seconds !== null) {
+      const paused = plan.paused_duration_seconds || 0;
+      setElapsedSeconds(Math.max(0, plan.total_duration_seconds - paused));
+    }
+  }, [isCompleted, plan.total_duration_seconds, plan.paused_duration_seconds]);
+
+  const handleStart = async () => {
+    setIsLoading(true);
+    try {
+      const result = await startPlan(plan.id);
+      if (result.success) {
+        router.refresh();
+      } else {
+        alert(result.error || "플랜 시작에 실패했습니다.");
+      }
+    } catch (error) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePause = async () => {
+    setIsLoading(true);
+    try {
+      const result = await pausePlan(plan.id);
+      if (result.success) {
+        router.refresh();
+      } else {
+        alert(result.error || "플랜 일시정지에 실패했습니다.");
+      }
+    } catch (error) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResume = async () => {
+    setIsLoading(true);
+    try {
+      const result = await resumePlan(plan.id);
+      if (result.success) {
+        router.refresh();
+      } else {
+        alert(result.error || "플랜 재개에 실패했습니다.");
+      }
+    } catch (error) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleComplete = () => {
+    router.push(`/today/plan/${plan.id}`);
+  };
+
+  const contentTypeIcon =
+    plan.content_type === "book"
+      ? "📚"
+      : plan.content_type === "lecture"
+      ? "🎧"
+      : "📝";
+
+  const contentTitle = plan.content?.title || "제목 없음";
+
+  // 범위 표시
+  const startPage = plan.planned_start_page_or_time;
+  const endPage = plan.planned_end_page_or_time;
+  const pageRange =
+    startPage !== null &&
+    endPage !== null &&
+    `${startPage} ~ ${endPage}${plan.content_type === "book" ? "페이지" : "분"}`;
+
+  // 진행률 계산
+  const progress = plan.progress ?? 0;
+
+  // 시간 범위 표시
+  const timeRange =
+    plan.start_time && plan.end_time
+      ? `${plan.start_time} ~ ${plan.end_time}`
+      : null;
+
+  if (viewMode === "single") {
+    // 단일 뷰: 큰 화면으로 표시
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-4">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-lg">{contentTypeIcon}</span>
+            <h3 className="text-lg font-semibold text-gray-900">
+              블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
+            </h3>
+          </div>
+          {plan.sequence && (
+            <p className="text-sm text-gray-600">회차: {plan.sequence}회차</p>
+          )}
+          {pageRange && (
+            <p className="text-sm text-gray-600">범위: {pageRange}</p>
+          )}
+          {progress > 0 && (
+            <div className="mt-2">
+              <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
+                <span>진행률</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {(showTimer || isRunning || isPaused || isCompleted) && (
+          <div className="mb-4">
+            <TimestampDisplay
+              actualStartTime={plan.actual_start_time}
+              actualEndTime={plan.actual_end_time}
+              totalDurationSeconds={plan.total_duration_seconds}
+              pausedDurationSeconds={plan.paused_duration_seconds}
+              pauseCount={plan.pause_count}
+              isRunning={isRunning}
+              isPaused={isPaused}
+              isCompleted={isCompleted}
+              elapsedSeconds={elapsedSeconds}
+            />
+          </div>
+        )}
+
+        <TimerControlButtons
+          planId={plan.id}
+          isActive={isRunning}
+          isPaused={isPaused}
+          isCompleted={isCompleted}
+          isLoading={isLoading}
+          onStart={handleStart}
+          onPause={handlePause}
+          onResume={handleResume}
+          onComplete={handleComplete}
+        />
+      </div>
+    );
+  }
+
+  // 일일 뷰: 컴팩트하게 표시
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="mb-3">
+        <div className="mb-1 flex items-center gap-2">
+          <span>{contentTypeIcon}</span>
+          <span className="text-sm font-medium text-gray-900">
+            블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
+          </span>
+        </div>
+        {plan.sequence && (
+          <span className="text-xs text-gray-600">회차: {plan.sequence}회차</span>
+        )}
+        {pageRange && <span className="text-xs text-gray-600"> | {pageRange}</span>}
+        {progress > 0 && (
+          <div className="mt-2">
+            <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
+              <span>진행률</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {(showTimer || isRunning || isPaused || isCompleted) && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 p-2">
+            <span className="text-xs text-gray-600">학습 시간</span>
+            <span className="text-sm font-bold text-indigo-600">
+              {formatTime(elapsedSeconds)}
+            </span>
+          </div>
+          {plan.actual_start_time && (
+            <div className="mt-1 text-xs text-gray-500">
+              시작: {formatTimestamp(plan.actual_start_time)}
+            </div>
+          )}
+          {plan.pause_count !== null && plan.pause_count > 0 && (
+            <div className="text-xs text-gray-500">
+              일시정지: {plan.pause_count}회
+            </div>
+          )}
+        </div>
+      )}
+
+      <TimerControlButtons
+        planId={plan.id}
+        isActive={isRunning}
+        isPaused={isPaused}
+        isCompleted={isCompleted}
+        isLoading={isLoading}
+        onStart={handleStart}
+        onPause={handlePause}
+        onResume={handleResume}
+        onComplete={handleComplete}
+      />
+    </div>
+  );
+}
+
