@@ -442,10 +442,14 @@ export async function pausePlan(
     // 세션 일시정지
     // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
     const pauseTimestamp = timestamp || new Date().toISOString();
+    
+    // 재개 후 다시 일시정지하는 경우를 위해 resumed_at을 null로 리셋
+    // 이전 일시정지 시간이 있다면 paused_duration_seconds에 이미 누적되어 있음
     const { error: pauseError } = await supabase
       .from("student_study_sessions")
       .update({
         paused_at: pauseTimestamp,
+        resumed_at: null, // 재개 후 다시 일시정지할 때 리셋
       })
       .eq("id", activeSession.id)
       .eq("student_id", user.userId);
