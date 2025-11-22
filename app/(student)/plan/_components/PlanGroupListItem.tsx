@@ -246,7 +246,7 @@ export function PlanGroupListItem({
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
-      </div>
+        </div>
 
         {/* 제목 */}
         <h3 className="break-words text-base font-semibold text-gray-900">
