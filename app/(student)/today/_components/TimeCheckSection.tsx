@@ -43,11 +43,11 @@ export function TimeCheckSection({
   // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
   const [optimisticIsPaused, setOptimisticIsPaused] = useState<boolean | null>(null);
   const [optimisticIsActive, setOptimisticIsActive] = useState<boolean | null>(null);
-  // Optimistic 타임스탬프 관리 (버튼 클릭 시 즉시 표시)
+  // Optimistic 타임스탬프 관리 (버튼 클릭 시 즉시 표시, 여러 번 누적)
   const [optimisticTimestamps, setOptimisticTimestamps] = useState<{
     start?: string;
-    pause?: string;
-    resume?: string;
+    pauses?: string[]; // 일시정지 타임스탬프 배열
+    resumes?: string[]; // 재시작 타임스탬프 배열
   }>({});
 
   // activePlanStartTime을 정규화 (null 또는 문자열로 통일)
@@ -65,16 +65,37 @@ export function TimeCheckSection({
     setOptimisticIsPaused(null);
     setOptimisticIsActive(null);
     
-    // 서버에서 props가 업데이트되면 optimistic 타임스탬프 제거
-    // 단, 일시정지 타임스탬프는 서버에 저장된 값이 없을 때만 optimistic 유지
+    // 서버에서 props가 업데이트되면 optimistic 타임스탬프 정리
+    // 서버에 저장된 값이 있으면 해당 optimistic 타임스탬프 제거 (이미 서버에 반영됨)
     setOptimisticTimestamps((prev) => {
-      // 서버에 저장된 일시정지 타임스탬프가 있으면 optimistic 제거
+      const newTimestamps = { ...prev };
+      
+      // 서버에 저장된 일시정지 타임스탬프가 있으면 해당 optimistic 제거
       if (currentPausedAt || lastPausedAt) {
-        const { pause, ...rest } = prev;
-        return rest;
+        // 서버에 저장된 값과 일치하는 optimistic 타임스탬프 제거
+        if (newTimestamps.pauses) {
+          newTimestamps.pauses = newTimestamps.pauses.filter(
+            (ts) => ts !== currentPausedAt && ts !== lastPausedAt
+          );
+          if (newTimestamps.pauses.length === 0) {
+            delete newTimestamps.pauses;
+          }
+        }
       }
-      // 서버에 저장된 값이 없으면 optimistic 유지 (일시정지 직후)
-      return prev;
+      
+      // 서버에 저장된 재시작 타임스탬프가 있으면 해당 optimistic 제거
+      if (lastResumedAt) {
+        if (newTimestamps.resumes) {
+          newTimestamps.resumes = newTimestamps.resumes.filter(
+            (ts) => ts !== lastResumedAt
+          );
+          if (newTimestamps.resumes.length === 0) {
+            delete newTimestamps.resumes;
+          }
+        }
+      }
+      
+      return newTimestamps;
     });
   }, [isPaused, isActive, firstStartTime, currentPausedAt, lastPausedAt, lastResumedAt]);
 
@@ -114,30 +135,52 @@ export function TimeCheckSection({
           </div>
         )}
         
-        {/* 일시정지 시간 */}
-        {/* 현재 일시정지 중이거나 재시작 후에도 마지막 일시정지 시간 표시 */}
-        {(optimisticTimestamps.pause || timeStats.currentPausedAt || timeStats.lastPausedAt) && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-amber-600">일시정지 시간</span>
-            <span className="text-sm font-medium text-amber-900">
-              {formatTimestamp(
-                optimisticTimestamps.pause || timeStats.currentPausedAt || timeStats.lastPausedAt || ""
-              )}
-            </span>
-          </div>
-        )}
-        
-        {/* 재시작 시간 */}
-        {(optimisticTimestamps.resume || timeStats.lastResumedAt) && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-blue-600">재시작 시간</span>
-            <span className="text-sm font-medium text-blue-900">
-              {formatTimestamp(
-                optimisticTimestamps.resume || timeStats.lastResumedAt || ""
-              )}
-            </span>
-          </div>
-        )}
+        {/* 모든 일시정지/재시작 타임스탬프를 시간순으로 표시 */}
+        {(() => {
+          // 모든 타임스탬프를 수집 (optimistic + 서버 값)
+          const allPauses: string[] = [];
+          const allResumes: string[] = [];
+          
+          // Optimistic 일시정지 타임스탬프
+          if (optimisticTimestamps.pauses) {
+            allPauses.push(...optimisticTimestamps.pauses);
+          }
+          
+          // 서버 일시정지 타임스탬프
+          if (timeStats.currentPausedAt) {
+            allPauses.push(timeStats.currentPausedAt);
+          }
+          if (timeStats.lastPausedAt && !allPauses.includes(timeStats.lastPausedAt)) {
+            allPauses.push(timeStats.lastPausedAt);
+          }
+          
+          // Optimistic 재시작 타임스탬프
+          if (optimisticTimestamps.resumes) {
+            allResumes.push(...optimisticTimestamps.resumes);
+          }
+          
+          // 서버 재시작 타임스탬프
+          if (timeStats.lastResumedAt && !allResumes.includes(timeStats.lastResumedAt)) {
+            allResumes.push(timeStats.lastResumedAt);
+          }
+          
+          // 모든 이벤트를 시간순으로 정렬
+          const allEvents: Array<{ type: "pause" | "resume"; timestamp: string }> = [
+            ...allPauses.map(ts => ({ type: "pause" as const, timestamp: ts })),
+            ...allResumes.map(ts => ({ type: "resume" as const, timestamp: ts })),
+          ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          
+          return allEvents.map((event, index) => (
+            <div key={`${event.type}-${event.timestamp}-${index}`} className="flex items-center justify-between">
+              <span className={`text-sm ${event.type === "pause" ? "text-amber-600" : "text-blue-600"}`}>
+                {event.type === "pause" ? "일시정지 시간" : "재시작 시간"}
+              </span>
+              <span className={`text-sm font-medium ${event.type === "pause" ? "text-amber-900" : "text-blue-900"}`}>
+                {formatTimestamp(event.timestamp)}
+              </span>
+            </div>
+          ));
+        })()}
         
         {/* 종료 시간 */}
         {timeStats.lastEndTime && (
@@ -190,7 +233,7 @@ export function TimeCheckSection({
             setOptimisticIsPaused(true);
             setOptimisticTimestamps((prev) => ({
               ...prev,
-              pause: timestamp,
+              pauses: [...(prev.pauses || []), timestamp],
             }));
             // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
             startTransition(() => {
@@ -201,10 +244,10 @@ export function TimeCheckSection({
             const timestamp = new Date().toISOString();
             // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
             setOptimisticIsPaused(false);
-            // 재시작 시 일시정지 타임스탬프는 유지 (이전 일시정지 기록은 보존)
+            // 재시작 타임스탬프 추가 (이전 일시정지 기록은 보존)
             setOptimisticTimestamps((prev) => ({
               ...prev,
-              resume: timestamp,
+              resumes: [...(prev.resumes || []), timestamp],
             }));
             // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
             startTransition(() => {
