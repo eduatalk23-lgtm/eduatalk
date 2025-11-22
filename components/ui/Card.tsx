@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { memo, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 type CardProps = {
@@ -7,7 +7,7 @@ type CardProps = {
   hover?: boolean;
 };
 
-export function Card({ children, className, hover = false }: CardProps) {
+function CardComponent({ children, className, hover = false }: CardProps) {
   return (
     <div
       className={cn(
@@ -46,4 +46,7 @@ export function CardHeader({
     </div>
   );
 }
+
+export const Card = memo(CardComponent);
+export const CardHeader = memo(CardHeaderComponent);
 

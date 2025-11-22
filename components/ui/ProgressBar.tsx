@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/cn";
 
 type ProgressBarProps = {
@@ -23,7 +24,7 @@ const colorClasses = {
   red: "bg-red-600",
 };
 
-export function ProgressBar({
+function ProgressBarComponent({
   value,
   height = "md",
   color,
@@ -61,4 +62,6 @@ export function ProgressBar({
     </div>
   );
 }
+
+export const ProgressBar = memo(ProgressBarComponent);
 
