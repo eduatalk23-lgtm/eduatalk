@@ -4,8 +4,6 @@ import { useEffect, useState, useTransition } from "react";
 import { Clock, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
-import { getTimeEventsByPlanNumber } from "../actions/sessionTimeActions";
-import type { TimeEvent } from "../actions/sessionTimeActions";
 
 type TimeCheckSectionProps = {
   timeStats: TimeStats;
@@ -88,78 +86,47 @@ export function TimeCheckSection({
       <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
         {/* Optimistic 타임스탬프 또는 실제 타임스탬프 표시 */}
         {/* 시작 시간 */}
-        {(optimisticTimestamps.start || 
-          timeEvents.find((e) => e.type === "start")?.timestamp || 
-          timeStats.firstStartTime) && (
+        {(optimisticTimestamps.start || timeStats.firstStartTime) && (
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">시작 시간</span>
             <span className="text-sm font-medium text-gray-900">
               {formatTimestamp(
-                optimisticTimestamps.start ||
-                timeEvents.find((e) => e.type === "start")?.timestamp ||
-                timeStats.firstStartTime ||
-                ""
+                optimisticTimestamps.start || timeStats.firstStartTime || ""
               )}
             </span>
           </div>
         )}
         
         {/* 일시정지 시간 */}
-        {(optimisticTimestamps.pause || 
-          timeEvents.filter((e) => e.type === "pause").slice(-1)[0]?.timestamp || 
-          timeStats.currentPausedAt) && (
+        {(optimisticTimestamps.pause || timeStats.currentPausedAt) && (
           <div className="flex items-center justify-between">
             <span className="text-sm text-amber-600">일시정지 시간</span>
             <span className="text-sm font-medium text-amber-900">
               {formatTimestamp(
-                optimisticTimestamps.pause ||
-                timeEvents.filter((e) => e.type === "pause").slice(-1)[0]?.timestamp ||
-                timeStats.currentPausedAt ||
-                ""
+                optimisticTimestamps.pause || timeStats.currentPausedAt || ""
               )}
             </span>
           </div>
         )}
         
         {/* 재시작 시간 */}
-        {(optimisticTimestamps.resume || 
-          timeEvents.filter((e) => e.type === "resume").slice(-1)[0]?.timestamp || 
-          timeStats.lastResumedAt) && (
+        {(optimisticTimestamps.resume || timeStats.lastResumedAt) && (
           <div className="flex items-center justify-between">
             <span className="text-sm text-blue-600">재시작 시간</span>
             <span className="text-sm font-medium text-blue-900">
               {formatTimestamp(
-                optimisticTimestamps.resume ||
-                timeEvents.filter((e) => e.type === "resume").slice(-1)[0]?.timestamp ||
-                timeStats.lastResumedAt ||
-                ""
+                optimisticTimestamps.resume || timeStats.lastResumedAt || ""
               )}
             </span>
           </div>
         )}
         
-        {/* 디버깅: 재시작 타임스탬프가 없는 경우 표시 */}
-        {!optimisticTimestamps.resume && 
-         !timeEvents.filter((e) => e.type === "resume").slice(-1)[0]?.timestamp && 
-         !timeStats.lastResumedAt && 
-         !isPaused && 
-         isActive && (
-          <div className="text-xs text-gray-400">
-            재시작 타임스탬프 없음 (디버깅)
-          </div>
-        )}
-        
         {/* 종료 시간 */}
-        {(timeEvents.find((e) => e.type === "complete")?.timestamp || 
-          timeStats.lastEndTime) && (
+        {timeStats.lastEndTime && (
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">종료 시간</span>
             <span className="text-sm font-medium text-gray-900">
-              {formatTimestamp(
-                timeEvents.find((e) => e.type === "complete")?.timestamp ||
-                timeStats.lastEndTime ||
-                ""
-              )}
+              {formatTimestamp(timeStats.lastEndTime)}
             </span>
           </div>
         )}
