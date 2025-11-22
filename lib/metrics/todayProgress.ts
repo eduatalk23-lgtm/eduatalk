@@ -19,21 +19,29 @@ export type TodayProgress = {
 };
 
 /**
- * 오늘의 학습 진행률 계산
+ * 특정 날짜의 학습 진행률 계산
+ * @param studentId 학생 ID
+ * @param tenantId 테넌트 ID
+ * @param targetDate 계산할 날짜 (YYYY-MM-DD 형식, 기본값: 오늘)
  */
 export async function calculateTodayProgress(
   studentId: string,
-  tenantId?: string | null
+  tenantId?: string | null,
+  targetDate?: string
 ): Promise<TodayProgress> {
   try {
+    // targetDate가 없으면 오늘 날짜 사용
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayDate = today.toISOString().slice(0, 10);
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
-    const todayEndStr = todayEnd.toISOString();
+    const todayDate = targetDate || today.toISOString().slice(0, 10);
+    
+    // 계산할 날짜 설정
+    const target = new Date(todayDate + "T00:00:00");
+    const targetEnd = new Date(target);
+    targetEnd.setHours(23, 59, 59, 999);
+    const targetEndStr = targetEnd.toISOString();
 
-    // 1. 오늘 플랜 조회
+    // 1. 해당 날짜의 플랜 조회
     const plans = await getPlansForStudent({
       studentId,
       tenantId,
@@ -45,13 +53,13 @@ export async function calculateTodayProgress(
       (plan) => plan.progress !== null && plan.progress !== undefined && plan.progress >= 100
     ).length;
 
-    // 2. 오늘 세션 조회 및 학습 시간 계산
+    // 2. 해당 날짜의 세션 조회 및 학습 시간 계산
     const sessions = await getSessionsInRange({
       studentId,
       tenantId,
       dateRange: {
-        start: today.toISOString(),
-        end: todayEndStr,
+        start: target.toISOString(),
+        end: targetEndStr,
       },
     });
 
@@ -77,15 +85,15 @@ export async function calculateTodayProgress(
           tenantId
         );
 
-        // 오늘 진행률만 계산
-        const todayProgress = progressList.filter((p) => {
+        // 해당 날짜의 진행률만 계산
+        const targetDateProgress = progressList.filter((p) => {
           const progressDate = p.created_at
             ? new Date(p.created_at).toISOString().slice(0, 10)
             : null;
           return progressDate === todayDate;
         });
 
-        const todayAmount = todayProgress.reduce(
+        const targetDateAmount = targetDateProgress.reduce(
           (sum, p) => sum + p.progress_amount,
           0
         );
@@ -93,7 +101,7 @@ export async function calculateTodayProgress(
         let progress = 0;
         if (goal.expected_amount && goal.expected_amount > 0) {
           progress = Math.min(
-            Math.round((todayAmount / goal.expected_amount) * 100),
+            Math.round((targetDateAmount / goal.expected_amount) * 100),
             100
           );
         }
