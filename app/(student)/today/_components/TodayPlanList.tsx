@@ -230,7 +230,11 @@ export async function TodayPlanList() {
       ...plan,
       content,
       progress,
-      session: session ? { isPaused: session.isPaused } : undefined,
+      session: session ? { 
+        isPaused: session.isPaused,
+        pausedAt: session.pausedAt,
+        resumedAt: session.resumedAt
+      } : undefined,
     };
   });
 

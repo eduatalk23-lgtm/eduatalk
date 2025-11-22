@@ -30,12 +30,26 @@ export function PlanItem({
   const isActive = !!plan.actual_start_time && !plan.actual_end_time;
   const isRunning = isActive && !isPaused;
 
+  // 디버깅: 타이머 활성 상태 확인
+  useEffect(() => {
+    if (plan.actual_start_time) {
+      console.log(`[PlanItem ${plan.id}] 타이머 상태:`, {
+        actual_start_time: plan.actual_start_time,
+        actual_end_time: plan.actual_end_time,
+        isActive,
+        isPaused,
+        isRunning,
+        session: plan.session
+      });
+    }
+  }, [plan.id, plan.actual_start_time, plan.actual_end_time, isActive, isPaused, isRunning, plan.session]);
+
   const isCompleted = !!plan.actual_end_time;
 
   // 타임스탬프 기반 시간 계산 (메모이제이션으로 최적화)
   // 현재 일시정지 중인 경우 일시정지 시작 시간도 고려
   const elapsedSeconds = useMemo(() => {
-    const sessionPausedAt = plan.session ? (plan.session as any).pausedAt : null;
+    const sessionPausedAt = plan.session?.pausedAt ?? null;
     return calculateStudyTimeFromTimestamps(
       plan.actual_start_time,
       plan.actual_end_time,
@@ -193,7 +207,7 @@ export function PlanItem({
               isRunning={isRunning}
               isPaused={isPaused}
               isCompleted={isCompleted}
-              currentPausedAt={plan.session ? (plan.session as any).pausedAt : null}
+              currentPausedAt={plan.session?.pausedAt ?? null}
             />
           )}
 

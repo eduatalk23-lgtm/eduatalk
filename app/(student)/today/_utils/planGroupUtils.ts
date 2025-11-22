@@ -4,7 +4,11 @@ import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 export type PlanWithContent = Plan & {
   content?: Book | Lecture | CustomContent;
   progress?: number | null;
-  session?: { isPaused: boolean };
+  session?: { 
+    isPaused: boolean;
+    pausedAt?: string | null;
+    resumedAt?: string | null;
+  };
 };
 
 export type PlanGroup = {
