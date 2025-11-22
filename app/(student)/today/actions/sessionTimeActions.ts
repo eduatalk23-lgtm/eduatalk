@@ -3,7 +3,6 @@
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSessionsInRange } from "@/lib/data/studentSessions";
 
 export type TimeEvent = {
   type: "start" | "pause" | "resume" | "complete";
@@ -46,24 +45,22 @@ export async function getTimeEventsByPlanNumber(
 
     const planIds = plans.map((p) => p.id);
 
-    // 2. 해당 플랜들의 세션 조회 (모든 플랜 ID에 대해 조회)
-    const allSessions: Awaited<ReturnType<typeof getSessionsInRange>> = [];
-    
-    for (const planId of planIds) {
-      const sessions = await getSessionsInRange({
-        studentId: user.userId,
-        tenantId: tenantContext?.tenantId || null,
-        planId: planId,
-      });
-      allSessions.push(...sessions);
+    // 2. 해당 플랜들의 세션 조회 (한 번에 모든 플랜 ID 조회)
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from("student_study_sessions")
+      .select("id, plan_id, started_at, ended_at, paused_at, resumed_at, paused_duration_seconds")
+      .eq("student_id", user.userId)
+      .in("plan_id", planIds)
+      .order("started_at", { ascending: false });
+
+    if (sessionsError) {
+      console.error("[sessionTimeActions] 세션 조회 실패:", sessionsError);
+      // 세션 조회 실패해도 플랜 데이터로 시간 정보는 표시 가능
     }
 
-    // planIds에 해당하는 모든 세션 필터링 및 중복 제거
-    const relevantSessions = allSessions.filter(
-      (session, index, self) =>
-        session.plan_id &&
-        planIds.includes(session.plan_id) &&
-        index === self.findIndex((s) => s.id === session.id)
+    const relevantSessions = (sessionsData || []).filter(
+      (session): session is typeof session & { plan_id: string } =>
+        session.plan_id !== null && planIds.includes(session.plan_id)
     );
 
     // 3. 시간 이벤트 계산
