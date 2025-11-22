@@ -58,42 +58,10 @@ export function TimeCheckSection({
   useEffect(() => {
     setOptimisticIsPaused(null);
     setOptimisticIsActive(null);
-  }, [isPaused, isActive]);
-
-  // 서버에서 실제 타임스탬프가 오면 해당 optimistic 타임스탬프 제거
-  // 클라이언트에서 타임스탬프를 생성해서 서버에 전달하므로, 서버에서 받은 타임스탬프가 있으면 제거
-  useEffect(() => {
-    setOptimisticTimestamps((prev) => {
-      const updated = { ...prev };
-      
-      // 시작 타임스탬프가 실제로 있으면 optimistic 시작 타임스탬프 제거
-      const actualStartTime = timeEvents.find((e) => e.type === "start")?.timestamp || timeStats.firstStartTime;
-      if (actualStartTime) {
-        delete updated.start;
-      }
-      
-      // 일시정지 타임스탬프가 실제로 있으면 optimistic 일시정지 타임스탬프 제거
-      const pauseEvent = timeEvents.filter((e) => e.type === "pause").slice(-1)[0];
-      const actualPauseTime = pauseEvent?.timestamp || timeStats.currentPausedAt;
-      if (actualPauseTime) {
-        delete updated.pause;
-      }
-      
-      // 재시작 타임스탬프가 실제로 있으면 optimistic 재시작 타임스탬프 제거
-      const resumeEvent = timeEvents.filter((e) => e.type === "resume").slice(-1)[0];
-      const actualResumeTime = resumeEvent?.timestamp || timeStats.lastResumedAt;
-      if (actualResumeTime) {
-        delete updated.resume;
-      }
-      
-      return updated;
-    });
-  }, [
-    timeEvents,
-    timeStats.firstStartTime,
-    timeStats.currentPausedAt,
-    timeStats.lastResumedAt,
-  ]);
+    // 서버에서 props가 업데이트되면 optimistic 타임스탬프도 제거
+    // 클라이언트에서 보낸 타임스탬프를 서버에서 그대로 저장하므로, props가 변경되면 이미 서버에 저장된 것
+    setOptimisticTimestamps({});
+  }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastResumedAt]);
 
   // 시간 이벤트 조회 (세션 데이터로 계산)
   useEffect(() => {
