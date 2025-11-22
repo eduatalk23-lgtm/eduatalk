@@ -44,6 +44,7 @@ export type ContentTab = "books" | "lectures" | "custom";
 export type ContentListItem = {
   id: string;
   title: string;
-  [key: string]: any;
+  master_content_id?: string | null;
+  [key: string]: string | number | boolean | null | undefined;
 };
 

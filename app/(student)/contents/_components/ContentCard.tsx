@@ -11,7 +11,7 @@ type ContentCardProps = {
     id: string;
     title: string;
     master_content_id?: string | null;
-    [key: string]: any;
+    [key: string]: string | number | boolean | null | undefined;
   };
   activeTab: TabKey;
   onDelete: (id: string) => Promise<void>;
