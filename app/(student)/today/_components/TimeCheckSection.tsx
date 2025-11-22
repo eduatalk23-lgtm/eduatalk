@@ -70,7 +70,7 @@ export function TimeCheckSection({
       // 서버에 저장된 값이 없으면 optimistic 유지 (일시정지 직후)
       return prev;
     });
-  }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastResumedAt]);
+  }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastPausedAt, timeStats.lastResumedAt]);
 
   // 시간 이벤트 조회는 제거
   // 클라이언트에서 타임스탬프를 생성해서 서버에 전달하므로, 서버에서 다시 조회할 필요 없음
@@ -109,12 +109,13 @@ export function TimeCheckSection({
         )}
         
         {/* 일시정지 시간 */}
-        {(optimisticTimestamps.pause || timeStats.currentPausedAt) && (
+        {/* 현재 일시정지 중이거나 재시작 후에도 마지막 일시정지 시간 표시 */}
+        {(optimisticTimestamps.pause || timeStats.currentPausedAt || timeStats.lastPausedAt) && (
           <div className="flex items-center justify-between">
             <span className="text-sm text-amber-600">일시정지 시간</span>
             <span className="text-sm font-medium text-amber-900">
               {formatTimestamp(
-                optimisticTimestamps.pause || timeStats.currentPausedAt || ""
+                optimisticTimestamps.pause || timeStats.currentPausedAt || timeStats.lastPausedAt || ""
               )}
             </span>
           </div>

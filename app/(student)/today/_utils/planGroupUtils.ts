@@ -247,6 +247,7 @@ export type TimeStats = {
   isActive: boolean; // 진행 중인지 여부
   isCompleted: boolean; // 모든 플랜이 완료되었는지 여부
   currentPausedAt: string | null; // 현재 일시정지 시간 (진행 중이고 일시정지된 경우)
+  lastPausedAt: string | null; // 마지막 일시정지 시간 (재시작 후에도 표시)
   lastResumedAt: string | null; // 마지막 재시작 시간
 };
 
@@ -302,6 +303,7 @@ export function getTimeStats(
   // 현재 일시정지 시간 및 마지막 재시작 시간 조회
   // 일시정지된 플랜도 찾아서 currentPausedAt 계산 (activePlan이 null일 수 있음)
   let currentPausedAt: string | null = null;
+  let lastPausedAt: string | null = null;
   let lastResumedAt: string | null = null;
 
   if (sessions) {
@@ -320,6 +322,7 @@ export function getTimeStats(
       const session = sessions.get(pausedPlan.id);
       if (session) {
         currentPausedAt = session.pausedAt || null;
+        lastPausedAt = session.pausedAt || null;
         lastResumedAt = session.resumedAt || null;
       }
     } else if (activePlan) {
@@ -327,7 +330,32 @@ export function getTimeStats(
       const session = sessions.get(activePlan.id);
       if (session) {
         currentPausedAt = session.isPaused ? (session.pausedAt || null) : null;
+        // 재시작된 플랜의 경우에도 마지막 일시정지 시간 표시
+        if (session.pausedAt && session.resumedAt) {
+          lastPausedAt = session.pausedAt;
+        }
         lastResumedAt = session.resumedAt || null;
+      }
+    } else {
+      // 활성 플랜도 없으면 재시작된 플랜 찾기 (pausedAt과 resumedAt이 모두 있는 경우)
+      const resumedPlan = plans.find((plan) => {
+        const session = sessions.get(plan.id);
+        return (
+          plan.actual_start_time &&
+          !plan.actual_end_time &&
+          session &&
+          session.pausedAt &&
+          session.resumedAt &&
+          !session.isPaused
+        );
+      });
+
+      if (resumedPlan) {
+        const session = sessions.get(resumedPlan.id);
+        if (session) {
+          lastPausedAt = session.pausedAt || null;
+          lastResumedAt = session.resumedAt || null;
+        }
       }
     }
   }
@@ -342,6 +370,7 @@ export function getTimeStats(
     isActive: !!activePlan && !isCompleted,
     isCompleted,
     currentPausedAt,
+    lastPausedAt,
     lastResumedAt,
   };
 }
