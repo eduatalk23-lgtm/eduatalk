@@ -157,14 +157,6 @@ export function PlanExecutionForm({
             시작하기
           </button>
         )}
-        {activeSession && (
-          <button
-            onClick={() => router.push("/focus")}
-            className="flex-1 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-700"
-          >
-            집중 타이머로 이동
-          </button>
-        )}
         <button
           onClick={handleComplete}
           disabled={isLoading || !startPageOrTime || !endPageOrTime}
