@@ -110,15 +110,19 @@ export async function resetPlanTimer(
     }
 
     // 5. 타이머 로그 삭제
-    const { error: deleteLogsError } = await supabase
+    const { error: deleteLogsError, data: deletedLogs } = await supabase
       .from("plan_timer_logs")
       .delete()
       .in("plan_id", planIds)
-      .eq("student_id", user.userId);
+      .eq("student_id", user.userId)
+      .select(); // 삭제된 행 수 확인용
 
     if (deleteLogsError) {
       console.error("[timerResetActions] 타이머 로그 삭제 실패:", deleteLogsError);
-      // 로그 삭제 실패는 치명적이지 않으므로 계속 진행
+      // RLS 정책 문제일 수 있으므로 에러를 반환하지 않고 경고만 남김
+      // 실제로는 마이그레이션으로 DELETE 정책이 추가되어야 함
+    } else {
+      console.log(`[timerResetActions] 타이머 로그 ${deletedLogs?.length || 0}개 삭제 완료`);
     }
 
     revalidatePath("/today");
