@@ -7,15 +7,20 @@
 ## ✨ 주요 기능
 
 ### 1. 오늘 플랜 우선 표시
+
 - 오늘 날짜(`todayDate`)의 플랜을 먼저 조회
 - 플랜이 있으면 오늘 플랜을 표시
 
 ### 2. 가장 가까운 날짜 플랜 표시
-- 오늘 플랜이 없으면 미래 30일 범위에서 플랜 조회
+
+- 오늘 플랜이 없으면 단계적으로 범위를 확장하여 조회:
+  1. 먼저 30일 범위에서 조회 (성능 최적화)
+  2. 없으면 180일 범위로 확장 조회
 - 가장 가까운 날짜의 플랜을 찾아서 표시
 - 해당 날짜의 모든 플랜을 함께 표시
 
 ### 3. 날짜 표시
+
 - 오늘이 아닌 경우 상단에 경고 배너 표시
 - 상대적 날짜 표현:
   - "내일"
@@ -27,32 +32,49 @@
 ## 🔧 구현 내용
 
 ### 변경된 파일
+
 - `app/(student)/today/_components/TodayPlanList.tsx`
 
 ### 주요 로직
 
 1. **오늘 플랜 조회**
+
    ```typescript
    getPlansForStudent({
      studentId: user.userId,
      tenantId: tenantContext?.tenantId || null,
      planDate: todayDate,
-   })
+   });
    ```
 
 2. **미래 플랜 조회 (오늘 플랜이 없을 때)**
+
    ```typescript
+   // 1단계: 30일 범위로 먼저 조회 (성능 최적화)
    getPlansForStudent({
      studentId: user.userId,
      tenantId: tenantContext?.tenantId || null,
      dateRange: {
        start: todayDate,
-       end: futureEndDateStr, // 오늘부터 30일 후
+       end: shortRangeEndDateStr, // 오늘부터 30일 후
      },
-   })
+   });
+
+   // 2단계: 30일 범위에 없으면 180일 범위로 확장 조회
+   if (futurePlansResult.length === 0) {
+     getPlansForStudent({
+       studentId: user.userId,
+       tenantId: tenantContext?.tenantId || null,
+       dateRange: {
+         start: todayDate,
+         end: longRangeEndDateStr, // 오늘부터 180일 후
+       },
+     });
+   }
    ```
 
 3. **가장 가까운 날짜 찾기**
+
    - 플랜을 `plan_date` 기준으로 정렬
    - 첫 번째 플랜의 날짜를 기준으로 해당 날짜의 모든 플랜 필터링
 
@@ -63,10 +85,12 @@
 ## 📊 UI 구성
 
 ### 오늘 플랜이 있는 경우
+
 - 일반적으로 플랜 목록 표시
 - 별도 배너 없음
 
 ### 오늘이 아닌 날짜의 플랜 표시
+
 ```
 ┌─────────────────────────────────────┐
 │ 📅 내일의 플랜을 표시하고 있습니다  │
@@ -83,8 +107,10 @@
 
 ## 📝 참고사항
 
-- 조회 범위: 오늘부터 30일 후까지
+- 조회 범위: 
+  - 1단계: 오늘부터 30일 후까지 (성능 최적화)
+  - 2단계: 없으면 180일 후까지 확장 조회
 - 정렬 기준: `plan_date` 오름차순
 - 날짜 포맷: 한국어 형식 (예: "2024년 1월 15일")
 - 상대적 표현: 7일 이내는 "N일 후", 그 이후는 정확한 날짜
-
+- 성능 최적화: 대부분의 경우 30일 범위 내에서 찾을 수 있으므로, 먼저 짧은 범위로 조회하여 불필요한 데이터 조회를 최소화
