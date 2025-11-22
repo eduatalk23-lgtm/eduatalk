@@ -75,7 +75,7 @@ export function PlanGroupCard({
   const timeStats = getTimeStats(group.plans, activePlan, sessions);
 
   // 그룹 타이머 제어 핸들러 (optimistic update 적용)
-  const handleGroupStart = async () => {
+  const handleGroupStart = async (timestamp?: string) => {
     // 그룹 내 첫 번째 대기 중인 플랜 시작
     const waitingPlan = group.plans.find(
       (plan) => !plan.actual_start_time && !plan.actual_end_time
@@ -84,7 +84,9 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
-      const result = await startPlan(waitingPlan.id);
+      // 클라이언트에서 타임스탬프 생성 (없으면 서버에서 생성)
+      const clientTimestamp = timestamp || new Date().toISOString();
+      const result = await startPlan(waitingPlan.id, clientTimestamp);
       if (result.success) {
         // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         startTransition(() => {
@@ -132,10 +134,12 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
+      // 클라이언트에서 타임스탬프 생성
+      const clientTimestamp = new Date().toISOString();
       const results = await Promise.all(
         activePlanIds.map(async (planId) => {
           try {
-            const result = await pausePlan(planId);
+            const result = await pausePlan(planId, clientTimestamp);
             return result;
           } catch (error) {
             return {
@@ -195,10 +199,12 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
+      // 클라이언트에서 타임스탬프 생성
+      const clientTimestamp = new Date().toISOString();
       const results = await Promise.all(
         pausedPlanIds.map(async (planId) => {
           try {
-            return await resumePlan(planId);
+            return await resumePlan(planId, clientTimestamp);
           } catch (error) {
             return {
               success: false,

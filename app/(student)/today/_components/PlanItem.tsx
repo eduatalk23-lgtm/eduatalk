@@ -41,7 +41,9 @@ export function PlanItem({
   const handleStart = async () => {
     setIsLoading(true);
     try {
-      const result = await startPlan(plan.id);
+      // 클라이언트에서 타임스탬프 생성
+      const timestamp = new Date().toISOString();
+      const result = await startPlan(plan.id, timestamp);
       if (result.success) {
         // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         router.refresh();
@@ -63,7 +65,9 @@ export function PlanItem({
 
     setIsLoading(true);
     try {
-      const result = await pausePlan(plan.id);
+      // 클라이언트에서 타임스탬프 생성
+      const timestamp = new Date().toISOString();
+      const result = await pausePlan(plan.id, timestamp);
       if (result.success) {
         // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         router.refresh();
@@ -83,7 +87,9 @@ export function PlanItem({
   const handleResume = async () => {
     setIsLoading(true);
     try {
-      const result = await resumePlan(plan.id);
+      // 클라이언트에서 타임스탬프 생성
+      const timestamp = new Date().toISOString();
+      const result = await resumePlan(plan.id, timestamp);
       if (result.success) {
         // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
         router.refresh();

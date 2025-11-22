@@ -16,9 +16,9 @@ type TimeCheckSectionProps = {
   isLoading?: boolean; // 로딩 상태
   planNumber: number | null; // 플랜 그룹 번호 (초기화용)
   planDate: string; // 플랜 날짜 (초기화용)
-  onStart: () => void; // 시작 핸들러
-  onPause: () => void; // 일시정지 핸들러
-  onResume: () => void; // 재개 핸들러
+  onStart: (timestamp?: string) => void; // 시작 핸들러 (타임스탬프 전달)
+  onPause: (timestamp?: string) => void; // 일시정지 핸들러 (타임스탬프 전달)
+  onResume: (timestamp?: string) => void; // 재개 핸들러 (타임스탬프 전달)
   onComplete: () => void; // 완료 핸들러
   onReset?: () => void; // 초기화 핸들러
 };
@@ -60,26 +60,44 @@ export function TimeCheckSection({
     setOptimisticIsActive(null);
   }, [isPaused, isActive]);
 
-  // 서버에서 실제 타임스탬프가 오면 해당 optimistic 타임스탬프만 제거
+  // 서버에서 실제 타임스탬프가 오면 해당 optimistic 타임스탬프 제거
+  // 클라이언트에서 타임스탬프를 생성해서 서버에 전달하므로, 서버에서 받아온 타임스탬프와 비교하여 제거
   useEffect(() => {
     setOptimisticTimestamps((prev) => {
       const updated = { ...prev };
       
       // 시작 타임스탬프가 실제로 있으면 optimistic 시작 타임스탬프 제거
-      if (timeEvents.find((e) => e.type === "start")?.timestamp || timeStats.firstStartTime) {
-        delete updated.start;
+      const actualStartTime = timeEvents.find((e) => e.type === "start")?.timestamp || timeStats.firstStartTime;
+      if (actualStartTime && prev.start) {
+        // 클라이언트에서 보낸 타임스탬프와 서버에서 받은 타임스탬프가 같거나 비슷하면 제거
+        // (1초 이내 차이는 네트워크 지연으로 인한 것으로 간주)
+        const clientTime = new Date(prev.start).getTime();
+        const serverTime = new Date(actualStartTime).getTime();
+        if (Math.abs(clientTime - serverTime) < 2000) {
+          delete updated.start;
+        }
       }
       
       // 일시정지 타임스탬프가 실제로 있으면 optimistic 일시정지 타임스탬프 제거
       const pauseEvent = timeEvents.filter((e) => e.type === "pause").slice(-1)[0];
-      if (pauseEvent?.timestamp || timeStats.currentPausedAt) {
-        delete updated.pause;
+      const actualPauseTime = pauseEvent?.timestamp || timeStats.currentPausedAt;
+      if (actualPauseTime && prev.pause) {
+        const clientTime = new Date(prev.pause).getTime();
+        const serverTime = new Date(actualPauseTime).getTime();
+        if (Math.abs(clientTime - serverTime) < 2000) {
+          delete updated.pause;
+        }
       }
       
       // 재시작 타임스탬프가 실제로 있으면 optimistic 재시작 타임스탬프 제거
       const resumeEvent = timeEvents.filter((e) => e.type === "resume").slice(-1)[0];
-      if (resumeEvent?.timestamp || timeStats.lastResumedAt) {
-        delete updated.resume;
+      const actualResumeTime = resumeEvent?.timestamp || timeStats.lastResumedAt;
+      if (actualResumeTime && prev.resume) {
+        const clientTime = new Date(prev.resume).getTime();
+        const serverTime = new Date(actualResumeTime).getTime();
+        if (Math.abs(clientTime - serverTime) < 2000) {
+          delete updated.resume;
+        }
       }
       
       return updated;
@@ -222,36 +240,39 @@ export function TimeCheckSection({
           isCompleted={!!timeStats.lastEndTime}
           isLoading={isLoading || isPending}
           onStart={() => {
+            const timestamp = new Date().toISOString();
             setOptimisticIsActive(true);
             setOptimisticIsPaused(false);
             // Optimistic 타임스탬프 설정 (즉시 표시)
             setOptimisticTimestamps((prev) => ({
               ...prev,
-              start: new Date().toISOString(),
+              start: timestamp,
             }));
-            // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
-            onStart();
+            // 클라이언트 타임스탬프를 서버에 전달
+            onStart(timestamp);
           }}
           onPause={() => {
+            const timestamp = new Date().toISOString();
             setOptimisticIsPaused(true);
             // Optimistic 타임스탬프 설정 (즉시 표시)
             setOptimisticTimestamps((prev) => ({
               ...prev,
-              pause: new Date().toISOString(),
+              pause: timestamp,
             }));
-            // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
-            onPause();
+            // 클라이언트 타임스탬프를 서버에 전달
+            onPause(timestamp);
           }}
           onResume={() => {
+            const timestamp = new Date().toISOString();
             setOptimisticIsPaused(false);
             // Optimistic 타임스탬프 설정 (즉시 표시)
             setOptimisticTimestamps((prev) => ({
               ...prev,
-              resume: new Date().toISOString(),
+              resume: timestamp,
               pause: undefined, // 재시작 시 일시정지 타임스탬프 제거
             }));
-            // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
-            onResume();
+            // 클라이언트 타임스탬프를 서버에 전달
+            onResume(timestamp);
           }}
           onComplete={onComplete}
         />

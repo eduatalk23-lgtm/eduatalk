@@ -51,7 +51,9 @@ export function PlanTimerCard({
   const handleStart = async () => {
     setIsLoading(true);
     try {
-      const result = await startPlan(planId);
+      // 클라이언트에서 타임스탬프 생성
+      const timestamp = new Date().toISOString();
+      const result = await startPlan(planId, timestamp);
       if (result.success) {
         setIsRunning(true);
         setIsPaused(false);
@@ -74,7 +76,9 @@ export function PlanTimerCard({
 
     setIsLoading(true);
     try {
-      const result = await pausePlan(planId);
+      // 클라이언트에서 타임스탬프 생성
+      const timestamp = new Date().toISOString();
+      const result = await pausePlan(planId, timestamp);
       if (result.success) {
         setIsPaused(true);
         setIsRunning(false);
@@ -95,7 +99,9 @@ export function PlanTimerCard({
   const handleResume = async () => {
     setIsLoading(true);
     try {
-      const result = await resumePlan(planId);
+      // 클라이언트에서 타임스탬프 생성
+      const timestamp = new Date().toISOString();
+      const result = await resumePlan(planId, timestamp);
       if (result.success) {
         setIsPaused(false);
         setIsRunning(true);

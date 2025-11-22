@@ -17,7 +17,8 @@ type PlanRecordPayload = {
  * 플랜 시작 (타이머 시작)
  */
 export async function startPlan(
-  planId: string
+  planId: string,
+  timestamp?: string // 클라이언트에서 생성한 타임스탬프
 ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
@@ -46,7 +47,8 @@ export async function startPlan(
     }
 
     // 플랜의 actual_start_time 업데이트 (처음 시작하는 경우만)
-    const startTime = new Date().toISOString();
+    // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
+    const startTime = timestamp || new Date().toISOString();
     if (!plan.actual_start_time) {
       await supabase
         .from("student_plan")
@@ -391,7 +393,8 @@ export async function endTimer(
  * 플랜 일시정지
  */
 export async function pausePlan(
-  planId: string
+  planId: string,
+  timestamp?: string // 클라이언트에서 생성한 타임스탬프
 ): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
@@ -429,10 +432,12 @@ export async function pausePlan(
     }
 
     // 세션 일시정지
+    // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
+    const pauseTimestamp = timestamp || new Date().toISOString();
     const { error: pauseError } = await supabase
       .from("student_study_sessions")
       .update({
-        paused_at: new Date().toISOString(),
+        paused_at: pauseTimestamp,
       })
       .eq("id", activeSession.id)
       .eq("student_id", user.userId);
@@ -502,7 +507,8 @@ export async function pausePlan(
  * 플랜 재개
  */
 export async function resumePlan(
-  planId: string
+  planId: string,
+  timestamp?: string // 클라이언트에서 생성한 타임스탬프
 ): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
@@ -539,7 +545,8 @@ export async function resumePlan(
     }
 
     const pausedAt = new Date(activeSession.paused_at);
-    const resumedAt = new Date();
+    // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
+    const resumedAt = timestamp ? new Date(timestamp) : new Date();
     const pauseDuration = Math.floor((resumedAt.getTime() - pausedAt.getTime()) / 1000);
     const totalPausedDuration = (activeSession.paused_duration_seconds || 0) + pauseDuration;
 
