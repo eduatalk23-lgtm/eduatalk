@@ -66,10 +66,20 @@ export function TimeCheckSection({
         setTimerLogs([]);
       }
     };
-    // planNumber, planDate, timeStats의 주요 필드가 변경될 때 조회
+    // planNumber, planDate, timeStats의 모든 필드가 변경될 때 조회
     // 초기화 후 timeStats가 변경되면 로그도 다시 조회됨
     loadTimerLogs();
-  }, [planNumber, planDate, timeStats.firstStartTime, timeStats.lastEndTime, timeStats.totalDuration]);
+  }, [
+    planNumber,
+    planDate,
+    timeStats.firstStartTime,
+    timeStats.lastEndTime,
+    timeStats.totalDuration,
+    timeStats.pausedDuration,
+    timeStats.pauseCount,
+    timeStats.isActive,
+    timeStats.isCompleted,
+  ]);
 
   // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
   const isCompleted = Boolean(timeStats.isCompleted);
@@ -297,6 +307,8 @@ export function TimeCheckSection({
           <button
             onClick={async () => {
               if (onReset) {
+                // 즉시 타이머 로그를 빈 배열로 설정하여 UI 업데이트
+                setTimerLogs([]);
                 await onReset();
                 // 초기화 후 서버 상태 반영을 위해 약간의 딜레이 후 타이머 로그 다시 조회
                 setTimeout(async () => {
@@ -306,7 +318,7 @@ export function TimeCheckSection({
                   } else {
                     setTimerLogs([]);
                   }
-                }, 100);
+                }, 300);
               }
             }}
             disabled={isLoading}

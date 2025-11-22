@@ -281,7 +281,12 @@ export function PlanGroupCard({
     try {
       const result = await resetPlanTimer(group.planNumber, planDate);
       if (result.success) {
-        router.refresh();
+        // 즉시 타이머 로그를 빈 배열로 설정하여 UI 업데이트
+        setTimerLogs([]);
+        // 서버 상태 반영을 위해 페이지 새로고침
+        startTransition(() => {
+          router.refresh();
+        });
       } else {
         alert(result.error || "타이머 초기화에 실패했습니다.");
       }
