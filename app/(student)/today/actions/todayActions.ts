@@ -607,3 +607,48 @@ export async function resumePlan(
   }
 }
 
+/**
+ * 플랜의 모든 활성 세션 종료 (완료 버튼 클릭 시 타이머 중지용)
+ */
+export async function stopAllActiveSessionsForPlan(
+  planId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 해당 플랜의 모든 활성 세션 조회
+    const { data: activeSessions, error: sessionError } = await supabase
+      .from("student_study_sessions")
+      .select("id")
+      .eq("plan_id", planId)
+      .eq("student_id", user.userId)
+      .is("ended_at", null);
+
+    if (sessionError) {
+      console.error("[todayActions] 세션 조회 오류:", sessionError);
+      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
+    }
+
+    // 모든 활성 세션 종료
+    if (activeSessions && activeSessions.length > 0) {
+      for (const session of activeSessions) {
+        await endStudySession(session.id);
+      }
+    }
+
+    revalidatePath("/today");
+    return { success: true };
+  } catch (error) {
+    console.error("[todayActions] 세션 종료 실패", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "세션 종료에 실패했습니다.",
+    };
+  }
+}
+
