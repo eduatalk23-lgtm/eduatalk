@@ -6,6 +6,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanById, updatePlan } from "@/lib/data/studentPlans";
 import { startStudySession, endStudySession } from "@/app/(student)/actions/studySessionActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { recordTimerLog } from "./timerLogActions";
 
 type PlanRecordPayload = {
   startPageOrTime: number;
@@ -46,15 +47,19 @@ export async function startPlan(
     }
 
     // 플랜의 actual_start_time 업데이트 (처음 시작하는 경우만)
+    const startTime = new Date().toISOString();
     if (!plan.actual_start_time) {
       await supabase
         .from("student_plan")
         .update({
-          actual_start_time: new Date().toISOString(),
+          actual_start_time: startTime,
         })
         .eq("id", planId)
         .eq("student_id", user.userId);
     }
+
+    // 타이머 로그 기록 (시작)
+    await recordTimerLog(planId, "start", 0);
 
     revalidatePath("/today");
     revalidatePath("/dashboard");
@@ -223,6 +228,9 @@ export async function completePlan(
     const now = new Date();
     const actualEndTime = now.toISOString();
 
+    // 완료 시점의 누적 학습 시간 계산
+    let finalDuration = 0;
+
     // 플랜의 actual_start_time 조회
     const { data: planData } = await supabase
       .from("student_plan")
@@ -263,6 +271,12 @@ export async function completePlan(
       })
       .eq("id", planId)
       .eq("student_id", user.userId);
+
+    // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
+    const finalDuration = totalDurationSeconds ? Math.max(0, totalDurationSeconds - totalPausedDuration) : 0;
+
+    // 타이머 로그 기록 (완료)
+    await recordTimerLog(planId, "complete", finalDuration);
 
     revalidatePath("/today");
     revalidatePath("/dashboard");
@@ -454,6 +468,26 @@ export async function pausePlan(
       console.error("[todayActions] 플랜 업데이트 오류:", updateError);
       // 일시정지는 성공했으므로 경고만 로그
     }
+
+    // 현재 누적 학습 시간 계산 (일시정지 시간 제외)
+    const { data: planForDuration } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, paused_duration_seconds, total_duration_seconds")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    let currentDuration = 0;
+    if (planForDuration?.actual_start_time) {
+      const startTime = new Date(planForDuration.actual_start_time);
+      const now = new Date();
+      const totalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+      const pausedSeconds = planForDuration.paused_duration_seconds || 0;
+      currentDuration = Math.max(0, totalSeconds - pausedSeconds);
+    }
+
+    // 타이머 로그 기록 (일시정지)
+    await recordTimerLog(planId, "pause", currentDuration);
 
     revalidatePath("/today");
     revalidatePath("/dashboard");

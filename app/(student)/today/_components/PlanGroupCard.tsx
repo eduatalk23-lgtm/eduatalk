@@ -16,12 +16,15 @@ import { PlanMemoModal } from "./PlanMemoModal";
 import { PlanRangeAdjustModal } from "./PlanRangeAdjustModal";
 import { PlanDetailInfo } from "./PlanDetailInfo";
 import { TimeCheckSection } from "./TimeCheckSection";
+import { TimerLogSection } from "./TimerLogSection";
 import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
 import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
+import { getTimerLogsByPlanNumber } from "../actions/timerLogActions";
+import type { TimerLog } from "../actions/timerLogActions";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -46,6 +49,7 @@ export function PlanGroupCard({
   const [isLoading, setIsLoading] = useState(false);
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
+  const [timerLogs, setTimerLogs] = useState<TimerLog[]>([]);
 
   const contentTitle = group.content?.title || "제목 없음";
   const contentTypeIcon =
@@ -251,6 +255,9 @@ export function PlanGroupCard({
           onResume={handleGroupResume}
           onComplete={handleGroupComplete}
         />
+
+        {/* 타이머 로그 섹션 */}
+        <TimerLogSection logs={timerLogs} />
 
         {/* 전체 진행률 및 시간 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
