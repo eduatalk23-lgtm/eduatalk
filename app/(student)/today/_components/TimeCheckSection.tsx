@@ -60,10 +60,13 @@ export function TimeCheckSection({
     setOptimisticIsActive(null);
     // 서버에서 props가 업데이트되면 optimistic 타임스탬프도 제거
     // 클라이언트에서 보낸 타임스탬프를 서버에서 그대로 저장하므로, props가 변경되면 이미 서버에 저장된 것
+    // 같은 국가에서 사용한다면 클라이언트 타임스탬프를 그대로 사용해도 문제없음
     setOptimisticTimestamps({});
   }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastResumedAt]);
 
   // 시간 이벤트 조회 (세션 데이터로 계산)
+  // 주의: 이 조회는 같은 그룹의 다른 플랜들의 상태를 동기화하기 위한 것
+  // 현재 플랜의 타임스탬프는 클라이언트에서 생성한 것을 그대로 사용해도 됨
   useEffect(() => {
     const loadTimeEvents = async () => {
       const result = await getTimeEventsByPlanNumber(planNumber, planDate);
