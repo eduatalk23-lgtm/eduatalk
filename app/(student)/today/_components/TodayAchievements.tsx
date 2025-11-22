@@ -27,16 +27,26 @@ export async function TodayAchievements({ todayProgress }: TodayAchievementsProp
         <div>
           <div className="mb-1 flex items-center justify-between text-sm">
             <span className="text-gray-600">완료한 플랜</span>
-            <span className="font-semibold text-gray-900">
-              {todayProgress.planCompletedCount} / {todayProgress.planTotalCount}
-            </span>
+            {todayProgress.planTotalCount > 0 ? (
+              <span className="font-semibold text-gray-900">
+                {todayProgress.planCompletedCount} / {todayProgress.planTotalCount}
+              </span>
+            ) : (
+              <span className="text-gray-400">플랜 없음</span>
+            )}
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-            <div
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{ width: `${completionRate}%` }}
-            />
-          </div>
+          {todayProgress.planTotalCount > 0 ? (
+            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full bg-green-500 transition-all duration-300"
+                style={{ width: `${completionRate}%` }}
+              />
+            </div>
+          ) : (
+            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full bg-gray-200" style={{ width: "0%" }} />
+            </div>
+          )}
         </div>
         <div>
           <div className="mb-1 flex items-center justify-between text-sm">
