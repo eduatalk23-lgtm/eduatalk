@@ -1,3 +1,15 @@
+/**
+ * @deprecated 이 파일은 더 이상 사용되지 않습니다.
+ * 
+ * 타이머 로그는 plan_timer_logs 테이블 대신
+ * student_plan과 student_study_sessions 테이블의 데이터로 계산합니다.
+ * 
+ * 대신 사용: app/(student)/today/actions/sessionTimeActions.ts
+ * - getTimeEventsByPlanNumber: 세션 데이터로 시간 이벤트 계산
+ * 
+ * 이 파일은 하위 호환성을 위해 유지되지만, 향후 제거 예정입니다.
+ */
+
 "use server";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";

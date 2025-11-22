@@ -64,7 +64,13 @@ export function PlanGroupCard({
       }
     };
     loadTimeEvents();
-  }, [group.planNumber, planDate, group.plans]);
+  }, [
+    group.planNumber,
+    planDate,
+    // 플랜의 시간 정보가 변경될 때마다 재조회
+    group.plans.map((p) => p.actual_start_time).join(","),
+    group.plans.map((p) => p.actual_end_time).join(","),
+  ]);
 
   const contentTitle = group.content?.title || "제목 없음";
   const contentTypeIcon =
@@ -303,7 +309,7 @@ export function PlanGroupCard({
 
   // 타이머 초기화 핸들러
   const handleResetTimer = async () => {
-    if (!confirm("타이머 기록을 초기화하시겠습니까?\n\n초기화하면 다음 정보가 삭제됩니다:\n- 시작/종료 시간\n- 학습 시간 기록\n- 일시정지 기록\n- 타이머 로그\n\n이 작업은 되돌릴 수 없습니다.")) {
+    if (!confirm("타이머 기록을 초기화하시겠습니까?\n\n초기화하면 다음 정보가 삭제됩니다:\n- 시작/종료 시간\n- 학습 시간 기록\n- 일시정지 기록\n- 타이머 활동 기록\n\n이 작업은 되돌릴 수 없습니다.")) {
       return;
     }
 
@@ -384,7 +390,7 @@ export function PlanGroupCard({
           onReset={handleResetTimer}
         />
 
-        {/* 타이머 로그 섹션 */}
+        {/* 타이머 활동 기록 섹션 */}
         <TimerLogSection events={timeEvents} />
 
         {/* 전체 진행률 및 시간 */}

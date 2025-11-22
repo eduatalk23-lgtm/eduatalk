@@ -67,7 +67,7 @@ export function TimerLogSection({ events }: TimerLogSectionProps) {
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
         <span>📋</span>
-        타이머 활동 로그
+        타이머 활동 기록
       </h3>
       
       <div className="space-y-2 max-h-64 overflow-y-auto">
