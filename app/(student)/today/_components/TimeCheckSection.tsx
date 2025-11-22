@@ -111,6 +111,18 @@ export function TimeCheckSection({
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
   const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : Boolean(isPaused);
 
+  // 디버깅: 버튼 상태 확인
+  console.log('=== 버튼 상태 디버깅 ===');
+  console.log('isActive (props):', isActive);
+  console.log('isPaused (props):', isPaused);
+  console.log('optimisticIsActive:', optimisticIsActive);
+  console.log('optimisticIsPaused:', optimisticIsPaused);
+  console.log('isActiveState (계산된):', isActiveState);
+  console.log('isPausedState (계산된):', isPausedState);
+  console.log('isCompleted:', isCompleted);
+  console.log('hasStartTime:', hasStartTime);
+  console.log('=== 버튼 상태 끝 ===');
+
 
 
   return (

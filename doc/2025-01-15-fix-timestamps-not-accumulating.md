@@ -305,12 +305,14 @@ const allEvents = [
 ### 타임스탬프 표준화로 중복 완전 제거
 
 **문제**: 타임스탬프 문자열 표현 차이로 인한 중복 표시
+
 - `2025-11-22T14:21:47.483Z` (UTC)
 - `2025-11-22T14:21:47.483+00:00` (UTC+00:00)
 
 **원인**: 동일한 시간을 나타내는 타임스탬프지만 timezone offset 표기가 달라 Set에서 다른 값으로 인식
 
 **해결**: Date 객체를 이용한 타임스탬프 표준화
+
 - 타임스탬프를 `new Date(ts).getTime()`으로 밀리초 값으로 변환
 - Map을 사용하여 밀리초 값으로 중복 제거
 - 최종적으로 원본 타임스탬프 문자열 유지
@@ -318,6 +320,7 @@ const allEvents = [
 **변경 파일**: `app/(student)/today/_components/TimeCheckSection.tsx`
 
 **핵심 변경**:
+
 ```typescript
 // 타임스탬프 표준화 함수
 const normalizeTimestamp = (ts: string): number => {
@@ -336,6 +339,7 @@ if (!pauseMap.has(normalized)) {
 ```
 
 **효과**:
+
 - ✅ 동일 시간의 타임스탬프 중복 표시 완전 제거
 - ✅ timezone offset 차이 무시하고 시간 값으로 비교
 - ✅ Optimistic과 서버 값이 동일 시간일 때 하나만 표시
