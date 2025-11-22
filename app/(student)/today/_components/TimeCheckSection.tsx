@@ -44,6 +44,12 @@ export function TimeCheckSection({
   // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
   const [optimisticIsPaused, setOptimisticIsPaused] = useState<boolean | null>(null);
   const [optimisticIsActive, setOptimisticIsActive] = useState<boolean | null>(null);
+  // Optimistic 타임스탬프 관리 (버튼 클릭 시 즉시 표시)
+  const [optimisticTimestamps, setOptimisticTimestamps] = useState<{
+    start?: string;
+    pause?: string;
+    resume?: string;
+  }>({});
 
   // activePlanStartTime을 정규화 (null 또는 문자열로 통일)
   const normalizedStartTime = activePlanStartTime ?? null;
@@ -52,7 +58,11 @@ export function TimeCheckSection({
   useEffect(() => {
     setOptimisticIsPaused(null);
     setOptimisticIsActive(null);
-  }, [isPaused, isActive]);
+    // 서버에서 실제 타임스탬프가 오면 optimistic 타임스탬프 제거
+    if (timeEvents.length > 0 || timeStats.firstStartTime) {
+      setOptimisticTimestamps({});
+    }
+  }, [isPaused, isActive, timeEvents.length, timeStats.firstStartTime]);
 
   // 시간 이벤트 조회 (세션 데이터로 계산)
   useEffect(() => {
@@ -97,90 +107,71 @@ export function TimeCheckSection({
 
       {/* 시작/종료 시간 및 시간 이벤트 */}
       <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
-        {/* 세션 데이터로 계산한 시간 이벤트 표시 */}
-        {timeEvents.length > 0 ? (
-          <>
-            {timeEvents
-              .filter((event) => event.type === "start")
-              .slice(0, 1)
-              .map((event, idx) => (
-                <div key={`start-${idx}`} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">시작 시간</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {formatTimestamp(event.timestamp)}
-                  </span>
-                </div>
-              ))}
-            {timeEvents
-              .filter((event) => event.type === "pause")
-              .slice(-1)
-              .map((event, idx) => (
-                <div key={`pause-${idx}`} className="flex items-center justify-between">
-                  <span className="text-sm text-amber-600">일시정지 시간</span>
-                  <span className="text-sm font-medium text-amber-900">
-                    {formatTimestamp(event.timestamp)}
-                  </span>
-                </div>
-              ))}
-            {timeEvents
-              .filter((event) => event.type === "resume")
-              .slice(-1)
-              .map((event, idx) => (
-                <div key={`resume-${idx}`} className="flex items-center justify-between">
-                  <span className="text-sm text-blue-600">재시작 시간</span>
-                  <span className="text-sm font-medium text-blue-900">
-                    {formatTimestamp(event.timestamp)}
-                  </span>
-                </div>
-              ))}
-            {timeEvents
-              .filter((event) => event.type === "complete")
-              .slice(0, 1)
-              .map((event, idx) => (
-                <div key={`complete-${idx}`} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">종료 시간</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {formatTimestamp(event.timestamp)}
-                  </span>
-                </div>
-              ))}
-          </>
-        ) : (
-          <>
-            {/* 이벤트가 없을 때는 timeStats로 표시 (fallback) */}
-            {timeStats.firstStartTime && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">시작 시간</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {formatTimestamp(timeStats.firstStartTime)}
-                </span>
-              </div>
-            )}
-            {timeStats.currentPausedAt && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-amber-600">일시정지 시간</span>
-                <span className="text-sm font-medium text-amber-900">
-                  {formatTimestamp(timeStats.currentPausedAt)}
-                </span>
-              </div>
-            )}
-            {timeStats.lastResumedAt && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-blue-600">재시작 시간</span>
-                <span className="text-sm font-medium text-blue-900">
-                  {formatTimestamp(timeStats.lastResumedAt)}
-                </span>
-              </div>
-            )}
-            {timeStats.lastEndTime && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">종료 시간</span>
-                <span className="text-sm font-medium text-gray-900">
-                  {formatTimestamp(timeStats.lastEndTime)}
-                </span>
-              </div>
-            )}
-          </>
+        {/* Optimistic 타임스탬프 또는 실제 타임스탬프 표시 */}
+        {/* 시작 시간 */}
+        {(optimisticTimestamps.start || 
+          timeEvents.find((e) => e.type === "start")?.timestamp || 
+          timeStats.firstStartTime) && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">시작 시간</span>
+            <span className="text-sm font-medium text-gray-900">
+              {formatTimestamp(
+                optimisticTimestamps.start ||
+                timeEvents.find((e) => e.type === "start")?.timestamp ||
+                timeStats.firstStartTime ||
+                ""
+              )}
+            </span>
+          </div>
+        )}
+        
+        {/* 일시정지 시간 */}
+        {(optimisticTimestamps.pause || 
+          timeEvents.filter((e) => e.type === "pause").slice(-1)[0]?.timestamp || 
+          timeStats.currentPausedAt) && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-amber-600">일시정지 시간</span>
+            <span className="text-sm font-medium text-amber-900">
+              {formatTimestamp(
+                optimisticTimestamps.pause ||
+                timeEvents.filter((e) => e.type === "pause").slice(-1)[0]?.timestamp ||
+                timeStats.currentPausedAt ||
+                ""
+              )}
+            </span>
+          </div>
+        )}
+        
+        {/* 재시작 시간 */}
+        {(optimisticTimestamps.resume || 
+          timeEvents.filter((e) => e.type === "resume").slice(-1)[0]?.timestamp || 
+          timeStats.lastResumedAt) && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-blue-600">재시작 시간</span>
+            <span className="text-sm font-medium text-blue-900">
+              {formatTimestamp(
+                optimisticTimestamps.resume ||
+                timeEvents.filter((e) => e.type === "resume").slice(-1)[0]?.timestamp ||
+                timeStats.lastResumedAt ||
+                ""
+              )}
+            </span>
+          </div>
+        )}
+        
+        {/* 종료 시간 */}
+        {(timeEvents.find((e) => e.type === "complete")?.timestamp || 
+          timeStats.lastEndTime) && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">종료 시간</span>
+            <span className="text-sm font-medium text-gray-900">
+              {formatTimestamp(
+                timeEvents.find((e) => e.type === "complete")?.timestamp ||
+                timeStats.lastEndTime ||
+                ""
+              )}
+            </span>
+          </div>
         )}
       </div>
 
@@ -206,16 +197,32 @@ export function TimeCheckSection({
           onStart={() => {
             setOptimisticIsActive(true);
             setOptimisticIsPaused(false);
+            // Optimistic 타임스탬프 설정 (즉시 표시)
+            setOptimisticTimestamps((prev) => ({
+              ...prev,
+              start: new Date().toISOString(),
+            }));
             // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
             onStart();
           }}
           onPause={() => {
             setOptimisticIsPaused(true);
+            // Optimistic 타임스탬프 설정 (즉시 표시)
+            setOptimisticTimestamps((prev) => ({
+              ...prev,
+              pause: new Date().toISOString(),
+            }));
             // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
             onPause();
           }}
           onResume={() => {
             setOptimisticIsPaused(false);
+            // Optimistic 타임스탬프 설정 (즉시 표시)
+            setOptimisticTimestamps((prev) => ({
+              ...prev,
+              resume: new Date().toISOString(),
+              pause: undefined, // 재시작 시 일시정지 타임스탬프 제거
+            }));
             // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
             onResume();
           }}
