@@ -20,6 +20,7 @@ import { TimerLogSection } from "./TimerLogSection";
 import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
 import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
+import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
@@ -205,6 +206,28 @@ export function PlanGroupCard({
     }
   };
 
+  // 타이머 초기화 핸들러
+  const handleResetTimer = async () => {
+    if (!confirm("타이머 기록을 초기화하시겠습니까?\n\n초기화하면 다음 정보가 삭제됩니다:\n- 시작/종료 시간\n- 학습 시간 기록\n- 일시정지 기록\n- 타이머 로그\n\n이 작업은 되돌릴 수 없습니다.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await resetPlanTimer(group.planNumber, planDate);
+      if (result.success) {
+        router.refresh();
+      } else {
+        alert(result.error || "타이머 초기화에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("[PlanGroupCard] 타이머 초기화 오류:", error);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 콘텐츠 총량 계산 (totalPages가 없으면 첫 번째 플랜의 콘텐츠에서 추정)
   const getTotalPages = () => {
     if (totalPages !== undefined && totalPages > 0) {
@@ -250,10 +273,13 @@ export function PlanGroupCard({
           planId={activePlan?.id || group.plans[0]?.id || ""}
           isActive={isGroupRunning}
           isLoading={isLoading}
+          planNumber={group.planNumber}
+          planDate={planDate}
           onStart={handleGroupStart}
           onPause={handleGroupPause}
           onResume={handleGroupResume}
           onComplete={handleGroupComplete}
+          onReset={handleResetTimer}
         />
 
         {/* 타이머 로그 섹션 */}

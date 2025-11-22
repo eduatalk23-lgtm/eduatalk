@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Play, Pause, CheckCircle } from "lucide-react";
+import { Clock, Play, Pause, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTime, formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
 
@@ -12,10 +12,13 @@ type TimeCheckSectionProps = {
   planId: string; // 타이머 컨트롤용 플랜 ID
   isActive: boolean; // 진행 중인지 여부
   isLoading?: boolean; // 로딩 상태
+  planNumber: number | null; // 플랜 그룹 번호 (초기화용)
+  planDate: string; // 플랜 날짜 (초기화용)
   onStart: () => void; // 시작 핸들러
   onPause: () => void; // 일시정지 핸들러
   onResume: () => void; // 재개 핸들러
   onComplete: () => void; // 완료 핸들러
+  onReset?: () => void; // 초기화 핸들러
 };
 
 export function TimeCheckSection({
@@ -25,10 +28,13 @@ export function TimeCheckSection({
   planId,
   isActive,
   isLoading = false,
+  planNumber,
+  planDate,
   onStart,
   onPause,
   onResume,
   onComplete,
+  onReset,
 }: TimeCheckSectionProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
