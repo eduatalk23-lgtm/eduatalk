@@ -49,7 +49,7 @@ export function DailyPlanView({
         const memo = memos.get(group.planNumber);
 
         return (
-          <div key={group.planNumber ?? `group-${index}`}>
+          <div key={`group-${group.planNumber}-${index}`}>
             <PlanGroupCard
               group={group}
               viewMode="daily"

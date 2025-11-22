@@ -515,7 +515,7 @@ export function PlanGroupCard({
 
         {/* 개별 플랜 블록 */}
         <div className="flex flex-col gap-3">
-          {group.plans.map((plan) => {
+          {group.plans.map((plan, index) => {
             // plan 객체에 session 정보 추가
             const planWithSession = {
               ...plan,
