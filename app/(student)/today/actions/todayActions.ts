@@ -243,15 +243,17 @@ export async function completePlan(
       totalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
     }
 
-    // 활성 세션 조회하여 일시정지 정보 가져오기 및 종료
-    const { data: activeSession } = await supabase
+    // 활성 세션 조회하여 일시정지 정보 가져오기 및 종료 (여러 개일 수 있으므로 배열로 조회)
+    const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
       .select("id, paused_duration_seconds, paused_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
-      .maybeSingle();
+      .order("started_at", { ascending: false }); // 최신 세션 우선
 
+    // 여러 세션이 있는 경우 가장 최근 세션 사용
+    const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
     const sessionPausedDuration = activeSession?.paused_duration_seconds || 0;
     const planPausedDuration = planData?.paused_duration_seconds || 0;
     
