@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Clock, Play, Pause, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTime, formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
+import { getTimerLogsByPlanNumber } from "../actions/timerLogActions";
+import type { TimerLog } from "../actions/timerLogActions";
 
 type TimeCheckSectionProps = {
   timeStats: TimeStats;
@@ -37,9 +39,22 @@ export function TimeCheckSection({
   onReset,
 }: TimeCheckSectionProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timerLogs, setTimerLogs] = useState<TimerLog[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   // activePlanStartTime을 정규화 (null 또는 문자열로 통일)
   const normalizedStartTime = activePlanStartTime ?? null;
+
+  // 타이머 로그 조회
+  useEffect(() => {
+    const loadTimerLogs = async () => {
+      const result = await getTimerLogsByPlanNumber(planNumber, planDate);
+      if (result.success && result.logs) {
+        setTimerLogs(result.logs);
+      }
+    };
+    loadTimerLogs();
+  }, [planNumber, planDate, isActive, isPaused]);
 
   // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
   const isCompleted = Boolean(timeStats.isCompleted);
@@ -84,39 +99,92 @@ export function TimeCheckSection({
         시간 정보
       </h3>
 
-      {/* 시작/종료 시간 */}
+      {/* 시작/종료 시간 및 타이머 로그 */}
       <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
-        {timeStats.firstStartTime && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">시작 시간</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatTimestamp(timeStats.firstStartTime)}
-            </span>
-          </div>
-        )}
-        {timeStats.currentPausedAt && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-amber-600">일시정지 시간</span>
-            <span className="text-sm font-medium text-amber-900">
-              {formatTimestamp(timeStats.currentPausedAt)}
-            </span>
-          </div>
-        )}
-        {timeStats.lastResumedAt && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-blue-600">재시작 시간</span>
-            <span className="text-sm font-medium text-blue-900">
-              {formatTimestamp(timeStats.lastResumedAt)}
-            </span>
-          </div>
-        )}
-        {timeStats.lastEndTime && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">종료 시간</span>
-            <span className="text-sm font-medium text-gray-900">
-              {formatTimestamp(timeStats.lastEndTime)}
-            </span>
-          </div>
+        {/* 타이머 로그에서 시작/일시정지/재개/완료 시간 표시 */}
+        {timerLogs.length > 0 ? (
+          <>
+            {timerLogs
+              .filter((log) => log.event_type === "start")
+              .slice(0, 1)
+              .map((log) => (
+                <div key={log.id} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">시작 시간</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatTimestamp(log.timestamp)}
+                  </span>
+                </div>
+              ))}
+            {timerLogs
+              .filter((log) => log.event_type === "pause")
+              .slice(-1)
+              .map((log) => (
+                <div key={log.id} className="flex items-center justify-between">
+                  <span className="text-sm text-amber-600">일시정지 시간</span>
+                  <span className="text-sm font-medium text-amber-900">
+                    {formatTimestamp(log.timestamp)}
+                  </span>
+                </div>
+              ))}
+            {timerLogs
+              .filter((log) => log.event_type === "resume")
+              .slice(-1)
+              .map((log) => (
+                <div key={log.id} className="flex items-center justify-between">
+                  <span className="text-sm text-blue-600">재시작 시간</span>
+                  <span className="text-sm font-medium text-blue-900">
+                    {formatTimestamp(log.timestamp)}
+                  </span>
+                </div>
+              ))}
+            {timerLogs
+              .filter((log) => log.event_type === "complete")
+              .slice(0, 1)
+              .map((log) => (
+                <div key={log.id} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">종료 시간</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatTimestamp(log.timestamp)}
+                  </span>
+                </div>
+              ))}
+          </>
+        ) : (
+          <>
+            {/* 로그가 없을 때는 기존 방식으로 표시 */}
+            {timeStats.firstStartTime && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">시작 시간</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {formatTimestamp(timeStats.firstStartTime)}
+                </span>
+              </div>
+            )}
+            {timeStats.currentPausedAt && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-amber-600">일시정지 시간</span>
+                <span className="text-sm font-medium text-amber-900">
+                  {formatTimestamp(timeStats.currentPausedAt)}
+                </span>
+              </div>
+            )}
+            {timeStats.lastResumedAt && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-blue-600">재시작 시간</span>
+                <span className="text-sm font-medium text-blue-900">
+                  {formatTimestamp(timeStats.lastResumedAt)}
+                </span>
+              </div>
+            )}
+            {timeStats.lastEndTime && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">종료 시간</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {formatTimestamp(timeStats.lastEndTime)}
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -184,7 +252,7 @@ export function TimeCheckSection({
           isActive={isActive}
           isPaused={isPaused}
           isCompleted={!!timeStats.lastEndTime}
-          isLoading={isLoading}
+          isLoading={isLoading || isPending}
           onStart={onStart}
           onPause={onPause}
           onResume={onResume}

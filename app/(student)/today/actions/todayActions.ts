@@ -594,6 +594,26 @@ export async function resumePlan(
       .eq("id", planId)
       .eq("student_id", user.userId);
 
+    // 현재 누적 학습 시간 계산 (일시정지 시간 제외)
+    const { data: planForDuration } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, paused_duration_seconds, total_duration_seconds")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    let currentDuration = 0;
+    if (planForDuration?.actual_start_time) {
+      const startTime = new Date(planForDuration.actual_start_time);
+      const now = new Date();
+      const totalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+      const pausedSeconds = planForDuration.paused_duration_seconds || 0;
+      currentDuration = Math.max(0, totalSeconds - pausedSeconds);
+    }
+
+    // 타이머 로그 기록 (재개)
+    await recordTimerLog(planId, "resume", currentDuration);
+
     revalidatePath("/today");
     revalidatePath("/dashboard");
     revalidatePath(`/today/plan/${planId}`);

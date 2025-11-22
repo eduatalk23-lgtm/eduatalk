@@ -22,7 +22,7 @@ import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
 import { getTimerLogsByPlanNumber } from "../actions/timerLogActions";
 import type { TimerLog } from "../actions/timerLogActions";
@@ -48,6 +48,7 @@ export function PlanGroupCard({
 }: PlanGroupCardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
   const [timerLogs, setTimerLogs] = useState<TimerLog[]>([]);
@@ -77,7 +78,7 @@ export function PlanGroupCard({
   // 시간 통계 계산
   const timeStats = getTimeStats(group.plans, activePlan, sessions);
 
-  // 그룹 타이머 제어 핸들러
+  // 그룹 타이머 제어 핸들러 (optimistic update 적용)
   const handleGroupStart = async () => {
     // 그룹 내 첫 번째 대기 중인 플랜 시작
     const waitingPlan = group.plans.find(
@@ -89,13 +90,16 @@ export function PlanGroupCard({
     try {
       const result = await startPlan(waitingPlan.id);
       if (result.success) {
-        router.refresh();
+        // 즉시 UI 업데이트를 위해 startTransition 사용
+        startTransition(() => {
+          router.refresh();
+        });
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
+        setIsLoading(false);
       }
     } catch (error) {
       alert("오류가 발생했습니다.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -144,7 +148,10 @@ export function PlanGroupCard({
         alert(`일시정지에 실패했습니다: ${errorMessages}`);
       } else {
         console.log("[PlanGroupCard] 모든 플랜 일시정지 성공, 페이지 새로고침");
-        router.refresh();
+        // 즉시 UI 업데이트
+        startTransition(() => {
+          router.refresh();
+        });
       }
     } catch (error) {
       console.error("[PlanGroupCard] 일시정지 오류:", error);
@@ -162,11 +169,20 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
-      await Promise.all(pausedPlanIds.map((planId) => resumePlan(planId)));
-      router.refresh();
+      const results = await Promise.all(pausedPlanIds.map((planId) => resumePlan(planId)));
+      const failedResults = results.filter((r) => !r.success);
+      if (failedResults.length > 0) {
+        const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
+        alert(`재개에 실패했습니다: ${errorMessages}`);
+        setIsLoading(false);
+      } else {
+        // 즉시 UI 업데이트
+        startTransition(() => {
+          router.refresh();
+        });
+      }
     } catch (error) {
       alert("오류가 발생했습니다.");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -452,7 +468,7 @@ export function PlanGroupCard({
         isActive={isGroupRunning}
         isPaused={isGroupPaused}
         isCompleted={completedPlansCount === group.plans.length}
-        isLoading={isLoading}
+        isLoading={isLoading || isPending}
         onStart={handleGroupStart}
         onPause={handleGroupPause}
         onResume={handleGroupResume}
