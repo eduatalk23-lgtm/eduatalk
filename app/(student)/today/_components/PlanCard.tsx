@@ -244,54 +244,17 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 - 같은 plan_number를 가진 플랜은 하나의 논리적 플랜으로 통합 */}
+        {/* 플랜 목록 - 통합 정보 사용 */}
         <div className="flex flex-col gap-3">
           <h3 className="text-lg font-semibold text-gray-900">플랜 목록</h3>
           {(() => {
-            // 같은 plan_number를 가진 플랜들은 이미 group으로 묶여있으므로, 하나의 항목으로 표시
-            const allPlans = group.plans;
-            const representativePlan = allPlans[0];
-            
-            // 모든 플랜이 완료되었는지 확인
-            const isCompleted = allPlans.every((p) => !!p.actual_end_time);
-            
-            // 그룹 전체 진행률 계산
-            const totalRange = allPlans.reduce((sum, plan) => {
-              const range = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
-              return sum + range;
-            }, 0);
-            
-            const completedRange = allPlans.reduce((sum, plan) => {
-              return sum + (plan.completed_amount ?? 0);
-            }, 0);
-            
-            const progress = totalRange > 0 ? Math.round((completedRange / totalRange) * 100) : 0;
-            
-            // 전체 범위 계산 (가장 작은 시작 ~ 가장 큰 종료)
-            const allStarts = allPlans
-              .map((p) => p.planned_start_page_or_time)
-              .filter((v): v is number => v !== null && v !== undefined)
-              .sort((a, b) => a - b);
-            const allEnds = allPlans
-              .map((p) => p.planned_end_page_or_time)
-              .filter((v): v is number => v !== null && v !== undefined)
-              .sort((a, b) => b - a);
-            
-            const overallStart = allStarts.length > 0 ? allStarts[0] : null;
-            const overallEnd = allEnds.length > 0 ? allEnds[0] : null;
-            
-            // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
-            const startTimes = allPlans
-              .map((p) => p.start_time)
-              .filter((t): t is string => !!t)
-              .sort();
-            const endTimes = allPlans
-              .map((p) => p.end_time)
-              .filter((t): t is string => !!t)
-              .sort();
-            const timeDisplay = startTimes.length > 0 && endTimes.length > 0
-              ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
-              : null;
+            const representativePlan = group.plans[0];
+            const contentType = representativePlan.content_type;
+            const contentTypeIcon = contentType === "book"
+              ? "📖"
+              : contentType === "lecture"
+              ? "🎧"
+              : "📝";
 
             return (
               <div
@@ -299,11 +262,11 @@ export function PlanCard({
                 className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
               >
                 <button
-                  onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
+                  onClick={() => handleToggleCompletion(group.representativePlanId, group.isCompleted)}
                   disabled={isLoading}
                   className="flex-shrink-0"
                 >
-                  {isCompleted ? (
+                  {group.isCompleted ? (
                     <CheckCircle2 className="h-6 w-6 text-green-600" />
                   ) : (
                     <Circle className="h-6 w-6 text-gray-400" />
@@ -311,51 +274,27 @@ export function PlanCard({
                 </button>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">
-                    {(() => {
-                      const contentType = representativePlan.content_type;
-                      const contentTypeIcon = contentType === "book"
-                        ? "📖"
-                        : contentType === "lecture"
-                        ? "🎧"
-                        : "📝";
-                      
-                      const chapterText = representativePlan.chapter;
-                      
-                      // 챕터 정보 표시 (없으면 "정보 없음")
-                      return (
-                        <>
-                          {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
-                        </>
-                      );
-                    })()}
+                    {contentTypeIcon} 챕터: {representativePlan.chapter || "정보 없음"}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {(() => {
-                      const contentType = representativePlan.content_type;
-                      
-                      // 전체 범위 표시
-                      if (overallStart !== null && overallEnd !== null) {
-                        if (contentType === "book") {
-                          return <>📄 페이지: {overallStart} ~ {overallEnd}</>;
-                        } else if (contentType === "lecture") {
-                          return <>🎧 강의: {overallStart} ~ {overallEnd}</>;
-                        } else {
-                          return <>📝 범위: {overallStart} ~ {overallEnd}</>;
-                        }
-                      }
-                      return null;
-                    })()}
+                    {group.overallStart !== null && group.overallEnd !== null && (
+                      <>
+                        {contentType === "book" && <>📄 페이지: {group.overallStart} ~ {group.overallEnd}</>}
+                        {contentType === "lecture" && <>🎧 강의: {group.overallStart} ~ {group.overallEnd}</>}
+                        {contentType === "custom" && <>📝 범위: {group.overallStart} ~ {group.overallEnd}</>}
+                      </>
+                    )}
                   </div>
-                  {timeDisplay && (
+                  {group.timeDisplay && (
                     <div className="mt-1 text-xs text-blue-600">
-                      ⏰ 시간: {timeDisplay}
+                      ⏰ 시간: {group.timeDisplay}
                     </div>
                   )}
-                  {progress > 0 && (
+                  {group.overallProgress > 0 && (
                     <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
                       <div
                         className="h-full bg-indigo-500 transition-all duration-300"
-                        style={{ width: `${progress}%` }}
+                        style={{ width: `${group.overallProgress}%` }}
                       />
                     </div>
                   )}
@@ -425,65 +364,28 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 (간단 버전) - 같은 plan_number를 가진 플랜은 하나의 논리적 플랜으로 통합 */}
+        {/* 플랜 목록 (간단 버전) - 통합 정보 사용 */}
         <div className="flex flex-col gap-2">
           {(() => {
-            // 같은 plan_number를 가진 플랜들은 이미 group으로 묶여있으므로, 하나의 항목으로 표시
-            const allPlans = group.plans;
-            const representativePlan = allPlans[0];
+            const representativePlan = group.plans[0];
+            const contentType = representativePlan.content_type;
+            const contentTypeIcon = contentType === "book"
+              ? "📖"
+              : contentType === "lecture"
+              ? "🎧"
+              : "📝";
             
-            // 모든 플랜이 완료되었는지 확인
-            const isCompleted = allPlans.every((p) => !!p.actual_end_time);
-            
-            // 그룹 전체 진행률 계산
-            const totalRange = allPlans.reduce((sum, plan) => {
-              const range = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
-              return sum + range;
-            }, 0);
-            
-            const completedRange = allPlans.reduce((sum, plan) => {
-              return sum + (plan.completed_amount ?? 0);
-            }, 0);
-            
-            const progress = totalRange > 0 ? Math.round((completedRange / totalRange) * 100) : 0;
-            
-            // 전체 범위 계산 (가장 작은 시작 ~ 가장 큰 종료)
-            const allStarts = allPlans
-              .map((p) => p.planned_start_page_or_time)
-              .filter((v): v is number => v !== null && v !== undefined)
-              .sort((a, b) => a - b);
-            const allEnds = allPlans
-              .map((p) => p.planned_end_page_or_time)
-              .filter((v): v is number => v !== null && v !== undefined)
-              .sort((a, b) => b - a);
-            
-            const overallStart = allStarts.length > 0 ? allStarts[0] : null;
-            const overallEnd = allEnds.length > 0 ? allEnds[0] : null;
-            
-            // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
-            const startTimes = allPlans
-              .map((p) => p.start_time)
-              .filter((t): t is string => !!t)
-              .sort();
-            const endTimes = allPlans
-              .map((p) => p.end_time)
-              .filter((t): t is string => !!t)
-              .sort();
-            const timeDisplay = startTimes.length > 0 && endTimes.length > 0
-              ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
-              : null;
-
             return (
               <div
                 key={group.planNumber ?? 'no-number'}
                 className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
               >
                 <button
-                  onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
+                  onClick={() => handleToggleCompletion(group.representativePlanId, group.isCompleted)}
                   disabled={isLoading}
                   className="flex-shrink-0"
                 >
-                  {isCompleted ? (
+                  {group.isCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
                   ) : (
                     <Circle className="h-5 w-5 text-gray-400" />
@@ -491,52 +393,28 @@ export function PlanCard({
                 </button>
                 <div className="flex-1 text-xs">
                   <div className="font-medium text-gray-900">
-                    {(() => {
-                      const contentType = representativePlan.content_type;
-                      const contentTypeIcon = contentType === "book"
-                        ? "📖"
-                        : contentType === "lecture"
-                        ? "🎧"
-                        : "📝";
-                      
-                      const chapterText = representativePlan.chapter;
-                      
-                      // 챕터 정보 표시 (없으면 "정보 없음")
-                      return (
-                        <>
-                          {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
-                        </>
-                      );
-                    })()}
+                    {contentTypeIcon} 챕터: {representativePlan.chapter || "정보 없음"}
                   </div>
                   <div className="text-gray-500">
-                    {(() => {
-                      const contentType = representativePlan.content_type;
-                      
-                      // 전체 범위 표시
-                      if (overallStart !== null && overallEnd !== null) {
-                        if (contentType === "book") {
-                          return <>📄 페이지: {overallStart} ~ {overallEnd}</>;
-                        } else if (contentType === "lecture") {
-                          return <>🎧 강의: {overallStart} ~ {overallEnd}</>;
-                        } else {
-                          return <>📝 범위: {overallStart} ~ {overallEnd}</>;
-                        }
-                      }
-                      return null;
-                    })()}
+                    {group.overallStart !== null && group.overallEnd !== null && (
+                      <>
+                        {contentType === "book" && <>📄 페이지: {group.overallStart} ~ {group.overallEnd}</>}
+                        {contentType === "lecture" && <>🎧 강의: {group.overallStart} ~ {group.overallEnd}</>}
+                        {contentType === "custom" && <>📝 범위: {group.overallStart} ~ {group.overallEnd}</>}
+                      </>
+                    )}
                   </div>
-                  {timeDisplay && (
+                  {group.timeDisplay && (
                     <div className="mt-0.5 text-xs text-blue-600">
-                      ⏰ 시간: {timeDisplay}
+                      ⏰ 시간: {group.timeDisplay}
                     </div>
                   )}
                 </div>
-                {progress > 0 && (
+                {group.overallProgress > 0 && (
                   <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
                     <div
                       className="h-full bg-indigo-500"
-                      style={{ width: `${progress}%` }}
+                      style={{ width: `${group.overallProgress}%` }}
                     />
                   </div>
                 )}

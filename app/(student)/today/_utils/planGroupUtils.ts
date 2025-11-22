@@ -16,10 +16,17 @@ export type PlanGroup = {
   plans: PlanWithContent[]; // 같은 plan_number를 가진 플랜들
   content: Book | Lecture | CustomContent | undefined;
   sequence: number | null; // 회차
+  // 통합 정보 (같은 plan_number를 가진 플랜들을 하나로 통합한 정보)
+  overallStart: number | null; // 전체 범위의 시작 (가장 작은 시작)
+  overallEnd: number | null; // 전체 범위의 종료 (가장 큰 종료)
+  overallProgress: number; // 전체 진행률
+  isCompleted: boolean; // 모든 플랜이 완료되었는지
+  timeDisplay: string | null; // 시간 정보 (가장 이른 시작 ~ 가장 늦은 종료)
+  representativePlanId: string; // 대표 플랜 ID (완료 토글 등에 사용)
 };
 
 /**
- * 같은 plan_number를 가진 플랜들을 그룹화
+ * 같은 plan_number를 가진 플랜들을 그룹화하고 통합 정보 계산
  */
 export function groupPlansByPlanNumber(plans: PlanWithContent[]): PlanGroup[] {
   const groups = new Map<number | null, PlanWithContent[]>();
@@ -32,12 +39,64 @@ export function groupPlansByPlanNumber(plans: PlanWithContent[]): PlanGroup[] {
     groups.get(planNumber)!.push(plan);
   });
 
-  return Array.from(groups.entries()).map(([planNumber, plans]) => ({
-    planNumber,
-    plans: plans.sort((a, b) => (a.block_index ?? 0) - (b.block_index ?? 0)),
-    content: plans[0]?.content, // 모든 플랜이 같은 콘텐츠를 가짐
-    sequence: plans[0]?.sequence ?? null, // 모든 플랜이 같은 회차를 가짐
-  }));
+  return Array.from(groups.entries()).map(([planNumber, plans]) => {
+    const sortedPlans = plans.sort((a, b) => (a.block_index ?? 0) - (b.block_index ?? 0));
+    const representativePlan = sortedPlans[0];
+    
+    // 모든 플랜이 완료되었는지 확인
+    const isCompleted = sortedPlans.every((p) => !!p.actual_end_time);
+    
+    // 전체 범위 계산 (가장 작은 시작 ~ 가장 큰 종료)
+    const allStarts = sortedPlans
+      .map((p) => p.planned_start_page_or_time)
+      .filter((v): v is number => v !== null && v !== undefined)
+      .sort((a, b) => a - b);
+    const allEnds = sortedPlans
+      .map((p) => p.planned_end_page_or_time)
+      .filter((v): v is number => v !== null && v !== undefined)
+      .sort((a, b) => b - a);
+    
+    const overallStart = allStarts.length > 0 ? allStarts[0] : null;
+    const overallEnd = allEnds.length > 0 ? allEnds[0] : null;
+    
+    // 전체 진행률 계산
+    const totalRange = sortedPlans.reduce((sum, plan) => {
+      const range = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
+      return sum + range;
+    }, 0);
+    
+    const completedRange = sortedPlans.reduce((sum, plan) => {
+      return sum + (plan.completed_amount ?? 0);
+    }, 0);
+    
+    const overallProgress = totalRange > 0 ? Math.round((completedRange / totalRange) * 100) : 0;
+    
+    // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
+    const startTimes = sortedPlans
+      .map((p) => p.start_time)
+      .filter((t): t is string => !!t)
+      .sort();
+    const endTimes = sortedPlans
+      .map((p) => p.end_time)
+      .filter((t): t is string => !!t)
+      .sort();
+    const timeDisplay = startTimes.length > 0 && endTimes.length > 0
+      ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
+      : null;
+
+    return {
+      planNumber,
+      plans: sortedPlans,
+      content: representativePlan?.content, // 모든 플랜이 같은 콘텐츠를 가짐
+      sequence: representativePlan?.sequence ?? null, // 모든 플랜이 같은 회차를 가짐
+      overallStart,
+      overallEnd,
+      overallProgress,
+      isCompleted,
+      timeDisplay,
+      representativePlanId: representativePlan?.id ?? "",
+    };
+  });
 }
 
 /**
