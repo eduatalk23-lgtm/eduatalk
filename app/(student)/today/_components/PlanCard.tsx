@@ -244,117 +244,124 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 - 같은 범위를 가진 플랜은 하나로 합침 */}
+        {/* 플랜 목록 - 같은 plan_number를 가진 플랜은 하나의 논리적 플랜으로 통합 */}
         <div className="flex flex-col gap-3">
           <h3 className="text-lg font-semibold text-gray-900">플랜 목록</h3>
           {(() => {
-            // 같은 범위를 가진 플랜들을 그룹화
-            const rangeGroups = new Map<string, typeof group.plans>();
-            group.plans.forEach((plan) => {
-              const rangeKey = `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
-              if (!rangeGroups.has(rangeKey)) {
-                rangeGroups.set(rangeKey, []);
-              }
-              rangeGroups.get(rangeKey)!.push(plan);
-            });
+            // 같은 plan_number를 가진 플랜들은 이미 group으로 묶여있으므로, 하나의 항목으로 표시
+            const allPlans = group.plans;
+            const representativePlan = allPlans[0];
+            
+            // 모든 플랜이 완료되었는지 확인
+            const isCompleted = allPlans.every((p) => !!p.actual_end_time);
+            
+            // 그룹 전체 진행률 계산
+            const totalRange = allPlans.reduce((sum, plan) => {
+              const range = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
+              return sum + range;
+            }, 0);
+            
+            const completedRange = allPlans.reduce((sum, plan) => {
+              return sum + (plan.completed_amount ?? 0);
+            }, 0);
+            
+            const progress = totalRange > 0 ? Math.round((completedRange / totalRange) * 100) : 0;
+            
+            // 전체 범위 계산 (가장 작은 시작 ~ 가장 큰 종료)
+            const allStarts = allPlans
+              .map((p) => p.planned_start_page_or_time)
+              .filter((v): v is number => v !== null && v !== undefined)
+              .sort((a, b) => a - b);
+            const allEnds = allPlans
+              .map((p) => p.planned_end_page_or_time)
+              .filter((v): v is number => v !== null && v !== undefined)
+              .sort((a, b) => b - a);
+            
+            const overallStart = allStarts.length > 0 ? allStarts[0] : null;
+            const overallEnd = allEnds.length > 0 ? allEnds[0] : null;
+            
+            // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
+            const startTimes = allPlans
+              .map((p) => p.start_time)
+              .filter((t): t is string => !!t)
+              .sort();
+            const endTimes = allPlans
+              .map((p) => p.end_time)
+              .filter((t): t is string => !!t)
+              .sort();
+            const timeDisplay = startTimes.length > 0 && endTimes.length > 0
+              ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
+              : null;
 
-            // 각 범위 그룹을 하나의 항목으로 표시
-            return Array.from(rangeGroups.entries()).map(([rangeKey, plans]) => {
-              // 첫 번째 플랜을 대표로 사용
-              const representativePlan = plans[0];
-              const isCompleted = plans.every((p) => !!p.actual_end_time);
-              const progress = representativePlan.progress ?? 0;
-              
-              // 블록 번호 목록 생성
-              const blockIndices = plans
-                .map((p) => p.block_index ?? 0)
-                .sort((a, b) => a - b);
-              const blockDisplay = blockIndices.length > 1
-                ? `블록 ${blockIndices.join(", ")}`
-                : `블록 ${blockIndices[0]}`;
-              
-              // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
-              const startTimes = plans
-                .map((p) => p.start_time)
-                .filter((t): t is string => !!t)
-                .sort();
-              const endTimes = plans
-                .map((p) => p.end_time)
-                .filter((t): t is string => !!t)
-                .sort();
-              const timeDisplay = startTimes.length > 0 && endTimes.length > 0
-                ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
-                : null;
-
-              return (
-                <div
-                  key={rangeKey}
-                  className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
+            return (
+              <div
+                key={group.planNumber ?? 'no-number'}
+                className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
+              >
+                <button
+                  onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
+                  disabled={isLoading}
+                  className="flex-shrink-0"
                 >
-                  <button
-                    onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
-                    disabled={isLoading}
-                    className="flex-shrink-0"
-                  >
-                    {isCompleted ? (
-                      <CheckCircle2 className="h-6 w-6 text-green-600" />
-                    ) : (
-                      <Circle className="h-6 w-6 text-gray-400" />
-                    )}
-                  </button>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">
-                      {(() => {
-                        const contentType = representativePlan.content_type;
-                        const contentTypeIcon = contentType === "book"
-                          ? "📖"
-                          : contentType === "lecture"
-                          ? "🎧"
-                          : "📝";
-                        
-                        const chapterText = representativePlan.chapter;
-                        
-                        // 챕터 정보 표시 (없으면 "정보 없음")
-                        return (
-                          <>
-                            {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
-                          </>
-                        );
-                      })()}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {(() => {
-                        const contentType = representativePlan.content_type;
-                        const start = representativePlan.planned_start_page_or_time;
-                        const end = representativePlan.planned_end_page_or_time;
-                        
-                        // 아이콘과 함께 중복기재 형식으로 표시
-                        if (contentType === "book") {
-                          return <>📄 페이지: {start} ~ {end}</>;
-                        } else if (contentType === "lecture") {
-                          return <>🎧 강의: {start} ~ {end}</>;
-                        } else {
-                          return <>📝 범위: {start} ~ {end}</>;
-                        }
-                      })()}
-                    </div>
-                    {timeDisplay && (
-                      <div className="mt-1 text-xs text-blue-600">
-                        ⏰ 시간: {timeDisplay}
-                      </div>
-                    )}
-                    {progress > 0 && (
-                      <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className="h-full bg-indigo-500 transition-all duration-300"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    )}
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  ) : (
+                    <Circle className="h-6 w-6 text-gray-400" />
+                  )}
+                </button>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    {(() => {
+                      const contentType = representativePlan.content_type;
+                      const contentTypeIcon = contentType === "book"
+                        ? "📖"
+                        : contentType === "lecture"
+                        ? "🎧"
+                        : "📝";
+                      
+                      const chapterText = representativePlan.chapter;
+                      
+                      // 챕터 정보 표시 (없으면 "정보 없음")
+                      return (
+                        <>
+                          {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
+                        </>
+                      );
+                    })()}
                   </div>
+                  <div className="text-xs text-gray-500">
+                    {(() => {
+                      const contentType = representativePlan.content_type;
+                      
+                      // 전체 범위 표시
+                      if (overallStart !== null && overallEnd !== null) {
+                        if (contentType === "book") {
+                          return <>📄 페이지: {overallStart} ~ {overallEnd}</>;
+                        } else if (contentType === "lecture") {
+                          return <>🎧 강의: {overallStart} ~ {overallEnd}</>;
+                        } else {
+                          return <>📝 범위: {overallStart} ~ {overallEnd}</>;
+                        }
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  {timeDisplay && (
+                    <div className="mt-1 text-xs text-blue-600">
+                      ⏰ 시간: {timeDisplay}
+                    </div>
+                  )}
+                  {progress > 0 && (
+                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className="h-full bg-indigo-500 transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
-              );
-            });
+              </div>
+            );
           })()}
         </div>
       </div>
@@ -418,116 +425,123 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 (간단 버전) - 같은 범위를 가진 플랜은 하나로 합침 */}
+        {/* 플랜 목록 (간단 버전) - 같은 plan_number를 가진 플랜은 하나의 논리적 플랜으로 통합 */}
         <div className="flex flex-col gap-2">
           {(() => {
-            // 같은 범위를 가진 플랜들을 그룹화
-            const rangeGroups = new Map<string, typeof group.plans>();
-            group.plans.forEach((plan) => {
-              const rangeKey = `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
-              if (!rangeGroups.has(rangeKey)) {
-                rangeGroups.set(rangeKey, []);
-              }
-              rangeGroups.get(rangeKey)!.push(plan);
-            });
+            // 같은 plan_number를 가진 플랜들은 이미 group으로 묶여있으므로, 하나의 항목으로 표시
+            const allPlans = group.plans;
+            const representativePlan = allPlans[0];
+            
+            // 모든 플랜이 완료되었는지 확인
+            const isCompleted = allPlans.every((p) => !!p.actual_end_time);
+            
+            // 그룹 전체 진행률 계산
+            const totalRange = allPlans.reduce((sum, plan) => {
+              const range = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
+              return sum + range;
+            }, 0);
+            
+            const completedRange = allPlans.reduce((sum, plan) => {
+              return sum + (plan.completed_amount ?? 0);
+            }, 0);
+            
+            const progress = totalRange > 0 ? Math.round((completedRange / totalRange) * 100) : 0;
+            
+            // 전체 범위 계산 (가장 작은 시작 ~ 가장 큰 종료)
+            const allStarts = allPlans
+              .map((p) => p.planned_start_page_or_time)
+              .filter((v): v is number => v !== null && v !== undefined)
+              .sort((a, b) => a - b);
+            const allEnds = allPlans
+              .map((p) => p.planned_end_page_or_time)
+              .filter((v): v is number => v !== null && v !== undefined)
+              .sort((a, b) => b - a);
+            
+            const overallStart = allStarts.length > 0 ? allStarts[0] : null;
+            const overallEnd = allEnds.length > 0 ? allEnds[0] : null;
+            
+            // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
+            const startTimes = allPlans
+              .map((p) => p.start_time)
+              .filter((t): t is string => !!t)
+              .sort();
+            const endTimes = allPlans
+              .map((p) => p.end_time)
+              .filter((t): t is string => !!t)
+              .sort();
+            const timeDisplay = startTimes.length > 0 && endTimes.length > 0
+              ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
+              : null;
 
-            // 각 범위 그룹을 하나의 항목으로 표시
-            return Array.from(rangeGroups.entries()).map(([rangeKey, plans]) => {
-              // 첫 번째 플랜을 대표로 사용
-              const representativePlan = plans[0];
-              const isCompleted = plans.every((p) => !!p.actual_end_time);
-              const progress = representativePlan.progress ?? 0;
-              
-              // 블록 번호 목록 생성
-              const blockIndices = plans
-                .map((p) => p.block_index ?? 0)
-                .sort((a, b) => a - b);
-              const blockDisplay = blockIndices.length > 1
-                ? `블록 ${blockIndices.join(", ")}`
-                : `블록 ${blockIndices[0]}`;
-              
-              // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
-              const startTimes = plans
-                .map((p) => p.start_time)
-                .filter((t): t is string => !!t)
-                .sort();
-              const endTimes = plans
-                .map((p) => p.end_time)
-                .filter((t): t is string => !!t)
-                .sort();
-              const timeDisplay = startTimes.length > 0 && endTimes.length > 0
-                ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
-                : null;
-
-              return (
-                <div
-                  key={rangeKey}
-                  className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
+            return (
+              <div
+                key={group.planNumber ?? 'no-number'}
+                className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
+              >
+                <button
+                  onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
+                  disabled={isLoading}
+                  className="flex-shrink-0"
                 >
-                  <button
-                    onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
-                    disabled={isLoading}
-                    className="flex-shrink-0"
-                  >
-                    {isCompleted ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <Circle className="h-5 w-5 text-gray-400" />
-                    )}
-                  </button>
-                  <div className="flex-1 text-xs">
-                    <div className="font-medium text-gray-900">
-                      {(() => {
-                        const contentType = representativePlan.content_type;
-                        const contentTypeIcon = contentType === "book"
-                          ? "📖"
-                          : contentType === "lecture"
-                          ? "🎧"
-                          : "📝";
-                        
-                        const chapterText = representativePlan.chapter;
-                        
-                        // 챕터 정보 표시 (없으면 "정보 없음")
-                        return (
-                          <>
-                            {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
-                          </>
-                        );
-                      })()}
-                    </div>
-                    <div className="text-gray-500">
-                      {(() => {
-                        const contentType = representativePlan.content_type;
-                        const start = representativePlan.planned_start_page_or_time;
-                        const end = representativePlan.planned_end_page_or_time;
-                        
-                        // 아이콘과 함께 중복기재 형식으로 표시
-                        if (contentType === "book") {
-                          return <>📄 페이지: {start} ~ {end}</>;
-                        } else if (contentType === "lecture") {
-                          return <>🎧 강의: {start} ~ {end}</>;
-                        } else {
-                          return <>📝 범위: {start} ~ {end}</>;
-                        }
-                      })()}
-                    </div>
-                    {timeDisplay && (
-                      <div className="mt-0.5 text-xs text-blue-600">
-                        ⏰ 시간: {timeDisplay}
-                      </div>
-                    )}
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+                <div className="flex-1 text-xs">
+                  <div className="font-medium text-gray-900">
+                    {(() => {
+                      const contentType = representativePlan.content_type;
+                      const contentTypeIcon = contentType === "book"
+                        ? "📖"
+                        : contentType === "lecture"
+                        ? "🎧"
+                        : "📝";
+                      
+                      const chapterText = representativePlan.chapter;
+                      
+                      // 챕터 정보 표시 (없으면 "정보 없음")
+                      return (
+                        <>
+                          {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
+                        </>
+                      );
+                    })()}
                   </div>
-                  {progress > 0 && (
-                    <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full bg-indigo-500"
-                        style={{ width: `${progress}%` }}
-                      />
+                  <div className="text-gray-500">
+                    {(() => {
+                      const contentType = representativePlan.content_type;
+                      
+                      // 전체 범위 표시
+                      if (overallStart !== null && overallEnd !== null) {
+                        if (contentType === "book") {
+                          return <>📄 페이지: {overallStart} ~ {overallEnd}</>;
+                        } else if (contentType === "lecture") {
+                          return <>🎧 강의: {overallStart} ~ {overallEnd}</>;
+                        } else {
+                          return <>📝 범위: {overallStart} ~ {overallEnd}</>;
+                        }
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  {timeDisplay && (
+                    <div className="mt-0.5 text-xs text-blue-600">
+                      ⏰ 시간: {timeDisplay}
                     </div>
                   )}
                 </div>
-              );
-            });
+                {progress > 0 && (
+                  <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full bg-indigo-500"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
           })()}
         </div>
       </div>
