@@ -48,5 +48,4 @@ export function CardHeader({
 }
 
 export const Card = memo(CardComponent);
-export const CardHeader = memo(CardHeaderComponent);
 

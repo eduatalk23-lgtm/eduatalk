@@ -1,4 +1,4 @@
-// 콘텐�?메�??�이???�이???�세???�이??
+// 콘텐�?메�??�이???�이???�세???�이??
 
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 
@@ -26,7 +26,7 @@ export async function getCurriculumRevisions(): Promise<CurriculumRevision[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMetadata] 개정교육과정 조회 ?�패", error);
+    console.error("[data/contentMetadata] 개정교육과정 조회 ?�패", error);
     return [];
   }
 
@@ -45,8 +45,8 @@ export async function createCurriculumRevision(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 개정교육과정 ?�성 ?�패", error);
-    throw new Error(error.message || "개정교육과정 ?�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] 개정교육과정 ?�성 ?�패", error);
+    throw new Error(error.message || "개정교육과정 ?�성???�패?�습?�다.");
   }
 
   return data as CurriculumRevision;
@@ -65,8 +65,8 @@ export async function updateCurriculumRevision(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 개정교육과정 ?�정 ?�패", error);
-    throw new Error(error.message || "개정교육과정 ?�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] 개정교육과정 ?�정 ?�패", error);
+    throw new Error(error.message || "개정교육과정 ?�정???�패?�습?�다.");
   }
 
   return data as CurriculumRevision;
@@ -77,13 +77,13 @@ export async function deleteCurriculumRevision(id: string): Promise<void> {
   const { error } = await supabase.from("curriculum_revisions").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] 개정교육과정 ??�� ?�패", error);
-    throw new Error(error.message || "개정교육과정 ??��???�패?�습?�다.");
+    console.error("[data/contentMetadata] 개정교육과정 ??�� ?�패", error);
+    throw new Error(error.message || "개정교육과정 ??��???�패?�습?�다.");
   }
 }
 
 // ============================================
-// ?�년
+// ?�년
 // ============================================
 
 export type Grade = {
@@ -104,7 +104,7 @@ export async function getGrades(): Promise<Grade[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMetadata] ?�년 조회 ?�패", error);
+    console.error("[data/contentMetadata] ?�년 조회 ?�패", error);
     return [];
   }
 
@@ -120,8 +120,8 @@ export async function createGrade(name: string, display_order: number): Promise<
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] ?�년 ?�성 ?�패", error);
-    throw new Error(error.message || "?�년 ?�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�년 ?�성 ?�패", error);
+    throw new Error(error.message || "?�년 ?�성???�패?�습?�다.");
   }
 
   return data as Grade;
@@ -140,8 +140,8 @@ export async function updateGrade(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] ?�년 ?�정 ?�패", error);
-    throw new Error(error.message || "?�년 ?�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�년 ?�정 ?�패", error);
+    throw new Error(error.message || "?�년 ?�정???�패?�습?�다.");
   }
 
   return data as Grade;
@@ -152,13 +152,13 @@ export async function deleteGrade(id: string): Promise<void> {
   const { error } = await supabase.from("grades").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] ?�년 ??�� ?�패", error);
-    throw new Error(error.message || "?�년 ??��???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�년 ??�� ?�패", error);
+    throw new Error(error.message || "?�년 ??��???�패?�습?�다.");
   }
 }
 
 // ============================================
-// ?�기
+// ?�기
 // ============================================
 
 export type Semester = {
@@ -179,7 +179,7 @@ export async function getSemesters(): Promise<Semester[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMetadata] ?�기 조회 ?�패", error);
+    console.error("[data/contentMetadata] ?�기 조회 ?�패", error);
     return [];
   }
 
@@ -195,8 +195,8 @@ export async function createSemester(name: string, display_order: number): Promi
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] ?�기 ?�성 ?�패", error);
-    throw new Error(error.message || "?�기 ?�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�기 ?�성 ?�패", error);
+    throw new Error(error.message || "?�기 ?�성???�패?�습?�다.");
   }
 
   return data as Semester;
@@ -215,8 +215,8 @@ export async function updateSemester(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] ?�기 ?�정 ?�패", error);
-    throw new Error(error.message || "?�기 ?�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�기 ?�정 ?�패", error);
+    throw new Error(error.message || "?�기 ?�정???�패?�습?�다.");
   }
 
   return data as Semester;
@@ -227,8 +227,8 @@ export async function deleteSemester(id: string): Promise<void> {
   const { error } = await supabase.from("semesters").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] ?�기 ??�� ?�패", error);
-    throw new Error(error.message || "?�기 ??��???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�기 ??�� ?�패", error);
+    throw new Error(error.message || "?�기 ??��???�패?�습?�다.");
   }
 }
 
@@ -264,7 +264,7 @@ export async function getSubjectCategories(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[data/contentMetadata] 교과 조회 ?�패", error);
+    console.error("[data/contentMetadata] 교과 조회 ?�패", error);
     return [];
   }
 
@@ -284,8 +284,8 @@ export async function createSubjectCategory(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 교과 ?�성 ?�패", error);
-    throw new Error(error.message || "교과 ?�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] 교과 ?�성 ?�패", error);
+    throw new Error(error.message || "교과 ?�성???�패?�습?�다.");
   }
 
   return data as SubjectCategory;
@@ -304,8 +304,8 @@ export async function updateSubjectCategory(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 교과 ?�정 ?�패", error);
-    throw new Error(error.message || "교과 ?�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] 교과 ?�정 ?�패", error);
+    throw new Error(error.message || "교과 ?�정???�패?�습?�다.");
   }
 
   return data as SubjectCategory;
@@ -316,8 +316,8 @@ export async function deleteSubjectCategory(id: string): Promise<void> {
   const { error } = await supabase.from("subject_categories").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] 교과 ??�� ?�패", error);
-    throw new Error(error.message || "교과 ??��???�패?�습?�다.");
+    console.error("[data/contentMetadata] 교과 ??�� ?�패", error);
+    throw new Error(error.message || "교과 ??��???�패?�습?�다.");
   }
 }
 
@@ -353,7 +353,7 @@ export async function getSubjects(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[data/contentMetadata] 과목 조회 ?�패", error);
+    console.error("[data/contentMetadata] 과목 조회 ?�패", error);
     return [];
   }
 
@@ -373,8 +373,8 @@ export async function createSubject(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 과목 ?�성 ?�패", error);
-    throw new Error(error.message || "과목 ?�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] 과목 ?�성 ?�패", error);
+    throw new Error(error.message || "과목 ?�성???�패?�습?�다.");
   }
 
   return data as Subject;
@@ -393,8 +393,8 @@ export async function updateSubject(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 과목 ?�정 ?�패", error);
-    throw new Error(error.message || "과목 ?�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] 과목 ?�정 ?�패", error);
+    throw new Error(error.message || "과목 ?�정???�패?�습?�다.");
   }
 
   return data as Subject;
@@ -405,13 +405,13 @@ export async function deleteSubject(id: string): Promise<void> {
   const { error } = await supabase.from("content_subjects").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] 과목 ??�� ?�패", error);
-    throw new Error(error.message || "과목 ??��???�패?�습?�다.");
+    console.error("[data/contentMetadata] 과목 ??�� ?�패", error);
+    throw new Error(error.message || "과목 ??��???�패?�습?�다.");
   }
 }
 
 // ============================================
-// ?�랫??
+// ?�랫??
 // ============================================
 
 export type Platform = {
@@ -432,7 +432,7 @@ export async function getPlatforms(): Promise<Platform[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMetadata] ?�랫??조회 ?�패", error);
+    console.error("[data/contentMetadata] ?�랫??조회 ?�패", error);
     return [];
   }
 
@@ -448,8 +448,8 @@ export async function createPlatform(name: string, display_order: number): Promi
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] ?�랫???�성 ?�패", error);
-    throw new Error(error.message || "?�랫???�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�랫???�성 ?�패", error);
+    throw new Error(error.message || "?�랫???�성???�패?�습?�다.");
   }
 
   return data as Platform;
@@ -468,8 +468,8 @@ export async function updatePlatform(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] ?�랫???�정 ?�패", error);
-    throw new Error(error.message || "?�랫???�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�랫???�정 ?�패", error);
+    throw new Error(error.message || "?�랫???�정???�패?�습?�다.");
   }
 
   return data as Platform;
@@ -480,8 +480,8 @@ export async function deletePlatform(id: string): Promise<void> {
   const { error } = await supabase.from("platforms").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] ?�랫????�� ?�패", error);
-    throw new Error(error.message || "?�랫????��???�패?�습?�다.");
+    console.error("[data/contentMetadata] ?�랫????�� ?�패", error);
+    throw new Error(error.message || "?�랫????��???�패?�습?�다.");
   }
 }
 
@@ -507,7 +507,7 @@ export async function getPublishers(): Promise<Publisher[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMetadata] 출판??조회 ?�패", error);
+    console.error("[data/contentMetadata] 출판??조회 ?�패", error);
     return [];
   }
 
@@ -523,8 +523,8 @@ export async function createPublisher(name: string, display_order: number): Prom
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 출판???�성 ?�패", error);
-    throw new Error(error.message || "출판???�성???�패?�습?�다.");
+    console.error("[data/contentMetadata] 출판???�성 ?�패", error);
+    throw new Error(error.message || "출판???�성???�패?�습?�다.");
   }
 
   return data as Publisher;
@@ -542,8 +542,8 @@ export async function updatePublisher(
     .single();
 
   if (error) {
-    console.error("[data/contentMetadata] 출판???�정 ?�패", error);
-    throw new Error(error.message || "출판???�정???�패?�습?�다.");
+    console.error("[data/contentMetadata] 출판???�정 ?�패", error);
+    throw new Error(error.message || "출판???�정???�패?�습?�다.");
   }
 
   return data as Publisher;
@@ -554,8 +554,8 @@ export async function deletePublisher(id: string): Promise<void> {
   const { error } = await supabase.from("publishers").delete().eq("id", id);
 
   if (error) {
-    console.error("[data/contentMetadata] 출판????�� ?�패", error);
-    throw new Error(error.message || "출판????��???�패?�습?�다.");
+    console.error("[data/contentMetadata] 출판????�� ?�패", error);
+    throw new Error(error.message || "출판????��???�패?�습?�다.");
   }
 }
 
