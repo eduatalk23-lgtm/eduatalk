@@ -1,68 +1,77 @@
 # 클라이언트 타임스탬프 사용으로 개선
 
 ## 날짜
+
 2025-01-13
 
 ## 작업 목적
+
 서버에서 타임스탬프를 생성하는 대신, 클라이언트에서 타임스탬프를 생성해서 서버에 전달하도록 변경하여 즉시 표시와 성능을 개선했습니다.
 
 ## 주요 변경 사항
 
 ### 1. 서버 액션에 타임스탬프 파라미터 추가
+
 - `startPlan(planId, timestamp?)`: 시작 타임스탬프 파라미터 추가
 - `pausePlan(planId, timestamp?)`: 일시정지 타임스탬프 파라미터 추가
 - `resumePlan(planId, timestamp?)`: 재시작 타임스탬프 파라미터 추가
 
 ### 2. 클라이언트에서 타임스탬프 생성
+
 모든 버튼 클릭 핸들러에서 클라이언트에서 타임스탬프를 생성하여 서버에 전달:
+
 - `TimeCheckSection`: 버튼 클릭 시 타임스탬프 생성 및 전달
 - `PlanGroupCard`: 그룹 시작/일시정지/재시작 시 타임스탬프 생성 및 전달
 - `PlanItem`: 개별 플랜 시작/일시정지/재시작 시 타임스탬프 생성 및 전달
 - `PlanTimerCard`: 타이머 카드 시작/일시정지/재시작 시 타임스탬프 생성 및 전달
 
 ### 3. 서버에서 타임스탬프 생성 코드 수정
+
 - 클라이언트에서 전달한 타임스탬프를 우선 사용
 - 타임스탬프가 없으면 서버에서 생성 (하위 호환성)
 
 ### 4. Optimistic 타임스탬프 로직 개선
+
 - 클라이언트에서 생성한 타임스탬프와 서버에서 받은 타임스탬프 비교
 - 2초 이내 차이는 네트워크 지연으로 간주하여 Optimistic 타임스탬프 제거
 
 ## 변경된 파일
 
 ### 서버 액션
+
 - `app/(student)/today/actions/todayActions.ts`
   - `startPlan`: `timestamp` 파라미터 추가
   - `pausePlan`: `timestamp` 파라미터 추가
   - `resumePlan`: `timestamp` 파라미터 추가
 
 ### 클라이언트 컴포넌트
+
 - `app/(student)/today/_components/TimeCheckSection.tsx`
   - 버튼 핸들러에서 타임스탬프 생성 및 전달
   - Optimistic 타임스탬프 비교 로직 개선
-  
 - `app/(student)/today/_components/PlanGroupCard.tsx`
   - 그룹 핸들러에서 타임스탬프 생성 및 전달
-  
 - `app/(student)/today/_components/PlanItem.tsx`
   - 개별 플랜 핸들러에서 타임스탬프 생성 및 전달
-  
 - `app/(student)/today/_components/PlanTimerCard.tsx`
   - 타이머 카드 핸들러에서 타임스탬프 생성 및 전달
 
 ## 개선 효과
 
 ### 1. 즉시 표시
+
 - 버튼 클릭 시 클라이언트에서 타임스탬프 생성
 - Optimistic Update로 즉시 UI에 표시
 - 서버 응답을 기다릴 필요 없음
 
 ### 2. 성능 개선
+
 - 서버에서 타임스탬프 생성 불필요
 - 네트워크 지연 없이 즉시 표시
 - 서버 부하 감소
 
 ### 3. 정확성
+
 - 클라이언트에서 생성한 타임스탬프를 서버에 저장
 - 서버와 클라이언트 타임스탬프가 일치
 - 네트워크 지연으로 인한 시간 차이 최소화
@@ -70,6 +79,7 @@
 ## 동작 방식
 
 ### 시작하기 버튼 클릭 시
+
 1. 클라이언트에서 타임스탬프 생성: `new Date().toISOString()`
 2. Optimistic 타임스탬프 설정 (즉시 표시)
 3. 서버 액션 호출: `startPlan(planId, timestamp)`
@@ -77,6 +87,7 @@
 5. 서버 응답 후 실제 타임스탬프로 교체 (거의 동일)
 
 ### 일시정지 버튼 클릭 시
+
 1. 클라이언트에서 타임스탬프 생성: `new Date().toISOString()`
 2. Optimistic 타임스탬프 설정 (즉시 표시)
 3. 서버 액션 호출: `pausePlan(planId, timestamp)`
@@ -84,6 +95,7 @@
 5. 서버 응답 후 실제 타임스탬프로 교체 (거의 동일)
 
 ### 재시작 버튼 클릭 시
+
 1. 클라이언트에서 타임스탬프 생성: `new Date().toISOString()`
 2. Optimistic 타임스탬프 설정 (즉시 표시)
 3. 서버 액션 호출: `resumePlan(planId, timestamp)`
@@ -93,6 +105,7 @@
 ## 하위 호환성
 
 타임스탬프 파라미터는 선택적(optional)으로 설정하여:
+
 - 기존 코드에서 타임스탬프를 전달하지 않으면 서버에서 생성
 - 새로운 코드에서는 클라이언트에서 타임스탬프를 전달
 
@@ -102,4 +115,3 @@
 2. **성능 향상**: 서버에서 타임스탬프 생성 불필요
 3. **정확성**: 클라이언트와 서버 타임스탬프 일치
 4. **사용자 경험**: 네트워크 지연 없이 즉시 피드백
-

@@ -183,7 +183,7 @@ export function PlanGroupCard({
     }
   };
 
-  const handleGroupResume = async () => {
+  const handleGroupResume = async (timestamp?: string) => {
     // 실제로 세션이 있고 일시정지된 플랜만 재개 (세션 데이터 기반)
     const pausedPlanIds = group.plans
       .filter((plan) => {
@@ -199,8 +199,8 @@ export function PlanGroupCard({
 
     setIsLoading(true);
     try {
-      // 클라이언트에서 타임스탬프 생성
-      const clientTimestamp = new Date().toISOString();
+      // 클라이언트에서 타임스탬프 생성 (전달받은 타임스탬프가 없으면 생성)
+      const clientTimestamp = timestamp || new Date().toISOString();
       const results = await Promise.all(
         pausedPlanIds.map(async (planId) => {
           try {

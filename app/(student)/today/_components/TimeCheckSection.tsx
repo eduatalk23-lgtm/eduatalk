@@ -266,10 +266,10 @@ export function TimeCheckSection({
             const timestamp = new Date().toISOString();
             setOptimisticIsPaused(false);
             // Optimistic 타임스탬프 설정 (즉시 표시)
+            // 재시작 시 일시정지 타임스탬프는 유지 (이전 일시정지 기록은 보존)
             setOptimisticTimestamps((prev) => ({
               ...prev,
               resume: timestamp,
-              pause: undefined, // 재시작 시 일시정지 타임스탬프 제거
             }));
             // 클라이언트 타임스탬프를 서버에 전달
             onResume(timestamp);
