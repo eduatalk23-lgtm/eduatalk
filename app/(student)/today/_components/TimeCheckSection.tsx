@@ -58,12 +58,11 @@ export function TimeCheckSection({
   // Optimistic 타임스탬프를 사용하고, props가 업데이트되면 제거
   // 개별 플랜의 타이머는 독립적으로 동작하므로 다른 플랜 상태 동기화 불필요
 
-  // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
+  // 서버 상태만 사용
   const isCompleted = Boolean(timeStats.isCompleted);
-  // Optimistic 상태가 있으면 우선 사용, 없으면 props 사용
-  const isActiveState = optimisticIsActive !== null ? optimisticIsActive : Boolean(isActive);
+  const isActiveState = Boolean(isActive);
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
-  const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : Boolean(isPaused);
+  const isPausedState = Boolean(isPaused);
 
 
 

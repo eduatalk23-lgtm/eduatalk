@@ -522,18 +522,17 @@ export function PlanGroupCard({
             };
 
             return (
-              <PlanItem
-                key={plan.id}
-                plan={planWithSession}
-                isGrouped={true}
-                isActive={plan.id === activePlan?.id}
-                showTimer={
-                  !!plan.actual_start_time ||
-                  !!plan.actual_end_time ||
-                  sessions.has(plan.id)
-                }
-                viewMode="daily"
-              />
+            <PlanItem
+              key={plan.id}
+              plan={planWithSession}
+              isGrouped={true}
+              showTimer={
+                !!plan.actual_start_time ||
+                !!plan.actual_end_time ||
+                sessions.has(plan.id)
+              }
+              viewMode="daily"
+            />
             );
           })}
         </div>

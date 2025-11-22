@@ -11,7 +11,6 @@ import { useRouter } from "next/navigation";
 type PlanItemProps = {
   plan: PlanWithContent;
   isGrouped: boolean; // 같은 plan_number를 가진 그룹의 일부인지
-  isActive: boolean; // 현재 활성화된 플랜인지
   showTimer?: boolean; // 타이머 표시 여부
   viewMode?: "daily" | "single"; // 뷰 모드에 따라 레이아웃 다름
 };
@@ -19,7 +18,6 @@ type PlanItemProps = {
 export function PlanItem({
   plan,
   isGrouped,
-  isActive,
   showTimer = false,
   viewMode = "daily",
 }: PlanItemProps) {
