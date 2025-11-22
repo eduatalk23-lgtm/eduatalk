@@ -304,14 +304,30 @@ export function PlanCard({
                   </button>
                   <div className="flex-1">
                     <div className="text-sm font-medium text-gray-900">
-                      {representativePlan.chapter || blockDisplay}
+                      {representativePlan.chapter ? (
+                        <>챕터: {representativePlan.chapter}</>
+                      ) : (
+                        <>블록: {blockDisplay.replace("블록 ", "")}</>
+                      )}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {representativePlan.planned_start_page_or_time} ~ {representativePlan.planned_end_page_or_time}
+                      {(() => {
+                        const contentType = representativePlan.content_type;
+                        const start = representativePlan.planned_start_page_or_time;
+                        const end = representativePlan.planned_end_page_or_time;
+                        
+                        if (contentType === "book") {
+                          return <>페이지: {start} ~ {end}</>;
+                        } else if (contentType === "lecture") {
+                          return <>강: {start} ~ {end}</>;
+                        } else {
+                          return <>범위: {start} ~ {end}</>;
+                        }
+                      })()}
                     </div>
                     {timeDisplay && (
                       <div className="mt-1 text-xs text-blue-600">
-                        ⏰ {timeDisplay}
+                        ⏰ 시간: {timeDisplay}
                       </div>
                     )}
                     {progress > 0 && (
@@ -448,14 +464,30 @@ export function PlanCard({
                   </button>
                   <div className="flex-1 text-xs">
                     <div className="font-medium text-gray-900">
-                      {representativePlan.chapter || blockDisplay}
+                      {representativePlan.chapter ? (
+                        <>챕터: {representativePlan.chapter}</>
+                      ) : (
+                        <>블록: {blockDisplay.replace("블록 ", "")}</>
+                      )}
                     </div>
                     <div className="text-gray-500">
-                      {representativePlan.planned_start_page_or_time} ~ {representativePlan.planned_end_page_or_time}
+                      {(() => {
+                        const contentType = representativePlan.content_type;
+                        const start = representativePlan.planned_start_page_or_time;
+                        const end = representativePlan.planned_end_page_or_time;
+                        
+                        if (contentType === "book") {
+                          return <>페이지: {start} ~ {end}</>;
+                        } else if (contentType === "lecture") {
+                          return <>강: {start} ~ {end}</>;
+                        } else {
+                          return <>범위: {start} ~ {end}</>;
+                        }
+                      })()}
                     </div>
                     {timeDisplay && (
                       <div className="mt-0.5 text-xs text-blue-600">
-                        ⏰ {timeDisplay}
+                        ⏰ 시간: {timeDisplay}
                       </div>
                     )}
                   </div>
