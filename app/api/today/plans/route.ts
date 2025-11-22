@@ -171,6 +171,17 @@ export async function GET() {
       sessionsObj[key] = value;
     });
 
+    // 디버깅: 데이터 구조 로그 출력 (개발 환경에서만)
+    if (process.env.NODE_ENV === "development") {
+      console.log("[API /today/plans] 조회된 데이터:");
+      console.log("- 플랜 개수:", plansWithContent.length);
+      console.log("- 표시 날짜:", displayDate, isToday ? "(오늘)" : "(미래)");
+      console.log("- 활성 세션 개수:", Object.keys(sessionsObj).length);
+      if (plansWithContent.length > 0) {
+        console.log("- 첫 번째 플랜 예시:", JSON.stringify(plansWithContent[0], null, 2));
+      }
+    }
+
     return NextResponse.json({
       plans: plansWithContent,
       sessions: sessionsObj,

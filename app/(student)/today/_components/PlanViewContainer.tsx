@@ -41,6 +41,19 @@ export function PlanViewContainer({
         if (!response.ok) throw new Error("플랜 조회 실패");
         
         const data = await response.json();
+        
+        // 디버깅: 받은 데이터 로그 출력 (개발 환경에서만)
+        if (process.env.NODE_ENV === "development") {
+          console.log("[PlanViewContainer] 받은 데이터:", {
+            plansCount: data.plans?.length || 0,
+            sessionsCount: Object.keys(data.sessions || {}).length,
+            planDate: data.planDate,
+            isToday: data.isToday,
+            plans: data.plans, // 전체 플랜 데이터
+            sessions: data.sessions, // 세션 데이터
+          });
+        }
+        
         const grouped = groupPlansByPlanNumber(data.plans);
         setGroups(grouped);
         setSessions(new Map(Object.entries(data.sessions || {})));
