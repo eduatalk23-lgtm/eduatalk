@@ -211,7 +211,7 @@ export async function TodayPlanList() {
   activeSessions?.forEach((session) => {
     if (session.plan_id) {
       const isPaused = !!session.paused_at && !session.resumed_at;
-      sessionMap.set(session.plan_id, { 
+      sessionMap.set(session.plan_id, {
         isPaused,
         pausedAt: session.paused_at,
         resumedAt: session.resumed_at,

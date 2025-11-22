@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useMemo } from "react";
 import { Clock, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -111,17 +111,6 @@ export function TimeCheckSection({
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
   const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : Boolean(isPaused);
 
-  // 디버깅: 버튼 상태 확인
-  console.log('=== 버튼 상태 디버깅 ===');
-  console.log('isActive (props):', isActive);
-  console.log('isPaused (props):', isPaused);
-  console.log('optimisticIsActive:', optimisticIsActive);
-  console.log('optimisticIsPaused:', optimisticIsPaused);
-  console.log('isActiveState (계산된):', isActiveState);
-  console.log('isPausedState (계산된):', isPausedState);
-  console.log('isCompleted:', isCompleted);
-  console.log('hasStartTime:', hasStartTime);
-  console.log('=== 버튼 상태 끝 ===');
 
 
 
@@ -148,7 +137,7 @@ export function TimeCheckSection({
         )}
         
         {/* 모든 일시정지/재시작 타임스탬프를 시간순으로 표시 */}
-        {(() => {
+        {useMemo(() => {
           // 타임스탬프를 표준화하여 중복 제거 (Date 객체를 이용한 비교)
           const normalizeTimestamp = (ts: string): number => {
             return new Date(ts).getTime();
@@ -216,7 +205,7 @@ export function TimeCheckSection({
               </span>
             </div>
           ));
-        })()}
+        }, [optimisticTimestamps.pauses, optimisticTimestamps.resumes, timeStats.currentPausedAt, timeStats.lastPausedAt, timeStats.lastResumedAt])}
         
         {/* 종료 시간 */}
         {timeStats.lastEndTime && (
@@ -280,6 +269,7 @@ export function TimeCheckSection({
             const timestamp = new Date().toISOString();
             // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
             setOptimisticIsPaused(false);
+            setOptimisticIsActive(true); // 재시작 시에도 active 상태 유지
             // 재시작 타임스탬프 추가 (이전 일시정지 기록은 보존)
             setOptimisticTimestamps((prev) => ({
               ...prev,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PlanWithContent, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -44,11 +44,14 @@ export function PlanItem({
   const isPaused = isPausedState;
   const isCompleted = !!plan.actual_end_time;
 
-  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
-  const elapsedSeconds = calculateStudyTimeFromTimestamps(
-    plan.actual_start_time,
-    plan.actual_end_time,
-    plan.paused_duration_seconds
+  // 타임스탬프 기반 시간 계산 (메모이제이션으로 최적화)
+  const elapsedSeconds = useMemo(() =>
+    calculateStudyTimeFromTimestamps(
+      plan.actual_start_time,
+      plan.actual_end_time,
+      plan.paused_duration_seconds
+    ),
+    [plan.actual_start_time, plan.actual_end_time, plan.paused_duration_seconds]
   );
 
   const handleStart = async () => {

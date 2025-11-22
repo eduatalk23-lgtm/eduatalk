@@ -21,7 +21,7 @@ import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
 
 type PlanGroupCardProps = {
@@ -49,47 +49,62 @@ export function PlanGroupCard({
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
 
-  const contentTitle = group.content?.title || "제목 없음";
-  const contentTypeIcon =
-    group.plans[0]?.content_type === "book"
+  // 콘텐츠 정보 (메모이제이션)
+  const contentInfo = useMemo(() => ({
+    title: group.content?.title || "제목 없음",
+    icon: group.plans[0]?.content_type === "book"
       ? "📚"
       : group.plans[0]?.content_type === "lecture"
       ? "🎧"
-      : "📝";
+      : "📝"
+  }), [group.content?.title, group.plans[0]?.content_type]);
 
-  // 집계 정보 계산
-  const totalProgress = calculateGroupProgress(group);
-  const totalStudyTime = calculateGroupTotalStudyTime(group);
-  const activePlansCount = getActivePlansCount(group, sessions);
-  const completedPlansCount = getCompletedPlansCount(group);
+  // 집계 정보 계산 (메모이제이션)
+  const aggregatedInfo = useMemo(() => ({
+    totalProgress: calculateGroupProgress(group),
+    totalStudyTime: calculateGroupTotalStudyTime(group),
+    activePlansCount: getActivePlansCount(group, sessions),
+    completedPlansCount: getCompletedPlansCount(group),
+    activePlan: getActivePlan(group, sessions)
+  }), [group, sessions]);
 
-  // 활성 플랜 찾기
-  const activePlan = getActivePlan(group, sessions);
+  // 그룹 상태 계산 (메모이제이션)
+  const groupStatus = useMemo(() => {
+    const activePlan = aggregatedInfo.activePlan;
+    const isGroupRunning = !!activePlan;
 
-  const isGroupRunning = !!activePlan;
-  // 일시정지된 플랜이 있으면 일시정지 상태로 간주
-  // (activePlansCount가 0이어도 일시정지된 플랜이 있으면 일시정지 상태)
-  const isGroupPaused = group.plans.some((plan) => {
-    const session = sessions.get(plan.id);
-    return (
-      plan.actual_start_time &&
-      !plan.actual_end_time &&
-      session &&
-      session.isPaused
+    // 일시정지된 플랜이 있으면 일시정지 상태로 간주
+    const isGroupPaused = group.plans.some((plan) => {
+      const session = sessions.get(plan.id);
+      return (
+        plan.actual_start_time &&
+        !plan.actual_end_time &&
+        session &&
+        session.isPaused
+      );
+    });
+
+    // 다른 플랜이 활성화되어 있는지 확인 (현재 그룹의 플랜 제외)
+    const currentGroupPlanIds = new Set(group.plans.map((p) => p.id));
+    const hasOtherActivePlan = Array.from(sessions.entries()).some(
+      ([planId, session]) =>
+        !currentGroupPlanIds.has(planId) &&
+        session &&
+        !session.isPaused
     );
-  });
 
-  // 다른 플랜이 활성화되어 있는지 확인 (현재 그룹의 플랜 제외)
-  const currentGroupPlanIds = new Set(group.plans.map((p) => p.id));
-  const hasOtherActivePlan = Array.from(sessions.entries()).some(
-    ([planId, session]) => 
-      !currentGroupPlanIds.has(planId) && 
-      session && 
-      !session.isPaused
+    return {
+      isGroupRunning,
+      isGroupPaused,
+      hasOtherActivePlan
+    };
+  }, [aggregatedInfo.activePlan, group.plans, sessions]);
+
+  // 시간 통계 계산 (메모이제이션)
+  const timeStats = useMemo(() =>
+    getTimeStats(group.plans, aggregatedInfo.activePlan, sessions),
+    [group.plans, aggregatedInfo.activePlan, sessions]
   );
-
-  // 시간 통계 계산
-  const timeStats = getTimeStats(group.plans, activePlan, sessions);
 
   // 그룹 타이머 제어 핸들러 (optimistic update 적용)
   const handleGroupStart = async (timestamp?: string) => {
@@ -358,8 +373,8 @@ export function PlanGroupCard({
     }
   };
 
-  // 콘텐츠 총량 계산 (totalPages가 없으면 첫 번째 플랜의 콘텐츠에서 추정)
-  const getTotalPages = () => {
+  // 콘텐츠 총량 계산 (메모이제이션)
+  const totalPagesCalculated = useMemo(() => {
     if (totalPages !== undefined && totalPages > 0) {
       return totalPages;
     }
@@ -368,9 +383,12 @@ export function PlanGroupCard({
       ...group.plans.map((p) => p.planned_end_page_or_time ?? 0)
     );
     return maxEnd || 100;
-  };
+  }, [totalPages, group.plans]);
 
-  const isBook = group.plans[0]?.content_type === "book";
+  const isBook = useMemo(() =>
+    group.plans[0]?.content_type === "book",
+    [group.plans[0]?.content_type]
+  );
 
   if (viewMode === "single") {
     // 단일 뷰: 전체 화면으로 크게 표시
@@ -400,14 +418,14 @@ export function PlanGroupCard({
         {/* 시간 체크 섹션 */}
         <TimeCheckSection
           timeStats={timeStats}
-          isPaused={isGroupPaused}
-          activePlanStartTime={activePlan?.actual_start_time ?? null}
-          planId={activePlan?.id || group.plans[0]?.id || ""}
-          isActive={isGroupRunning}
+          isPaused={groupStatus.isGroupPaused}
+          activePlanStartTime={aggregatedInfo.activePlan?.actual_start_time ?? null}
+          planId={aggregatedInfo.activePlan?.id || group.plans[0]?.id || ""}
+          isActive={groupStatus.isGroupRunning}
           isLoading={isLoading || isPending}
           planNumber={group.planNumber}
           planDate={planDate}
-          hasOtherActivePlan={hasOtherActivePlan}
+          hasOtherActivePlan={groupStatus.hasOtherActivePlan}
           onStart={handleGroupStart}
           onPause={handleGroupPause}
           onResume={handleGroupResume}
@@ -424,12 +442,12 @@ export function PlanGroupCard({
                 전체 진행률
               </h3>
               <div className="text-3xl font-bold text-indigo-600">
-                {totalProgress}%
+                {aggregatedInfo.totalProgress}%
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-gray-200">
                 <div
                   className="h-full bg-indigo-500 transition-all duration-300"
-                  style={{ width: `${totalProgress}%` }}
+                  style={{ width: `${aggregatedInfo.totalProgress}%` }}
                 />
               </div>
             </div>
@@ -437,7 +455,7 @@ export function PlanGroupCard({
             <div className="flex flex-col gap-1 text-center">
               <p className="text-sm text-gray-600">총 학습 시간</p>
               <p className="text-2xl font-bold text-indigo-600">
-                {formatTime(totalStudyTime)}
+                {formatTime(aggregatedInfo.totalStudyTime)}
               </p>
             </div>
           </div>
@@ -458,7 +476,7 @@ export function PlanGroupCard({
           isOpen={isRangeModalOpen}
           onClose={() => setIsRangeModalOpen(false)}
           onSave={handleSaveRanges}
-          totalPages={getTotalPages()}
+          totalPages={totalPagesCalculated}
           isBook={isBook}
         />
       </div>
@@ -472,8 +490,8 @@ export function PlanGroupCard({
         {/* 카드 헤더 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{contentTypeIcon}</span>
-            <h3 className="font-semibold text-gray-900">{contentTitle}</h3>
+            <span className="text-lg">{contentInfo.icon}</span>
+            <h3 className="font-semibold text-gray-900">{contentInfo.title}</h3>
             {group.planNumber !== null && (
               <span className="text-xs text-gray-500">
                 (plan_number: {group.planNumber})
@@ -496,20 +514,28 @@ export function PlanGroupCard({
 
         {/* 개별 플랜 블록 */}
         <div className="flex flex-col gap-3">
-          {group.plans.map((plan) => (
-            <PlanItem
-              key={plan.id}
-              plan={plan}
-              isGrouped={true}
-              isActive={plan.id === activePlan?.id}
-              showTimer={
-                !!plan.actual_start_time ||
-                !!plan.actual_end_time ||
-                sessions.has(plan.id)
-              }
-              viewMode="daily"
-            />
-          ))}
+          {group.plans.map((plan) => {
+            // plan 객체에 session 정보 추가
+            const planWithSession = {
+              ...plan,
+              session: sessions.get(plan.id) || undefined,
+            };
+
+            return (
+              <PlanItem
+                key={plan.id}
+                plan={planWithSession}
+                isGrouped={true}
+                isActive={plan.id === activePlan?.id}
+                showTimer={
+                  !!plan.actual_start_time ||
+                  !!plan.actual_end_time ||
+                  sessions.has(plan.id)
+                }
+                viewMode="daily"
+              />
+            );
+          })}
         </div>
 
         {/* 집계 정보 */}
@@ -517,18 +543,18 @@ export function PlanGroupCard({
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">전체 진행률</span>
-              <span className="font-semibold text-gray-900">{totalProgress}%</span>
+              <span className="font-semibold text-gray-900">{aggregatedInfo.totalProgress}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-gray-200">
               <div
                 className="h-full bg-indigo-500 transition-all duration-300"
-                style={{ width: `${totalProgress}%` }}
+                style={{ width: `${aggregatedInfo.totalProgress}%` }}
               />
             </div>
             <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>총 학습 시간: {formatTime(totalStudyTime)}</span>
+              <span>총 학습 시간: {formatTime(aggregatedInfo.totalStudyTime)}</span>
               <span>
-                활성: {activePlansCount} | 완료: {completedPlansCount}
+                활성: {aggregatedInfo.activePlansCount} | 완료: {aggregatedInfo.completedPlansCount}
               </span>
             </div>
           </div>
@@ -537,10 +563,10 @@ export function PlanGroupCard({
 
       {/* 그룹 제어 버튼 */}
       <TimerControlButtons
-        planId={activePlan?.id || group.plans[0]?.id || ""}
-        isActive={isGroupRunning}
-        isPaused={isGroupPaused}
-        isCompleted={completedPlansCount === group.plans.length}
+        planId={aggregatedInfo.activePlan?.id || group.plans[0]?.id || ""}
+        isActive={groupStatus.isGroupRunning}
+        isPaused={groupStatus.isGroupPaused}
+        isCompleted={aggregatedInfo.completedPlansCount === group.plans.length}
         isLoading={isLoading || isPending}
         onStart={handleGroupStart}
         onPause={handleGroupPause}
@@ -563,7 +589,7 @@ export function PlanGroupCard({
         isOpen={isRangeModalOpen}
         onClose={() => setIsRangeModalOpen(false)}
         onSave={handleSaveRanges}
-        totalPages={getTotalPages()}
+        totalPages={totalPagesCalculated}
         isBook={isBook}
       />
     </div>
