@@ -97,10 +97,8 @@ export function PlanGroupCard({
       const clientTimestamp = timestamp || new Date().toISOString();
       const result = await startPlan(waitingPlan.id, clientTimestamp);
       if (result.success) {
-        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
-        startTransition(() => {
-          router.refresh();
-        });
+        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
         setIsLoading(false);
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
@@ -175,14 +173,13 @@ export function PlanGroupCard({
           .join(", ");
         alert(`일시정지에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
+        // 에러 발생 시에만 상태 동기화를 위해 refresh
         startTransition(() => {
           router.refresh();
         });
       } else {
-        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
-        startTransition(() => {
-          router.refresh();
-        });
+        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
         setIsLoading(false);
       }
     } catch (error) {
@@ -235,14 +232,13 @@ export function PlanGroupCard({
           .join(", ");
         alert(`재개에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
+        // 에러 발생 시에만 상태 동기화를 위해 refresh
         startTransition(() => {
           router.refresh();
         });
       } else {
-        // 서버 동기화는 백그라운드에서 처리 (즉시 반응)
-        startTransition(() => {
-          router.refresh();
-        });
+        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
         setIsLoading(false);
       }
     } catch (error) {
