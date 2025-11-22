@@ -1,22 +1,13 @@
-import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import type { TodayProgress } from "@/lib/metrics/todayProgress";
 
-export async function TodayGoals() {
+type TodayGoalsProps = {
+  todayProgress: TodayProgress;
+};
+
+export async function TodayGoals({ todayProgress }: TodayGoalsProps) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "student") {
-      return null;
-    }
-
-    const tenantContext = await getTenantContext();
-    const progress = await calculateTodayProgress(
-      user.userId,
-      tenantContext?.tenantId || null
-    );
-
     // 상위 3개만 표시
-    const topGoals = progress.goalProgressSummary.slice(0, 3);
+    const topGoals = todayProgress.goalProgressSummary.slice(0, 3);
 
     if (topGoals.length === 0) {
       return (

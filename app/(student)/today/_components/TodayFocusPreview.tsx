@@ -1,31 +1,13 @@
-import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import type { TodayProgress } from "@/lib/metrics/todayProgress";
 
-export async function TodayFocusPreview() {
+type TodayFocusPreviewProps = {
+  todayProgress: TodayProgress;
+};
+
+export async function TodayFocusPreview({ todayProgress }: TodayFocusPreviewProps) {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "student") {
-      return null;
-    }
-
-    const tenantContext = await getTenantContext();
-    const progress = await calculateTodayProgress(
-      user.userId,
-      tenantContext?.tenantId || null
-    ).catch((error) => {
-      console.error("[TodayFocusPreview] 진행률 계산 실패", error);
-      return {
-        todayStudyMinutes: 0,
-        planCompletedCount: 0,
-        planTotalCount: 0,
-        goalProgressSummary: [],
-        achievementScore: 0,
-      };
-    });
-
-  const hours = Math.floor(progress.todayStudyMinutes / 60);
-  const minutes = progress.todayStudyMinutes % 60;
+    const hours = Math.floor(todayProgress.todayStudyMinutes / 60);
+    const minutes = todayProgress.todayStudyMinutes % 60;
 
   return (
     <div className="mb-6 rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-4">
