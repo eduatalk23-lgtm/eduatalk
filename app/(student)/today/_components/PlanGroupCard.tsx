@@ -211,6 +211,13 @@ export function PlanGroupCard({
           timeStats={timeStats}
           isPaused={isGroupPaused}
           activePlanStartTime={activePlan?.actual_start_time ?? null}
+          planId={activePlan?.id || group.plans[0]?.id || ""}
+          isActive={isGroupRunning}
+          isLoading={isLoading}
+          onStart={handleGroupStart}
+          onPause={handleGroupPause}
+          onResume={handleGroupResume}
+          onComplete={handleGroupComplete}
         />
 
         {/* 전체 진행률 및 시간 */}
@@ -236,22 +243,6 @@ export function PlanGroupCard({
               {formatTime(totalStudyTime)}
             </p>
           </div>
-
-          {(isGroupRunning || isGroupPaused) && (
-            <div className="mt-4">
-              <TimerControlButtons
-                planId={activePlan?.id || group.plans[0]?.id || ""}
-                isActive={isGroupRunning}
-                isPaused={isGroupPaused}
-                isCompleted={false}
-                isLoading={isLoading}
-                onStart={handleGroupStart}
-                onPause={handleGroupPause}
-                onResume={handleGroupResume}
-                onComplete={handleGroupComplete}
-              />
-            </div>
-          )}
         </div>
 
         {/* 개별 플랜 블록 */}

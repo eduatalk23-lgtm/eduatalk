@@ -3,17 +3,32 @@
 import { useEffect, useState } from "react";
 import { Clock, Play, Pause, CheckCircle } from "lucide-react";
 import { formatTime, formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
+import { TimerControlButtons } from "./TimerControlButtons";
 
 type TimeCheckSectionProps = {
   timeStats: TimeStats;
   isPaused: boolean;
   activePlanStartTime?: string | null; // 활성 플랜의 시작 시간 (실시간 계산용)
+  planId: string; // 타이머 컨트롤용 플랜 ID
+  isActive: boolean; // 진행 중인지 여부
+  isLoading?: boolean; // 로딩 상태
+  onStart: () => void; // 시작 핸들러
+  onPause: () => void; // 일시정지 핸들러
+  onResume: () => void; // 재개 핸들러
+  onComplete: () => void; // 완료 핸들러
 };
 
 export function TimeCheckSection({
   timeStats,
   isPaused,
   activePlanStartTime,
+  planId,
+  isActive,
+  isLoading = false,
+  onStart,
+  onPause,
+  onResume,
+  onComplete,
 }: TimeCheckSectionProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -132,6 +147,21 @@ export function TimeCheckSection({
           <span className="text-sm font-semibold text-green-900">학습 완료</span>
         </div>
       )}
+
+      {/* 타이머 컨트롤 버튼 */}
+      <div className="mt-6">
+        <TimerControlButtons
+          planId={planId}
+          isActive={isActive}
+          isPaused={isPaused}
+          isCompleted={!!timeStats.lastEndTime}
+          isLoading={isLoading}
+          onStart={onStart}
+          onPause={onPause}
+          onResume={onResume}
+          onComplete={onComplete}
+        />
+      </div>
     </div>
   );
 }
