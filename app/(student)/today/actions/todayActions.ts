@@ -114,6 +114,22 @@ export async function completePlan(
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
 
+    // 같은 plan_number를 가진 모든 플랜 조회 (같은 논리적 플랜)
+    let samePlanNumberPlans: Array<{ id: string }> = [];
+    if (plan.plan_number !== null && plan.plan_number !== undefined) {
+      const { data: plansWithSameNumber } = await supabase
+        .from("student_plan")
+        .select("id")
+        .eq("student_id", user.userId)
+        .eq("plan_number", plan.plan_number)
+        .eq("plan_date", plan.plan_date);
+      
+      samePlanNumberPlans = plansWithSameNumber || [];
+    } else {
+      // plan_number가 없으면 현재 플랜만 처리
+      samePlanNumberPlans = [{ id: planId }];
+    }
+
     // 콘텐츠 총량 조회
     let totalAmount: number | null = null;
     if (plan.content_type === "book") {
@@ -150,11 +166,13 @@ export async function completePlan(
       100
     );
 
-    // 플랜 진행률 업데이트
-    await updatePlan(planId, user.userId, {
-      completed_amount: completedAmount,
-      progress: progress,
-    });
+    // 같은 plan_number를 가진 모든 플랜의 진행률 업데이트
+    for (const samePlan of samePlanNumberPlans) {
+      await updatePlan(samePlan.id, user.userId, {
+        completed_amount: completedAmount,
+        progress: progress,
+      });
+    }
 
     // student의 tenant_id 조회 (tenant_id가 없어도 진행 가능하도록)
     const { data: student } = await supabase
@@ -165,35 +183,36 @@ export async function completePlan(
 
     const tenantId = student?.tenant_id || tenantContext?.tenantId || null;
 
-    // student_content_progress에 기록
-    // plan_id로 기존 진행률 확인
-    const { data: existingPlanProgress } = await supabase
-      .from("student_content_progress")
-      .select("id")
-      .eq("student_id", user.userId)
-      .eq("plan_id", planId)
-      .maybeSingle();
-
-    const progressPayload = {
-      student_id: user.userId,
-      tenant_id: tenantId,
-      plan_id: planId,
-      content_type: plan.content_type,
-      content_id: plan.content_id,
-      progress: progress,
-      start_page_or_time: payload.startPageOrTime,
-      end_page_or_time: payload.endPageOrTime,
-      completed_amount: completedAmount,
-      last_updated: new Date().toISOString(),
-    };
-
-    if (existingPlanProgress) {
-      await supabase
+    // 같은 plan_number를 가진 모든 플랜의 student_content_progress에 기록
+    for (const samePlan of samePlanNumberPlans) {
+      const { data: existingPlanProgress } = await supabase
         .from("student_content_progress")
-        .update(progressPayload)
-        .eq("id", existingPlanProgress.id);
-    } else {
-      await supabase.from("student_content_progress").insert(progressPayload);
+        .select("id")
+        .eq("student_id", user.userId)
+        .eq("plan_id", samePlan.id)
+        .maybeSingle();
+
+      const progressPayload = {
+        student_id: user.userId,
+        tenant_id: tenantId,
+        plan_id: samePlan.id,
+        content_type: plan.content_type,
+        content_id: plan.content_id,
+        progress: progress,
+        start_page_or_time: payload.startPageOrTime,
+        end_page_or_time: payload.endPageOrTime,
+        completed_amount: completedAmount,
+        last_updated: new Date().toISOString(),
+      };
+
+      if (existingPlanProgress) {
+        await supabase
+          .from("student_content_progress")
+          .update(progressPayload)
+          .eq("id", existingPlanProgress.id);
+      } else {
+        await supabase.from("student_content_progress").insert(progressPayload);
+      }
     }
 
     // content_type + content_id로도 진행률 업데이트 (전체 진행률)
@@ -288,17 +307,66 @@ export async function completePlan(
       }
     }
 
-    // 플랜 시간 정보 업데이트
-    await supabase
-      .from("student_plan")
-      .update({
-        actual_end_time: actualEndTime,
-        total_duration_seconds: totalDurationSeconds,
-        paused_duration_seconds: totalPausedDuration,
-        pause_count: pauseCount,
-      })
-      .eq("id", planId)
-      .eq("student_id", user.userId);
+    // 같은 plan_number를 가진 모든 플랜의 시간 정보 업데이트
+    for (const samePlan of samePlanNumberPlans) {
+      // 각 플랜의 actual_start_time 조회
+      const { data: samePlanData } = await supabase
+        .from("student_plan")
+        .select("actual_start_time, paused_duration_seconds, pause_count")
+        .eq("id", samePlan.id)
+        .eq("student_id", user.userId)
+        .maybeSingle();
+
+      let samePlanTotalDurationSeconds: number | null = null;
+      if (samePlanData?.actual_start_time) {
+        const startTime = new Date(samePlanData.actual_start_time);
+        const endTime = new Date(actualEndTime);
+        samePlanTotalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+      }
+
+      const samePlanPausedDuration = samePlanData?.paused_duration_seconds || 0;
+      const samePlanPauseCount = samePlanData?.pause_count || 0;
+
+      // 각 플랜의 활성 세션 조회 및 종료
+      const { data: samePlanActiveSessions } = await supabase
+        .from("student_study_sessions")
+        .select("id, paused_duration_seconds, paused_at, resumed_at")
+        .eq("plan_id", samePlan.id)
+        .eq("student_id", user.userId)
+        .is("ended_at", null);
+
+      let samePlanCurrentPauseDuration = 0;
+      if (samePlanActiveSessions && samePlanActiveSessions.length > 0) {
+        const samePlanActiveSession = samePlanActiveSessions[0];
+        samePlanCurrentPauseDuration = samePlanActiveSession.paused_duration_seconds || 0;
+        
+        if (samePlanActiveSession.paused_at && !samePlanActiveSession.resumed_at) {
+          const pausedAt = new Date(samePlanActiveSession.paused_at);
+          const now = new Date();
+          const currentPauseSeconds = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
+          samePlanCurrentPauseDuration += currentPauseSeconds;
+        }
+
+        // 활성 세션 종료
+        for (const session of samePlanActiveSessions) {
+          await endStudySession(session.id);
+        }
+      }
+
+      const samePlanTotalPausedDuration = samePlanCurrentPauseDuration + samePlanPausedDuration;
+
+      // 플랜 시간 정보 업데이트
+      await supabase
+        .from("student_plan")
+        .update({
+          actual_end_time: actualEndTime,
+          total_duration_seconds: samePlanTotalDurationSeconds,
+          paused_duration_seconds: samePlanTotalPausedDuration,
+          pause_count: samePlanPauseCount,
+        })
+        .eq("id", samePlan.id)
+        .eq("student_id", user.userId);
+    }
 
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
     const finalDuration = totalDurationSeconds ? Math.max(0, totalDurationSeconds - totalPausedDuration) : 0;
