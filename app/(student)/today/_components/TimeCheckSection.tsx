@@ -251,17 +251,6 @@ export function TimeCheckSection({
         </div>
       </div>
 
-      {/* 일시정지 정보 */}
-      {timeStats.pauseCount > 0 && (
-        <div className="mt-4 flex items-center justify-between rounded-lg bg-amber-50 p-3">
-          <div>
-            <div className="text-xs text-amber-600">일시정지</div>
-            <div className="mt-1 text-sm font-semibold text-amber-900">
-              {timeStats.pauseCount}회 / {formatTime(timeStats.pausedDuration)}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 현재 진행 시간 (진행 중인 경우, 완료되지 않은 경우만) */}
       {timeStats.isActive && !isCompleted && (

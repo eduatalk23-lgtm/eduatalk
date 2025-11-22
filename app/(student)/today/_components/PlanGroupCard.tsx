@@ -16,7 +16,6 @@ import { PlanMemoModal } from "./PlanMemoModal";
 import { PlanRangeAdjustModal } from "./PlanRangeAdjustModal";
 import { PlanDetailInfo } from "./PlanDetailInfo";
 import { TimeCheckSection } from "./TimeCheckSection";
-import { TimerLogSection } from "./TimerLogSection";
 import { startPlan, pausePlan, resumePlan, stopAllActiveSessionsForPlan } from "../actions/todayActions";
 import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
@@ -24,8 +23,6 @@ import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
-import { getTimeEventsByPlanNumber } from "../actions/sessionTimeActions";
-import type { TimeEvent } from "../actions/sessionTimeActions";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -51,26 +48,6 @@ export function PlanGroupCard({
   const [isPending, startTransition] = useTransition();
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
   const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
-  const [timeEvents, setTimeEvents] = useState<TimeEvent[]>([]);
-
-  // 시간 이벤트 조회 (세션 데이터로 계산)
-  useEffect(() => {
-    const loadTimeEvents = async () => {
-      const result = await getTimeEventsByPlanNumber(group.planNumber, planDate);
-      if (result.success && result.events) {
-        setTimeEvents(result.events);
-      } else {
-        setTimeEvents([]);
-      }
-    };
-    loadTimeEvents();
-  }, [
-    group.planNumber,
-    planDate,
-    // 플랜의 시간 정보가 변경될 때마다 재조회
-    group.plans.map((p) => p.actual_start_time).join(","),
-    group.plans.map((p) => p.actual_end_time).join(","),
-  ]);
 
   const contentTitle = group.content?.title || "제목 없음";
   const contentTypeIcon =
@@ -417,8 +394,6 @@ export function PlanGroupCard({
           onReset={handleResetTimer}
         />
 
-        {/* 타이머 활동 기록 섹션 */}
-        <TimerLogSection events={timeEvents} />
 
         {/* 전체 진행률 및 시간 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
