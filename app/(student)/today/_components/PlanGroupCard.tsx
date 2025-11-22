@@ -53,12 +53,12 @@ function PlanGroupCardComponent({
   // 콘텐츠 정보 (메모이제이션)
   const contentInfo = useMemo(() => ({
     title: group.content?.title || "제목 없음",
-    icon: group.plans[0]?.content_type === "book"
+    icon: group.plan.content_type === "book"
       ? "📚"
-      : group.plans[0]?.content_type === "lecture"
+      : group.plan.content_type === "lecture"
       ? "🎧"
       : "📝"
-  }), [group.content?.title, group.plans[0]?.content_type]);
+  }), [group.content?.title, group.plan.content_type]);
 
    // 집계 정보 계산 (메모이제이션)
    const aggregatedInfo = useMemo(() => ({
@@ -75,18 +75,15 @@ function PlanGroupCardComponent({
     const isGroupRunning = !!activePlan;
 
     // 일시정지된 플랜이 있으면 일시정지 상태로 간주
-    const isGroupPaused = group.plans.some((plan) => {
-      const session = sessions.get(plan.id);
-      return (
-        plan.actual_start_time &&
-        !plan.actual_end_time &&
-        session &&
-        session.isPaused
-      );
-    });
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
+    const isGroupPaused = plan.actual_start_time &&
+      !plan.actual_end_time &&
+      session &&
+      session.isPaused;
 
     // 다른 플랜이 활성화되어 있는지 확인 (현재 그룹의 플랜 제외)
-    const currentGroupPlanIds = new Set(group.plans.map((p) => p.id));
+    const currentGroupPlanIds = new Set([plan.id]);
     const hasOtherActivePlan = Array.from(sessions.entries()).some(
       ([planId, session]) =>
         !currentGroupPlanIds.has(planId) &&
@@ -99,21 +96,20 @@ function PlanGroupCardComponent({
       isGroupPaused,
       hasOtherActivePlan
     };
-  }, [aggregatedInfo.activePlan, group.plans, sessions]);
+  }, [aggregatedInfo.activePlan, group.plan, sessions]);
 
   // 시간 통계 계산 (메모이제이션)
   const timeStats = useMemo(() =>
-    getTimeStats(group.plans, aggregatedInfo.activePlan, sessions),
-    [group.plans, aggregatedInfo.activePlan, sessions]
+    getTimeStats([group.plan], aggregatedInfo.activePlan, sessions),
+    [group.plan, aggregatedInfo.activePlan, sessions]
   );
 
   // 그룹 타이머 제어 핸들러 (optimistic update 적용)
   const handleGroupStart = async (timestamp?: string) => {
     // 그룹 내 첫 번째 대기 중인 플랜 시작
-    const waitingPlan = group.plans.find(
-      (plan) => !plan.actual_start_time && !plan.actual_end_time
-    );
-    if (!waitingPlan) return;
+    const plan = group.plan;
+    if (plan.actual_start_time || plan.actual_end_time) return;
+    const waitingPlan = plan;
 
     setIsLoading(true);
     try {
@@ -144,24 +140,14 @@ function PlanGroupCardComponent({
     }
 
     // 실제로 세션이 있는 활성 플랜만 일시정지 (세션 데이터 기반)
-    const activePlanIds = Array.from(
-      new Set(
-        group.plans
-          .filter((plan) => {
-            const session = sessions.get(plan.id);
-            // 세션이 있고, 일시정지되지 않은 플랜만
-            return (
-              plan.actual_start_time &&
-              !plan.actual_end_time &&
-              session &&
-              !session.isPaused
-            );
-          })
-          .map((plan) => plan.id)
-      )
-    );
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
+    const isActive = plan.actual_start_time &&
+      !plan.actual_end_time &&
+      session &&
+      !session.isPaused;
 
-    if (activePlanIds.length === 0) {
+    if (!isActive) {
       alert("일시정지할 활성 플랜이 없습니다.");
       return;
     }
@@ -170,45 +156,29 @@ function PlanGroupCardComponent({
     try {
       // 클라이언트에서 타임스탬프 생성
       const clientTimestamp = new Date().toISOString();
-      const results = await Promise.all(
-        activePlanIds.map(async (planId) => {
-          try {
-            const result = await pausePlan(planId, clientTimestamp);
-            return result;
-          } catch (error) {
-            return {
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-            };
-          }
-        })
-      );
+      const result = await pausePlan(plan.id, clientTimestamp);
 
-      const failedResults = results.filter((r) => !r.success);
-      // "이미 일시정지된 상태입니다" 또는 "활성 세션을 찾을 수 없습니다" 에러는 무시
-      // (세션 상태 동기화 문제로 인한 에러일 수 있음)
-      const criticalErrors = failedResults.filter(
-        (r) =>
-          r.error &&
-          !r.error.includes("이미 일시정지된 상태입니다") &&
-          !r.error.includes("활성 세션을 찾을 수 없습니다")
-      );
-
-      if (criticalErrors.length > 0) {
-        const errorMessages = criticalErrors
-          .map((r) => r.error || "알 수 없는 오류")
-          .join(", ");
-        alert(`일시정지에 실패했습니다: ${errorMessages}`);
-        setIsLoading(false);
-        // 에러 발생 시에만 상태 동기화를 위해 refresh
-        startTransition(() => {
-          router.refresh();
-        });
-      } else {
-        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
-        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
-        setIsLoading(false);
+      if (!result.success) {
+        // "이미 일시정지된 상태입니다" 또는 "활성 세션을 찾을 수 없습니다" 에러는 무시
+        // (세션 상태 동기화 문제로 인한 에러일 수 있음)
+        const isIgnorableError = result.error &&
+          (result.error.includes("이미 일시정지된 상태입니다") ||
+           result.error.includes("활성 세션을 찾을 수 없습니다"));
+        
+        if (!isIgnorableError) {
+          alert(`일시정지에 실패했습니다: ${result.error || "알 수 없는 오류"}`);
+          setIsLoading(false);
+          // 에러 발생 시에만 상태 동기화를 위해 refresh
+          startTransition(() => {
+            router.refresh();
+          });
+          return;
+        }
       }
+      
+      // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+      // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
+      setIsLoading(false);
     } catch (error) {
       console.error("[PlanGroupCard] 일시정지 오류:", error);
       alert("오류가 발생했습니다: " + (error instanceof Error ? error.message : String(error)));
@@ -218,14 +188,11 @@ function PlanGroupCardComponent({
 
   const handleGroupResume = async (timestamp?: string) => {
     // 실제로 세션이 있고 일시정지된 플랜만 재개 (세션 데이터 기반)
-    const pausedPlanIds = group.plans
-      .filter((plan) => {
-        const session = sessions.get(plan.id);
-        return session && session.isPaused;
-      })
-      .map((plan) => plan.id);
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
+    const isPaused = session && session.isPaused;
 
-    if (pausedPlanIds.length === 0) {
+    if (!isPaused) {
       alert("재개할 일시정지된 플랜이 없습니다.");
       return;
     }
@@ -234,40 +201,26 @@ function PlanGroupCardComponent({
     try {
       // 클라이언트에서 타임스탬프 생성 (전달받은 타임스탬프가 없으면 생성)
       const clientTimestamp = timestamp || new Date().toISOString();
-      const results = await Promise.all(
-        pausedPlanIds.map(async (planId) => {
-          try {
-            return await resumePlan(planId, clientTimestamp);
-          } catch (error) {
-            return {
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-            };
-          }
-        })
-      );
+      const result = await resumePlan(plan.id, clientTimestamp);
 
-      const failedResults = results.filter((r) => !r.success);
-      // "활성 세션을 찾을 수 없습니다" 에러는 무시 (세션 상태 동기화 문제)
-      const criticalErrors = failedResults.filter(
-        (r) => r.error && !r.error.includes("활성 세션을 찾을 수 없습니다")
-      );
-
-      if (criticalErrors.length > 0) {
-        const errorMessages = criticalErrors
-          .map((r) => r.error || "알 수 없는 오류")
-          .join(", ");
-        alert(`재개에 실패했습니다: ${errorMessages}`);
-        setIsLoading(false);
-        // 에러 발생 시에만 상태 동기화를 위해 refresh
-        startTransition(() => {
-          router.refresh();
-        });
-      } else {
-        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
-        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
-        setIsLoading(false);
+      if (!result.success) {
+        // "활성 세션을 찾을 수 없습니다" 에러는 무시 (세션 상태 동기화 문제)
+        const isIgnorableError = result.error && result.error.includes("활성 세션을 찾을 수 없습니다");
+        
+        if (!isIgnorableError) {
+          alert(`재개에 실패했습니다: ${result.error || "알 수 없는 오류"}`);
+          setIsLoading(false);
+          // 에러 발생 시에만 상태 동기화를 위해 refresh
+          startTransition(() => {
+            router.refresh();
+          });
+          return;
+        }
       }
+      
+      // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+      // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
+      setIsLoading(false);
     } catch (error) {
       alert("오류가 발생했습니다.");
       setIsLoading(false);
@@ -278,9 +231,7 @@ function PlanGroupCardComponent({
     // 완료 버튼을 누르면 활성 세션을 먼저 종료하여 타이머 중지
     if (!activePlan) {
       // 활성 플랜이 없으면 상세보기 페이지로 이동
-      if (group.plans.length > 0) {
-        router.push(`/today/plan/${group.plans[0].id}`);
-      }
+      router.push(`/today/plan/${group.plan.id}`);
       return;
     }
 
@@ -294,19 +245,7 @@ function PlanGroupCardComponent({
         return;
       }
 
-      // 그룹 내 다른 활성 플랜들의 세션도 종료
-      const activePlanIds = group.plans
-        .filter(
-          (plan) =>
-            plan.actual_start_time &&
-            !plan.actual_end_time &&
-            plan.id !== activePlan.id
-        )
-        .map((plan) => plan.id);
-
-      for (const planId of activePlanIds) {
-        await stopAllActiveSessionsForPlan(planId);
-      }
+      // 같은 plan_number를 가진 플랜은 하나만 있으므로 다른 플랜 종료 불필요
 
       // 페이지 새로고침하여 타이머 중지 확인
       router.refresh();
@@ -321,12 +260,10 @@ function PlanGroupCardComponent({
     }
   };
 
-  // 회차 표시 (같은 sequence를 가진 플랜들)
+  // 회차 표시
   const sequenceText = group.sequence
     ? `${group.sequence}회차`
-    : group.plans.length > 1
-    ? `${group.plans[0]?.sequence || 1}회차`
-    : "1회차";
+    : `${group.plan.sequence || 1}회차`;
 
   // 메모 저장 핸들러
   const handleSaveMemo = async (newMemo: string) => {
@@ -379,16 +316,13 @@ function PlanGroupCardComponent({
     if (totalPages !== undefined && totalPages > 0) {
       return totalPages;
     }
-    // 기본값: 가장 큰 endPageOrTime을 총량으로 추정
-    const maxEnd = Math.max(
-      ...group.plans.map((p) => p.planned_end_page_or_time ?? 0)
-    );
-    return maxEnd || 100;
-  }, [totalPages, group.plans]);
+    // 기본값: endPageOrTime을 총량으로 추정
+    return group.plan.planned_end_page_or_time ?? 100;
+  }, [totalPages, group.plan.planned_end_page_or_time]);
 
   const isBook = useMemo(() =>
-    group.plans[0]?.content_type === "book",
-    [group.plans[0]?.content_type]
+    group.plan.content_type === "book",
+    [group.plan.content_type]
   );
 
   if (viewMode === "single") {
@@ -421,7 +355,7 @@ function PlanGroupCardComponent({
           timeStats={timeStats}
           isPaused={groupStatus.isGroupPaused}
           activePlanStartTime={aggregatedInfo.activePlan?.actual_start_time ?? null}
-          planId={aggregatedInfo.activePlan?.id || group.plans[0]?.id || ""}
+          planId={aggregatedInfo.activePlan?.id || group.plan.id || ""}
           isActive={groupStatus.isGroupRunning}
           isLoading={isLoading || isPending}
           planNumber={group.planNumber}
@@ -513,30 +447,29 @@ function PlanGroupCardComponent({
           <p className="text-sm text-gray-600">({sequenceText})</p>
         )}
 
-        {/* 개별 플랜 블록 */}
+        {/* 플랜 정보 (같은 plan_number를 가진 플랜은 하나만 표시) */}
         <div className="flex flex-col gap-3">
-          {group.plans.map((plan, index) => {
-            // plan 객체에 session 정보 추가
+          {(() => {
+            const plan = group.plan;
             const planWithSession = {
               ...plan,
               session: sessions.get(plan.id) || undefined,
             };
 
-
             return (
-            <PlanItem
-              key={plan.id}
-              plan={planWithSession}
-              isGrouped={true}
-              showTimer={
-                !!plan.actual_start_time ||
-                !!plan.actual_end_time ||
-                sessions.has(plan.id)
-              }
-              viewMode="daily"
-            />
-          );
-        })}
+              <PlanItem
+                key={plan.id}
+                plan={planWithSession}
+                isGrouped={true}
+                showTimer={
+                  !!plan.actual_start_time ||
+                  !!plan.actual_end_time ||
+                  sessions.has(plan.id)
+                }
+                viewMode="daily"
+              />
+            );
+          })()}
         </div>
 
         {/* 집계 정보 */}
@@ -567,7 +500,7 @@ function PlanGroupCardComponent({
         planId={aggregatedInfo.activePlan?.id || group.plans[0]?.id || ""}
         isActive={groupStatus.isGroupRunning}
         isPaused={groupStatus.isGroupPaused}
-        isCompleted={aggregatedInfo.completedPlansCount === group.plans.length}
+        isCompleted={aggregatedInfo.completedPlansCount === 1}
         isLoading={isLoading || isPending}
         onStart={handleGroupStart}
         onPause={handleGroupPause}

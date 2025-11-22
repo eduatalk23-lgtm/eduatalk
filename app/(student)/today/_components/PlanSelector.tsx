@@ -43,7 +43,7 @@ export function PlanSelector({
     if (activeCount > 0) {
       return `진행 중 | ⏱ ${formatTime(totalStudyTime)}`;
     }
-    if (completedCount === group.plans.length) {
+    if (completedCount === 1) {
       return `완료 | ⏱ ${formatTime(totalStudyTime)}`;
     }
     return `대기 중`;
@@ -81,9 +81,7 @@ export function PlanSelector({
             const contentTitle = group.content?.title || "제목 없음";
             const sequence = group.sequence
               ? `${group.sequence}회차`
-              : group.plans.length > 1
-              ? `${group.plans[0]?.sequence || 1}회차`
-              : "1회차";
+              : `${group.plan.sequence || 1}회차`;
             const status = getGroupStatus(group);
 
             return (

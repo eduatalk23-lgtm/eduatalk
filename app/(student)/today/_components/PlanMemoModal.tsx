@@ -69,9 +69,9 @@ export function PlanMemoModal({
 
   const contentTitle = group.content?.title || "제목 없음";
   const contentTypeIcon =
-    group.plans[0]?.content_type === "book"
+    group.plan.content_type === "book"
       ? "📚"
-      : group.plans[0]?.content_type === "lecture"
+      : group.plan.content_type === "lecture"
       ? "🎧"
       : "📝";
 

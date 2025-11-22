@@ -13,20 +13,14 @@ export type PlanWithContent = Plan & {
 
 export type PlanGroup = {
   planNumber: number | null;
-  plans: PlanWithContent[]; // 같은 plan_number를 가진 플랜들
+  plan: PlanWithContent; // 같은 plan_number를 가진 플랜 중 가장 빠른 시작 시간을 가진 플랜
   content: Book | Lecture | CustomContent | undefined;
   sequence: number | null; // 회차
-  // 통합 정보 (같은 plan_number를 가진 플랜들을 하나로 통합한 정보)
-  overallStart: number | null; // 전체 범위의 시작 (가장 작은 시작)
-  overallEnd: number | null; // 전체 범위의 종료 (가장 큰 종료)
-  overallProgress: number; // 전체 진행률
-  isCompleted: boolean; // 모든 플랜이 완료되었는지
-  timeDisplay: string | null; // 시간 정보 (가장 이른 시작 ~ 가장 늦은 종료)
-  representativePlanId: string; // 대표 플랜 ID (완료 토글 등에 사용)
 };
 
 /**
- * 같은 plan_number를 가진 플랜들을 그룹화하고 통합 정보 계산
+ * 같은 plan_number를 가진 플랜들을 그룹화
+ * 같은 plan_number를 가진 플랜들은 같은 정보를 가지므로, 가장 빠른 시작 시간을 가진 플랜 하나만 선택
  */
 export function groupPlansByPlanNumber(plans: PlanWithContent[]): PlanGroup[] {
   const groups = new Map<number | null, PlanWithContent[]>();
@@ -40,61 +34,29 @@ export function groupPlansByPlanNumber(plans: PlanWithContent[]): PlanGroup[] {
   });
 
   return Array.from(groups.entries()).map(([planNumber, plans]) => {
-    const sortedPlans = plans.sort((a, b) => (a.block_index ?? 0) - (b.block_index ?? 0));
-    const representativePlan = sortedPlans[0];
-    
-    // 모든 플랜이 완료되었는지 확인
-    const isCompleted = sortedPlans.every((p) => !!p.actual_end_time);
-    
-    // 전체 범위 계산 (가장 작은 시작 ~ 가장 큰 종료)
-    const allStarts = sortedPlans
-      .map((p) => p.planned_start_page_or_time)
-      .filter((v): v is number => v !== null && v !== undefined)
-      .sort((a, b) => a - b);
-    const allEnds = sortedPlans
-      .map((p) => p.planned_end_page_or_time)
-      .filter((v): v is number => v !== null && v !== undefined)
-      .sort((a, b) => b - a);
-    
-    const overallStart = allStarts.length > 0 ? allStarts[0] : null;
-    const overallEnd = allEnds.length > 0 ? allEnds[0] : null;
-    
-    // 전체 진행률 계산
-    const totalRange = sortedPlans.reduce((sum, plan) => {
-      const range = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
-      return sum + range;
-    }, 0);
-    
-    const completedRange = sortedPlans.reduce((sum, plan) => {
-      return sum + (plan.completed_amount ?? 0);
-    }, 0);
-    
-    const overallProgress = totalRange > 0 ? Math.round((completedRange / totalRange) * 100) : 0;
-    
-    // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
-    const startTimes = sortedPlans
-      .map((p) => p.start_time)
-      .filter((t): t is string => !!t)
-      .sort();
-    const endTimes = sortedPlans
-      .map((p) => p.end_time)
-      .filter((t): t is string => !!t)
-      .sort();
-    const timeDisplay = startTimes.length > 0 && endTimes.length > 0
-      ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
-      : null;
+    // 같은 plan_number를 가진 플랜 중 가장 빠른 시작 시간을 가진 플랜 선택
+    const selectedPlan = plans.reduce((earliest, current) => {
+      const earliestTime = earliest.start_time || "";
+      const currentTime = current.start_time || "";
+      
+      // start_time이 없으면 block_index로 비교
+      if (!earliestTime && !currentTime) {
+        return (earliest.block_index ?? 0) < (current.block_index ?? 0) ? earliest : current;
+      }
+      
+      // start_time이 있는 것 우선
+      if (earliestTime && !currentTime) return earliest;
+      if (!earliestTime && currentTime) return current;
+      
+      // 둘 다 있으면 시간 비교
+      return earliestTime < currentTime ? earliest : current;
+    });
 
     return {
       planNumber,
-      plans: sortedPlans,
-      content: representativePlan?.content, // 모든 플랜이 같은 콘텐츠를 가짐
-      sequence: representativePlan?.sequence ?? null, // 모든 플랜이 같은 회차를 가짐
-      overallStart,
-      overallEnd,
-      overallProgress,
-      isCompleted,
-      timeDisplay,
-      representativePlanId: representativePlan?.id ?? "",
+      plan: selectedPlan, // 가장 빠른 시작 시간을 가진 플랜 하나만
+      content: selectedPlan?.content,
+      sequence: selectedPlan?.sequence ?? null,
     };
   });
 }
@@ -106,32 +68,22 @@ export function getActivePlan(
   planGroup: PlanGroup,
   sessions: Map<string, { isPaused: boolean }>
 ): Plan | null {
+  const plan = planGroup.plan;
+  const session = sessions.get(plan.id);
   return (
-    planGroup.plans.find((plan) => {
-      const session = sessions.get(plan.id);
-      return (
-        plan.actual_start_time &&
-        !plan.actual_end_time &&
-        (!session || !session.isPaused)
-      );
-    }) ?? null
-  );
+    plan.actual_start_time &&
+    !plan.actual_end_time &&
+    (!session || !session.isPaused)
+  ) ? plan : null;
 }
 
 /**
  * 플랜 그룹의 전체 진행률 계산
  */
 export function calculateGroupProgress(planGroup: PlanGroup): number {
-  const totalPages = planGroup.plans.reduce((sum, plan) => {
-    const range =
-      (plan.planned_end_page_or_time ?? 0) -
-      (plan.planned_start_page_or_time ?? 0);
-    return sum + range;
-  }, 0);
-
-  const completedPages = planGroup.plans.reduce((sum, plan) => {
-    return sum + (plan.completed_amount ?? 0);
-  }, 0);
+  const plan = planGroup.plan;
+  const totalPages = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
+  const completedPages = plan.completed_amount ?? 0;
 
   return totalPages > 0
     ? Math.round((completedPages / totalPages) * 100)
@@ -145,22 +97,19 @@ export function calculateGroupTotalStudyTime(
   planGroup: PlanGroup,
   sessions?: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>
 ): number {
-  return planGroup.plans.reduce((sum, plan) => {
-    // 타임스탬프 기반으로 정확한 학습 시간 계산
-    const session = sessions?.get(plan.id);
-    const isCurrentlyPaused = session?.isPaused ?? false;
-    const currentPausedAt = session?.pausedAt ?? null;
-    
-    const studyTime = calculateStudyTimeFromTimestamps(
-      plan.actual_start_time,
-      plan.actual_end_time,
-      plan.paused_duration_seconds,
-      isCurrentlyPaused,
-      currentPausedAt
-    );
-    
-    return sum + studyTime;
-  }, 0);
+  const plan = planGroup.plan;
+  // 타임스탬프 기반으로 정확한 학습 시간 계산
+  const session = sessions?.get(plan.id);
+  const isCurrentlyPaused = session?.isPaused ?? false;
+  const currentPausedAt = session?.pausedAt ?? null;
+  
+  return calculateStudyTimeFromTimestamps(
+    plan.actual_start_time,
+    plan.actual_end_time,
+    plan.paused_duration_seconds,
+    isCurrentlyPaused,
+    currentPausedAt
+  );
 }
 
 /**
@@ -170,21 +119,20 @@ export function getActivePlansCount(
   planGroup: PlanGroup,
   sessions: Map<string, { isPaused: boolean }>
 ): number {
-  return planGroup.plans.filter((plan) => {
-    const session = sessions.get(plan.id);
-    return (
-      plan.actual_start_time &&
-      !plan.actual_end_time &&
-      (!session || !session.isPaused)
-    );
-  }).length;
+  const plan = planGroup.plan;
+  const session = sessions.get(plan.id);
+  return (
+    plan.actual_start_time &&
+    !plan.actual_end_time &&
+    (!session || !session.isPaused)
+  ) ? 1 : 0;
 }
 
 /**
  * 플랜 그룹의 완료 플랜 수
  */
 export function getCompletedPlansCount(planGroup: PlanGroup): number {
-  return planGroup.plans.filter((plan) => !!plan.actual_end_time).length;
+  return planGroup.plan.actual_end_time ? 1 : 0;
 }
 
 /**

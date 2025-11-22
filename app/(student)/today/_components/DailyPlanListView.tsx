@@ -38,7 +38,7 @@ export function DailyPlanListView({
     <div className="flex flex-col gap-4">
       {groups.map((group) => (
         <PlanCard
-          key={group.planNumber ?? `null-${group.plans[0]?.id}`}
+          key={group.planNumber ?? `null-${group.plan.id}`}
           group={group}
           sessions={sessions}
           planDate={planDate}

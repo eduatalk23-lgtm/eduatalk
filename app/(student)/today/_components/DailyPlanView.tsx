@@ -43,8 +43,8 @@ export function DailyPlanView({
   // 그룹 렌더링 결과를 메모이제이션하여 중복 렌더링 방지
   const renderedGroups = useMemo(() =>
     groups.map((group, index) => {
-      const contentKey = group.plans[0]
-        ? `${group.plans[0].content_type}:${group.plans[0].content_id}`
+      const contentKey = group.plan
+        ? `${group.plan.content_type}:${group.plan.content_id}`
         : "";
       const totalPages = totalPagesMap.get(contentKey);
       const memo = memos.get(group.planNumber);

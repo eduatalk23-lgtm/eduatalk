@@ -38,12 +38,12 @@ export function PlanCard({
   // 콘텐츠 정보
   const contentInfo = useMemo(() => ({
     title: group.content?.title || "제목 없음",
-    icon: group.plans[0]?.content_type === "book"
+    icon: group.plan.content_type === "book"
       ? "📚"
-      : group.plans[0]?.content_type === "lecture"
+      : group.plan.content_type === "lecture"
       ? "🎧"
       : "📝",
-  }), [group.content?.title, group.plans[0]?.content_type]);
+  }), [group.content?.title, group.plan.content_type]);
 
   // 집계 정보
   const aggregatedInfo = useMemo(() => ({
@@ -56,37 +56,33 @@ export function PlanCard({
 
   // 그룹 상태
   const groupStatus = useMemo(() => {
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
     const isGroupRunning = !!aggregatedInfo.activePlan;
-    const isGroupPaused = group.plans.some((plan) => {
-      const session = sessions.get(plan.id);
-      return (
-        plan.actual_start_time &&
-        !plan.actual_end_time &&
-        session &&
-        session.isPaused
-      );
-    });
-    const isGroupCompleted = aggregatedInfo.completedPlansCount === group.plans.length;
+    const isGroupPaused = plan.actual_start_time &&
+      !plan.actual_end_time &&
+      session &&
+      session.isPaused;
+    const isGroupCompleted = aggregatedInfo.completedPlansCount === 1;
 
     return {
       isGroupRunning,
       isGroupPaused,
       isGroupCompleted,
     };
-  }, [aggregatedInfo, group.plans, sessions]);
+  }, [aggregatedInfo, group.plan, sessions]);
 
   // 시간 통계
   const timeStats = useMemo(() =>
-    getTimeStats(group.plans, aggregatedInfo.activePlan, sessions),
-    [group.plans, aggregatedInfo.activePlan, sessions]
+    getTimeStats([group.plan], aggregatedInfo.activePlan, sessions),
+    [group.plan, aggregatedInfo.activePlan, sessions]
   );
 
   // 타이머 제어 핸들러
   const handleStart = async () => {
-    const waitingPlan = group.plans.find(
-      (plan) => !plan.actual_start_time && !plan.actual_end_time
-    );
-    if (!waitingPlan) return;
+    const plan = group.plan;
+    if (plan.actual_start_time || plan.actual_end_time) return;
+    const waitingPlan = plan;
 
     setIsLoading(true);
     try {
@@ -105,19 +101,14 @@ export function PlanCard({
   const handlePause = async () => {
     if (isLoading) return;
 
-    const activePlanIds = group.plans
-      .filter((plan) => {
-        const session = sessions.get(plan.id);
-        return (
-          plan.actual_start_time &&
-          !plan.actual_end_time &&
-          session &&
-          !session.isPaused
-        );
-      })
-      .map((plan) => plan.id);
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
+    const isActive = plan.actual_start_time &&
+      !plan.actual_end_time &&
+      session &&
+      !session.isPaused;
 
-    if (activePlanIds.length === 0) {
+    if (!isActive) {
       alert("일시정지할 활성 플랜이 없습니다.");
       return;
     }
@@ -125,9 +116,7 @@ export function PlanCard({
     setIsLoading(true);
     try {
       const timestamp = new Date().toISOString();
-      await Promise.all(
-        activePlanIds.map((planId) => pausePlan(planId, timestamp))
-      );
+      await pausePlan(plan.id, timestamp);
     } catch (error) {
       alert("오류가 발생했습니다.");
     } finally {
@@ -136,14 +125,11 @@ export function PlanCard({
   };
 
   const handleResume = async () => {
-    const pausedPlanIds = group.plans
-      .filter((plan) => {
-        const session = sessions.get(plan.id);
-        return session && session.isPaused;
-      })
-      .map((plan) => plan.id);
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
+    const isPaused = session && session.isPaused;
 
-    if (pausedPlanIds.length === 0) {
+    if (!isPaused) {
       alert("재개할 일시정지된 플랜이 없습니다.");
       return;
     }
@@ -151,9 +137,7 @@ export function PlanCard({
     setIsLoading(true);
     try {
       const timestamp = new Date().toISOString();
-      await Promise.all(
-        pausedPlanIds.map((planId) => resumePlan(planId, timestamp))
-      );
+      await resumePlan(plan.id, timestamp);
     } catch (error) {
       alert("오류가 발생했습니다.");
     } finally {
@@ -163,9 +147,7 @@ export function PlanCard({
 
   const handleComplete = async () => {
     if (!aggregatedInfo.activePlan) {
-      if (group.plans.length > 0) {
-        router.push(`/today/plan/${group.plans[0].id}`);
-      }
+      router.push(`/today/plan/${group.plan.id}`);
       return;
     }
 
@@ -256,17 +238,24 @@ export function PlanCard({
               ? "🎧"
               : "📝";
 
+            const plan = group.plan;
+            const isCompleted = !!plan.actual_end_time;
+            const progress = plan.progress ?? 0;
+            const timeDisplay = plan.start_time && plan.end_time
+              ? `${plan.start_time} ~ ${plan.end_time}`
+              : null;
+
             return (
               <div
                 key={group.planNumber ?? 'no-number'}
                 className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
               >
                 <button
-                  onClick={() => handleToggleCompletion(group.representativePlanId, group.isCompleted)}
+                  onClick={() => handleToggleCompletion(plan.id, isCompleted)}
                   disabled={isLoading}
                   className="flex-shrink-0"
                 >
-                  {group.isCompleted ? (
+                  {isCompleted ? (
                     <CheckCircle2 className="h-6 w-6 text-green-600" />
                   ) : (
                     <Circle className="h-6 w-6 text-gray-400" />
@@ -274,27 +263,27 @@ export function PlanCard({
                 </button>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">
-                    {contentTypeIcon} 챕터: {representativePlan.chapter || "정보 없음"}
+                    {contentTypeIcon} 챕터: {plan.chapter || "정보 없음"}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {group.overallStart !== null && group.overallEnd !== null && (
+                    {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
                       <>
-                        {contentType === "book" && <>📄 페이지: {group.overallStart} ~ {group.overallEnd}</>}
-                        {contentType === "lecture" && <>🎧 강의: {group.overallStart} ~ {group.overallEnd}</>}
-                        {contentType === "custom" && <>📝 범위: {group.overallStart} ~ {group.overallEnd}</>}
+                        {contentType === "book" && <>📄 페이지: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
+                        {contentType === "lecture" && <>🎧 강의: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
+                        {contentType === "custom" && <>📝 범위: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
                       </>
                     )}
                   </div>
-                  {group.timeDisplay && (
+                  {timeDisplay && (
                     <div className="mt-1 text-xs text-blue-600">
-                      ⏰ 시간: {group.timeDisplay}
+                      ⏰ 시간: {timeDisplay}
                     </div>
                   )}
-                  {group.overallProgress > 0 && (
+                  {progress > 0 && (
                     <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
                       <div
                         className="h-full bg-indigo-500 transition-all duration-300"
-                        style={{ width: `${group.overallProgress}%` }}
+                        style={{ width: `${progress}%` }}
                       />
                     </div>
                   )}
@@ -364,16 +353,21 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 (간단 버전) - 통합 정보 사용 */}
+        {/* 플랜 목록 (간단 버전) */}
         <div className="flex flex-col gap-2">
           {(() => {
-            const representativePlan = group.plans[0];
-            const contentType = representativePlan.content_type;
+            const plan = group.plan;
+            const contentType = plan.content_type;
             const contentTypeIcon = contentType === "book"
               ? "📖"
               : contentType === "lecture"
               ? "🎧"
               : "📝";
+            const isCompleted = !!plan.actual_end_time;
+            const progress = plan.progress ?? 0;
+            const timeDisplay = plan.start_time && plan.end_time
+              ? `${plan.start_time} ~ ${plan.end_time}`
+              : null;
             
             return (
               <div
@@ -381,11 +375,11 @@ export function PlanCard({
                 className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
               >
                 <button
-                  onClick={() => handleToggleCompletion(group.representativePlanId, group.isCompleted)}
+                  onClick={() => handleToggleCompletion(plan.id, isCompleted)}
                   disabled={isLoading}
                   className="flex-shrink-0"
                 >
-                  {group.isCompleted ? (
+                  {isCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
                   ) : (
                     <Circle className="h-5 w-5 text-gray-400" />
@@ -393,28 +387,28 @@ export function PlanCard({
                 </button>
                 <div className="flex-1 text-xs">
                   <div className="font-medium text-gray-900">
-                    {contentTypeIcon} 챕터: {representativePlan.chapter || "정보 없음"}
+                    {contentTypeIcon} 챕터: {plan.chapter || "정보 없음"}
                   </div>
                   <div className="text-gray-500">
-                    {group.overallStart !== null && group.overallEnd !== null && (
+                    {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
                       <>
-                        {contentType === "book" && <>📄 페이지: {group.overallStart} ~ {group.overallEnd}</>}
-                        {contentType === "lecture" && <>🎧 강의: {group.overallStart} ~ {group.overallEnd}</>}
-                        {contentType === "custom" && <>📝 범위: {group.overallStart} ~ {group.overallEnd}</>}
+                        {contentType === "book" && <>📄 페이지: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
+                        {contentType === "lecture" && <>🎧 강의: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
+                        {contentType === "custom" && <>📝 범위: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
                       </>
                     )}
                   </div>
-                  {group.timeDisplay && (
+                  {timeDisplay && (
                     <div className="mt-0.5 text-xs text-blue-600">
-                      ⏰ 시간: {group.timeDisplay}
+                      ⏰ 시간: {timeDisplay}
                     </div>
                   )}
                 </div>
-                {group.overallProgress > 0 && (
+                {progress > 0 && (
                   <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
                     <div
                       className="h-full bg-indigo-500"
-                      style={{ width: `${group.overallProgress}%` }}
+                      style={{ width: `${progress}%` }}
                     />
                   </div>
                 )}

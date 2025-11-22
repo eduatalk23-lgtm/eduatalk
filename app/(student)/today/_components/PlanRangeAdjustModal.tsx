@@ -40,27 +40,22 @@ export function PlanRangeAdjustModal({
   // 초기화
   useEffect(() => {
     if (isOpen) {
-      const initialRanges: PlanRange[] = group.plans
-        .sort((a, b) => (a.block_index ?? 0) - (b.block_index ?? 0))
-        .map((plan) => ({
-          planId: plan.id,
-          blockIndex: plan.block_index ?? 0,
-          startPageOrTime: plan.planned_start_page_or_time ?? 0,
-          endPageOrTime: plan.planned_end_page_or_time ?? 0,
-        }));
+      const plan = group.plan;
+      const initialRanges: PlanRange[] = [{
+        planId: plan.id,
+        blockIndex: plan.block_index ?? 0,
+        startPageOrTime: plan.planned_start_page_or_time ?? 0,
+        endPageOrTime: plan.planned_end_page_or_time ?? 0,
+      }];
 
       setRanges(initialRanges);
       setOriginalRanges(JSON.parse(JSON.stringify(initialRanges)));
 
       // 전체 범위 계산
-      if (initialRanges.length > 0) {
-        const minStart = Math.min(...initialRanges.map((r) => r.startPageOrTime));
-        const maxEnd = Math.max(...initialRanges.map((r) => r.endPageOrTime));
-        setBulkStart(minStart);
-        setBulkEnd(maxEnd);
-      }
+      setBulkStart(plan.planned_start_page_or_time ?? 0);
+      setBulkEnd(plan.planned_end_page_or_time ?? 0);
     }
-  }, [isOpen, group]);
+  }, [isOpen, group.plan]);
 
   const handleSave = async () => {
     // 검증
