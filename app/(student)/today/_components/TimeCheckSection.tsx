@@ -204,6 +204,17 @@ export function TimeCheckSection({
           </div>
         )}
         
+        {/* 디버깅: 재시작 타임스탬프가 없는 경우 표시 */}
+        {!optimisticTimestamps.resume && 
+         !timeEvents.filter((e) => e.type === "resume").slice(-1)[0]?.timestamp && 
+         !timeStats.lastResumedAt && 
+         !isPaused && 
+         isActive && (
+          <div className="text-xs text-gray-400">
+            재시작 타임스탬프 없음 (디버깅)
+          </div>
+        )}
+        
         {/* 종료 시간 */}
         {(timeEvents.find((e) => e.type === "complete")?.timestamp || 
           timeStats.lastEndTime) && (
