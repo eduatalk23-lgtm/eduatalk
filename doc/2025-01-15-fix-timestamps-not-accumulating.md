@@ -72,52 +72,73 @@ onResume={() => {
 **변경 사항**: 모든 타임스탬프를 시간순으로 정렬하여 표시
 
 ```typescript
-{/* 모든 일시정지/재시작 타임스탬프를 시간순으로 표시 */}
-{(() => {
-  // 모든 타임스탬프를 수집 (optimistic + 서버 값)
-  const allPauses: string[] = [];
-  const allResumes: string[] = [];
-  
-  // Optimistic 일시정지 타임스탬프
-  if (optimisticTimestamps.pauses) {
-    allPauses.push(...optimisticTimestamps.pauses);
-  }
-  
-  // 서버 일시정지 타임스탬프
-  if (timeStats.currentPausedAt) {
-    allPauses.push(timeStats.currentPausedAt);
-  }
-  if (timeStats.lastPausedAt && !allPauses.includes(timeStats.lastPausedAt)) {
-    allPauses.push(timeStats.lastPausedAt);
-  }
-  
-  // Optimistic 재시작 타임스탬프
-  if (optimisticTimestamps.resumes) {
-    allResumes.push(...optimisticTimestamps.resumes);
-  }
-  
-  // 서버 재시작 타임스탬프
-  if (timeStats.lastResumedAt && !allResumes.includes(timeStats.lastResumedAt)) {
-    allResumes.push(timeStats.lastResumedAt);
-  }
-  
-  // 모든 이벤트를 시간순으로 정렬
-  const allEvents: Array<{ type: "pause" | "resume"; timestamp: string }> = [
-    ...allPauses.map(ts => ({ type: "pause" as const, timestamp: ts })),
-    ...allResumes.map(ts => ({ type: "resume" as const, timestamp: ts })),
-  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  
-  return allEvents.map((event, index) => (
-    <div key={`${event.type}-${event.timestamp}-${index}`} className="flex items-center justify-between">
-      <span className={`text-sm ${event.type === "pause" ? "text-amber-600" : "text-blue-600"}`}>
-        {event.type === "pause" ? "일시정지 시간" : "재시작 시간"}
-      </span>
-      <span className={`text-sm font-medium ${event.type === "pause" ? "text-amber-900" : "text-blue-900"}`}>
-        {formatTimestamp(event.timestamp)}
-      </span>
-    </div>
-  ));
-})()}
+{
+  /* 모든 일시정지/재시작 타임스탬프를 시간순으로 표시 */
+}
+{
+  (() => {
+    // 모든 타임스탬프를 수집 (optimistic + 서버 값)
+    const allPauses: string[] = [];
+    const allResumes: string[] = [];
+
+    // Optimistic 일시정지 타임스탬프
+    if (optimisticTimestamps.pauses) {
+      allPauses.push(...optimisticTimestamps.pauses);
+    }
+
+    // 서버 일시정지 타임스탬프
+    if (timeStats.currentPausedAt) {
+      allPauses.push(timeStats.currentPausedAt);
+    }
+    if (timeStats.lastPausedAt && !allPauses.includes(timeStats.lastPausedAt)) {
+      allPauses.push(timeStats.lastPausedAt);
+    }
+
+    // Optimistic 재시작 타임스탬프
+    if (optimisticTimestamps.resumes) {
+      allResumes.push(...optimisticTimestamps.resumes);
+    }
+
+    // 서버 재시작 타임스탬프
+    if (
+      timeStats.lastResumedAt &&
+      !allResumes.includes(timeStats.lastResumedAt)
+    ) {
+      allResumes.push(timeStats.lastResumedAt);
+    }
+
+    // 모든 이벤트를 시간순으로 정렬
+    const allEvents: Array<{ type: "pause" | "resume"; timestamp: string }> = [
+      ...allPauses.map((ts) => ({ type: "pause" as const, timestamp: ts })),
+      ...allResumes.map((ts) => ({ type: "resume" as const, timestamp: ts })),
+    ].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    return allEvents.map((event, index) => (
+      <div
+        key={`${event.type}-${event.timestamp}-${index}`}
+        className="flex items-center justify-between"
+      >
+        <span
+          className={`text-sm ${
+            event.type === "pause" ? "text-amber-600" : "text-blue-600"
+          }`}
+        >
+          {event.type === "pause" ? "일시정지 시간" : "재시작 시간"}
+        </span>
+        <span
+          className={`text-sm font-medium ${
+            event.type === "pause" ? "text-amber-900" : "text-blue-900"
+          }`}
+        >
+          {formatTimestamp(event.timestamp)}
+        </span>
+      </div>
+    ));
+  })();
+}
 ```
 
 ### 4. useEffect 수정
@@ -128,11 +149,11 @@ onResume={() => {
 useEffect(() => {
   setOptimisticIsPaused(null);
   setOptimisticIsActive(null);
-  
+
   // 서버에서 props가 업데이트되면 optimistic 타임스탬프 정리
   setOptimisticTimestamps((prev) => {
     const newTimestamps = { ...prev };
-    
+
     // 서버에 저장된 일시정지 타임스탬프가 있으면 해당 optimistic 제거
     if (currentPausedAt || lastPausedAt) {
       if (newTimestamps.pauses) {
@@ -144,7 +165,7 @@ useEffect(() => {
         }
       }
     }
-    
+
     // 서버에 저장된 재시작 타임스탬프가 있으면 해당 optimistic 제거
     if (lastResumedAt) {
       if (newTimestamps.resumes) {
@@ -156,21 +177,30 @@ useEffect(() => {
         }
       }
     }
-    
+
     return newTimestamps;
   });
-}, [isPaused, isActive, firstStartTime, currentPausedAt, lastPausedAt, lastResumedAt]);
+}, [
+  isPaused,
+  isActive,
+  firstStartTime,
+  currentPausedAt,
+  lastPausedAt,
+  lastResumedAt,
+]);
 ```
 
 ## 🎯 수정 효과
 
 ### 수정 전
+
 - 일시정지 → 일시정지 시간 표시
 - 재시작 → 재시작 시간 표시, 이전 일시정지 시간 유지
 - 다시 일시정지 → 이전 일시정지 시간 사라지고 새로운 것만 표시
 - 타임스탬프가 누적되지 않음
 
 ### 수정 후
+
 - 일시정지 → 일시정지 시간 표시
 - 재시작 → 재시작 시간 표시, 이전 일시정지 시간 유지
 - 다시 일시정지 → 새로운 일시정지 시간 추가, 이전 기록 유지
@@ -184,12 +214,59 @@ useEffect(() => {
 3. **중복 제거**: 서버 값과 optimistic 값의 중복 제거
 4. **선택적 제거**: 서버에 저장된 값과 일치하는 optimistic만 제거
 
+## 🔧 추가 수정 사항
+
+### 일시정지 시간 중복 표시 문제 수정
+
+**문제**: 일시정지 시간이 2개가 연속으로 표시되는 문제
+
+**원인**: `currentPausedAt`과 `lastPausedAt`이 같은 값일 때 둘 다 표시됨
+
+**해결**:
+1. `getTimeStats`에서 일시정지 중일 때는 `currentPausedAt`만 설정, `lastPausedAt`은 null
+2. 재시작 후에만 `lastPausedAt` 설정
+3. `TimeCheckSection`에서 `currentPausedAt`이 있으면 그것만 사용, 없으면 `lastPausedAt` 사용
+
+```typescript
+// getTimeStats 수정
+if (pausedPlan) {
+  // 일시정지된 플랜: 현재 일시정지 중이므로 currentPausedAt만 설정
+  currentPausedAt = session.pausedAt || null;
+  lastPausedAt = null; // 일시정지 중이면 null
+} else if (activePlan) {
+  if (session.isPaused) {
+    // 현재 일시정지 중
+    currentPausedAt = session.pausedAt || null;
+    lastPausedAt = null;
+  } else {
+    // 재시작된 플랜의 경우 마지막 일시정지 시간 표시
+    currentPausedAt = null;
+    if (session.pausedAt && session.resumedAt) {
+      lastPausedAt = session.pausedAt;
+    }
+  }
+}
+
+// TimeCheckSection 수정
+// 현재 일시정지 중이면 currentPausedAt만 사용, 재시작 후면 lastPausedAt만 사용
+if (timeStats.currentPausedAt) {
+  // 현재 일시정지 중인 경우
+  if (!allPauses.includes(timeStats.currentPausedAt)) {
+    allPauses.push(timeStats.currentPausedAt);
+  }
+} else if (timeStats.lastPausedAt) {
+  // 재시작 후인 경우
+  if (!allPauses.includes(timeStats.lastPausedAt)) {
+    allPauses.push(timeStats.lastPausedAt);
+  }
+}
+```
+
 ## ✅ 테스트 시나리오
 
 1. ✅ 시작 → 시작 시간 표시
-2. ✅ 일시정지 → 일시정지 시간 표시
+2. ✅ 일시정지 → 일시정지 시간 1개만 표시
 3. ✅ 재시작 → 일시정지 시간 유지, 재시작 시간 표시
 4. ✅ 다시 일시정지 → 새로운 일시정지 시간 추가, 이전 기록 유지
 5. ✅ 다시 재시작 → 새로운 재시작 시간 추가, 모든 기록 유지
-6. ✅ 여러 번 반복 → 모든 타임스탬프가 시간순으로 누적 표시
-
+6. ✅ 여러 번 반복 → 모든 타임스탬프가 시간순으로 누적 표시, 중복 없음

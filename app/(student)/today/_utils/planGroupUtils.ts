@@ -319,20 +319,28 @@ export function getTimeStats(
     });
 
     if (pausedPlan) {
+      // 일시정지된 플랜: 현재 일시정지 중이므로 currentPausedAt만 설정
       const session = sessions.get(pausedPlan.id);
       if (session) {
         currentPausedAt = session.pausedAt || null;
-        lastPausedAt = session.pausedAt || null;
+        // 일시정지 중이면 lastPausedAt은 null (재시작 후에만 설정)
+        lastPausedAt = null;
         lastResumedAt = session.resumedAt || null;
       }
     } else if (activePlan) {
       // 일시정지된 플랜이 없으면 활성 플랜의 세션 정보 사용
       const session = sessions.get(activePlan.id);
       if (session) {
-        currentPausedAt = session.isPaused ? (session.pausedAt || null) : null;
-        // 재시작된 플랜의 경우에도 마지막 일시정지 시간 표시
-        if (session.pausedAt && session.resumedAt) {
-          lastPausedAt = session.pausedAt;
+        if (session.isPaused) {
+          // 현재 일시정지 중
+          currentPausedAt = session.pausedAt || null;
+          lastPausedAt = null;
+        } else {
+          // 재시작된 플랜의 경우 마지막 일시정지 시간 표시
+          currentPausedAt = null;
+          if (session.pausedAt && session.resumedAt) {
+            lastPausedAt = session.pausedAt;
+          }
         }
         lastResumedAt = session.resumedAt || null;
       }

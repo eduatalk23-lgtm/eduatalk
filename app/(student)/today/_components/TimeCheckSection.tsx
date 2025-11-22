@@ -147,11 +147,17 @@ export function TimeCheckSection({
           }
           
           // 서버 일시정지 타임스탬프
+          // 현재 일시정지 중이면 currentPausedAt만 사용, 재시작 후면 lastPausedAt만 사용
           if (timeStats.currentPausedAt) {
-            allPauses.push(timeStats.currentPausedAt);
-          }
-          if (timeStats.lastPausedAt && !allPauses.includes(timeStats.lastPausedAt)) {
-            allPauses.push(timeStats.lastPausedAt);
+            // 현재 일시정지 중인 경우
+            if (!allPauses.includes(timeStats.currentPausedAt)) {
+              allPauses.push(timeStats.currentPausedAt);
+            }
+          } else if (timeStats.lastPausedAt) {
+            // 재시작 후인 경우 (currentPausedAt이 null이고 lastPausedAt이 있는 경우)
+            if (!allPauses.includes(timeStats.lastPausedAt)) {
+              allPauses.push(timeStats.lastPausedAt);
+            }
           }
           
           // Optimistic 재시작 타임스탬프
