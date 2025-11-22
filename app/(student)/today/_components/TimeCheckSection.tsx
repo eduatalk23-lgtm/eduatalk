@@ -185,6 +185,20 @@ export function TimeCheckSection({
           onComplete={onComplete}
         />
       </div>
+
+      {/* 타이머 초기화 버튼 */}
+      {(timeStats.firstStartTime || timeStats.lastEndTime || timeStats.totalDuration > 0) && onReset && (
+        <div className="mt-4 border-t border-gray-200 pt-4">
+          <button
+            onClick={onReset}
+            disabled={isLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+          >
+            <RotateCcw className="h-4 w-4" />
+            타이머 기록 초기화
+          </button>
+        </div>
+      )}
     </div>
   );
 }
