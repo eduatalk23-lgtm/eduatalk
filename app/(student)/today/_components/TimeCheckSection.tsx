@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Clock, Play, Pause, CheckCircle, RotateCcw } from "lucide-react";
-import { formatTime, formatTimestamp, type TimeStats, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
+import { Clock, CheckCircle, RotateCcw } from "lucide-react";
+import { formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
 import { getTimeEventsByPlanNumber } from "../actions/sessionTimeActions";
 import type { TimeEvent } from "../actions/sessionTimeActions";
@@ -86,33 +86,6 @@ export function TimeCheckSection({
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
   const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : Boolean(isPaused);
 
-  // 현재 일시정지 중인 시간 계산 (진행 중이고 일시정지된 경우)
-  const currentPauseSeconds = (() => {
-    if (!isActiveState || !isPausedState || !timeStats.currentPausedAt) {
-      return 0;
-    }
-    try {
-      const pausedAt = new Date(timeStats.currentPausedAt).getTime();
-      const now = Date.now();
-      return Math.floor((now - pausedAt) / 1000);
-    } catch {
-      return 0;
-    }
-  })();
-
-  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
-  const elapsedSeconds = (() => {
-    if (isCompleted || !isActiveState || !hasStartTime) {
-      return 0;
-    }
-    // 현재 일시정지 중인 시간 포함하여 계산
-    const totalPausedDuration = timeStats.pausedDuration + (isPausedState ? currentPauseSeconds : 0);
-    return calculateStudyTimeFromTimestamps(
-      normalizedStartTime,
-      null, // 진행 중이므로 종료 시간 없음
-      totalPausedDuration
-    );
-  })();
 
 
   return (
@@ -213,26 +186,6 @@ export function TimeCheckSection({
 
 
 
-      {/* 현재 진행 시간 (진행 중인 경우, 완료되지 않은 경우만) */}
-      {timeStats.isActive && !isCompleted && (
-        <div className={`mt-4 rounded-lg p-4 ${isPaused ? "bg-gray-50" : "bg-indigo-50"}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {isPaused ? (
-                <Pause className="h-5 w-5 text-gray-500" />
-              ) : (
-                <Play className="h-5 w-5 text-indigo-500" />
-              )}
-              <span className="text-sm font-semibold text-gray-700">
-                {isPaused ? "일시정지 중" : "진행 중"}
-              </span>
-            </div>
-            <div className="text-2xl font-bold text-indigo-900">
-              {formatTime(elapsedSeconds)}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 완료 상태 표시 */}
       {timeStats.isCompleted && (
