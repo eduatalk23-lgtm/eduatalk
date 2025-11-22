@@ -245,48 +245,6 @@ export function PlanGroupCard({
           </div>
         </div>
 
-        {/* 개별 플랜 블록 */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">플랜 블록</h3>
-          {group.plans.map((plan) => (
-            <PlanItem
-              key={plan.id}
-              plan={plan}
-              isGrouped={true}
-              isActive={plan.id === activePlan?.id}
-              showTimer={
-                !!plan.actual_start_time ||
-                !!plan.actual_end_time ||
-                sessions.has(plan.id)
-              }
-              viewMode="single"
-            />
-          ))}
-        </div>
-
-        {/* 전체 범위 정보 */}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-gray-900">
-            전체 범위 정보
-          </h3>
-          <div className="space-y-1 text-sm text-gray-600">
-            {group.plans[0]?.planned_start_page_or_time !== null &&
-              group.plans[group.plans.length - 1]?.planned_end_page_or_time !==
-                null && (
-                <p>
-                  {group.plans[0]?.planned_start_page_or_time} ~
-                  {group.plans[group.plans.length - 1]
-                    ?.planned_end_page_or_time}
-                  {group.plans[0]?.content_type === "book" ? "페이지" : "분"}
-                </p>
-              )}
-            <p>
-              활성: {activePlansCount}개 | 완료: {completedPlansCount}개 | 대기:{" "}
-              {group.plans.length - activePlansCount - completedPlansCount}개
-            </p>
-          </div>
-        </div>
-
         {/* 메모 모달 */}
         <PlanMemoModal
           group={group}
