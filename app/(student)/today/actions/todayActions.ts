@@ -379,16 +379,21 @@ export async function pausePlan(
     const supabase = await createSupabaseServerClient();
 
     // 활성 세션 조회
-    const { data: activeSession } = await supabase
+    const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, paused_at")
+      .select("id, paused_at, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
       .maybeSingle();
 
+    if (sessionError) {
+      console.error("[todayActions] 세션 조회 오류:", sessionError);
+      return { success: false, error: "세션 조회 중 오류가 발생했습니다." };
+    }
+
     if (!activeSession) {
-      return { success: false, error: "활성 세션을 찾을 수 없습니다." };
+      return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
     }
 
     // 이미 일시정지된 상태인지 확인
@@ -397,29 +402,45 @@ export async function pausePlan(
     }
 
     // 세션 일시정지
-    await supabase
+    const { error: pauseError } = await supabase
       .from("student_study_sessions")
       .update({
         paused_at: new Date().toISOString(),
       })
-      .eq("id", activeSession.id);
+      .eq("id", activeSession.id)
+      .eq("student_id", user.userId);
+
+    if (pauseError) {
+      console.error("[todayActions] 세션 일시정지 오류:", pauseError);
+      return { success: false, error: "세션 일시정지에 실패했습니다." };
+    }
 
     // 플랜의 pause_count 증가
-    const { data: planData } = await supabase
+    const { data: planData, error: planError } = await supabase
       .from("student_plan")
       .select("pause_count")
       .eq("id", planId)
       .eq("student_id", user.userId)
       .maybeSingle();
 
+    if (planError) {
+      console.error("[todayActions] 플랜 조회 오류:", planError);
+      // 일시정지는 성공했으므로 계속 진행
+    }
+
     const currentPauseCount = planData?.pause_count || 0;
-    await supabase
+    const { error: updateError } = await supabase
       .from("student_plan")
       .update({
         pause_count: currentPauseCount + 1,
       })
       .eq("id", planId)
       .eq("student_id", user.userId);
+
+    if (updateError) {
+      console.error("[todayActions] 플랜 업데이트 오류:", updateError);
+      // 일시정지는 성공했으므로 경고만 로그
+    }
 
     revalidatePath("/today");
     revalidatePath("/dashboard");

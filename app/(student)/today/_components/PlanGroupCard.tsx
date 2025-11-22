@@ -106,12 +106,28 @@ export function PlanGroupCard({
       )
       .map((plan) => plan.id);
 
+    if (activePlanIds.length === 0) {
+      alert("일시정지할 활성 플랜이 없습니다.");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await Promise.all(activePlanIds.map((planId) => pausePlan(planId)));
-      router.refresh();
+      const results = await Promise.all(
+        activePlanIds.map((planId) => pausePlan(planId))
+      );
+      
+      const failedResults = results.filter((r) => !r.success);
+      if (failedResults.length > 0) {
+        const errorMessage = failedResults[0].error || "일시정지에 실패했습니다.";
+        alert(errorMessage);
+        console.error("[PlanGroupCard] 일시정지 실패:", failedResults);
+      } else {
+        router.refresh();
+      }
     } catch (error) {
-      alert("오류가 발생했습니다.");
+      console.error("[PlanGroupCard] 일시정지 오류:", error);
+      alert("오류가 발생했습니다: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);
     }
