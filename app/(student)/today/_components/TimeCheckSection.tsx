@@ -58,11 +58,38 @@ export function TimeCheckSection({
   useEffect(() => {
     setOptimisticIsPaused(null);
     setOptimisticIsActive(null);
-    // 서버에서 실제 타임스탬프가 오면 optimistic 타임스탬프 제거
-    if (timeEvents.length > 0 || timeStats.firstStartTime) {
-      setOptimisticTimestamps({});
-    }
-  }, [isPaused, isActive, timeEvents.length, timeStats.firstStartTime]);
+  }, [isPaused, isActive]);
+
+  // 서버에서 실제 타임스탬프가 오면 해당 optimistic 타임스탬프만 제거
+  useEffect(() => {
+    setOptimisticTimestamps((prev) => {
+      const updated = { ...prev };
+      
+      // 시작 타임스탬프가 실제로 있으면 optimistic 시작 타임스탬프 제거
+      if (timeEvents.find((e) => e.type === "start")?.timestamp || timeStats.firstStartTime) {
+        delete updated.start;
+      }
+      
+      // 일시정지 타임스탬프가 실제로 있으면 optimistic 일시정지 타임스탬프 제거
+      const pauseEvent = timeEvents.filter((e) => e.type === "pause").slice(-1)[0];
+      if (pauseEvent?.timestamp || timeStats.currentPausedAt) {
+        delete updated.pause;
+      }
+      
+      // 재시작 타임스탬프가 실제로 있으면 optimistic 재시작 타임스탬프 제거
+      const resumeEvent = timeEvents.filter((e) => e.type === "resume").slice(-1)[0];
+      if (resumeEvent?.timestamp || timeStats.lastResumedAt) {
+        delete updated.resume;
+      }
+      
+      return updated;
+    });
+  }, [
+    timeEvents,
+    timeStats.firstStartTime,
+    timeStats.currentPausedAt,
+    timeStats.lastResumedAt,
+  ]);
 
   // 시간 이벤트 조회 (세션 데이터로 계산)
   useEffect(() => {
