@@ -37,9 +37,9 @@ export function PlanGroupActions({
         title={memoPreview || "메모 작성"}
       >
         <FileText className={cn("h-5 w-5", hasMemo && "fill-current")} />
-        {hasMemo && (
+        {hasMemo && memo && memo.length > 0 && (
           <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-indigo-600 text-[8px] text-white">
-            {memo.length > 0 ? (memo.length > 9 ? "9+" : memo.length) : ""}
+            {memo.length > 9 ? "9+" : memo.length}
           </span>
         )}
         {/* 툴팁 */}
