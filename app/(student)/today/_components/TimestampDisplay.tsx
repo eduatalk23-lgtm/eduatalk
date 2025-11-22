@@ -12,6 +12,7 @@ type TimestampDisplayProps = {
   isRunning: boolean;
   isPaused: boolean;
   isCompleted: boolean;
+  currentPausedAt?: string | null; // 현재 일시정지 시작 시간
   className?: string;
 };
 
@@ -24,13 +25,16 @@ export function TimestampDisplay({
   isRunning,
   isPaused,
   isCompleted,
+  currentPausedAt,
   className,
 }: TimestampDisplayProps) {
-  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
+  // 타임스탬프 기반 시간 계산 (현재 일시정지 중인 경우 고려)
   const displaySeconds = calculateStudyTimeFromTimestamps(
     actualStartTime,
     actualEndTime,
-    pausedDurationSeconds
+    pausedDurationSeconds,
+    isPaused,
+    currentPausedAt
   );
 
   return (

@@ -33,14 +33,23 @@ export function PlanItem({
   const isCompleted = !!plan.actual_end_time;
 
   // 타임스탬프 기반 시간 계산 (메모이제이션으로 최적화)
-  const elapsedSeconds = useMemo(() =>
-    calculateStudyTimeFromTimestamps(
+  // 현재 일시정지 중인 경우 일시정지 시작 시간도 고려
+  const elapsedSeconds = useMemo(() => {
+    const sessionPausedAt = plan.session ? (plan.session as any).pausedAt : null;
+    return calculateStudyTimeFromTimestamps(
       plan.actual_start_time,
       plan.actual_end_time,
-      plan.paused_duration_seconds
-    ),
-    [plan.actual_start_time, plan.actual_end_time, plan.paused_duration_seconds]
-  );
+      plan.paused_duration_seconds,
+      isPaused,
+      sessionPausedAt
+    );
+  }, [
+    plan.actual_start_time,
+    plan.actual_end_time,
+    plan.paused_duration_seconds,
+    isPaused,
+    plan.session
+  ]);
 
   const handleStart = async () => {
     // 이미 로딩 중이면 중복 호출 방지
@@ -184,6 +193,7 @@ export function PlanItem({
               isRunning={isRunning}
               isPaused={isPaused}
               isCompleted={isCompleted}
+              currentPausedAt={plan.session ? (plan.session as any).pausedAt : null}
             />
           )}
 

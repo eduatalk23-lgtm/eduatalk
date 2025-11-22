@@ -19,6 +19,7 @@ type PlanTimerCardProps = {
   pauseCount?: number | null;
   activeSessionId?: string | null;
   isPaused?: boolean;
+  currentPausedAt?: string | null; // 현재 일시정지 시작 시간
 };
 
 export function PlanTimerCard({
@@ -34,17 +35,20 @@ export function PlanTimerCard({
   pauseCount,
   activeSessionId,
   isPaused: initialIsPaused = false,
+  currentPausedAt,
 }: PlanTimerCardProps) {
   const router = useRouter();
   const [isRunning, setIsRunning] = useState(!!actualStartTime && !actualEndTime && !initialIsPaused);
   const [isPaused, setIsPaused] = useState(initialIsPaused);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 타임스탬프 기반 시간 계산 (실시간 업데이트 제거)
+  // 타임스탬프 기반 시간 계산 (현재 일시정지 중인 경우 고려)
   const elapsedSeconds = calculateStudyTimeFromTimestamps(
     actualStartTime,
     actualEndTime,
-    pausedDurationSeconds
+    pausedDurationSeconds,
+    isPaused,
+    currentPausedAt
   );
 
 

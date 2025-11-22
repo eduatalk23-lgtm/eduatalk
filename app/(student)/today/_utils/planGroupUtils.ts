@@ -187,20 +187,33 @@ export function getTotalRange(plans: PlanWithContent[]): number {
  * 타임스탬프 기반 총 학습 시간 계산
  * @param startTime 시작 타임스탬프
  * @param endTime 종료 타임스탬프 (없으면 현재 시간 사용)
- * @param pausedDurationSeconds 일시정지된 총 시간 (초)
+ * @param pausedDurationSeconds 일시정지된 총 시간 (초) - 이미 완료된 일시정지 시간
+ * @param isCurrentlyPaused 현재 일시정지 중인지 여부
+ * @param currentPausedAt 현재 일시정지 시작 시간 (isCurrentlyPaused가 true일 때만 사용)
  * @returns 순수 학습 시간 (초)
  */
 export function calculateStudyTimeFromTimestamps(
   startTime: string | null | undefined,
   endTime: string | null | undefined,
-  pausedDurationSeconds: number | null | undefined
+  pausedDurationSeconds: number | null | undefined,
+  isCurrentlyPaused?: boolean,
+  currentPausedAt?: string | null
 ): number {
   if (!startTime) return 0;
 
   const start = new Date(startTime).getTime();
   const end = endTime ? new Date(endTime).getTime() : Date.now();
   const totalSeconds = Math.floor((end - start) / 1000);
-  const pausedSeconds = pausedDurationSeconds || 0;
+  
+  // 이미 완료된 일시정지 시간
+  let pausedSeconds = pausedDurationSeconds || 0;
+  
+  // 현재 일시정지 중인 경우 추가 계산
+  if (isCurrentlyPaused && currentPausedAt && !endTime) {
+    const pausedAt = new Date(currentPausedAt).getTime();
+    const now = Date.now();
+    pausedSeconds += Math.floor((now - pausedAt) / 1000);
+  }
 
   return Math.max(0, totalSeconds - pausedSeconds);
 }

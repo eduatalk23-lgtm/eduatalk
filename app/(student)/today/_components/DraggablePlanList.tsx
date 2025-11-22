@@ -164,6 +164,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate }: DraggablePl
                   pauseCount={plan.pause_count}
                   activeSessionId={plan.session ? plan.id : null}
                   isPaused={plan.session?.isPaused || false}
+                  currentPausedAt={plan.session ? (plan.session as any).pausedAt : null}
                 />
               </div>
             );
