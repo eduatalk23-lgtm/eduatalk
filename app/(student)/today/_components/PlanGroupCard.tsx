@@ -407,8 +407,8 @@ export function PlanGroupCard({
             />
           </div>
           <div className="flex flex-col gap-2">
-            <div className="text-4xl">{contentTypeIcon}</div>
-            <h2 className="text-2xl font-bold text-gray-900">{contentTitle}</h2>
+            <div className="text-4xl">{contentInfo.icon}</div>
+            <h2 className="text-2xl font-bold text-gray-900">{contentInfo.title}</h2>
           </div>
         </div>
 
