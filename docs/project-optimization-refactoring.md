@@ -113,13 +113,28 @@
 6. **Parent 컴포넌트**: 2개
 7. **UI 컴포넌트**: 2개 (Card, ProgressBar)
 
+### 6. 공통 Badge 컴포넌트 생성
+- **파일**: `components/ui/Badge.tsx`
+- **변경 내용**:
+  - 재사용 가능한 뱃지 컴포넌트 생성
+  - variant (default, success, warning, error, info, gray) 지원
+  - size (sm, md, lg) 지원
+  - TodayPlanItem, PlanGroupListItem에 적용
+
+### 7. 성능 최적화
+- **React.memo 적용**:
+  - `ProgressBar` - props 변경 시에만 리렌더링
+  - `Badge` - props 변경 시에만 리렌더링
+  - `Card`, `CardHeader` - props 변경 시에만 리렌더링
+- **효과**: 불필요한 리렌더링 방지로 성능 개선
+
 ## 향후 작업 계획
 
 ### 추가 개선 가능 항목
 - [ ] 나머지 컴포넌트의 Spacing-First 정책 적용 (약 200개 파일 남음)
-- [ ] 성능 최적화: React.memo, useMemo, useCallback 적용
+- [ ] 추가 성능 최적화: useMemo, useCallback 적용 (복잡한 계산 로직)
 - [ ] 추가 any 타입 제거 및 명시적 타입 정의
-- [ ] 더 많은 공통 컴포넌트 추출 (예: Badge, StatusIndicator 등)
+- [ ] 더 많은 공통 컴포넌트 추출 (예: StatusIndicator 등)
 
 ## 참고 사항
 - 진행률 바의 동적 width는 인라인 스타일을 유지 (Tailwind로 대체 불가능)
