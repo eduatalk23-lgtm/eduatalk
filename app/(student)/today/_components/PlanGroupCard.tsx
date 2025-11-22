@@ -71,6 +71,15 @@ export function PlanGroupCard({
     activePlansCount > 0 &&
     group.plans.some((plan) => sessions.get(plan.id)?.isPaused);
 
+  // 다른 플랜이 활성화되어 있는지 확인 (현재 그룹의 플랜 제외)
+  const currentGroupPlanIds = new Set(group.plans.map((p) => p.id));
+  const hasOtherActivePlan = Array.from(sessions.entries()).some(
+    ([planId, session]) => 
+      !currentGroupPlanIds.has(planId) && 
+      session && 
+      !session.isPaused
+  );
+
   // 시간 통계 계산
   const timeStats = getTimeStats(group.plans, activePlan, sessions);
 

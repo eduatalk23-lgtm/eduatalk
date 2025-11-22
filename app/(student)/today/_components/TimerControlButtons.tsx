@@ -22,6 +22,7 @@ export function TimerControlButtons({
   isPaused,
   isCompleted,
   isLoading = false,
+  hasOtherActivePlan = false,
   onStart,
   onPause,
   onResume,
@@ -55,10 +56,11 @@ export function TimerControlButtons({
     return (
       <button
         onClick={onStart}
-        disabled={isLoading}
+        disabled={isLoading || hasOtherActivePlan}
         className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 ${
           className || ""
         }`}
+        title={hasOtherActivePlan ? "다른 플랜의 타이머가 실행 중입니다. 먼저 해당 플랜의 타이머를 중지해주세요." : ""}
       >
         <Play className="h-4 w-4" />
         시작하기

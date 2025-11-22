@@ -40,6 +40,27 @@ export async function startPlan(
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
 
+    // 다른 플랜이 활성화되어 있는지 확인 (현재 플랜 제외)
+    const { data: activeSessions, error: sessionError } = await supabase
+      .from("student_study_sessions")
+      .select("plan_id")
+      .eq("student_id", user.userId)
+      .is("ended_at", null)
+      .neq("plan_id", planId);
+
+    if (sessionError) {
+      console.error("[todayActions] 활성 세션 조회 오류:", sessionError);
+      return { success: false, error: "활성 세션 조회 중 오류가 발생했습니다." };
+    }
+
+    // 다른 플랜이 활성화되어 있으면 에러 반환
+    if (activeSessions && activeSessions.length > 0) {
+      return { 
+        success: false, 
+        error: "다른 플랜의 타이머가 실행 중입니다. 먼저 해당 플랜의 타이머를 중지해주세요." 
+      };
+    }
+
     // 학습 세션 시작
     const result = await startStudySession(planId);
     if (!result.success) {

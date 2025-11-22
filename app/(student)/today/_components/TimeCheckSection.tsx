@@ -30,6 +30,7 @@ export function TimeCheckSection({
   isLoading = false,
   planNumber,
   planDate,
+  hasOtherActivePlan = false,
   onStart,
   onPause,
   onResume,
@@ -151,6 +152,7 @@ export function TimeCheckSection({
           isPaused={isPausedState}
           isCompleted={!!timeStats.lastEndTime}
           isLoading={isLoading || isPending}
+          hasOtherActivePlan={hasOtherActivePlan}
           onStart={() => {
             const timestamp = new Date().toISOString();
             setOptimisticIsActive(true);

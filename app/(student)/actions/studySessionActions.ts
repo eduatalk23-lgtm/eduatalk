@@ -30,14 +30,32 @@ export async function startStudySession(
   }
 
   try {
-    // 기존 활성 세션 확인
-    const activeSession = await getActiveSession(
-      user.userId,
-      tenantContext.tenantId
-    );
-    if (activeSession) {
-      // 기존 세션 강제 종료 후 새 세션 시작
-      await endStudySession(activeSession.id);
+    // 기존 활성 세션 확인 (planId가 있는 경우 해당 플랜의 세션만 확인)
+    if (planId) {
+      // 특정 플랜의 활성 세션이 있는지 확인
+      const supabase = await createSupabaseServerClient();
+      const { data: existingSession } = await supabase
+        .from("student_study_sessions")
+        .select("id")
+        .eq("plan_id", planId)
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .maybeSingle();
+
+      if (existingSession) {
+        // 이미 해당 플랜의 세션이 활성화되어 있으면 에러 반환
+        return { success: false, error: "이미 해당 플랜의 타이머가 실행 중입니다." };
+      }
+    } else {
+      // planId가 없는 경우 전체 활성 세션 확인
+      const activeSession = await getActiveSession(
+        user.userId,
+        tenantContext.tenantId
+      );
+      if (activeSession) {
+        // 기존 세션 강제 종료 후 새 세션 시작 (planId가 없는 경우만)
+        await endStudySession(activeSession.id);
+      }
     }
 
     // 플랜 정보 조회 (planId가 있는 경우)
