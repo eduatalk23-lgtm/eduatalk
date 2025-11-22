@@ -63,7 +63,19 @@ export async function resetPlanTimer(
       }
     }
 
-    // 2. 플랜의 타이머 기록 및 진행률 초기화
+    // 2. 해당 플랜의 모든 세션 삭제 (전체 진행률 반영을 위해)
+    const { error: deleteSessionsError } = await supabase
+      .from("student_study_sessions")
+      .delete()
+      .in("plan_id", planIds)
+      .eq("student_id", user.userId);
+
+    if (deleteSessionsError) {
+      console.error("[timerResetActions] 세션 삭제 실패:", deleteSessionsError);
+      // 세션 삭제 실패는 치명적이지 않으므로 계속 진행
+    }
+
+    // 3. 플랜의 타이머 기록 및 진행률 초기화
     const updateData = {
       actual_start_time: null,
       actual_end_time: null,
@@ -85,7 +97,7 @@ export async function resetPlanTimer(
       return { success: false, error: "타이머 기록 초기화에 실패했습니다." };
     }
 
-    // 3. student_content_progress에서 plan_id로 연결된 진행률 삭제
+    // 4. student_content_progress에서 plan_id로 연결된 진행률 삭제
     const { error: deleteProgressError } = await supabase
       .from("student_content_progress")
       .delete()
@@ -97,7 +109,7 @@ export async function resetPlanTimer(
       // 진행률 삭제 실패는 치명적이지 않으므로 계속 진행
     }
 
-    // 4. 타이머 로그 삭제
+    // 5. 타이머 로그 삭제
     const { error: deleteLogsError } = await supabase
       .from("plan_timer_logs")
       .delete()
