@@ -87,7 +87,8 @@ export async function startStudySession(
       return { success: false, error: result.error };
     }
 
-    revalidatePath("/today");
+    // revalidatePath는 호출하는 쪽(startPlan 등)에서 처리하므로 여기서는 제거
+    // 중복 호출 방지를 위해 제거 (성능 최적화)
     return { success: true, sessionId: result.sessionId };
   } catch (error) {
     console.error("[studySessions] 세션 시작 실패", error);
