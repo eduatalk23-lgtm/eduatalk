@@ -94,6 +94,8 @@ export function PlanGroupCard({
         startTransition(() => {
           router.refresh();
         });
+        // startTransition은 비동기 작업을 시작하지만 즉시 반환되므로 isLoading을 false로 설정
+        setIsLoading(false);
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
         setIsLoading(false);
@@ -185,6 +187,8 @@ export function PlanGroupCard({
         startTransition(() => {
           router.refresh();
         });
+        // startTransition은 비동기 작업을 시작하지만 즉시 반환되므로 isLoading을 false로 설정
+        setIsLoading(false);
       }
     } catch (error) {
       alert("오류가 발생했습니다.");
