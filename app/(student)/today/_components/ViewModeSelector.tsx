@@ -23,18 +23,6 @@ export function ViewModeSelector({
       )}
     >
       <button
-        onClick={() => onChange("daily")}
-        className={cn(
-          "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition",
-          mode === "daily"
-            ? "bg-indigo-600 text-white"
-            : "text-gray-600 hover:bg-gray-50"
-        )}
-      >
-        <span>📋</span>
-        <span>일일 뷰</span>
-      </button>
-      <button
         onClick={() => onChange("single")}
         className={cn(
           "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition",
@@ -45,6 +33,18 @@ export function ViewModeSelector({
       >
         <span>📌</span>
         <span>단일 뷰</span>
+      </button>
+      <button
+        onClick={() => onChange("daily")}
+        className={cn(
+          "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition",
+          mode === "daily"
+            ? "bg-indigo-600 text-white"
+            : "text-gray-600 hover:bg-gray-50"
+        )}
+      >
+        <span>📋</span>
+        <span>일일 뷰</span>
       </button>
     </div>
   );
