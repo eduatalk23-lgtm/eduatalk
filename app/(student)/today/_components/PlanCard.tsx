@@ -307,7 +307,7 @@ export function PlanCard({
                       {(() => {
                         const contentType = representativePlan.content_type;
                         const contentTypeIcon = contentType === "book"
-                          ? "📚"
+                          ? "📖"
                           : contentType === "lecture"
                           ? "🎧"
                           : "📝";
@@ -489,7 +489,7 @@ export function PlanCard({
                       {(() => {
                         const contentType = representativePlan.content_type;
                         const contentTypeIcon = contentType === "book"
-                          ? "📚"
+                          ? "📖"
                           : contentType === "lecture"
                           ? "🎧"
                           : "📝";
