@@ -114,26 +114,6 @@ export function TimeCheckSection({
     );
   })();
 
-  // 현재 진행 중인 총 시간 계산
-  // 총 학습 시간 = 완료된 세션들의 시간 + 진행 중인 세션의 총 시간
-  // 진행 중인 세션의 총 시간 = 현재 시간 - 시작 시간
-  const currentTotalSeconds = (() => {
-    if (isCompleted) {
-      return timeStats.totalDuration;
-    }
-    if (!timeStats.isActive || !hasStartTime) {
-      return timeStats.totalDuration;
-    }
-    // 진행 중인 세션의 총 시간 계산
-    try {
-      const start = new Date(normalizedStartTime!).getTime();
-      const now = Date.now();
-      const activeTotalSeconds = Math.floor((now - start) / 1000);
-      return timeStats.totalDuration + activeTotalSeconds;
-    } catch {
-      return timeStats.totalDuration;
-    }
-  })();
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -231,25 +211,6 @@ export function TimeCheckSection({
         )}
       </div>
 
-      {/* 학습 시간 통계 */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-lg bg-blue-50 p-3">
-          <div className="text-xs text-blue-600">총 학습</div>
-          <div className="mt-1 text-lg font-bold text-blue-900">
-            {formatTime(currentTotalSeconds)}
-          </div>
-        </div>
-        <div className="rounded-lg bg-green-50 p-3">
-          <div className="text-xs text-green-600">순수 학습</div>
-          <div className="mt-1 text-lg font-bold text-green-900">
-            {formatTime(
-              isCompleted
-                ? timeStats.pureStudyTime
-                : timeStats.pureStudyTime + (timeStats.isActive && !isPausedState ? elapsedSeconds : 0)
-            )}
-          </div>
-        </div>
-      </div>
 
 
       {/* 현재 진행 시간 (진행 중인 경우, 완료되지 않은 경우만) */}
