@@ -57,24 +57,16 @@ export async function startPlan(
     }
 
     // 플랜의 actual_start_time 업데이트 (처음 시작하는 경우만)
-    // startStudySession 내부에서 이미 플랜을 조회하므로 여기서는 직접 업데이트만 수행
+    // 조회 없이 UPDATE ... WHERE actual_start_time IS NULL로 최적화
     const startTime = timestamp || new Date().toISOString();
-    const { data: planData } = await supabase
+    await supabase
       .from("student_plan")
-      .select("actual_start_time")
+      .update({
+        actual_start_time: startTime,
+      })
       .eq("id", planId)
       .eq("student_id", user.userId)
-      .maybeSingle();
-
-    if (planData && !planData.actual_start_time) {
-      await supabase
-        .from("student_plan")
-        .update({
-          actual_start_time: startTime,
-        })
-        .eq("id", planId)
-        .eq("student_id", user.userId);
-    }
+      .is("actual_start_time", null); // 처음 시작하는 경우만 업데이트
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
@@ -421,23 +413,16 @@ export async function pausePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 활성 세션 조회 (여러 개일 수 있으므로 배열로 조회)
-    // 일시정지된 세션도 포함하여 조회 (이미 일시정지된 경우를 확인하기 위해)
-    const { data: activeSessions, error: sessionError } = await supabase
+    // 활성 세션 조회 (최신 세션만 조회하여 최적화)
+    const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
       .select("id, paused_at, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
-      .order("started_at", { ascending: false }); // 최신 세션 우선
-
-    if (sessionError) {
-      console.error("[todayActions] 세션 조회 오류:", sessionError);
-      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
-    }
-
-    // 여러 세션이 있는 경우 가장 최근 세션 사용
-    const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(); // 최신 세션만 조회
 
     if (!activeSession) {
       return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
@@ -507,22 +492,16 @@ export async function resumePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 활성 세션 조회 (여러 개일 수 있으므로 배열로 조회)
-    const { data: activeSessions, error: sessionError } = await supabase
+    // 활성 세션 조회 (최신 세션만 조회하여 최적화)
+    const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
       .select("id, paused_at, paused_duration_seconds, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
-      .order("started_at", { ascending: false }); // 최신 세션 우선
-
-    if (sessionError) {
-      console.error("[todayActions] 세션 조회 오류:", sessionError);
-      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
-    }
-
-    // 여러 세션이 있는 경우 가장 최근 세션 사용
-    const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(); // 최신 세션만 조회
 
     if (!activeSession) {
       return { success: false, error: "활성 세션을 찾을 수 없습니다." };
