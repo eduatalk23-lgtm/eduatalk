@@ -40,9 +40,7 @@ export function TimeCheckSection({
 }: TimeCheckSectionProps) {
   const [isPending, startTransition] = useTransition();
   
-  // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
-  const [optimisticIsPaused, setOptimisticIsPaused] = useState<boolean | null>(null);
-  const [optimisticIsActive, setOptimisticIsActive] = useState<boolean | null>(null);
+  // Optimistic 상태 제거 - 서버 상태만 사용 (더 예측 가능한 UX)
   // Optimistic 타임스탬프 관리 (버튼 클릭 시 즉시 표시, 여러 번 누적)
   const [optimisticTimestamps, setOptimisticTimestamps] = useState<{
     start?: string;
@@ -53,51 +51,7 @@ export function TimeCheckSection({
   // activePlanStartTime을 정규화 (null 또는 문자열로 통일)
   const normalizedStartTime = activePlanStartTime ?? null;
   
-  // props가 변경되면 optimistic 상태 초기화 (서버 상태와 동기화)
-  // 단, 일시정지 타임스탬프는 서버에 저장된 값이 없을 때만 optimistic 유지
-  // 의존성 배열의 값들을 안정화하여 배열 크기가 변경되지 않도록 함
-  const firstStartTime = timeStats.firstStartTime ?? null;
-  const currentPausedAt = timeStats.currentPausedAt ?? null;
-  const lastPausedAt = timeStats.lastPausedAt ?? null;
-  const lastResumedAt = timeStats.lastResumedAt ?? null;
-  
-  useEffect(() => {
-    setOptimisticIsPaused(null);
-    setOptimisticIsActive(null);
-    
-    // 서버에서 props가 업데이트되면 optimistic 타임스탬프 정리
-    // 서버에 저장된 값이 있으면 해당 optimistic 타임스탬프 제거 (이미 서버에 반영됨)
-    setOptimisticTimestamps((prev) => {
-      const newTimestamps = { ...prev };
-      
-      // 서버에 저장된 일시정지 타임스탬프가 있으면 해당 optimistic 제거
-      if (currentPausedAt || lastPausedAt) {
-        // 서버에 저장된 값과 일치하는 optimistic 타임스탬프 제거
-        if (newTimestamps.pauses) {
-          newTimestamps.pauses = newTimestamps.pauses.filter(
-            (ts) => ts !== currentPausedAt && ts !== lastPausedAt
-          );
-          if (newTimestamps.pauses.length === 0) {
-            delete newTimestamps.pauses;
-          }
-        }
-      }
-      
-      // 서버에 저장된 재시작 타임스탬프가 있으면 해당 optimistic 제거
-      if (lastResumedAt) {
-        if (newTimestamps.resumes) {
-          newTimestamps.resumes = newTimestamps.resumes.filter(
-            (ts) => ts !== lastResumedAt
-          );
-          if (newTimestamps.resumes.length === 0) {
-            delete newTimestamps.resumes;
-          }
-        }
-      }
-      
-      return newTimestamps;
-    });
-  }, [isPaused, isActive, firstStartTime, currentPausedAt, lastPausedAt, lastResumedAt]);
+  // 서버 상태만 사용하므로 별도 초기화 로직 불필요
 
   // 시간 이벤트 조회는 제거
   // 클라이언트에서 타임스탬프를 생성해서 서버에 전달하므로, 서버에서 다시 조회할 필요 없음
@@ -229,57 +183,18 @@ export function TimeCheckSection({
         </div>
       )}
 
-      {/* 타이머 컨트롤 버튼 */}
+      {/* 타이머 컨트롤 버튼 - 서버 상태만 사용 */}
       <div className="mt-6">
         <TimerControlButtons
           planId={planId}
-          isActive={isActiveState}
-          isPaused={isPausedState}
+          isActive={isActive}
+          isPaused={isPaused}
           isCompleted={!!timeStats.lastEndTime}
           isLoading={isLoading || isPending}
           hasOtherActivePlan={hasOtherActivePlan}
-          onStart={() => {
-            const timestamp = new Date().toISOString();
-            // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
-            setOptimisticIsActive(true);
-            setOptimisticIsPaused(false);
-            setOptimisticTimestamps((prev) => ({
-              ...prev,
-              start: timestamp,
-            }));
-            // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
-            startTransition(() => {
-              onStart(timestamp);
-            });
-          }}
-          onPause={() => {
-            const timestamp = new Date().toISOString();
-            // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
-            setOptimisticIsPaused(true);
-            setOptimisticTimestamps((prev) => ({
-              ...prev,
-              pauses: [...(prev.pauses || []), timestamp],
-            }));
-            // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
-            startTransition(() => {
-              onPause(timestamp);
-            });
-          }}
-          onResume={() => {
-            const timestamp = new Date().toISOString();
-            // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
-            setOptimisticIsPaused(false);
-            setOptimisticIsActive(true); // 재시작 시에도 active 상태 유지
-            // 재시작 타임스탬프 추가 (이전 일시정지 기록은 보존)
-            setOptimisticTimestamps((prev) => ({
-              ...prev,
-              resumes: [...(prev.resumes || []), timestamp],
-            }));
-            // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
-            startTransition(() => {
-              onResume(timestamp);
-            });
-          }}
+          onStart={onStart}
+          onPause={onPause}
+          onResume={onResume}
           onComplete={onComplete}
         />
       </div>
