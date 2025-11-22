@@ -56,6 +56,17 @@ export async function togglePlanCompletion(
     const startPageOrTime = plan.planned_start_page_or_time ?? null;
     const endPageOrTime = plan.planned_end_page_or_time ?? null;
 
+    // student의 tenant_id 조회
+    const { data: student } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!student || !student.tenant_id) {
+      return { success: false, error: "학생 정보를 찾을 수 없습니다." };
+    }
+
     if (progressData) {
       // 기존 progress 업데이트
       const updatePayload: {
@@ -92,6 +103,7 @@ export async function togglePlanCompletion(
       // 새 progress 생성
       const insertPayload = {
         student_id: user.id,
+        tenant_id: student.tenant_id,
         plan_id: planId,
         content_type: plan.content_type,
         content_id: plan.content_id,
@@ -106,7 +118,9 @@ export async function togglePlanCompletion(
         .eq("student_id", user.id);
 
       if (insertError && insertError.code === "42703") {
-        const { student_id: _studentId, ...fallbackPayload } = insertPayload;
+        const { student_id: _studentId, tenant_id: _tenantId, ...fallbackPayload } = insertPayload;
+        void _studentId;
+        void _tenantId;
         ({ error: insertError } = await supabase
           .from("student_content_progress")
           .insert(fallbackPayload));

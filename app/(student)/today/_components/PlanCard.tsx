@@ -247,9 +247,17 @@ export function PlanCard({
         {/* 플랜 목록 */}
         <div className="flex flex-col gap-3">
           <h3 className="text-lg font-semibold text-gray-900">플랜 목록</h3>
-          {group.plans.map((plan) => {
+          {group.plans.map((plan, index) => {
             const isCompleted = !!plan.actual_end_time;
             const progress = plan.progress ?? 0;
+            
+            // 같은 범위를 가진 플랜이 여러 개인지 확인
+            const sameRangePlans = group.plans.filter(
+              (p) =>
+                p.planned_start_page_or_time === plan.planned_start_page_or_time &&
+                p.planned_end_page_or_time === plan.planned_end_page_or_time
+            );
+            const isDuplicate = sameRangePlans.length > 1;
             
             return (
               <div
@@ -270,6 +278,11 @@ export function PlanCard({
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">
                     {plan.chapter || `블록 ${plan.block_index ?? 0}`}
+                    {isDuplicate && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({sameRangePlans.length}개 블록)
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500">
                     {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}

@@ -1,69 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PlanCard } from "./PlanCard";
 import { PlanSelector } from "./PlanSelector";
-import { groupPlansByPlanNumber, PlanWithContent } from "../_utils/planGroupUtils";
+import { PlanGroup, PlanWithContent } from "../_utils/planGroupUtils";
 
 type SinglePlanViewProps = {
+  groups: PlanGroup[];
+  sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
+  planDate: string;
   selectedPlanNumber: number | null;
   onSelectPlan: (planNumber: number | null) => void;
 };
 
 export function SinglePlanView({
+  groups,
+  sessions,
+  planDate,
   selectedPlanNumber,
   onSelectPlan,
 }: SinglePlanViewProps) {
-  const router = useRouter();
-  const [groups, setGroups] = useState<Array<{
-    planNumber: number | null;
-    plans: PlanWithContent[];
-    content: any;
-    sequence: number | null;
-  }>>([]);
-  const [sessions, setSessions] = useState<Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>>(new Map());
-  const [planDate, setPlanDate] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const response = await fetch("/api/today/plans");
-        if (!response.ok) throw new Error("플랜 조회 실패");
-        
-        const data = await response.json();
-        const grouped = groupPlansByPlanNumber(data.plans);
-        setGroups(grouped);
-        setSessions(new Map(Object.entries(data.sessions || {})));
-        setPlanDate(data.planDate || "");
-        
-        // 선택된 플랜이 없으면 첫 번째 플랜 선택
-        if (!selectedPlanNumber && grouped.length > 0) {
-          onSelectPlan(grouped[0]?.planNumber ?? null);
-        }
-      } catch (error) {
-        console.error("[SinglePlanView] 데이터 로딩 실패", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    loadData();
-    
-    // 주기적으로 데이터 갱신 (타이머 업데이트용)
-    const interval = setInterval(loadData, 1000);
-    return () => clearInterval(interval);
-  }, [selectedPlanNumber, onSelectPlan]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">로딩 중...</div>
-      </div>
-    );
-  }
-
   const selectedGroup = groups.find((g) => g.planNumber === selectedPlanNumber) || groups[0];
 
   if (!selectedGroup) {
