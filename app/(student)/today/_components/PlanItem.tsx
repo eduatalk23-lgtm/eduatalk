@@ -23,8 +23,6 @@ export function PlanItem({
 }: PlanItemProps) {
   const router = useRouter();
 
-  // 임시 디버깅: 컴포넌트가 렌더링되는지 확인
-  console.log(`[DEBUG] PlanItem 렌더링됨: ${plan.id}`);
   const [isLoading, setIsLoading] = useState(false);
   
   // 서버 상태만 사용 (더 예측 가능한 UX)
@@ -32,17 +30,6 @@ export function PlanItem({
   const isActive = !!plan.actual_start_time && !plan.actual_end_time;
   const isRunning = isActive && !isPaused;
 
-  // 디버깅: 상태 계산 확인
-  console.log(`[PlanItem ${plan.id}] 상태 계산:`, {
-    actual_start_time: plan.actual_start_time,
-    actual_end_time: plan.actual_end_time,
-    session_isPaused: plan.session?.isPaused,
-    calculated_isActive: isActive,
-    calculated_isPaused: isPaused,
-    calculated_isRunning: isRunning,
-    shouldShowStartButton: !isActive && !isPaused,
-    shouldShowPauseButton: isActive && !isPaused
-  });
   const isCompleted = !!plan.actual_end_time;
 
   // 타임스탬프 기반 시간 계산 (메모이제이션으로 최적화)

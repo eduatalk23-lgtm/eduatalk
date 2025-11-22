@@ -45,8 +45,6 @@ export function PlanGroupCard({
 }: PlanGroupCardProps) {
   const router = useRouter();
 
-  // 디버깅: PlanGroupCard 렌더링 확인
-  console.log(`[PlanGroupCard] 렌더링됨 - planNumber: ${group.planNumber}, plansCount: ${group.plans.length}, viewMode: ${viewMode}`);
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
@@ -524,6 +522,7 @@ export function PlanGroupCard({
               session: sessions.get(plan.id) || undefined,
             };
 
+
             return (
             <PlanItem
               key={plan.id}
@@ -536,8 +535,8 @@ export function PlanGroupCard({
               }
               viewMode="daily"
             />
-            );
-          })}
+          );
+        })}
         </div>
 
         {/* 집계 정보 */}

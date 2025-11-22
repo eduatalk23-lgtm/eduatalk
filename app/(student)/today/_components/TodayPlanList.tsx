@@ -237,13 +237,6 @@ export async function TodayPlanList() {
   // 같은 plan_number를 가진 플랜들을 그룹화
   const groups = groupPlansByPlanNumber(plansWithContent);
 
-  // 디버깅: 데이터 상태 확인
-  console.log('[TodayPlanList] 데이터 상태:', {
-    plansCount: plans.length,
-    plansWithContentCount: plansWithContent.length,
-    groupsCount: groups.length,
-    groups: groups.map(g => ({ planNumber: g.planNumber, plansCount: g.plans.length, planIds: g.plans.map(p => p.id) }))
-  });
 
   // 세션 맵 생성 (컴포넌트에 전달하기 위해 Map으로 변환)
   const sessionsMap = new Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>();
@@ -327,7 +320,7 @@ export async function TodayPlanList() {
         planDate={displayDate}
         memos={memosMap}
         totalPagesMap={totalPagesMap}
-        initialMode="single"
+        initialMode="daily"
         initialSelectedPlanNumber={groups[0]?.planNumber ?? null}
       />
     </div>
