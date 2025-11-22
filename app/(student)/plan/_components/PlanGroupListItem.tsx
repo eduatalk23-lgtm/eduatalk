@@ -330,6 +330,7 @@ export function PlanGroupListItem({
           )}
         </div>
       </div>
+      </div>
 
       <PlanGroupDeleteDialog
         open={deleteDialogOpen}
