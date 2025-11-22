@@ -29,15 +29,17 @@ group.plans.forEach((plan) => {
 ```typescript
 // 블록 번호 목록 생성
 const blockIndices = plans
-  .map((p) => p.block_index ?? 0)  // 각 플랜의 block_index 추출
-  .sort((a, b) => a - b);           // 오름차순 정렬
+  .map((p) => p.block_index ?? 0) // 각 플랜의 block_index 추출
+  .sort((a, b) => a - b); // 오름차순 정렬
 
-const blockDisplay = blockIndices.length > 1
-  ? `블록 ${blockIndices.join(", ")}`  // 여러 개: "블록 1, 11"
-  : `블록 ${blockIndices[0]}`;         // 하나: "블록 1"
+const blockDisplay =
+  blockIndices.length > 1
+    ? `블록 ${blockIndices.join(", ")}` // 여러 개: "블록 1, 11"
+    : `블록 ${blockIndices[0]}`; // 하나: "블록 1"
 ```
 
 **로직**:
+
 1. 같은 범위를 가진 모든 플랜에서 `block_index` 추출
 2. 오름차순 정렬
 3. 여러 개면 쉼표로 구분하여 표시, 하나면 단일 번호 표시
@@ -59,13 +61,14 @@ for (const segment of timeSegments) {
   // 조정된 block_index를 사용 중인 목록에 추가
   usedIndices.add(nextBlockIndex);
   usedBlockIndicesByDate.set(date, usedIndices);
-  
+
   // 플랜 생성 시 block_index 할당
   // ...
 }
 ```
 
 **할당 규칙**:
+
 - 같은 날짜 내에서 시간대 순서에 따라 순차적으로 할당
 - 이미 사용된 `block_index`는 건너뛰고 다음 번호 사용
 - 날짜별로 독립적으로 관리 (`usedBlockIndicesByDate`)
@@ -77,7 +80,7 @@ for (const segment of timeSegments) {
 ```typescript
 plans.push({
   plan_date: date,
-  block_index: block.block_index,  // 블록 스케줄의 block_index 사용
+  block_index: block.block_index, // 블록 스케줄의 block_index 사용
   content_type: content.content_type,
   content_id: content.content_id,
   planned_start_page_or_time: currentStart,
@@ -87,6 +90,7 @@ plans.push({
 ```
 
 **할당 규칙**:
+
 - `student_block_schedule` 테이블에 정의된 `block_index` 사용
 - 블록 스케줄이 없으면 자동으로 순차 할당
 
@@ -95,6 +99,7 @@ plans.push({
 ### 시나리오 1: 단일 블록
 
 **상황**:
+
 - 플랜 1개: `block_index = 1`, 범위: 1 ~ 14
 
 **표시**: `📖 블록: 1`
@@ -102,6 +107,7 @@ plans.push({
 ### 시나리오 2: 같은 범위, 여러 블록
 
 **상황**:
+
 - 플랜 A: `block_index = 1`, 범위: 1 ~ 14
 - 플랜 B: `block_index = 11`, 범위: 1 ~ 14 (같은 범위, 다른 시간대)
 
@@ -112,10 +118,12 @@ plans.push({
 ### 시나리오 3: 다른 범위, 여러 블록
 
 **상황**:
+
 - 플랜 A: `block_index = 1`, 범위: 1 ~ 14
 - 플랜 B: `block_index = 2`, 범위: 15 ~ 28 (다른 범위)
 
-**표시**: 
+**표시**:
+
 - 첫 번째 항목: `📖 블록: 1` (범위: 1 ~ 14)
 - 두 번째 항목: `📖 블록: 2` (범위: 15 ~ 28)
 
@@ -126,6 +134,7 @@ plans.push({
 ### 1. 시간대 순서
 
 `block_index`는 같은 날짜 내에서 시간대 순서를 나타냅니다:
+
 - `block_index = 1`: 첫 번째 시간대 (예: 10:00 ~ 11:00)
 - `block_index = 2`: 두 번째 시간대 (예: 11:00 ~ 12:00)
 - `block_index = 11`: 열한 번째 시간대 (예: 20:00 ~ 21:00)
@@ -133,12 +142,14 @@ plans.push({
 ### 2. 블록 스케줄 참조
 
 `student_block_schedule` 테이블의 `block_index`와 연동되어:
+
 - 각 블록의 시작/종료 시간 정보 제공
 - 시간대별 학습 블록 관리
 
 ### 3. 플랜 식별
 
 같은 날짜, 같은 시간대에 여러 플랜이 있을 수 있지만:
+
 - `block_index`는 시간대를 나타냄
 - 같은 `block_index`를 가진 플랜들은 같은 시간대에 배정됨
 
@@ -179,7 +190,6 @@ CREATE TABLE student_block_schedule (
 1. **표시 로직**: 같은 범위를 가진 플랜들의 `block_index`를 추출하여 정렬 후 표시
 2. **할당 로직**: 플랜 생성 시 시간대 순서에 따라 순차적으로 할당되거나, 블록 스케줄의 `block_index` 사용
 3. **의미**: 같은 날짜 내에서 시간대 순서를 나타내는 번호
-4. **표시 형식**: 
+4. **표시 형식**:
    - 단일 블록: `📖 블록: 1`
    - 여러 블록: `📖 블록: 1, 11` (같은 범위를 가진 블록들)
-

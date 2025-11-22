@@ -312,23 +312,14 @@ export function PlanCard({
                           ? "🎧"
                           : "📝";
                         
-                        const blockText = blockDisplay.replace("블록 ", "");
                         const chapterText = representativePlan.chapter;
                         
-                        // 중복기재 형식: 블록 정보와 챕터 정보를 모두 표시
-                        if (chapterText) {
-                          return (
-                            <>
-                              {contentTypeIcon} 블록: {blockText} (챕터: {chapterText})
-                            </>
-                          );
-                        } else {
-                          return (
-                            <>
-                              {contentTypeIcon} 블록: {blockText}
-                            </>
-                          );
-                        }
+                        // 챕터 정보 표시 (없으면 "정보 없음")
+                        return (
+                          <>
+                            {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
+                          </>
+                        );
                       })()}
                     </div>
                     <div className="text-xs text-gray-500">
@@ -494,23 +485,14 @@ export function PlanCard({
                           ? "🎧"
                           : "📝";
                         
-                        const blockText = blockDisplay.replace("블록 ", "");
                         const chapterText = representativePlan.chapter;
                         
-                        // 중복기재 형식: 블록 정보와 챕터 정보를 모두 표시
-                        if (chapterText) {
-                          return (
-                            <>
-                              {contentTypeIcon} 블록: {blockText} (챕터: {chapterText})
-                            </>
-                          );
-                        } else {
-                          return (
-                            <>
-                              {contentTypeIcon} 블록: {blockText}
-                            </>
-                          );
-                        }
+                        // 챕터 정보 표시 (없으면 "정보 없음")
+                        return (
+                          <>
+                            {contentTypeIcon} 챕터: {chapterText || "정보 없음"}
+                          </>
+                        );
                       })()}
                     </div>
                     <div className="text-gray-500">
