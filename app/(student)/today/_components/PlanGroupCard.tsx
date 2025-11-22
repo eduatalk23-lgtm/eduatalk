@@ -400,6 +400,7 @@ export function PlanGroupCard({
           isLoading={isLoading || isPending}
           planNumber={group.planNumber}
           planDate={planDate}
+          hasOtherActivePlan={hasOtherActivePlan}
           onStart={handleGroupStart}
           onPause={handleGroupPause}
           onResume={handleGroupResume}
