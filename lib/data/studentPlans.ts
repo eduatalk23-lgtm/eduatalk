@@ -194,61 +194,112 @@ export async function getPlansForStudent(
   }
 
   if (error) {
-    // 에러 정보를 더 자세히 로깅
-    console.error("[data/studentPlans] 플랜 조회 실패");
+    const supabaseError = error as any;
+    const errorMessage = supabaseError?.message || String(error);
     
-    // 에러 객체 직접 출력 (여러 방식으로 시도)
-    if (error instanceof Error) {
-      console.error("에러 인스턴스:", error);
-      console.error("에러 메시지:", error.message);
-      console.error("에러 스택:", error.stack);
-    } else {
-      console.error("에러 객체:", error);
-      console.error("에러 타입:", typeof error);
+    // HTML 응답이 반환된 경우 (500 에러 등) 감지
+    const isHtmlError = typeof errorMessage === "string" && errorMessage.includes("<!DOCTYPE html>");
+    const isServerError = isHtmlError || supabaseError?.code === "500" || supabaseError?.statusCode === 500;
+    
+    // 서버 에러인 경우 재시도 로직
+    if (isServerError) {
+      console.warn("[data/studentPlans] 서버 에러 발생, 재시도 중...", {
+        errorCode: supabaseError?.code,
+        statusCode: supabaseError?.statusCode,
+        isHtmlError,
+      });
       
-      // 에러 객체의 모든 속성 출력
-      if (typeof error === "object" && error !== null) {
-        console.error("에러 속성:", Object.keys(error));
-        for (const key in error) {
-          try {
-            console.error(`  ${key}:`, (error as any)[key]);
-          } catch (e) {
-            console.error(`  ${key}: [접근 불가]`);
+      // 최대 2번 재시도 (총 3번 시도)
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          // 재시도 전 대기 (지수 백오프: 1초, 2초)
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+          
+          // 간단한 쿼리로 재시도
+          const retryQuery = supabase
+            .from("student_plan")
+            .select("*")
+            .eq("student_id", filters.studentId)
+            .limit(1000); // 제한을 두어 복잡한 쿼리 방지
+          
+          if (filters.tenantId) {
+            retryQuery.eq("tenant_id", filters.tenantId);
           }
+          
+          if (filters.planDate) {
+            const planDateStr =
+              typeof filters.planDate === "string"
+                ? filters.planDate.slice(0, 10)
+                : filters.planDate instanceof Date
+                ? filters.planDate.toISOString().slice(0, 10)
+                : String(filters.planDate).slice(0, 10);
+            retryQuery.eq("plan_date", planDateStr);
+          } else if (filters.dateRange) {
+            const startStr =
+              typeof filters.dateRange.start === "string"
+                ? filters.dateRange.start.slice(0, 10)
+                : filters.dateRange.start instanceof Date
+                ? filters.dateRange.start.toISOString().slice(0, 10)
+                : String(filters.dateRange.start).slice(0, 10);
+            const endStr =
+              typeof filters.dateRange.end === "string"
+                ? filters.dateRange.end.slice(0, 10)
+                : filters.dateRange.end instanceof Date
+                ? filters.dateRange.end.toISOString().slice(0, 10)
+                : String(filters.dateRange.end).slice(0, 10);
+            retryQuery.gte("plan_date", startStr).lte("plan_date", endStr);
+          }
+          
+          const { data: retryData, error: retryError } = await retryQuery
+            .order("plan_date", { ascending: true })
+            .order("block_index", { ascending: true });
+          
+          if (!retryError && retryData) {
+            console.log(`[data/studentPlans] 재시도 ${attempt}번째 성공`);
+            
+            // 애플리케이션 레벨에서 추가 필터링
+            let filtered = retryData as Plan[];
+            
+            if (filters.contentType) {
+              filtered = filtered.filter((plan) => plan.content_type === filters.contentType);
+            }
+            
+            if (filters.planGroupIds && filters.planGroupIds.length > 0) {
+              const activeGroupIdsSet = new Set(filters.planGroupIds);
+              filtered = filtered.filter(
+                (plan) => plan.plan_group_id && activeGroupIdsSet.has(plan.plan_group_id)
+              );
+            }
+            
+            return filtered;
+          }
+        } catch (retryError) {
+          console.warn(`[data/studentPlans] 재시도 ${attempt}번째 실패:`, retryError);
         }
       }
+      
+      console.error("[data/studentPlans] 모든 재시도 실패, 빈 배열 반환");
+      return [];
     }
     
-    // Supabase 에러 형식 확인
-    const supabaseError = error as any;
-    console.error("에러 코드:", supabaseError?.code);
-    console.error("에러 메시지:", supabaseError?.message);
-    console.error("에러 상세:", supabaseError?.details);
-    console.error("에러 힌트:", supabaseError?.hint);
-    
-    console.error("필터 조건:", {
-      studentId: filters.studentId,
-      dateRange: filters.dateRange,
-      planGroupIds: filters.planGroupIds,
-      planGroupIdsLength: filters.planGroupIds?.length,
-      planGroupIdsType: typeof filters.planGroupIds,
-      planDate: filters.planDate,
-      contentType: filters.contentType,
+    // 일반 에러 처리
+    console.error("[data/studentPlans] 플랜 조회 실패", {
+      errorCode: supabaseError?.code,
+      errorMessage: isHtmlError ? "서버 에러 (HTML 응답)" : errorMessage.substring(0, 200),
+      filters: {
+        studentId: filters.studentId,
+        dateRange: filters.dateRange,
+        planDate: filters.planDate,
+        contentType: filters.contentType,
+        planGroupIdsCount: filters.planGroupIds?.length || 0,
+      },
     });
-    
-    // 에러 객체를 문자열로 변환 시도
-    try {
-      const errorStr = JSON.stringify(error, Object.getOwnPropertyNames(error), 2);
-      console.error("에러 JSON:", errorStr);
-    } catch (e) {
-      console.error("에러 JSON 변환 실패:", e);
-    }
     
     // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
     if (filters.planGroupIds && filters.planGroupIds.length > 0) {
       console.warn("[data/studentPlans] planGroupIds 필터링 실패, 전체 조회로 폴백");
       
-      // planGroupIds 없이 다시 시도 (날짜 형식도 명시적으로 변환)
+      // planGroupIds 없이 다시 시도
       const fallbackFilters: PlanFilters = {
         studentId: filters.studentId,
         tenantId: filters.tenantId,
