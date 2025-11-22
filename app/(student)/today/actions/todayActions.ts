@@ -269,9 +269,11 @@ export async function completePlan(
     const totalPausedDuration = currentPauseDuration + planPausedDuration;
     const pauseCount = planData?.pause_count || 0;
 
-    // 활성 세션 종료
-    if (activeSession?.id) {
-      await endStudySession(activeSession.id);
+    // 활성 세션 종료 (모든 활성 세션 종료)
+    if (activeSessions && activeSessions.length > 0) {
+      for (const session of activeSessions) {
+        await endStudySession(session.id);
+      }
     }
 
     // 플랜 시간 정보 업데이트
