@@ -107,15 +107,25 @@ export function PlanGroupCard({
   };
 
   const handleGroupPause = async () => {
-    // 모든 활성 플랜 일시정지
-    const activePlanIds = group.plans
-      .filter(
-        (plan) =>
-          plan.actual_start_time &&
-          !plan.actual_end_time &&
-          (!sessions.get(plan.id)?.isPaused)
+    // 이미 로딩 중이면 중복 호출 방지
+    if (isLoading) {
+      console.log("[PlanGroupCard] 이미 일시정지 처리 중입니다.");
+      return;
+    }
+
+    // 모든 활성 플랜 일시정지 (중복 제거 및 이미 일시정지된 플랜 제외)
+    const activePlanIds = Array.from(
+      new Set(
+        group.plans
+          .filter(
+            (plan) =>
+              plan.actual_start_time &&
+              !plan.actual_end_time &&
+              (!sessions.get(plan.id)?.isPaused)
+          )
+          .map((plan) => plan.id)
       )
-      .map((plan) => plan.id);
+    );
 
     if (activePlanIds.length === 0) {
       alert("일시정지할 활성 플랜이 없습니다.");
@@ -144,9 +154,14 @@ export function PlanGroupCard({
       );
       
       const failedResults = results.filter((r) => !r.success);
-      if (failedResults.length > 0) {
-        const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
-        console.error("[PlanGroupCard] 일시정지 실패 상세:", JSON.stringify(failedResults, null, 2));
+      // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
+      const criticalErrors = failedResults.filter(
+        (r) => r.error && !r.error.includes("이미 일시정지된 상태입니다")
+      );
+      
+      if (criticalErrors.length > 0) {
+        const errorMessages = criticalErrors.map((r) => r.error || "알 수 없는 오류").join(", ");
+        console.error("[PlanGroupCard] 일시정지 실패 상세:", JSON.stringify(criticalErrors, null, 2));
         alert(`일시정지에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
         // 에러 발생 시 페이지 새로고침하여 optimistic 상태 롤백
@@ -157,11 +172,11 @@ export function PlanGroupCard({
         startTransition(() => {
           router.refresh();
         });
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("[PlanGroupCard] 일시정지 오류:", error);
       alert("오류가 발생했습니다: " + (error instanceof Error ? error.message : String(error)));
-    } finally {
       setIsLoading(false);
     }
   };

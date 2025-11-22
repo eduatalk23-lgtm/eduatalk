@@ -104,6 +104,11 @@ export function PlanTimerCard({
   };
 
   const handlePause = async () => {
+    // 이미 로딩 중이거나 일시정지된 상태면 중복 호출 방지
+    if (isLoading || isPaused) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await pausePlan(planId);
@@ -112,7 +117,10 @@ export function PlanTimerCard({
         setIsRunning(false);
         router.refresh();
       } else {
-        alert(result.error || "플랜 일시정지에 실패했습니다.");
+        // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
+        if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
+          alert(result.error || "플랜 일시정지에 실패했습니다.");
+        }
       }
     } catch (error) {
       alert("오류가 발생했습니다.");

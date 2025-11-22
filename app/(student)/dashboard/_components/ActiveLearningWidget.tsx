@@ -61,12 +61,22 @@ export function ActiveLearningWidget({ activePlan: initialActivePlan }: ActiveLe
 
   const handlePause = async () => {
     if (!activePlan) return;
+    // 이미 로딩 중이거나 일시정지된 상태면 중복 호출 방지
+    if (isLoading || activePlan.isPaused) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await pausePlan(activePlan.id);
       if (result.success) {
         setActivePlan((prev) => prev ? { ...prev, isPaused: true } : null);
         router.refresh();
+      } else {
+        // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
+        if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
+          console.error("[ActiveLearningWidget] 일시정지 실패:", result.error);
+        }
       }
     } finally {
       setIsLoading(false);
