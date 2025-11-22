@@ -3,11 +3,13 @@
 ## 📋 제안된 방식
 
 ### 현재 방식 (세션 테이블 기반)
+
 - `student_study_sessions` 테이블로 세션 관리
 - 세션별로 일시정지/재개 정보 추적
 - 여러 세션을 동시에 관리 가능
 
 ### 제안된 방식 (플랜 필드 기반)
+
 ```typescript
 // student_plan 테이블에 필드 추가
 is_timer_active: boolean (default: false)
@@ -19,14 +21,14 @@ timer_resumed_at: timestamptz
 const activePlan = plans.find(p => p.is_timer_active === true);
 
 // 시작 버튼
-UPDATE student_plan 
-SET is_timer_active = true, 
+UPDATE student_plan
+SET is_timer_active = true,
     timer_started_at = NOW(),
     actual_start_time = NOW()
 WHERE id = planId;
 
 // 완료/초기화 시
-UPDATE student_plan 
+UPDATE student_plan
 SET is_timer_active = false
 WHERE id = planId;
 ```
@@ -38,19 +40,21 @@ WHERE id = planId;
 **문제**: 일시정지와 재개를 여러 번 할 수 있는데, 필드 기반으로는 추적이 어렵습니다.
 
 **현재 방식 (세션 테이블)**:
+
 ```typescript
 // 세션 테이블에 누적 저장
-paused_duration_seconds: 300  // 총 일시정지 시간
-pause_count: 2                 // 일시정지 횟수
-paused_at: "2025-01-14T10:30:00Z"  // 현재 일시정지 시간
-resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개 시간
+paused_duration_seconds: 300; // 총 일시정지 시간
+pause_count: 2; // 일시정지 횟수
+paused_at: "2025-01-14T10:30:00Z"; // 현재 일시정지 시간
+resumed_at: "2025-01-14T10:35:00Z"; // 마지막 재개 시간
 ```
 
 **제안된 방식의 문제**:
+
 ```typescript
 // 플랜 테이블에 단일 필드만 저장
-timer_paused_at: "2025-01-14T10:30:00Z"  // 마지막 일시정지만 저장
-timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
+timer_paused_at: "2025-01-14T10:30:00Z"; // 마지막 일시정지만 저장
+timer_resumed_at: "2025-01-14T10:35:00Z"; // 마지막 재개만 저장
 
 // 문제: 이전 일시정지 기록이 사라짐!
 // 예: 10:00-10:05 일시정지, 10:30-10:35 일시정지
@@ -58,6 +62,7 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 ```
 
 **해결 방법**:
+
 - 별도 `plan_timer_pauses` 테이블 필요 (결국 추가 테이블)
 - 또는 JSON 배열로 저장 (비정규화, 쿼리 어려움)
 
@@ -68,6 +73,7 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 ### 2. 세션별 상세 정보 손실
 
 **현재 방식의 장점**:
+
 ```typescript
 // 각 세션마다 독립적인 정보 저장
 {
@@ -83,10 +89,11 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 ```
 
 **제안된 방식의 문제**:
+
 ```typescript
 // 플랜 레벨에서만 관리
 // 문제: 여러 번 시작/중지한 경우 이전 세션 정보 손실
-// 예: 
+// 예:
 //   09:00 시작 → 10:00 중지 (세션 1)
 //   14:00 시작 → 15:00 중지 (세션 2)
 //   → 세션 1 정보가 사라짐
@@ -101,6 +108,7 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 **문제**: 여러 요청이 동시에 들어올 때 데이터 불일치 발생 가능
 
 **시나리오**:
+
 ```
 사용자 A: 플랜 1 시작 버튼 클릭 (10:00:00.100)
 사용자 B: 플랜 2 시작 버튼 클릭 (10:00:00.150) - 거의 동시
@@ -116,6 +124,7 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 ```
 
 **해결 방법**:
+
 - 트랜잭션 + SELECT FOR UPDATE 필요
 - 또는 데이터베이스 제약조건 추가 (UNIQUE 제약 등)
 
@@ -128,6 +137,7 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 **문제**: 활성 필드와 실제 세션 상태가 불일치할 수 있음
 
 **시나리오**:
+
 ```
 1. 플랜 시작 → is_timer_active = true
 2. 서버 오류로 세션 생성 실패
@@ -137,6 +147,7 @@ timer_resumed_at: "2025-01-14T10:35:00Z" // 마지막 재개만 저장
 ```
 
 **현재 방식**:
+
 ```typescript
 // 세션 테이블을 기준으로 확인
 const activeSessions = await getActiveSessions();
@@ -144,6 +155,7 @@ const activeSessions = await getActiveSessions();
 ```
 
 **제안된 방식**:
+
 ```typescript
 // 플랜 필드만 확인
 const activePlan = await getPlanWithActiveTimer();
@@ -159,6 +171,7 @@ const activePlan = await getPlanWithActiveTimer();
 **문제**: 네트워크 오류나 브라우저 종료 시 상태 복구가 어려움
 
 **현재 방식**:
+
 ```typescript
 // 세션 테이블에서 실제 상태 확인
 const activeSession = await getActiveSession(planId);
@@ -170,6 +183,7 @@ if (activeSession) {
 ```
 
 **제안된 방식**:
+
 ```typescript
 // 플랜 필드만 확인
 if (plan.is_timer_active) {
@@ -187,10 +201,12 @@ if (plan.is_timer_active) {
 ### 6. 성능 측면 분석
 
 **제안된 방식의 장점**:
+
 - ✅ 플랜 조회 시 JOIN 불필요 (플랜 테이블만 조회)
 - ✅ 활성 플랜 확인이 간단함 (`WHERE is_timer_active = true`)
 
 **현재 방식의 성능**:
+
 ```typescript
 // 플랜 조회 + 세션 조회 (JOIN 또는 별도 쿼리)
 const plans = await getPlans();
@@ -199,11 +215,13 @@ const sessions = await getActiveSessions();
 ```
 
 **하지만 실제 성능 차이**:
+
 - 플랜 조회: 이미 인덱스가 있어서 빠름
 - 세션 조회: `ended_at IS NULL` 인덱스로 빠름
 - JOIN: 인덱스가 있으면 성능 차이 미미
 
 **실제 측정 필요**:
+
 - 현재 방식도 충분히 빠름 (인덱스 활용)
 - 제안된 방식이 크게 빠르지 않을 수 있음
 
@@ -214,6 +232,7 @@ const sessions = await getActiveSessions();
 ### 7. 확장성 문제
 
 **현재 방식의 장점**:
+
 - 세션별로 독립적인 메타데이터 저장 가능
   - 집중도 (focus_level)
   - 메모 (note)
@@ -221,6 +240,7 @@ const sessions = await getActiveSessions();
 - 향후 기능 확장 용이
 
 **제안된 방식의 문제**:
+
 - 플랜 레벨에서만 관리
 - 세션별 메타데이터 저장 어려움
 - 확장성 제한
@@ -231,15 +251,15 @@ const sessions = await getActiveSessions();
 
 ## 📊 비교표
 
-| 항목 | 현재 방식 (세션 테이블) | 제안된 방식 (플랜 필드) |
-|------|------------------------|------------------------|
-| 일시정지/재개 추적 | ✅ 쉬움 (세션 테이블) | ❌ 복잡 (별도 테이블 필요) |
-| 세션별 정보 | ✅ 가능 | ❌ 불가능 |
-| 동시성 처리 | ✅ 안전 (세션 확인) | ❌ 위험 (Race Condition) |
-| 데이터 정합성 | ✅ 높음 | ❌ 낮음 (불일치 가능) |
-| 복구 로직 | ✅ 간단 | ❌ 복잡 |
-| 성능 | ✅ 충분히 빠름 | ⚠️ 약간 빠를 수 있음 |
-| 확장성 | ✅ 높음 | ❌ 낮음 |
+| 항목               | 현재 방식 (세션 테이블) | 제안된 방식 (플랜 필드)    |
+| ------------------ | ----------------------- | -------------------------- |
+| 일시정지/재개 추적 | ✅ 쉬움 (세션 테이블)   | ❌ 복잡 (별도 테이블 필요) |
+| 세션별 정보        | ✅ 가능                 | ❌ 불가능                  |
+| 동시성 처리        | ✅ 안전 (세션 확인)     | ❌ 위험 (Race Condition)   |
+| 데이터 정합성      | ✅ 높음                 | ❌ 낮음 (불일치 가능)      |
+| 복구 로직          | ✅ 간단                 | ❌ 복잡                    |
+| 성능               | ✅ 충분히 빠름          | ⚠️ 약간 빠를 수 있음       |
+| 확장성             | ✅ 높음                 | ❌ 낮음                    |
 
 ## 🎯 결론 및 권장사항
 
@@ -258,6 +278,7 @@ const sessions = await getActiveSessions();
 **현재 방식을 유지하는 것을 권장합니다.**
 
 **이유**:
+
 1. ✅ **데이터 정합성**: 세션 테이블이 실제 상태를 정확히 반영
 2. ✅ **안정성**: 동시성 문제와 데이터 불일치 문제 없음
 3. ✅ **확장성**: 향후 기능 추가 용이
@@ -269,15 +290,15 @@ const sessions = await getActiveSessions();
 
 ```typescript
 // 1. 인덱스 최적화 (이미 있음)
-CREATE INDEX idx_study_sessions_active 
-ON student_study_sessions(student_id, ended_at) 
+CREATE INDEX idx_study_sessions_active
+ON student_study_sessions(student_id, ended_at)
 WHERE ended_at IS NULL;
 
 // 2. 조회 최적화
 // 플랜과 세션을 한 번에 조회 (JOIN)
 SELECT p.*, s.id as session_id, s.is_paused
 FROM student_plan p
-LEFT JOIN student_study_sessions s 
+LEFT JOIN student_study_sessions s
   ON p.id = s.plan_id AND s.ended_at IS NULL
 WHERE p.student_id = ? AND p.plan_date = ?;
 

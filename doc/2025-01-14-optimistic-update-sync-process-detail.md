@@ -25,7 +25,7 @@
 export async function startPlan(planId: string, timestamp?: string) {
   // 1. 사용자 인증 확인
   const user = await getCurrentUser();
-  
+
   // 2. 다른 플랜이 활성화되어 있는지 확인
   const { data: activeSessions } = await supabase
     .from("student_study_sessions")
@@ -33,19 +33,19 @@ export async function startPlan(planId: string, timestamp?: string) {
     .eq("student_id", user.userId)
     .is("ended_at", null)
     .neq("plan_id", planId);
-  
+
   // 3. 학습 세션 시작
   const result = await startStudySession(planId);
-  
+
   // 4. 플랜의 actual_start_time 업데이트
   await supabase
     .from("student_plan")
     .update({ actual_start_time: startTime })
     .eq("id", planId);
-  
+
   // 5. 페이지 재검증
   revalidatePath("/today");
-  
+
   return { success: true, sessionId: result.sessionId };
 }
 ```
@@ -53,10 +53,12 @@ export async function startPlan(planId: string, timestamp?: string) {
 **실제로 하는 일:**
 
 1. ✅ **데이터베이스에 저장**
+
    - `student_study_sessions` 테이블에 새 세션 생성
    - `student_plan` 테이블에 `actual_start_time` 업데이트
 
 2. ✅ **검증 작업**
+
    - 다른 플랜의 타이머가 실행 중인지 확인
    - 사용자 권한 확인
 
@@ -85,6 +87,7 @@ return { success: true, sessionId: result.sessionId };
 **실제로 하는 일:**
 
 1. ✅ **성공 여부 확인**
+
    - `success: true` → 데이터베이스 저장 성공
    - `success: false` → 에러 발생 (다른 플랜이 실행 중 등)
 
@@ -113,6 +116,7 @@ revalidatePath("/today");
 **실제로 하는 일:**
 
 1. ✅ **캐시 무효화**
+
    - Next.js가 `/today` 경로의 캐시된 데이터를 무효화
    - 서버 컴포넌트가 다시 렌더링될 때 최신 데이터를 가져오도록 표시
 
@@ -172,7 +176,7 @@ Next.js: "아, /today 경로의 캐시가 무효화되었구나"
 export async function TodayPlanList() {
   // revalidatePath 후 다시 실행됨
   const plans = await getPlansFromDatabase(); // 최신 데이터 조회
-  
+
   return <DraggablePlanList plans={plans} />;
 }
 ```
@@ -180,6 +184,7 @@ export async function TodayPlanList() {
 **실제로 하는 일:**
 
 1. ✅ **데이터베이스에서 최신 데이터 조회**
+
    - `student_plan` 테이블에서 `actual_start_time`이 업데이트된 플랜 조회
    - `student_study_sessions` 테이블에서 활성 세션 조회
 
@@ -239,10 +244,12 @@ useEffect(() => {
 **실제로 하는 일:**
 
 1. ✅ **Props 변경 감지**
+
    - `useEffect`가 props 변경을 감지
    - 서버에서 최신 데이터가 전달되었음을 확인
 
 2. ✅ **Optimistic 상태 제거**
+
    - `setOptimisticIsPaused(null)` → Optimistic 일시정지 상태 제거
    - `setOptimisticIsActive(null)` → Optimistic 활성 상태 제거
    - `setOptimisticTimestamps({})` → Optimistic 타임스탬프 제거
@@ -250,9 +257,10 @@ useEffect(() => {
 3. ✅ **실제 props 사용**
    ```typescript
    // Optimistic 상태가 null이 되면 실제 props 사용
-   const isActiveState = optimisticIsActive !== null 
-     ? optimisticIsActive      // Optimistic 상태 (버튼 클릭 직후)
-     : Boolean(isActive);      // 실제 서버 상태 (동기화 후)
+   const isActiveState =
+     optimisticIsActive !== null
+       ? optimisticIsActive // Optimistic 상태 (버튼 클릭 직후)
+       : Boolean(isActive); // 실제 서버 상태 (동기화 후)
    ```
 
 **상태 전환:**
@@ -302,13 +310,13 @@ setOptimisticTimestamps({}); // Optimistic 제거
 
 ### 각 단계의 역할
 
-| 단계 | 역할 | 없으면? |
-|------|------|---------|
-| 1. 서버 요청 | 데이터베이스에 저장 | ❌ 데이터가 저장되지 않음 |
-| 2. 서버 응답 | 성공/실패 확인 | ❌ 에러를 알 수 없음 |
-| 3. revalidatePath | 캐시 무효화 | ❌ 최신 데이터를 가져오지 않음 |
-| 4. Props 업데이트 | 최신 데이터 전달 | ❌ 실제 서버 데이터를 사용할 수 없음 |
-| 5. 동기화 | Optimistic 제거 | ❌ 가짜 상태가 계속 유지됨 |
+| 단계              | 역할                | 없으면?                              |
+| ----------------- | ------------------- | ------------------------------------ |
+| 1. 서버 요청      | 데이터베이스에 저장 | ❌ 데이터가 저장되지 않음            |
+| 2. 서버 응답      | 성공/실패 확인      | ❌ 에러를 알 수 없음                 |
+| 3. revalidatePath | 캐시 무효화         | ❌ 최신 데이터를 가져오지 않음       |
+| 4. Props 업데이트 | 최신 데이터 전달    | ❌ 실제 서버 데이터를 사용할 수 없음 |
+| 5. 동기화         | Optimistic 제거     | ❌ 가짜 상태가 계속 유지됨           |
 
 ### 모든 단계가 필요한 이유
 
@@ -333,4 +341,3 @@ Optimistic Update = "예상되는 결과를 미리 보여주기"
 
 둘 다 있어야 완벽합니다!
 ```
-
