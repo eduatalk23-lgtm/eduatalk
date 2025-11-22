@@ -106,18 +106,35 @@ export async function TodayPlanList() {
 
     // 2. 오늘 플랜이 없으면 가장 가까운 미래 날짜의 플랜 찾기
     if (plans.length === 0) {
-      const futureEndDate = new Date(today);
-      futureEndDate.setDate(futureEndDate.getDate() + 30); // 30일 후까지 조회
-      const futureEndDateStr = futureEndDate.toISOString().slice(0, 10);
+      // 먼저 30일 범위로 조회 (성능 최적화)
+      const shortRangeEndDate = new Date(today);
+      shortRangeEndDate.setDate(shortRangeEndDate.getDate() + 30);
+      const shortRangeEndDateStr = shortRangeEndDate.toISOString().slice(0, 10);
 
-      const futurePlansResult = await getPlansForStudent({
+      let futurePlansResult = await getPlansForStudent({
         studentId: user.userId,
         tenantId: tenantContext?.tenantId || null,
         dateRange: {
           start: todayDate,
-          end: futureEndDateStr,
+          end: shortRangeEndDateStr,
         },
       });
+
+      // 30일 범위에 플랜이 없으면 더 넓은 범위(180일)로 확장 조회
+      if (futurePlansResult.length === 0) {
+        const longRangeEndDate = new Date(today);
+        longRangeEndDate.setDate(longRangeEndDate.getDate() + 180); // 180일 후까지 조회
+        const longRangeEndDateStr = longRangeEndDate.toISOString().slice(0, 10);
+
+        futurePlansResult = await getPlansForStudent({
+          studentId: user.userId,
+          tenantId: tenantContext?.tenantId || null,
+          dateRange: {
+            start: todayDate,
+            end: longRangeEndDateStr,
+          },
+        });
+      }
 
       if (futurePlansResult.length > 0) {
         // 가장 가까운 날짜 찾기 (plan_date 기준으로 정렬)
