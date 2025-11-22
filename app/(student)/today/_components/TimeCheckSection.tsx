@@ -88,6 +88,20 @@ export function TimeCheckSection({
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
   const isPausedState = optimisticIsPaused !== null ? optimisticIsPaused : Boolean(isPaused);
 
+  // 현재 일시정지 중인 시간 계산 (진행 중이고 일시정지된 경우)
+  const currentPauseSeconds = (() => {
+    if (!isActiveState || !isPausedState || !timeStats.currentPausedAt) {
+      return 0;
+    }
+    try {
+      const pausedAt = new Date(timeStats.currentPausedAt).getTime();
+      const now = Date.now();
+      return Math.floor((now - pausedAt) / 1000);
+    } catch {
+      return 0;
+    }
+  })();
+
   // 실시간 타이머 계산
   useEffect(() => {
     // 완료되었거나 비활성 상태면 타이머 중지
@@ -102,6 +116,7 @@ export function TimeCheckSection({
         const now = Date.now();
         const total = Math.floor((now - start) / 1000);
         // 일시정지 시간 제외 (PlanItem과 동일한 로직)
+        // timeStats.pausedDuration은 이미 저장된 일시정지 시간
         const pausedSeconds = timeStats.pausedDuration || 0;
         setElapsedSeconds(Math.max(0, total - pausedSeconds));
       } catch {
@@ -115,13 +130,26 @@ export function TimeCheckSection({
     return () => clearInterval(interval);
   }, [isCompleted, isActiveState, hasStartTime, isPausedState, normalizedStartTime, timeStats.pausedDuration]);
 
-  // 현재 진행 중인 총 시간 계산 (기존 시간 + 경과 시간)
-  // 완료되었으면 경과 시간을 더하지 않음
-  const currentTotalSeconds = isCompleted
-    ? timeStats.totalDuration
-    : timeStats.isActive
-    ? timeStats.totalDuration + elapsedSeconds
-    : timeStats.totalDuration;
+  // 현재 진행 중인 총 시간 계산
+  // 총 학습 시간 = 완료된 세션들의 시간 + 진행 중인 세션의 총 시간
+  // 진행 중인 세션의 총 시간 = 현재 시간 - 시작 시간
+  const currentTotalSeconds = (() => {
+    if (isCompleted) {
+      return timeStats.totalDuration;
+    }
+    if (!timeStats.isActive || !hasStartTime) {
+      return timeStats.totalDuration;
+    }
+    // 진행 중인 세션의 총 시간 계산
+    try {
+      const start = new Date(normalizedStartTime!).getTime();
+      const now = Date.now();
+      const activeTotalSeconds = Math.floor((now - start) / 1000);
+      return timeStats.totalDuration + activeTotalSeconds;
+    } catch {
+      return timeStats.totalDuration;
+    }
+  })();
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

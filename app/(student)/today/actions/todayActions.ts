@@ -246,7 +246,7 @@ export async function completePlan(
     // 활성 세션 조회하여 일시정지 정보 가져오기 및 종료 (여러 개일 수 있으므로 배열로 조회)
     const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, paused_duration_seconds, paused_at")
+      .select("id, paused_duration_seconds, paused_at, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
@@ -540,7 +540,7 @@ export async function resumePlan(
     // 활성 세션 조회 (여러 개일 수 있으므로 배열로 조회)
     const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, paused_at, paused_duration_seconds")
+      .select("id, paused_at, paused_duration_seconds, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
