@@ -239,6 +239,54 @@ export async function TodayPlanList() {
     sessionsMap.set(key, value);
   });
 
+  // 메모 조회 (같은 plan_number를 가진 플랜들의 메모)
+  // 같은 plan_number를 가진 플랜들은 같은 memo를 공유한다고 가정
+  const memosMap = new Map<number | null, string | null>();
+  const uniquePlanNumbers = new Set<number | null>(
+    groups.map((g) => g.planNumber)
+  );
+
+  // 각 plan_number별로 플랜을 찾아서 memo 조회
+  for (const planNumber of uniquePlanNumbers) {
+    const plan = plans.find(
+      (p) => (p.plan_number ?? null) === planNumber
+    );
+    if (plan) {
+      // 플랜에서 memo 필드 조회
+      const memo = plan.memo ?? null;
+      memosMap.set(planNumber, memo);
+    }
+  }
+
+  // plan_number가 null인 경우도 처리
+  const nullPlanNumberPlans = plans.filter((p) => (p.plan_number ?? null) === null);
+  if (nullPlanNumberPlans.length > 0) {
+    const firstNullPlan = nullPlanNumberPlans[0];
+    const memo = firstNullPlan.memo ?? null;
+    memosMap.set(null, memo);
+  }
+
+  // 콘텐츠 총량 맵 생성
+  const totalPagesMap = new Map<string, number>();
+  books.forEach((book) => {
+    const key = `book:${book.id}`;
+    if (book.total_pages && book.total_pages > 0) {
+      totalPagesMap.set(key, book.total_pages);
+    }
+  });
+  lectures.forEach((lecture) => {
+    const key = `lecture:${lecture.id}`;
+    if (lecture.duration && lecture.duration > 0) {
+      totalPagesMap.set(key, lecture.duration);
+    }
+  });
+  customContents.forEach((custom) => {
+    const key = `custom:${custom.id}`;
+    if (custom.total_page_or_time && custom.total_page_or_time > 0) {
+      totalPagesMap.set(key, custom.total_page_or_time);
+    }
+  });
+
   // 날짜 표시 레이블 생성
   const dateLabel = isToday 
     ? "오늘" 
@@ -264,6 +312,9 @@ export async function TodayPlanList() {
       <TodayPlanListView
         groups={groups}
         sessions={sessionsMap}
+        planDate={displayDate}
+        memos={memosMap}
+        totalPagesMap={totalPagesMap}
         initialMode="daily"
         initialSelectedPlanNumber={groups[0]?.planNumber ?? null}
       />

@@ -1,0 +1,442 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { X, Save, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlanGroup } from "../_utils/planGroupUtils";
+
+type PlanRange = {
+  planId: string;
+  blockIndex: number;
+  startPageOrTime: number;
+  endPageOrTime: number;
+};
+
+type PlanRangeAdjustModalProps = {
+  group: PlanGroup;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (ranges: PlanRange[]) => Promise<void>;
+  totalPages: number; // 콘텐츠의 총 페이지/시간 수
+  isBook: boolean; // 책인지 강의인지 (페이지 vs 분)
+};
+
+type AdjustMode = "bulk" | "individual" | "smart";
+
+export function PlanRangeAdjustModal({
+  group,
+  isOpen,
+  onClose,
+  onSave,
+  totalPages,
+  isBook,
+}: PlanRangeAdjustModalProps) {
+  const [adjustMode, setAdjustMode] = useState<AdjustMode>("bulk");
+  const [ranges, setRanges] = useState<PlanRange[]>([]);
+  const [originalRanges, setOriginalRanges] = useState<PlanRange[]>([]);
+  const [bulkStart, setBulkStart] = useState<number>(0);
+  const [bulkEnd, setBulkEnd] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // 초기화
+  useEffect(() => {
+    if (isOpen) {
+      const initialRanges: PlanRange[] = group.plans
+        .sort((a, b) => (a.block_index ?? 0) - (b.block_index ?? 0))
+        .map((plan) => ({
+          planId: plan.id,
+          blockIndex: plan.block_index ?? 0,
+          startPageOrTime: plan.planned_start_page_or_time ?? 0,
+          endPageOrTime: plan.planned_end_page_or_time ?? 0,
+        }));
+
+      setRanges(initialRanges);
+      setOriginalRanges(JSON.parse(JSON.stringify(initialRanges)));
+
+      // 전체 범위 계산
+      if (initialRanges.length > 0) {
+        const minStart = Math.min(...initialRanges.map((r) => r.startPageOrTime));
+        const maxEnd = Math.max(...initialRanges.map((r) => r.endPageOrTime));
+        setBulkStart(minStart);
+        setBulkEnd(maxEnd);
+      }
+    }
+  }, [isOpen, group]);
+
+  const handleSave = async () => {
+    // 검증
+    for (const range of ranges) {
+      if (range.startPageOrTime < 0) {
+        alert(`${range.blockIndex}번 블록: 시작 값은 0 이상이어야 합니다.`);
+        return;
+      }
+      if (range.endPageOrTime > totalPages) {
+        alert(`${range.blockIndex}번 블록: 종료 값은 총량(${totalPages})을 초과할 수 없습니다.`);
+        return;
+      }
+      if (range.startPageOrTime >= range.endPageOrTime) {
+        alert(`${range.blockIndex}번 블록: 시작 값은 종료 값보다 작아야 합니다.`);
+        return;
+      }
+    }
+
+    // 블록 간 겹침 검증
+    const sortedRanges = [...ranges].sort((a, b) => a.blockIndex - b.blockIndex);
+    for (let i = 0; i < sortedRanges.length - 1; i++) {
+      if (sortedRanges[i].endPageOrTime > sortedRanges[i + 1].startPageOrTime) {
+        alert("블록 간 범위가 겹치지 않도록 해주세요.");
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    try {
+      await onSave(ranges);
+      onClose();
+    } catch (error) {
+      alert("범위 조정에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkAdjust = () => {
+    if (bulkStart < 0 || bulkEnd > totalPages || bulkStart >= bulkEnd) {
+      alert("올바른 범위를 입력해주세요.");
+      return;
+    }
+
+    // 기존 블록 비율 유지하여 분배
+    const totalOriginalRange = originalRanges.reduce(
+      (sum, r) => sum + (r.endPageOrTime - r.startPageOrTime),
+      0
+    );
+    const newTotalRange = bulkEnd - bulkStart;
+
+    let currentStart = bulkStart;
+    const newRanges: PlanRange[] = [];
+
+    for (let i = 0; i < originalRanges.length; i++) {
+      const originalRange =
+        originalRanges[i].endPageOrTime - originalRanges[i].startPageOrTime;
+      const ratio = totalOriginalRange > 0 ? originalRange / totalOriginalRange : 1 / originalRanges.length;
+      const newRange = Math.round(newTotalRange * ratio);
+      const newEnd = i === originalRanges.length - 1 ? bulkEnd : currentStart + newRange;
+
+      newRanges.push({
+        planId: originalRanges[i].planId,
+        blockIndex: originalRanges[i].blockIndex,
+        startPageOrTime: currentStart,
+        endPageOrTime: newEnd,
+      });
+
+      currentStart = newEnd;
+    }
+
+    setRanges(newRanges);
+  };
+
+  const handleQuickAdjust = (offset: number) => {
+    const newRanges = ranges.map((range) => ({
+      ...range,
+      startPageOrTime: Math.max(0, range.startPageOrTime + offset),
+      endPageOrTime: Math.min(totalPages, range.endPageOrTime + offset),
+    }));
+    setRanges(newRanges);
+
+    // Bulk 범위도 업데이트
+    const minStart = Math.min(...newRanges.map((r) => r.startPageOrTime));
+    const maxEnd = Math.max(...newRanges.map((r) => r.endPageOrTime));
+    setBulkStart(minStart);
+    setBulkEnd(maxEnd);
+  };
+
+  const handleRestore = () => {
+    setRanges(JSON.parse(JSON.stringify(originalRanges)));
+    const minStart = Math.min(...originalRanges.map((r) => r.startPageOrTime));
+    const maxEnd = Math.max(...originalRanges.map((r) => r.endPageOrTime));
+    setBulkStart(minStart);
+    setBulkEnd(maxEnd);
+  };
+
+  const handleIndividualRangeChange = (
+    index: number,
+    field: "startPageOrTime" | "endPageOrTime",
+    value: number
+  ) => {
+    const newRanges = [...ranges];
+    newRanges[index] = {
+      ...newRanges[index],
+      [field]: value,
+    };
+    setRanges(newRanges);
+  };
+
+  const contentTitle = group.content?.title || "제목 없음";
+  const unit = isBook ? "페이지" : "분";
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="relative w-full max-w-3xl max-h-[90vh] rounded-lg border border-gray-200 bg-white shadow-xl flex flex-col">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">플랜 범위 조정</h2>
+            <div className="mt-1 text-sm text-gray-600">{contentTitle}</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* 내용 */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* 현재 범위 */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">현재 범위</h3>
+            <div className="space-y-2">
+              {ranges.map((range, index) => (
+                <div key={range.planId} className="text-sm text-gray-700">
+                  블록 {range.blockIndex}: {range.startPageOrTime} ~ {range.endPageOrTime} {unit} (
+                  {range.endPageOrTime - range.startPageOrTime} {unit})
+                </div>
+              ))}
+              <div className="pt-2 mt-2 border-t border-gray-300 text-sm font-medium text-gray-900">
+                전체 범위: {bulkStart} ~ {bulkEnd} {unit} (총 {bulkEnd - bulkStart} {unit})
+              </div>
+            </div>
+          </div>
+
+          {/* 조정 방식 선택 */}
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">범위 조정 방법</h3>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="adjustMode"
+                  value="bulk"
+                  checked={adjustMode === "bulk"}
+                  onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">전체 범위 일괄 조정</div>
+                  <div className="text-xs text-gray-500">
+                    모든 블록에 동일한 비율로 범위 분배
+                  </div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="adjustMode"
+                  value="individual"
+                  checked={adjustMode === "individual"}
+                  onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
+                  className="mt-1"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">개별 블록 조정</div>
+                  <div className="text-xs text-gray-500">
+                    각 블록의 범위를 개별적으로 조정
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* 새 범위 입력 */}
+          {adjustMode === "bulk" && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-900">새 범위 입력</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
+                    전체 시작 ({unit})
+                  </label>
+                  <input
+                    type="number"
+                    value={bulkStart}
+                    onChange={(e) => setBulkStart(Number(e.target.value))}
+                    min={0}
+                    max={totalPages}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">
+                    전체 종료 ({unit})
+                  </label>
+                  <input
+                    type="number"
+                    value={bulkEnd}
+                    onChange={(e) => setBulkEnd(Number(e.target.value))}
+                    min={bulkStart + 1}
+                    max={totalPages}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleBulkAdjust}
+                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+              >
+                범위 적용
+              </button>
+
+              {/* 빠른 조정 */}
+              <div className="pt-4 border-t border-gray-200">
+                <p className="mb-2 text-xs font-medium text-gray-700">빠른 조정</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleQuickAdjust(-10)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    10{unit} 앞으로
+                  </button>
+                  <button
+                    onClick={() => handleQuickAdjust(-5)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    5{unit} 앞으로
+                  </button>
+                  <button
+                    onClick={() => handleQuickAdjust(5)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    5{unit} 뒤로
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleQuickAdjust(10)}
+                    className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    10{unit} 뒤로
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {adjustMode === "individual" && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-900">개별 블록 범위</h3>
+              <div className="space-y-3">
+                {ranges.map((range, index) => (
+                  <div key={range.planId} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="mb-2 text-sm font-medium text-gray-900">
+                      블록 {range.blockIndex}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                          시작 ({unit})
+                        </label>
+                        <input
+                          type="number"
+                          value={range.startPageOrTime}
+                          onChange={(e) =>
+                            handleIndividualRangeChange(
+                              index,
+                              "startPageOrTime",
+                              Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          max={totalPages}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                          종료 ({unit})
+                        </label>
+                        <input
+                          type="number"
+                          value={range.endPageOrTime}
+                          onChange={(e) =>
+                            handleIndividualRangeChange(
+                              index,
+                              "endPageOrTime",
+                              Number(e.target.value)
+                            )
+                          }
+                          min={range.startPageOrTime + 1}
+                          max={totalPages}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-600">
+                      범위: {range.endPageOrTime - range.startPageOrTime} {unit}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 미리보기 */}
+          <div className="rounded-lg border border-gray-200 bg-blue-50 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">미리보기</h3>
+            <div className="space-y-2">
+              {ranges.map((range, index) => (
+                <div key={range.planId} className="text-sm text-gray-700">
+                  블록 {range.blockIndex}: {range.startPageOrTime} ~ {range.endPageOrTime} {unit} (
+                  {range.endPageOrTime - range.startPageOrTime} {unit})
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleRestore}
+              className="mt-3 flex items-center gap-1 text-xs font-medium text-gray-600 transition hover:text-gray-900"
+            >
+              <RotateCcw className="h-3 w-3" />
+              원래대로 되돌리기
+            </button>
+          </div>
+
+          {/* 주의사항 */}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
+              ⚠️ 주의사항
+            </h3>
+            <ul className="space-y-1 text-xs text-amber-800">
+              <li>• 범위 조정 시 진행 중인 플랜은 일시정지됩니다.</li>
+              <li>• 기존 진행률은 유지됩니다.</li>
+              <li>• 조정 후 학습 시간이 재계산될 수 있습니다.</li>
+              <li>• 블록 간 범위가 겹치지 않도록 해주세요.</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* 푸터 */}
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            적용
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

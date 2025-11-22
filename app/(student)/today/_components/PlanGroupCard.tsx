@@ -11,7 +11,12 @@ import {
 import { PlanItem } from "./PlanItem";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
+import { PlanGroupActions } from "./PlanGroupActions";
+import { PlanMemoModal } from "./PlanMemoModal";
+import { PlanRangeAdjustModal } from "./PlanRangeAdjustModal";
 import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
+import { savePlanMemo } from "../actions/planMemoActions";
+import { adjustPlanRanges } from "../actions/planRangeActions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -19,6 +24,9 @@ type PlanGroupCardProps = {
   group: PlanGroup;
   viewMode: "daily" | "single";
   sessions: Map<string, { isPaused: boolean }>;
+  planDate: string; // 플랜 날짜 (메모 조회용)
+  memo?: string | null; // 메모 내용
+  totalPages?: number; // 콘텐츠 총량 (범위 조정용)
   onViewDetail?: () => void; // 일일 뷰에서 단일 뷰로 전환할 때
 };
 
@@ -26,10 +34,15 @@ export function PlanGroupCard({
   group,
   viewMode,
   sessions,
+  planDate,
+  memo,
+  totalPages,
   onViewDetail,
 }: PlanGroupCardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isMemoModalOpen, setIsMemoModalOpen] = useState(false);
+  const [isRangeModalOpen, setIsRangeModalOpen] = useState(false);
 
   const contentTitle = group.content?.title || "제목 없음";
   const contentTypeIcon =
@@ -134,12 +147,57 @@ export function PlanGroupCard({
     ? `${group.plans[0]?.sequence || 1}회차`
     : "1회차";
 
+  // 메모 저장 핸들러
+  const handleSaveMemo = async (newMemo: string) => {
+    const result = await savePlanMemo(group.planNumber, planDate, newMemo);
+    if (result.success) {
+      router.refresh();
+    } else {
+      throw new Error(result.error || "메모 저장에 실패했습니다.");
+    }
+  };
+
+  // 범위 조정 저장 핸들러
+  const handleSaveRanges = async (ranges: Array<{ planId: string; startPageOrTime: number; endPageOrTime: number }>) => {
+    const planIds = ranges.map((r) => r.planId);
+    const result = await adjustPlanRanges(planIds, ranges);
+    if (result.success) {
+      router.refresh();
+    } else {
+      throw new Error(result.error || "범위 조정에 실패했습니다.");
+    }
+  };
+
+  // 콘텐츠 총량 계산 (totalPages가 없으면 첫 번째 플랜의 콘텐츠에서 추정)
+  const getTotalPages = () => {
+    if (totalPages !== undefined && totalPages > 0) {
+      return totalPages;
+    }
+    // 기본값: 가장 큰 endPageOrTime을 총량으로 추정
+    const maxEnd = Math.max(
+      ...group.plans.map((p) => p.planned_end_page_or_time ?? 0)
+    );
+    return maxEnd || 100;
+  };
+
+  const isBook = group.plans[0]?.content_type === "book";
+
   if (viewMode === "single") {
     // 단일 뷰: 전체 화면으로 크게 표시
     return (
       <div className="space-y-6">
         {/* 헤더 */}
-        <div className="text-center">
+        <div className="relative text-center">
+          <div className="absolute right-0 top-0">
+            <PlanGroupActions
+              group={group}
+              memo={memo ?? null}
+              hasMemo={!!memo && memo.length > 0}
+              onMemoClick={() => setIsMemoModalOpen(true)}
+              onRangeAdjustClick={() => setIsRangeModalOpen(true)}
+              viewMode="single"
+            />
+          </div>
           <div className="mb-2 text-4xl">{contentTypeIcon}</div>
           <h2 className="text-2xl font-bold text-gray-900">{contentTitle}</h2>
           {group.sequence && (
@@ -230,6 +288,26 @@ export function PlanGroupCard({
           </div>
         </div>
       </div>
+
+      {/* 메모 모달 */}
+      <PlanMemoModal
+        group={group}
+        memo={memo}
+        isOpen={isMemoModalOpen}
+        onClose={() => setIsMemoModalOpen(false)}
+        onSave={handleSaveMemo}
+      />
+
+      {/* 범위 조정 모달 */}
+      <PlanRangeAdjustModal
+        group={group}
+        isOpen={isRangeModalOpen}
+        onClose={() => setIsRangeModalOpen(false)}
+        onSave={handleSaveRanges}
+        totalPages={getTotalPages()}
+        isBook={isBook}
+      />
+    </div>
     );
   }
 
@@ -248,14 +326,15 @@ export function PlanGroupCard({
               </span>
             )}
           </div>
-          {onViewDetail && (
-            <button
-              onClick={onViewDetail}
-              className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-200"
-            >
-              상세보기
-            </button>
-          )}
+          <PlanGroupActions
+            group={group}
+            memo={memo ?? null}
+            hasMemo={!!memo && memo.length > 0}
+            onMemoClick={() => setIsMemoModalOpen(true)}
+            onRangeAdjustClick={() => setIsRangeModalOpen(true)}
+            onViewDetail={onViewDetail}
+            viewMode="daily"
+          />
         </div>
         {group.sequence && (
           <p className="text-sm text-gray-600">({sequenceText})</p>
@@ -311,6 +390,25 @@ export function PlanGroupCard({
         onPause={handleGroupPause}
         onResume={handleGroupResume}
         onComplete={handleGroupComplete}
+      />
+
+      {/* 메모 모달 */}
+      <PlanMemoModal
+        group={group}
+        memo={memo}
+        isOpen={isMemoModalOpen}
+        onClose={() => setIsMemoModalOpen(false)}
+        onSave={handleSaveMemo}
+      />
+
+      {/* 범위 조정 모달 */}
+      <PlanRangeAdjustModal
+        group={group}
+        isOpen={isRangeModalOpen}
+        onClose={() => setIsRangeModalOpen(false)}
+        onSave={handleSaveRanges}
+        totalPages={getTotalPages()}
+        isBook={isBook}
       />
     </div>
   );

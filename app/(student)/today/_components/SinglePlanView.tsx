@@ -9,6 +9,9 @@ type SinglePlanViewProps = {
   selectedPlanNumber: number | null;
   onSelectPlan: (planNumber: number | null) => void;
   sessions: Map<string, { isPaused: boolean }>;
+  planDate: string;
+  memos: Map<number | null, string | null>; // planNumber -> memo
+  totalPagesMap: Map<string, number>; // contentKey -> totalPages
 };
 
 export function SinglePlanView({
@@ -16,6 +19,9 @@ export function SinglePlanView({
   selectedPlanNumber,
   onSelectPlan,
   sessions,
+  planDate,
+  memos,
+  totalPagesMap,
 }: SinglePlanViewProps) {
   const selectedGroup =
     groups.find((g) => g.planNumber === selectedPlanNumber) || groups[0];
@@ -33,6 +39,12 @@ export function SinglePlanView({
     );
   }
 
+  const contentKey = selectedGroup.plans[0]
+    ? `${selectedGroup.plans[0].content_type}:${selectedGroup.plans[0].content_id}`
+    : "";
+  const totalPages = totalPagesMap.get(contentKey);
+  const memo = memos.get(selectedGroup.planNumber);
+
   return (
     <div>
       <PlanSelector
@@ -45,6 +57,9 @@ export function SinglePlanView({
         group={selectedGroup}
         viewMode="single"
         sessions={sessions}
+        planDate={planDate}
+        memo={memo}
+        totalPages={totalPages}
       />
     </div>
   );

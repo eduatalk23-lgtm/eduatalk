@@ -9,6 +9,9 @@ import { PlanGroup } from "../_utils/planGroupUtils";
 type TodayPlanListViewProps = {
   groups: PlanGroup[];
   sessions: Map<string, { isPaused: boolean }>;
+  planDate: string;
+  memos: Map<number | null, string | null>; // planNumber -> memo
+  totalPagesMap: Map<string, number>; // contentKey -> totalPages
   initialMode?: ViewMode;
   initialSelectedPlanNumber?: number | null;
 };
@@ -16,6 +19,9 @@ type TodayPlanListViewProps = {
 export function TodayPlanListView({
   groups,
   sessions,
+  planDate,
+  memos,
+  totalPagesMap,
   initialMode = "daily",
   initialSelectedPlanNumber = null,
 }: TodayPlanListViewProps) {
@@ -48,6 +54,9 @@ export function TodayPlanListView({
         <DailyPlanView
           groups={groups}
           sessions={sessions}
+          planDate={planDate}
+          memos={memos}
+          totalPagesMap={totalPagesMap}
           onViewDetail={handleViewDetail}
         />
       ) : (
@@ -56,6 +65,9 @@ export function TodayPlanListView({
           selectedPlanNumber={selectedPlanNumber}
           onSelectPlan={setSelectedPlanNumber}
           sessions={sessions}
+          planDate={planDate}
+          memos={memos}
+          totalPagesMap={totalPagesMap}
         />
       )}
     </div>

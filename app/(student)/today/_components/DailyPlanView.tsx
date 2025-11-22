@@ -7,12 +7,18 @@ import { ViewMode } from "./ViewModeSelector";
 type DailyPlanViewProps = {
   groups: PlanGroup[];
   sessions: Map<string, { isPaused: boolean }>;
+  planDate: string;
+  memos: Map<number | null, string | null>; // planNumber -> memo
+  totalPagesMap: Map<string, number>; // contentKey -> totalPages
   onViewDetail: (planNumber: number | null) => void;
 };
 
 export function DailyPlanView({
   groups,
   sessions,
+  planDate,
+  memos,
+  totalPagesMap,
   onViewDetail,
 }: DailyPlanViewProps) {
   if (groups.length === 0) {
@@ -33,16 +39,27 @@ export function DailyPlanView({
 
   return (
     <div className="space-y-4">
-      {groups.map((group, index) => (
-        <div key={group.planNumber ?? `group-${index}`}>
-          <PlanGroupCard
-            group={group}
-            viewMode="daily"
-            sessions={sessions}
-            onViewDetail={() => onViewDetail(group.planNumber)}
-          />
-        </div>
-      ))}
+      {groups.map((group, index) => {
+        const contentKey = group.plans[0]
+          ? `${group.plans[0].content_type}:${group.plans[0].content_id}`
+          : "";
+        const totalPages = totalPagesMap.get(contentKey);
+        const memo = memos.get(group.planNumber);
+
+        return (
+          <div key={group.planNumber ?? `group-${index}`}>
+            <PlanGroupCard
+              group={group}
+              viewMode="daily"
+              sessions={sessions}
+              planDate={planDate}
+              memo={memo}
+              totalPages={totalPages}
+              onViewDetail={() => onViewDetail(group.planNumber)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
