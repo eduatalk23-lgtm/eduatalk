@@ -95,15 +95,18 @@ export function PlanGroupCard({
     try {
       // 클라이언트에서 타임스탬프 생성 (없으면 서버에서 생성)
       const clientTimestamp = timestamp || new Date().toISOString();
-      const result = await startPlan(waitingPlan.id, clientTimestamp);
-      if (result.success) {
-        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
-        // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
-        setIsLoading(false);
-      } else {
-        alert(result.error || "플랜 시작에 실패했습니다.");
-        setIsLoading(false);
-      }
+      // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
+      startTransition(async () => {
+        const result = await startPlan(waitingPlan.id, clientTimestamp);
+        if (result.success) {
+          // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+          // Optimistic Update로 즉시 UI 반응, 서버 상태는 자동 동기화됨
+          setIsLoading(false);
+        } else {
+          alert(result.error || "플랜 시작에 실패했습니다.");
+          setIsLoading(false);
+        }
+      });
     } catch (error) {
       alert("오류가 발생했습니다.");
       setIsLoading(false);

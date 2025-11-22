@@ -156,38 +156,44 @@ export function TimeCheckSection({
           hasOtherActivePlan={hasOtherActivePlan}
           onStart={() => {
             const timestamp = new Date().toISOString();
+            // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
             setOptimisticIsActive(true);
             setOptimisticIsPaused(false);
-            // Optimistic 타임스탬프 설정 (즉시 표시)
             setOptimisticTimestamps((prev) => ({
               ...prev,
               start: timestamp,
             }));
-            // 클라이언트 타임스탬프를 서버에 전달
-            onStart(timestamp);
+            // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
+            startTransition(() => {
+              onStart(timestamp);
+            });
           }}
           onPause={() => {
             const timestamp = new Date().toISOString();
+            // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
             setOptimisticIsPaused(true);
-            // Optimistic 타임스탬프 설정 (즉시 표시)
             setOptimisticTimestamps((prev) => ({
               ...prev,
               pause: timestamp,
             }));
-            // 클라이언트 타임스탬프를 서버에 전달
-            onPause(timestamp);
+            // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
+            startTransition(() => {
+              onPause(timestamp);
+            });
           }}
           onResume={() => {
             const timestamp = new Date().toISOString();
+            // Optimistic 상태 즉시 업데이트 (UI 반응성 향상)
             setOptimisticIsPaused(false);
-            // Optimistic 타임스탬프 설정 (즉시 표시)
             // 재시작 시 일시정지 타임스탬프는 유지 (이전 일시정지 기록은 보존)
             setOptimisticTimestamps((prev) => ({
               ...prev,
               resume: timestamp,
             }));
-            // 클라이언트 타임스탬프를 서버에 전달
-            onResume(timestamp);
+            // 서버 동기화는 백그라운드에서 처리 (startTransition 사용)
+            startTransition(() => {
+              onResume(timestamp);
+            });
           }}
           onComplete={onComplete}
         />

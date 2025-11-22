@@ -464,31 +464,18 @@ export async function pausePlan(
       return { success: false, error: "세션 일시정지에 실패했습니다." };
     }
 
-    // 플랜의 pause_count 증가 (한 번의 쿼리로 조회 및 업데이트)
-    const { data: planData, error: planError } = await supabase
-      .from("student_plan")
-      .select("pause_count")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
-
-    if (planError) {
-      console.error("[todayActions] 플랜 조회 오류:", planError);
-      // 일시정지는 성공했으므로 계속 진행
-    } else {
-      const currentPauseCount = planData?.pause_count || 0;
-      const { error: updateError } = await supabase
-        .from("student_plan")
-        .update({
-          pause_count: currentPauseCount + 1,
-        })
-        .eq("id", planId)
-        .eq("student_id", user.userId);
-
-      if (updateError) {
-        console.error("[todayActions] 플랜 업데이트 오류:", updateError);
-        // 일시정지는 성공했으므로 경고만 로그
+    // 플랜의 pause_count 증가 (RPC 함수로 한 번의 쿼리로 최적화)
+    const { data: newPauseCount, error: rpcError } = await supabase.rpc(
+      "increment_pause_count",
+      {
+        p_plan_id: planId,
+        p_student_id: user.userId,
       }
+    );
+
+    if (rpcError) {
+      console.error("[todayActions] pause_count 증가 오류:", rpcError);
+      // 일시정지는 성공했으므로 경고만 로그하고 계속 진행
     }
 
     // duration 계산은 클라이언트에서 타임스탬프 기반으로 수행하므로 서버에서 불필요
