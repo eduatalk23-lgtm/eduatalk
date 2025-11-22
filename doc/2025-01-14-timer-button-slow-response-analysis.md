@@ -15,10 +15,11 @@
 revalidatePath("/today");
 
 // startStudySession 함수 내부 (studySessionActions.ts:90)
-revalidatePath("/today");  // 중복 호출!
+revalidatePath("/today"); // 중복 호출!
 ```
 
-**영향**: 
+**영향**:
+
 - 불필요한 서버 컴포넌트 재렌더링이 2번 발생
 - 데이터베이스 쿼리가 중복 실행
 
@@ -47,6 +48,7 @@ const progressMap = await fetchProgressMap(userId); // 진행률 데이터 다�
 ```
 
 **영향**:
+
 - 버튼 클릭 한 번에 수백 개의 플랜 데이터를 다시 조회
 - 복잡한 진행률 계산을 다시 수행
 - 네트워크 왕복 시간 증가
@@ -122,14 +124,14 @@ await supabase
 
 ### 버튼 클릭 시 실행되는 작업
 
-| 단계 | 작업 | 예상 시간 |
-|------|------|-----------|
-| 1. 서버 액션 실행 | 데이터베이스 쿼리 (5-7개) | 100-300ms |
-| 2. revalidatePath 호출 | 캐시 무효화 | 즉시 |
-| 3. 서버 컴포넌트 재렌더링 | 전체 플랜 데이터 조회 | 200-500ms |
-| 4. 진행률 계산 | calculateTodayProgress | 100-300ms |
-| 5. 클라이언트 업데이트 | React 리렌더링 | 50-100ms |
-| **총합** | | **450-1200ms** |
+| 단계                      | 작업                      | 예상 시간      |
+| ------------------------- | ------------------------- | -------------- |
+| 1. 서버 액션 실행         | 데이터베이스 쿼리 (5-7개) | 100-300ms      |
+| 2. revalidatePath 호출    | 캐시 무효화               | 즉시           |
+| 3. 서버 컴포넌트 재렌더링 | 전체 플랜 데이터 조회     | 200-500ms      |
+| 4. 진행률 계산            | calculateTodayProgress    | 100-300ms      |
+| 5. 클라이언트 업데이트    | React 리렌더링            | 50-100ms       |
+| **총합**                  |                           | **450-1200ms** |
 
 ### 느린 이유
 
@@ -146,10 +148,10 @@ await supabase
 // startStudySession에서 revalidatePath 제거
 export async function startStudySession(planId?: string) {
   // ... 세션 생성 로직 ...
-  
+
   // ❌ 제거: startPlan에서 이미 호출함
   // revalidatePath("/today");
-  
+
   return { success: true, sessionId: result.sessionId };
 }
 ```
@@ -178,7 +180,7 @@ import { startTransition } from "react";
 const handleStart = () => {
   // 즉시 UI 업데이트
   setOptimisticIsActive(true);
-  
+
   // 서버 동기화는 백그라운드에서 처리
   startTransition(() => {
     onStart(timestamp);
@@ -203,7 +205,7 @@ await supabase
   .eq("id", planId);
 
 // ✅ 개선: 한 번의 쿼리로 조회 및 업데이트
-await supabase.rpc('increment_pause_count', { plan_id: planId });
+await supabase.rpc("increment_pause_count", { plan_id: planId });
 ```
 
 ### 5. 클라이언트 캐싱 활용 ✅ (우선순위: 낮음)
@@ -216,24 +218,26 @@ const { mutate } = useMutation({
   mutationFn: startPlan,
   onSuccess: () => {
     // 특정 쿼리만 무효화
-    queryClient.invalidateQueries({ queryKey: ['plans', planId] });
+    queryClient.invalidateQueries({ queryKey: ["plans", planId] });
   },
 });
 ```
 
 ## 🎯 권장 해결 순서
 
-1. **즉시 적용 가능** (성능 향상: 20-30%)
-   - 중복 `revalidatePath` 제거
-   - `startTransition` 사용하여 백그라운드 처리
+1. **즉시 적용 가능** (성능 향상: 20-30%) ✅ **완료**
 
-2. **단기 개선** (성능 향상: 30-50%)
-   - 데이터베이스 쿼리 최적화 (RPC 함수 사용)
-   - 부분 재검증 적용
+   - ✅ 중복 `revalidatePath` 제거
+   - ✅ `startTransition` 사용하여 백그라운드 처리
 
-3. **장기 개선** (성능 향상: 50-70%)
-   - React Query 도입
-   - 서버 컴포넌트 최적화 (Suspense, Streaming)
+2. **단기 개선** (성능 향상: 30-50%) ✅ **부분 완료**
+
+   - ✅ 데이터베이스 쿼리 최적화 (pause_count RPC 함수 사용)
+   - ⏳ 부분 재검증 적용 (추후 진행)
+
+3. **장기 개선** (성능 향상: 50-70%) ⏳ **예정**
+   - ⏳ React Query 도입
+   - ⏳ 서버 컴포넌트 최적화 (Suspense, Streaming)
 
 ## 📝 결론
 
@@ -246,3 +250,23 @@ const { mutate } = useMutation({
 
 **가장 빠른 개선 방법**: 중복 `revalidatePath` 제거 + `startTransition` 사용
 
+## ✅ 완료된 개선 사항
+
+### 1. 중복 revalidatePath 제거 ✅
+- `startStudySession` 함수에서 중복된 `revalidatePath("/today")` 호출 제거
+- `startPlan`에서만 재검증하도록 변경
+
+### 2. startTransition 적용 ✅
+- `TimeCheckSection`의 `onStart`, `onPause`, `onResume` 핸들러에 `startTransition` 적용
+- `PlanGroupCard`의 `handleGroupStart`에 `startTransition` 적용
+- 서버 동기화를 백그라운드에서 처리하여 UI 반응성 향상
+
+### 3. pause_count 업데이트 최적화 ✅
+- RPC 함수 `increment_pause_count` 생성
+- 2번의 쿼리(조회 + 업데이트)를 1번의 RPC 호출로 최적화
+- Migration 파일: `20250114000000_create_increment_pause_count_function.sql`
+
+### 예상 성능 개선
+- **즉시 적용 가능 항목**: 20-30% 성능 향상
+- **쿼리 최적화**: 추가 10-20% 성능 향상
+- **총 예상 개선**: 30-50% 성능 향상
