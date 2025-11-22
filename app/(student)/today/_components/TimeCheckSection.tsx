@@ -17,16 +17,19 @@ export function TimeCheckSection({
 }: TimeCheckSectionProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // activePlanStartTime을 정규화 (null 또는 문자열로 통일)
+  const normalizedStartTime = activePlanStartTime ?? null;
+
   // 실시간 타이머 계산
   useEffect(() => {
-    if (!timeStats.isActive || !activePlanStartTime || isPaused) {
+    if (!timeStats.isActive || !normalizedStartTime || isPaused) {
       setElapsedSeconds(0);
       return;
     }
 
     const updateElapsed = () => {
       try {
-        const start = new Date(activePlanStartTime).getTime();
+        const start = new Date(normalizedStartTime).getTime();
         const now = Date.now();
         const elapsed = Math.floor((now - start) / 1000);
         setElapsedSeconds(Math.max(0, elapsed));
@@ -39,7 +42,7 @@ export function TimeCheckSection({
     const interval = setInterval(updateElapsed, 1000);
 
     return () => clearInterval(interval);
-  }, [timeStats.isActive, activePlanStartTime, isPaused]);
+  }, [timeStats.isActive, normalizedStartTime, isPaused]);
 
   // 현재 진행 중인 총 시간 계산 (기존 시간 + 경과 시간)
   const currentTotalSeconds = timeStats.isActive

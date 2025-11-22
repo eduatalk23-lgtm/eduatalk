@@ -7,6 +7,7 @@
 ## 1. 헤더 영역 확장 정보
 
 ### 현재 구조
+
 ```
 [메모 아이콘] [범위 조정 아이콘]
       📚 아이콘
@@ -15,6 +16,7 @@
 ```
 
 ### 제안 구조
+
 ```
 [메모 아이콘] [범위 조정 아이콘]
       📚 아이콘
@@ -28,15 +30,18 @@
 ### 표시할 정보 요소
 
 1. **학습 범위**
+
    - 형식: `p.50 ~ p.75` (책인 경우) 또는 `00:10 ~ 00:30` (강의인 경우)
    - 첫 번째 블록의 시작 ~ 마지막 블록의 종료
    - 총 범위: 모든 블록의 합산 범위 표시
 
 2. **회차**
+
    - 현재: `(1회차)` 형태로 표시됨
    - 개선: `1회차` 라벨과 함께 더 명확하게 표시
 
 3. **블록 수**
+
    - `블록 2개` 형태로 표시
    - 여러 블록으로 나뉘어진 경우 시각화
 
@@ -47,6 +52,7 @@
 ### 레이아웃 옵션
 
 #### 옵션 A: 인라인 정보 카드
+
 ```jsx
 <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -63,6 +69,7 @@
 ```
 
 #### 옵션 B: 아이콘 기반 정보 표시
+
 ```jsx
 <div className="mt-4 flex items-center justify-center gap-6 text-sm">
   <div className="flex items-center gap-2">
@@ -88,6 +95,7 @@
 ## 2. 시간 체크 영역 (헤더 아래)
 
 ### 목적
+
 - 학습 시간 추적 및 확인
 - 계획 대비 실제 학습 시간 비교
 - 일시정지 상태 모니터링
@@ -95,16 +103,19 @@
 ### 표시 정보
 
 1. **시작/종료 시간**
+
    - 시작: `시작: 2025-01-13 09:00`
    - 종료: `종료: 2025-01-13 11:30` (완료된 경우)
 
 2. **학습 시간**
+
    - 총 학습 시간: `총 학습: 2시간 30분`
    - 순수 학습 시간: `순수 학습: 2시간 15분` (일시정지 제외)
    - 일시정지 시간: `일시정지: 15분`
    - 일시정지 횟수: `일시정지 3회`
 
 3. **현재 진행 시간** (진행 중인 경우)
+
    - 실시간 타이머: `진행 중: 00:45:23`
    - 일시정지 중: `일시정지 중: 00:42:15` (일시정지 시간 제외)
 
@@ -116,10 +127,11 @@
 ### 레이아웃 옵션
 
 #### 옵션 A: 카드형 타임라인
+
 ```jsx
 <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
   <h3 className="mb-4 text-sm font-semibold text-gray-700">시간 정보</h3>
-  
+
   {/* 시작/종료 시간 */}
   <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
     <div className="flex items-center justify-between">
@@ -180,6 +192,7 @@
 ```
 
 #### 옵션 B: 컴팩트 인라인 표시
+
 ```jsx
 <div className="rounded-lg border border-gray-200 bg-white p-4">
   <div className="flex items-center justify-between">
@@ -212,7 +225,7 @@
         </>
       )}
     </div>
-    
+
     {/* 실시간 타이머 (진행 중인 경우) */}
     {isActive && (
       <div className="rounded-full bg-indigo-100 px-4 py-2">
@@ -226,10 +239,11 @@
 ```
 
 #### 옵션 C: 타임라인 스타일
+
 ```jsx
 <div className="relative rounded-lg border border-gray-200 bg-white p-6">
   <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-  
+
   {/* 시작 시간 */}
   <div className="relative flex items-start gap-4">
     <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
@@ -237,7 +251,9 @@
     </div>
     <div className="flex-1 pb-4">
       <div className="text-xs text-gray-500">시작</div>
-      <div className="text-sm font-semibold text-gray-900">2025-01-13 09:00</div>
+      <div className="text-sm font-semibold text-gray-900">
+        2025-01-13 09:00
+      </div>
     </div>
   </div>
 
@@ -249,7 +265,9 @@
       </div>
       <div className="flex-1 pb-4">
         <div className="text-xs text-gray-500">진행 중</div>
-        <div className="text-2xl font-bold text-blue-600">{formatElapsedTime()}</div>
+        <div className="text-2xl font-bold text-blue-600">
+          {formatElapsedTime()}
+        </div>
         {isPaused && (
           <div className="mt-1 text-xs text-amber-600">일시정지 중</div>
         )}
@@ -265,7 +283,9 @@
       </div>
       <div className="flex-1">
         <div className="text-xs text-gray-500">종료</div>
-        <div className="text-sm font-semibold text-gray-900">2025-01-13 11:30</div>
+        <div className="text-sm font-semibold text-gray-900">
+          2025-01-13 11:30
+        </div>
         <div className="mt-2 text-sm">
           <span className="text-gray-600">총 학습:</span>
           <span className="ml-2 font-bold text-gray-900">2시간 30분</span>
@@ -279,6 +299,7 @@
 ## 3. 통합 레이아웃 제안
 
 ### 전체 구조
+
 ```
 ┌─────────────────────────────────────────┐
 │ [메모] [범위조정]                        │
@@ -303,6 +324,7 @@
 ## 4. 추천 구현 요소
 
 ### 필수 요소
+
 1. ✅ **학습 범위 표시** - 계획된 범위 (시작 ~ 종료)
 2. ✅ **회차 표시** - 현재 회차 및 블록 수
 3. ✅ **시작/종료 시간** - 실제 학습 시간 기록
@@ -310,11 +332,13 @@
 5. ✅ **일시정지 정보** - 횟수 및 총 일시정지 시간
 
 ### 권장 요소
+
 6. ⭐ **실시간 타이머** - 진행 중인 경우 현재 경과 시간
 7. ⭐ **진행률 표시** - 계획 대비 완료 비율
 8. ⭐ **블록별 진행 상황** - 각 블록의 완료 상태
 
 ### 선택 요소
+
 9. 📊 **계획 대비 비교** - 예상 시간 vs 실제 시간
 10. 📊 **통계 정보** - 평균 학습 속도, 남은 예상 시간
 11. 📊 **히스토리** - 과거 학습 기록 그래프
@@ -345,16 +369,17 @@ PlanGroupCard (단일 뷰)
 ## 6. 데이터 계산 로직
 
 ### 학습 범위 계산
+
 ```typescript
 function getLearningRange(plans: PlanWithContent[]): string {
   const sortedPlans = plans.sort((a, b) => a.block_index - b.block_index);
   const firstPlan = sortedPlans[0];
   const lastPlan = sortedPlans[sortedPlans.length - 1];
-  
+
   const start = firstPlan.planned_start_page_or_time ?? 0;
   const end = lastPlan.planned_end_page_or_time ?? 0;
-  
-  if (firstPlan.content_type === 'book') {
+
+  if (firstPlan.content_type === "book") {
     return `p.${start} ~ p.${end}`;
   } else {
     return `${formatTime(start)} ~ ${formatTime(end)}`;
@@ -363,44 +388,51 @@ function getLearningRange(plans: PlanWithContent[]): string {
 
 function getTotalRange(plans: PlanWithContent[]): number {
   return plans.reduce((sum, plan) => {
-    const range = (plan.planned_end_page_or_time ?? 0) - 
-                  (plan.planned_start_page_or_time ?? 0);
+    const range =
+      (plan.planned_end_page_or_time ?? 0) -
+      (plan.planned_start_page_or_time ?? 0);
     return sum + range;
   }, 0);
 }
 ```
 
 ### 시간 정보 계산
+
 ```typescript
 function getTimeStats(plans: PlanWithContent[], activePlan: Plan | null) {
-  const totalDuration = plans.reduce((sum, plan) => 
-    sum + (plan.total_duration_seconds ?? 0), 0
+  const totalDuration = plans.reduce(
+    (sum, plan) => sum + (plan.total_duration_seconds ?? 0),
+    0
   );
-  
-  const pausedDuration = plans.reduce((sum, plan) => 
-    sum + (plan.paused_duration_seconds ?? 0), 0
+
+  const pausedDuration = plans.reduce(
+    (sum, plan) => sum + (plan.paused_duration_seconds ?? 0),
+    0
   );
-  
+
   const pureStudyTime = totalDuration - pausedDuration;
-  
-  const pauseCount = plans.reduce((sum, plan) => 
-    sum + (plan.pause_count ?? 0), 0
+
+  const pauseCount = plans.reduce(
+    (sum, plan) => sum + (plan.pause_count ?? 0),
+    0
   );
-  
+
   const firstStartTime = plans
-    .filter(p => p.actual_start_time)
-    .sort((a, b) => 
-      new Date(a.actual_start_time!).getTime() - 
-      new Date(b.actual_start_time!).getTime()
+    .filter((p) => p.actual_start_time)
+    .sort(
+      (a, b) =>
+        new Date(a.actual_start_time!).getTime() -
+        new Date(b.actual_start_time!).getTime()
     )[0]?.actual_start_time;
-  
+
   const lastEndTime = plans
-    .filter(p => p.actual_end_time)
-    .sort((a, b) => 
-      new Date(b.actual_end_time!).getTime() - 
-      new Date(a.actual_end_time!).getTime()
+    .filter((p) => p.actual_end_time)
+    .sort(
+      (a, b) =>
+        new Date(b.actual_end_time!).getTime() -
+        new Date(a.actual_end_time!).getTime()
     )[0]?.actual_end_time;
-  
+
   return {
     totalDuration,
     pureStudyTime,
@@ -425,4 +457,3 @@ function getTimeStats(plans: PlanWithContent[], activePlan: Plan | null) {
 - 색상 대비 충분히 확보
 - 키보드 네비게이션 지원
 - 스크린 리더 친화적 텍스트
-
