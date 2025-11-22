@@ -151,37 +151,39 @@ export function PlanItem({
     // 단일 뷰: 큰 화면으로 표시
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-lg">{contentTypeIcon}</span>
-            <h3 className="text-lg font-semibold text-gray-900">
-              블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
-            </h3>
-          </div>
-          {plan.sequence && (
-            <p className="text-sm text-gray-600">회차: {plan.sequence}회차</p>
-          )}
-          {pageRange && (
-            <p className="text-sm text-gray-600">범위: {pageRange}</p>
-          )}
-          {progress > 0 && (
-            <div className="mt-2">
-              <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
-                <span>진행률</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{contentTypeIcon}</span>
+              <h3 className="text-lg font-semibold text-gray-900">
+                블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
+              </h3>
             </div>
-          )}
-        </div>
+            <div className="flex flex-col gap-1">
+              {plan.sequence && (
+                <p className="text-sm text-gray-600">회차: {plan.sequence}회차</p>
+              )}
+              {pageRange && (
+                <p className="text-sm text-gray-600">범위: {pageRange}</p>
+              )}
+            </div>
+            {progress > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>진행률</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
-        {(showTimer || isRunning || isPaused || isCompleted) && (
-          <div className="mb-4">
+          {(showTimer || isRunning || isPaused || isCompleted) && (
             <TimestampDisplay
               actualStartTime={plan.actual_start_time}
               actualEndTime={plan.actual_end_time}
@@ -193,6 +195,77 @@ export function PlanItem({
               isCompleted={isCompleted}
               elapsedSeconds={elapsedSeconds}
             />
+          )}
+
+          <TimerControlButtons
+            planId={plan.id}
+            isActive={isRunning}
+            isPaused={isPaused}
+            isCompleted={isCompleted}
+            isLoading={isLoading}
+            onStart={handleStart}
+            onPause={handlePause}
+            onResume={handleResume}
+            onComplete={handleComplete}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 일일 뷰: 컴팩트하게 표시
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span>{contentTypeIcon}</span>
+            <span className="text-sm font-medium text-gray-900">
+              블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            {plan.sequence && (
+              <span className="text-xs text-gray-600">회차: {plan.sequence}회차</span>
+            )}
+            {pageRange && <span className="text-xs text-gray-600"> | {pageRange}</span>}
+          </div>
+          {progress > 0 && (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between text-xs text-gray-600">
+                <span>진행률</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {(showTimer || isRunning || isPaused || isCompleted) && (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-2">
+              <span className="text-xs text-gray-600">학습 시간</span>
+              <span className="text-sm font-bold text-indigo-600">
+                {formatTime(elapsedSeconds)}
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {plan.actual_start_time && (
+                <div className="text-xs text-gray-500">
+                  시작: {formatTimestamp(plan.actual_start_time)}
+                </div>
+              )}
+              {plan.pause_count !== null && plan.pause_count > 0 && (
+                <div className="text-xs text-gray-500">
+                  일시정지: {plan.pause_count}회
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -208,71 +281,6 @@ export function PlanItem({
           onComplete={handleComplete}
         />
       </div>
-    );
-  }
-
-  // 일일 뷰: 컴팩트하게 표시
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="mb-3">
-        <div className="mb-1 flex items-center gap-2">
-          <span>{contentTypeIcon}</span>
-          <span className="text-sm font-medium text-gray-900">
-            블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
-          </span>
-        </div>
-        {plan.sequence && (
-          <span className="text-xs text-gray-600">회차: {plan.sequence}회차</span>
-        )}
-        {pageRange && <span className="text-xs text-gray-600"> | {pageRange}</span>}
-        {progress > 0 && (
-          <div className="mt-2">
-            <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
-              <span>진행률</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-blue-500 transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {(showTimer || isRunning || isPaused || isCompleted) && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between rounded-lg bg-gray-50 p-2">
-            <span className="text-xs text-gray-600">학습 시간</span>
-            <span className="text-sm font-bold text-indigo-600">
-              {formatTime(elapsedSeconds)}
-            </span>
-          </div>
-          {plan.actual_start_time && (
-            <div className="mt-1 text-xs text-gray-500">
-              시작: {formatTimestamp(plan.actual_start_time)}
-            </div>
-          )}
-          {plan.pause_count !== null && plan.pause_count > 0 && (
-            <div className="text-xs text-gray-500">
-              일시정지: {plan.pause_count}회
-            </div>
-          )}
-        </div>
-      )}
-
-      <TimerControlButtons
-        planId={plan.id}
-        isActive={isRunning}
-        isPaused={isPaused}
-        isCompleted={isCompleted}
-        isLoading={isLoading}
-        onStart={handleStart}
-        onPause={handlePause}
-        onResume={handleResume}
-        onComplete={handleComplete}
-      />
     </div>
   );
 }

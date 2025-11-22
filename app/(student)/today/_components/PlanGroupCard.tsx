@@ -298,8 +298,10 @@ export function PlanGroupCard({
               viewMode="single"
             />
           </div>
-          <div className="mb-2 text-4xl">{contentTypeIcon}</div>
-          <h2 className="text-2xl font-bold text-gray-900">{contentTitle}</h2>
+          <div className="flex flex-col gap-2">
+            <div className="text-4xl">{contentTypeIcon}</div>
+            <h2 className="text-2xl font-bold text-gray-900">{contentTitle}</h2>
+          </div>
         </div>
 
         {/* 플랜 상세 정보 */}
@@ -327,26 +329,28 @@ export function PlanGroupCard({
 
         {/* 전체 진행률 및 시간 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 text-center">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">
-              전체 진행률
-            </h3>
-            <div className="mb-2 text-3xl font-bold text-indigo-600">
-              {totalProgress}%
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 text-center">
+              <h3 className="text-lg font-semibold text-gray-900">
+                전체 진행률
+              </h3>
+              <div className="text-3xl font-bold text-indigo-600">
+                {totalProgress}%
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full bg-indigo-500 transition-all duration-300"
+                  style={{ width: `${totalProgress}%` }}
+                />
+              </div>
             </div>
-            <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-indigo-500 transition-all duration-300"
-                style={{ width: `${totalProgress}%` }}
-              />
-            </div>
-          </div>
 
-          <div className="text-center">
-            <p className="text-sm text-gray-600">총 학습 시간</p>
-            <p className="text-2xl font-bold text-indigo-600">
-              {formatTime(totalStudyTime)}
-            </p>
+            <div className="flex flex-col gap-1 text-center">
+              <p className="text-sm text-gray-600">총 학습 시간</p>
+              <p className="text-2xl font-bold text-indigo-600">
+                {formatTime(totalStudyTime)}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -375,9 +379,9 @@ export function PlanGroupCard({
   // 일일 뷰: 컴팩트한 카드 형태
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      {/* 카드 헤더 */}
-      <div className="mb-4">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        {/* 카드 헤더 */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg">{contentTypeIcon}</span>
             <h3 className="font-semibold text-gray-900">{contentTitle}</h3>
@@ -400,43 +404,45 @@ export function PlanGroupCard({
         {group.sequence && (
           <p className="text-sm text-gray-600">({sequenceText})</p>
         )}
-      </div>
 
-      {/* 개별 플랜 블록 */}
-      <div className="mb-4 space-y-3">
-        {group.plans.map((plan) => (
-          <PlanItem
-            key={plan.id}
-            plan={plan}
-            isGrouped={true}
-            isActive={plan.id === activePlan?.id}
-            showTimer={
-              !!plan.actual_start_time ||
-              !!plan.actual_end_time ||
-              sessions.has(plan.id)
-            }
-            viewMode="daily"
-          />
-        ))}
-      </div>
+        {/* 개별 플랜 블록 */}
+        <div className="flex flex-col gap-3">
+          {group.plans.map((plan) => (
+            <PlanItem
+              key={plan.id}
+              plan={plan}
+              isGrouped={true}
+              isActive={plan.id === activePlan?.id}
+              showTimer={
+                !!plan.actual_start_time ||
+                !!plan.actual_end_time ||
+                sessions.has(plan.id)
+              }
+              viewMode="daily"
+            />
+          ))}
+        </div>
 
-      {/* 집계 정보 */}
-      <div className="mb-4 rounded-lg bg-gray-50 p-3">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="text-gray-600">전체 진행률</span>
-          <span className="font-semibold text-gray-900">{totalProgress}%</span>
-        </div>
-        <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-200">
-          <div
-            className="h-full bg-indigo-500 transition-all duration-300"
-            style={{ width: `${totalProgress}%` }}
-          />
-        </div>
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>총 학습 시간: {formatTime(totalStudyTime)}</span>
-          <span>
-            활성: {activePlansCount} | 완료: {completedPlansCount}
-          </span>
+        {/* 집계 정보 */}
+        <div className="rounded-lg bg-gray-50 p-3">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">전체 진행률</span>
+              <span className="font-semibold text-gray-900">{totalProgress}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+              <div
+                className="h-full bg-indigo-500 transition-all duration-300"
+                style={{ width: `${totalProgress}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>총 학습 시간: {formatTime(totalStudyTime)}</span>
+              <span>
+                활성: {activePlansCount} | 완료: {completedPlansCount}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 

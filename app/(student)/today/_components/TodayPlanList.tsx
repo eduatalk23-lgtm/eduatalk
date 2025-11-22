@@ -297,9 +297,9 @@ export async function TodayPlanList() {
     : getRelativeDateLabel(displayDate, todayDate);
 
   return (
-    <div className="mb-6">
+    <div className="flex flex-col gap-4">
       {!isToday && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">📅</span>
             <div className="flex-1">
@@ -327,15 +327,17 @@ export async function TodayPlanList() {
   } catch (error) {
     console.error("[TodayPlanList] 컴포넌트 렌더링 실패", error);
     return (
-      <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">⚠️</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            플랜을 불러오는 중 오류가 발생했습니다
-          </h3>
-          <p className="text-sm text-gray-500">
-            잠시 후 다시 시도해주세요.
-          </p>
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <div className="mx-auto flex max-w-md flex-col gap-4">
+          <div className="text-6xl">⚠️</div>
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-gray-900">
+              플랜을 불러오는 중 오류가 발생했습니다
+            </h3>
+            <p className="text-sm text-gray-500">
+              잠시 후 다시 시도해주세요.
+            </p>
+          </div>
         </div>
       </div>
     );

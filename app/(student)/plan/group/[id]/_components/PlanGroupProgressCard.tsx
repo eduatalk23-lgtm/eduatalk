@@ -30,10 +30,10 @@ export function PlanGroupProgressCard({
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex flex-col gap-1">
             <h3 className="text-sm font-medium text-gray-500">플랜 진행 상황</h3>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">0개</p>
-            <p className="mt-1 text-sm text-gray-500">플랜이 생성되지 않았습니다.</p>
+            <p className="text-2xl font-semibold text-gray-900">0개</p>
+            <p className="text-sm text-gray-500">플랜이 생성되지 않았습니다.</p>
           </div>
         </div>
       </div>
@@ -42,50 +42,50 @@ export function PlanGroupProgressCard({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-sm font-medium text-gray-500">플랜 진행 상황</h3>
-          <div className="mt-3 flex items-baseline gap-2">
-            <p className="text-2xl font-semibold text-gray-900">{completedCount}</p>
-            <p className="text-lg text-gray-500">/ {planCount}개</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-gray-500">플랜 진행 상황</h3>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-semibold text-gray-900">{completedCount}</p>
+              <p className="text-lg text-gray-500">/ {planCount}개</p>
+            </div>
+            <p className="text-sm text-gray-500">완료된 플랜</p>
           </div>
-          <p className="mt-1 text-sm text-gray-500">완료된 플랜</p>
+          <div className="text-right flex flex-col gap-1">
+            <p className="text-2xl font-semibold text-blue-600">{progressPercentage}%</p>
+            <p className="text-xs text-gray-500">진행률</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-2xl font-semibold text-blue-600">{progressPercentage}%</p>
-          <p className="text-xs text-gray-500">진행률</p>
-        </div>
-      </div>
-      
-      {/* 진행률 바 */}
-      <div className="mt-4">
+        
+        {/* 진행률 바 */}
         <div className="h-2 overflow-hidden rounded-full bg-gray-200">
           <div
             className="h-full rounded-full bg-blue-600 transition-all duration-300"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-      </div>
 
-      {/* 상세 정보 */}
-      <div className="mt-4 grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
-        <div>
-          <p className="text-xs text-gray-500">완료</p>
-          <p className="mt-1 text-lg font-semibold text-green-600">
-            {completedCount}개
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500">진행 중</p>
-          <p className="mt-1 text-lg font-semibold text-orange-600">
-            {inProgressCount}개
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500">전체</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">
-            {planCount}개
-          </p>
+        {/* 상세 정보 */}
+        <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-gray-500">완료</p>
+            <p className="text-lg font-semibold text-green-600">
+              {completedCount}개
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-gray-500">진행 중</p>
+            <p className="text-lg font-semibold text-orange-600">
+              {inProgressCount}개
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-gray-500">전체</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {planCount}개
+            </p>
+          </div>
         </div>
       </div>
     </div>
