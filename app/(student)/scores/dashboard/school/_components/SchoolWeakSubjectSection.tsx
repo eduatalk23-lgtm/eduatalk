@@ -165,15 +165,15 @@ export function SchoolWeakSubjectSection({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {weakSubjects.map((item, index) => (
         <div
           key={`${item.subject}-${index}`}
           className={`rounded-lg border p-6 ${getRiskColor(item.riskScore)}`}
         >
           <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+            <div className="flex-1 flex flex-col gap-2">
+              <div className="flex items-center gap-3">
                 <h3 className="text-lg font-semibold">{item.subject}</h3>
                 <span className="text-xs font-medium px-2 py-1 rounded bg-white/50">
                   내신
@@ -182,7 +182,7 @@ export function SchoolWeakSubjectSection({
                   Risk Score: {item.riskScore}
                 </span>
               </div>
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 {item.reasons.map((reason, idx) => (
                   <p key={idx} className="text-sm">
                     • {reason}
@@ -190,7 +190,7 @@ export function SchoolWeakSubjectSection({
                 ))}
               </div>
               {item.recentGrades.length > 0 && (
-                <p className="mt-2 text-xs opacity-75">
+                <p className="text-xs opacity-75">
                   최근 등급: {item.recentGrades.join(", ")} (평균:{" "}
                   {item.averageGrade.toFixed(1)})
                 </p>
