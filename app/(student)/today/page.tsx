@@ -102,10 +102,11 @@ export default async function TodayPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      <TodayHeader />
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-gray-900">오늘 플랜</h2>
+        <h1 className="mb-4 text-2xl font-bold text-gray-900">오늘 플랜</h1>
+        <div className="border-b border-gray-200"></div>
       </div>
+      <TodayHeader />
       <CurrentLearningSection />
       <TodayPlanList />
       <TodayAchievements todayProgress={todayProgress} />
