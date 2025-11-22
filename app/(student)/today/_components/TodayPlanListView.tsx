@@ -45,8 +45,7 @@ export function TodayPlanListView({
 
   return (
     <div className="mb-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">오늘 플랜</h2>
+      <div className="mb-4 flex items-center justify-end">
         <ViewModeSelector mode={viewMode} onChange={handleModeChange} />
       </div>
 
