@@ -244,61 +244,89 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 */}
+        {/* 플랜 목록 - 같은 범위를 가진 플랜은 하나로 합침 */}
         <div className="flex flex-col gap-3">
           <h3 className="text-lg font-semibold text-gray-900">플랜 목록</h3>
-          {group.plans.map((plan, index) => {
-            const isCompleted = !!plan.actual_end_time;
-            const progress = plan.progress ?? 0;
-            
-            // 같은 범위를 가진 플랜이 여러 개인지 확인
-            const sameRangePlans = group.plans.filter(
-              (p) =>
-                p.planned_start_page_or_time === plan.planned_start_page_or_time &&
-                p.planned_end_page_or_time === plan.planned_end_page_or_time
-            );
-            const isDuplicate = sameRangePlans.length > 1;
-            
-            return (
-              <div
-                key={plan.id}
-                className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
-              >
-                <button
-                  onClick={() => handleToggleCompletion(plan.id, isCompleted)}
-                  disabled={isLoading}
-                  className="flex-shrink-0"
+          {(() => {
+            // 같은 범위를 가진 플랜들을 그룹화
+            const rangeGroups = new Map<string, typeof group.plans>();
+            group.plans.forEach((plan) => {
+              const rangeKey = `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
+              if (!rangeGroups.has(rangeKey)) {
+                rangeGroups.set(rangeKey, []);
+              }
+              rangeGroups.get(rangeKey)!.push(plan);
+            });
+
+            // 각 범위 그룹을 하나의 항목으로 표시
+            return Array.from(rangeGroups.entries()).map(([rangeKey, plans]) => {
+              // 첫 번째 플랜을 대표로 사용
+              const representativePlan = plans[0];
+              const isCompleted = plans.every((p) => !!p.actual_end_time);
+              const progress = representativePlan.progress ?? 0;
+              
+              // 블록 번호 목록 생성
+              const blockIndices = plans
+                .map((p) => p.block_index ?? 0)
+                .sort((a, b) => a - b);
+              const blockDisplay = blockIndices.length > 1
+                ? `블록 ${blockIndices.join(", ")}`
+                : `블록 ${blockIndices[0]}`;
+              
+              // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
+              const startTimes = plans
+                .map((p) => p.start_time)
+                .filter((t): t is string => !!t)
+                .sort();
+              const endTimes = plans
+                .map((p) => p.end_time)
+                .filter((t): t is string => !!t)
+                .sort();
+              const timeDisplay = startTimes.length > 0 && endTimes.length > 0
+                ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
+                : null;
+
+              return (
+                <div
+                  key={rangeKey}
+                  className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
                 >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  ) : (
-                    <Circle className="h-6 w-6 text-gray-400" />
-                  )}
-                </button>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">
-                    {plan.chapter || `블록 ${plan.block_index ?? 0}`}
-                    {isDuplicate && (
-                      <span className="ml-2 text-xs text-gray-500">
-                        ({sameRangePlans.length}개 블록)
-                      </span>
+                  <button
+                    onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
+                    disabled={isLoading}
+                    className="flex-shrink-0"
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    ) : (
+                      <Circle className="h-6 w-6 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900">
+                      {representativePlan.chapter || blockDisplay}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {representativePlan.planned_start_page_or_time} ~ {representativePlan.planned_end_page_or_time}
+                    </div>
+                    {timeDisplay && (
+                      <div className="mt-1 text-xs text-blue-600">
+                        ⏰ {timeDisplay}
+                      </div>
+                    )}
+                    {progress > 0 && (
+                      <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full bg-indigo-500 transition-all duration-300"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}
-                  </div>
-                  {progress > 0 && (
-                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full bg-indigo-500 transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
     );
@@ -361,47 +389,88 @@ export function PlanCard({
           </div>
         </div>
 
-        {/* 플랜 목록 (간단 버전) */}
+        {/* 플랜 목록 (간단 버전) - 같은 범위를 가진 플랜은 하나로 합침 */}
         <div className="flex flex-col gap-2">
-          {group.plans.map((plan) => {
-            const isCompleted = !!plan.actual_end_time;
-            const progress = plan.progress ?? 0;
-            
-            return (
-              <div
-                key={plan.id}
-                className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
-              >
-                <button
-                  onClick={() => handleToggleCompletion(plan.id, isCompleted)}
-                  disabled={isLoading}
-                  className="flex-shrink-0"
+          {(() => {
+            // 같은 범위를 가진 플랜들을 그룹화
+            const rangeGroups = new Map<string, typeof group.plans>();
+            group.plans.forEach((plan) => {
+              const rangeKey = `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
+              if (!rangeGroups.has(rangeKey)) {
+                rangeGroups.set(rangeKey, []);
+              }
+              rangeGroups.get(rangeKey)!.push(plan);
+            });
+
+            // 각 범위 그룹을 하나의 항목으로 표시
+            return Array.from(rangeGroups.entries()).map(([rangeKey, plans]) => {
+              // 첫 번째 플랜을 대표로 사용
+              const representativePlan = plans[0];
+              const isCompleted = plans.every((p) => !!p.actual_end_time);
+              const progress = representativePlan.progress ?? 0;
+              
+              // 블록 번호 목록 생성
+              const blockIndices = plans
+                .map((p) => p.block_index ?? 0)
+                .sort((a, b) => a - b);
+              const blockDisplay = blockIndices.length > 1
+                ? `블록 ${blockIndices.join(", ")}`
+                : `블록 ${blockIndices[0]}`;
+              
+              // 시간 정보 (가장 이른 시작 시간과 가장 늦은 종료 시간)
+              const startTimes = plans
+                .map((p) => p.start_time)
+                .filter((t): t is string => !!t)
+                .sort();
+              const endTimes = plans
+                .map((p) => p.end_time)
+                .filter((t): t is string => !!t)
+                .sort();
+              const timeDisplay = startTimes.length > 0 && endTimes.length > 0
+                ? `${startTimes[0]} ~ ${endTimes[endTimes.length - 1]}`
+                : null;
+
+              return (
+                <div
+                  key={rangeKey}
+                  className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
                 >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-gray-400" />
+                  <button
+                    onClick={() => handleToggleCompletion(representativePlan.id, isCompleted)}
+                    disabled={isLoading}
+                    className="flex-shrink-0"
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <Circle className="h-5 w-5 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1 text-xs">
+                    <div className="font-medium text-gray-900">
+                      {representativePlan.chapter || blockDisplay}
+                    </div>
+                    <div className="text-gray-500">
+                      {representativePlan.planned_start_page_or_time} ~ {representativePlan.planned_end_page_or_time}
+                    </div>
+                    {timeDisplay && (
+                      <div className="mt-0.5 text-xs text-blue-600">
+                        ⏰ {timeDisplay}
+                      </div>
+                    )}
+                  </div>
+                  {progress > 0 && (
+                    <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className="h-full bg-indigo-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
                   )}
-                </button>
-                <div className="flex-1 text-xs">
-                  <div className="font-medium text-gray-900">
-                    {plan.chapter || `블록 ${plan.block_index ?? 0}`}
-                  </div>
-                  <div className="text-gray-500">
-                    {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}
-                  </div>
                 </div>
-                {progress > 0 && (
-                  <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
-                    <div
-                      className="h-full bg-indigo-500"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
     </div>
