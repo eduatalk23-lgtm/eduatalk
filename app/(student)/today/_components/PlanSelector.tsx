@@ -38,7 +38,7 @@ export function PlanSelector({
   const getGroupStatus = (group: PlanGroup): string => {
     const activeCount = getActivePlansCount(group, sessions);
     const completedCount = getCompletedPlansCount(group);
-    const totalStudyTime = calculateGroupTotalStudyTime(group);
+    const totalStudyTime = calculateGroupTotalStudyTime(group, sessions);
 
     if (activeCount > 0) {
       return `진행 중 | ⏱ ${formatTime(totalStudyTime)}`;

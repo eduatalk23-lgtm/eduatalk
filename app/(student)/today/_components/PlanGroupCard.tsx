@@ -60,14 +60,14 @@ function PlanGroupCardComponent({
       : "📝"
   }), [group.content?.title, group.plans[0]?.content_type]);
 
-  // 집계 정보 계산 (메모이제이션)
-  const aggregatedInfo = useMemo(() => ({
-    totalProgress: calculateGroupProgress(group),
-    totalStudyTime: calculateGroupTotalStudyTime(group),
-    activePlansCount: getActivePlansCount(group, sessions),
-    completedPlansCount: getCompletedPlansCount(group),
-    activePlan: getActivePlan(group, sessions)
-  }), [group, sessions]);
+   // 집계 정보 계산 (메모이제이션)
+   const aggregatedInfo = useMemo(() => ({
+     totalProgress: calculateGroupProgress(group),
+     totalStudyTime: calculateGroupTotalStudyTime(group, sessions),
+     activePlansCount: getActivePlansCount(group, sessions),
+     completedPlansCount: getCompletedPlansCount(group),
+     activePlan: getActivePlan(group, sessions)
+   }), [group, sessions]);
 
   // 그룹 상태 계산 (메모이제이션)
   const groupStatus = useMemo(() => {

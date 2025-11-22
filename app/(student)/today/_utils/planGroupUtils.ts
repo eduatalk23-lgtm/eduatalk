@@ -78,12 +78,25 @@ export function calculateGroupProgress(planGroup: PlanGroup): number {
 /**
  * 플랜 그룹의 총 학습 시간 계산 (초 단위)
  */
-export function calculateGroupTotalStudyTime(planGroup: PlanGroup): number {
+export function calculateGroupTotalStudyTime(
+  planGroup: PlanGroup,
+  sessions?: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>
+): number {
   return planGroup.plans.reduce((sum, plan) => {
-    if (plan.total_duration_seconds && plan.paused_duration_seconds) {
-      return sum + (plan.total_duration_seconds - plan.paused_duration_seconds);
-    }
-    return sum + (plan.total_duration_seconds ?? 0);
+    // 타임스탬프 기반으로 정확한 학습 시간 계산
+    const session = sessions?.get(plan.id);
+    const isCurrentlyPaused = session?.isPaused ?? false;
+    const currentPausedAt = session?.pausedAt ?? null;
+    
+    const studyTime = calculateStudyTimeFromTimestamps(
+      plan.actual_start_time,
+      plan.actual_end_time,
+      plan.paused_duration_seconds,
+      isCurrentlyPaused,
+      currentPausedAt
+    );
+    
+    return sum + studyTime;
   }, 0);
 }
 
