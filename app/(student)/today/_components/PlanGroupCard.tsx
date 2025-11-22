@@ -146,6 +146,9 @@ export function PlanGroupCard({
         const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
         console.error("[PlanGroupCard] 일시정지 실패 상세:", JSON.stringify(failedResults, null, 2));
         alert(`일시정지에 실패했습니다: ${errorMessages}`);
+        setIsLoading(false);
+        // 에러 발생 시 페이지 새로고침하여 optimistic 상태 롤백
+        router.refresh();
       } else {
         console.log("[PlanGroupCard] 모든 플랜 일시정지 성공, 페이지 새로고침");
         // 즉시 UI 업데이트
@@ -175,6 +178,8 @@ export function PlanGroupCard({
         const errorMessages = failedResults.map((r) => r.error || "알 수 없는 오류").join(", ");
         alert(`재개에 실패했습니다: ${errorMessages}`);
         setIsLoading(false);
+        // 에러 발생 시 페이지 새로고침하여 optimistic 상태 롤백
+        router.refresh();
       } else {
         // 즉시 UI 업데이트
         startTransition(() => {

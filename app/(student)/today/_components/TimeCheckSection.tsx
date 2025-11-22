@@ -55,7 +55,7 @@ export function TimeCheckSection({
     setOptimisticIsActive(null);
   }, [isPaused, isActive]);
 
-  // 타이머 로그 조회
+  // 타이머 로그 조회 (서버 상태 변경 시에만 조회, optimistic 상태 변경은 제외)
   useEffect(() => {
     const loadTimerLogs = async () => {
       const result = await getTimerLogsByPlanNumber(planNumber, planDate);
@@ -63,8 +63,9 @@ export function TimeCheckSection({
         setTimerLogs(result.logs);
       }
     };
+    // planNumber나 planDate가 변경될 때만 조회 (서버 상태 변경 시)
     loadTimerLogs();
-  }, [planNumber, planDate, isActive, isPaused]);
+  }, [planNumber, planDate]);
 
   // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
   const isCompleted = Boolean(timeStats.isCompleted);
@@ -85,8 +86,10 @@ export function TimeCheckSection({
       try {
         const start = new Date(normalizedStartTime!).getTime();
         const now = Date.now();
-        const elapsed = Math.floor((now - start) / 1000);
-        setElapsedSeconds(Math.max(0, elapsed));
+        const total = Math.floor((now - start) / 1000);
+        // 일시정지 시간 제외 (PlanItem과 동일한 로직)
+        const pausedSeconds = timeStats.pausedDuration || 0;
+        setElapsedSeconds(Math.max(0, total - pausedSeconds));
       } catch {
         setElapsedSeconds(0);
       }
@@ -96,7 +99,7 @@ export function TimeCheckSection({
     const interval = setInterval(updateElapsed, 1000);
 
     return () => clearInterval(interval);
-  }, [isCompleted, isActiveState, hasStartTime, isPausedState, normalizedStartTime]);
+  }, [isCompleted, isActiveState, hasStartTime, isPausedState, normalizedStartTime, timeStats.pausedDuration]);
 
   // 현재 진행 중인 총 시간 계산 (기존 시간 + 경과 시간)
   const currentTotalSeconds = timeStats.isActive
@@ -210,7 +213,7 @@ export function TimeCheckSection({
         <div className="rounded-lg bg-green-50 p-3">
           <div className="text-xs text-green-600">순수 학습</div>
           <div className="mt-1 text-lg font-bold text-green-900">
-            {formatTime(timeStats.pureStudyTime + (timeStats.isActive && !isPaused ? elapsedSeconds : 0))}
+            {formatTime(timeStats.pureStudyTime + (timeStats.isActive && !isPausedState ? elapsedSeconds : 0))}
           </div>
         </div>
       </div>
@@ -267,14 +270,17 @@ export function TimeCheckSection({
           onStart={() => {
             setOptimisticIsActive(true);
             setOptimisticIsPaused(false);
+            // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
             onStart();
           }}
           onPause={() => {
             setOptimisticIsPaused(true);
+            // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
             onPause();
           }}
           onResume={() => {
             setOptimisticIsPaused(false);
+            // 에러는 상위 핸들러에서 처리되므로 여기서는 optimistic 상태만 설정
             onResume();
           }}
           onComplete={onComplete}
