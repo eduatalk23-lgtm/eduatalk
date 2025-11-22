@@ -38,7 +38,6 @@ export function TimeCheckSection({
   onComplete,
   onReset,
 }: TimeCheckSectionProps) {
-  const [timeEvents, setTimeEvents] = useState<TimeEvent[]>([]);
   const [isPending, startTransition] = useTransition();
   
   // Optimistic 상태 관리 (서버 응답 전 즉시 UI 업데이트)
@@ -64,32 +63,10 @@ export function TimeCheckSection({
     setOptimisticTimestamps({});
   }, [isPaused, isActive, timeStats.firstStartTime, timeStats.currentPausedAt, timeStats.lastResumedAt]);
 
-  // 시간 이벤트 조회 (세션 데이터로 계산)
-  // 주의: 이 조회는 같은 그룹의 다른 플랜들의 상태를 동기화하기 위한 것
-  // 현재 플랜의 타임스탬프는 클라이언트에서 생성한 것을 그대로 사용해도 됨
-  useEffect(() => {
-    const loadTimeEvents = async () => {
-      const result = await getTimeEventsByPlanNumber(planNumber, planDate);
-      if (result.success && result.events) {
-        setTimeEvents(result.events);
-      } else {
-        // 이벤트가 없으면 빈 배열로 설정
-        setTimeEvents([]);
-      }
-    };
-    // planNumber, planDate, timeStats의 모든 필드가 변경될 때 조회
-    loadTimeEvents();
-  }, [
-    planNumber,
-    planDate,
-    timeStats.firstStartTime,
-    timeStats.lastEndTime,
-    timeStats.totalDuration,
-    timeStats.pausedDuration,
-    timeStats.pauseCount,
-    timeStats.isActive,
-    timeStats.isCompleted,
-  ]);
+  // 시간 이벤트 조회는 제거
+  // 클라이언트에서 타임스탬프를 생성해서 서버에 전달하므로, 서버에서 다시 조회할 필요 없음
+  // Optimistic 타임스탬프를 사용하고, props가 업데이트되면 제거
+  // 개별 플랜의 타이머는 독립적으로 동작하므로 다른 플랜 상태 동기화 불필요
 
   // dependency array를 안정화하기 위해 모든 값을 명시적으로 정규화
   const isCompleted = Boolean(timeStats.isCompleted);
