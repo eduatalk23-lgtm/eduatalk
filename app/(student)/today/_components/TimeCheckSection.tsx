@@ -137,62 +137,62 @@ export function TimeCheckSection({
         
         {/* 모든 일시정지/재시작 타임스탬프를 시간순으로 표시 */}
         {(() => {
-          // 디버깅: 중복 발생 확인을 위한 로깅
-          console.log('=== 타임스탬프 디버깅 ===');
-          console.log('optimisticTimestamps:', optimisticTimestamps);
-          console.log('timeStats:', {
-            currentPausedAt: timeStats.currentPausedAt,
-            lastPausedAt: timeStats.lastPausedAt,
-            lastResumedAt: timeStats.lastResumedAt
-          });
+          // 타임스탬프를 표준화하여 중복 제거 (Date 객체를 이용한 비교)
+          const normalizeTimestamp = (ts: string): number => {
+            return new Date(ts).getTime();
+          };
 
-          // Set을 사용하여 중복 완전 제거
-          const pauseSet = new Set<string>();
-          const resumeSet = new Set<string>();
+          // Map을 사용하여 타임스탬프의 중복을 제거 (키: 타임스탬프의 밀리초 값, 값: 원본 타임스탬프)
+          const pauseMap = new Map<number, string>();
+          const resumeMap = new Map<number, string>();
 
           // Optimistic 일시정지 타임스탬프 추가
           if (optimisticTimestamps.pauses) {
             optimisticTimestamps.pauses.forEach(ts => {
-              console.log('Adding optimistic pause:', ts);
-              pauseSet.add(ts);
+              const normalized = normalizeTimestamp(ts);
+              if (!pauseMap.has(normalized)) {
+                pauseMap.set(normalized, ts);
+              }
             });
           }
 
           // 서버 일시정지 타임스탬프 추가
           // 현재 일시정지 중이면 currentPausedAt만 사용, 재시작 후면 lastPausedAt만 사용
           if (timeStats.currentPausedAt) {
-            console.log('Adding server currentPausedAt:', timeStats.currentPausedAt);
-            pauseSet.add(timeStats.currentPausedAt);
+            const normalized = normalizeTimestamp(timeStats.currentPausedAt);
+            if (!pauseMap.has(normalized)) {
+              pauseMap.set(normalized, timeStats.currentPausedAt);
+            }
           } else if (timeStats.lastPausedAt) {
-            console.log('Adding server lastPausedAt:', timeStats.lastPausedAt);
-            pauseSet.add(timeStats.lastPausedAt);
+            const normalized = normalizeTimestamp(timeStats.lastPausedAt);
+            if (!pauseMap.has(normalized)) {
+              pauseMap.set(normalized, timeStats.lastPausedAt);
+            }
           }
 
           // Optimistic 재시작 타임스탬프 추가
           if (optimisticTimestamps.resumes) {
             optimisticTimestamps.resumes.forEach(ts => {
-              console.log('Adding optimistic resume:', ts);
-              resumeSet.add(ts);
+              const normalized = normalizeTimestamp(ts);
+              if (!resumeMap.has(normalized)) {
+                resumeMap.set(normalized, ts);
+              }
             });
           }
 
           // 서버 재시작 타임스탬프 추가
           if (timeStats.lastResumedAt) {
-            console.log('Adding server lastResumedAt:', timeStats.lastResumedAt);
-            resumeSet.add(timeStats.lastResumedAt);
+            const normalized = normalizeTimestamp(timeStats.lastResumedAt);
+            if (!resumeMap.has(normalized)) {
+              resumeMap.set(normalized, timeStats.lastResumedAt);
+            }
           }
 
-          console.log('Final pauseSet:', Array.from(pauseSet));
-          console.log('Final resumeSet:', Array.from(resumeSet));
-
-          // Set을 배열로 변환하고 모든 이벤트를 시간순으로 정렬
+          // Map을 배열로 변환하고 모든 이벤트를 시간순으로 정렬
           const allEvents: Array<{ type: "pause" | "resume"; timestamp: string }> = [
-            ...Array.from(pauseSet).map(ts => ({ type: "pause" as const, timestamp: ts })),
-            ...Array.from(resumeSet).map(ts => ({ type: "resume" as const, timestamp: ts })),
+            ...Array.from(pauseMap.entries()).map(([_, ts]) => ({ type: "pause" as const, timestamp: ts })),
+            ...Array.from(resumeMap.entries()).map(([_, ts]) => ({ type: "resume" as const, timestamp: ts })),
           ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-          console.log('Final allEvents:', allEvents);
-          console.log('=== 디버깅 끝 ===');
 
           return allEvents.map((event, index) => (
             <div key={`${event.type}-${event.timestamp}-${index}`} className="flex items-center justify-between">
