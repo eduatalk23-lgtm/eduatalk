@@ -89,15 +89,37 @@
 - ✅ 타입 안전성으로 런타임 에러 감소
 - ✅ 명확한 spacing 패턴으로 레이아웃 수정 용이
 
+### 5. Today 페이지 컴포넌트 개선
+- **파일들**:
+  - `SinglePlanView.tsx` - spacing 개선
+  - `DailyPlanView.tsx` - spacing 개선
+  - `TodayAchievements.tsx` - ProgressBar 적용 및 spacing 개선
+  - `TodayGoals.tsx` - ProgressBar 적용 및 spacing 개선
+  - `TodayFocusPreview.tsx` - spacing 개선
+
+## 작업 통계
+
+### 수정된 파일
+- 총 약 **30개** 파일 수정
+- **1개** 공통 컴포넌트 생성 (ProgressBar)
+- **2개** 타입 정의 개선
+
+### 개선된 컴포넌트 카테고리
+1. **Today 페이지 컴포넌트**: 6개
+2. **Report 컴포넌트**: 3개
+3. **Scores 컴포넌트**: 2개
+4. **Dashboard 컴포넌트**: 2개
+5. **Plan 컴포넌트**: 3개
+6. **Parent 컴포넌트**: 2개
+7. **UI 컴포넌트**: 2개 (Card, ProgressBar)
+
 ## 향후 작업 계획
 
-### 진행 중
-- [ ] Spacing-First 정책 적용: margin(mb, mt, mx, my)을 gap/padding으로 변환 (주요 컴포넌트 완료, 전체 적용 진행 중)
-
-### 예정
-- [ ] 성능 최적화: 불필요한 리렌더링 방지 및 메모이제이션 적용
+### 추가 개선 가능 항목
+- [ ] 나머지 컴포넌트의 Spacing-First 정책 적용 (약 200개 파일 남음)
+- [ ] 성능 최적화: React.memo, useMemo, useCallback 적용
 - [ ] 추가 any 타입 제거 및 명시적 타입 정의
-- [ ] 더 많은 공통 컴포넌트 추출
+- [ ] 더 많은 공통 컴포넌트 추출 (예: Badge, StatusIndicator 등)
 
 ## 참고 사항
 - 진행률 바의 동적 width는 인라인 스타일을 유지 (Tailwind로 대체 불가능)
