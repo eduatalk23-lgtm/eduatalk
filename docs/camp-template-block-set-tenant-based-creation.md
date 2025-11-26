@@ -31,21 +31,23 @@
 #### 변경 사항
 
 1. **template_id를 NULL 허용으로 변경**
+
    ```sql
-   ALTER TABLE template_block_sets 
+   ALTER TABLE template_block_sets
    ALTER COLUMN template_id DROP NOT NULL;
    ```
 
 2. **UNIQUE 제약조건 재설정**
+
    - `template_id`가 NULL이 아닐 때: `(template_id, name)` 고유
    - `template_id`가 NULL일 때: `(tenant_id, name)` 고유
-   
+
    ```sql
    -- 부분 인덱스 사용
    CREATE UNIQUE INDEX idx_template_block_sets_template_name_unique
    ON template_block_sets(template_id, name)
    WHERE template_id IS NOT NULL;
-   
+
    CREATE UNIQUE INDEX idx_template_block_sets_tenant_name_unique
    ON template_block_sets(tenant_id, name)
    WHERE template_id IS NULL;
@@ -140,4 +142,3 @@ CREATE TABLE template_block_sets (
 1. ✅ 마이그레이션 파일 생성
 2. ⏳ 마이그레이션 실행
 3. ⏳ 템플릿 저장 시 블록 세트 자동 연결 로직 검토 (필요 시)
-
