@@ -13,7 +13,7 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
-import { PlanGroupCreationData } from "@/lib/types/plan";
+import { PlanGroupCreationData, PlanGroup } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { normalizePlanPurpose } from "./utils";
 
@@ -27,8 +27,28 @@ async function _updatePlanGroupDraft(
   const user = await requireStudentAuth();
   const tenantContext = await requireTenantContext();
 
-  // 기존 그룹 조회
-  const group = await getPlanGroupById(groupId, user.userId);
+  // 기존 그룹 조회 (tenantId 포함하여 조회)
+  let group = await getPlanGroupById(groupId, user.userId, tenantContext.tenantId);
+  
+  // 캠프 플랜 그룹인 경우 camp_invitation_id로 재시도
+  if (!group && data.camp_invitation_id) {
+    const supabase = await createSupabaseServerClient();
+    const { data: campGroup, error: campError } = await supabase
+      .from("plan_groups")
+      .select(
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+      )
+      .eq("id", groupId)
+      .eq("camp_invitation_id", data.camp_invitation_id)
+      .eq("student_id", user.userId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!campError && campGroup) {
+      group = campGroup as PlanGroup;
+    }
+  }
+  
   if (!group) {
     throw new AppError(
       "플랜 그룹을 찾을 수 없습니다.",
@@ -138,6 +158,8 @@ async function _updatePlanGroupDraft(
           content_id: c.content_id,
           start_range: c.start_range,
           end_range: c.end_range,
+          start_detail_id: (c as any).start_detail_id ?? null,
+          end_detail_id: (c as any).end_detail_id ?? null,
           display_order: c.display_order ?? 0,
         }))
       );
