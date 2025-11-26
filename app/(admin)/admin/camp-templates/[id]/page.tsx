@@ -22,9 +22,7 @@ export default async function CampTemplateDetailPage({
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-red-800">
-            템플릿을 찾을 수 없습니다.
-          </p>
+          <p className="text-red-800">템플릿을 찾을 수 없습니다.</p>
         </div>
       </section>
     );
@@ -48,7 +46,7 @@ export default async function CampTemplateDetailPage({
 
   if (blockSetId) {
     const supabase = await createSupabaseServerClient();
-    
+
     // 템플릿 블록 세트 조회
     const { data: blockSet, error: blockSetError } = await supabase
       .from("template_block_sets")
@@ -81,11 +79,10 @@ export default async function CampTemplateDetailPage({
     }
   }
 
-  return <CampTemplateDetail template={result.template} templateBlockSet={templateBlockSet} />;
+  return (
+    <CampTemplateDetail
+      template={result.template}
+      templateBlockSet={templateBlockSet}
+    />
+  );
 }
-
-
-
-
-
-
