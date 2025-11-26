@@ -476,50 +476,106 @@ export function Step1BasicInfo({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        // 템플릿 모드: 실제 템플릿 블록 세트 생성
-        if (isTemplateMode) {
-          // 1. 템플릿 블록 세트 생성 (템플릿 ID가 없어도 생성 가능)
-          const formData = new FormData();
-          // templateId가 있으면 추가, 없으면 템플릿에 연결되지 않은 블록 세트로 생성
-          if (templateId) {
-            formData.append("template_id", templateId);
+    startTransition(() => {
+      (async () => {
+        try {
+          // 템플릿 모드: 실제 템플릿 블록 세트 생성
+          if (isTemplateMode) {
+            // 1. 템플릿 블록 세트 생성 (템플릿 ID가 없어도 생성 가능)
+            const templateFormData = new FormData();
+            // templateId가 있으면 추가, 없으면 템플릿에 연결되지 않은 블록 세트로 생성
+            if (templateId) {
+              templateFormData.append("template_id", templateId);
+            }
+            templateFormData.append("name", newBlockSetName.trim());
+            const templateResult = await createTemplateBlockSet(templateFormData);
+            const templateBlockSetId = templateResult.blockSetId;
+            const templateBlockSetName = templateResult.name;
+
+            // 2. 추가된 블록들을 실제로 추가 (사용자가 명시적으로 추가한 블록만)
+            if (addedBlocks.length > 0) {
+              for (const block of addedBlocks) {
+                const blockFormData = new FormData();
+                blockFormData.append("day", String(block.day));
+                blockFormData.append("start_time", block.startTime);
+                blockFormData.append("end_time", block.endTime);
+                blockFormData.append("block_set_id", templateBlockSetId);
+
+                try {
+                  await addTemplateBlock(blockFormData);
+                } catch (error) {
+                  const planGroupError = toPlanGroupError(
+                    error,
+                    PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+                    { day: block.day }
+                  );
+                  console.error(
+                    `[Step1BasicInfo] 템플릿 블록 추가 실패 (요일 ${block.day}):`,
+                    planGroupError
+                  );
+                  // 일부 블록 추가 실패해도 계속 진행
+                }
+              }
+            }
+
+            // 3. 최신 블록 세트 목록 다시 불러오기
+            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
+
+            // 4. 생성된 블록 세트를 자동으로 선택
+            onUpdate({ block_set_id: templateBlockSetId });
+
+            // 5. 폼 초기화 및 모드 변경
+            setNewBlockSetName("");
+            setBlockSetMode("select");
+            setAddedBlocks([]);
+            setBlockStartTime("");
+            setBlockEndTime("");
+            setSelectedWeekdays([]);
+            setCurrentPage(1);
+            return;
           }
+
+          // 일반 모드: 실제 블록 세트 생성
+          // 1. 블록 세트 생성
+          const formData = new FormData();
           formData.append("name", newBlockSetName.trim());
-          const result = await createTemplateBlockSet(formData);
+          const result = await createBlockSet(formData);
           const blockSetId = result.blockSetId;
           const blockSetName = result.name;
 
-          // 2. 추가된 블록들을 실제로 추가 (사용자가 명시적으로 추가한 블록만)
+          // 2. 추가된 블록들을 실제로 추가
           if (addedBlocks.length > 0) {
             for (const block of addedBlocks) {
-            const blockFormData = new FormData();
-            blockFormData.append("day", String(block.day));
-            blockFormData.append("start_time", block.startTime);
-            blockFormData.append("end_time", block.endTime);
-            blockFormData.append("block_set_id", blockSetId);
+              const blockFormData = new FormData();
+              blockFormData.append("day", String(block.day));
+              blockFormData.append("start_time", block.startTime);
+              blockFormData.append("end_time", block.endTime);
+              blockFormData.append("block_set_id", blockSetId);
 
-            try {
-              await addTemplateBlock(blockFormData);
-            } catch (error) {
-              const planGroupError = toPlanGroupError(
-                error,
-                PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                { day: block.day }
-              );
-              console.error(
-                `[Step1BasicInfo] 템플릿 블록 추가 실패 (요일 ${block.day}):`,
-                planGroupError
-              );
-              // 일부 블록 추가 실패해도 계속 진행
+              try {
+                await addBlock(blockFormData);
+              } catch (error) {
+                const planGroupError = toPlanGroupError(
+                  error,
+                  PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+                  { day: block.day }
+                );
+                console.error(
+                  `[Step1BasicInfo] 블록 추가 실패 (요일 ${block.day}):`,
+                  planGroupError
+                );
+                // 일부 블록 추가 실패해도 계속 진행
+              }
             }
           }
 
-          // 3. 최신 블록 세트 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId || null);
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
+          // 3. 새로 생성된 블록 세트를 목록에 추가하고 선택
+          const newBlockSet = { id: blockSetId, name: blockSetName };
+          if (onBlockSetCreated) {
+            onBlockSetCreated(newBlockSet);
           }
 
           // 4. 생성된 블록 세트를 자동으로 선택
@@ -532,106 +588,55 @@ export function Step1BasicInfo({
           setBlockStartTime("");
           setBlockEndTime("");
           setSelectedWeekdays([]);
-          setCurrentPage(1);
-          return;
+          setCurrentPage(1); // 새 블록 세트 생성 시 첫 페이지로 리셋
+        } catch (error) {
+          alert(
+            error instanceof Error
+              ? error.message
+              : "블록 세트 생성에 실패했습니다."
+          );
         }
-
-        // 일반 모드: 실제 블록 세트 생성
-        // 1. 블록 세트 생성
-        const formData = new FormData();
-        formData.append("name", newBlockSetName.trim());
-        const result = await createBlockSet(formData);
-        const blockSetId = result.blockSetId;
-        const blockSetName = result.name;
-
-        // 2. 추가된 블록들을 실제로 추가
-        if (addedBlocks.length > 0) {
-          for (const block of addedBlocks) {
-            const blockFormData = new FormData();
-            blockFormData.append("day", String(block.day));
-            blockFormData.append("start_time", block.startTime);
-            blockFormData.append("end_time", block.endTime);
-            blockFormData.append("block_set_id", blockSetId);
-
-            try {
-              await addBlock(blockFormData);
-            } catch (error) {
-              const planGroupError = toPlanGroupError(
-                error,
-                PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                { day: block.day }
-              );
-              console.error(
-                `[Step1BasicInfo] 블록 추가 실패 (요일 ${block.day}):`,
-                planGroupError
-              );
-              // 일부 블록 추가 실패해도 계속 진행
-            }
-          }
-        }
-
-        // 3. 새로 생성된 블록 세트를 목록에 추가하고 선택
-        const newBlockSet = { id: blockSetId, name: blockSetName };
-        if (onBlockSetCreated) {
-          onBlockSetCreated(newBlockSet);
-        }
-
-        // 4. 생성된 블록 세트를 자동으로 선택
-        onUpdate({ block_set_id: blockSetId });
-
-        // 5. 폼 초기화 및 모드 변경
-        setNewBlockSetName("");
-        setBlockSetMode("select");
-        setAddedBlocks([]);
-        setBlockStartTime("");
-        setBlockEndTime("");
-        setSelectedWeekdays([]);
-        setCurrentPage(1); // 새 블록 세트 생성 시 첫 페이지로 리셋
-      } catch (error) {
-        alert(
-          error instanceof Error
-            ? error.message
-            : "블록 세트 생성에 실패했습니다."
-        );
-      }
+      })();
     });
   };
 
   const handleLoadBlockSets = () => {
     setIsLoadingBlockSets(true);
-    startTransition(async () => {
-      try {
-        if (isTemplateMode) {
-          if (!templateId) {
-            // 새 템플릿 생성 시에는 블록 세트 목록이 없음 (정상)
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded([]);
+    startTransition(() => {
+      (async () => {
+        try {
+          if (isTemplateMode) {
+            if (!templateId) {
+              // 새 템플릿 생성 시에는 블록 세트 목록이 없음 (정상)
+              if (onBlockSetsLoaded) {
+                onBlockSetsLoaded([]);
+              }
+              setBlockSetMode("select");
+              setIsLoadingBlockSets(false);
+              return;
             }
-            setBlockSetMode("select");
-            setIsLoadingBlockSets(false);
-            return;
+            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
+          } else {
+            const latestBlockSets = await getBlockSets();
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
           }
-          const latestBlockSets = await getTemplateBlockSets(templateId || null);
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
-        } else {
-          const latestBlockSets = await getBlockSets();
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
+          setBlockSetMode("select");
+          setCurrentPage(1); // 새로고침 시 첫 페이지로 리셋
+        } catch (error) {
+          alert(
+            error instanceof Error
+              ? error.message
+              : "블록 세트 목록을 불러오는데 실패했습니다."
+          );
+        } finally {
+          setIsLoadingBlockSets(false);
         }
-        setBlockSetMode("select");
-        setCurrentPage(1); // 새로고침 시 첫 페이지로 리셋
-      } catch (error) {
-        alert(
-          error instanceof Error
-            ? error.message
-            : "블록 세트 목록을 불러오는데 실패했습니다."
-        );
-      } finally {
-        setIsLoadingBlockSets(false);
-      }
+      })();
     });
   };
 
@@ -664,77 +669,79 @@ export function Step1BasicInfo({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        if (isTemplateMode) {
-          for (const day of selectedWeekdays) {
-            const blockFormData = new FormData();
-            blockFormData.append("day", String(day));
-            blockFormData.append("start_time", blockStartTime);
-            blockFormData.append("end_time", blockEndTime);
-            blockFormData.append("block_set_id", editingBlockSetId);
+    startTransition(() => {
+      (async () => {
+        try {
+          if (isTemplateMode) {
+            for (const day of selectedWeekdays) {
+              const blockFormData = new FormData();
+              blockFormData.append("day", String(day));
+              blockFormData.append("start_time", blockStartTime);
+              blockFormData.append("end_time", blockEndTime);
+              blockFormData.append("block_set_id", editingBlockSetId);
 
-            try {
-              await addTemplateBlock(blockFormData);
-            } catch (error) {
-              const planGroupError = toPlanGroupError(
-                error,
-                PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                { day }
-              );
-              console.error(
-                `[Step1BasicInfo] 템플릿 블록 추가 실패 (요일 ${day}):`,
-                planGroupError
-              );
-              // 일부 블록 추가 실패해도 계속 진행
+              try {
+                await addTemplateBlock(blockFormData);
+              } catch (error) {
+                const planGroupError = toPlanGroupError(
+                  error,
+                  PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+                  { day }
+                );
+                console.error(
+                  `[Step1BasicInfo] 템플릿 블록 추가 실패 (요일 ${day}):`,
+                  planGroupError
+                );
+                // 일부 블록 추가 실패해도 계속 진행
+              }
+            }
+
+            // 최신 목록 다시 불러오기
+            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
+          } else {
+            for (const day of selectedWeekdays) {
+              const blockFormData = new FormData();
+              blockFormData.append("day", String(day));
+              blockFormData.append("start_time", blockStartTime);
+              blockFormData.append("end_time", blockEndTime);
+              blockFormData.append("block_set_id", editingBlockSetId);
+
+              try {
+                await addBlock(blockFormData);
+              } catch (error) {
+                const planGroupError = toPlanGroupError(
+                  error,
+                  PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+                  { day }
+                );
+                console.error(
+                  `[Step1BasicInfo] 블록 추가 실패 (요일 ${day}):`,
+                  planGroupError
+                );
+                // 일부 블록 추가 실패해도 계속 진행
+              }
+            }
+
+            // 최신 목록 다시 불러오기
+            const latestBlockSets = await getBlockSets();
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
             }
           }
 
-          // 최신 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId || null);
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
-        } else {
-          for (const day of selectedWeekdays) {
-            const blockFormData = new FormData();
-            blockFormData.append("day", String(day));
-            blockFormData.append("start_time", blockStartTime);
-            blockFormData.append("end_time", blockEndTime);
-            blockFormData.append("block_set_id", editingBlockSetId);
-
-            try {
-              await addBlock(blockFormData);
-            } catch (error) {
-              const planGroupError = toPlanGroupError(
-                error,
-                PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                { day }
-              );
-              console.error(
-                `[Step1BasicInfo] 블록 추가 실패 (요일 ${day}):`,
-                planGroupError
-              );
-              // 일부 블록 추가 실패해도 계속 진행
-            }
-          }
-
-          // 최신 목록 다시 불러오기
-          const latestBlockSets = await getBlockSets();
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
+          // 폼 초기화
+          setSelectedWeekdays([]);
+          setBlockStartTime("");
+          setBlockEndTime("");
+        } catch (error) {
+          alert(
+            error instanceof Error ? error.message : "블록 추가에 실패했습니다."
+          );
         }
-
-        // 폼 초기화
-        setSelectedWeekdays([]);
-        setBlockStartTime("");
-        setBlockEndTime("");
-      } catch (error) {
-        alert(
-          error instanceof Error ? error.message : "블록 추가에 실패했습니다."
-        );
-      }
+      })();
     });
   };
 
@@ -743,33 +750,35 @@ export function Step1BasicInfo({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const blockFormData = new FormData();
-        blockFormData.append("id", blockId);
+    startTransition(() => {
+      (async () => {
+        try {
+          const blockFormData = new FormData();
+          blockFormData.append("id", blockId);
 
-        if (isTemplateMode) {
-          await deleteTemplateBlock(blockFormData);
+          if (isTemplateMode) {
+            await deleteTemplateBlock(blockFormData);
 
-          // 최신 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId || null);
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
+            // 최신 목록 다시 불러오기
+            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
+          } else {
+            await deleteBlock(blockFormData);
+
+            // 최신 목록 다시 불러오기
+            const latestBlockSets = await getBlockSets();
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
           }
-        } else {
-          await deleteBlock(blockFormData);
-
-          // 최신 목록 다시 불러오기
-          const latestBlockSets = await getBlockSets();
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
+        } catch (error) {
+          alert(
+            error instanceof Error ? error.message : "블록 삭제에 실패했습니다."
+          );
         }
-      } catch (error) {
-        alert(
-          error instanceof Error ? error.message : "블록 삭제에 실패했습니다."
-        );
-      }
+      })();
     });
   };
 
@@ -779,56 +788,58 @@ export function Step1BasicInfo({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.append("id", editingBlockSetId);
-        formData.append("name", editingBlockSetName.trim());
+    startTransition(() => {
+      (async () => {
+        try {
+          const formData = new FormData();
+          formData.append("id", editingBlockSetId);
+          formData.append("name", editingBlockSetName.trim());
 
-        if (isTemplateMode) {
-          await updateTemplateBlockSet(formData);
+          if (isTemplateMode) {
+            await updateTemplateBlockSet(formData);
 
-          // 최신 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId || null);
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
+            // 최신 목록 다시 불러오기
+            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
+
+            // 선택된 블록 세트도 업데이트
+            const updatedSet = latestBlockSets.find(
+              (set) => set.id === editingBlockSetId
+            );
+            if (updatedSet) {
+              onUpdate({ block_set_id: updatedSet.id });
+            }
+          } else {
+            await updateBlockSet(formData);
+
+            // 최신 목록 다시 불러오기
+            const latestBlockSets = await getBlockSets();
+            if (onBlockSetsLoaded) {
+              onBlockSetsLoaded(latestBlockSets);
+            }
+
+            // 선택된 블록 세트도 업데이트
+            const updatedSet = latestBlockSets.find(
+              (set) => set.id === editingBlockSetId
+            );
+            if (updatedSet) {
+              onUpdate({ block_set_id: updatedSet.id });
+            }
           }
 
-          // 선택된 블록 세트도 업데이트
-          const updatedSet = latestBlockSets.find(
-            (set) => set.id === editingBlockSetId
+          setBlockSetMode("select");
+          setEditingBlockSetId(null);
+          setEditingBlockSetName("");
+        } catch (error) {
+          alert(
+            error instanceof Error
+              ? error.message
+              : "블록 세트 이름 수정에 실패했습니다."
           );
-          if (updatedSet) {
-            onUpdate({ block_set_id: updatedSet.id });
-          }
-        } else {
-          await updateBlockSet(formData);
-
-          // 최신 목록 다시 불러오기
-          const latestBlockSets = await getBlockSets();
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
-
-          // 선택된 블록 세트도 업데이트
-          const updatedSet = latestBlockSets.find(
-            (set) => set.id === editingBlockSetId
-          );
-          if (updatedSet) {
-            onUpdate({ block_set_id: updatedSet.id });
-          }
         }
-
-        setBlockSetMode("select");
-        setEditingBlockSetId(null);
-        setEditingBlockSetName("");
-      } catch (error) {
-        alert(
-          error instanceof Error
-            ? error.message
-            : "블록 세트 이름 수정에 실패했습니다."
-        );
-      }
+      })();
     });
   };
 
