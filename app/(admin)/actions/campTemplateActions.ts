@@ -15,6 +15,7 @@ import {
   withErrorHandling,
   getUserFacingMessage,
 } from "@/lib/errors";
+import { linkBlockSetToTemplate, unlinkBlockSetFromTemplate } from "./campTemplateBlockSets";
 
 /**
  * 관리자/컨설턴트 권한 검증 헬퍼 함수
@@ -431,14 +432,6 @@ export const createCampTemplateAction = withErrorHandling(
     let templateData: Partial<WizardData>;
     try {
       templateData = JSON.parse(templateDataJson);
-
-      // 빈 문자열 block_set_id를 null로 변환 (조회 시 문제 방지)
-      if (
-        templateData.block_set_id === "" ||
-        templateData.block_set_id === undefined
-      ) {
-        templateData.block_set_id = undefined;
-      }
     } catch (e) {
       throw new AppError(
         "템플릿 데이터 형식이 올바르지 않습니다.",
@@ -447,6 +440,14 @@ export const createCampTemplateAction = withErrorHandling(
         true
       );
     }
+
+    // block_set_id를 추출하고 template_data에서 제거 (연결 테이블로 관리)
+    const blockSetId = templateData.block_set_id && templateData.block_set_id !== "" 
+      ? templateData.block_set_id 
+      : null;
+    
+    // template_data에서 block_set_id 제거
+    const { block_set_id, ...templateDataWithoutBlockSetId } = templateData;
 
     // 날짜 유효성 검증
     if (campStartDate && campEndDate) {
@@ -472,19 +473,13 @@ export const createCampTemplateAction = withErrorHandling(
       );
     }
 
-    // 저장 전 최종 정리: 빈 문자열이나 falsy 값을 undefined로 변환
-    // 빈 문자열이 저장되면 조회 시 block_set_id가 빈 문자열로 조회되어 문제 발생
-    if (!templateData.block_set_id || templateData.block_set_id === "") {
-      templateData.block_set_id = undefined;
-    }
-
-    // 템플릿 생성 (block_set_id가 없어도 저장 가능)
+    // 템플릿 생성 (block_set_id는 template_data에서 제거됨)
     const result = await createCampTemplate({
       tenant_id: tenantContext.tenantId,
       name,
       description: description || undefined,
       program_type: programType,
-      template_data: templateData,
+      template_data: templateDataWithoutBlockSetId,
       created_by: userId,
       camp_start_date: campStartDate || undefined,
       camp_end_date: campEndDate || undefined,
@@ -498,6 +493,16 @@ export const createCampTemplateAction = withErrorHandling(
         500,
         true
       );
+    }
+
+    // 블록 세트 연결 처리
+    if (blockSetId) {
+      try {
+        await linkBlockSetToTemplate(result.templateId, blockSetId);
+      } catch (linkError) {
+        console.error("[createCampTemplateAction] 블록 세트 연결 실패:", linkError);
+        // 연결 실패해도 템플릿 생성은 성공으로 처리 (나중에 수동으로 연결 가능)
+      }
     }
 
     return result;
@@ -635,6 +640,14 @@ export const updateCampTemplateAction = withErrorHandling(
       );
     }
 
+    // block_set_id를 추출하고 template_data에서 제거 (연결 테이블로 관리)
+    const blockSetId = templateData.block_set_id && templateData.block_set_id !== "" 
+      ? templateData.block_set_id 
+      : null;
+    
+    // template_data에서 block_set_id 제거
+    const { block_set_id, ...templateDataWithoutBlockSetId } = templateData;
+
     // 날짜 유효성 검증
     if (campStartDate && campEndDate) {
       const start = new Date(campStartDate);
@@ -665,7 +678,7 @@ export const updateCampTemplateAction = withErrorHandling(
       description,
       program_type: programType,
       status: status || "draft",
-      template_data: templateData,
+      template_data: templateDataWithoutBlockSetId, // block_set_id 제거된 데이터
       updated_at: new Date().toISOString(),
     };
 
@@ -694,6 +707,24 @@ export const updateCampTemplateAction = withErrorHandling(
         true,
         { originalError: error.message }
       );
+    }
+
+    // 블록 세트 연결 처리
+    if (blockSetId) {
+      try {
+        await linkBlockSetToTemplate(templateId, blockSetId);
+      } catch (linkError) {
+        console.error("[updateCampTemplateAction] 블록 세트 연결 실패:", linkError);
+        // 연결 실패해도 템플릿 수정은 성공으로 처리
+      }
+    } else {
+      // block_set_id가 없으면 연결 해제
+      try {
+        await unlinkBlockSetFromTemplate(templateId);
+      } catch (unlinkError) {
+        console.error("[updateCampTemplateAction] 블록 세트 연결 해제 실패:", unlinkError);
+        // 연결 해제 실패해도 템플릿 수정은 성공으로 처리
+      }
     }
 
     return { success: true };

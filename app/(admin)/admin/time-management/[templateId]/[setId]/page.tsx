@@ -33,12 +33,23 @@ export default async function TemplateBlockSetDetailPage({ params }: PageProps) 
 
   const supabase = await createSupabaseServerClient();
 
-  // 블록 세트 조회
+  // 연결 테이블에서 템플릿에 연결된 블록 세트 확인
+  const { data: templateBlockSetLink } = await supabase
+    .from("camp_template_block_sets")
+    .select("tenant_block_set_id")
+    .eq("camp_template_id", templateId)
+    .eq("tenant_block_set_id", setId)
+    .maybeSingle();
+
+  if (!templateBlockSetLink) {
+    redirect(`/admin/time-management/${templateId}`);
+  }
+
+  // 테넌트 블록 세트 조회
   const { data: blockSet, error: setError } = await supabase
-    .from("template_block_sets")
-    .select("id, name, description, template_id")
+    .from("tenant_block_sets")
+    .select("id, name, description")
     .eq("id", setId)
-    .eq("template_id", templateId)
     .eq("tenant_id", tenantContext.tenantId)
     .single();
 
@@ -48,9 +59,9 @@ export default async function TemplateBlockSetDetailPage({ params }: PageProps) 
 
   // 해당 세트의 블록 조회
   const { data: blocks, error: blocksError } = await supabase
-    .from("template_blocks")
+    .from("tenant_blocks")
     .select("id, day_of_week, start_time, end_time")
-    .eq("template_block_set_id", setId)
+    .eq("tenant_block_set_id", setId)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 

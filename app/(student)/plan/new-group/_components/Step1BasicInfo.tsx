@@ -9,12 +9,12 @@ import {
 } from "@/app/actions/blockSets";
 import { addBlock, deleteBlock } from "@/app/actions/blocks";
 import {
-  createTemplateBlockSet,
-  getTemplateBlockSets,
-  updateTemplateBlockSet,
-  addTemplateBlock,
-  deleteTemplateBlock,
-} from "@/app/(admin)/actions/templateBlockSets";
+  createTenantBlockSet,
+  getTenantBlockSets,
+  updateTenantBlockSet,
+  addTenantBlock,
+  deleteTenantBlock,
+} from "@/app/(admin)/actions/tenantBlockSets";
 import { WizardData } from "./PlanGroupWizard";
 import {
   toPlanGroupError,
@@ -499,33 +499,25 @@ export function Step1BasicInfo({
     startTransition(() => {
       (async () => {
         try {
-          // 템플릿 모드: 실제 템플릿 블록 세트 생성
+          // 템플릿 모드: 실제 테넌트 블록 세트 생성
           if (isTemplateMode) {
-            // 1. 템플릿 블록 세트 생성 (템플릿 ID가 없어도 생성 가능)
+            // 1. 테넌트 블록 세트 생성 (tenant_id만 사용)
             const templateFormData = new FormData();
-            // templateId가 있으면 추가, 없으면 템플릿에 연결되지 않은 블록 세트로 생성
-            if (templateId) {
-              templateFormData.append("template_id", templateId);
-              console.log("[Step1BasicInfo] 템플릿 블록 세트 생성 (템플릿 연결):", {
-                template_id: templateId,
-                name: newBlockSetName.trim(),
-              });
-            } else {
-              console.log("[Step1BasicInfo] 템플릿 블록 세트 생성 (템플릿 미연결):", {
-                name: newBlockSetName.trim(),
-              });
-            }
             templateFormData.append("name", newBlockSetName.trim());
-            const templateResult = await createTemplateBlockSet(
+            
+            console.log("[Step1BasicInfo] 테넌트 블록 세트 생성:", {
+              name: newBlockSetName.trim(),
+            });
+            
+            const templateResult = await createTenantBlockSet(
               templateFormData
             );
             const templateBlockSetId = templateResult.blockSetId;
             const templateBlockSetName = templateResult.name;
 
-            console.log("[Step1BasicInfo] 템플릿 블록 세트 생성 성공:", {
+            console.log("[Step1BasicInfo] 테넌트 블록 세트 생성 성공:", {
               block_set_id: templateBlockSetId,
               name: templateBlockSetName,
-              template_id: templateId,
             });
 
             // 2. 추가된 블록들을 실제로 추가 (사용자가 명시적으로 추가한 블록만)
@@ -538,7 +530,7 @@ export function Step1BasicInfo({
                 blockFormData.append("block_set_id", templateBlockSetId);
 
                 try {
-                  await addTemplateBlock(blockFormData);
+                  await addTenantBlock(blockFormData);
                 } catch (error) {
                   const planGroupError = toPlanGroupError(
                     error,
@@ -546,7 +538,7 @@ export function Step1BasicInfo({
                     { day: block.day }
                   );
                   console.error(
-                    `[Step1BasicInfo] 템플릿 블록 추가 실패 (요일 ${block.day}):`,
+                    `[Step1BasicInfo] 테넌트 블록 추가 실패 (요일 ${block.day}):`,
                     planGroupError
                   );
                   // 일부 블록 추가 실패해도 계속 진행
@@ -555,15 +547,11 @@ export function Step1BasicInfo({
             }
 
             // 3. 최신 블록 세트 목록 다시 불러오기
-            console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회:", {
-              template_id: templateId || null,
-            });
-            const latestBlockSets = await getTemplateBlockSets(
-              templateId || null
-            );
+            console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회");
+            const latestBlockSets = await getTenantBlockSets();
             console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회 결과:", {
               count: latestBlockSets.length,
-              block_set_ids: latestBlockSets.map(bs => bs.id),
+              block_set_ids: latestBlockSets.map((bs) => bs.id),
             });
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
@@ -651,11 +639,8 @@ export function Step1BasicInfo({
       (async () => {
         try {
           if (isTemplateMode) {
-            // templateId가 없어도 템플릿에 연결되지 않은 블록 세트를 조회
-            // (새 템플릿 생성 시에도 기존 블록 세트를 선택할 수 있도록)
-            const latestBlockSets = await getTemplateBlockSets(
-              templateId || null
-            );
+            // 모든 테넌트 블록 세트 조회
+            const latestBlockSets = await getTenantBlockSets();
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -721,7 +706,7 @@ export function Step1BasicInfo({
               blockFormData.append("block_set_id", editingBlockSetId);
 
               try {
-                await addTemplateBlock(blockFormData);
+                await addTenantBlock(blockFormData);
               } catch (error) {
                 const planGroupError = toPlanGroupError(
                   error,
@@ -729,7 +714,7 @@ export function Step1BasicInfo({
                   { day }
                 );
                 console.error(
-                  `[Step1BasicInfo] 템플릿 블록 추가 실패 (요일 ${day}):`,
+                  `[Step1BasicInfo] 테넌트 블록 추가 실패 (요일 ${day}):`,
                   planGroupError
                 );
                 // 일부 블록 추가 실패해도 계속 진행
@@ -737,9 +722,7 @@ export function Step1BasicInfo({
             }
 
             // 최신 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(
-              templateId || null
-            );
+            const latestBlockSets = await getTenantBlockSets();
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -799,12 +782,10 @@ export function Step1BasicInfo({
           blockFormData.append("id", blockId);
 
           if (isTemplateMode) {
-            await deleteTemplateBlock(blockFormData);
+            await deleteTenantBlock(blockFormData);
 
             // 최신 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(
-              templateId || null
-            );
+            const latestBlockSets = await getTenantBlockSets();
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -840,12 +821,10 @@ export function Step1BasicInfo({
           formData.append("name", editingBlockSetName.trim());
 
           if (isTemplateMode) {
-            await updateTemplateBlockSet(formData);
+            await updateTenantBlockSet(formData);
 
             // 최신 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(
-              templateId || null
-            );
+            const latestBlockSets = await getTenantBlockSets();
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }

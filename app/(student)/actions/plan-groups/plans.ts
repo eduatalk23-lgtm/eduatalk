@@ -101,30 +101,42 @@ async function _generatePlansFromGroup(
 
   // 캠프 모드: 템플릿 블록 조회
   if (group.plan_type === "camp" && group.camp_template_id) {
-    const { getCampTemplate } = await import("@/lib/data/campTemplates");
-    const template = await getCampTemplate(group.camp_template_id);
+    // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+    const { data: templateBlockSetLink } = await supabase
+      .from("camp_template_block_sets")
+      .select("tenant_block_set_id")
+      .eq("camp_template_id", group.camp_template_id)
+      .maybeSingle();
 
-    if (template && template.template_data) {
-      const templateData = template.template_data as any;
-      const templateBlockSetId = templateData.block_set_id;
+    let templateBlockSetId: string | null = null;
+    if (templateBlockSetLink) {
+      templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
+    } else {
+      // 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
+      const { getCampTemplate } = await import("@/lib/data/campTemplates");
+      const template = await getCampTemplate(group.camp_template_id);
+      if (template && template.template_data) {
+        const templateData = template.template_data as any;
+        templateBlockSetId = templateData.block_set_id || null;
+      }
+    }
 
-      if (templateBlockSetId) {
-        const { data: blockRows, error: blocksError } = await supabase
-          .from("template_blocks")
-          .select("day_of_week, start_time, end_time")
-          .eq("template_block_set_id", templateBlockSetId)
-          .order("day_of_week", { ascending: true })
-          .order("start_time", { ascending: true });
+    if (templateBlockSetId) {
+      const { data: blockRows, error: blocksError } = await supabase
+        .from("tenant_blocks")
+        .select("day_of_week, start_time, end_time")
+        .eq("tenant_block_set_id", templateBlockSetId)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
 
-        if (blocksError) {
-          console.error("[planGroupActions] 템플릿 블록 조회 실패:", blocksError);
-        } else if (blockRows && blockRows.length > 0) {
-          baseBlocks = blockRows.map((b) => ({
-            day_of_week: b.day_of_week || 0,
-            start_time: b.start_time || "00:00",
-            end_time: b.end_time || "00:00",
-          }));
-        }
+      if (blocksError) {
+        console.error("[planGroupActions] 테넌트 블록 조회 실패:", blocksError);
+      } else if (blockRows && blockRows.length > 0) {
+        baseBlocks = blockRows.map((b) => ({
+          day_of_week: b.day_of_week || 0,
+          start_time: b.start_time || "00:00",
+          end_time: b.end_time || "00:00",
+        }));
       }
     }
   }

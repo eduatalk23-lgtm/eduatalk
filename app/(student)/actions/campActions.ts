@@ -192,6 +192,21 @@ export const submitCampParticipation = withErrorHandling(
 
     const templateData = template.template_data as Partial<WizardData>;
 
+    // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+    let templateBlockSetId: string | null = null;
+    const { data: templateBlockSetLink } = await supabase
+      .from("camp_template_block_sets")
+      .select("tenant_block_set_id")
+      .eq("camp_template_id", template.id)
+      .maybeSingle();
+
+    if (templateBlockSetLink) {
+      templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
+    } else if (templateData.block_set_id) {
+      // 하위 호환성: template_data.block_set_id도 확인 (마이그레이션 전 데이터용)
+      templateBlockSetId = templateData.block_set_id;
+    }
+
     // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
     const templateExclusions = (templateData.exclusions || []).map((exclusion: any) => ({
       ...exclusion,
@@ -214,7 +229,7 @@ export const submitCampParticipation = withErrorHandling(
       scheduler_type: wizardData.scheduler_type || templateData.scheduler_type || "1730_timetable",
       period_start: wizardData.period_start || templateData.period_start || "",
       period_end: wizardData.period_end || templateData.period_end || "",
-      block_set_id: wizardData.block_set_id || templateData.block_set_id || "",
+      block_set_id: wizardData.block_set_id || templateBlockSetId || "",
       // 학생이 입력하는 부분은 wizardData 우선
       academy_schedules: [
         ...templateAcademySchedules,
@@ -296,9 +311,9 @@ export const submitCampParticipation = withErrorHandling(
     creationData.block_set_id = null;
 
     // 템플릿 블록 세트 ID를 scheduler_options에 저장
-    // mergedData.block_set_id 사용 (wizardData.block_set_id || templateData.block_set_id)
+    // mergedData.block_set_id 사용 (wizardData.block_set_id || templateBlockSetId)
     // 학생이 블록을 선택했다면 wizardData.block_set_id가 우선적으로 사용됨
-    const blockSetId = mergedData.block_set_id || templateData.block_set_id;
+    const blockSetId = mergedData.block_set_id || templateBlockSetId;
     if (blockSetId) {
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};

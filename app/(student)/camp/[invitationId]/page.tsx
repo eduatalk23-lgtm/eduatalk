@@ -177,14 +177,22 @@ export default async function CampParticipationPage({
     }>;
   } | null = null;
 
-  if (templateData.block_set_id) {
-    // template_id는 NULL 허용이므로, ID와 tenant_id로만 조회
-    // 보안을 위해 tenant_id로 필터링
+  // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+  const { data: templateBlockSetLink, error: linkError } = await supabase
+    .from("camp_template_block_sets")
+    .select("tenant_block_set_id")
+    .eq("camp_template_id", template.id)
+    .maybeSingle();
+
+  if (linkError) {
+    console.error("[CampParticipationPage] 템플릿 블록 세트 연결 조회 실패:", linkError);
+  } else if (templateBlockSetLink) {
+    // 연결된 블록 세트 정보 조회
     const { data: templateBlockSetData, error: templateBlockSetError } =
       await supabase
-        .from("template_block_sets")
+        .from("tenant_block_sets")
         .select("id, name")
-        .eq("id", templateData.block_set_id)
+        .eq("id", templateBlockSetLink.tenant_block_set_id)
         .eq("tenant_id", template.tenant_id)
         .single();
 
@@ -192,22 +200,22 @@ export default async function CampParticipationPage({
       // 개발 환경에서 상세 로그 출력
       if (process.env.NODE_ENV === "development") {
         console.error("[CampParticipationPage] 템플릿 블록 세트 조회 실패:", {
-          block_set_id: templateData.block_set_id,
+          block_set_id: templateBlockSetLink.tenant_block_set_id,
           template_id: template.id,
           tenant_id: template.tenant_id,
           error: templateBlockSetError,
         });
       }
       validationErrors.push(
-        `템플릿의 블록 세트(ID: ${templateData.block_set_id})를 찾을 수 없습니다. 관리자에게 문의해주세요.`
+        `템플릿의 블록 세트를 찾을 수 없습니다. 관리자에게 문의해주세요.`
       );
     } else {
       // 템플릿 블록 세트의 블록 조회
       const { data: templateBlocks, error: templateBlocksError } =
         await supabase
-          .from("template_blocks")
+          .from("tenant_blocks")
           .select("id, day_of_week, start_time, end_time")
-          .eq("template_block_set_id", templateData.block_set_id)
+          .eq("tenant_block_set_id", templateBlockSetData.id)
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true });
 
@@ -225,6 +233,38 @@ export default async function CampParticipationPage({
           id: templateBlockSetData.id,
           name: `${templateBlockSetData.name} (템플릿)`,
           blocks: templateBlocks.map((b) => ({
+            id: b.id,
+            day_of_week: b.day_of_week,
+            start_time: b.start_time,
+            end_time: b.end_time,
+          })),
+        };
+      }
+    }
+  }
+  
+  // 하위 호환성: template_data.block_set_id도 확인 (마이그레이션 전 데이터용)
+  if (!templateBlockSet && templateData.block_set_id) {
+    const { data: legacyBlockSetData, error: legacyError } = await supabase
+      .from("tenant_block_sets")
+      .select("id, name")
+      .eq("id", templateData.block_set_id)
+      .eq("tenant_id", template.tenant_id)
+      .maybeSingle();
+
+    if (!legacyError && legacyBlockSetData) {
+      const { data: legacyBlocks } = await supabase
+        .from("tenant_blocks")
+        .select("id, day_of_week, start_time, end_time")
+        .eq("tenant_block_set_id", legacyBlockSetData.id)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
+
+      if (legacyBlocks && legacyBlocks.length > 0) {
+        templateBlockSet = {
+          id: legacyBlockSetData.id,
+          name: `${legacyBlockSetData.name} (템플릿)`,
+          blocks: legacyBlocks.map((b) => ({
             id: b.id,
             day_of_week: b.day_of_week,
             start_time: b.start_time,
@@ -299,9 +339,9 @@ export default async function CampParticipationPage({
       templateData.recommended_contents ||
       [],
     exclusions: draftData?.exclusions || templateExclusions,
-    // 블록세트 ID 명시적으로 설정 (템플릿의 block_set_id 사용)
-    // Draft가 있어도 템플릿의 block_set_id를 우선 사용 (캠프 모드에서는 템플릿 블록세트 사용)
-    block_set_id: draftData?.block_set_id || templateData.block_set_id || "",
+    // 블록세트 ID 명시적으로 설정 (연결 테이블에서 가져온 블록 세트 ID 사용)
+    // Draft가 있어도 템플릿의 블록 세트를 우선 사용 (캠프 모드에서는 템플릿 블록세트 사용)
+    block_set_id: draftData?.block_set_id || templateBlockSet?.id || templateData.block_set_id || "",
     // Draft의 groupId 포함 (저장 시 업데이트용)
     groupId: draftData?.groupId,
     // 템플릿 고정 필드 정보 포함 (학생 입력 허용 여부 등)

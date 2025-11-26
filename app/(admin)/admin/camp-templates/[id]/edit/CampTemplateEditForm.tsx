@@ -28,6 +28,7 @@ import { cn } from "@/lib/cn";
 type CampTemplateEditFormProps = {
   template: CampTemplate;
   initialBlockSets: BlockSetWithBlocks[];
+  selectedBlockSetId?: string | null;
 };
 
 const programTypes: Array<{ value: CampProgramType; label: string }> = [
@@ -49,6 +50,7 @@ const statuses: Array<{
 export function CampTemplateEditForm({
   template,
   initialBlockSets,
+  selectedBlockSetId = null,
 }: CampTemplateEditFormProps) {
   const router = useRouter();
   const toast = useToast();
@@ -269,6 +271,8 @@ export function CampTemplateEditForm({
     // 학습기간 명시적으로 포함 (templateData에서 가져오기)
     period_start: templateData.period_start || "",
     period_end: templateData.period_end || "",
+    // 블록 세트 ID: 연결 테이블에서 가져온 값 우선, 없으면 template_data에서 (하위 호환성)
+    block_set_id: selectedBlockSetId || templateData.block_set_id || "",
   };
 
   // 디버깅: templateId 확인 (개발 환경에서만)

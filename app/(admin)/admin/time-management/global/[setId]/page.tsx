@@ -26,12 +26,11 @@ export default async function GlobalBlockSetDetailPage({ params }: PageProps) {
 
   const supabase = await createSupabaseServerClient();
 
-  // 템플릿에 연결되지 않은 블록 세트 조회
+  // 테넌트 블록 세트 조회
   const { data: blockSet, error: setError } = await supabase
-    .from("template_block_sets")
-    .select("id, name, description, template_id")
+    .from("tenant_block_sets")
+    .select("id, name, description")
     .eq("id", setId)
-    .is("template_id", null)
     .eq("tenant_id", tenantContext.tenantId)
     .single();
 
@@ -41,9 +40,9 @@ export default async function GlobalBlockSetDetailPage({ params }: PageProps) {
 
   // 해당 세트의 블록 조회
   const { data: blocks, error: blocksError } = await supabase
-    .from("template_blocks")
+    .from("tenant_blocks")
     .select("id, day_of_week, start_time, end_time")
-    .eq("template_block_set_id", setId)
+    .eq("tenant_block_set_id", setId)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 
