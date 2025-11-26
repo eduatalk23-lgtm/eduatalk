@@ -279,24 +279,70 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
           cachedDetailsRef.current.set(content.content_id, detailData);
           setContentDetails(new Map([[contentKey, detailData]]));
           
-          // 현재 범위에 해당하는 시작/끝 항목 자동 선택
-          const currentRange = {
-            start: content.start_range,
-            end: content.end_range,
-          };
+          // 저장된 상세 정보 ID가 있으면 우선 사용, 없으면 현재 범위로 찾기
+          const savedStartDetailId = (content as any).start_detail_id;
+          const savedEndDetailId = (content as any).end_detail_id;
           
-          if (detailData.type === "book") {
-            const details = detailData.details as BookDetail[];
-            const startDetail = details.find((d) => d.page_number === currentRange.start);
-            const endDetail = details.find((d) => d.page_number === currentRange.end);
-            if (startDetail) setStartDetailId(new Map([[contentKey, startDetail.id]]));
-            if (endDetail) setEndDetailId(new Map([[contentKey, endDetail.id]]));
+          if (savedStartDetailId || savedEndDetailId) {
+            // 저장된 detail_id로 직접 선택
+            if (savedStartDetailId) {
+              setStartDetailId((prev) => {
+                const newMap = new Map(prev);
+                newMap.set(contentKey, savedStartDetailId);
+                return newMap;
+              });
+            }
+            if (savedEndDetailId) {
+              setEndDetailId((prev) => {
+                const newMap = new Map(prev);
+                newMap.set(contentKey, savedEndDetailId);
+                return newMap;
+              });
+            }
           } else {
-            const episodes = detailData.details as LectureEpisode[];
-            const startEpisode = episodes.find((e) => e.episode_number === currentRange.start);
-            const endEpisode = episodes.find((e) => e.episode_number === currentRange.end);
-            if (startEpisode) setStartDetailId(new Map([[contentKey, startEpisode.id]]));
-            if (endEpisode) setEndDetailId(new Map([[contentKey, endEpisode.id]]));
+            // 저장된 detail_id가 없으면 현재 범위로 찾기 (하위 호환성)
+            const currentRange = {
+              start: content.start_range,
+              end: content.end_range,
+            };
+            
+            if (detailData.type === "book") {
+              const details = detailData.details as BookDetail[];
+              const startDetail = details.find((d) => d.page_number === currentRange.start);
+              const endDetail = details.find((d) => d.page_number === currentRange.end);
+              if (startDetail) {
+                setStartDetailId((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.set(contentKey, startDetail.id);
+                  return newMap;
+                });
+              }
+              if (endDetail) {
+                setEndDetailId((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.set(contentKey, endDetail.id);
+                  return newMap;
+                });
+              }
+            } else {
+              const episodes = detailData.details as LectureEpisode[];
+              const startEpisode = episodes.find((e) => e.episode_number === currentRange.start);
+              const endEpisode = episodes.find((e) => e.episode_number === currentRange.end);
+              if (startEpisode) {
+                setStartDetailId((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.set(contentKey, startEpisode.id);
+                  return newMap;
+                });
+              }
+              if (endEpisode) {
+                setEndDetailId((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.set(contentKey, endEpisode.id);
+                  return newMap;
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -1712,7 +1758,15 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
                                     const end = Number(editingRange.end);
                                     if (!isNaN(start) && !isNaN(end) && start <= end && start > 0) {
                                       const updated = [...data.student_contents];
-                                      updated[index] = { ...content, start_range: start, end_range: end };
+                                      const startDetailIdValue = startDetailId.get(contentKey) || null;
+                                      const endDetailIdValue = endDetailId.get(contentKey) || null;
+                                      updated[index] = { 
+                                        ...content, 
+                                        start_range: start, 
+                                        end_range: end,
+                                        start_detail_id: startDetailIdValue,
+                                        end_detail_id: endDetailIdValue,
+                                      };
                                       onUpdate({ student_contents: updated });
                                       setEditingRangeIndex(null);
                                       setEditingRange(null);
@@ -2204,7 +2258,15 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
                                     const end = Number(editingRange.end);
                                     if (!isNaN(start) && !isNaN(end) && start <= end && start > 0) {
                                       const updated = [...data.recommended_contents];
-                                      updated[index] = { ...content, start_range: start, end_range: end };
+                                      const startDetailIdValue = startDetailId.get(contentKey) || null;
+                                      const endDetailIdValue = endDetailId.get(contentKey) || null;
+                                      updated[index] = { 
+                                        ...content, 
+                                        start_range: start, 
+                                        end_range: end,
+                                        start_detail_id: startDetailIdValue,
+                                        end_detail_id: endDetailIdValue,
+                                      };
                                       onUpdate({ recommended_contents: updated });
                                       setEditingRangeIndex(null);
                                       setEditingRange(null);

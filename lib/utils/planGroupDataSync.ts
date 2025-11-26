@@ -97,6 +97,8 @@ export function syncWizardDataToCreationData(
         content_id: c.content_id,
         start_range: c.start_range,
         end_range: c.end_range,
+        start_detail_id: (c as any).start_detail_id ?? null,
+        end_detail_id: (c as any).end_detail_id ?? null,
         display_order: idx,
       })),
       exclusions: wizardData.exclusions.map((e) => ({
@@ -167,6 +169,8 @@ export function syncCreationDataToWizardData(data: {
     content_id: string;
     start_range: number;
     end_range: number;
+    start_detail_id?: string | null; // 시작 범위 상세 정보 ID
+    end_detail_id?: string | null; // 종료 범위 상세 정보 ID
     display_order: number;
     is_auto_recommended?: boolean;
     recommendation_source?: string | null;
@@ -239,6 +243,9 @@ export function syncCreationDataToWizardData(data: {
         content_id: c.content_id,
         start_range: c.start_range,
         end_range: c.end_range,
+        // 상세 정보 ID 포함
+        ...(c.start_detail_id && { start_detail_id: c.start_detail_id }),
+        ...(c.end_detail_id && { end_detail_id: c.end_detail_id }),
         // title과 subject_category가 있으면 포함
         ...(c.title && { title: c.title }),
         ...(c.subject_category && { subject_category: c.subject_category }),

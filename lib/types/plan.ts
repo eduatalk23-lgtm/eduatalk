@@ -237,6 +237,8 @@ export type PlanContent = {
   master_content_id?: string | null; // 마스터 콘텐츠 ID (학생 콘텐츠가 마스터 콘텐츠와 연계된 경우)
   start_range: number;
   end_range: number;
+  start_detail_id?: string | null; // 시작 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
+  end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
   display_order: number;
   // 자동 추천 관련 필드
   is_auto_recommended?: boolean;
@@ -572,6 +574,8 @@ export type PlanContentInput = {
   master_content_id?: string | null; // 마스터 콘텐츠 ID (학생 콘텐츠가 마스터 콘텐츠와 연계된 경우)
   start_range: number;
   end_range: number;
+  start_detail_id?: string | null; // 시작 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
+  end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
   display_order?: number;
 };
 

@@ -95,6 +95,8 @@ export type WizardData = {
     content_id: string;
     start_range: number;
     end_range: number;
+    start_detail_id?: string | null; // 시작 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
+    end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
   }>;
@@ -104,6 +106,8 @@ export type WizardData = {
     content_id: string;
     start_range: number;
     end_range: number;
+    start_detail_id?: string | null; // 시작 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
+    end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
   }>;

@@ -573,7 +573,7 @@ export async function getPlanContents(
     supabase
       .from("plan_contents")
       .select(
-        "id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
+        "id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,start_detail_id,end_detail_id,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
       )
       .eq("plan_group_id", groupId)
       .order("display_order", { ascending: true });
@@ -590,7 +590,7 @@ export async function getPlanContents(
     const fallbackSelect = () =>
       supabase
         .from("plan_contents")
-        .select("id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,display_order")
+        .select("id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,start_detail_id,end_detail_id,display_order")
         .eq("plan_group_id", groupId)
         .order("display_order", { ascending: true });
     
@@ -667,6 +667,8 @@ export async function createPlanContents(
     master_content_id: content.master_content_id ?? null,
     start_range: content.start_range,
     end_range: content.end_range,
+    start_detail_id: (content as any).start_detail_id ?? null,
+    end_detail_id: (content as any).end_detail_id ?? null,
     display_order: content.display_order ?? index,
     // 자동 추천 관련 필드
     is_auto_recommended: content.is_auto_recommended ?? false,

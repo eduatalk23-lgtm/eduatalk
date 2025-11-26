@@ -347,11 +347,17 @@ export function Step3Contents({
         subjectCategory = content?.subtitle || undefined;
       }
 
+      // 상세 정보 ID 가져오기
+      const startDetailIdValue = startDetailId.get(contentId) || null;
+      const endDetailIdValue = endDetailId.get(contentId) || null;
+
       contentsToAdd.push({
         content_type: contentType,
         content_id: contentId,
         start_range: start,
         end_range: end,
+        start_detail_id: startDetailIdValue,
+        end_detail_id: endDetailIdValue,
         title: content?.title, // 제목 정보 저장
         subject_category: subjectCategory, // API를 통해 조회한 subject_category
       });

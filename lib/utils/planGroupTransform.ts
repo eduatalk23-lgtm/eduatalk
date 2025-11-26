@@ -181,6 +181,8 @@ export async function transformPlanGroupToWizardData(
       content_id: c.masterContentId || c.content_id, // 추천 콘텐츠의 경우 원본 마스터 콘텐츠 ID 사용
       start_range: c.start_range,
       end_range: c.end_range,
+      start_detail_id: (c as any).start_detail_id ?? null,
+      end_detail_id: (c as any).end_detail_id ?? null,
       title: c.title,
       subject_category: c.subject_category,
     })),
@@ -189,6 +191,8 @@ export async function transformPlanGroupToWizardData(
       content_id: c.content_id, // 이미 마스터 콘텐츠 ID
       start_range: c.start_range,
       end_range: c.end_range,
+      start_detail_id: (c as any).start_detail_id ?? null,
+      end_detail_id: (c as any).end_detail_id ?? null,
       title: c.title,
       subject_category: c.subject_category,
       // 자동 추천 정보 포함
