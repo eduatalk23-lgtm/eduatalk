@@ -569,6 +569,11 @@ export async function getPlanContents(
 ): Promise<PlanContent[]> {
   const supabase = await createSupabaseServerClient();
 
+  console.log("[getPlanContents] 조회 시작:", {
+    groupId,
+    tenantId,
+  });
+
   const selectContents = () =>
     supabase
       .from("plan_contents")
@@ -584,6 +589,20 @@ export async function getPlanContents(
   }
 
   let { data, error } = await query;
+
+  console.log("[getPlanContents] 조회 결과:", {
+    groupId,
+    tenantId,
+    dataCount: data?.length || 0,
+    error: error ? { message: error.message, code: error.code } : null,
+    contents: data?.map((c) => ({
+      content_type: c.content_type,
+      content_id: c.content_id,
+      master_content_id: c.master_content_id,
+      start_range: c.start_range,
+      end_range: c.end_range,
+    })),
+  });
 
   if (error && error.code === "42703") {
     // 컬럼이 없는 경우 fallback 쿼리 시도
