@@ -186,7 +186,7 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
     // 템플릿 저장 성공 후 시간 관리 페이지로 리다이렉트
     if (result.templateId) {
       toast.showSuccess("템플릿이 성공적으로 생성되었습니다. 이제 블록 세트를 생성해주세요.");
-      router.push(`/admin/camp-templates/${result.templateId}/time-management`);
+      router.push(`/admin/time-management/${result.templateId}`);
     }
   };
 

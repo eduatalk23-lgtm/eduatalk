@@ -799,6 +799,21 @@ export async function createPlanExclusions(
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
+  // 중복 체크: 같은 학생의 같은 날짜 제외일이 이미 있는지 확인
+  // 제외일은 학생별 전역 관리이므로, plan_group_id와 관계없이 student_id + exclusion_date 조합이 unique해야 함
+  const existingExclusions = await getStudentExclusions(group.student_id, tenantId);
+  const existingDates = new Set(existingExclusions.map((e) => e.exclusion_date));
+
+  // 중복된 날짜 필터링
+  const duplicates = exclusions.filter((e) => existingDates.has(e.exclusion_date));
+  if (duplicates.length > 0) {
+    const duplicateDates = duplicates.map((e) => e.exclusion_date).join(", ");
+    return {
+      success: false,
+      error: `이미 등록된 제외일이 있습니다: ${duplicateDates}`,
+    };
+  }
+
   const payload = exclusions.map((exclusion) => ({
     tenant_id: tenantId,
     student_id: group.student_id,
@@ -813,6 +828,14 @@ export async function createPlanExclusions(
   if (error && error.code === "42703") {
     const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
     ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
+  }
+
+  // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
+  if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+    return {
+      success: false,
+      error: "이미 등록된 제외일이 있습니다.",
+    };
   }
 
   if (error) {

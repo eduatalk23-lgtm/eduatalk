@@ -80,6 +80,15 @@ export default function ExclusionManagement({
       return;
     }
 
+    // 클라이언트 측 중복 체크
+    const existingDate = planExclusions.find(
+      (e) => e.exclusion_date === newExclusionDate
+    );
+    if (existingDate) {
+      alert(`이미 등록된 제외일입니다: ${newExclusionDate}`);
+      return;
+    }
+
     startTransition(async () => {
       try {
         const formData = new FormData();

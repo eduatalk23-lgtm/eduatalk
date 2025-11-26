@@ -4,14 +4,21 @@ import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import { getCampInvitationsForTemplate, deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
+import {
+  getCampInvitationsForTemplate,
+  deleteCampTemplateAction,
+  updateCampTemplateStatusAction,
+} from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { StudentInvitationForm } from "./StudentInvitationForm";
 import { CampInvitationList } from "./CampInvitationList";
 import { TemplateChecklist } from "../_components/TemplateChecklist";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { Trash2 } from "lucide-react";
-import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
+import {
+  planPurposeLabels,
+  schedulerTypeLabels,
+} from "@/lib/constants/planLabels";
 
 type CampTemplateDetailProps = {
   template: CampTemplate;
@@ -27,9 +34,20 @@ type CampTemplateDetailProps = {
   } | null;
 };
 
-const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+const weekdayLabels = [
+  "일요일",
+  "월요일",
+  "화요일",
+  "수요일",
+  "목요일",
+  "금요일",
+  "토요일",
+];
 
-export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateDetailProps) {
+export function CampTemplateDetail({
+  template,
+  templateBlockSet,
+}: CampTemplateDetailProps) {
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -37,7 +55,9 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
+  const [currentStatus, setCurrentStatus] = useState<
+    "draft" | "active" | "archived"
+  >(template.status);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
@@ -55,7 +75,9 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
     } catch (error) {
       console.error("초대 목록 로드 실패:", error);
       const errorMessage =
-        error instanceof Error ? error.message : "초대 목록을 불러오는데 실패했습니다.";
+        error instanceof Error
+          ? error.message
+          : "초대 목록을 불러오는데 실패했습니다.";
       // 템플릿이 없는 경우는 조용히 처리
       if (errorMessage.includes("템플릿을 찾을 수 없습니다")) {
         setInvitations([]);
@@ -77,21 +99,26 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
     loadInvitations();
   }, [loadInvitations]);
 
-  const handleStatusChange = async (newStatus: "draft" | "active" | "archived") => {
+  const handleStatusChange = async (
+    newStatus: "draft" | "active" | "archived"
+  ) => {
     if (currentStatus === newStatus) return;
-    
+
     setIsChangingStatus(true);
     try {
-      const result = await updateCampTemplateStatusAction(template.id, newStatus);
+      const result = await updateCampTemplateStatusAction(
+        template.id,
+        newStatus
+      );
       if (result.success) {
         setCurrentStatus(newStatus);
         toast.showSuccess(
-          newStatus === "active" 
-            ? "템플릿이 활성화되었습니다." 
+          newStatus === "active"
+            ? "템플릿이 활성화되었습니다."
             : newStatus === "draft"
             ? currentStatus === "archived"
-            ? "템플릿이 초안 상태로 복원되었습니다."
-            : "템플릿이 초안 상태로 변경되었습니다."
+              ? "템플릿이 초안 상태로 복원되었습니다."
+              : "템플릿이 초안 상태로 변경되었습니다."
             : "템플릿이 보관되었습니다."
         );
         router.refresh();
@@ -138,7 +165,9 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-500">캠프 관리</p>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-semibold text-gray-900">{template.name}</h1>
+              <h1 className="text-3xl font-semibold text-gray-900">
+                {template.name}
+              </h1>
               {/* 상태 배지 */}
               {currentStatus === "draft" && (
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
@@ -203,7 +232,7 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               목록으로
             </Link>
             <Link
-              href={`/admin/camp-templates/${template.id}/time-management`}
+              href={`/admin/time-management/${template.id}`}
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               시간 관리
@@ -246,31 +275,45 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
 
         {/* 템플릿 정보 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">템플릿 정보</h2>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            템플릿 정보
+          </h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-gray-700">생성일</label>
+              <label className="text-sm font-medium text-gray-700">
+                생성일
+              </label>
               <p className="mt-1 text-sm text-gray-600">
                 {new Date(template.created_at).toLocaleDateString("ko-KR")}
               </p>
             </div>
             {template.description && (
               <div className="md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">설명</label>
-                <p className="mt-1 text-sm text-gray-600">{template.description}</p>
+                <label className="text-sm font-medium text-gray-700">
+                  설명
+                </label>
+                <p className="mt-1 text-sm text-gray-600">
+                  {template.description}
+                </p>
               </div>
             )}
             {template.camp_start_date && (
               <div>
-                <label className="text-sm font-medium text-gray-700">캠프 시작일</label>
+                <label className="text-sm font-medium text-gray-700">
+                  캠프 시작일
+                </label>
                 <p className="mt-1 text-sm text-gray-600">
-                  {new Date(template.camp_start_date).toLocaleDateString("ko-KR")}
+                  {new Date(template.camp_start_date).toLocaleDateString(
+                    "ko-KR"
+                  )}
                 </p>
               </div>
             )}
             {template.camp_end_date && (
               <div>
-                <label className="text-sm font-medium text-gray-700">캠프 종료일</label>
+                <label className="text-sm font-medium text-gray-700">
+                  캠프 종료일
+                </label>
                 <p className="mt-1 text-sm text-gray-600">
                   {new Date(template.camp_end_date).toLocaleDateString("ko-KR")}
                 </p>
@@ -278,8 +321,12 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
             )}
             {template.camp_location && (
               <div className="md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">캠프 장소</label>
-                <p className="mt-1 text-sm text-gray-600">{template.camp_location}</p>
+                <label className="text-sm font-medium text-gray-700">
+                  캠프 장소
+                </label>
+                <p className="mt-1 text-sm text-gray-600">
+                  {template.camp_location}
+                </p>
               </div>
             )}
           </div>
@@ -288,26 +335,39 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
         {/* 템플릿 데이터 상세 정보 */}
         {template.template_data && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">템플릿 설정 정보</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              템플릿 설정 정보
+            </h2>
             <div className="grid gap-4 md:grid-cols-2">
               {/* 학습 기간 */}
-              {(template.template_data as any)?.period_start && (template.template_data as any)?.period_end && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">학습 기간</label>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {new Date((template.template_data as any).period_start).toLocaleDateString("ko-KR")} ~{" "}
-                    {new Date((template.template_data as any).period_end).toLocaleDateString("ko-KR")}
-                  </p>
-                </div>
-              )}
+              {(template.template_data as any)?.period_start &&
+                (template.template_data as any)?.period_end && (
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      학습 기간
+                    </label>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {new Date(
+                        (template.template_data as any).period_start
+                      ).toLocaleDateString("ko-KR")}{" "}
+                      ~{" "}
+                      {new Date(
+                        (template.template_data as any).period_end
+                      ).toLocaleDateString("ko-KR")}
+                    </p>
+                  </div>
+                )}
 
               {/* 스케줄러 유형 */}
               {(template.template_data as any)?.scheduler_type && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">스케줄러 유형</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    스케줄러 유형
+                  </label>
                   <p className="mt-1 text-sm text-gray-600">
-                    {schedulerTypeLabels[(template.template_data as any).scheduler_type] || 
-                     (template.template_data as any).scheduler_type}
+                    {schedulerTypeLabels[
+                      (template.template_data as any).scheduler_type
+                    ] || (template.template_data as any).scheduler_type}
                   </p>
                 </div>
               )}
@@ -315,10 +375,13 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               {/* 플랜 목적 */}
               {(template.template_data as any)?.plan_purpose && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">플랜 목적</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    플랜 목적
+                  </label>
                   <p className="mt-1 text-sm text-gray-600">
-                    {planPurposeLabels[(template.template_data as any).plan_purpose] || 
-                     (template.template_data as any).plan_purpose}
+                    {planPurposeLabels[
+                      (template.template_data as any).plan_purpose
+                    ] || (template.template_data as any).plan_purpose}
                   </p>
                 </div>
               )}
@@ -326,10 +389,17 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               {/* 학습일/복습일 주기 */}
               {(template.template_data as any)?.study_review_cycle && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">학습일/복습일 주기</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    학습일/복습일 주기
+                  </label>
                   <p className="mt-1 text-sm text-gray-600">
-                    학습일 {(template.template_data as any).study_review_cycle.study_days || 0}일 / 
-                    복습일 {(template.template_data as any).study_review_cycle.review_days || 0}일
+                    학습일{" "}
+                    {(template.template_data as any).study_review_cycle
+                      .study_days || 0}
+                    일 / 복습일{" "}
+                    {(template.template_data as any).study_review_cycle
+                      .review_days || 0}
+                    일
                   </p>
                 </div>
               )}
@@ -337,9 +407,13 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               {/* 목표 날짜 */}
               {(template.template_data as any)?.target_date && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">목표 날짜</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    목표 날짜
+                  </label>
                   <p className="mt-1 text-sm text-gray-600">
-                    {new Date((template.template_data as any).target_date).toLocaleDateString("ko-KR")}
+                    {new Date(
+                      (template.template_data as any).target_date
+                    ).toLocaleDateString("ko-KR")}
                   </p>
                 </div>
               )}
@@ -347,35 +421,47 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               {/* 학생 입력 허용 필드 */}
               {(template.template_data as any)?.templateLockedFields?.step1 && (
                 <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">학생 입력 허용 필드</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    학생 입력 허용 필드
+                  </label>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {(template.template_data as any).templateLockedFields.step1.allow_student_name && (
+                    {(template.template_data as any).templateLockedFields.step1
+                      .allow_student_name && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
                         이름
                       </span>
                     )}
-                    {(template.template_data as any).templateLockedFields.step1.allow_student_plan_purpose && (
+                    {(template.template_data as any).templateLockedFields.step1
+                      .allow_student_plan_purpose && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
                         플랜 목적
                       </span>
                     )}
-                    {(template.template_data as any).templateLockedFields.step1.allow_student_scheduler_type && (
+                    {(template.template_data as any).templateLockedFields.step1
+                      .allow_student_scheduler_type && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
                         스케줄러 유형
                       </span>
                     )}
-                    {(template.template_data as any).templateLockedFields.step1.allow_student_period && (
+                    {(template.template_data as any).templateLockedFields.step1
+                      .allow_student_period && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
                         학습 기간
                       </span>
                     )}
                     {!(
-                      (template.template_data as any).templateLockedFields.step1.allow_student_name ||
-                      (template.template_data as any).templateLockedFields.step1.allow_student_plan_purpose ||
-                      (template.template_data as any).templateLockedFields.step1.allow_student_scheduler_type ||
-                      (template.template_data as any).templateLockedFields.step1.allow_student_period
+                      (template.template_data as any).templateLockedFields.step1
+                        .allow_student_name ||
+                      (template.template_data as any).templateLockedFields.step1
+                        .allow_student_plan_purpose ||
+                      (template.template_data as any).templateLockedFields.step1
+                        .allow_student_scheduler_type ||
+                      (template.template_data as any).templateLockedFields.step1
+                        .allow_student_period
                     ) && (
-                      <span className="text-xs text-gray-500">학생 입력 허용 필드 없음</span>
+                      <span className="text-xs text-gray-500">
+                        학생 입력 허용 필드 없음
+                      </span>
                     )}
                   </div>
                 </div>
@@ -384,10 +470,14 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               {/* 블록 세트 정보 */}
               {templateBlockSet && (
                 <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">블록 세트</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    블록 세트
+                  </label>
                   <div className="mt-2 space-y-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{templateBlockSet.name}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {templateBlockSet.name}
+                      </p>
                     </div>
                     {templateBlockSet.blocks.length > 0 ? (
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -406,7 +496,9 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500">등록된 시간 블록이 없습니다.</p>
+                      <p className="text-sm text-gray-500">
+                        등록된 시간 블록이 없습니다.
+                      </p>
                     )}
                   </div>
                 </div>
@@ -426,8 +518,8 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               참여자 관리 →
             </Link>
           </div>
-          <CampInvitationList 
-            invitations={invitations} 
+          <CampInvitationList
+            invitations={invitations}
             loading={loadingInvitations}
             templateId={template.id}
             onRefresh={handleInvitationSent}
@@ -436,11 +528,13 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
 
         {/* 학생 초대 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">학생 초대</h2>
-          <StudentInvitationForm 
-            templateId={template.id} 
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            학생 초대
+          </h2>
+          <StudentInvitationForm
+            templateId={template.id}
             templateStatus={template.status}
-            onInvitationSent={handleInvitationSent} 
+            onInvitationSent={handleInvitationSent}
           />
         </div>
       </div>
@@ -456,12 +550,14 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
       >
         <div className="py-4">
           <p className="text-sm text-gray-600">
-            이 템플릿을 삭제하면 관련된 모든 데이터가 함께 삭제됩니다. 삭제된 템플릿은 복구할 수 없습니다.
+            이 템플릿을 삭제하면 관련된 모든 데이터가 함께 삭제됩니다. 삭제된
+            템플릿은 복구할 수 없습니다.
           </p>
           {invitations.length > 0 && (
             <div className="mt-4 rounded-lg bg-yellow-50 p-3">
               <p className="text-sm font-medium text-yellow-800">
-                ⚠️ 이 템플릿에 {invitations.length}개의 초대가 연결되어 있습니다.
+                ⚠️ 이 템플릿에 {invitations.length}개의 초대가 연결되어
+                있습니다.
               </p>
             </div>
           )}
@@ -486,4 +582,3 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
     </section>
   );
 }
-

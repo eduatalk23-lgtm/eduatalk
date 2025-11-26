@@ -179,10 +179,12 @@ async function _addPlanExclusion(formData: FormData): Promise<void> {
   );
 
   if (!result.success) {
+    // 중복 에러인 경우 VALIDATION_ERROR로 처리
+    const isDuplicateError = result.error?.includes("이미 등록된 제외일");
     throw new AppError(
       result.error || "제외일 추가에 실패했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
+      isDuplicateError ? ErrorCode.VALIDATION_ERROR : ErrorCode.DATABASE_ERROR,
+      isDuplicateError ? 400 : 500,
       true
     );
   }

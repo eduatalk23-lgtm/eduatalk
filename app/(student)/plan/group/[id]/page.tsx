@@ -286,7 +286,6 @@ export default async function PlanGroupDetailPage({
                 : null),
           });
         }
-
       }
     } catch (error) {
       console.error("[PlanGroupDetailPage] 템플릿 블록 조회 중 에러:", error);

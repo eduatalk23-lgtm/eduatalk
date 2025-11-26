@@ -303,6 +303,19 @@ const adminCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "admin-time-management",
+    label: "시간 관리",
+    icon: "⏰",
+    items: [
+      {
+        id: "admin-time-management-main",
+        label: "시간 관리",
+        href: "/admin/time-management",
+        icon: "⏰",
+      },
+    ],
+  },
+  {
     id: "admin-camp",
     label: "캠프 관리",
     icon: "🏕️",

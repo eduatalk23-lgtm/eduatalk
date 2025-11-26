@@ -8,11 +8,15 @@
 
 ### 1. 시간 관리 페이지 추가
 
-**파일**: `app/(admin)/admin/camp-templates/[id]/time-management/page.tsx`
+**최상위 경로**: `app/(admin)/admin/time-management/`
 
-- 템플릿별 시간 관리 전용 페이지 생성
+- 시간 관리 최상위 페이지: 템플릿 목록 표시 및 선택
+- 템플릿별 시간 관리 페이지: `app/(admin)/admin/time-management/[templateId]/page.tsx`
 - 템플릿 블록 세트 목록 조회 및 표시
 - 학생 블록 관리 페이지(`app/(student)/blocks/page.tsx`) 구조 참고
+
+**기존 경로 리다이렉트**:
+- `/admin/camp-templates/[id]/time-management` → `/admin/time-management/[templateId]`로 리다이렉트
 
 **컴포넌트 구조**:
 - `TemplateBlockSetManagement.tsx` - 블록 세트 관리 메인 컴포넌트
@@ -131,17 +135,23 @@
 ## 관련 파일
 
 ### 새로 생성된 파일
-- `app/(admin)/admin/camp-templates/[id]/time-management/page.tsx`
-- `app/(admin)/admin/camp-templates/[id]/time-management/_components/TemplateBlockSetManagement.tsx`
-- `app/(admin)/admin/camp-templates/[id]/time-management/_components/TemplateBlocksViewer.tsx`
-- `app/(admin)/admin/camp-templates/[id]/time-management/_components/TemplateBlockForm.tsx`
-- `app/(admin)/admin/camp-templates/[id]/time-management/[setId]/page.tsx`
-- `app/(admin)/admin/camp-templates/[id]/time-management/[setId]/_components/TemplateBlockSetDetail.tsx`
+- `app/(admin)/admin/time-management/page.tsx` - 템플릿 목록 페이지
+- `app/(admin)/admin/time-management/[templateId]/page.tsx` - 템플릿별 시간 관리 페이지
+- `app/(admin)/admin/time-management/[templateId]/_components/TemplateBlockSetManagement.tsx`
+- `app/(admin)/admin/time-management/[templateId]/_components/TemplateBlocksViewer.tsx`
+- `app/(admin)/admin/time-management/[templateId]/_components/TemplateBlockForm.tsx`
+- `app/(admin)/admin/time-management/[templateId]/[setId]/page.tsx` - 블록 세트 상세 페이지
+- `app/(admin)/admin/time-management/[templateId]/[setId]/_components/TemplateBlockSetDetail.tsx`
+
+### 기존 경로 리다이렉트
+- `app/(admin)/admin/camp-templates/[id]/time-management/page.tsx` - 새 경로로 리다이렉트
+- `app/(admin)/admin/camp-templates/[id]/time-management/[setId]/page.tsx` - 새 경로로 리다이렉트
 
 ### 수정된 파일
+- `components/navigation/global/categoryConfig.ts` - 시간 관리 메뉴 추가
 - `app/(admin)/admin/camp-templates/new/CampTemplateForm.tsx`
 - `app/(admin)/actions/campTemplateActions.ts`
-- `app/(admin)/admin/camp-templates/[id]/CampTemplateDetail.tsx`
+- `app/(admin)/admin/camp-templates/[id]/CampTemplateDetail.tsx` - 시간 관리 링크 경로 변경
 - `app/(admin)/admin/camp-templates/[id]/page.tsx`
 - `app/(student)/camp/[invitationId]/submitted/page.tsx`
 - `app/(student)/plan/group/[id]/page.tsx`
