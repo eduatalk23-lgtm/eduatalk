@@ -1682,6 +1682,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
       academySchedules: result.academySchedules,
       templateBlocks,
       templateBlockSetName,
+      student_id: result.group.student_id, // 관리자 모드에서 Step6FinalReview에 전달하기 위해
     };
   }
 );

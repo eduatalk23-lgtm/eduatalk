@@ -209,6 +209,7 @@ export default async function CampContinuePage({
     // 템플릿 블록 세트 ID 설정 (Step1BasicInfo에서 자동 선택하기 위해)
     block_set_id: templateBlockSet?.id || wizardData.block_set_id || "",
     _startStep: 5, // Step 5부터 시작
+    student_id: studentId, // Step6FinalReview에서 API 호출 시 사용
   };
 
   return (
