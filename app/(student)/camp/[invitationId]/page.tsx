@@ -320,11 +320,11 @@ export default async function CampParticipationPage({
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-500">캠프 프로그램</p>
+            <p className="text-sm font-medium text-gray-700">캠프 프로그램</p>
             <h1 className="text-3xl font-semibold text-gray-900">
               {template.name} 참여하기
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-700">
               템플릿 기반 정보를 확인하고, 학원 일정과 학습 콘텐츠를
               입력해주세요.
             </p>
@@ -341,10 +341,10 @@ export default async function CampParticipationPage({
       {/* 템플릿 정보 표시 */}
       <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <h3 className="font-semibold text-blue-900">캠프 프로그램 정보</h3>
-        <p className="text-sm text-blue-700">{template.name}</p>
-        <p className="text-xs text-blue-600">{template.program_type}</p>
+        <p className="text-sm text-blue-800">{template.name}</p>
+        <p className="text-xs text-blue-800">{template.program_type}</p>
         {template.description && (
-          <p className="mt-2 text-sm text-blue-600">{template.description}</p>
+          <p className="mt-2 text-sm text-blue-800">{template.description}</p>
         )}
       </div>
 

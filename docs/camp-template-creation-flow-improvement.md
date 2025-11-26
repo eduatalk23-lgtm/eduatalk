@@ -5,11 +5,13 @@
 기존 방식의 문제점:
 
 1. **복잡한 블록 세트 조회 로직**
+
    - 템플릿 저장 전에 블록 세트를 생성하면 `template_id`가 NULL
    - 템플릿에 연결된 블록 세트와 연결되지 않은 블록 세트를 모두 조회해야 함
    - 조회 로직이 복잡하고 에러 발생 가능성 높음
 
 2. **데이터 일관성 문제**
+
    - `template_id`가 NULL인 블록 세트가 존재
    - 템플릿과 블록 세트의 관계가 명확하지 않음
 
@@ -42,14 +44,17 @@
 ### 장점
 
 1. **데이터 일관성 향상**
+
    - 모든 블록 세트가 특정 템플릿에 연결됨
    - `template_id`가 NULL인 블록 세트가 없음
 
 2. **조회 로직 단순화**
+
    - `getTemplateBlockSets(templateId)`만 호출하면 됨
    - NULL 처리 로직 불필요
 
 3. **보안 강화**
+
    - 템플릿별로 블록 세트가 분리됨
    - 다른 템플릿의 블록 세트에 접근 불가
 
@@ -69,7 +74,9 @@
  * 템플릿 생성 시작 시 호출하여 템플릿 ID를 먼저 생성
  */
 export const createCampTemplateDraftAction = withErrorHandling(
-  async (formData: FormData): Promise<{ success: boolean; templateId?: string; error?: string }> => {
+  async (
+    formData: FormData
+  ): Promise<{ success: boolean; templateId?: string; error?: string }> => {
     // 최소 정보만 검증 (이름, 프로그램 유형)
     const name = String(formData.get("name") ?? "").trim();
     const programType = String(formData.get("program_type") ?? "").trim();
@@ -115,7 +122,9 @@ export default async function NewCampTemplatePage() {
     <section className="mx-auto w-full max-w-4xl px-4 py-10">
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">캠프 템플릿 생성</h1>
+          <h1 className="text-3xl font-semibold text-gray-900">
+            캠프 템플릿 생성
+          </h1>
           <p className="text-sm text-gray-500">
             템플릿 이름과 프로그램 유형을 입력하고 템플릿 생성을 시작하세요.
           </p>
@@ -145,12 +154,12 @@ let initialBlockSets = [];
 try {
   // 템플릿에 연결된 블록 세트 조회 (템플릿 ID가 항상 존재하므로 단순 조회)
   const blockSets = await getTemplateBlockSets(id);
-  initialBlockSets = blockSets.map(bs => ({
+  initialBlockSets = blockSets.map((bs) => ({
     id: bs.id,
     name: bs.name,
-    blocks: bs.blocks || []
+    blocks: bs.blocks || [],
   }));
-  
+
   // template_data에 저장된 block_set_id가 initialBlockSets에 있는지 확인
   // (다른 템플릿에 속했을 수 있으므로 별도 조회)
   // ...
@@ -160,6 +169,7 @@ try {
 ```
 
 **변경 사항**:
+
 - `template_id`가 NULL인 블록 세트 조회 로직 제거
 - 템플릿에 연결된 블록 세트만 조회
 - 코드가 훨씬 단순해짐
@@ -172,7 +182,12 @@ try {
 // 초기 로드 시 블록 세트 목록 자동 로드
 useEffect(() => {
   // 템플릿 모드에서는 templateId가 항상 존재하므로 자동 로드 불필요
-  if (blockSets.length === 0 && !isLoadingBlockSets && !isTemplateMode && !templateId) {
+  if (
+    blockSets.length === 0 &&
+    !isLoadingBlockSets &&
+    !isTemplateMode &&
+    !templateId
+  ) {
     handleLoadBlockSets();
   }
 }, []);
@@ -185,10 +200,12 @@ useEffect(() => {
 기존에 `template_id`가 NULL인 블록 세트가 있을 수 있습니다:
 
 1. **옵션 1: 자동 마이그레이션**
+
    - 기존 NULL 블록 세트를 특정 템플릿에 연결
    - 또는 삭제
 
 2. **옵션 2: 수동 처리**
+
    - 관리자가 직접 처리
    - 더 안전하지만 수동 작업 필요
 
@@ -214,4 +231,3 @@ useEffect(() => {
 - `app/(admin)/admin/camp-templates/[id]/edit/page.tsx`
 - `app/(admin)/actions/campTemplateActions.ts`
 - `app/(student)/plan/new-group/_components/Step1BasicInfo.tsx`
-

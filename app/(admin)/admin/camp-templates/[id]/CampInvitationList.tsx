@@ -17,13 +17,13 @@ export function CampInvitationList({ invitations, loading, templateId, onRefresh
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   if (loading) {
-    return <div className="text-sm text-gray-500">초대 목록을 불러오는 중...</div>;
+    return <div className="text-sm text-gray-700">초대 목록을 불러오는 중...</div>;
   }
 
   if (invitations.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <p className="text-sm text-gray-500">발송된 초대가 없습니다.</p>
+        <p className="text-sm text-gray-700">발송된 초대가 없습니다.</p>
       </div>
     );
   }
@@ -147,15 +147,15 @@ export function CampInvitationList({ invitations, loading, templateId, onRefresh
       {/* 통계 */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="text-sm text-gray-600">대기중</div>
+          <div className="text-sm text-gray-800">대기중</div>
           <div className="mt-1 text-2xl font-semibold text-yellow-600">{stats.pending}</div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="text-sm text-gray-600">수락</div>
+          <div className="text-sm text-gray-800">수락</div>
           <div className="mt-1 text-2xl font-semibold text-green-600">{stats.accepted}</div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="text-sm text-gray-600">거절</div>
+          <div className="text-sm text-gray-800">거절</div>
           <div className="mt-1 text-2xl font-semibold text-red-600">{stats.declined}</div>
         </div>
       </div>
@@ -193,7 +193,7 @@ export function CampInvitationList({ invitations, loading, templateId, onRefresh
             )}
           </div>
           {selectedIds.size > 0 && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-800">
               {selectedIds.size}개 선택됨
             </div>
           )}
@@ -247,7 +247,7 @@ export function CampInvitationList({ invitations, loading, templateId, onRefresh
                 <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
                   {invitation.student_name || "이름 없음"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-800">
                   {invitation.student_grade && invitation.student_class
                     ? `${invitation.student_grade}학년 ${invitation.student_class}반`
                     : "—"}
@@ -269,12 +269,12 @@ export function CampInvitationList({ invitations, loading, templateId, onRefresh
                     </span>
                   )}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-800">
                   {invitation.invited_at
                     ? new Date(invitation.invited_at).toLocaleDateString("ko-KR")
                     : "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-800">
                   {invitation.accepted_at
                     ? new Date(invitation.accepted_at).toLocaleDateString("ko-KR")
                     : invitation.declined_at

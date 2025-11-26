@@ -163,7 +163,7 @@ export function CampTemplateDetail({
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-500">캠프 관리</p>
+            <p className="text-sm font-medium text-gray-700">캠프 관리</p>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-semibold text-gray-900">
                 {template.name}
@@ -180,12 +180,12 @@ export function CampTemplateDetail({
                 </span>
               )}
               {currentStatus === "archived" && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
                   보관
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-500">{template.program_type}</p>
+            <p className="text-sm text-gray-700">{template.program_type}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             {/* 상태 변경 버튼 */}
@@ -283,7 +283,7 @@ export function CampTemplateDetail({
               <label className="text-sm font-medium text-gray-700">
                 생성일
               </label>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-sm text-gray-700">
                 {new Date(template.created_at).toLocaleDateString("ko-KR")}
               </p>
             </div>
@@ -292,7 +292,7 @@ export function CampTemplateDetail({
                 <label className="text-sm font-medium text-gray-700">
                   설명
                 </label>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-700">
                   {template.description}
                 </p>
               </div>
@@ -302,7 +302,7 @@ export function CampTemplateDetail({
                 <label className="text-sm font-medium text-gray-700">
                   캠프 시작일
                 </label>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-700">
                   {new Date(template.camp_start_date).toLocaleDateString(
                     "ko-KR"
                   )}
@@ -314,7 +314,7 @@ export function CampTemplateDetail({
                 <label className="text-sm font-medium text-gray-700">
                   캠프 종료일
                 </label>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-700">
                   {new Date(template.camp_end_date).toLocaleDateString("ko-KR")}
                 </p>
               </div>
@@ -324,7 +324,7 @@ export function CampTemplateDetail({
                 <label className="text-sm font-medium text-gray-700">
                   캠프 장소
                 </label>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-gray-700">
                   {template.camp_location}
                 </p>
               </div>
@@ -346,7 +346,7 @@ export function CampTemplateDetail({
                     <label className="text-sm font-medium text-gray-700">
                       학습 기간
                     </label>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 text-sm text-gray-700">
                       {new Date(
                         (template.template_data as any).period_start
                       ).toLocaleDateString("ko-KR")}{" "}
@@ -364,7 +364,7 @@ export function CampTemplateDetail({
                   <label className="text-sm font-medium text-gray-700">
                     스케줄러 유형
                   </label>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-700">
                     {schedulerTypeLabels[
                       (template.template_data as any).scheduler_type
                     ] || (template.template_data as any).scheduler_type}
@@ -378,7 +378,7 @@ export function CampTemplateDetail({
                   <label className="text-sm font-medium text-gray-700">
                     플랜 목적
                   </label>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-700">
                     {planPurposeLabels[
                       (template.template_data as any).plan_purpose
                     ] || (template.template_data as any).plan_purpose}
@@ -392,7 +392,7 @@ export function CampTemplateDetail({
                   <label className="text-sm font-medium text-gray-700">
                     학습일/복습일 주기
                   </label>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-700">
                     학습일{" "}
                     {(template.template_data as any).study_review_cycle
                       .study_days || 0}
@@ -410,7 +410,7 @@ export function CampTemplateDetail({
                   <label className="text-sm font-medium text-gray-700">
                     목표 날짜
                   </label>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-sm text-gray-700">
                     {new Date(
                       (template.template_data as any).target_date
                     ).toLocaleDateString("ko-KR")}
@@ -459,7 +459,7 @@ export function CampTemplateDetail({
                       (template.template_data as any).templateLockedFields.step1
                         .allow_student_period
                     ) && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-700">
                         학생 입력 허용 필드 없음
                       </span>
                     )}
@@ -489,14 +489,14 @@ export function CampTemplateDetail({
                             <div className="text-sm font-medium text-gray-900">
                               {weekdayLabels[block.day_of_week]}
                             </div>
-                            <div className="text-xs text-gray-600">
+                            <div className="text-xs text-gray-700">
                               {block.start_time} ~ {block.end_time}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-700">
                         등록된 시간 블록이 없습니다.
                       </p>
                     )}
@@ -549,7 +549,7 @@ export function CampTemplateDetail({
         maxWidth="md"
       >
         <div className="py-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-700">
             이 템플릿을 삭제하면 관련된 모든 데이터가 함께 삭제됩니다. 삭제된
             템플릿은 복구할 수 없습니다.
           </p>

@@ -90,15 +90,15 @@ export function TemplateCard({ template }: TemplateCardProps) {
               <h3 className="text-lg font-semibold text-gray-900">
                 {template.name}
               </h3>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-sm text-gray-700">
                 {template.program_type}
               </p>
               {template.description && (
-                <p className="mt-2 text-sm text-gray-500 line-clamp-2">
+                <p className="mt-2 text-sm text-gray-700 line-clamp-2">
                   {template.description}
                 </p>
               )}
-              <p className="mt-3 text-xs text-gray-400">
+              <p className="mt-3 text-xs text-gray-600">
                 {new Date(template.created_at).toLocaleDateString("ko-KR")}
               </p>
             </div>
@@ -114,7 +114,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
                 </span>
               )}
               {currentStatus === "archived" && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
                   보관
                 </span>
               )}
@@ -181,7 +181,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
         maxWidth="md"
       >
         <div className="py-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-700">
             이 템플릿을 삭제하면 관련된 모든 데이터가 함께 삭제됩니다. 삭제된 템플릿은 복구할 수 없습니다.
           </p>
         </div>

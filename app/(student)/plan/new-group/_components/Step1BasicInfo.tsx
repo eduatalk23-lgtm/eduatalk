@@ -251,7 +251,12 @@ export function Step1BasicInfo({
     // blockSets가 비어있고 아직 로딩 중이 아닐 때만 자동 로드
     // templateId가 있으면 서버에서 이미 initialBlockSets를 전달했으므로 자동 로드하지 않음
     // 템플릿 모드에서는 templateId가 항상 존재하므로 자동 로드 불필요
-    if (blockSets.length === 0 && !isLoadingBlockSets && !isTemplateMode && !templateId) {
+    if (
+      blockSets.length === 0 &&
+      !isLoadingBlockSets &&
+      !isTemplateMode &&
+      !templateId
+    ) {
       handleLoadBlockSets();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

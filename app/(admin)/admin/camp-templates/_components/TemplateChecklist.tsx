@@ -27,7 +27,7 @@ export function TemplateChecklist({ template, compact = false }: TemplateCheckli
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">필수요소 점검</h3>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600">
+            <span className="text-sm font-medium text-gray-700">
               {completed}/{total}
             </span>
             <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
@@ -54,7 +54,7 @@ export function TemplateChecklist({ template, compact = false }: TemplateCheckli
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">필수요소 점검</h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-700">
             완료: <span className="font-semibold">{completed}/{total}</span>
           </span>
           <div className="flex items-center gap-2">
@@ -80,7 +80,7 @@ export function TemplateChecklist({ template, compact = false }: TemplateCheckli
         {/* 기본 정보 */}
         {grouped.basic.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">
+            <h3 className="mb-3 text-sm font-semibold text-gray-800">
               {categoryLabels.basic}
             </h3>
             <ul className="flex flex-col gap-2">
@@ -94,7 +94,7 @@ export function TemplateChecklist({ template, compact = false }: TemplateCheckli
         {/* 템플릿 데이터 */}
         {grouped.template_data.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">
+            <h3 className="mb-3 text-sm font-semibold text-gray-800">
               {categoryLabels.template_data}
             </h3>
             <ul className="flex flex-col gap-2">
@@ -108,7 +108,7 @@ export function TemplateChecklist({ template, compact = false }: TemplateCheckli
         {/* 템플릿 설정 */}
         {grouped.wizard_data.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">
+            <h3 className="mb-3 text-sm font-semibold text-gray-800">
               {categoryLabels.wizard_data}
             </h3>
             <ul className="flex flex-col gap-2">
@@ -160,14 +160,14 @@ function ChecklistItemComponent({ item }: ChecklistItemComponentProps) {
           <span
             className={cn(
               "text-sm font-medium",
-              item.checked ? "text-gray-900" : "text-gray-600"
+              item.checked ? "text-gray-900" : "text-gray-700"
             )}
           >
             {item.label}
           </span>
         </div>
         {item.description && !item.checked && (
-          <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+          <p className="mt-1 text-xs text-gray-700">{item.description}</p>
         )}
       </div>
     </li>

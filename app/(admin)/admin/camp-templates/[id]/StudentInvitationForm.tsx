@@ -163,7 +163,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
   const isDisabled = !isActive;
 
   if (loading) {
-    return <div className="text-sm text-gray-500">학생 목록을 불러오는 중...</div>;
+    return <div className="text-sm text-gray-700">학생 목록을 불러오는 중...</div>;
   }
 
   return (
@@ -204,7 +204,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
 
         {/* 선택된 학생 수 */}
         {selectedStudentIds.size > 0 && (
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-800">
             {selectedStudentIds.size}명 선택됨
           </div>
         )}
@@ -213,7 +213,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
       {/* 학생 목록 */}
       <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
         {filteredStudents.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">
+          <div className="p-8 text-center text-sm text-gray-700">
             {searchQuery ? "검색 결과가 없습니다." : "학생이 없습니다."}
           </div>
         ) : (
@@ -232,7 +232,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
                 />
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">{student.name}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-700">
                     {student.grade}학년 {student.class}반
                   </div>
                 </div>

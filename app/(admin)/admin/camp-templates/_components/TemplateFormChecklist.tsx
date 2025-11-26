@@ -39,7 +39,7 @@ export function TemplateFormChecklist({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">기본 정보</h3>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600">
+            <span className="text-sm font-medium text-gray-700">
               {completed}/{total}
             </span>
             <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
@@ -66,7 +66,7 @@ export function TemplateFormChecklist({
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">기본 정보 체크리스트</h2>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-700">
             완료: <span className="font-semibold">{completed}/{total}</span>
           </span>
           <div className="flex items-center gap-2">
@@ -101,16 +101,16 @@ export function TemplateFormChecklist({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span
-                  className={cn(
-                    "text-sm font-medium",
-                    item.checked ? "text-gray-900" : "text-gray-600"
-                  )}
+                className={cn(
+                  "text-sm font-medium",
+                  item.checked ? "text-gray-900" : "text-gray-700"
+                )}
                 >
                   {item.label}
                 </span>
               </div>
               {item.description && !item.checked && (
-                <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+                <p className="mt-1 text-xs text-gray-700">{item.description}</p>
               )}
             </div>
           </li>
