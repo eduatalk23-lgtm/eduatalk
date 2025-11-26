@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentBookDetails, getStudentLectureEpisodes } from "@/lib/data/contentMasters";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
+    const { role } = await getCurrentUserRole();
+    
+    if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -14,6 +17,8 @@ export async function GET(request: NextRequest) {
     const contentType = searchParams.get("contentType");
     const contentId = searchParams.get("contentId");
     const includeMetadata = searchParams.get("includeMetadata") === "true";
+    // 관리자/컨설턴트의 경우 student_id를 쿼리 파라미터로 받음 (캠프 모드)
+    const studentId = searchParams.get("student_id");
 
     if (!contentType || !contentId) {
       return NextResponse.json(
@@ -22,10 +27,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 관리자/컨설턴트의 경우 student_id가 필요
+    if ((role === "admin" || role === "consultant") && !studentId) {
+      return NextResponse.json(
+        { error: "관리자/컨설턴트의 경우 student_id가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
+    const targetStudentId = role === "student" ? user.userId : studentId!;
 
     if (contentType === "book") {
-      const details = await getStudentBookDetails(contentId, user.id);
+      const details = await getStudentBookDetails(contentId, targetStudentId);
       
       if (includeMetadata) {
         // 교재 메타데이터 조회
@@ -33,7 +47,7 @@ export async function GET(request: NextRequest) {
           .from("books")
           .select("subject, semester, revision, difficulty_level, publisher")
           .eq("id", contentId)
-          .eq("student_id", user.id)
+          .eq("student_id", targetStudentId)
           .maybeSingle();
 
         return NextResponse.json({
@@ -44,7 +58,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ details });
     } else if (contentType === "lecture") {
-      const episodes = await getStudentLectureEpisodes(contentId, user.id);
+      const episodes = await getStudentLectureEpisodes(contentId, targetStudentId);
       
       if (includeMetadata) {
         // 강의 메타데이터 조회
@@ -52,7 +66,7 @@ export async function GET(request: NextRequest) {
           .from("lectures")
           .select("subject, semester, revision, difficulty_level, platform")
           .eq("id", contentId)
-          .eq("student_id", user.id)
+          .eq("student_id", targetStudentId)
           .maybeSingle();
 
         return NextResponse.json({

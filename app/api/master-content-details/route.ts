@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
+    const { role } = await getCurrentUserRole();
+    
+    if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

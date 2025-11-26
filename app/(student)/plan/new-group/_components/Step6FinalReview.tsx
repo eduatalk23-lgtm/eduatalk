@@ -119,8 +119,10 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
         // 메타데이터가 없으면 상세 정보 API에서 조회
         if (!metadata && content.content_type !== "custom") {
           try {
+            // 캠프 모드에서 관리자의 경우 student_id를 쿼리 파라미터로 추가
+            const studentIdParam = isCampMode && studentId ? `&student_id=${studentId}` : "";
             const response = await fetch(
-              `/api/student-content-details?contentType=${content.content_type}&contentId=${content.content_id}&includeMetadata=true`
+              `/api/student-content-details?contentType=${content.content_type}&contentId=${content.content_id}&includeMetadata=true${studentIdParam}`
             );
             if (response.ok) {
               const result = await response.json();
@@ -265,8 +267,10 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
       setLoadingDetails(new Set([contentKey]));
 
       try {
+        // 캠프 모드에서 관리자의 경우 student_id를 쿼리 파라미터로 추가
+        const studentIdParam = isCampMode && studentId ? `&student_id=${studentId}` : "";
         const apiPath = editingRangeIndex.type === "student"
-          ? `/api/student-content-details?contentType=${content.content_type}&contentId=${content.content_id}`
+          ? `/api/student-content-details?contentType=${content.content_type}&contentId=${content.content_id}${studentIdParam}`
           : `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`;
 
         const response = await fetch(apiPath);
@@ -573,9 +577,11 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
             
             // 총량 정보가 없으면 상세 정보에서 최대값 추정
             if (!total) {
+              // 캠프 모드에서 관리자의 경우 student_id를 쿼리 파라미터로 추가
+              const studentIdParam = isCampMode && studentId ? `&student_id=${studentId}` : "";
               const detailsApiPath = contentInfo.isRecommended
                 ? `/api/master-content-details?contentType=${contentInfo.content_type}&contentId=${contentInfo.content_id}`
-                : `/api/student-content-details?contentType=${contentInfo.content_type}&contentId=${contentInfo.content_id}`;
+                : `/api/student-content-details?contentType=${contentInfo.content_type}&contentId=${contentInfo.content_id}${studentIdParam}`;
               
               try {
                 const detailsResponse = await fetch(detailsApiPath);
