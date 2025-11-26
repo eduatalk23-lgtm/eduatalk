@@ -1,79 +1,95 @@
 /**
  * School 도메인 타입 정의
+ *
+ * Supabase Database 타입에서 파생됩니다.
+ * @see lib/supabase/database.types.ts
  */
 
-// ============================================
-// 지역 (Region) 타입
-// ============================================
-
-export type Region = {
-  id: string;
-  name: string;
-  parent_id?: string | null;
-  level: number; // 1: 시/도, 2: 시/군/구, 3: 읍/면/동
-  code?: string | null;
-  display_order: number;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-};
+import type { Tables, TablesInsert, TablesUpdate, Enums } from "@/lib/supabase/database.types";
 
 // ============================================
-// 학교 (School) 타입
+// Database 타입에서 파생된 타입
 // ============================================
 
-export type SchoolType = "중학교" | "고등학교" | "대학교";
+/**
+ * 지역 (Region) 타입
+ */
+export type Region = Tables<"regions">;
 
-export type HighSchoolCategory = "일반고" | "특목고" | "자사고" | "특성화고";
+/**
+ * 지역 생성 입력 타입
+ */
+export type RegionInsert = TablesInsert<"regions">;
 
-export type UniversityType = "4년제" | "2년제";
+/**
+ * 지역 수정 입력 타입
+ */
+export type RegionUpdate = TablesUpdate<"regions">;
 
-export type UniversityOwnership = "국립" | "사립";
+/**
+ * 학교 타입
+ */
+export type School = Tables<"schools">;
 
-export type School = {
-  id: string;
-  name: string;
-  type: SchoolType;
-  region_id?: string | null;
-  region?: string | null; // JOIN 결과 (하위 호환성)
-  address?: string | null;
-  postal_code?: string | null;
-  address_detail?: string | null;
-  city?: string | null;
-  district?: string | null;
-  phone?: string | null;
-  // 고등학교 속성
-  category?: HighSchoolCategory | null;
-  // 대학교 속성
-  university_type?: UniversityType | null;
-  university_ownership?: UniversityOwnership | null;
-  campus_name?: string | null;
-  display_order: number;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-};
+/**
+ * 학교 생성 입력 타입
+ */
+export type SchoolInsert = TablesInsert<"schools">;
+
+/**
+ * 학교 수정 입력 타입
+ */
+export type SchoolUpdate = TablesUpdate<"schools">;
 
 // ============================================
-// 조회 옵션 타입
+// Enum 타입
 // ============================================
 
+/**
+ * 학교 유형
+ */
+export type SchoolType = Enums<"school_type">;
+
+/**
+ * 고등학교 유형
+ */
+export type HighSchoolCategory = Enums<"school_category">;
+
+/**
+ * 대학교 유형
+ */
+export type UniversityType = Enums<"university_type">;
+
+/**
+ * 대학교 설립 유형
+ */
+export type UniversityOwnership = Enums<"university_ownership">;
+
+// ============================================
+// 비즈니스 로직용 타입 (도메인 내부 사용)
+// ============================================
+
+/**
+ * 학교 조회 옵션
+ */
 export type GetSchoolsOptions = {
   regionId?: string;
   type?: SchoolType;
   includeInactive?: boolean;
 };
 
+/**
+ * 지역 조회 옵션
+ */
 export type GetRegionsOptions = {
   level?: 1 | 2 | 3;
   parentId?: string;
   includeInactive?: boolean;
 };
 
-// ============================================
-// 생성/수정 입력 타입
-// ============================================
-
+/**
+ * 학교 생성 입력 (서비스용)
+ */
 export type CreateSchoolInput = {
   name: string;
   type: SchoolType;
@@ -92,6 +108,9 @@ export type CreateSchoolInput = {
   campus_name?: string | null;
 };
 
+/**
+ * 학교 수정 입력 (서비스용)
+ */
 export type UpdateSchoolInput = Partial<CreateSchoolInput> & {
   id: string;
 };
@@ -100,6 +119,9 @@ export type UpdateSchoolInput = Partial<CreateSchoolInput> & {
 // 응답 타입
 // ============================================
 
+/**
+ * 학교 액션 결과
+ */
 export type SchoolActionResult = {
   success: boolean;
   error?: string;
@@ -107,13 +129,15 @@ export type SchoolActionResult = {
 };
 
 // ============================================
-// 간소화된 School 타입 (클라이언트용)
+// 클라이언트용 간소화 타입
 // ============================================
 
+/**
+ * 간소화된 학교 정보 (목록, 선택 등에서 사용)
+ */
 export type SchoolSimple = {
   id: string;
   name: string;
   type: SchoolType;
   region: string | null;
 };
-

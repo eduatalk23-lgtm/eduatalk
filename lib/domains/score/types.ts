@@ -1,11 +1,54 @@
 /**
  * Score 도메인 타입 정의
+ *
+ * Supabase Database 타입에서 파생됩니다.
+ * @see lib/supabase/database.types.ts
  */
 
+import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database.types";
+
 // ============================================
-// 통합 성적 타입 (legacy student_scores 테이블)
+// Database 타입에서 파생된 타입
 // ============================================
 
+/**
+ * 내신 성적 타입
+ */
+export type SchoolScore = Tables<"student_school_scores">;
+
+/**
+ * 내신 성적 생성 입력 타입
+ */
+export type SchoolScoreInsert = TablesInsert<"student_school_scores">;
+
+/**
+ * 내신 성적 수정 입력 타입
+ */
+export type SchoolScoreUpdate = TablesUpdate<"student_school_scores">;
+
+/**
+ * 모의고사 성적 타입
+ */
+export type MockScore = Tables<"student_mock_scores">;
+
+/**
+ * 모의고사 성적 생성 입력 타입
+ */
+export type MockScoreInsert = TablesInsert<"student_mock_scores">;
+
+/**
+ * 모의고사 성적 수정 입력 타입
+ */
+export type MockScoreUpdate = TablesUpdate<"student_mock_scores">;
+
+// ============================================
+// 레거시 타입 (하위 호환성)
+// ============================================
+
+/**
+ * 통합 성적 타입 (legacy student_scores 테이블)
+ * @deprecated 내신/모의고사 별도 테이블 사용 권장
+ */
 export type StudentScore = {
   id: string;
   tenant_id?: string | null;
@@ -22,69 +65,12 @@ export type StudentScore = {
 };
 
 // ============================================
-// 내신 성적 타입
-// ============================================
-
-export type SchoolScore = {
-  id: string;
-  tenant_id?: string | null;
-  student_id: string;
-  grade: number; // 학년
-  semester: number; // 학기
-  // FK 필드 (새로운 방식)
-  subject_group_id?: string | null;
-  subject_id?: string | null;
-  subject_type_id?: string | null;
-  // Deprecated: 텍스트 필드 (하위 호환성 유지)
-  /** @deprecated subject_group_id를 사용하세요 */
-  subject_group?: string | null;
-  /** @deprecated subject_type_id를 사용하세요 */
-  subject_type?: string | null;
-  /** @deprecated subject_id를 사용하세요 */
-  subject_name?: string | null;
-  credit_hours?: number | null;
-  raw_score?: number | null;
-  subject_average?: number | null;
-  standard_deviation?: number | null;
-  grade_score?: number | null; // 등급 (1-9)
-  total_students?: number | null;
-  rank_grade?: number | null;
-  created_at?: string | null;
-};
-
-// ============================================
-// 모의고사 성적 타입
-// ============================================
-
-export type MockExamType = "수능" | "평가원" | "교육청" | "사설";
-
-export type MockScore = {
-  id: string;
-  tenant_id?: string | null;
-  student_id: string;
-  grade: number; // 학년
-  exam_type: string;
-  // FK 필드 (새로운 방식)
-  subject_group_id?: string | null;
-  subject_id?: string | null;
-  subject_type_id?: string | null;
-  // Deprecated: 텍스트 필드 (하위 호환성 유지)
-  /** @deprecated subject_group_id를 사용하세요 */
-  subject_group?: string | null;
-  /** @deprecated subject_id를 사용하세요 */
-  subject_name?: string | null;
-  raw_score?: number | null;
-  standard_score?: number | null;
-  percentile?: number | null;
-  grade_score?: number | null; // 등급 (1-9)
-  exam_round?: string | null; // 월 (3, 6, 9, 11 등)
-  created_at?: string | null;
-};
-
-// ============================================
 // 조회 필터 타입
 // ============================================
 
+/**
+ * 내신 성적 조회 필터
+ */
 export type GetSchoolScoresFilter = {
   grade?: number;
   semester?: number;
@@ -92,6 +78,9 @@ export type GetSchoolScoresFilter = {
   subjectGroupId?: string;
 };
 
+/**
+ * 모의고사 성적 조회 필터
+ */
 export type GetMockScoresFilter = {
   grade?: number;
   examType?: string;
@@ -101,9 +90,12 @@ export type GetMockScoresFilter = {
 };
 
 // ============================================
-// 생성/수정 입력 타입
+// 비즈니스 로직용 입력 타입
 // ============================================
 
+/**
+ * 내신 성적 생성 입력 (서비스용)
+ */
 export type CreateSchoolScoreInput = {
   tenant_id?: string | null;
   student_id: string;
@@ -113,10 +105,11 @@ export type CreateSchoolScoreInput = {
   subject_group_id?: string | null;
   subject_id?: string | null;
   subject_type_id?: string | null;
-  // 텍스트 필드 (deprecated)
+  // deprecated 텍스트 필드
   subject_group?: string | null;
   subject_type?: string | null;
   subject_name?: string | null;
+  // 성적 정보
   credit_hours?: number | null;
   raw_score?: number | null;
   subject_average?: number | null;
@@ -126,10 +119,16 @@ export type CreateSchoolScoreInput = {
   rank_grade?: number | null;
 };
 
+/**
+ * 내신 성적 수정 입력 (서비스용)
+ */
 export type UpdateSchoolScoreInput = Partial<
-  Omit<SchoolScore, "id" | "student_id" | "tenant_id" | "created_at">
+  Omit<SchoolScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">
 >;
 
+/**
+ * 모의고사 성적 생성 입력 (서비스용)
+ */
 export type CreateMockScoreInput = {
   tenant_id?: string | null;
   student_id: string;
@@ -139,9 +138,10 @@ export type CreateMockScoreInput = {
   subject_group_id?: string | null;
   subject_id?: string | null;
   subject_type_id?: string | null;
-  // 텍스트 필드 (deprecated)
+  // deprecated 텍스트 필드
   subject_group?: string | null;
   subject_name?: string | null;
+  // 성적 정보
   raw_score?: number | null;
   standard_score?: number | null;
   percentile?: number | null;
@@ -149,17 +149,31 @@ export type CreateMockScoreInput = {
   exam_round?: string | null;
 };
 
+/**
+ * 모의고사 성적 수정 입력 (서비스용)
+ */
 export type UpdateMockScoreInput = Partial<
-  Omit<MockScore, "id" | "student_id" | "tenant_id" | "created_at">
+  Omit<MockScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">
 >;
 
 // ============================================
 // 응답 타입
 // ============================================
 
+/**
+ * 성적 액션 결과
+ */
 export type ScoreActionResult = {
   success: boolean;
   error?: string;
   scoreId?: string;
 };
 
+// ============================================
+// 모의고사 유형 Enum
+// ============================================
+
+/**
+ * 모의고사 유형
+ */
+export type MockExamType = "수능" | "평가원" | "교육청" | "사설";
