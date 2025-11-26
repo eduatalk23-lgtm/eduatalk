@@ -506,6 +506,14 @@ export function Step1BasicInfo({
             // templateId가 있으면 추가, 없으면 템플릿에 연결되지 않은 블록 세트로 생성
             if (templateId) {
               templateFormData.append("template_id", templateId);
+              console.log("[Step1BasicInfo] 템플릿 블록 세트 생성 (템플릿 연결):", {
+                template_id: templateId,
+                name: newBlockSetName.trim(),
+              });
+            } else {
+              console.log("[Step1BasicInfo] 템플릿 블록 세트 생성 (템플릿 미연결):", {
+                name: newBlockSetName.trim(),
+              });
             }
             templateFormData.append("name", newBlockSetName.trim());
             const templateResult = await createTemplateBlockSet(
@@ -513,6 +521,12 @@ export function Step1BasicInfo({
             );
             const templateBlockSetId = templateResult.blockSetId;
             const templateBlockSetName = templateResult.name;
+
+            console.log("[Step1BasicInfo] 템플릿 블록 세트 생성 성공:", {
+              block_set_id: templateBlockSetId,
+              name: templateBlockSetName,
+              template_id: templateId,
+            });
 
             // 2. 추가된 블록들을 실제로 추가 (사용자가 명시적으로 추가한 블록만)
             if (addedBlocks.length > 0) {
@@ -541,9 +555,16 @@ export function Step1BasicInfo({
             }
 
             // 3. 최신 블록 세트 목록 다시 불러오기
+            console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회:", {
+              template_id: templateId || null,
+            });
             const latestBlockSets = await getTemplateBlockSets(
               templateId || null
             );
+            console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회 결과:", {
+              count: latestBlockSets.length,
+              block_set_ids: latestBlockSets.map(bs => bs.id),
+            });
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
