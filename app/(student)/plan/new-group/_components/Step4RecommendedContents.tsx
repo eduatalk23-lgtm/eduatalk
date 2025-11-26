@@ -190,18 +190,27 @@ export function Step4RecommendedContents({
             .map((c) => c.id)
         );
 
-        const { getStudentContentMasterIdsAction } = await import(
-          "@/app/(student)/actions/getStudentContentMasterIds"
-        );
-        const studentContentsForMasterId = data.student_contents.filter(
-          (c) => c.content_type === "book" || c.content_type === "lecture"
+        // 학생 콘텐츠의 master_content_id 수집 (WizardData에서 직접 가져오기 우선)
+        const studentMasterIds = new Set<string>();
+        data.student_contents.forEach((c) => {
+          const masterContentId = (c as any).master_content_id;
+          if (masterContentId) {
+            studentMasterIds.add(masterContentId);
+          }
+        });
+
+        // WizardData에 master_content_id가 없는 경우에만 데이터베이스에서 조회
+        const studentContentsWithoutMasterId = data.student_contents.filter(
+          (c) => (c.content_type === "book" || c.content_type === "lecture") && !(c as any).master_content_id
         ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
-        let studentMasterIds = new Set<string>();
-        if (studentContentsForMasterId.length > 0) {
+        if (studentContentsWithoutMasterId.length > 0) {
           try {
+            const { getStudentContentMasterIdsAction } = await import(
+              "@/app/(student)/actions/getStudentContentMasterIds"
+            );
             const masterIdResult = await getStudentContentMasterIdsAction(
-              studentContentsForMasterId
+              studentContentsWithoutMasterId
             );
             if (masterIdResult.success && masterIdResult.data) {
               masterIdResult.data.forEach((masterId, contentId) => {
@@ -391,19 +400,27 @@ export function Step4RecommendedContents({
             .map((c) => c.id)
         );
 
-        // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
-        const { getStudentContentMasterIdsAction } = await import(
-          "@/app/(student)/actions/getStudentContentMasterIds"
-        );
-        const studentContentsForMasterId = data.student_contents.filter(
-          (c) => c.content_type === "book" || c.content_type === "lecture"
+        // 학생 콘텐츠의 master_content_id 수집 (WizardData에서 직접 가져오기 우선)
+        const studentMasterIds = new Set<string>();
+        data.student_contents.forEach((c) => {
+          const masterContentId = (c as any).master_content_id;
+          if (masterContentId) {
+            studentMasterIds.add(masterContentId);
+          }
+        });
+
+        // WizardData에 master_content_id가 없는 경우에만 데이터베이스에서 조회
+        const studentContentsWithoutMasterId = data.student_contents.filter(
+          (c) => (c.content_type === "book" || c.content_type === "lecture") && !(c as any).master_content_id
         ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
-        let studentMasterIds = new Set<string>();
-        if (studentContentsForMasterId.length > 0) {
+        if (studentContentsWithoutMasterId.length > 0) {
           try {
+            const { getStudentContentMasterIdsAction } = await import(
+              "@/app/(student)/actions/getStudentContentMasterIds"
+            );
             const masterIdResult = await getStudentContentMasterIdsAction(
-              studentContentsForMasterId
+              studentContentsWithoutMasterId
             );
             if (masterIdResult.success && masterIdResult.data) {
               // master_content_id가 있는 것만 Set에 추가

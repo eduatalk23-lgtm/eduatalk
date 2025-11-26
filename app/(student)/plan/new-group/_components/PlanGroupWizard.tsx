@@ -99,6 +99,7 @@ export type WizardData = {
     end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
+    master_content_id?: string | null; // 추가: 마스터 콘텐츠 ID (중복 방지용)
   }>;
   // Step 4 - 추천 콘텐츠
   recommended_contents: Array<{

@@ -389,6 +389,7 @@ export function Step3Contents({
         end_detail_id: endDetailIdValue,
         title: content?.title, // 제목 정보 저장
         subject_category: subjectCategory, // API를 통해 조회한 subject_category
+        master_content_id: content?.master_content_id || null, // 마스터 콘텐츠 ID 저장 (중복 방지용)
       });
     }
 
