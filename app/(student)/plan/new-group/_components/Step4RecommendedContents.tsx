@@ -174,14 +174,15 @@ export function Step4RecommendedContents({
       >();
 
       for (const content of data.student_contents) {
-        // 이미 저장된 subject_category가 있으면 사용
+        // WizardData에서 전달된 title과 subject_category를 우선적으로 사용
         const storedSubjectCategory = (content as any).subject_category;
         const storedTitle = (content as any).title;
 
-        if (storedSubjectCategory && storedTitle) {
+        // title이나 subject_category 중 하나라도 있으면 저장된 정보 사용
+        if (storedTitle || storedSubjectCategory) {
           subjectMap.set(content.content_id, {
-            title: storedTitle,
-            subject_category: storedSubjectCategory,
+            title: storedTitle || "알 수 없음",
+            subject_category: storedSubjectCategory || null,
           });
           continue;
         }
@@ -895,13 +896,13 @@ export function Step4RecommendedContents({
             {/* 추가된 학생 콘텐츠 목록 */}
             <div className="space-y-1">
               {data.student_contents.map((content, index) => {
-                const contentInfo =
-                  studentContentSubjects.get(content.content_id);
-                const title = contentInfo?.title || (content as any).title || "알 수 없음";
-                const subjectCategory =
-                  contentInfo?.subject_category ||
-                  (content as any).subject_category ||
-                  null;
+                // 우선순위: 1) WizardData에서 전달된 정보, 2) studentContentSubjects Map, 3) fallback
+                const storedTitle = (content as any).title;
+                const storedSubjectCategory = (content as any).subject_category;
+                const contentInfo = studentContentSubjects.get(content.content_id);
+                
+                const title = storedTitle || contentInfo?.title || "알 수 없음";
+                const subjectCategory = storedSubjectCategory || contentInfo?.subject_category || null;
 
                 return (
                   <div

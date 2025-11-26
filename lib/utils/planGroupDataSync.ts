@@ -171,6 +171,8 @@ export function syncCreationDataToWizardData(data: {
     is_auto_recommended?: boolean;
     recommendation_source?: string | null;
     recommendation_reason?: string | null;
+    title?: string; // 콘텐츠 제목
+    subject_category?: string; // 과목 카테고리
   }>;
   exclusions: Array<{
     exclusion_date: string;
@@ -237,6 +239,9 @@ export function syncCreationDataToWizardData(data: {
         content_id: c.content_id,
         start_range: c.start_range,
         end_range: c.end_range,
+        // title과 subject_category가 있으면 포함
+        ...(c.title && { title: c.title }),
+        ...(c.subject_category && { subject_category: c.subject_category }),
       };
 
       if (c.is_auto_recommended || c.recommendation_source) {

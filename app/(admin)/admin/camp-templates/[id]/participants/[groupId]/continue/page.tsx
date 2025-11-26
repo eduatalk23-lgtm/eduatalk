@@ -131,7 +131,7 @@ export default async function CampContinuePage({
   const { studentContents: classifiedStudentContents, recommendedContents: classifiedRecommendedContents } = 
     await classifyPlanContents(contents, studentId);
 
-  // 콘텐츠 정보를 Map으로 변환하여 빠른 조회
+  // 콘텐츠 정보를 Map으로 변환하여 빠른 조회 (content_id를 키로 사용)
   const contentsMap = new Map(
     [...classifiedStudentContents, ...classifiedRecommendedContents].map((c) => [c.content_id, c])
   );
@@ -148,13 +148,14 @@ export default async function CampContinuePage({
         return !(c.is_auto_recommended || c.recommendation_source);
       })
       .map((c) => {
+        // classifyPlanContents에서 조회한 정보를 우선적으로 사용
         const classifiedContent = contentsMap.get(c.content_id);
         return {
           ...c,
           // classifyPlanContents에서 조회한 정보가 있으면 사용
-          // 없으면 기존 데이터 사용 (fallback)
-          title: classifiedContent?.title,
-          subject_category: classifiedContent?.subject_category,
+          // title과 subject_category를 명시적으로 전달하여 정보 손실 방지
+          title: classifiedContent?.title || undefined,
+          subject_category: classifiedContent?.subject_category || undefined,
         };
       }),
     exclusions,
