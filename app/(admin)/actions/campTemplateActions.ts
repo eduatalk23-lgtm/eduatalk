@@ -876,6 +876,8 @@ export const resendCampInvitationsAction = withErrorHandling(
  */
 export const getCampPlanGroupForReview = withErrorHandling(
   async (groupId: string) => {
+    console.log("[getCampPlanGroupForReview] 함수 호출됨, groupId:", groupId);
+    
     const { role } = await getCurrentUserRole();
     if (role !== "admin" && role !== "consultant") {
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
@@ -886,12 +888,22 @@ export const getCampPlanGroupForReview = withErrorHandling(
       throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
     }
 
+    console.log("[getCampPlanGroupForReview] 플랜 그룹 조회 시작, tenantId:", tenantContext.tenantId);
+
     const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
     const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
 
     if (!result.group) {
+      console.error("[getCampPlanGroupForReview] 플랜 그룹을 찾을 수 없음, groupId:", groupId);
       throw new AppError("플랜 그룹을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
     }
+
+    console.log("[getCampPlanGroupForReview] 플랜 그룹 조회 성공:", {
+      groupId: result.group.id,
+      planType: result.group.plan_type,
+      campTemplateId: result.group.camp_template_id,
+      schedulerOptions: JSON.stringify(result.group.scheduler_options),
+    });
 
     // 캠프 플랜 그룹인지 확인
     if (result.group.plan_type !== "camp") {
@@ -926,12 +938,11 @@ export const getCampPlanGroupForReview = withErrorHandling(
         const schedulerOptions = (result.group.scheduler_options as any) || {};
         let templateBlockSetId = schedulerOptions.template_block_set_id;
         
-        if (process.env.NODE_ENV === "development") {
-          console.log("[getCampPlanGroupForReview] 템플릿 블록 세트 ID 조회:", {
-            fromSchedulerOptions: templateBlockSetId,
-            schedulerOptions: JSON.stringify(schedulerOptions),
-          });
-        }
+        console.log("[getCampPlanGroupForReview] 템플릿 블록 세트 ID 조회:", {
+          fromSchedulerOptions: templateBlockSetId,
+          schedulerOptions: JSON.stringify(schedulerOptions),
+          hasTemplateData: !!template.template_data,
+        });
         
         // scheduler_options에 없으면 template_data에서 확인
         if (!templateBlockSetId && template.template_data) {
@@ -945,12 +956,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
             
             templateBlockSetId = templateData?.block_set_id;
             
-            if (process.env.NODE_ENV === "development") {
-              console.log("[getCampPlanGroupForReview] template_data에서 조회:", {
-                block_set_id: templateBlockSetId,
-                templateDataKeys: templateData ? Object.keys(templateData) : [],
-              });
-            }
+            console.log("[getCampPlanGroupForReview] template_data에서 조회:", {
+              block_set_id: templateBlockSetId,
+              templateDataKeys: templateData ? Object.keys(templateData) : [],
+            });
           } catch (parseError) {
             console.error("[getCampPlanGroupForReview] template_data 파싱 에러:", parseError);
           }
@@ -995,43 +1004,40 @@ export const getCampPlanGroupForReview = withErrorHandling(
                 end_time: b.end_time,
               }));
               
-              if (process.env.NODE_ENV === "development") {
-                console.log("[getCampPlanGroupForReview] 템플릿 블록 조회 성공:", {
-                  blockSetName: templateBlockSetName,
-                  blockCount: templateBlocks.length,
-                });
-              }
+              console.log("[getCampPlanGroupForReview] 템플릿 블록 조회 성공:", {
+                blockSetName: templateBlockSetName,
+                blockCount: templateBlocks.length,
+              });
             } else {
-              if (process.env.NODE_ENV === "development") {
-                console.warn("[getCampPlanGroupForReview] 템플릿 블록이 없음:", {
-                  templateBlockSetId,
-                  templateBlockSetName,
-                });
-              }
-            }
-          } else {
-            if (process.env.NODE_ENV === "development") {
-              console.warn("[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:", {
+              console.warn("[getCampPlanGroupForReview] 템플릿 블록이 없음:", {
                 templateBlockSetId,
-                templateId: result.group.camp_template_id,
+                templateBlockSetName,
               });
             }
-          }
-        } else {
-          if (process.env.NODE_ENV === "development") {
-            console.warn("[getCampPlanGroupForReview] template_block_set_id를 찾을 수 없음:", {
-              campTemplateId: result.group.camp_template_id,
-              schedulerOptions: JSON.stringify(schedulerOptions),
-              hasTemplateData: !!template.template_data,
+          } else {
+            console.warn("[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:", {
+              templateBlockSetId,
+              templateId: result.group.camp_template_id,
             });
           }
+        } else {
+          console.warn("[getCampPlanGroupForReview] template_block_set_id를 찾을 수 없음:", {
+            campTemplateId: result.group.camp_template_id,
+            schedulerOptions: JSON.stringify(schedulerOptions),
+            hasTemplateData: !!template.template_data,
+          });
         }
       }
     } else {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getCampPlanGroupForReview] camp_template_id가 없음");
-      }
+      console.warn("[getCampPlanGroupForReview] camp_template_id가 없음, groupId:", groupId);
     }
+    
+    console.log("[getCampPlanGroupForReview] 최종 결과:", {
+      templateBlocksCount: templateBlocks.length,
+      templateBlockSetName,
+      exclusionsCount: result.exclusions.length,
+      academySchedulesCount: result.academySchedules.length,
+    });
 
     // 콘텐츠 상세 정보 조회 (관리자가 학생의 추가 콘텐츠 정보를 제대로 볼 수 있도록)
     let contentsWithDetails = result.contents;
