@@ -50,8 +50,8 @@ async function _generatePlansFromGroup(
   let group, contents, exclusions, academySchedules;
   if (role === "admin" || role === "consultant") {
     const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
-    const tenantContext = await getTenantContext();
-    const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext?.tenantId || "");
+    const tenantContext = await requireTenantContext();
+    const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
     group = result.group;
     contents = result.contents;
     exclusions = result.exclusions;
@@ -1892,15 +1892,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       );
     }
 
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
+    const tenantContext = await requireTenantContext();
 
     const supabase = await createSupabaseServerClient();
 
