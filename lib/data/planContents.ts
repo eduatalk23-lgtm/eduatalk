@@ -164,6 +164,7 @@ export async function classifyPlanContents(
   contents: Array<{
     content_type: "book" | "lecture" | "custom";
     content_id: string;
+    master_content_id?: string | null; // 마스터 콘텐츠 ID (plan_contents에서 조회한 값)
     start_range: number;
     end_range: number;
     // 자동 추천 관련 필드 (선택)
@@ -335,8 +336,9 @@ export async function classifyPlanContents(
     });
   }
 
-  // 4. 마스터 콘텐츠 ID 추출 (학생 콘텐츠의 master_content_id)
+  // 4. 마스터 콘텐츠 ID 추출 (학생 콘텐츠의 master_content_id + plan_contents의 master_content_id)
   const masterContentIdsForLookup = new Set<string>();
+  // 학생 콘텐츠의 master_content_id
   [...studentBooksMap.values(), ...studentLecturesMap.values()].forEach(
     (item) => {
       if (item.master_content_id) {
@@ -344,6 +346,12 @@ export async function classifyPlanContents(
       }
     }
   );
+  // plan_contents의 master_content_id (fallback용)
+  contents.forEach((content) => {
+    if (content.master_content_id && (content.content_type === "book" || content.content_type === "lecture")) {
+      masterContentIdsForLookup.add(content.master_content_id);
+    }
+  });
 
   // 5. 원본 마스터 콘텐츠 조회 (학생 콘텐츠의 원본 참조용)
   const [originalMasterBooksResult, originalMasterLecturesResult] =
@@ -441,11 +449,35 @@ export async function classifyPlanContents(
           };
         } else {
           // 학생 교재를 찾지 못한 경우
-          missingContents.push({
-            content_type: "book",
-            content_id: content.content_id,
-            reason: `학생(${studentId})의 교재를 찾을 수 없습니다. master_books에도 존재하지 않습니다.`,
-          });
+          // plan_contents에 저장된 master_content_id로 마스터 콘텐츠 조회 시도 (fallback)
+          if (content.master_content_id) {
+            const fallbackMasterBook = originalMasterBooksMap.get(content.master_content_id);
+            if (fallbackMasterBook) {
+              // 마스터 콘텐츠 정보로 표시 (학생 콘텐츠가 삭제되었을 수 있음)
+              contentDetail = {
+                content_type: "book",
+                content_id: content.content_id,
+                start_range: content.start_range,
+                end_range: content.end_range,
+                title: fallbackMasterBook.title || "제목 없음",
+                subject_category: fallbackMasterBook.subject_category || fallbackMasterBook.subject || null,
+                isRecommended: false,
+                masterContentId: content.master_content_id,
+              };
+            } else {
+              missingContents.push({
+                content_type: "book",
+                content_id: content.content_id,
+                reason: `학생(${studentId})의 교재를 찾을 수 없습니다. master_books(${content.master_content_id})에도 존재하지 않습니다.`,
+              });
+            }
+          } else {
+            missingContents.push({
+              content_type: "book",
+              content_id: content.content_id,
+              reason: `학생(${studentId})의 교재를 찾을 수 없습니다. master_books에도 존재하지 않습니다.`,
+            });
+          }
         }
       }
     } else if (content.content_type === "lecture") {
@@ -508,11 +540,35 @@ export async function classifyPlanContents(
           };
         } else {
           // 학생 강의를 찾지 못한 경우
-          missingContents.push({
-            content_type: "lecture",
-            content_id: content.content_id,
-            reason: `학생(${studentId})의 강의를 찾을 수 없습니다. master_lectures에도 존재하지 않습니다.`,
-          });
+          // plan_contents에 저장된 master_content_id로 마스터 콘텐츠 조회 시도 (fallback)
+          if (content.master_content_id) {
+            const fallbackMasterLecture = originalMasterLecturesMap.get(content.master_content_id);
+            if (fallbackMasterLecture) {
+              // 마스터 콘텐츠 정보로 표시 (학생 콘텐츠가 삭제되었을 수 있음)
+              contentDetail = {
+                content_type: "lecture",
+                content_id: content.content_id,
+                start_range: content.start_range,
+                end_range: content.end_range,
+                title: fallbackMasterLecture.title || "제목 없음",
+                subject_category: fallbackMasterLecture.subject_category || fallbackMasterLecture.subject || null,
+                isRecommended: false,
+                masterContentId: content.master_content_id,
+              };
+            } else {
+              missingContents.push({
+                content_type: "lecture",
+                content_id: content.content_id,
+                reason: `학생(${studentId})의 강의를 찾을 수 없습니다. master_lectures(${content.master_content_id})에도 존재하지 않습니다.`,
+              });
+            }
+          } else {
+            missingContents.push({
+              content_type: "lecture",
+              content_id: content.content_id,
+              reason: `학생(${studentId})의 강의를 찾을 수 없습니다. master_lectures에도 존재하지 않습니다.`,
+            });
+          }
         }
       }
     } else if (content.content_type === "custom") {
