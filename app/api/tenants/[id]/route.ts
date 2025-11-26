@@ -1,8 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import {
+  apiSuccess,
+  apiNoContent,
+  apiForbidden,
+  apiValidationError,
+  handleApiError,
+} from "@/lib/api";
 
-// PUT: tenant 수정
+type Tenant = {
+  id: string;
+  name: string;
+  type: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 테넌트 수정 API
+ * PUT /api/tenants/[id]
+ *
+ * @body { name: string, type?: string }
+ * @returns
+ * 성공: { success: true, data: Tenant }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,27 +36,24 @@ export async function PUT(
 
     // Super Admin만 접근 가능
     if (tenantContext?.role !== "superadmin") {
-      return NextResponse.json(
-        { error: "권한이 없습니다." },
-        { status: 403 }
-      );
+      return apiForbidden("Super Admin만 기관을 수정할 수 있습니다.");
     }
 
     const body = await request.json();
     const { name, type } = body;
 
-    if (!name) {
-      return NextResponse.json(
-        { error: "기관명은 필수입니다." },
-        { status: 400 }
-      );
+    // 입력 검증
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return apiValidationError("입력값이 올바르지 않습니다.", {
+        name: ["기관명은 필수입니다."],
+      });
     }
 
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("tenants")
       .update({
-        name,
+        name: name.trim(),
         type: type || "academy",
       })
       .eq("id", id)
@@ -41,24 +61,23 @@ export async function PUT(
       .single();
 
     if (error) {
-      console.error("[api] tenant 수정 실패", error);
-      return NextResponse.json(
-        { error: "기관 수정에 실패했습니다." },
-        { status: 500 }
-      );
+      return handleApiError(error, "[api/tenants] 수정 실패");
     }
 
-    return NextResponse.json(data);
+    return apiSuccess(data as Tenant);
   } catch (error) {
-    console.error("[api] tenant 수정 오류", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/tenants] 수정 오류");
   }
 }
 
-// DELETE: tenant 삭제
+/**
+ * 테넌트 삭제 API
+ * DELETE /api/tenants/[id]
+ *
+ * @returns
+ * 성공: { success: true, data: null }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -69,10 +88,7 @@ export async function DELETE(
 
     // Super Admin만 접근 가능
     if (tenantContext?.role !== "superadmin") {
-      return NextResponse.json(
-        { error: "권한이 없습니다." },
-        { status: 403 }
-      );
+      return apiForbidden("Super Admin만 기관을 삭제할 수 있습니다.");
     }
 
     const supabase = await createSupabaseServerClient();
@@ -82,20 +98,11 @@ export async function DELETE(
       .eq("id", id);
 
     if (error) {
-      console.error("[api] tenant 삭제 실패", error);
-      return NextResponse.json(
-        { error: "기관 삭제에 실패했습니다." },
-        { status: 500 }
-      );
+      return handleApiError(error, "[api/tenants] 삭제 실패");
     }
 
-    return NextResponse.json({ success: true });
+    return apiNoContent();
   } catch (error) {
-    console.error("[api] tenant 삭제 오류", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/tenants] 삭제 오류");
   }
 }
-

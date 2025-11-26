@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
+import {
+  apiSuccess,
+  apiUnauthorized,
+  handleApiError,
+} from "@/lib/api";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -16,11 +20,24 @@ function normalizeIsoDate(value: string | null): string | null {
 
 export const dynamic = "force-dynamic";
 
+type TodayProgressResponse = {
+  planDate: string;
+  progress: Awaited<ReturnType<typeof calculateTodayProgress>>;
+};
+
+/**
+ * 오늘의 성취도 조회 API
+ * GET /api/today/progress?date=YYYY-MM-DD
+ *
+ * @returns
+ * 성공: { success: true, data: TodayProgressResponse }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiUnauthorized();
     }
 
     const tenantContext = await getTenantContext();
@@ -39,17 +56,11 @@ export async function GET(request: Request) {
       targetDate
     );
 
-    return NextResponse.json({
+    return apiSuccess<TodayProgressResponse>({
       planDate: targetDate,
       progress,
     });
   } catch (error) {
-    console.error("[API /today/progress] 오류:", error);
-    return NextResponse.json(
-      { error: "성취도 정보를 불러오는 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/today/progress] 오류");
   }
 }
-
-

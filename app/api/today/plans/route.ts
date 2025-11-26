@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import {
   getBooks,
@@ -9,6 +8,11 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
+import {
+  apiSuccess,
+  apiUnauthorized,
+  handleApiError,
+} from "@/lib/api";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -23,11 +27,26 @@ function normalizeIsoDate(value: string | null): string | null {
 
 export const dynamic = "force-dynamic";
 
+type TodayPlansResponse = {
+  plans: PlanWithContent[];
+  sessions: Record<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
+  planDate: string;
+  isToday: boolean;
+};
+
+/**
+ * 오늘의 플랜 조회 API
+ * GET /api/today/plans?date=YYYY-MM-DD
+ *
+ * @returns
+ * 성공: { success: true, data: TodayPlansResponse }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiUnauthorized();
     }
 
     const tenantContext = await getTenantContext();
@@ -95,7 +114,7 @@ export async function GET(request: Request) {
     }
 
     if (plans.length === 0) {
-      return NextResponse.json({
+      return apiSuccess<TodayPlansResponse>({
         plans: [],
         sessions: {},
         planDate: displayDate,
@@ -126,7 +145,7 @@ export async function GET(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const contentMap = new Map<string, any>();
+    const contentMap = new Map<string, unknown>();
     books.forEach((book) => contentMap.set(`book:${book.id}`, book));
     lectures.forEach((lecture) => contentMap.set(`lecture:${lecture.id}`, lecture));
     customContents.forEach((custom) => contentMap.set(`custom:${custom.id}`, custom));
@@ -166,14 +185,13 @@ export async function GET(request: Request) {
     });
 
     // 플랜 데이터를 PlanWithContent 형식으로 변환
-    // denormalized 필드 제거 (content 객체에 이미 포함되어 있음)
     const plansWithContent: PlanWithContent[] = plans.map((plan) => {
       const contentKey = `${plan.content_type}:${plan.content_id}`;
       const content = contentMap.get(contentKey);
       const progress = progressMap.get(contentKey) ?? null;
       const session = sessionMap.get(plan.id);
 
-      // denormalized 필드 제거 (content 객체에 이미 포함)
+      // denormalized 필드 제거
       const {
         content_title,
         content_subject,
@@ -194,25 +212,19 @@ export async function GET(request: Request) {
       };
     });
 
-    // 세션 데이터를 객체로 변환 (JSON 직렬화용)
+    // 세션 데이터를 객체로 변환
     const sessionsObj: Record<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }> = {};
     sessionMap.forEach((value, key) => {
       sessionsObj[key] = value;
     });
 
-
-    return NextResponse.json({
+    return apiSuccess<TodayPlansResponse>({
       plans: plansWithContent,
       sessions: sessionsObj,
       planDate: displayDate,
       isToday,
     });
   } catch (error) {
-    console.error("[API /today/plans] 오류:", error);
-    return NextResponse.json(
-      { error: "플랜 조회 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/today/plans] 오류");
   }
 }
-

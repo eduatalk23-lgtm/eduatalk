@@ -1,55 +1,66 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import {
+  apiSuccess,
+  apiCreated,
+  apiForbidden,
+  apiValidationError,
+  handleApiError,
+} from "@/lib/api";
 
-// POST: 새 tenant 생성
+type Tenant = {
+  id: string;
+  name: string;
+  type: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 테넌트 생성 API
+ * POST /api/tenants
+ *
+ * @body { name: string, type?: string }
+ * @returns
+ * 성공: { success: true, data: Tenant }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function POST(request: NextRequest) {
   try {
     const tenantContext = await getTenantContext();
 
     // Super Admin만 접근 가능
     if (tenantContext?.role !== "superadmin") {
-      return NextResponse.json(
-        { error: "권한이 없습니다." },
-        { status: 403 }
-      );
+      return apiForbidden("Super Admin만 기관을 생성할 수 있습니다.");
     }
 
     const body = await request.json();
     const { name, type } = body;
 
-    if (!name) {
-      return NextResponse.json(
-        { error: "기관명은 필수입니다." },
-        { status: 400 }
-      );
+    // 입력 검증
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return apiValidationError("입력값이 올바르지 않습니다.", {
+        name: ["기관명은 필수입니다."],
+      });
     }
 
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("tenants")
       .insert({
-        name,
+        name: name.trim(),
         type: type || "academy",
       })
       .select()
       .single();
 
     if (error) {
-      console.error("[api] tenant 생성 실패", error);
-      return NextResponse.json(
-        { error: "기관 생성에 실패했습니다." },
-        { status: 500 }
-      );
+      return handleApiError(error, "[api/tenants] 생성 실패");
     }
 
-    return NextResponse.json(data);
+    return apiCreated(data as Tenant);
   } catch (error) {
-    console.error("[api] tenant 생성 오류", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/tenants] 생성 오류");
   }
 }
-
