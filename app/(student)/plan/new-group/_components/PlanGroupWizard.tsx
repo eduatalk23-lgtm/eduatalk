@@ -1198,25 +1198,28 @@ export function PlanGroupWizard({
       {/* 상단 액션 바 */}
       <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2">
-          <Link
-            href={
-              isTemplateMode
-                ? "/admin/camp-templates"
+          {/* 캠프 모드일 때는 버튼 숨김 (상위 페이지의 '목록으로 돌아가기' 버튼 사용) */}
+          {!isCampMode && (
+            <Link
+              href={
+                isTemplateMode
+                  ? "/admin/camp-templates"
+                  : isEditMode
+                  ? `/plan/group/${draftGroupId}`
+                  : "/plan"
+              }
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              {isTemplateMode
+                ? "템플릿 목록"
                 : isEditMode
-                ? `/plan/group/${draftGroupId}`
-                : "/plan"
-            }
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            {isTemplateMode
-              ? "템플릿 목록"
-              : isEditMode
-              ? "상세 보기"
-              : "플랜 목록"}
-          </Link>
+                ? "상세 보기"
+                : "플랜 목록"}
+            </Link>
+          )}
         </div>
         <div className="flex items-center gap-4">
           {!isTemplateMode && autoSaveStatus !== "idle" && (
