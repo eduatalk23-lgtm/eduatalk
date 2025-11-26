@@ -1454,14 +1454,37 @@ export const getCampPlanGroupForReview = withErrorHandling(
           }
         }
 
-        if (templateBlockSetId) {
-          // 템플릿 블록 세트 조회
+        // 새로운 연결 테이블 방식으로 블록 세트 조회
+        let tenantBlockSetId: string | null = null;
+        
+        // 1. 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+        const { data: templateBlockSetLink, error: linkError } = await supabase
+          .from("camp_template_block_sets")
+          .select("tenant_block_set_id")
+          .eq("camp_template_id", result.group.camp_template_id)
+          .maybeSingle();
+
+        if (linkError) {
+          console.error(
+            "[getCampPlanGroupForReview] 템플릿 블록 세트 연결 조회 에러:",
+            linkError
+          );
+        } else if (templateBlockSetLink) {
+          tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
+        } else {
+          // 하위 호환성: templateBlockSetId가 이미 tenant_block_sets의 ID일 수 있음
+          // 또는 template_data.block_set_id 확인 (마이그레이션 전 데이터용)
+          tenantBlockSetId = templateBlockSetId;
+        }
+
+        if (tenantBlockSetId) {
+          // 2. tenant_block_sets에서 블록 세트 정보 조회
           const { data: templateBlockSet, error: blockSetError } =
             await supabase
-              .from("template_block_sets")
+              .from("tenant_block_sets")
               .select("id, name")
-              .eq("id", templateBlockSetId)
-              .eq("template_id", result.group.camp_template_id)
+              .eq("id", tenantBlockSetId)
+              .eq("tenant_id", tenantContext.tenantId)
               .maybeSingle();
 
           if (blockSetError) {
@@ -1469,18 +1492,18 @@ export const getCampPlanGroupForReview = withErrorHandling(
               "[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:",
               {
                 error: blockSetError,
-                templateBlockSetId,
+                tenantBlockSetId,
                 templateId: result.group.camp_template_id,
               }
             );
           } else if (templateBlockSet) {
             templateBlockSetName = templateBlockSet.name;
 
-            // 템플릿 블록 조회
+            // 3. tenant_blocks 테이블에서 블록 조회
             const { data: blocks, error: blocksError } = await supabase
-              .from("template_blocks")
+              .from("tenant_blocks")
               .select("id, day_of_week, start_time, end_time")
-              .eq("template_block_set_id", templateBlockSetId)
+              .eq("tenant_block_set_id", tenantBlockSetId)
               .order("day_of_week", { ascending: true })
               .order("start_time", { ascending: true });
 
@@ -1489,7 +1512,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
                 "[getCampPlanGroupForReview] 템플릿 블록 조회 에러:",
                 {
                   error: blocksError,
-                  templateBlockSetId,
+                  tenantBlockSetId,
                 }
               );
             } else if (blocks && blocks.length > 0) {
@@ -1509,7 +1532,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
               );
             } else {
               console.warn("[getCampPlanGroupForReview] 템플릿 블록이 없음:", {
-                templateBlockSetId,
+                tenantBlockSetId,
                 templateBlockSetName,
               });
             }
@@ -1517,7 +1540,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
             console.warn(
               "[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:",
               {
-                templateBlockSetId,
+                tenantBlockSetId,
                 templateId: result.group.camp_template_id,
               }
             );
@@ -2140,36 +2163,46 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
         // 3. 템플릿 블록 세트 검증 (캠프 모드)
         if (result.group.camp_template_id) {
-          const { data: templateData } = await supabase
-            .from("camp_templates")
-            .select("template_data")
-            .eq("id", result.group.camp_template_id)
+          // 새로운 연결 테이블 방식으로 블록 세트 조회
+          const { data: templateBlockSetLink } = await supabase
+            .from("camp_template_block_sets")
+            .select("tenant_block_set_id")
+            .eq("camp_template_id", result.group.camp_template_id)
             .maybeSingle();
 
-          if (templateData?.template_data) {
-            const templateDataObj = templateData.template_data as any;
-            const templateBlockSetId = templateDataObj.block_set_id;
+          let tenantBlockSetId: string | null = null;
+          if (templateBlockSetLink) {
+            tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
+          } else {
+            // 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
+            const { data: templateData } = await supabase
+              .from("camp_templates")
+              .select("template_data")
+              .eq("id", result.group.camp_template_id)
+              .maybeSingle();
 
-            if (templateBlockSetId) {
-              const { data: templateBlocks } = await supabase
-                .from("template_blocks")
-                .select("id")
-                .eq("template_block_set_id", templateBlockSetId)
-                .limit(1);
+            if (templateData?.template_data) {
+              const templateDataObj = templateData.template_data as any;
+              tenantBlockSetId = templateDataObj.block_set_id || null;
+            }
+          }
 
-              if (!templateBlocks || templateBlocks.length === 0) {
-                validationErrors.push(
-                  "템플릿 블록 세트에 블록이 없습니다. 관리자에게 문의해주세요."
-                );
-              }
-            } else {
+          if (tenantBlockSetId) {
+            // tenant_blocks 테이블에서 블록 조회
+            const { data: templateBlocks } = await supabase
+              .from("tenant_blocks")
+              .select("id")
+              .eq("tenant_block_set_id", tenantBlockSetId)
+              .limit(1);
+
+            if (!templateBlocks || templateBlocks.length === 0) {
               validationErrors.push(
-                "템플릿 블록 세트가 설정되지 않았습니다. 관리자에게 문의해주세요."
+                "템플릿 블록 세트에 블록이 없습니다. 관리자에게 문의해주세요."
               );
             }
           } else {
             validationErrors.push(
-              "템플릿 정보를 찾을 수 없습니다. 관리자에게 문의해주세요."
+              "템플릿 블록 세트가 설정되지 않았습니다. 관리자에게 문의해주세요."
             );
           }
         }

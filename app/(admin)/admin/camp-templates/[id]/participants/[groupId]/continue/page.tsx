@@ -62,7 +62,7 @@ export default async function CampContinuePage({
     .eq("id", studentId)
     .single();
 
-  // 템플릿 블록 세트 조회 (캠프 모드)
+  // 템플릿 블록 세트 조회 (캠프 모드) - 새로운 연결 테이블 방식
   let templateBlockSet: {
     id: string;
     name: string;
@@ -75,44 +75,63 @@ export default async function CampContinuePage({
   } | null = null;
 
   if (group.camp_template_id) {
-    const { data: templateBlockSetData } = await supabase
-      .from("camp_templates")
-      .select("template_data")
-      .eq("id", group.camp_template_id)
-      .single();
+    // 1. 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+    const { data: templateBlockSetLink, error: linkError } = await supabase
+      .from("camp_template_block_sets")
+      .select("tenant_block_set_id")
+      .eq("camp_template_id", group.camp_template_id)
+      .maybeSingle();
 
-    if (templateBlockSetData?.template_data) {
-      const templateData = templateBlockSetData.template_data as any;
-      const blockSetId = templateData.block_set_id;
+    let tenantBlockSetId: string | null = null;
+    if (templateBlockSetLink) {
+      tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
+    } else {
+      // 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
+      const { data: templateBlockSetData } = await supabase
+        .from("camp_templates")
+        .select("template_data")
+        .eq("id", group.camp_template_id)
+        .maybeSingle();
 
-      if (blockSetId) {
-        const { data: templateBlockSetInfo } = await supabase
-          .from("template_block_sets")
-          .select("id, name")
-          .eq("id", blockSetId)
-          .eq("template_id", group.camp_template_id)
-          .single();
+      if (templateBlockSetData?.template_data) {
+        const templateData = templateBlockSetData.template_data as any;
+        tenantBlockSetId = templateData.block_set_id || null;
+      }
+    }
 
-        if (templateBlockSetInfo) {
-          const { data: templateBlocks } = await supabase
-            .from("template_blocks")
-            .select("id, day_of_week, start_time, end_time")
-            .eq("template_block_set_id", blockSetId)
-            .order("day_of_week", { ascending: true })
-            .order("start_time", { ascending: true });
+    if (tenantBlockSetId) {
+      // 2. tenant_block_sets에서 블록 세트 정보 조회
+      const { data: templateBlockSetInfo, error: blockSetError } = await supabase
+        .from("tenant_block_sets")
+        .select("id, name")
+        .eq("id", tenantBlockSetId)
+        .eq("tenant_id", tenantContext.tenantId)
+        .maybeSingle();
 
-          if (templateBlocks && templateBlocks.length > 0) {
-            templateBlockSet = {
-              id: templateBlockSetInfo.id,
-              name: `${templateBlockSetInfo.name} (템플릿)`,
-              blocks: templateBlocks.map((b) => ({
-                id: b.id,
-                day_of_week: b.day_of_week,
-                start_time: b.start_time,
-                end_time: b.end_time,
-              })),
-            };
-          }
+      if (blockSetError) {
+        console.error("[CampContinuePage] 템플릿 블록 세트 조회 에러:", blockSetError);
+      } else if (templateBlockSetInfo) {
+        // 3. tenant_blocks 테이블에서 블록 조회
+        const { data: templateBlocks, error: blocksError } = await supabase
+          .from("tenant_blocks")
+          .select("id, day_of_week, start_time, end_time")
+          .eq("tenant_block_set_id", tenantBlockSetId)
+          .order("day_of_week", { ascending: true })
+          .order("start_time", { ascending: true });
+
+        if (blocksError) {
+          console.error("[CampContinuePage] 템플릿 블록 조회 에러:", blocksError);
+        } else if (templateBlocks && templateBlocks.length > 0) {
+          templateBlockSet = {
+            id: templateBlockSetInfo.id,
+            name: `${templateBlockSetInfo.name} (템플릿)`,
+            blocks: templateBlocks.map((b) => ({
+              id: b.id,
+              day_of_week: b.day_of_week,
+              start_time: b.start_time,
+              end_time: b.end_time,
+            })),
+          };
         }
       }
     }
