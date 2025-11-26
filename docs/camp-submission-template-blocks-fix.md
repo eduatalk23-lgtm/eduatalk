@@ -7,10 +7,12 @@
 ### 원인 분석
 
 1. **템플릿 블록 세트 ID 조회 경로 부족**
+
    - `template_data.block_set_id`에서만 조회 시도
    - `campActions.ts`에서 템플릿 블록 세트 ID를 `scheduler_options.template_block_set_id`에 저장하는데, 이 경로를 확인하지 않음
 
 2. **템플릿 블록 세트 조회 조건 문제**
+
    - `template_block_sets` 조회 시 `template_id` 조건을 함께 사용하여, 일부 경우 조회 실패 가능
 
 3. **에러 처리 및 디버깅 로그 부족**
@@ -40,7 +42,7 @@ if (!blockSetId && group.scheduler_options) {
   } else {
     schedulerOptions = group.scheduler_options;
   }
-  
+
   if (schedulerOptions?.template_block_set_id) {
     blockSetId = schedulerOptions.template_block_set_id;
   }
@@ -80,7 +82,10 @@ if (templateBlockSet.template_id !== group.camp_template_id) {
 try {
   templateData = JSON.parse(template.template_data);
 } catch (parseError) {
-  console.error("[CampSubmissionDetailPage] template_data 파싱 에러:", parseError);
+  console.error(
+    "[CampSubmissionDetailPage] template_data 파싱 에러:",
+    parseError
+  );
   templateData = null;
 }
 
@@ -94,10 +99,12 @@ console.log("[CampSubmissionDetailPage] 템플릿 블록 조회 성공:", {
 ## 📋 변경 사항 요약
 
 1. **템플릿 블록 세트 ID 조회 경로 확장**
+
    - `template_data.block_set_id` 확인
    - `scheduler_options.template_block_set_id` 확인 (추가)
 
 2. **템플릿 블록 세트 조회 로직 개선**
+
    - `template_id` 조건 제거 (조회 시)
    - 조회 후 `template_id` 일치 여부 검증 (보안)
 
@@ -124,4 +131,3 @@ console.log("[CampSubmissionDetailPage] 템플릿 블록 조회 성공:", {
 - `campActions.ts`의 `submitCampParticipation` 함수에서 템플릿 블록 세트 ID를 `scheduler_options.template_block_set_id`에 저장함
 - 템플릿 블록 세트는 `template_block_sets` 테이블에 저장되며, `template_id`로 템플릿과 연결됨
 - 템플릿 블록은 `template_blocks` 테이블에 저장되며, `template_block_set_id`로 블록 세트와 연결됨
-
