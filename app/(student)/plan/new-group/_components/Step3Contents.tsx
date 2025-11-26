@@ -284,6 +284,32 @@ export function Step3Contents({
   };
 
   const addSelectedContents = async () => {
+    // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
+    const { getStudentContentMasterIdsAction } = await import(
+      "@/app/(student)/actions/getStudentContentMasterIds"
+    );
+    const studentContentsForMasterId = data.student_contents.filter(
+      (c) => c.content_type === "book" || c.content_type === "lecture"
+    ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
+
+    let studentMasterIds = new Set<string>();
+    if (studentContentsForMasterId.length > 0) {
+      try {
+        const masterIdResult = await getStudentContentMasterIdsAction(
+          studentContentsForMasterId
+        );
+        if (masterIdResult.success && masterIdResult.data) {
+          masterIdResult.data.forEach((masterId, contentId) => {
+            if (masterId) {
+              studentMasterIds.add(masterId);
+            }
+          });
+        }
+      } catch (error) {
+        console.warn("[Step3Contents] master_content_id 조회 실패:", error);
+      }
+    }
+
     const contentsToAdd: Array<{
       content_type: "book" | "lecture";
       content_id: string;
@@ -312,22 +338,52 @@ export function Step3Contents({
       const isBook = contents.books.some((b) => b.id === contentId);
       const contentType = isBook ? "book" : "lecture";
 
+      // 콘텐츠 정보 조회 (제목 및 과목 카테고리)
+      const content = isBook
+        ? contents.books.find((b) => b.id === contentId)
+        : contents.lectures.find((l) => l.id === contentId);
+
       // 중복 체크 (학생 콘텐츠와 추천 콘텐츠 모두 확인)
-      if (
+      // 1. content_id로 직접 비교
+      const isDuplicateByContentId =
         data.student_contents.some(
           (c) => c.content_type === contentType && c.content_id === contentId
         ) ||
         data.recommended_contents.some(
           (c) => c.content_type === contentType && c.content_id === contentId
-        )
-      ) {
+        );
+
+      // 2. master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
+      // 2-1. 추가하려는 콘텐츠가 마스터에서 가져온 경우
+      //      → 이미 추가된 학생 콘텐츠의 master_content_id와 비교
+      //      → 추천 콘텐츠의 content_id와 비교 (추천 콘텐츠는 마스터 콘텐츠 ID를 content_id로 사용)
+      const isDuplicateByMasterId =
+        content?.master_content_id &&
+        (studentMasterIds.has(content.master_content_id) ||
+          // 추천 콘텐츠의 content_id가 마스터 콘텐츠 ID인 경우
+          data.recommended_contents.some(
+            (c) =>
+              c.content_type === contentType &&
+              (c.content_id === content.master_content_id ||
+                (c as any).master_content_id === content.master_content_id)
+          ));
+
+      // 2-2. 추가하려는 콘텐츠가 마스터에서 가져온 것이 아닌 경우
+      //      → 추천 콘텐츠로 이미 추가된 마스터 콘텐츠의 content_id와 비교
+      //      (추천 콘텐츠는 마스터 콘텐츠 ID를 content_id로 사용하므로)
+      const isDuplicateByRecommendedMasterId =
+        !content?.master_content_id &&
+        data.recommended_contents.some(
+          (c) =>
+            c.content_type === contentType &&
+            // 추천 콘텐츠의 content_id가 마스터 콘텐츠 ID인 경우
+            // 학생 콘텐츠의 content_id가 추천 콘텐츠의 content_id와 같으면 중복
+            c.content_id === contentId
+        );
+
+      if (isDuplicateByContentId || isDuplicateByMasterId || isDuplicateByRecommendedMasterId) {
         continue; // 이미 추가된 콘텐츠는 스킵
       }
-
-      // 콘텐츠 정보 조회 (제목 및 과목 카테고리)
-      const content = isBook
-        ? contents.books.find((b) => b.id === contentId)
-        : contents.lectures.find((l) => l.id === contentId);
 
       // subject_category 조회 (서버 액션 사용)
       let subjectCategory: string | undefined = undefined;
