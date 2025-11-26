@@ -51,21 +51,26 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
   // 백업 정보 수집 (관리자/운영자용)
   try {
     // 1. 플랜 목록 조회
-    const { data: plans } = await supabase
+    const plansQuery = supabase
       .from("student_plan")
       .select("*")
       .eq("plan_group_id", groupId)
       .eq("student_id", user.userId);
 
-    // 2. 플랜 진행률 조회
+    // 병렬로 쿼리 실행
+    const [{ data: plans }] = await Promise.all([plansQuery]);
+
+    // 2. 플랜 진행률 조회 (플랜이 있는 경우에만)
     const planIds = plans?.map((p) => p.id) || [];
-    const { data: progressData } =
+    const progressQuery =
       planIds.length > 0
-        ? await supabase
+        ? supabase
             .from("student_content_progress")
             .select("*")
             .in("plan_id", planIds)
-        : { data: null };
+        : Promise.resolve({ data: null, error: null });
+
+    const { data: progressData } = await progressQuery;
 
     // 3. 백업 데이터 구성
     const backupData = {
