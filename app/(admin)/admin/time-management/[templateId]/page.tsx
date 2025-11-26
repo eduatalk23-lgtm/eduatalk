@@ -5,7 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
-import { getTemplateBlockSets } from "@/app/(admin)/actions/templateBlockSets";
+import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
+import { getTemplateBlockSet } from "@/app/(admin)/actions/campTemplateBlockSets";
 import TemplateBlockSetManagement from "./_components/TemplateBlockSetManagement";
 import Link from "next/link";
 
@@ -42,7 +43,7 @@ export default async function TimeManagementPage({
 
   const template = result.template;
 
-  // 템플릿 블록 세트 목록 조회
+  // 모든 테넌트 블록 세트 목록 조회
   let blockSets: Array<{
     id: string;
     name: string;
@@ -50,14 +51,26 @@ export default async function TimeManagementPage({
   }> = [];
 
   try {
-    blockSets = await getTemplateBlockSets(templateId);
+    blockSets = await getTenantBlockSets();
+  } catch (error) {
+    console.error("블록 세트 조회 실패:", error);
+  }
+
+  // 템플릿에 연결된 블록 세트 조회
+  let selectedBlockSetId: string | null = null;
+  try {
+    const linkedBlockSet = await getTemplateBlockSet(templateId);
+    if (linkedBlockSet) {
+      selectedBlockSetId = linkedBlockSet.id;
+      // 연결된 블록 세트가 blockSets에 없으면 추가
+      const hasBlockSet = blockSets.some(set => set.id === linkedBlockSet.id);
+      if (!hasBlockSet) {
+        blockSets = [linkedBlockSet, ...blockSets];
+      }
+    }
   } catch (error) {
     console.error("템플릿 블록 세트 조회 실패:", error);
   }
-
-  // template_data에서 현재 선택된 block_set_id 확인
-  const templateData = template.template_data as any;
-  const selectedBlockSetId = templateData?.block_set_id || null;
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-8 md:py-10">

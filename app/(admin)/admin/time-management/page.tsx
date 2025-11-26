@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getAllTemplateBlockSets } from "@/app/(admin)/actions/templateBlockSets";
+import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
 import TemplateBlockSetManagement from "./_components/TemplateBlockSetManagement";
 
 export default async function TimeManagementPage() {
@@ -24,16 +24,15 @@ export default async function TimeManagementPage() {
     );
   }
 
-  // 템플릿에 연결되지 않은 블록 세트 목록 조회
+  // 모든 테넌트 블록 세트 목록 조회
   let blockSets: Array<{
     id: string;
     name: string;
-    template_id: string | null;
     blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
   }> = [];
 
   try {
-    blockSets = await getAllTemplateBlockSets();
+    blockSets = await getTenantBlockSets();
   } catch (error) {
     console.error("블록 세트 조회 실패:", error);
   }

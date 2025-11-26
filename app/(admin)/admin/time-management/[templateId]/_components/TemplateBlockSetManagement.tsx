@@ -40,8 +40,8 @@ export default function TemplateBlockSetManagement({
   // 특정 세트의 블록만 업데이트
   const updateSetBlocks = useCallback(async (setId: string) => {
     try {
-      const { getTemplateBlockSets } = await import("@/app/(admin)/actions/templateBlockSets");
-      const data = await getTemplateBlockSets(templateId);
+      const { getTenantBlockSets } = await import("@/app/(admin)/actions/tenantBlockSets");
+      const data = await getTenantBlockSets();
       
       const updatedSet = data.find(s => s.id === setId);
       if (updatedSet) {
@@ -56,7 +56,7 @@ export default function TemplateBlockSetManagement({
     } catch (error) {
       console.error(`세트 ${setId}의 블록 조회 실패:`, error);
     }
-  }, [templateId]);
+  }, []);
 
   // 전체 데이터 로드
   const loadData = useCallback(async (skipLoadingState = false) => {
@@ -66,10 +66,25 @@ export default function TemplateBlockSetManagement({
         setError(null);
       }
 
-      const { getTemplateBlockSets } = await import("@/app/(admin)/actions/templateBlockSets");
-      const data = await getTemplateBlockSets(templateId);
+      const { getTenantBlockSets } = await import("@/app/(admin)/actions/tenantBlockSets");
+      const { getTemplateBlockSet } = await import("@/app/(admin)/actions/campTemplateBlockSets");
+      
+      // 모든 테넌트 블록 세트 조회
+      const data = await getTenantBlockSets();
+      
+      // 템플릿에 연결된 블록 세트 조회
+      const linkedBlockSet = await getTemplateBlockSet(templateId);
+      let allBlockSets = data;
+      
+      if (linkedBlockSet) {
+        // 연결된 블록 세트가 목록에 없으면 추가
+        const hasBlockSet = data.some(set => set.id === linkedBlockSet.id);
+        if (!hasBlockSet) {
+          allBlockSets = [linkedBlockSet, ...data];
+        }
+      }
 
-      const updatedSets = (data || []).map(set => ({
+      const updatedSets = (allBlockSets || []).map(set => ({
         id: set.id,
         name: set.name,
         description: null,

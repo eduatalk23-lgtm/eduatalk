@@ -3,7 +3,7 @@
 import { useMemo, useState, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlockForm from "./TemplateBlockForm";
-import { createTemplateBlockSet } from "@/app/(admin)/actions/templateBlockSets";
+import { createTenantBlockSet } from "@/app/(admin)/actions/tenantBlockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -151,10 +151,10 @@ export default function TemplateBlocksViewer({
                         return;
                       }
                       try {
-                        const { deleteTemplateBlockSet } = await import("@/app/(admin)/actions/templateBlockSets");
+                        const { deleteTenantBlockSet } = await import("@/app/(admin)/actions/tenantBlockSets");
                         const formData = new FormData();
                         formData.append("id", set.id);
-                        await deleteTemplateBlockSet(formData);
+                        await deleteTenantBlockSet(formData);
                         if (onCreateSetSuccess) {
                           await onCreateSetSuccess();
                         }
@@ -337,15 +337,12 @@ function TemplateBlockSetCreateForm({
           return { error: firstError?.message || "입력값이 올바르지 않습니다." };
         }
 
-        // templateId가 있으면 추가, 없으면 null로 처리
-        if (templateId) {
-          formData.append("template_id", templateId);
-        }
-        const result = await createTemplateBlockSet(formData);
+        // template_id는 더 이상 필요 없음 (tenant_id만 사용)
+        const result = await createTenantBlockSet(formData);
         
         // 시간 블록이 입력된 경우 추가
         if (selectedWeekdays.length > 0 && startTime && endTime) {
-          const { addTemplateBlock } = await import("@/app/(admin)/actions/templateBlockSets");
+          const { addTenantBlock } = await import("@/app/(admin)/actions/tenantBlockSets");
           for (const day of selectedWeekdays) {
             const blockFormData = new FormData();
             blockFormData.append("day", String(day));
@@ -354,7 +351,7 @@ function TemplateBlockSetCreateForm({
             blockFormData.append("block_set_id", result.blockSetId);
             
             try {
-              await addTemplateBlock(blockFormData);
+              await addTenantBlock(blockFormData);
             } catch (blockError: any) {
               console.warn("블록 추가 실패:", blockError);
             }

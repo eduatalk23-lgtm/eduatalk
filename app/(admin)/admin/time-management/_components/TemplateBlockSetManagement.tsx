@@ -3,13 +3,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "../[templateId]/_components/TemplateBlocksViewer";
-import { getAllTemplateBlockSets } from "@/app/(admin)/actions/templateBlockSets";
+import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
 
 type BlockSet = {
   id: string;
   name: string;
   description?: string | null;
-  template_id: string | null;
   blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
 };
 
@@ -18,7 +17,6 @@ type TemplateBlockSetManagementProps = {
     id: string; 
     name: string; 
     description?: string | null;
-    template_id?: string | null;
     blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> 
   }>;
 };
@@ -31,7 +29,6 @@ export default function TemplateBlockSetManagement({
     id: set.id,
     name: set.name,
     description: set.description ?? null,
-    template_id: set.template_id ?? null,
     blocks: set.blocks ?? [],
   })));
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +37,7 @@ export default function TemplateBlockSetManagement({
   // 특정 세트의 블록만 업데이트
   const updateSetBlocks = useCallback(async (setId: string) => {
     try {
-      const data = await getAllTemplateBlockSets();
+      const data = await getTenantBlockSets();
       
       const updatedSet = data.find(s => s.id === setId);
       if (updatedSet) {
@@ -65,13 +62,12 @@ export default function TemplateBlockSetManagement({
         setError(null);
       }
 
-      const data = await getAllTemplateBlockSets();
+      const data = await getTenantBlockSets();
 
       const updatedSets = (data || []).map(set => ({
         id: set.id,
         name: set.name,
         description: null,
-        template_id: set.template_id ?? null,
         blocks: set.blocks ?? [],
       }));
 

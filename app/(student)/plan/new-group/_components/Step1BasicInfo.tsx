@@ -504,14 +504,12 @@ export function Step1BasicInfo({
             // 1. 테넌트 블록 세트 생성 (tenant_id만 사용)
             const templateFormData = new FormData();
             templateFormData.append("name", newBlockSetName.trim());
-            
+
             console.log("[Step1BasicInfo] 테넌트 블록 세트 생성:", {
               name: newBlockSetName.trim(),
             });
-            
-            const templateResult = await createTenantBlockSet(
-              templateFormData
-            );
+
+            const templateResult = await createTenantBlockSet(templateFormData);
             const templateBlockSetId = templateResult.blockSetId;
             const templateBlockSetName = templateResult.name;
 
