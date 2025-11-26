@@ -125,6 +125,37 @@ export function Step4RecommendedContents({
           ...data.recommended_contents.map((c) => c.content_id),
         ]);
 
+        // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
+        const { getStudentContentMasterIdsAction } = await import(
+          "@/app/(student)/actions/getStudentContentMasterIds"
+        );
+        const studentContentsForMasterId = data.student_contents.filter(
+          (c) => c.content_type === "book" || c.content_type === "lecture"
+        ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
+
+        let studentMasterIds = new Set<string>();
+        if (studentContentsForMasterId.length > 0) {
+          try {
+            const masterIdResult = await getStudentContentMasterIdsAction(
+              studentContentsForMasterId
+            );
+            if (masterIdResult.success && masterIdResult.data) {
+              // master_content_id가 있는 것만 Set에 추가
+              masterIdResult.data.forEach((masterId, contentId) => {
+                if (masterId) {
+                  studentMasterIds.add(masterId);
+                }
+              });
+            }
+          } catch (error) {
+            console.warn(
+              "[Step4RecommendedContents] master_content_id 조회 실패:",
+              error
+            );
+            // 에러가 발생해도 계속 진행 (기존 로직으로 fallback)
+          }
+        }
+
         // 원본 추천 목록 저장 (추가된 콘텐츠 정보 조회용)
         // 중요: 항상 최신 추천 목록으로 업데이트하여 불러온 콘텐츠 정보를 정확히 조회할 수 있도록 함
         const recommendationsMap = new Map<string, RecommendedContent>();
@@ -145,8 +176,19 @@ export function Step4RecommendedContents({
         });
 
         // 중복 제거 (같은 콘텐츠가 이미 선택된 경우)
+        // content_id와 master_content_id 모두 확인
         const filteredRecommendations = recommendations.filter(
-          (r: RecommendedContent) => !existingIds.has(r.id)
+          (r: RecommendedContent) => {
+            // content_id로 직접 비교
+            if (existingIds.has(r.id)) {
+              return false;
+            }
+            // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
+            if (studentMasterIds.has(r.id)) {
+              return false;
+            }
+            return true;
+          }
         );
 
         setRecommendedContents(filteredRecommendations);

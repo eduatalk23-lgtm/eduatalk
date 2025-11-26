@@ -380,10 +380,60 @@ export const submitCampParticipation = withErrorHandling(
             (wizardData.student_contents || []).map((c: any) => c.content_id)
           );
 
+          // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
+          const studentMasterIds = new Set<string>();
+          const studentContentsForMasterId = (wizardData.student_contents || []).filter(
+            (c: any) => c.content_type === "book" || c.content_type === "lecture"
+          );
+
+          if (studentContentsForMasterId.length > 0) {
+            try {
+              for (const content of studentContentsForMasterId) {
+                if (content.content_type === "book") {
+                  const { data: studentBook } = await supabaseRecommend
+                    .from("books")
+                    .select("master_content_id")
+                    .eq("id", content.content_id)
+                    .eq("student_id", user.userId)
+                    .maybeSingle();
+
+                  if (studentBook?.master_content_id) {
+                    studentMasterIds.add(studentBook.master_content_id);
+                  }
+                } else if (content.content_type === "lecture") {
+                  const { data: studentLecture } = await supabaseRecommend
+                    .from("lectures")
+                    .select("master_content_id")
+                    .eq("id", content.content_id)
+                    .eq("student_id", user.userId)
+                    .maybeSingle();
+
+                  if (studentLecture?.master_content_id) {
+                    studentMasterIds.add(studentLecture.master_content_id);
+                  }
+                }
+              }
+            } catch (error) {
+              console.warn(
+                "[submitCampParticipation] master_content_id 조회 실패:",
+                error
+              );
+              // 에러가 발생해도 계속 진행 (기존 로직으로 fallback)
+            }
+          }
+
           const uniqueRecommendedContents = recommendedContents.filter(
-            (rec) =>
-              !templateContentIds.has(rec.id) &&
-              !studentContentIds.has(rec.id)
+            (rec) => {
+              // content_id로 직접 비교
+              if (templateContentIds.has(rec.id) || studentContentIds.has(rec.id)) {
+                return false;
+              }
+              // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
+              if (studentMasterIds.has(rec.id)) {
+                return false;
+              }
+              return true;
+            }
           );
 
           if (uniqueRecommendedContents.length > 0) {

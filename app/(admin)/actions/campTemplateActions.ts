@@ -1406,6 +1406,19 @@ export const getCampPlanGroupForReview = withErrorHandling(
     let contentsWithDetails = result.contents;
     if (result.group.student_id && result.contents.length > 0) {
       try {
+        // 입력 데이터 검증 및 로그
+        console.log("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 시작:", {
+          groupId: result.group.id,
+          studentId: result.group.student_id,
+          contentsCount: result.contents.length,
+          contents: result.contents.map((c) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+            start_range: c.start_range,
+            end_range: c.end_range,
+          })),
+        });
+
         const { classifyPlanContents } = await import(
           "@/lib/data/planContents"
         );
@@ -1416,9 +1429,26 @@ export const getCampPlanGroupForReview = withErrorHandling(
         const allContents = [...studentContents, ...recommendedContents];
         const contentsMap = new Map(allContents.map((c) => [c.content_id, c]));
 
+        // 각 타입별 누락 개수 집계
+        const missingByType = {
+          book: 0,
+          lecture: 0,
+          custom: 0,
+        };
+
         contentsWithDetails = result.contents.map((content) => {
           const detail = contentsMap.get(content.content_id);
           if (!detail) {
+            missingByType[content.content_type]++;
+            console.warn(
+              `[getCampPlanGroupForReview] 콘텐츠를 찾을 수 없음:`,
+              {
+                content_type: content.content_type,
+                content_id: content.content_id,
+                studentId: result.group.student_id,
+                groupId: result.group.id,
+              }
+            );
             return {
               ...content,
               contentTitle: "알 수 없음",
@@ -1434,10 +1464,43 @@ export const getCampPlanGroupForReview = withErrorHandling(
             isRecommended: detail.isRecommended,
           };
         });
+
+        // 누락된 콘텐츠가 있는 경우 경고 로그
+        const totalMissing =
+          missingByType.book + missingByType.lecture + missingByType.custom;
+        if (totalMissing > 0) {
+          console.warn(
+            "[getCampPlanGroupForReview] 누락된 콘텐츠 집계:",
+            {
+              groupId: result.group.id,
+              studentId: result.group.student_id,
+              missingByType,
+              totalMissing,
+              totalContents: result.contents.length,
+            }
+          );
+        }
+
+        console.log("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 완료:", {
+          groupId: result.group.id,
+          studentContentsCount: studentContents.length,
+          recommendedContentsCount: recommendedContents.length,
+          missingCount: totalMissing,
+        });
       } catch (error) {
         console.error(
           "[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 실패:",
-          error
+          {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            groupId: result.group.id,
+            studentId: result.group.student_id,
+            contentsCount: result.contents.length,
+            contents: result.contents.map((c) => ({
+              content_type: c.content_type,
+              content_id: c.content_id,
+            })),
+          }
         );
         // 에러가 발생해도 원본 contents 반환
       }

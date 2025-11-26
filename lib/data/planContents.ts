@@ -185,6 +185,20 @@ export async function classifyPlanContents(
 }> {
   const supabase = await createSupabaseServerClient();
 
+  // 디버깅: 입력 데이터 로그
+  if (process.env.NODE_ENV === "development") {
+    console.log("[classifyPlanContents] 입력 데이터:", {
+      contentsCount: contents.length,
+      studentId,
+      contents: contents.map((c) => ({
+        content_type: c.content_type,
+        content_id: c.content_id,
+        start_range: c.start_range,
+        end_range: c.end_range,
+      })),
+    });
+  }
+
   // 1. 모든 콘텐츠 ID 수집 (배치 조회를 위해)
   const bookContentIds: string[] = [];
   const lectureContentIds: string[] = [];
@@ -199,6 +213,17 @@ export async function classifyPlanContents(
       customContentIds.push(content.content_id);
     }
   });
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[classifyPlanContents] 콘텐츠 ID 분류:", {
+      bookCount: bookContentIds.length,
+      lectureCount: lectureContentIds.length,
+      customCount: customContentIds.length,
+      bookIds: bookContentIds,
+      lectureIds: lectureContentIds,
+      customIds: customContentIds,
+    });
+  }
 
   // 2. 배치 조회 (N+1 문제 해결)
   const [
@@ -246,6 +271,39 @@ export async function classifyPlanContents(
       : Promise.resolve({ data: [], error: null }),
   ]);
 
+  // 디버깅: 조회 결과 로그
+  if (process.env.NODE_ENV === "development") {
+    console.log("[classifyPlanContents] 조회 결과:", {
+      masterBooks: {
+        count: masterBooksResult.data?.length || 0,
+        ids: masterBooksResult.data?.map((b) => b.id) || [],
+        error: masterBooksResult.error?.message || null,
+      },
+      masterLectures: {
+        count: masterLecturesResult.data?.length || 0,
+        ids: masterLecturesResult.data?.map((l) => l.id) || [],
+        error: masterLecturesResult.error?.message || null,
+      },
+      studentBooks: {
+        count: studentBooksResult.data?.length || 0,
+        ids: studentBooksResult.data?.map((b) => b.id) || [],
+        masterContentIds: studentBooksResult.data?.map((b) => b.master_content_id).filter(Boolean) || [],
+        error: studentBooksResult.error?.message || null,
+      },
+      studentLectures: {
+        count: studentLecturesResult.data?.length || 0,
+        ids: studentLecturesResult.data?.map((l) => l.id) || [],
+        masterContentIds: studentLecturesResult.data?.map((l) => l.master_content_id).filter(Boolean) || [],
+        error: studentLecturesResult.error?.message || null,
+      },
+      customContents: {
+        count: customContentsResult.data?.length || 0,
+        ids: customContentsResult.data?.map((c) => c.id) || [],
+        error: customContentsResult.error?.message || null,
+      },
+    });
+  }
+
   // 3. Map으로 변환 (빠른 조회)
   const masterBooksMap = new Map(
     (masterBooksResult.data || []).map((book) => [book.id, book])
@@ -262,6 +320,17 @@ export async function classifyPlanContents(
   const customContentsMap = new Map(
     (customContentsResult.data || []).map((custom) => [custom.id, custom])
   );
+
+  // 디버깅: Map 내용 로그
+  if (process.env.NODE_ENV === "development") {
+    console.log("[classifyPlanContents] Map 변환 결과:", {
+      masterBooksMapSize: masterBooksMap.size,
+      masterLecturesMapSize: masterLecturesMap.size,
+      studentBooksMapSize: studentBooksMap.size,
+      studentLecturesMapSize: studentLecturesMap.size,
+      customContentsMapSize: customContentsMap.size,
+    });
+  }
 
   // 4. 마스터 콘텐츠 ID 추출 (학생 콘텐츠의 master_content_id)
   const masterContentIdsForLookup = new Set<string>();
@@ -300,6 +369,11 @@ export async function classifyPlanContents(
   // 6. 콘텐츠 분류 및 상세 정보 생성
   const studentContents: Array<ContentDetail> = [];
   const recommendedContents: Array<ContentDetail> = [];
+  const missingContents: Array<{
+    content_type: string;
+    content_id: string;
+    reason: string;
+  }> = [];
 
   for (const content of contents) {
     let contentDetail: ContentDetail | null = null;
@@ -362,6 +436,13 @@ export async function classifyPlanContents(
             isRecommended: false,
             masterContentId,
           };
+        } else {
+          // 학생 교재를 찾지 못한 경우
+          missingContents.push({
+            content_type: "book",
+            content_id: content.content_id,
+            reason: `학생(${studentId})의 교재를 찾을 수 없습니다. master_books에도 존재하지 않습니다.`,
+          });
         }
       }
     } else if (content.content_type === "lecture") {
@@ -422,6 +503,13 @@ export async function classifyPlanContents(
             isRecommended: false,
             masterContentId,
           };
+        } else {
+          // 학생 강의를 찾지 못한 경우
+          missingContents.push({
+            content_type: "lecture",
+            content_id: content.content_id,
+            reason: `학생(${studentId})의 강의를 찾을 수 없습니다. master_lectures에도 존재하지 않습니다.`,
+          });
         }
       }
     } else if (content.content_type === "custom") {
@@ -437,6 +525,13 @@ export async function classifyPlanContents(
           subject_category: customContent.content_type || null,
           isRecommended: false,
         };
+      } else {
+        // 커스텀 콘텐츠를 찾지 못한 경우
+        missingContents.push({
+          content_type: "custom",
+          content_id: content.content_id,
+          reason: `학생(${studentId})의 커스텀 콘텐츠를 찾을 수 없습니다.`,
+        });
       }
     }
 
@@ -446,7 +541,35 @@ export async function classifyPlanContents(
       } else {
         studentContents.push(contentDetail);
       }
+    } else {
+      // contentDetail이 null인 경우 로그
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[classifyPlanContents] contentDetail이 null:", {
+          content_type: content.content_type,
+          content_id: content.content_id,
+          studentId,
+        });
+      }
     }
+  }
+
+  // 디버깅: 누락된 콘텐츠 로그
+  if (missingContents.length > 0) {
+    console.warn("[classifyPlanContents] 누락된 콘텐츠:", {
+      count: missingContents.length,
+      missingContents,
+      studentId,
+    });
+  }
+
+  // 디버깅: 최종 결과 로그
+  if (process.env.NODE_ENV === "development") {
+    console.log("[classifyPlanContents] 최종 결과:", {
+      studentContentsCount: studentContents.length,
+      recommendedContentsCount: recommendedContents.length,
+      missingContentsCount: missingContents.length,
+      totalInputCount: contents.length,
+    });
   }
 
   return { studentContents, recommendedContents };
