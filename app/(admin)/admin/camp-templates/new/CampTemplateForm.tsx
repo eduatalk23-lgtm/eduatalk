@@ -183,10 +183,10 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
       throw new Error(result.error || "템플릿 저장에 실패했습니다.");
     }
 
-    // 템플릿 저장 성공 후 시간 관리 페이지로 리다이렉트
+    // 템플릿 저장 성공 후 템플릿 상세 페이지로 리다이렉트
     if (result.templateId) {
-      toast.showSuccess("템플릿이 성공적으로 생성되었습니다. 이제 블록 세트를 생성해주세요.");
-      router.push(`/admin/time-management/${result.templateId}`);
+      toast.showSuccess("템플릿이 성공적으로 생성되었습니다.");
+      router.push(`/admin/camp-templates/${result.templateId}`);
     }
   };
 
