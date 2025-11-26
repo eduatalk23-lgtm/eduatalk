@@ -17,17 +17,36 @@ const envSchema = z.object({
  */
 export const env = (() => {
   try {
-    return envSchema.parse({
+    const envValues = {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       NODE_ENV: process.env.NODE_ENV,
-    });
+    };
+
+    // 디버깅: 개발 환경에서만 환경 변수 값 확인
+    if (process.env.NODE_ENV === "development") {
+      console.log("[env.ts] 환경 변수 확인:");
+      console.log("  NEXT_PUBLIC_SUPABASE_URL:", envValues.NEXT_PUBLIC_SUPABASE_URL ? "✓ 설정됨" : "✗ 없음");
+      console.log("  NEXT_PUBLIC_SUPABASE_ANON_KEY:", envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓ 설정됨" : "✗ 없음");
+    }
+
+    return envSchema.parse(envValues);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missingVars = error.issues.map((e) => e.path.join(".")).join(", ");
+      const issues = error.issues.map((issue) => {
+        const path = issue.path.join(".");
+        const message = issue.message;
+        return `  - ${path}: ${message}`;
+      }).join("\n");
+      
       throw new Error(
-        `환경 변수 검증 실패: ${missingVars}\n` +
-        "필수 환경 변수가 설정되지 않았습니다. .env.local 파일을 확인해주세요."
+        `환경 변수 검증 실패:\n${issues}\n\n` +
+        "해결 방법:\n" +
+        "1. .env.local 파일이 프로젝트 루트(eduatalk/)에 있는지 확인\n" +
+        "2. 환경 변수 이름이 정확한지 확인 (대소문자 구분)\n" +
+        "3. 값에 따옴표가 없는지 확인\n" +
+        "4. 개발 서버를 재시작 (pnpm dev)\n" +
+        "5. .next 폴더 삭제 후 재시작: rm -rf .next && pnpm dev"
       );
     }
     throw error;

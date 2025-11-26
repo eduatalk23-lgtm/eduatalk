@@ -1939,35 +1939,77 @@ async function _generatePlansFromGroup(
 
     if (content.content_type === "book") {
       // 학생 교재 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
-      const { data: studentBook } = await supabase
+      let studentBook = await supabase
         .from("books")
         .select("id, total_pages, master_content_id")
         .eq("id", finalContentId)
         .eq("student_id", studentId)
         .maybeSingle();
 
-      if (!studentBook) {
-        // 책이 존재하지 않는 경우 에러 발생
-        throw new AppError(
-          `Referenced book (${finalContentId}) does not exist`,
-          ErrorCode.VALIDATION_ERROR,
-          400,
-          true
-        );
+      // finalContentId로 찾지 못한 경우, 마스터 콘텐츠 ID인지 확인하고 학생 교재 찾기
+      if (!studentBook.data) {
+        // 마스터 교재인지 확인
+        const { data: masterBook } = await supabase
+          .from("master_books")
+          .select("id")
+          .eq("id", finalContentId)
+          .maybeSingle();
+
+        if (masterBook) {
+          // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
+          const { data: studentBookByMaster } = await supabase
+            .from("books")
+            .select("id, total_pages, master_content_id")
+            .eq("student_id", studentId)
+            .eq("master_content_id", finalContentId)
+            .maybeSingle();
+
+          if (studentBookByMaster) {
+            studentBook = { data: studentBookByMaster, error: null };
+          }
+        }
       }
 
-      if (studentBook.total_pages) {
+      if (!studentBook.data) {
+        // 책이 존재하지 않는 경우 에러 발생
+        // 마스터 콘텐츠 ID인지 확인하여 더 명확한 에러 메시지 제공
+        const { data: masterBookCheck } = await supabase
+          .from("master_books")
+          .select("id")
+          .eq("id", finalContentId)
+          .maybeSingle();
+
+        if (masterBookCheck) {
+          throw new AppError(
+            `Referenced master book (${finalContentId}) does not exist for student (${studentId}). Please ensure the student has this book in their content library.`,
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
+          );
+        } else {
+          throw new AppError(
+            `Referenced book (${finalContentId}) does not exist for student (${studentId})`,
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
+          );
+        }
+      }
+
+      const bookData = studentBook.data;
+
+      if (bookData.total_pages) {
         contentDurationMap.set(content.content_id, {
           content_type: "book",
           content_id: content.content_id,
-          total_pages: studentBook.total_pages,
+          total_pages: bookData.total_pages,
         });
-      } else if (studentBook.master_content_id) {
+      } else if (bookData.master_content_id) {
         // 마스터 교재 조회
         const { data: masterBook } = await supabase
           .from("master_books")
           .select("id, total_pages")
-          .eq("id", studentBook.master_content_id)
+          .eq("id", bookData.master_content_id)
           .maybeSingle();
 
         if (masterBook?.total_pages) {
@@ -1979,7 +2021,7 @@ async function _generatePlansFromGroup(
         } else {
           // 마스터 책이 존재하지 않는 경우 에러 발생
           throw new AppError(
-            `Referenced master book (${studentBook.master_content_id}) for book (${finalContentId}) does not exist`,
+            `Referenced master book (${bookData.master_content_id}) for book (${bookData.id}) does not exist`,
             ErrorCode.VALIDATION_ERROR,
             400,
             true
@@ -1988,7 +2030,7 @@ async function _generatePlansFromGroup(
       } else {
         // 책이 존재하지만 total_pages와 master_content_id가 모두 없는 경우 에러 발생
         throw new AppError(
-          `Referenced book (${finalContentId}) does not have valid page information`,
+          `Referenced book (${bookData.id}) does not have valid page information`,
           ErrorCode.VALIDATION_ERROR,
           400,
           true
@@ -1996,35 +2038,77 @@ async function _generatePlansFromGroup(
       }
     } else if (content.content_type === "lecture") {
       // 학생 강의 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
-      const { data: studentLecture } = await supabase
+      let studentLecture = await supabase
         .from("lectures")
         .select("id, duration, master_content_id")
         .eq("id", finalContentId)
         .eq("student_id", studentId)
         .maybeSingle();
 
-      if (!studentLecture) {
-        // 강의가 존재하지 않는 경우 에러 발생
-        throw new AppError(
-          `Referenced lecture (${finalContentId}) does not exist`,
-          ErrorCode.VALIDATION_ERROR,
-          400,
-          true
-        );
+      // finalContentId로 찾지 못한 경우, 마스터 콘텐츠 ID인지 확인하고 학생 강의 찾기
+      if (!studentLecture.data) {
+        // 마스터 강의인지 확인
+        const { data: masterLecture } = await supabase
+          .from("master_lectures")
+          .select("id")
+          .eq("id", finalContentId)
+          .maybeSingle();
+
+        if (masterLecture) {
+          // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
+          const { data: studentLectureByMaster } = await supabase
+            .from("lectures")
+            .select("id, duration, master_content_id")
+            .eq("student_id", studentId)
+            .eq("master_content_id", finalContentId)
+            .maybeSingle();
+
+          if (studentLectureByMaster) {
+            studentLecture = { data: studentLectureByMaster, error: null };
+          }
+        }
       }
 
-      if (studentLecture.duration) {
+      if (!studentLecture.data) {
+        // 강의가 존재하지 않는 경우 에러 발생
+        // 마스터 콘텐츠 ID인지 확인하여 더 명확한 에러 메시지 제공
+        const { data: masterLectureCheck } = await supabase
+          .from("master_lectures")
+          .select("id")
+          .eq("id", finalContentId)
+          .maybeSingle();
+
+        if (masterLectureCheck) {
+          throw new AppError(
+            `Referenced master lecture (${finalContentId}) does not exist for student (${studentId}). Please ensure the student has this lecture in their content library.`,
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
+          );
+        } else {
+          throw new AppError(
+            `Referenced lecture (${finalContentId}) does not exist for student (${studentId})`,
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
+          );
+        }
+      }
+
+      const lectureData = studentLecture.data;
+
+      if (lectureData.duration) {
         contentDurationMap.set(content.content_id, {
           content_type: "lecture",
           content_id: content.content_id,
-          duration: studentLecture.duration,
+          duration: lectureData.duration,
         });
-      } else if (studentLecture.master_content_id) {
+      } else if (lectureData.master_content_id) {
         // 마스터 강의 조회
         const { data: masterLecture } = await supabase
           .from("master_lectures")
           .select("id, total_duration")
-          .eq("id", studentLecture.master_content_id)
+          .eq("id", lectureData.master_content_id)
           .maybeSingle();
 
         if (masterLecture?.total_duration) {
@@ -2036,7 +2120,7 @@ async function _generatePlansFromGroup(
         } else {
           // 마스터 강의가 존재하지 않는 경우 에러 발생
           throw new AppError(
-            `Referenced master lecture (${studentLecture.master_content_id}) for lecture (${finalContentId}) does not exist`,
+            `Referenced master lecture (${lectureData.master_content_id}) for lecture (${lectureData.id}) does not exist`,
             ErrorCode.VALIDATION_ERROR,
             400,
             true

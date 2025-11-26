@@ -1097,24 +1097,155 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
 
         if (creationData.contents.length > 0) {
-          const contentsResult = await createPlanContents(
-            groupId,
-            tenantContext.tenantId,
-            creationData.contents.map((c) => ({
-              content_type: c.content_type,
-              content_id: c.content_id,
-              start_range: c.start_range,
-              end_range: c.end_range,
-              display_order: c.display_order ?? 0,
-            }))
-          );
+          // 학생이 실제로 가지고 있는 콘텐츠만 필터링
+          const studentId = result.group.student_id;
+          const validContents: Array<{
+            content_type: string;
+            content_id: string;
+            start_range: number;
+            end_range: number;
+            display_order: number;
+          }> = [];
 
-          if (!contentsResult.success) {
-            throw new AppError(
-              contentsResult.error || "콘텐츠 업데이트에 실패했습니다.",
-              ErrorCode.DATABASE_ERROR,
-              500,
-              true
+          for (const content of creationData.contents) {
+            let isValidContent = false;
+            let actualContentId = content.content_id;
+
+            if (content.content_type === "book") {
+              // 먼저 학생 교재로 직접 조회
+              const { data: studentBook } = await supabase
+                .from("books")
+                .select("id")
+                .eq("id", content.content_id)
+                .eq("student_id", studentId)
+                .maybeSingle();
+
+              if (studentBook) {
+                isValidContent = true;
+                actualContentId = studentBook.id;
+              } else {
+                // 마스터 교재인지 확인
+                const { data: masterBook } = await supabase
+                  .from("master_books")
+                  .select("id")
+                  .eq("id", content.content_id)
+                  .maybeSingle();
+
+                if (masterBook) {
+                  // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
+                  const { data: studentBookByMaster } = await supabase
+                    .from("books")
+                    .select("id")
+                    .eq("student_id", studentId)
+                    .eq("master_content_id", content.content_id)
+                    .maybeSingle();
+
+                  if (studentBookByMaster) {
+                    isValidContent = true;
+                    actualContentId = studentBookByMaster.id;
+                  } else {
+                    console.warn(
+                      `[campTemplateActions] 학생(${studentId})이 마스터 교재(${content.content_id})를 가지고 있지 않습니다. 콘텐츠에서 제외합니다.`
+                    );
+                  }
+                } else {
+                  console.warn(
+                    `[campTemplateActions] 교재(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
+                  );
+                }
+              }
+            } else if (content.content_type === "lecture") {
+              // 먼저 학생 강의로 직접 조회
+              const { data: studentLecture } = await supabase
+                .from("lectures")
+                .select("id")
+                .eq("id", content.content_id)
+                .eq("student_id", studentId)
+                .maybeSingle();
+
+              if (studentLecture) {
+                isValidContent = true;
+                actualContentId = studentLecture.id;
+              } else {
+                // 마스터 강의인지 확인
+                const { data: masterLecture } = await supabase
+                  .from("master_lectures")
+                  .select("id")
+                  .eq("id", content.content_id)
+                  .maybeSingle();
+
+                if (masterLecture) {
+                  // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
+                  const { data: studentLectureByMaster } = await supabase
+                    .from("lectures")
+                    .select("id")
+                    .eq("student_id", studentId)
+                    .eq("master_content_id", content.content_id)
+                    .maybeSingle();
+
+                  if (studentLectureByMaster) {
+                    isValidContent = true;
+                    actualContentId = studentLectureByMaster.id;
+                  } else {
+                    console.warn(
+                      `[campTemplateActions] 학생(${studentId})이 마스터 강의(${content.content_id})를 가지고 있지 않습니다. 콘텐츠에서 제외합니다.`
+                    );
+                  }
+                } else {
+                  console.warn(
+                    `[campTemplateActions] 강의(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
+                  );
+                }
+              }
+            } else if (content.content_type === "custom") {
+              // 커스텀 콘텐츠는 학생 ID로 직접 조회
+              const { data: customContent } = await supabase
+                .from("student_custom_contents")
+                .select("id")
+                .eq("id", content.content_id)
+                .eq("student_id", studentId)
+                .maybeSingle();
+
+              if (customContent) {
+                isValidContent = true;
+                actualContentId = customContent.id;
+              } else {
+                console.warn(
+                  `[campTemplateActions] 커스텀 콘텐츠(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
+                );
+              }
+            }
+
+            if (isValidContent) {
+              validContents.push({
+                content_type: content.content_type,
+                content_id: actualContentId,
+                start_range: content.start_range,
+                end_range: content.end_range,
+                display_order: content.display_order ?? 0,
+              });
+            }
+          }
+
+          if (validContents.length > 0) {
+            const contentsResult = await createPlanContents(
+              groupId,
+              tenantContext.tenantId,
+              validContents
+            );
+
+            if (!contentsResult.success) {
+              throw new AppError(
+                contentsResult.error || "콘텐츠 업데이트에 실패했습니다.",
+                ErrorCode.DATABASE_ERROR,
+                500,
+                true
+              );
+            }
+          } else if (creationData.contents.length > 0) {
+            // 유효한 콘텐츠가 없는 경우 경고만 출력 (에러는 발생시키지 않음)
+            console.warn(
+              `[campTemplateActions] 학생(${studentId})이 가지고 있는 유효한 콘텐츠가 없습니다.`
             );
           }
         }
