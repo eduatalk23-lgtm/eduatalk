@@ -343,45 +343,18 @@ export function Step3Contents({
         ? contents.books.find((b) => b.id === contentId)
         : contents.lectures.find((l) => l.id === contentId);
 
-      // 중복 체크 (학생 콘텐츠와 추천 콘텐츠 모두 확인)
+      // 중복 체크 (학생 콘텐츠만 확인 - 추천 콘텐츠는 Step 4에서 처리)
       // 1. content_id로 직접 비교
-      const isDuplicateByContentId =
-        data.student_contents.some(
-          (c) => c.content_type === contentType && c.content_id === contentId
-        ) ||
-        data.recommended_contents.some(
-          (c) => c.content_type === contentType && c.content_id === contentId
-        );
+      const isDuplicateByContentId = data.student_contents.some(
+        (c) => c.content_type === contentType && c.content_id === contentId
+      );
 
-      // 2. master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
-      // 2-1. 추가하려는 콘텐츠가 마스터에서 가져온 경우
-      //      → 이미 추가된 학생 콘텐츠의 master_content_id와 비교
-      //      → 추천 콘텐츠의 content_id와 비교 (추천 콘텐츠는 마스터 콘텐츠 ID를 content_id로 사용)
+      // 2. master_content_id로 비교 (같은 마스터 콘텐츠를 기반으로 한 학생 콘텐츠 중복 방지)
       const isDuplicateByMasterId =
         content?.master_content_id &&
-        (studentMasterIds.has(content.master_content_id) ||
-          // 추천 콘텐츠의 content_id가 마스터 콘텐츠 ID인 경우
-          data.recommended_contents.some(
-            (c) =>
-              c.content_type === contentType &&
-              (c.content_id === content.master_content_id ||
-                (c as any).master_content_id === content.master_content_id)
-          ));
+        studentMasterIds.has(content.master_content_id);
 
-      // 2-2. 추가하려는 콘텐츠가 마스터에서 가져온 것이 아닌 경우
-      //      → 추천 콘텐츠로 이미 추가된 마스터 콘텐츠의 content_id와 비교
-      //      (추천 콘텐츠는 마스터 콘텐츠 ID를 content_id로 사용하므로)
-      const isDuplicateByRecommendedMasterId =
-        !content?.master_content_id &&
-        data.recommended_contents.some(
-          (c) =>
-            c.content_type === contentType &&
-            // 추천 콘텐츠의 content_id가 마스터 콘텐츠 ID인 경우
-            // 학생 콘텐츠의 content_id가 추천 콘텐츠의 content_id와 같으면 중복
-            c.content_id === contentId
-        );
-
-      if (isDuplicateByContentId || isDuplicateByMasterId || isDuplicateByRecommendedMasterId) {
+      if (isDuplicateByContentId || isDuplicateByMasterId) {
         continue; // 이미 추가된 콘텐츠는 스킵
       }
 

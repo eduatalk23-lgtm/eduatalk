@@ -13,6 +13,7 @@ Step3Contents에서 학생 콘텐츠를 추가할 때, 마스터 콘텐츠 ID를
 기존에는 `content_id`만으로 중복을 확인했지만, 마스터 콘텐츠 ID를 확인하여 더 정확한 중복 방지를 구현했습니다.
 
 **변경 전**:
+
 ```typescript
 // 중복 체크 (학생 콘텐츠와 추천 콘텐츠 모두 확인)
 if (
@@ -28,6 +29,7 @@ if (
 ```
 
 **변경 후**:
+
 ```typescript
 // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
 const { getStudentContentMasterIdsAction } = await import(
@@ -93,7 +95,11 @@ const isDuplicateByRecommendedMasterId =
       c.content_id === contentId
   );
 
-if (isDuplicateByContentId || isDuplicateByMasterId || isDuplicateByRecommendedMasterId) {
+if (
+  isDuplicateByContentId ||
+  isDuplicateByMasterId ||
+  isDuplicateByRecommendedMasterId
+) {
   continue; // 이미 추가된 콘텐츠는 스킵
 }
 ```
@@ -160,4 +166,3 @@ if (isDuplicateByContentId || isDuplicateByMasterId || isDuplicateByRecommendedM
 - 이 개선은 Step4RecommendedContents의 중복 방지 로직과 일관성을 유지합니다.
 - `getStudentContentMasterIdsAction`은 배치 조회를 사용하여 성능을 최적화합니다.
 - 에러 발생 시에도 기존 로직으로 fallback하여 기능이 중단되지 않습니다.
-
