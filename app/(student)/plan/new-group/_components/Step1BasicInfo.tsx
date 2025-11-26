@@ -249,7 +249,8 @@ export function Step1BasicInfo({
   // 초기 로드 시 블록 세트 목록 자동 로드
   useEffect(() => {
     // blockSets가 비어있고 아직 로딩 중이 아닐 때만 자동 로드
-    if (blockSets.length === 0 && !isLoadingBlockSets) {
+    // templateId가 있으면 서버에서 이미 initialBlockSets를 전달했으므로 자동 로드하지 않음
+    if (blockSets.length === 0 && !isLoadingBlockSets && !templateId) {
       handleLoadBlockSets();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
