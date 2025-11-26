@@ -146,7 +146,23 @@ export default async function PlanGroupDetailPage({
         .maybeSingle();
 
       if (templateError) {
-        console.error("[PlanGroupDetailPage] 템플릿 조회 에러:", templateError);
+        // Supabase 에러 객체의 주요 속성 추출
+        const errorInfo: Record<string, unknown> = {
+          message: templateError.message || String(templateError),
+          code: templateError.code || "UNKNOWN",
+        };
+        if ("details" in templateError) {
+          errorInfo.details = (templateError as { details?: unknown }).details;
+        }
+        if ("hint" in templateError) {
+          errorInfo.hint = (templateError as { hint?: unknown }).hint;
+        }
+        if ("statusCode" in templateError) {
+          errorInfo.statusCode = (templateError as { statusCode?: unknown }).statusCode;
+        }
+        console.error("[PlanGroupDetailPage] 템플릿 조회 에러:", errorInfo, {
+          camp_template_id: group.camp_template_id,
+        });
       } else if (!template) {
         console.warn(
           "[PlanGroupDetailPage] 템플릿을 찾을 수 없음:",
@@ -218,9 +234,27 @@ export default async function PlanGroupDetailPage({
               .maybeSingle();
 
           if (blockSetError) {
+            // Supabase 에러 객체의 주요 속성 추출
+            const errorInfo: Record<string, unknown> = {
+              message: blockSetError.message || String(blockSetError),
+              code: blockSetError.code || "UNKNOWN",
+            };
+            if ("details" in blockSetError) {
+              errorInfo.details = (blockSetError as { details?: unknown }).details;
+            }
+            if ("hint" in blockSetError) {
+              errorInfo.hint = (blockSetError as { hint?: unknown }).hint;
+            }
+            if ("statusCode" in blockSetError) {
+              errorInfo.statusCode = (blockSetError as { statusCode?: unknown }).statusCode;
+            }
             console.error(
               "[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
-              blockSetError
+              errorInfo,
+              {
+                block_set_id: blockSetId,
+                template_id: group.camp_template_id,
+              }
             );
           } else if (templateBlockSet) {
             // template_id 일치 확인 (보안 검증)
@@ -246,9 +280,26 @@ export default async function PlanGroupDetailPage({
                 .order("start_time", { ascending: true });
 
               if (blocksError) {
+                // Supabase 에러 객체의 주요 속성 추출
+                const errorInfo: Record<string, unknown> = {
+                  message: blocksError.message || String(blocksError),
+                  code: blocksError.code || "UNKNOWN",
+                };
+                if ("details" in blocksError) {
+                  errorInfo.details = (blocksError as { details?: unknown }).details;
+                }
+                if ("hint" in blocksError) {
+                  errorInfo.hint = (blocksError as { hint?: unknown }).hint;
+                }
+                if ("statusCode" in blocksError) {
+                  errorInfo.statusCode = (blocksError as { statusCode?: unknown }).statusCode;
+                }
                 console.error(
                   "[PlanGroupDetailPage] 템플릿 블록 조회 에러:",
-                  blocksError
+                  errorInfo,
+                  {
+                    template_block_set_id: templateBlockSet.id,
+                  }
                 );
               } else if (blocks && blocks.length > 0) {
                 templateBlocks = blocks.map((b) => ({
