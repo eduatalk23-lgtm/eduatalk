@@ -222,30 +222,20 @@ export default async function CampSubmissionDetailPage({
       console.log("[CampSubmissionDetailPage] 최종 blockSetId:", blockSetId);
 
       if (blockSetId) {
-        // 먼저 template_id 없이 조회하여 존재 여부 확인
-        const { data: blockSetWithoutTemplate, error: checkError } = await supabase
-          .from("template_block_sets")
-          .select("id, name, template_id")
-          .eq("id", blockSetId)
-          .maybeSingle();
-
-        console.log("[CampSubmissionDetailPage] 블록 세트 존재 확인 (template_id 검증 없이):", {
-          found: !!blockSetWithoutTemplate,
-          block_set: blockSetWithoutTemplate,
-          error: checkError,
-        });
-
-        // 템플릿 블록 세트 조회 (template_id 검증 포함)
-        const { data: templateBlockSet, error: blockSetError } = await supabase
+        // 템플릿 블록 세트 조회 (template_id 검증 포함, 실패 시 template_id 없이 재시도)
+        let templateBlockSet: { id: string; name: string; template_id: string } | null = null;
+        
+        // 1. template_id 검증 포함하여 조회 시도
+        const { data: blockSetWithTemplate, error: blockSetError } = await supabase
           .from("template_block_sets")
           .select("id, name, template_id")
           .eq("id", blockSetId)
           .eq("template_id", group.camp_template_id)
           .maybeSingle();
 
-        console.log("[CampSubmissionDetailPage] 템플릿 블록 세트 조회 결과:", {
-          found: !!templateBlockSet,
-          block_set: templateBlockSet,
+        console.log("[CampSubmissionDetailPage] 템플릿 블록 세트 조회 (template_id 검증 포함):", {
+          found: !!blockSetWithTemplate,
+          block_set: blockSetWithTemplate,
           error: blockSetError,
           block_set_id: blockSetId,
           template_id: group.camp_template_id,
@@ -257,7 +247,42 @@ export default async function CampSubmissionDetailPage({
             block_set_id: blockSetId,
             template_id: group.camp_template_id,
           });
-        } else if (templateBlockSet) {
+        } else if (blockSetWithTemplate) {
+          templateBlockSet = blockSetWithTemplate;
+        } else {
+          // template_id 검증 실패 시, template_id 없이 조회하여 존재 여부 확인
+          const { data: blockSetWithoutTemplate, error: checkError } = await supabase
+            .from("template_block_sets")
+            .select("id, name, template_id")
+            .eq("id", blockSetId)
+            .maybeSingle();
+
+          console.log("[CampSubmissionDetailPage] 블록 세트 존재 확인 (template_id 검증 없이):", {
+            found: !!blockSetWithoutTemplate,
+            block_set: blockSetWithoutTemplate,
+            error: checkError,
+          });
+
+          if (blockSetWithoutTemplate) {
+            // template_id가 일치하지 않아도 블록 세트가 존재하면 사용 (경고 로그만)
+            if (blockSetWithoutTemplate.template_id !== group.camp_template_id) {
+              console.warn("[CampSubmissionDetailPage] 템플릿 ID 불일치, 하지만 블록 세트 사용:", {
+                block_set_id: blockSetId,
+                expected_template_id: group.camp_template_id,
+                actual_template_id: blockSetWithoutTemplate.template_id,
+              });
+            }
+            templateBlockSet = blockSetWithoutTemplate;
+          } else {
+            console.warn("[CampSubmissionDetailPage] 템플릿 블록 세트를 찾을 수 없음:", {
+              block_set_id: blockSetId,
+              template_id: group.camp_template_id,
+            });
+          }
+        }
+
+        // 블록 세트를 찾았으면 블록 조회
+        if (templateBlockSet) {
           templateBlockSetName = templateBlockSet.name;
           console.log("[CampSubmissionDetailPage] 템플릿 블록 세트 조회 성공:", {
             id: templateBlockSet.id,
@@ -302,16 +327,6 @@ export default async function CampSubmissionDetailPage({
               block_set_name: templateBlockSet.name,
             });
           }
-        } else {
-          console.warn("[CampSubmissionDetailPage] 템플릿 블록 세트를 찾을 수 없음:", {
-            block_set_id: blockSetId,
-            template_id: group.camp_template_id,
-            block_set_exists: !!blockSetWithoutTemplate,
-            block_set_template_id: blockSetWithoutTemplate?.template_id,
-            message: blockSetWithoutTemplate 
-              ? `블록 세트는 존재하지만 template_id가 일치하지 않습니다. (예상: ${group.camp_template_id}, 실제: ${blockSetWithoutTemplate.template_id})`
-              : "block_set_id와 template_id가 일치하는 블록 세트가 없습니다.",
-          });
         }
       } else {
         console.warn("[CampSubmissionDetailPage] block_set_id를 찾을 수 없음:", {
