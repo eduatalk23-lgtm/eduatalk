@@ -665,6 +665,46 @@ export function Step4RecommendedContents({
   const canAddMore = totalCount < 9;
   const remainingSlots = 9 - totalCount;
 
+  // 선택된 콘텐츠의 과목 목록 추출 (캠프 모드에서 취약과목/전략과목 설정용)
+  const allContentSubjects = new Set<string>();
+  data.student_contents.forEach((sc) => {
+    const subjectCategory = (sc as any).subject_category;
+    if (subjectCategory) {
+      allContentSubjects.add(subjectCategory);
+    }
+  });
+  data.recommended_contents.forEach((rc) => {
+    const subjectCategory =
+      (rc as any).subject_category ||
+      allRecommendedContents.find((c) => c.id === rc.content_id)?.subject_category;
+    if (subjectCategory) {
+      allContentSubjects.add(subjectCategory);
+    }
+  });
+  const subjects = Array.from(allContentSubjects).sort();
+
+  // subject_allocations 핸들러
+  const handleSubjectAllocationChange = (
+    subject: string,
+    allocation: {
+      subject_id: string;
+      subject_name: string;
+      subject_type: "strategy" | "weakness";
+      weekly_days?: number;
+    }
+  ) => {
+    const currentAllocations = data.subject_allocations || [];
+    const updatedAllocations = currentAllocations.filter(
+      (a) => a.subject_name !== subject
+    );
+    updatedAllocations.push(allocation);
+    onUpdate({ subject_allocations: updatedAllocations });
+  };
+
+  // 캠프 모드이고 1730_timetable인 경우 취약과목/전략과목 설정 표시
+  const showSubjectAllocations =
+    isCampMode && data.scheduler_type === "1730_timetable";
+
   return (
     <div className="space-y-6">
       <div>
@@ -1660,6 +1700,144 @@ export function Step4RecommendedContents({
             </div>
           </>
         )}
+
+      {/* 취약과목/전략과목 설정 (캠프 모드이고 1730_timetable인 경우) */}
+      {showSubjectAllocations && subjects.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            전략과목/취약과목 정보 <span className="text-red-500">*</span>
+          </h2>
+          <p className="mb-6 text-sm text-gray-600">
+            각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
+            이 설정은 Step 5에서 검증됩니다.
+          </p>
+
+          <div className="space-y-4">
+            {subjects.map((subject) => {
+              const existingAllocation = (data.subject_allocations || []).find(
+                (a) => a.subject_name === subject
+              );
+              const subjectType = existingAllocation?.subject_type || "weakness";
+              const weeklyDays = existingAllocation?.weekly_days || 3;
+
+              // 해당 과목의 콘텐츠 개수 계산
+              const subjectContentCount =
+                data.student_contents.filter(
+                  (sc) => (sc as any).subject_category === subject
+                ).length +
+                data.recommended_contents.filter((rc) => {
+                  const subjectCategory =
+                    (rc as any).subject_category ||
+                    allRecommendedContents.find((c) => c.id === rc.content_id)
+                      ?.subject_category;
+                  return subjectCategory === subject;
+                }).length;
+
+              return (
+                <div
+                  key={subject}
+                  className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {subject}
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      {subjectContentCount}개 콘텐츠
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-2 block text-xs font-medium text-gray-700">
+                        과목 유형
+                      </label>
+                      <div className="flex gap-3">
+                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                          <input
+                            type="radio"
+                            name={`subject_type_${subject}`}
+                            value="weakness"
+                            checked={subjectType === "weakness"}
+                            onChange={() => {
+                              handleSubjectAllocationChange(subject, {
+                                subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                subject_name: subject,
+                                subject_type: "weakness",
+                              });
+                            }}
+                            className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              취약과목
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              전체 학습일에 플랜 배정 (더 많은 시간 필요)
+                            </div>
+                          </div>
+                        </label>
+                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                          <input
+                            type="radio"
+                            name={`subject_type_${subject}`}
+                            value="strategy"
+                            checked={subjectType === "strategy"}
+                            onChange={() => {
+                              handleSubjectAllocationChange(subject, {
+                                subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                subject_name: subject,
+                                subject_type: "strategy",
+                                weekly_days: 3,
+                              });
+                            }}
+                            className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              전략과목
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              주당 배정 일수에 따라 배정
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {subjectType === "strategy" && (
+                      <div>
+                        <label className="mb-2 block text-xs font-medium text-gray-700">
+                          주당 배정 일수
+                        </label>
+                        <select
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                          value={weeklyDays}
+                          onChange={(e) => {
+                            handleSubjectAllocationChange(subject, {
+                              subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                              subject_name: subject,
+                              subject_type: "strategy",
+                              weekly_days: Number(e.target.value),
+                            });
+                          }}
+                        >
+                          <option value="2">주 2일</option>
+                          <option value="3">주 3일</option>
+                          <option value="4">주 4일</option>
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

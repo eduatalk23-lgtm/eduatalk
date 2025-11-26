@@ -255,29 +255,24 @@ export class WizardValidator {
   }
 
   /**
-   * Step 5: (Step 4와 동일, 호환성 유지)
+   * Step 5: 추천 콘텐츠 추가 및 제약 조건 검증
+   * - 추천 콘텐츠 검증 (Step 4와 동일)
+   * - 취약과목/전략과목 설정 검증
+   * - 필수 교과 검증 (subject_constraints)
+   * - 콘텐츠와 subject_allocations 일치 검증
    */
   private static validateStep5(wizardData: WizardData): ValidationResult {
-    return this.validateStep4(wizardData);
-  }
-
-  /**
-   * Step 6: 최종 확인 검증
-   */
-  private static validateStep6(wizardData: WizardData): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Step 4 검증 재수행
+    // Step 4 검증 재수행 (추천 콘텐츠 기본 검증)
     const step4Validation = this.validateStep4(wizardData);
     errors.push(...step4Validation.errors);
     warnings.push(...step4Validation.warnings);
 
-    // 1730 Timetable 필수 항목 검증 강화
+    // 1730 Timetable인 경우 제약 조건 검증
     if (wizardData.scheduler_type === "1730_timetable") {
-      // student_level 항목이 삭제되어 검증 제거
-
-      // subject_allocations 필수
+      // subject_allocations 필수 검증
       if (
         !wizardData.subject_allocations ||
         wizardData.subject_allocations.length === 0
@@ -354,6 +349,55 @@ export class WizardValidator {
         }
       }
     }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    };
+  }
+
+  /**
+   * Step 6: 학습 분량 조절 검증
+   * - 제약 조건 검증은 Step 5에서 완료된 상태
+   * - 학습 분량(범위) 관련 검증만 수행
+   */
+  private static validateStep6(wizardData: WizardData): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // 최소 1개 이상의 콘텐츠 필요
+    const totalContents =
+      wizardData.student_contents.length +
+      wizardData.recommended_contents.length;
+    if (totalContents === 0) {
+      errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
+    }
+
+    // 학습 분량 범위 검증
+    wizardData.student_contents.forEach((content, index) => {
+      if (content.start_range >= content.end_range) {
+        errors.push(
+          `학생 콘텐츠 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`
+        );
+      }
+
+      if (content.start_range < 0 || content.end_range < 0) {
+        errors.push(`학생 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
+      }
+    });
+
+    wizardData.recommended_contents.forEach((content, index) => {
+      if (content.start_range >= content.end_range) {
+        errors.push(
+          `추천 콘텐츠 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`
+        );
+      }
+
+      if (content.start_range < 0 || content.end_range < 0) {
+        errors.push(`추천 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
+      }
+    });
 
     return {
       valid: errors.length === 0,

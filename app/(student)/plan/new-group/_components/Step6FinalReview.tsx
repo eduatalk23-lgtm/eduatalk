@@ -2394,229 +2394,89 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
       )}
 
 
-      {/* 전략과목/취약과목 정보 설정 (1730 Timetable 필수) */}
+      {/* 제약 조건 검증 결과 (읽기 전용, Step 5에서 검증 완료) */}
       {data.scheduler_type === "1730_timetable" && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h3 className="mb-3 text-sm font-semibold text-gray-900">
-            전략과목/취약과목 정보 <span className="text-red-500">*</span>
+            제약 조건 검증 결과
           </h3>
           <p className="mb-4 text-xs text-gray-600">
-            각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
+            Step 5에서 검증 완료된 제약 조건 정보입니다. 학습 분량만 조절할 수 있습니다.
           </p>
 
-          <div className="space-y-3">
-            {(() => {
-              // 선택된 콘텐츠에서 과목 목록 추출
-              const subjectSet = new Set<string>();
-              contentInfos.forEach((info) => {
-                if (info.subject_category) {
-                  subjectSet.add(info.subject_category);
-                }
-              });
-              const subjects = Array.from(subjectSet).sort();
+          {/* 전략과목/취약과목 정보 (읽기 전용) */}
+          {data.subject_allocations && data.subject_allocations.length > 0 && (
+            <div className="mb-4 space-y-2">
+              <h4 className="text-xs font-medium text-gray-700">전략과목/취약과목 설정</h4>
+              <div className="space-y-2">
+                {data.subject_allocations.map((allocation) => {
+                  const subjectContentCount = contentInfos.filter(
+                    (c) => c.subject_category === allocation.subject_name
+                  ).length;
 
-              if (subjects.length === 0) {
-                return (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                    선택된 콘텐츠에 과목 정보가 없습니다. 콘텐츠를 선택해주세요.
-                  </div>
-                );
-              }
-
-              return subjects.map((subject) => {
-                const existingAllocation = data.subject_allocations?.find(
-                  (a) => a.subject_name === subject
-                );
-                const subjectType = existingAllocation?.subject_type || "weakness";
-                const weeklyDays = existingAllocation?.weekly_days || 3;
-
-                return (
-                  <div
-                    key={subject}
-                    className="rounded-lg border border-gray-200 bg-gray-50 p-4"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-gray-900">{subject}</h4>
-                      <span className="text-xs text-gray-500">
-                        {contentInfos.filter((c) => c.subject_category === subject).length}개 콘텐츠
-                      </span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="mb-2 block text-xs font-medium text-gray-700">
-                          과목 유형
-                        </label>
-                        <div className="flex gap-3">
-                          <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                            <input
-                              type="radio"
-                              name={`subject_type_${subject}`}
-                              value="weakness"
-                              checked={subjectType === "weakness"}
-                              onChange={() => {
-                                const current = data.subject_allocations || [];
-                                const filtered = current.filter((a) => a.subject_name !== subject);
-                                onUpdate({
-                                  subject_allocations: [
-                                    ...filtered,
-                                    {
-                                      subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                      subject_name: subject,
-                                      subject_type: "weakness",
-                                    },
-                                  ],
-                                });
-                              }}
-                              className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">취약과목</div>
-                              <div className="text-xs text-gray-500">
-                                전체 학습일에 플랜 배정 (더 많은 시간 필요)
-                              </div>
-                            </div>
-                          </label>
-                          <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                            <input
-                              type="radio"
-                              name={`subject_type_${subject}`}
-                              value="strategy"
-                              checked={subjectType === "strategy"}
-                              onChange={() => {
-                                const current = data.subject_allocations || [];
-                                const filtered = current.filter((a) => a.subject_name !== subject);
-                                onUpdate({
-                                  subject_allocations: [
-                                    ...filtered,
-                                    {
-                                      subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                      subject_name: subject,
-                                      subject_type: "strategy",
-                                      weekly_days: 3,
-                                    },
-                                  ],
-                                });
-                              }}
-                              className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">전략과목</div>
-                              <div className="text-xs text-gray-500">
-                                주당 배정 일수에 따라 배정
-                              </div>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-
-                      {subjectType === "strategy" && (
+                  return (
+                    <div
+                      key={allocation.subject_name}
+                      className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                    >
+                      <div className="flex items-center justify-between">
                         <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-700">
-                            주당 배정 일수
-                          </label>
-                          <select
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-                            value={weeklyDays}
-                            onChange={(e) => {
-                              const current = data.subject_allocations || [];
-                              const filtered = current.filter((a) => a.subject_name !== subject);
-                              onUpdate({
-                                subject_allocations: [
-                                  ...filtered,
-                                  {
-                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                    subject_name: subject,
-                                    subject_type: "strategy",
-                                    weekly_days: Number(e.target.value),
-                                  },
-                                ],
-                              });
-                            }}
-                          >
-                            <option value="2">주 2일</option>
-                            <option value="3">주 3일</option>
-                            <option value="4">주 4일</option>
-                          </select>
-                          <p className="mt-1 text-xs text-gray-500">
-                            선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
-                          </p>
+                          <span className="text-sm font-medium text-gray-900">
+                            {allocation.subject_name}
+                          </span>
+                          <span className="ml-2 text-xs text-gray-500">
+                            ({allocation.subject_type === "weakness" ? "취약과목" : "전략과목"})
+                            {allocation.subject_type === "strategy" &&
+                              allocation.weekly_days &&
+                              ` - 주 ${allocation.weekly_days}일`}
+                          </span>
                         </div>
-                      )}
+                        <span className="text-xs text-gray-500">
+                          {subjectContentCount}개 콘텐츠
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 교과 제약 조건 (읽기 전용) */}
+          {data.subject_constraints && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-gray-700">교과 제약 조건</h4>
+              {data.subject_constraints.required_subjects &&
+                data.subject_constraints.required_subjects.length > 0 && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                    <div className="text-xs font-medium text-blue-900">
+                      필수 교과:{" "}
+                      {data.subject_constraints.required_subjects
+                        .map((s) => (typeof s === "string" ? s : s.subject_category))
+                        .join(", ")}
                     </div>
                   </div>
-                );
-              });
-            })()}
-          </div>
+                )}
+              {data.subject_constraints.excluded_subjects &&
+                data.subject_constraints.excluded_subjects.length > 0 && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <div className="text-xs font-medium text-red-900">
+                      제외 교과: {data.subject_constraints.excluded_subjects.join(", ")}
+                    </div>
+                  </div>
+                )}
+              <div className="text-xs text-gray-500">
+                처리 방법:{" "}
+                {data.subject_constraints.constraint_handling === "strict"
+                  ? "엄격"
+                  : data.subject_constraints.constraint_handling === "warning"
+                  ? "경고"
+                  : "자동 보완"}
+              </div>
+            </div>
+          )}
         </div>
       )}
-
-      {/* 교과 제약 조건 설정 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-gray-900">교과 제약 조건</h3>
-        <p className="mb-4 text-xs text-gray-600">
-          플랜에 반드시 포함되어야 하는 교과를 선택하세요. (학생 제출 후 추가한 콘텐츠와 추천 콘텐츠 반영 후 점검)
-        </p>
-
-        <div className="space-y-4">
-          <div>
-            <label className="mb-2 block text-xs font-medium text-gray-700">필수 교과 (선택사항)</label>
-            <div className="flex flex-wrap gap-3">
-              {["국어", "수학", "영어", "과학", "사회"].map((subject) => (
-                <label
-                  key={subject}
-                  className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={data.subject_constraints?.required_subjects?.includes(subject) || false}
-                    onChange={(e) => {
-                      const currentSubjects = data.subject_constraints?.required_subjects || [];
-                      const newSubjects = e.target.checked
-                        ? [...currentSubjects, subject]
-                        : currentSubjects.filter((s) => s !== subject);
-                      onUpdate({
-                        subject_constraints: {
-                          ...data.subject_constraints,
-                          required_subjects: newSubjects.length > 0 ? newSubjects : undefined,
-                          constraint_handling: data.subject_constraints?.constraint_handling || "strict",
-                        },
-                      });
-                    }}
-                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                  />
-                  <span className="text-gray-700">{subject}</span>
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              선택한 교과가 플랜에 반드시 포함되어야 합니다.
-            </p>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-xs font-medium text-gray-700">제약 조건 처리 방법</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-              value={data.subject_constraints?.constraint_handling || "strict"}
-              onChange={(e) => {
-                onUpdate({
-                  subject_constraints: {
-                    ...data.subject_constraints,
-                    constraint_handling: e.target.value as "strict" | "warning" | "auto_fix",
-                    required_subjects: data.subject_constraints?.required_subjects,
-                  },
-                });
-              }}
-            >
-              <option value="strict">엄격 (조건 불만족 시 플랜 생성 실패)</option>
-              <option value="warning">경고 (조건 불만족 시 경고만 표시)</option>
-              <option value="auto_fix">자동 보완 (조건 불만족 시 자동으로 보완)</option>
-            </select>
-          </div>
-        </div>
-      </div>
 
     </div>
   );

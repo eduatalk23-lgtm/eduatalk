@@ -713,7 +713,8 @@ export function PlanGroupWizard({
 
     if (currentStep < 7) {
       if (currentStep === 6) {
-        handleSubmit();
+        // Step 6에서는 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
+        handleSubmit(false); // 플랜 생성하지 않음
       } else {
         setCurrentStep((prev) => (prev + 1) as WizardStep);
       }
@@ -864,10 +865,14 @@ export function PlanGroupWizard({
     });
   }, [wizardData, currentStep, draftGroupId, toast, isTemplateMode, templateId, templateProgramType, templateStatus, onTemplateSave, blockSets]);
 
-  const handleSubmit = () => {
-    // 템플릿 모드나 캠프 모드가 아닐 때만 Step 6 검증 수행
-    if (!isTemplateMode && !isCampMode) {
-      // Step 6 검증 (최종 확인 단계)
+  const handleSubmit = (generatePlans: boolean = true) => {
+    // Step 6 검증 (학습 분량 관련만)
+    if (currentStep === 6) {
+      if (!validateStep(6)) {
+        return;
+      }
+    } else if (!isTemplateMode && !isCampMode) {
+      // 일반 모드에서 Step 6가 아닌 경우 (이전 버전 호환성)
       if (!validateStep(6)) {
         return;
       }
@@ -900,16 +905,39 @@ export function PlanGroupWizard({
             warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings],
           };
         } else if (isCampMode) {
-          // 캠프 모드: Step 1, 2, 3, 4만 검증 (Step 6의 subject_allocations 검증 제외)
-          const step1 = WizardValidator.validateStep(1, wizardData);
-          const step2 = WizardValidator.validateStep(2, wizardData);
-          const step3 = WizardValidator.validateStep(2.5, wizardData); // Step 2.5는 스케줄 확인
-          const step4 = WizardValidator.validateStep(4, wizardData);
-          allValidation = {
-            valid: step1.valid && step2.valid && step3.valid && step4.valid,
-            errors: [...step1.errors, ...step2.errors, ...step3.errors, ...step4.errors],
-            warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings, ...step4.warnings],
-          };
+          // 캠프 모드: 현재 단계에 따라 검증
+          if (currentStep === 5) {
+            // Step 5: 추천 콘텐츠 및 제약 조건 검증
+            const step1 = WizardValidator.validateStep(1, wizardData);
+            const step2 = WizardValidator.validateStep(2, wizardData);
+            const step3 = WizardValidator.validateStep(2.5, wizardData);
+            const step4 = WizardValidator.validateStep(4, wizardData);
+            const step5 = WizardValidator.validateStep(5, wizardData);
+            allValidation = {
+              valid: step1.valid && step2.valid && step3.valid && step4.valid && step5.valid,
+              errors: [...step1.errors, ...step2.errors, ...step3.errors, ...step4.errors, ...step5.errors],
+              warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings, ...step4.warnings, ...step5.warnings],
+            };
+          } else if (currentStep === 6) {
+            // Step 6: 학습 분량 검증만
+            const step6 = WizardValidator.validateStep(6, wizardData);
+            allValidation = {
+              valid: step6.valid,
+              errors: step6.errors,
+              warnings: step6.warnings,
+            };
+          } else {
+            // 기타: Step 1, 2, 3, 4만 검증
+            const step1 = WizardValidator.validateStep(1, wizardData);
+            const step2 = WizardValidator.validateStep(2, wizardData);
+            const step3 = WizardValidator.validateStep(2.5, wizardData);
+            const step4 = WizardValidator.validateStep(4, wizardData);
+            allValidation = {
+              valid: step1.valid && step2.valid && step3.valid && step4.valid,
+              errors: [...step1.errors, ...step2.errors, ...step3.errors, ...step4.errors],
+              warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings, ...step4.warnings],
+            };
+          }
         } else {
           allValidation = WizardValidator.validateAll(wizardData);
         }
@@ -953,8 +981,9 @@ export function PlanGroupWizard({
 
               if (result.success) {
                 toast.showSuccess("저장되었습니다.");
-                // Step 6에서 호출된 경우 플랜 생성 후 Step 7로 이동
+                // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
                 if (currentStep === 6) {
+                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
                   setCurrentStep(7);
                 }
                 // Step 7에서 완료 후 참여자 목록으로 이동
@@ -1085,8 +1114,16 @@ export function PlanGroupWizard({
           console.warn("[PlanGroupWizard] 플랜 그룹 상태 변경 실패:", planGroupError);
         }
 
-        // 플랜 생성 (Step 7로 이동하기 전에, 템플릿 모드가 아닐 때만)
-        if (!isTemplateMode) {
+        // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
+        if (currentStep === 6) {
+          setDraftGroupId(finalGroupId);
+          setCurrentStep(7);
+          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
+          return;
+        }
+
+        // 플랜 생성 (Step 7로 이동하기 전에, 템플릿 모드가 아닐 때만, generatePlans가 true일 때만)
+        if (!isTemplateMode && generatePlans) {
           try {
             await generatePlansFromGroupAction(finalGroupId);
             // Step 7로 이동
