@@ -215,7 +215,10 @@ export function CampParticipantsList({
                         {
                           groupId,
                           invitationId,
-                          error: updateError.message,
+                          error: updateError.message || updateError.toString(),
+                          errorCode: updateError.code,
+                          errorDetails: updateError.details,
+                          fullError: updateError,
                         }
                       );
                     }
@@ -357,8 +360,10 @@ export function CampParticipantsList({
                         planGroupId: planGroup.id,
                         invitationId: invitation.id,
                         studentId: invitation.student_id,
-                        error: updateError.message,
+                        error: updateError.message || updateError.toString(),
                         errorCode: updateError.code,
+                        errorDetails: updateError.details,
+                        fullError: updateError,
                       }
                     );
                   } else if (process.env.NODE_ENV === "development") {
