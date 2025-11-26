@@ -153,45 +153,96 @@ export default async function CampSubmissionDetailPage({
       let templateData: any = null;
       if (template.template_data) {
         if (typeof template.template_data === "string") {
-          templateData = JSON.parse(template.template_data);
+          try {
+            templateData = JSON.parse(template.template_data);
+          } catch (parseError) {
+            console.error("[CampSubmissionDetailPage] template_data 파싱 에러:", parseError);
+            templateData = null;
+          }
         } else {
           templateData = template.template_data;
         }
       }
 
-      const blockSetId = templateData?.block_set_id;
+      // block_set_id 찾기: template_data에서 먼저 확인, 없으면 scheduler_options에서 확인
+      let blockSetId: string | null = null;
+      
+      // 1. template_data에서 block_set_id 확인
+      if (templateData?.block_set_id) {
+        blockSetId = templateData.block_set_id;
+        console.log("[CampSubmissionDetailPage] template_data에서 block_set_id 발견:", blockSetId);
+      }
+      
+      // 2. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로)
+      if (!blockSetId && group.scheduler_options) {
+        let schedulerOptions: any = null;
+        if (typeof group.scheduler_options === "string") {
+          try {
+            schedulerOptions = JSON.parse(group.scheduler_options);
+          } catch (parseError) {
+            console.error("[CampSubmissionDetailPage] scheduler_options 파싱 에러:", parseError);
+          }
+        } else {
+          schedulerOptions = group.scheduler_options;
+        }
+        
+        if (schedulerOptions?.template_block_set_id) {
+          blockSetId = schedulerOptions.template_block_set_id;
+          console.log("[CampSubmissionDetailPage] scheduler_options에서 template_block_set_id 발견:", blockSetId);
+        }
+      }
       
       if (blockSetId) {
-        // 템플릿 블록 세트 조회
+        // 템플릿 블록 세트 조회 (template_id 조건 제거 - block_set_id만으로 조회)
         const { data: templateBlockSet, error: blockSetError } = await supabase
           .from("template_block_sets")
           .select("id, name")
           .eq("id", blockSetId)
-          .eq("template_id", group.camp_template_id)
           .maybeSingle();
 
         if (blockSetError) {
           console.error("[CampSubmissionDetailPage] 템플릿 블록 세트 조회 에러:", blockSetError);
         } else if (templateBlockSet) {
-          templateBlockSetName = templateBlockSet.name;
+          // template_id 일치 확인 (보안 검증)
+          if (templateBlockSet.template_id !== group.camp_template_id) {
+            console.warn("[CampSubmissionDetailPage] 템플릿 ID 불일치:", {
+              block_set_id: blockSetId,
+              expected_template_id: group.camp_template_id,
+              actual_template_id: templateBlockSet.template_id,
+            });
+          } else {
+            templateBlockSetName = templateBlockSet.name;
+            console.log("[CampSubmissionDetailPage] 템플릿 블록 세트 조회 성공:", {
+              id: templateBlockSet.id,
+              name: templateBlockSet.name,
+            });
 
-          // 템플릿 블록 조회
-          const { data: blocks, error: blocksError } = await supabase
-            .from("template_blocks")
-            .select("id, day_of_week, start_time, end_time")
-            .eq("template_block_set_id", templateBlockSet.id)
-            .order("day_of_week", { ascending: true })
-            .order("start_time", { ascending: true });
+            // 템플릿 블록 조회
+            const { data: blocks, error: blocksError } = await supabase
+              .from("template_blocks")
+              .select("id, day_of_week, start_time, end_time")
+              .eq("template_block_set_id", templateBlockSet.id)
+              .order("day_of_week", { ascending: true })
+              .order("start_time", { ascending: true });
 
-          if (blocksError) {
-            console.error("[CampSubmissionDetailPage] 템플릿 블록 조회 에러:", blocksError);
-          } else if (blocks && blocks.length > 0) {
-            templateBlocks = blocks.map((b) => ({
-              id: b.id,
-              day_of_week: b.day_of_week,
-              start_time: b.start_time,
-              end_time: b.end_time,
-            }));
+            if (blocksError) {
+              console.error("[CampSubmissionDetailPage] 템플릿 블록 조회 에러:", blocksError);
+            } else if (blocks && blocks.length > 0) {
+              templateBlocks = blocks.map((b) => ({
+                id: b.id,
+                day_of_week: b.day_of_week,
+                start_time: b.start_time,
+                end_time: b.end_time,
+              }));
+              console.log("[CampSubmissionDetailPage] 템플릿 블록 조회 성공:", {
+                count: templateBlocks.length,
+                blocks: templateBlocks,
+              });
+            } else {
+              console.warn("[CampSubmissionDetailPage] 템플릿 블록이 없음:", {
+                block_set_id: blockSetId,
+              });
+            }
           }
         } else {
           console.warn("[CampSubmissionDetailPage] 템플릿 블록 세트를 찾을 수 없음:", {
@@ -200,9 +251,12 @@ export default async function CampSubmissionDetailPage({
           });
         }
       } else {
-        console.warn("[CampSubmissionDetailPage] template_data에 block_set_id가 없음:", {
+        console.warn("[CampSubmissionDetailPage] block_set_id를 찾을 수 없음:", {
           template_id: group.camp_template_id,
-          template_data: templateData,
+          template_data_has_block_set_id: !!templateData?.block_set_id,
+          scheduler_options_has_template_block_set_id: !!(typeof group.scheduler_options === "object" 
+            ? (group.scheduler_options as any)?.template_block_set_id 
+            : null),
         });
       }
     } catch (error) {
