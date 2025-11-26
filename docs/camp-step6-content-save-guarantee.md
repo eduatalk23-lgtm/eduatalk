@@ -62,9 +62,9 @@ if (totalContents > 0 && !hasPlanContents) {
 }
 ```
 
-### 2. 마스터 콘텐츠를 학생 콘텐츠로 변환
+### 2. 마스터 콘텐츠를 학생 콘텐츠로 변환 및 자동 복사
 
-캠프 모드에서는 추천 콘텐츠가 마스터 콘텐츠 ID로 전달될 수 있으므로, 이를 학생 콘텐츠 ID로 변환하는 로직을 추가했습니다:
+캠프 모드에서는 추천 콘텐츠가 마스터 콘텐츠 ID로 전달될 수 있으므로, 이를 학생 콘텐츠 ID로 변환하는 로직을 추가했습니다. 학생이 해당 마스터 콘텐츠를 가지고 있지 않으면 자동으로 복사합니다:
 
 ```typescript
 // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
@@ -79,6 +79,26 @@ if (studentBookByMaster) {
   isValidContent = true;
   actualContentId = studentBookByMaster.id;
   masterContentId = content.content_id; // 원본 마스터 콘텐츠 ID
+} else {
+  // 마스터 교재를 학생 교재로 복사 (캠프 모드에서 자동 복사)
+  try {
+    const { copyMasterBookToStudent } = await import(
+      "@/lib/data/contentMasters"
+    );
+    const { bookId } = await copyMasterBookToStudent(
+      content.content_id,
+      studentId,
+      tenantContext.tenantId
+    );
+    isValidContent = true;
+    actualContentId = bookId;
+    masterContentId = content.content_id;
+  } catch (copyError) {
+    // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
+    isValidContent = true;
+    actualContentId = content.content_id;
+    masterContentId = content.content_id;
+  }
 }
 ```
 
@@ -141,9 +161,10 @@ if (!finalPlanContents || finalPlanContents.length === 0) {
 ## 효과
 
 1. **콘텐츠 저장 보장**: Step 6에서 플랜 생성 전에 콘텐츠가 반드시 `plan_contents` 테이블에 저장됩니다.
-2. **마스터 콘텐츠 변환**: 추천 콘텐츠가 마스터 콘텐츠 ID로 전달되어도 학생 콘텐츠 ID로 변환되어 저장됩니다.
-3. **추천 정보 보존**: 추천 콘텐츠의 추천 이유, 우선순위 등의 정보가 함께 저장됩니다.
-4. **에러 방지**: 플랜 생성 시 콘텐츠가 0개인 문제를 해결했습니다.
+2. **마스터 콘텐츠 자동 복사**: 추천 콘텐츠가 마스터 콘텐츠 ID로 전달되어도 자동으로 학생 콘텐츠로 복사되어 저장됩니다.
+3. **Fallback 처리**: 마스터 콘텐츠 복사가 실패해도 마스터 콘텐츠 ID를 사용하여 플랜 생성 시 자동 복사되도록 합니다.
+4. **추천 정보 보존**: 추천 콘텐츠의 추천 이유, 우선순위 등의 정보가 함께 저장됩니다.
+5. **에러 방지**: 플랜 생성 시 콘텐츠가 0개인 문제를 해결했습니다.
 
 ## 테스트 시나리오
 
