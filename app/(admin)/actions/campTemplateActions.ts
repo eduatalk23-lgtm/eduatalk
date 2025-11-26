@@ -2148,25 +2148,225 @@ export const continueCampStepsForAdmin = withErrorHandling(
           }
         }
 
-        // 2. 콘텐츠 검증
+        // 2. 콘텐츠 검증 및 저장 보장
         // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
         const studentContents = wizardData.student_contents || [];
         const recommendedContents = wizardData.recommended_contents || [];
         const totalContents = studentContents.length + recommendedContents.length;
 
-        // wizardData에 콘텐츠가 없으면 plan_contents 테이블도 확인 (이미 저장된 경우)
-        if (totalContents === 0) {
-          const { data: planContents } = await supabase
-            .from("plan_contents")
-            .select("id")
-            .eq("plan_group_id", groupId)
-            .limit(1);
+        // plan_contents 테이블에 콘텐츠가 있는지 확인
+        const { data: existingPlanContents } = await supabase
+          .from("plan_contents")
+          .select("id")
+          .eq("plan_group_id", groupId)
+          .limit(1);
 
-          if (!planContents || planContents.length === 0) {
-            validationErrors.push(
-              "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
-            );
+        const hasPlanContents = existingPlanContents && existingPlanContents.length > 0;
+
+        // wizardData에 콘텐츠가 있고 plan_contents에 없으면 저장
+        if (totalContents > 0 && !hasPlanContents) {
+          console.log("[campTemplateActions] Step 6에서 콘텐츠 저장 필요:", {
+            totalContents,
+            studentContents: studentContents.length,
+            recommendedContents: recommendedContents.length,
+          });
+
+          // creationData를 다시 생성하여 콘텐츠 저장
+          const creationDataForContents = syncWizardDataToCreationData(
+            wizardData as WizardData
+          );
+
+          if (creationDataForContents.contents && creationDataForContents.contents.length > 0) {
+            const studentId = result.group.student_id;
+            const validContents: Array<{
+              content_type: string;
+              content_id: string;
+              start_range: number;
+              end_range: number;
+              display_order: number;
+              master_content_id?: string | null;
+            }> = [];
+
+            for (const content of creationDataForContents.contents) {
+              let isValidContent = false;
+              let actualContentId = content.content_id;
+              let masterContentId: string | null = null;
+
+              if (content.content_type === "book") {
+                // 먼저 학생 교재로 직접 조회
+                const { data: studentBook } = await supabase
+                  .from("books")
+                  .select("id, master_content_id")
+                  .eq("id", content.content_id)
+                  .eq("student_id", studentId)
+                  .maybeSingle();
+
+                if (studentBook) {
+                  isValidContent = true;
+                  actualContentId = studentBook.id;
+                  masterContentId = studentBook.master_content_id || null;
+                } else {
+                  // 마스터 교재인지 확인
+                  const { data: masterBook } = await supabase
+                    .from("master_books")
+                    .select("id")
+                    .eq("id", content.content_id)
+                    .maybeSingle();
+
+                  if (masterBook) {
+                    // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
+                    const { data: studentBookByMaster } = await supabase
+                      .from("books")
+                      .select("id, master_content_id")
+                      .eq("student_id", studentId)
+                      .eq("master_content_id", content.content_id)
+                      .maybeSingle();
+
+                    if (studentBookByMaster) {
+                      isValidContent = true;
+                      actualContentId = studentBookByMaster.id;
+                      masterContentId = content.content_id; // 원본 마스터 콘텐츠 ID
+                    } else {
+                      console.warn(
+                        `[campTemplateActions] 학생(${studentId})이 마스터 교재(${content.content_id})를 가지고 있지 않습니다.`
+                      );
+                    }
+                  }
+                }
+              } else if (content.content_type === "lecture") {
+                // 먼저 학생 강의로 직접 조회
+                const { data: studentLecture } = await supabase
+                  .from("lectures")
+                  .select("id, master_content_id")
+                  .eq("id", content.content_id)
+                  .eq("student_id", studentId)
+                  .maybeSingle();
+
+                if (studentLecture) {
+                  isValidContent = true;
+                  actualContentId = studentLecture.id;
+                  masterContentId = studentLecture.master_content_id || null;
+                } else {
+                  // 마스터 강의인지 확인
+                  const { data: masterLecture } = await supabase
+                    .from("master_lectures")
+                    .select("id")
+                    .eq("id", content.content_id)
+                    .maybeSingle();
+
+                  if (masterLecture) {
+                    // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
+                    const { data: studentLectureByMaster } = await supabase
+                      .from("lectures")
+                      .select("id, master_content_id")
+                      .eq("student_id", studentId)
+                      .eq("master_content_id", content.content_id)
+                      .maybeSingle();
+
+                    if (studentLectureByMaster) {
+                      isValidContent = true;
+                      actualContentId = studentLectureByMaster.id;
+                      masterContentId = content.content_id; // 원본 마스터 콘텐츠 ID
+                    } else {
+                      console.warn(
+                        `[campTemplateActions] 학생(${studentId})이 마스터 강의(${content.content_id})를 가지고 있지 않습니다.`
+                      );
+                    }
+                  }
+                }
+              } else if (content.content_type === "custom") {
+                // 커스텀 콘텐츠는 학생 ID로 직접 조회
+                const { data: customContent } = await supabase
+                  .from("student_custom_contents")
+                  .select("id")
+                  .eq("id", content.content_id)
+                  .eq("student_id", studentId)
+                  .maybeSingle();
+
+                if (customContent) {
+                  isValidContent = true;
+                  actualContentId = customContent.id;
+                }
+              }
+
+              if (isValidContent) {
+                validContents.push({
+                  content_type: content.content_type,
+                  content_id: actualContentId,
+                  start_range: content.start_range,
+                  end_range: content.end_range,
+                  display_order: content.display_order ?? 0,
+                  master_content_id: masterContentId,
+                });
+              }
+            }
+
+            if (validContents.length > 0) {
+              // 추천 콘텐츠 정보 추출 (wizardData에서)
+              const recommendedContentIds = new Set(
+                recommendedContents.map((c) => c.content_id)
+              );
+              
+              const contentsToSave = validContents.map((c, idx) => {
+                const isRecommended = recommendedContentIds.has(c.content_id) || 
+                  (c.master_content_id && recommendedContentIds.has(c.master_content_id));
+                
+                // wizardData에서 추천 정보 가져오기
+                const recommendedContent = recommendedContents.find(
+                  (rc) => rc.content_id === c.content_id || rc.content_id === c.master_content_id
+                );
+                
+                return {
+                  content_type: c.content_type,
+                  content_id: c.content_id,
+                  start_range: c.start_range,
+                  end_range: c.end_range,
+                  display_order: c.display_order ?? idx,
+                  master_content_id: c.master_content_id || null,
+                  is_auto_recommended: (recommendedContent as any)?.is_auto_recommended ?? false,
+                  recommendation_source: (recommendedContent as any)?.recommendation_source ?? (isRecommended ? "admin" : null),
+                  recommendation_reason: (recommendedContent as any)?.recommendation_reason ?? null,
+                  recommendation_metadata: (recommendedContent as any)?.recommendation_metadata ?? null,
+                };
+              });
+
+              const contentsResult = await createPlanContents(
+                groupId,
+                tenantContext.tenantId,
+                contentsToSave
+              );
+
+              if (!contentsResult.success) {
+                throw new AppError(
+                  contentsResult.error || "콘텐츠 저장에 실패했습니다.",
+                  ErrorCode.DATABASE_ERROR,
+                  500,
+                  true
+                );
+              }
+
+              console.log("[campTemplateActions] Step 6에서 콘텐츠 저장 완료:", {
+                savedCount: validContents.length,
+              });
+            } else {
+              console.warn(
+                `[campTemplateActions] 학생(${result.group.student_id})이 가지고 있는 유효한 콘텐츠가 없습니다.`
+              );
+            }
           }
+        }
+
+        // 최종 콘텐츠 검증 (plan_contents 테이블 확인)
+        const { data: finalPlanContents } = await supabase
+          .from("plan_contents")
+          .select("id")
+          .eq("plan_group_id", groupId)
+          .limit(1);
+
+        if (!finalPlanContents || finalPlanContents.length === 0) {
+          validationErrors.push(
+            "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
+          );
         }
 
         // 3. 템플릿 블록 세트 검증 (캠프 모드)

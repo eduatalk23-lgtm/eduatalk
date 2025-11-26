@@ -92,7 +92,7 @@ if (scheduledPlans.length === 0) {
     `제외일: ${exclusions.length}개`,
     `학원 일정: ${academySchedules.length}개`,
   ].join(", ");
-  
+
   throw new AppError(
     `생성된 플랜이 없습니다. 기간, 제외일, 블록 설정을 확인해주세요. (${errorDetails})`,
     ErrorCode.VALIDATION_ERROR,
@@ -128,4 +128,3 @@ if (scheduledPlans.length === 0) {
 - 1730_timetable 스케줄러는 학습일과 복습일을 구분하여 플랜을 생성합니다.
 - 복습일에는 해당 주차의 학습 범위를 복습하는 플랜이 생성됩니다.
 - `generate1730TimetablePlans` 함수는 복습일에도 `dateAvailableTimeRanges`를 사용하므로, 복습일의 `available_time_ranges`가 반드시 필요합니다.
-
