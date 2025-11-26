@@ -277,7 +277,11 @@ async function _generatePlansFromGroup(
   const weekDatesMap = new Map<number, string[]>();
 
   scheduleResult.daily_schedule.forEach((daily) => {
-    if (daily.day_type === "학습일" && daily.available_time_ranges.length > 0) {
+    // 학습일과 복습일 모두 포함 (1730_timetable의 경우 복습일에도 플랜 생성 필요)
+    if (
+      (daily.day_type === "학습일" || daily.day_type === "복습일") &&
+      daily.available_time_ranges.length > 0
+    ) {
       dateAvailableTimeRanges.set(
         daily.date,
         daily.available_time_ranges.map((range) => ({
@@ -929,6 +933,21 @@ async function _generatePlansFromGroup(
 
   // 9. 스케줄러로 플랜 생성 (Step 2.5 스케줄 결과 및 콘텐츠 소요시간 정보 전달)
   const { generatePlansFromGroup } = await import("@/lib/plan/scheduler");
+  
+  // 디버깅을 위한 로그 추가
+  console.log("[planGroupActions] 플랜 생성 시작:", {
+    groupId,
+    contentsCount: contents.length,
+    dateAvailableTimeRangesCount: dateAvailableTimeRanges.size,
+    dateTimeSlotsCount: dateTimeSlots.size,
+    contentDurationMapCount: contentDurationMap.size,
+    schedulerType: group.scheduler_type,
+    periodStart: group.period_start,
+    periodEnd: group.period_end,
+    exclusionsCount: exclusions.length,
+    academySchedulesCount: academySchedules.length,
+  });
+  
   const scheduledPlans = generatePlansFromGroup(
     group,
     contents,
@@ -942,9 +961,22 @@ async function _generatePlansFromGroup(
     contentDurationMap
   );
 
+  console.log("[planGroupActions] 플랜 생성 완료:", {
+    scheduledPlansCount: scheduledPlans.length,
+    firstPlan: scheduledPlans[0] || null,
+  });
+
   if (scheduledPlans.length === 0) {
+    // 더 자세한 에러 메시지 제공
+    const errorDetails = [
+      `콘텐츠 개수: ${contents.length}개`,
+      `사용 가능한 날짜: ${dateAvailableTimeRanges.size}일`,
+      `제외일: ${exclusions.length}개`,
+      `학원 일정: ${academySchedules.length}개`,
+    ].join(", ");
+    
     throw new AppError(
-      "생성된 플랜이 없습니다. 기간, 제외일, 블록 설정을 확인해주세요.",
+      `생성된 플랜이 없습니다. 기간, 제외일, 블록 설정을 확인해주세요. (${errorDetails})`,
       ErrorCode.VALIDATION_ERROR,
       400,
       true
