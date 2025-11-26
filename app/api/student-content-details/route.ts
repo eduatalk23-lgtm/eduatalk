@@ -1,38 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentBookDetails, getStudentLectureEpisodes } from "@/lib/data/contentMasters";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import {
+  apiSuccess,
+  apiUnauthorized,
+  apiBadRequest,
+  handleApiError,
+} from "@/lib/api";
 
+/**
+ * 학생 콘텐츠 상세 정보 조회 API
+ * GET /api/student-content-details?contentType=book&contentId=...&student_id=...
+ *
+ * @returns
+ * 성공: { success: true, data: { details/episodes, metadata? } }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     const { role } = await getCurrentUserRole();
-    
+
     if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiUnauthorized();
     }
 
     const searchParams = request.nextUrl.searchParams;
     const contentType = searchParams.get("contentType");
     const contentId = searchParams.get("contentId");
     const includeMetadata = searchParams.get("includeMetadata") === "true";
-    // 관리자/컨설턴트의 경우 student_id를 쿼리 파라미터로 받음 (캠프 모드)
     const studentId = searchParams.get("student_id");
 
     if (!contentType || !contentId) {
-      return NextResponse.json(
-        { error: "contentType and contentId are required" },
-        { status: 400 }
-      );
+      return apiBadRequest("contentType과 contentId가 필요합니다.");
     }
 
     // 관리자/컨설턴트의 경우 student_id가 필요
     if ((role === "admin" || role === "consultant") && !studentId) {
-      return NextResponse.json(
-        { error: "관리자/컨설턴트의 경우 student_id가 필요합니다." },
-        { status: 400 }
-      );
+      return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
     }
 
     const supabase = await createSupabaseServerClient();
@@ -40,9 +47,8 @@ export async function GET(request: NextRequest) {
 
     if (contentType === "book") {
       const details = await getStudentBookDetails(contentId, targetStudentId);
-      
+
       if (includeMetadata) {
-        // 교재 메타데이터 조회
         const { data: bookData } = await supabase
           .from("books")
           .select("subject, semester, revision, difficulty_level, publisher")
@@ -50,18 +56,17 @@ export async function GET(request: NextRequest) {
           .eq("student_id", targetStudentId)
           .maybeSingle();
 
-        return NextResponse.json({
+        return apiSuccess({
           details,
           metadata: bookData || null,
         });
       }
 
-      return NextResponse.json({ details });
+      return apiSuccess({ details });
     } else if (contentType === "lecture") {
       const episodes = await getStudentLectureEpisodes(contentId, targetStudentId);
-      
+
       if (includeMetadata) {
-        // 강의 메타데이터 조회
         const { data: lectureData } = await supabase
           .from("lectures")
           .select("subject, semester, revision, difficulty_level, platform")
@@ -69,25 +74,17 @@ export async function GET(request: NextRequest) {
           .eq("student_id", targetStudentId)
           .maybeSingle();
 
-        return NextResponse.json({
+        return apiSuccess({
           episodes,
           metadata: lectureData || null,
         });
       }
 
-      return NextResponse.json({ episodes });
+      return apiSuccess({ episodes });
     } else {
-      return NextResponse.json(
-        { error: "Invalid contentType. Must be 'book' or 'lecture'" },
-        { status: 400 }
-      );
+      return apiBadRequest("지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요.");
     }
   } catch (error) {
-    console.error("[api/student-content-details] 조회 실패", error);
-    return NextResponse.json(
-      { error: "Failed to fetch content details" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/student-content-details]");
   }
 }
-

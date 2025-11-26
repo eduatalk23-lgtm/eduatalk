@@ -1,11 +1,32 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getSchoolByName, getRegions } from "@/lib/data/schools";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  apiSuccess,
+  apiBadRequest,
+  handleApiError,
+} from "@/lib/api";
+
+type School = {
+  id: string;
+  name: string;
+  type: string;
+  region: string | null;
+};
+
+type AutoRegisterResponse = {
+  school: School;
+};
 
 /**
  * 학교 자동 등록 API
  * POST /api/schools/auto-register
  * 학교 선택 시 DB에 없으면 자동으로 등록
+ *
+ * @body { name: string, type: string, region?: string }
+ * @returns
+ * 성공: { success: true, data: { school: School } }
+ * 에러: { success: false, error: { code, message } }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -13,24 +34,18 @@ export async function POST(request: NextRequest) {
     const { name, type, region } = body;
 
     if (!name || !type) {
-      return NextResponse.json(
-        { error: "학교명과 타입은 필수입니다." },
-        { status: 400 }
-      );
+      return apiBadRequest("학교명과 타입은 필수입니다.");
     }
 
     if (!["중학교", "고등학교", "대학교"].includes(type)) {
-      return NextResponse.json(
-        { error: "올바른 학교 타입을 선택하세요." },
-        { status: 400 }
-      );
+      return apiBadRequest("올바른 학교 타입을 선택하세요. (중학교, 고등학교, 대학교)");
     }
 
     // 기존 학교 확인
     const existing = await getSchoolByName(name, type);
 
     if (existing) {
-      return NextResponse.json({
+      return apiSuccess<AutoRegisterResponse>({
         school: {
           id: existing.id,
           name: existing.name,
@@ -63,17 +78,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("[api/schools/auto-register] 등록 실패:", error);
-      return NextResponse.json(
-        { error: "학교 등록에 실패했습니다." },
-        { status: 500 }
-      );
+      return handleApiError(error, "[api/schools/auto-register] 등록 실패");
     }
 
     // 지역 정보 포함하여 반환
     const schoolWithRegion = await getSchoolByName(name, type);
 
-    return NextResponse.json({
+    return apiSuccess<AutoRegisterResponse>({
       school: schoolWithRegion
         ? {
             id: schoolWithRegion.id,
@@ -89,11 +100,6 @@ export async function POST(request: NextRequest) {
           },
     });
   } catch (error) {
-    console.error("[api/schools/auto-register] 오류:", error);
-    return NextResponse.json(
-      { error: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/schools/auto-register]");
   }
 }
-

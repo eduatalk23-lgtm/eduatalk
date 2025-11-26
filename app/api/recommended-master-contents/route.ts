@@ -1,13 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import {
+  apiSuccess,
+  apiUnauthorized,
+  handleApiError,
+} from "@/lib/api";
 
+/**
+ * 추천 마스터 콘텐츠 조회 API
+ * GET /api/recommended-master-contents?subjects=국어&subjects=수학&count_국어=2
+ *
+ * @returns
+ * 성공: { success: true, data: { recommendations: [...] } }
+ * 에러: { success: false, error: { code, message } }
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiUnauthorized();
     }
 
     const supabase = await createSupabaseServerClient();
@@ -20,20 +33,15 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (studentError) {
-      console.error("[api/recommended-master-contents] 학생 조회 실패", studentError);
-      return NextResponse.json(
-        { error: "Failed to fetch student data" },
-        { status: 500 }
-      );
+      return handleApiError(studentError, "[api/recommended-master-contents] 학생 조회 실패");
     }
 
     // 쿼리 파라미터에서 교과와 개수 정보 추출
     const { searchParams } = new URL(request.url);
     const subjectsParam = searchParams.getAll("subjects");
     const subjectCounts = new Map<string, number>();
-    
+
     if (subjectsParam.length > 0) {
-      // 교과별 개수 파라미터 파싱
       subjectsParam.forEach((subject) => {
         const countParam = searchParams.get(`count_${subject}`);
         const count = countParam ? parseInt(countParam, 10) : 1;
@@ -50,13 +58,8 @@ export async function GET(request: NextRequest) {
       subjectCounts.size > 0 ? subjectCounts : undefined
     );
 
-    return NextResponse.json({ recommendations });
+    return apiSuccess({ recommendations });
   } catch (error) {
-    console.error("[api/recommended-master-contents] 추천 생성 실패", error);
-    return NextResponse.json(
-      { error: "Failed to generate recommendations" },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/recommended-master-contents]");
   }
 }
-
