@@ -911,27 +911,49 @@ export const getCampPlanGroupForReview = withErrorHandling(
       const supabase = await createSupabaseServerClient();
       
       // 템플릿 조회
-      const { data: template } = await supabase
+      const { data: template, error: templateError } = await supabase
         .from("camp_templates")
         .select("template_data")
         .eq("id", result.group.camp_template_id)
-        .single();
+        .maybeSingle();
 
-      if (template?.template_data) {
-        let templateData: any = null;
-        if (typeof template.template_data === "string") {
-          templateData = JSON.parse(template.template_data);
-        } else {
-          templateData = template.template_data;
-        }
-        
+      if (templateError) {
+        console.error("[getCampPlanGroupForReview] 템플릿 조회 에러:", templateError);
+      } else if (!template) {
+        console.warn("[getCampPlanGroupForReview] 템플릿을 찾을 수 없음:", result.group.camp_template_id);
+      } else {
         // scheduler_options에서 template_block_set_id 확인 (우선)
         const schedulerOptions = (result.group.scheduler_options as any) || {};
         let templateBlockSetId = schedulerOptions.template_block_set_id;
         
+        if (process.env.NODE_ENV === "development") {
+          console.log("[getCampPlanGroupForReview] 템플릿 블록 세트 ID 조회:", {
+            fromSchedulerOptions: templateBlockSetId,
+            schedulerOptions: JSON.stringify(schedulerOptions),
+          });
+        }
+        
         // scheduler_options에 없으면 template_data에서 확인
-        if (!templateBlockSetId) {
-          templateBlockSetId = templateData?.block_set_id;
+        if (!templateBlockSetId && template.template_data) {
+          try {
+            let templateData: any = null;
+            if (typeof template.template_data === "string") {
+              templateData = JSON.parse(template.template_data);
+            } else {
+              templateData = template.template_data;
+            }
+            
+            templateBlockSetId = templateData?.block_set_id;
+            
+            if (process.env.NODE_ENV === "development") {
+              console.log("[getCampPlanGroupForReview] template_data에서 조회:", {
+                block_set_id: templateBlockSetId,
+                templateDataKeys: templateData ? Object.keys(templateData) : [],
+              });
+            }
+          } catch (parseError) {
+            console.error("[getCampPlanGroupForReview] template_data 파싱 에러:", parseError);
+          }
         }
 
         if (templateBlockSetId) {
@@ -944,7 +966,11 @@ export const getCampPlanGroupForReview = withErrorHandling(
             .maybeSingle();
 
           if (blockSetError) {
-            console.error("[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:", blockSetError);
+            console.error("[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:", {
+              error: blockSetError,
+              templateBlockSetId,
+              templateId: result.group.camp_template_id,
+            });
           } else if (templateBlockSet) {
             templateBlockSetName = templateBlockSet.name;
 
@@ -957,7 +983,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
               .order("start_time", { ascending: true });
 
             if (blocksError) {
-              console.error("[getCampPlanGroupForReview] 템플릿 블록 조회 에러:", blocksError);
+              console.error("[getCampPlanGroupForReview] 템플릿 블록 조회 에러:", {
+                error: blocksError,
+                templateBlockSetId,
+              });
             } else if (blocks && blocks.length > 0) {
               templateBlocks = blocks.map((b) => ({
                 id: b.id,
@@ -965,9 +994,42 @@ export const getCampPlanGroupForReview = withErrorHandling(
                 start_time: b.start_time,
                 end_time: b.end_time,
               }));
+              
+              if (process.env.NODE_ENV === "development") {
+                console.log("[getCampPlanGroupForReview] 템플릿 블록 조회 성공:", {
+                  blockSetName: templateBlockSetName,
+                  blockCount: templateBlocks.length,
+                });
+              }
+            } else {
+              if (process.env.NODE_ENV === "development") {
+                console.warn("[getCampPlanGroupForReview] 템플릿 블록이 없음:", {
+                  templateBlockSetId,
+                  templateBlockSetName,
+                });
+              }
+            }
+          } else {
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:", {
+                templateBlockSetId,
+                templateId: result.group.camp_template_id,
+              });
             }
           }
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[getCampPlanGroupForReview] template_block_set_id를 찾을 수 없음:", {
+              campTemplateId: result.group.camp_template_id,
+              schedulerOptions: JSON.stringify(schedulerOptions),
+              hasTemplateData: !!template.template_data,
+            });
+          }
         }
+      }
+    } else {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[getCampPlanGroupForReview] camp_template_id가 없음");
       }
     }
 
