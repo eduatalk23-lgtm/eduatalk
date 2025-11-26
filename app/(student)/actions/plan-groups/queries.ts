@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanGroupById, getPlanGroupWithDetails } from "@/lib/data/planGroups";
@@ -27,15 +27,7 @@ async function _getPlansByGroupId(groupId: string): Promise<{
     sequence: number | null;
   }>;
 }> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
@@ -83,15 +75,7 @@ async function _checkPlansExist(groupId: string): Promise<{
   hasPlans: boolean;
   planCount: number;
 }> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const supabase = await createSupabaseServerClient();
   const { count, error } = await supabase
@@ -860,15 +844,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
 async function _getActivePlanGroups(
   excludeGroupId?: string
 ): Promise<Array<{ id: string; name: string | null }>> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const supabase = await createSupabaseServerClient();
 

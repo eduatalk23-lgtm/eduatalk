@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   getPlanGroupById,
   createStudentAcademySchedules,
@@ -29,25 +29,8 @@ async function _syncTimeManagementAcademySchedules(
     source?: "time_management";
   }>;
 }> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   const supabase = await createSupabaseServerClient();
 
@@ -95,25 +78,8 @@ async function _syncTimeManagementAcademySchedules(
  * 플랜 그룹 학원 일정 추가
  */
 async function _addAcademySchedule(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   const dayOfWeek = formData.get("day_of_week");
   const startTime = formData.get("start_time");
@@ -220,15 +186,7 @@ async function _addAcademySchedule(formData: FormData): Promise<void> {
  * 플랜 그룹 학원 일정 수정
  */
 async function _updateAcademySchedule(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const scheduleId = formData.get("schedule_id");
   const dayOfWeek = formData.get("day_of_week");
@@ -402,15 +360,7 @@ async function _updateAcademySchedule(formData: FormData): Promise<void> {
  * 플랜 그룹 학원 일정 삭제
  */
 async function _deleteAcademySchedule(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const scheduleId = formData.get("schedule_id");
 
@@ -471,15 +421,7 @@ async function _deleteAcademySchedule(formData: FormData): Promise<void> {
 async function _getAcademySchedules(
   planGroupId: string
 ): Promise<AcademySchedule[]> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const tenantContext = await getTenantContext();
 
@@ -510,25 +452,8 @@ async function _getAcademySchedules(
  * 학원 생성
  */
 async function _createAcademy(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   const name = formData.get("name");
   const travelTime = formData.get("travel_time");
@@ -598,15 +523,7 @@ async function _createAcademy(formData: FormData): Promise<void> {
  * 학원 수정
  */
 async function _updateAcademy(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const academyId = formData.get("academy_id");
   const name = formData.get("name");
@@ -708,15 +625,7 @@ async function _updateAcademy(formData: FormData): Promise<void> {
  * 학원 삭제
  */
 async function _deleteAcademy(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const academyId = formData.get("academy_id");
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { deletePlanGroup, getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -11,15 +11,7 @@ import { PlanStatusManager } from "@/lib/plan/statusManager";
  * 플랜 그룹 삭제
  */
 async function _deletePlanGroup(groupId: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const supabase = await createSupabaseServerClient();
 

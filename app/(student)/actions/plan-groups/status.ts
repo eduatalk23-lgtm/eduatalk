@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { getPlanGroupById, updatePlanGroup } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -14,15 +14,7 @@ async function _updatePlanGroupStatus(
   groupId: string,
   status: string
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   // 기존 그룹 조회
   const group = await getPlanGroupById(groupId, user.userId);

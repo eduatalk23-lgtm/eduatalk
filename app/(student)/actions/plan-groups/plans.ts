@@ -2,7 +2,7 @@
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -41,15 +41,7 @@ async function _generatePlansFromGroup(
     );
   }
 
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const tenantContext = await requireTenantContext();
 
   const supabase = await createSupabaseServerClient();
 

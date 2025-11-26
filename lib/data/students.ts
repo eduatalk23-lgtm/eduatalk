@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+import { executeQuery, executeSingleQuery } from "./core/queryBuilder";
+import type { SupabaseServerClient } from "./core/types";
 
 export type Student = {
   id: string;
@@ -27,20 +27,18 @@ export async function getStudentById(
   const supabase = await createSupabaseServerClient();
 
   // 기본 학적 정보만 조회 (프로필/진로 정보는 별도 테이블에서 조회)
-  const selectStudent = () =>
-    supabase
-      .from("students")
-      .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
-      .eq("id", studentId);
-
-  let { data, error } = await selectStudent().maybeSingle<Student>();
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/students] 학생 조회 실패", error);
-    return null;
-  }
-
-  return data ?? null;
+  return executeSingleQuery<Student>(
+    () =>
+      supabase
+        .from("students")
+        .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+        .eq("id", studentId)
+        .maybeSingle(),
+    {
+      context: "[data/students]",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -53,20 +51,19 @@ export async function listStudentsByTenant(
   const supabase = await createSupabaseServerClient();
 
   // 기본 학적 정보만 조회
-  const selectStudents = () =>
-    supabase
-      .from("students")
-      .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
-      .order("created_at", { ascending: false });
+  const result = await executeQuery<Student[]>(
+    () =>
+      supabase
+        .from("students")
+        .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+        .order("created_at", { ascending: false }),
+    {
+      context: "[data/students]",
+      defaultValue: [],
+    }
+  );
 
-  let { data, error } = await selectStudents();
-
-  if (error) {
-    console.error("[data/students] 학생 목록 조회 실패", error);
-    return [];
-  }
-
-  return (data as Student[] | null) ?? [];
+  return result ?? [];
 }
 
 /**

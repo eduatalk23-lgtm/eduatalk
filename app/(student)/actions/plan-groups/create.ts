@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   createPlanGroup,
   deletePlanGroup,
@@ -22,25 +22,8 @@ import { normalizePlanPurpose } from "./utils";
 async function _createPlanGroup(
   data: PlanGroupCreationData
 ): Promise<{ groupId: string }> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   // 검증
   const validation = PlanValidator.validateCreation(data);
@@ -183,38 +166,8 @@ export const createPlanGroupAction = withErrorHandling(_createPlanGroup);
 async function _savePlanGroupDraft(
   data: PlanGroupCreationData
 ): Promise<{ groupId: string }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    console.error("[planGroupActions] getCurrentUser가 null 반환");
-    throw new AppError(
-      "로그인이 필요합니다. 세션이 만료되었거나 사용자 정보를 찾을 수 없습니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-  if (user.role !== "student") {
-    console.error("[planGroupActions] 학생이 아닌 사용자 접근 시도", {
-      userId: user.userId,
-      role: user.role,
-    });
-    throw new AppError(
-      "학생 권한이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      403,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   // 최소 검증만 수행 (이름만 필수)
   if (!data.name || data.name.trim() === "") {
@@ -329,25 +282,8 @@ export const savePlanGroupDraftAction = withErrorHandling(_savePlanGroupDraft);
  * 플랜 그룹 복사
  */
 async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   // 원본 플랜 그룹 조회
   const { group, contents, exclusions, academySchedules } =

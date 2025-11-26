@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   getPlanGroupById,
   createPlanExclusions,
@@ -27,25 +27,8 @@ async function _syncTimeManagementExclusions(
     source?: "time_management";
   }>;
 }> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   const supabase = await createSupabaseServerClient();
 
@@ -106,25 +89,8 @@ async function _syncTimeManagementExclusions(
  * 플랜 그룹 제외일 추가
  */
 async function _addPlanExclusion(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   const exclusionDate = formData.get("exclusion_date");
   const exclusionType = formData.get("exclusion_type");
@@ -229,15 +195,7 @@ async function _addPlanExclusion(formData: FormData): Promise<void> {
  * 플랜 그룹 제외일 삭제
  */
 async function _deletePlanExclusion(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   const exclusionId = formData.get("exclusion_id");
 

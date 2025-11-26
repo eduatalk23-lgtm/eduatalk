@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   updatePlanGroup,
   getPlanGroupById,
@@ -24,38 +24,8 @@ async function _updatePlanGroupDraft(
   groupId: string,
   data: Partial<PlanGroupCreationData>
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) {
-    console.error("[planGroupActions] getCurrentUser가 null 반환 (updatePlanGroupDraft)");
-    throw new AppError(
-      "로그인이 필요합니다. 세션이 만료되었거나 사용자 정보를 찾을 수 없습니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-  if (user.role !== "student") {
-    console.error("[planGroupActions] 학생이 아닌 사용자 접근 시도 (updatePlanGroupDraft)", {
-      userId: user.userId,
-      role: user.role,
-    });
-    throw new AppError(
-      "학생 권한이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      403,
-      true
-    );
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
 
   // 기존 그룹 조회
   const group = await getPlanGroupById(groupId, user.userId);
@@ -296,15 +266,7 @@ async function _updatePlanGroup(
     block_set_id?: string | null;
   }
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
+  const user = await requireStudentAuth();
 
   // 기존 그룹 조회
   const group = await getPlanGroupById(groupId, user.userId);
