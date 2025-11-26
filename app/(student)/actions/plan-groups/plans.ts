@@ -5,6 +5,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanStatus } from "@/lib/types/plan";
 import {
@@ -683,13 +684,28 @@ async function _generatePlansFromGroup(
     total_page_or_time: 0,
   });
 
+  // Admin/Consultant가 다른 학생의 교재를 조회할 때는 Admin 클라이언트 사용
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
+  const bookQueryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
+  
+  if (isOtherStudent && !bookQueryClient) {
+    throw new AppError(
+      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      false
+    );
+  }
+
   for (const content of contents) {
     const finalContentId =
       contentIdMap.get(content.content_id) || content.content_id;
 
     if (content.content_type === "book") {
       // 학생 교재 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
-      let studentBook = await supabase
+      // Admin/Consultant가 다른 학생의 교재를 조회할 때는 Admin 클라이언트 사용
+      let studentBook = await bookQueryClient
         .from("books")
         .select("id, total_pages, master_content_id")
         .eq("id", finalContentId)
@@ -707,7 +723,7 @@ async function _generatePlansFromGroup(
 
         if (masterBook) {
           // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
-          const { data: studentBookByMaster } = await supabase
+          const { data: studentBookByMaster } = await bookQueryClient
             .from("books")
             .select("id, total_pages, master_content_id")
             .eq("student_id", studentId)
@@ -728,8 +744,8 @@ async function _generatePlansFromGroup(
                 tenantContext.tenantId
               );
               
-              // 복사된 교재 조회
-              const { data: copiedBook } = await supabase
+              // 복사된 교재 조회 (Admin 클라이언트 사용)
+              const { data: copiedBook } = await bookQueryClient
                 .from("books")
                 .select("id, total_pages, master_content_id")
                 .eq("id", bookId)
@@ -821,7 +837,8 @@ async function _generatePlansFromGroup(
       }
     } else if (content.content_type === "lecture") {
       // 학생 강의 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
-      let studentLecture = await supabase
+      // Admin/Consultant가 다른 학생의 강의를 조회할 때는 Admin 클라이언트 사용
+      let studentLecture = await bookQueryClient
         .from("lectures")
         .select("id, duration, master_content_id")
         .eq("id", finalContentId)
@@ -839,7 +856,7 @@ async function _generatePlansFromGroup(
 
         if (masterLecture) {
           // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
-          const { data: studentLectureByMaster } = await supabase
+          const { data: studentLectureByMaster } = await bookQueryClient
             .from("lectures")
             .select("id, duration, master_content_id")
             .eq("student_id", studentId)
@@ -860,8 +877,8 @@ async function _generatePlansFromGroup(
                 tenantContext.tenantId
               );
               
-              // 복사된 강의 조회
-              const { data: copiedLecture } = await supabase
+              // 복사된 강의 조회 (Admin 클라이언트 사용)
+              const { data: copiedLecture } = await bookQueryClient
                 .from("lectures")
                 .select("id, duration, master_content_id")
                 .eq("id", lectureId)
