@@ -895,6 +895,86 @@ export function Step4RecommendedContents({
             </div>
           </div>
         </div>
+        
+        {/* 필수 과목 검증 안내 (상단 표시) */}
+        {requiredSubjects.length > 0 && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">
+                필수 과목 검증
+              </h3>
+              {missingRequiredSubjects.length === 0 && (
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                  ✅ 모든 필수 과목 충족
+                </span>
+              )}
+            </div>
+            <div className="space-y-2">
+              {requiredSubjects.map((req) => {
+                let count = 0;
+                if (req.subject) {
+                  const exactKey = `${req.subject_category}:${req.subject}`;
+                  count = contentCountBySubject.get(exactKey) || 0;
+                } else {
+                  contentCountBySubject.forEach((cnt, key) => {
+                    if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
+                      count += cnt;
+                    }
+                  });
+                }
+                const displayName = req.subject 
+                  ? `${req.subject_category} - ${req.subject}` 
+                  : req.subject_category;
+                const isSatisfied = count >= req.min_count;
+                
+                return (
+                  <div
+                    key={req.subject_category}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900">{displayName}</span>
+                      {req.subject && (
+                        <span className="text-xs text-gray-500">(세부 과목 지정)</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700">
+                        {count}개 / 최소 {req.min_count}개
+                      </span>
+                      {isSatisfied ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          ✓ 충족
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                          ✗ 미충족
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {missingRequiredSubjects.length > 0 && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-xs font-medium text-amber-800">
+                  ⚠️ 다음 필수 과목의 최소 개수 조건을 만족하지 않습니다:
+                </p>
+                <ul className="mt-1 list-inside list-disc space-y-1 text-xs text-amber-700">
+                  {missingRequiredSubjects.map((m, idx) => (
+                    <li key={idx}>
+                      {m.name}: 현재 {m.current}개 / 필요 {m.required}개
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-amber-700">
+                  추천 콘텐츠에서 위 과목을 선택하시면 더 효과적인 학습 플랜을 만들 수 있습니다.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         {/* 진행 바 */}
         <div className="mt-4">
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">

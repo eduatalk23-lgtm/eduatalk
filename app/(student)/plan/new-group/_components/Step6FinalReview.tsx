@@ -1350,21 +1350,8 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
         </div>
       )}
 
-      {/* 필수 과목 경고 */}
-      {missingRequiredSubjects.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <div className="flex items-start gap-2">
-            <span className="text-lg">⚠️</span>
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-red-800">필수 과목 미선택</h3>
-              <p className="mt-1 text-sm text-red-700">
-                다음 필수 과목을 각각 1개 이상 선택해주세요:{" "}
-                <span className="font-medium">{missingRequiredSubjects.join(", ")}</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 필수 과목 경고는 Step 5에서 표시되므로 여기서는 제거 */}
+      {/* 필수 과목 검증은 Step 4(추천 콘텐츠 선택)에서 처리 */}
 
       {/* 학생 콘텐츠 섹션 */}
       {studentCount > 0 && (
