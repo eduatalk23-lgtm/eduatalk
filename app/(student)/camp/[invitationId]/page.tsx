@@ -139,9 +139,7 @@ export default async function CampParticipationPage({
   if (!templateData.period_start || !templateData.period_end) {
     validationErrors.push("템플릿에 학습 기간이 설정되지 않았습니다.");
   }
-  if (!templateData.block_set_id) {
-    validationErrors.push("템플릿에 블록 세트가 설정되지 않았습니다.");
-  }
+  // block_set_id 검증은 블록세트 조회 후에 수행 (새로운 연결 테이블 방식)
   if (!templateData.scheduler_type) {
     validationErrors.push("템플릿에 스케줄러 유형이 설정되지 않았습니다.");
   }
@@ -273,6 +271,11 @@ export default async function CampParticipationPage({
         };
       }
     }
+  }
+
+  // 블록세트 조회 완료 후 검증 (새로운 연결 테이블 방식 또는 하위 호환성 방식 모두 확인)
+  if (!templateBlockSet) {
+    validationErrors.push("템플릿에 블록 세트가 설정되지 않았습니다.");
   }
 
   // 학생 블록 세트와 템플릿 블록 세트를 합침 (템플릿 블록 세트를 맨 앞에)
