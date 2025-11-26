@@ -475,6 +475,92 @@ export async function deletePlanGroup(
 }
 
 /**
+ * 캠프 초대 ID로 플랜 그룹 삭제 (관리자용, Hard Delete)
+ * 초대 삭제 시 관련된 플랜 그룹도 함께 삭제하기 위한 함수
+ */
+export async function deletePlanGroupByInvitationId(
+  invitationId: string
+): Promise<{ success: boolean; error?: string; deletedGroupId?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. camp_invitation_id로 플랜 그룹 조회
+  const { data: planGroup, error: fetchError } = await supabase
+    .from("plan_groups")
+    .select("id, student_id")
+    .eq("camp_invitation_id", invitationId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("[data/planGroups] 플랜 그룹 조회 실패", fetchError);
+    return { success: false, error: fetchError.message };
+  }
+
+  // 플랜 그룹이 없으면 성공으로 처리 (삭제할 것이 없음)
+  if (!planGroup) {
+    return { success: true };
+  }
+
+  const groupId = planGroup.id;
+  const studentId = planGroup.student_id;
+
+  // 2. 관련 student_plan 삭제 (hard delete)
+  const { error: deletePlansError } = await supabase
+    .from("student_plan")
+    .delete()
+    .eq("plan_group_id", groupId);
+
+  if (deletePlansError) {
+    console.error("[data/planGroups] 플랜 삭제 실패", deletePlansError);
+    return {
+      success: false,
+      error: `플랜 삭제 실패: ${deletePlansError.message}`,
+    };
+  }
+
+  // 3. plan_contents 삭제 (안전을 위해 명시적으로 삭제)
+  const { error: deleteContentsError } = await supabase
+    .from("plan_contents")
+    .delete()
+    .eq("plan_group_id", groupId);
+
+  if (deleteContentsError) {
+    console.error("[data/planGroups] 플랜 콘텐츠 삭제 실패", deleteContentsError);
+    // 콘텐츠 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
+  }
+
+  // 4. plan_exclusions 삭제 (안전을 위해 명시적으로 삭제)
+  const { error: deleteExclusionsError } = await supabase
+    .from("plan_exclusions")
+    .delete()
+    .eq("plan_group_id", groupId);
+
+  if (deleteExclusionsError) {
+    console.error(
+      "[data/planGroups] 플랜 제외일 삭제 실패",
+      deleteExclusionsError
+    );
+    // 제외일 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
+  }
+
+  // 5. plan_groups 삭제 (hard delete)
+  const { error: deleteGroupError } = await supabase
+    .from("plan_groups")
+    .delete()
+    .eq("id", groupId);
+
+  if (deleteGroupError) {
+    console.error("[data/planGroups] 플랜 그룹 삭제 실패", deleteGroupError);
+    return {
+      success: false,
+      error: `플랜 그룹 삭제 실패: ${deleteGroupError.message}`,
+    };
+  }
+
+  return { success: true, deletedGroupId: groupId };
+}
+
+/**
  * 플랜 그룹 콘텐츠 조회
  */
 export async function getPlanContents(

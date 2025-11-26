@@ -256,6 +256,24 @@ export async function deleteCampInvitation(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
+  // 1. 초대 삭제 전에 관련된 플랜 그룹 삭제
+  const { deletePlanGroupByInvitationId } = await import(
+    "@/lib/data/planGroups"
+  );
+  const planGroupResult = await deletePlanGroupByInvitationId(invitationId);
+
+  if (!planGroupResult.success) {
+    console.error(
+      "[data/campTemplates] 플랜 그룹 삭제 실패",
+      planGroupResult.error
+    );
+    return {
+      success: false,
+      error: `플랜 그룹 삭제 실패: ${planGroupResult.error}`,
+    };
+  }
+
+  // 2. 초대 삭제
   const { error } = await supabase
     .from("camp_invitations")
     .delete()
@@ -277,6 +295,35 @@ export async function deleteCampInvitations(
 ): Promise<{ success: boolean; error?: string; count?: number }> {
   const supabase = await createSupabaseServerClient();
 
+  // 1. 각 초대에 대해 플랜 그룹 삭제
+  const { deletePlanGroupByInvitationId } = await import(
+    "@/lib/data/planGroups"
+  );
+
+  const planGroupResults = await Promise.all(
+    invitationIds.map((invitationId) =>
+      deletePlanGroupByInvitationId(invitationId)
+    )
+  );
+
+  // 플랜 그룹 삭제 실패한 경우 확인
+  const failedPlanGroupDeletes = planGroupResults.filter(
+    (result) => !result.success
+  );
+
+  if (failedPlanGroupDeletes.length > 0) {
+    const errorMessages = failedPlanGroupDeletes
+      .map((result) => result.error)
+      .join("; ");
+    console.error(
+      "[data/campTemplates] 일부 플랜 그룹 삭제 실패",
+      errorMessages
+    );
+    // 플랜 그룹 삭제 실패해도 초대 삭제는 계속 진행 (데이터 일관성 유지)
+    // 하지만 에러를 기록해두는 것이 좋음
+  }
+
+  // 2. 초대 일괄 삭제
   const { error, count } = await supabase
     .from("camp_invitations")
     .delete()
