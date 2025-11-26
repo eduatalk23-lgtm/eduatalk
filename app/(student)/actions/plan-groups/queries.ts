@@ -257,7 +257,21 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
   // 관리자/컨설턴트인 경우 플랜 그룹을 먼저 조회하여 student_id 가져오기
   let targetStudentId: string;
-  let groupQuery = supabase
+  
+  // Admin/Consultant가 다른 학생의 데이터를 조회할 때는 Admin 클라이언트 사용
+  const isAdminOrConsultant = userRole.role === "admin" || userRole.role === "consultant";
+  const groupQueryClient = isAdminOrConsultant ? createSupabaseAdminClient() : supabase;
+  
+  if (isAdminOrConsultant && !groupQueryClient) {
+    throw new AppError(
+      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      false
+    );
+  }
+
+  let groupQuery = groupQueryClient
     .from("plan_groups")
     .select(
       "period_start, period_end, block_set_id, scheduler_type, scheduler_options, daily_schedule, student_id, plan_type, camp_template_id"
@@ -314,8 +328,21 @@ async function _getScheduleResultData(groupId: string): Promise<{
     targetStudentId = group.student_id;
   }
 
+  // Admin/Consultant가 다른 학생의 데이터를 조회할 때는 Admin 클라이언트 사용
+  const isOtherStudent = isAdminOrConsultant && targetStudentId !== userRole.userId;
+  const queryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
+  
+  if (isOtherStudent && !queryClient) {
+    throw new AppError(
+      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      false
+    );
+  }
+
   // 2. 플랜 데이터 조회
-  const { data: plans, error: plansError } = await supabase
+  const { data: plans, error: plansError } = await queryClient
     .from("student_plan")
     .select(
       "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number,sequence"
@@ -355,7 +382,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const bookIds = Array.from(new Set(bookPlans.map((p) => p.content_id)));
 
   if (bookIds.length > 0) {
-    const { data: books } = await supabase
+    const { data: books } = await queryClient
       .from("books")
       .select("id, title, subject, subject_category, total_pages")
       .in("id", bookIds)
@@ -400,7 +427,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const lectureIds = Array.from(new Set(lecturePlans.map((p) => p.content_id)));
 
   if (lectureIds.length > 0) {
-    const { data: lectures } = await supabase
+    const { data: lectures } = await queryClient
       .from("lectures")
       .select("id, title, subject, subject_category, duration")
       .in("id", lectureIds)
@@ -445,7 +472,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const customIds = Array.from(new Set(customPlans.map((p) => p.content_id)));
 
   if (customIds.length > 0) {
-    const { data: customContents } = await supabase
+    const { data: customContents } = await queryClient
       .from("student_custom_contents")
       .select("id, title, subject, subject_category, total_page_or_time")
       .in("id", customIds)
@@ -472,7 +499,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   }> = [];
 
   if (group.block_set_id) {
-    const { data: blockData } = await supabase
+    const { data: blockData } = await queryClient
       .from("student_block_schedule")
       .select("id, day_of_week, start_time, end_time, block_index")
       .eq("block_set_id", group.block_set_id)
