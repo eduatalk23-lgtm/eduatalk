@@ -530,24 +530,6 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
         </div>
       </div>
 
-      {/* 블록 세트 안내 */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0">
-            <span className="text-2xl">ℹ️</span>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-blue-900 mb-1">
-              블록 세트 설정 안내
-            </h3>
-            <p className="text-sm text-blue-800">
-              템플릿 생성 후 시간 관리 페이지에서 블록 세트를 생성하고 선택할 수 있습니다.
-              템플릿 생성 시에는 블록 세트 선택을 건너뛸 수 있습니다.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* 플랜 그룹 위저드 */}
       <PlanGroupWizard
         initialBlockSets={initialBlockSets}
