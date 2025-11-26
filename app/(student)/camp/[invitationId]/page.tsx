@@ -178,15 +178,26 @@ export default async function CampParticipationPage({
   } | null = null;
 
   if (templateData.block_set_id) {
+    // template_id는 NULL 허용이므로, ID와 tenant_id로만 조회
+    // 보안을 위해 tenant_id로 필터링
     const { data: templateBlockSetData, error: templateBlockSetError } =
       await supabase
         .from("template_block_sets")
         .select("id, name")
         .eq("id", templateData.block_set_id)
-        .eq("template_id", template.id)
+        .eq("tenant_id", template.tenant_id)
         .single();
 
     if (templateBlockSetError || !templateBlockSetData) {
+      // 개발 환경에서 상세 로그 출력
+      if (process.env.NODE_ENV === "development") {
+        console.error("[CampParticipationPage] 템플릿 블록 세트 조회 실패:", {
+          block_set_id: templateData.block_set_id,
+          template_id: template.id,
+          tenant_id: template.tenant_id,
+          error: templateBlockSetError,
+        });
+      }
       validationErrors.push(
         `템플릿의 블록 세트(ID: ${templateData.block_set_id})를 찾을 수 없습니다. 관리자에게 문의해주세요.`
       );
