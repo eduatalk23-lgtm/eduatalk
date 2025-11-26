@@ -15,9 +15,21 @@ import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabe
 
 type CampTemplateDetailProps = {
   template: CampTemplate;
+  templateBlockSet?: {
+    id: string;
+    name: string;
+    blocks: Array<{
+      id: string;
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null;
 };
 
-export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
+const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+
+export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateDetailProps) {
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -358,6 +370,37 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
                       (template.template_data as any).templateLockedFields.step1.allow_student_period
                     ) && (
                       <span className="text-xs text-gray-500">학생 입력 허용 필드 없음</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 블록 세트 정보 */}
+              {templateBlockSet && (
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">블록 세트</label>
+                  <div className="mt-2 space-y-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{templateBlockSet.name}</p>
+                    </div>
+                    {templateBlockSet.blocks.length > 0 ? (
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {templateBlockSet.blocks.map((block) => (
+                          <div
+                            key={block.id}
+                            className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                          >
+                            <div className="text-sm font-medium text-gray-900">
+                              {weekdayLabels[block.day_of_week]}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {block.start_time} ~ {block.end_time}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">등록된 시간 블록이 없습니다.</p>
                     )}
                   </div>
                 </div>

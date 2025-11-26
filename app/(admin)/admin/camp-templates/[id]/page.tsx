@@ -3,6 +3,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
 import { CampTemplateDetail } from "./CampTemplateDetail";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function CampTemplateDetailPage({
   params,
@@ -29,7 +30,58 @@ export default async function CampTemplateDetailPage({
     );
   }
 
-  return <CampTemplateDetail template={result.template} />;
+  // 템플릿 블록 세트 정보 조회
+  let templateBlockSet: {
+    id: string;
+    name: string;
+    blocks: Array<{
+      id: string;
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+    }>;
+  } | null = null;
+
+  const template = result.template;
+  const templateData = template.template_data as any;
+  const blockSetId = templateData?.block_set_id;
+
+  if (blockSetId) {
+    const supabase = await createSupabaseServerClient();
+    
+    // 템플릿 블록 세트 조회
+    const { data: blockSet, error: blockSetError } = await supabase
+      .from("template_block_sets")
+      .select("id, name, template_id")
+      .eq("id", blockSetId)
+      .eq("template_id", id)
+      .maybeSingle();
+
+    if (!blockSetError && blockSet) {
+      // 템플릿 블록 조회
+      const { data: blocks, error: blocksError } = await supabase
+        .from("template_blocks")
+        .select("id, day_of_week, start_time, end_time")
+        .eq("template_block_set_id", blockSet.id)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
+
+      if (!blocksError && blocks && blocks.length > 0) {
+        templateBlockSet = {
+          id: blockSet.id,
+          name: blockSet.name,
+          blocks: blocks.map((b) => ({
+            id: b.id,
+            day_of_week: b.day_of_week,
+            start_time: b.start_time,
+            end_time: b.end_time,
+          })),
+        };
+      }
+    }
+  }
+
+  return <CampTemplateDetail template={result.template} templateBlockSet={templateBlockSet} />;
 }
 
 

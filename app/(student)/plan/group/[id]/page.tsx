@@ -24,7 +24,9 @@ type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPageProps) {
+export default async function PlanGroupDetailPage({
+  params,
+}: PlanGroupDetailPageProps) {
   const { id } = await params;
 
   const supabase = await createSupabaseServerClient();
@@ -40,25 +42,22 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
   const tenantContext = await getTenantContext();
 
   // 플랜 그룹 및 관련 데이터 조회
-  const { group, contents, exclusions, academySchedules } = await getPlanGroupWithDetails(
-    id,
-    user.id,
-    tenantContext?.tenantId || null
-  );
+  const { group, contents, exclusions, academySchedules } =
+    await getPlanGroupWithDetails(id, user.id, tenantContext?.tenantId || null);
 
   if (!group) {
     notFound();
   }
 
   // 콘텐츠 정보 조회 및 학생/추천 구분 (통합 함수 사용)
-  const { studentContents, recommendedContents } =
-    await classifyPlanContents(contents, user.id);
+  const { studentContents, recommendedContents } = await classifyPlanContents(
+    contents,
+    user.id
+  );
 
   // 상세 페이지 형식으로 변환
   const allContents = [...studentContents, ...recommendedContents];
-  const contentsMap = new Map(
-    allContents.map((c) => [c.content_id, c])
-  );
+  const contentsMap = new Map(allContents.map((c) => [c.content_id, c]));
 
   const contentsWithDetails = contents.map((content) => {
     const detail = contentsMap.get(content.content_id);
@@ -96,11 +95,14 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
   // 완료 여부 및 완료 개수 계산
   let isCompleted = false;
   let completedCount = 0;
-  
+
   if (plans && plans.length > 0) {
     const completedPlans = plans.filter((plan) => {
       if (!plan.planned_end_page_or_time) return false;
-      return plan.completed_amount !== null && plan.completed_amount >= plan.planned_end_page_or_time;
+      return (
+        plan.completed_amount !== null &&
+        plan.completed_amount >= plan.planned_end_page_or_time
+      );
     });
     completedCount = completedPlans.length;
     isCompleted = completedPlans.length === plans.length;
@@ -112,12 +114,15 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
     if (isCompleted || group.status === "completed") {
       return { label: "완료", color: statusColors.completed };
     }
-    
+
     // 활성/일시정지/중단 상태만 표시 (저장됨/초안 제외)
     if (statusLabels[group.status]) {
-      return { label: statusLabels[group.status], color: statusColors[group.status] };
+      return {
+        label: statusLabels[group.status],
+        color: statusColors[group.status],
+      };
     }
-    
+
     return null;
   };
 
@@ -147,7 +152,10 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
       if (templateError) {
         console.error("[PlanGroupDetailPage] 템플릿 조회 에러:", templateError);
       } else if (!template) {
-        console.warn("[PlanGroupDetailPage] 템플릿을 찾을 수 없음:", group.camp_template_id);
+        console.warn(
+          "[PlanGroupDetailPage] 템플릿을 찾을 수 없음:",
+          group.camp_template_id
+        );
       } else {
         // template_data 안전하게 파싱
         let templateData: any = null;
@@ -156,7 +164,10 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
             try {
               templateData = JSON.parse(template.template_data);
             } catch (parseError) {
-              console.error("[PlanGroupDetailPage] template_data 파싱 에러:", parseError);
+              console.error(
+                "[PlanGroupDetailPage] template_data 파싱 에러:",
+                parseError
+              );
               templateData = null;
             }
           } else {
@@ -166,7 +177,7 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
 
         // block_set_id 찾기: scheduler_options에서 먼저 확인 (실제 저장된 값), 없으면 template_data에서 확인
         let blockSetId: string | null = null;
-        
+
         // 1. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로 - 우선 확인)
         if (group.scheduler_options) {
           let schedulerOptions: any = null;
@@ -174,34 +185,47 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
             try {
               schedulerOptions = JSON.parse(group.scheduler_options);
             } catch (parseError) {
-              console.error("[PlanGroupDetailPage] scheduler_options 파싱 에러:", parseError);
+              console.error(
+                "[PlanGroupDetailPage] scheduler_options 파싱 에러:",
+                parseError
+              );
             }
           } else {
             schedulerOptions = group.scheduler_options;
           }
-          
+
           if (schedulerOptions?.template_block_set_id) {
             blockSetId = schedulerOptions.template_block_set_id;
-            console.log("[PlanGroupDetailPage] scheduler_options에서 template_block_set_id 발견:", blockSetId);
+            console.log(
+              "[PlanGroupDetailPage] scheduler_options에서 template_block_set_id 발견:",
+              blockSetId
+            );
           }
         }
-        
+
         // 2. template_data에서 block_set_id 확인 (fallback)
         if (!blockSetId && templateData?.block_set_id) {
           blockSetId = templateData.block_set_id;
-          console.log("[PlanGroupDetailPage] template_data에서 block_set_id 발견:", blockSetId);
+          console.log(
+            "[PlanGroupDetailPage] template_data에서 block_set_id 발견:",
+            blockSetId
+          );
         }
-        
+
         if (blockSetId) {
           // 템플릿 블록 세트 조회 (template_id 조건 제거 - block_set_id만으로 조회)
-          const { data: templateBlockSet, error: blockSetError } = await supabase
-            .from("template_block_sets")
-            .select("id, name, template_id")
-            .eq("id", blockSetId)
-            .maybeSingle();
+          const { data: templateBlockSet, error: blockSetError } =
+            await supabase
+              .from("template_block_sets")
+              .select("id, name, template_id")
+              .eq("id", blockSetId)
+              .maybeSingle();
 
           if (blockSetError) {
-            console.error("[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:", blockSetError);
+            console.error(
+              "[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
+              blockSetError
+            );
           } else if (templateBlockSet) {
             // template_id 일치 확인 (보안 검증)
             if (templateBlockSet.template_id !== group.camp_template_id) {
@@ -226,7 +250,10 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
                 .order("start_time", { ascending: true });
 
               if (blocksError) {
-                console.error("[PlanGroupDetailPage] 템플릿 블록 조회 에러:", blocksError);
+                console.error(
+                  "[PlanGroupDetailPage] 템플릿 블록 조회 에러:",
+                  blocksError
+                );
               } else if (blocks && blocks.length > 0) {
                 templateBlocks = blocks.map((b) => ({
                   id: b.id,
@@ -245,18 +272,22 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
               }
             }
           } else {
-            console.warn("[PlanGroupDetailPage] 템플릿 블록 세트를 찾을 수 없음:", {
-              block_set_id: blockSetId,
-              template_id: group.camp_template_id,
-            });
+            console.warn(
+              "[PlanGroupDetailPage] 템플릿 블록 세트를 찾을 수 없음:",
+              {
+                block_set_id: blockSetId,
+                template_id: group.camp_template_id,
+              }
+            );
           }
         } else {
           console.warn("[PlanGroupDetailPage] block_set_id를 찾을 수 없음:", {
             template_id: group.camp_template_id,
             template_data_has_block_set_id: !!templateData?.block_set_id,
-            scheduler_options_has_template_block_set_id: !!(typeof group.scheduler_options === "object" 
-              ? (group.scheduler_options as any)?.template_block_set_id 
-              : null),
+            scheduler_options_has_template_block_set_id:
+              !!(typeof group.scheduler_options === "object"
+                ? (group.scheduler_options as any)?.template_block_set_id
+                : null),
           });
         }
 
@@ -278,7 +309,7 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
       }
     } catch (error) {
       console.error("[PlanGroupDetailPage] 템플릿 블록 조회 중 에러:", error);
-      
+
       // 에러 발생 시에도 기본값 블록 사용
       if (templateBlocks.length === 0 && !templateBlockSetName) {
         const defaultBlocks = getDefaultBlocks();
@@ -305,8 +336,18 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
             href={isCampMode ? "/camp" : "/plan"}
             className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
             {isCampMode ? "캠프 목록으로" : "플랜 목록으로"}
           </Link>
@@ -314,7 +355,9 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
           <PlanGroupActionButtons
             groupId={id}
             groupName={group.name}
-            groupStatus={isCompleted ? "completed" : (group.status as PlanStatus)}
+            groupStatus={
+              isCompleted ? "completed" : (group.status as PlanStatus)
+            }
             canEdit={canEdit}
             canDelete={canDelete || isCompleted}
           />
@@ -325,14 +368,27 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="h-5 w-5 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900">관리자 검토 중</h3>
+                <h3 className="text-sm font-semibold text-blue-900">
+                  관리자 검토 중
+                </h3>
                 <p className="mt-1 text-sm text-blue-700">
-                  캠프 참여 정보를 제출하셨습니다. 관리자가 남은 단계를 진행한 후 플랜이 생성됩니다.
+                  캠프 참여 정보를 제출하셨습니다. 관리자가 남은 단계를 진행한
+                  후 플랜이 생성됩니다.
                 </p>
               </div>
             </div>
@@ -350,7 +406,9 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
                 </span>
               )}
               {displayStatus && (
-                <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${displayStatus.color}`}>
+                <span
+                  className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${displayStatus.color}`}
+                >
                   {displayStatus.label}
                 </span>
               )}
@@ -369,15 +427,19 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
                 <dt className="text-xs font-medium text-gray-500">플랜 목적</dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
                   {group.plan_purpose
-                    ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
+                    ? planPurposeLabels[group.plan_purpose] ||
+                      group.plan_purpose
                     : "—"}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-gray-500">스케줄러 유형</dt>
+                <dt className="text-xs font-medium text-gray-500">
+                  스케줄러 유형
+                </dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
                   {group.scheduler_type
-                    ? schedulerTypeLabels[group.scheduler_type] || group.scheduler_type
+                    ? schedulerTypeLabels[group.scheduler_type] ||
+                      group.scheduler_type
                     : "—"}
                 </dd>
               </div>
@@ -385,19 +447,27 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
                 <dt className="text-xs font-medium text-gray-500">학습 기간</dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
                   {group.period_start && group.period_end
-                    ? `${new Date(group.period_start).toLocaleDateString("ko-KR", {
-                        month: "short",
-                        day: "numeric",
-                      })} ~ ${new Date(group.period_end).toLocaleDateString("ko-KR", {
-                        month: "short",
-                        day: "numeric",
-                      })}`
+                    ? `${new Date(group.period_start).toLocaleDateString(
+                        "ko-KR",
+                        {
+                          month: "short",
+                          day: "numeric",
+                        }
+                      )} ~ ${new Date(group.period_end).toLocaleDateString(
+                        "ko-KR",
+                        {
+                          month: "short",
+                          day: "numeric",
+                        }
+                      )}`
                     : "—"}
                 </dd>
               </div>
               {group.target_date && (
                 <div>
-                  <dt className="text-xs font-medium text-gray-500">목표 날짜</dt>
+                  <dt className="text-xs font-medium text-gray-500">
+                    목표 날짜
+                  </dt>
                   <dd className="mt-1 text-sm font-semibold text-gray-900">
                     {new Date(group.target_date).toLocaleDateString("ko-KR")}
                   </dd>
@@ -436,4 +506,3 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
     </section>
   );
 }
-
