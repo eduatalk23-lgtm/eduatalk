@@ -224,7 +224,121 @@ export const getCampTemplateById = withErrorHandling(
 );
 
 /**
- * 캠프 템플릿 생성
+ * 캠프 템플릿 초안 생성 (최소 정보만으로 템플릿 ID 생성)
+ * 템플릿 생성 시작 시 호출하여 템플릿 ID를 먼저 생성
+ */
+export const createCampTemplateDraftAction = withErrorHandling(
+  async (
+    formData: FormData
+  ): Promise<{ success: boolean; templateId?: string; error?: string }> => {
+    // 권한 검증
+    const { userId, role } = await getCurrentUserRole();
+    if (role !== "admin" && role !== "consultant") {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    if (!userId) {
+      throw new AppError(
+        "로그인이 필요합니다.",
+        ErrorCode.UNAUTHORIZED,
+        401,
+        true
+      );
+    }
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 최소 정보만 검증 (이름, 프로그램 유형)
+    const name = String(formData.get("name") ?? "").trim();
+    const programType = String(formData.get("program_type") ?? "").trim();
+
+    if (!name || name.length === 0) {
+      throw new AppError(
+        "템플릿명은 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    if (name.length > 200) {
+      throw new AppError(
+        "템플릿명은 200자 이하여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    if (!programType) {
+      throw new AppError(
+        "프로그램 유형은 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const validProgramTypes = ["윈터캠프", "썸머캠프", "파이널캠프", "기타"];
+    if (!validProgramTypes.includes(programType)) {
+      throw new AppError(
+        "올바른 프로그램 유형을 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // 빈 template_data로 템플릿 생성
+    const emptyTemplateData: Partial<WizardData> = {
+      name,
+      plan_purpose: "",
+      scheduler_type: "",
+      period_start: "",
+      period_end: "",
+      block_set_id: undefined,
+      exclusions: [],
+      academy_schedules: [],
+      student_contents: [],
+      recommended_contents: [],
+    };
+
+    // 템플릿 생성 (최소 정보만)
+    const result = await createCampTemplate({
+      tenant_id: tenantContext.tenantId,
+      name,
+      description: null,
+      program_type: programType,
+      template_data: emptyTemplateData,
+      created_by: userId,
+      camp_start_date: undefined,
+      camp_end_date: undefined,
+      camp_location: undefined,
+    });
+
+    if (!result.success || !result.templateId) {
+      throw new AppError(
+        result.error || "템플릿 생성에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    return result;
+  }
+);
+
+/**
+ * 캠프 템플릿 생성 (전체 정보 포함)
  */
 export const createCampTemplateAction = withErrorHandling(
   async (
