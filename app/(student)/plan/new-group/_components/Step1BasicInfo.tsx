@@ -261,6 +261,73 @@ export function Step1BasicInfo({
     }
   }, [data.block_set_id, blockSets, isCampMode]);
 
+  // 학습기간 데이터 변경 시 directState 업데이트
+  useEffect(() => {
+    if (data.period_start || data.period_end) {
+      const startParts = data.period_start
+        ? parseDateString(data.period_start)
+        : getTodayParts();
+      const endParts = data.period_end
+        ? parseDateString(data.period_end)
+        : getTodayParts();
+      
+      setDirectState((prev) => {
+        // 값이 실제로 변경된 경우에만 업데이트 (무한 루프 방지)
+        const startChanged = 
+          prev.startYear !== startParts.year ||
+          prev.startMonth !== startParts.month ||
+          prev.startDay !== startParts.day;
+        const endChanged =
+          prev.endYear !== endParts.year ||
+          prev.endMonth !== endParts.month ||
+          prev.endDay !== endParts.day;
+        
+        if (startChanged || endChanged) {
+          return {
+            startYear: startParts.year,
+            startMonth: startParts.month,
+            startDay: startParts.day,
+            endYear: endParts.year,
+            endMonth: endParts.month,
+            endDay: endParts.day,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [data.period_start, data.period_end]);
+
+  // target_date가 있으면 ddayState 업데이트
+  useEffect(() => {
+    if (data.target_date) {
+      setDdayState({ date: data.target_date, calculated: true });
+      // target_date가 있으면 periodInputType을 "dday"로 설정
+      setPeriodInputType("dday");
+    }
+  }, [data.target_date]);
+
+  // weeksState 업데이트 (period_start가 있고 target_date가 없는 경우)
+  useEffect(() => {
+    if (data.period_start && !data.target_date) {
+      // weeks 모드인지 확인하기 위해 period_start와 period_end의 차이를 계산
+      if (data.period_start && data.period_end) {
+        const start = new Date(data.period_start);
+        const end = new Date(data.period_end);
+        const diffDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        const weeks = Math.floor(diffDays / 7);
+        
+        // 주 단위로 나누어떨어지고 4주 이상이면 weeks 모드로 간주
+        if (diffDays % 7 === 0 && weeks >= 4) {
+          setWeeksState({ startDate: data.period_start, weeks });
+          setPeriodInputType("weeks");
+        } else {
+          // 그 외의 경우는 direct 모드
+          setPeriodInputType("direct");
+        }
+      }
+    }
+  }, [data.period_start, data.period_end, data.target_date]);
+
   // 시간 블록 추가 관련 상태 (생성 및 수정 공통)
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [blockStartTime, setBlockStartTime] = useState<string>("");

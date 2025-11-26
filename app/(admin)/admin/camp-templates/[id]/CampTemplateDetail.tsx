@@ -11,6 +11,7 @@ import { CampInvitationList } from "./CampInvitationList";
 import { TemplateChecklist } from "../_components/TemplateChecklist";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { Trash2 } from "lucide-react";
+import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
 
 type CampTemplateDetailProps = {
   template: CampTemplate;
@@ -231,6 +232,105 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
             )}
           </div>
         </div>
+
+        {/* 템플릿 데이터 상세 정보 */}
+        {template.template_data && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">템플릿 설정 정보</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* 학습 기간 */}
+              {(template.template_data as any)?.period_start && (template.template_data as any)?.period_end && (
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">학습 기간</label>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {new Date((template.template_data as any).period_start).toLocaleDateString("ko-KR")} ~{" "}
+                    {new Date((template.template_data as any).period_end).toLocaleDateString("ko-KR")}
+                  </p>
+                </div>
+              )}
+
+              {/* 스케줄러 유형 */}
+              {(template.template_data as any)?.scheduler_type && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">스케줄러 유형</label>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {schedulerTypeLabels[(template.template_data as any).scheduler_type] || 
+                     (template.template_data as any).scheduler_type}
+                  </p>
+                </div>
+              )}
+
+              {/* 플랜 목적 */}
+              {(template.template_data as any)?.plan_purpose && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">플랜 목적</label>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {planPurposeLabels[(template.template_data as any).plan_purpose] || 
+                     (template.template_data as any).plan_purpose}
+                  </p>
+                </div>
+              )}
+
+              {/* 학습일/복습일 주기 */}
+              {(template.template_data as any)?.study_review_cycle && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">학습일/복습일 주기</label>
+                  <p className="mt-1 text-sm text-gray-600">
+                    학습일 {(template.template_data as any).study_review_cycle.study_days || 0}일 / 
+                    복습일 {(template.template_data as any).study_review_cycle.review_days || 0}일
+                  </p>
+                </div>
+              )}
+
+              {/* 목표 날짜 */}
+              {(template.template_data as any)?.target_date && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700">목표 날짜</label>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {new Date((template.template_data as any).target_date).toLocaleDateString("ko-KR")}
+                  </p>
+                </div>
+              )}
+
+              {/* 학생 입력 허용 필드 */}
+              {(template.template_data as any)?.templateLockedFields?.step1 && (
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">학생 입력 허용 필드</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(template.template_data as any).templateLockedFields.step1.allow_student_name && (
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                        이름
+                      </span>
+                    )}
+                    {(template.template_data as any).templateLockedFields.step1.allow_student_plan_purpose && (
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                        플랜 목적
+                      </span>
+                    )}
+                    {(template.template_data as any).templateLockedFields.step1.allow_student_scheduler_type && (
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                        스케줄러 유형
+                      </span>
+                    )}
+                    {(template.template_data as any).templateLockedFields.step1.allow_student_period && (
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                        학습 기간
+                      </span>
+                    )}
+                    {!(
+                      (template.template_data as any).templateLockedFields.step1.allow_student_name ||
+                      (template.template_data as any).templateLockedFields.step1.allow_student_plan_purpose ||
+                      (template.template_data as any).templateLockedFields.step1.allow_student_scheduler_type ||
+                      (template.template_data as any).templateLockedFields.step1.allow_student_period
+                    ) && (
+                      <span className="text-xs text-gray-500">학생 입력 허용 필드 없음</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 발송된 초대 목록 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
