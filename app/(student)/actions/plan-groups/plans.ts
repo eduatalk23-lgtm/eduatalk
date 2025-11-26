@@ -716,6 +716,39 @@ async function _generatePlansFromGroup(
 
           if (studentBookByMaster) {
             studentBook = { data: studentBookByMaster, error: null };
+          } else {
+            // 마스터 교재를 학생 교재로 복사 (캠프 모드에서 자동 복사)
+            try {
+              const { copyMasterBookToStudent } = await import(
+                "@/lib/data/contentMasters"
+              );
+              const { bookId } = await copyMasterBookToStudent(
+                finalContentId,
+                studentId,
+                tenantContext.tenantId
+              );
+              
+              // 복사된 교재 조회
+              const { data: copiedBook } = await supabase
+                .from("books")
+                .select("id, total_pages, master_content_id")
+                .eq("id", bookId)
+                .eq("student_id", studentId)
+                .maybeSingle();
+              
+              if (copiedBook) {
+                studentBook = { data: copiedBook, error: null };
+                console.log(
+                  `[planGroupActions] 마스터 교재(${finalContentId})를 학생 교재(${bookId})로 복사했습니다.`
+                );
+              }
+            } catch (copyError) {
+              console.error(
+                `[planGroupActions] 마스터 교재 복사 실패: ${finalContentId}`,
+                copyError
+              );
+              // 복사 실패 시 에러 발생
+            }
           }
         }
       }
@@ -815,6 +848,39 @@ async function _generatePlansFromGroup(
 
           if (studentLectureByMaster) {
             studentLecture = { data: studentLectureByMaster, error: null };
+          } else {
+            // 마스터 강의를 학생 강의로 복사 (캠프 모드에서 자동 복사)
+            try {
+              const { copyMasterLectureToStudent } = await import(
+                "@/lib/data/contentMasters"
+              );
+              const { lectureId } = await copyMasterLectureToStudent(
+                finalContentId,
+                studentId,
+                tenantContext.tenantId
+              );
+              
+              // 복사된 강의 조회
+              const { data: copiedLecture } = await supabase
+                .from("lectures")
+                .select("id, duration, master_content_id")
+                .eq("id", lectureId)
+                .eq("student_id", studentId)
+                .maybeSingle();
+              
+              if (copiedLecture) {
+                studentLecture = { data: copiedLecture, error: null };
+                console.log(
+                  `[planGroupActions] 마스터 강의(${finalContentId})를 학생 강의(${lectureId})로 복사했습니다.`
+                );
+              }
+            } catch (copyError) {
+              console.error(
+                `[planGroupActions] 마스터 강의 복사 실패: ${finalContentId}`,
+                copyError
+              );
+              // 복사 실패 시 에러 발생
+            }
           }
         }
       }
