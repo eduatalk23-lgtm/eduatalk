@@ -14,6 +14,7 @@ type Step6FinalReviewProps = {
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   isCampMode?: boolean;
+  studentId?: string; // 캠프 모드에서 관리자가 사용하는 학생 ID
 };
 
 type ContentInfo = {
@@ -59,7 +60,7 @@ type LectureEpisode = {
   episode_title: string | null;
 };
 
-export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false }: Step6FinalReviewProps) {
+export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false, studentId }: Step6FinalReviewProps) {
   const [contentInfos, setContentInfos] = useState<ContentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRangeIndex, setEditingRangeIndex] = useState<{
@@ -559,9 +560,11 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
         if (!contentKey || contentTotals.has(contentKey)) continue;
 
         try {
+          // 캠프 모드에서 관리자의 경우 student_id를 쿼리 파라미터로 추가
+          const studentIdParam = isCampMode && studentId ? `&student_id=${studentId}` : "";
           const apiPath = contentInfo.isRecommended
             ? `/api/master-content-info?content_type=${contentInfo.content_type}&content_id=${contentInfo.content_id}`
-            : `/api/student-content-info?content_type=${contentInfo.content_type}&content_id=${contentInfo.content_id}`;
+            : `/api/student-content-info?content_type=${contentInfo.content_type}&content_id=${contentInfo.content_id}${studentIdParam}`;
           
           const response = await fetch(apiPath);
           if (response.ok) {
