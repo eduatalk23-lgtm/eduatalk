@@ -1,54 +1,19 @@
 /**
  * School 도메인 Public API
  *
- * 이 파일을 통해 school 도메인의 모든 기능에 접근할 수 있습니다.
+ * 외부에서는 이 파일을 통해서만 school 도메인에 접근합니다.
  */
 
-// 타입 내보내기
-export type {
-  School,
-  SchoolType,
-  SchoolSimple,
-  Region,
-  GetSchoolsOptions,
-  GetRegionsOptions,
-  CreateSchoolInput,
-  UpdateSchoolInput,
-  SchoolActionResult,
-  HighSchoolCategory,
-  UniversityType,
-  UniversityOwnership,
-} from "./types";
+// Types
+export * from "./types";
 
-// 검증 스키마 내보내기
-export {
-  createSchoolSchema,
-  updateSchoolSchema,
-  schoolTypeSchema,
-  highSchoolCategorySchema,
-  universityTypeSchema,
-  universityOwnershipSchema,
-  postalCodeSchema,
-} from "./validation";
+// Validation Schemas
+export * from "./validation";
 
-export type {
-  CreateSchoolFormData,
-  UpdateSchoolFormData,
-} from "./validation";
+// Service (비즈니스 로직)
+export * as service from "./service";
 
-// 데이터 조회 함수 내보내기 (서버 컴포넌트에서 직접 사용)
-export {
-  getSchools,
-  getSchoolById,
-  getSchoolByName,
-  getRegions,
-  getRegionsByLevel,
-  getRegionsByParent,
-  checkSchoolDuplicate,
-  validateRegionId,
-} from "./queries";
-
-// Server Actions 내보내기 (클라이언트 컴포넌트에서 사용)
+// Server Actions
 export {
   // 조회 Actions
   getSchoolsAction,
@@ -62,7 +27,8 @@ export {
   createSchoolAction,
   updateSchoolAction,
   deleteSchoolAction,
-  // 학생용 Actions
+  // 학생 Actions
   autoRegisterSchoolAction,
 } from "./actions";
 
+// Repository는 외부에 노출하지 않음 (service를 통해 접근)

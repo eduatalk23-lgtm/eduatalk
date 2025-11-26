@@ -3,35 +3,20 @@
 /**
  * Score 도메인 Server Actions
  *
- * 기존 분산된 score 관련 actions를 통합합니다:
- * - app/actions/scores.ts
- * - app/(student)/actions/scoreActions.ts
+ * 이 파일은 Server Actions만 담당합니다.
+ * - 권한 검사
+ * - FormData 파싱
+ * - Service 호출
+ * - Cache 무효화
  */
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { recordHistory } from "@/lib/history/record";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import * as service from "./service";
 import {
-  createSchoolScoreSchema,
-  updateSchoolScoreSchema,
-  createMockScoreSchema,
-  updateMockScoreSchema,
-} from "./validation";
-import {
-  getSchoolScores as getSchoolScoresQuery,
-  getMockScores as getMockScoresQuery,
-  getSchoolScoreById as getSchoolScoreByIdQuery,
-  getMockScoreById as getMockScoreByIdQuery,
-  createSchoolScore as createSchoolScoreQuery,
-  updateSchoolScore as updateSchoolScoreQuery,
-  deleteSchoolScore as deleteSchoolScoreQuery,
-  createMockScore as createMockScoreQuery,
-  updateMockScore as updateMockScoreQuery,
-  deleteMockScore as deleteMockScoreQuery,
-} from "./queries";
+  parseFormString,
+  parseFormNumberOrNull,
+} from "@/lib/utils/formData";
 import type {
   SchoolScore,
   MockScore,
@@ -41,220 +26,138 @@ import type {
 } from "./types";
 
 // ============================================
-// 헬퍼 함수
-// ============================================
-
-function parseFormNumber(value: FormDataEntryValue | null): number | null {
-  const str = String(value ?? "").trim();
-  if (!str) return null;
-  const num = Number(str);
-  return Number.isFinite(num) ? num : null;
-}
-
-function parseFormString(value: FormDataEntryValue | null): string {
-  return String(value ?? "").trim();
-}
-
-function parseFormStringOrNull(value: FormDataEntryValue | null): string | null {
-  const str = parseFormString(value);
-  return str || null;
-}
-
-async function requireStudent() {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new Error("로그인이 필요합니다.");
-  }
-  return user;
-}
-
-async function requireTenant() {
-  const context = await getTenantContext();
-  if (!context?.tenantId) {
-    throw new Error("기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.");
-  }
-  return context;
-}
-
-// ============================================
-// 조회 Actions
-// ============================================
-
-export async function getSchoolScoresAction(
-  filters?: GetSchoolScoresFilter
-): Promise<SchoolScore[]> {
-  const user = await requireStudent();
-  const context = await getTenantContext();
-  
-  return getSchoolScoresQuery(user.userId, context?.tenantId, filters);
-}
-
-export async function getMockScoresAction(
-  filters?: GetMockScoresFilter
-): Promise<MockScore[]> {
-  const user = await requireStudent();
-  const context = await getTenantContext();
-  
-  return getMockScoresQuery(user.userId, context?.tenantId, filters);
-}
-
-export async function getSchoolScoreByIdAction(
-  scoreId: string
-): Promise<SchoolScore | null> {
-  const user = await requireStudent();
-  return getSchoolScoreByIdQuery(scoreId, user.userId);
-}
-
-export async function getMockScoreByIdAction(
-  scoreId: string
-): Promise<MockScore | null> {
-  const user = await requireStudent();
-  return getMockScoreByIdQuery(scoreId, user.userId);
-}
-
-// ============================================
 // 내신 성적 Actions
 // ============================================
 
 /**
- * 내신 성적 등록
+ * 내신 성적 목록 조회
  */
-export async function addSchoolScoreAction(formData: FormData): Promise<void> {
-  const user = await requireStudent();
-  const context = await requireTenant();
+export async function getSchoolScoresAction(
+  studentId: string,
+  tenantId?: string | null,
+  filters?: GetSchoolScoresFilter
+): Promise<SchoolScore[]> {
+  return service.getSchoolScores(studentId, tenantId, filters);
+}
 
-  const rawData = {
-    grade: parseFormNumber(formData.get("grade")),
-    semester: parseFormNumber(formData.get("semester")),
-    subject_group_id: parseFormStringOrNull(formData.get("subject_group_id")),
-    subject_id: parseFormStringOrNull(formData.get("subject_id")),
-    subject_type_id: parseFormStringOrNull(formData.get("subject_type_id")),
-    subject_group: parseFormStringOrNull(formData.get("subject_group")),
-    subject_type: parseFormStringOrNull(formData.get("subject_type")),
-    subject_name: parseFormStringOrNull(formData.get("subject_name")),
-    credit_hours: parseFormNumber(formData.get("credit_hours")),
-    raw_score: parseFormNumber(formData.get("raw_score")),
-    subject_average: parseFormNumber(formData.get("subject_average")),
-    standard_deviation: parseFormNumber(formData.get("standard_deviation")),
-    grade_score: parseFormNumber(formData.get("grade_score")),
-    total_students: parseFormNumber(formData.get("total_students")),
-    rank_grade: parseFormNumber(formData.get("rank_grade")),
+/**
+ * 내신 성적 단건 조회
+ */
+export async function getSchoolScoreByIdAction(
+  scoreId: string,
+  studentId: string
+): Promise<SchoolScore | null> {
+  return service.getSchoolScoreById(scoreId, studentId);
+}
+
+/**
+ * 내신 성적 생성
+ */
+export async function createSchoolScoreAction(
+  formData: FormData
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const input = {
+    tenant_id: parseFormString(formData.get("tenant_id")) || null,
+    student_id: parseFormString(formData.get("student_id")) || user.id,
+    grade: parseFormNumberOrNull(formData.get("grade")) || 1,
+    semester: parseFormNumberOrNull(formData.get("semester")) || 1,
+    subject_group_id: parseFormString(formData.get("subject_group_id")) || null,
+    subject_id: parseFormString(formData.get("subject_id")) || null,
+    subject_type_id: parseFormString(formData.get("subject_type_id")) || null,
+    subject_group: parseFormString(formData.get("subject_group")) || null,
+    subject_type: parseFormString(formData.get("subject_type")) || null,
+    subject_name: parseFormString(formData.get("subject_name")) || null,
+    credit_hours: parseFormNumberOrNull(formData.get("credit_hours")),
+    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
+    subject_average: parseFormNumberOrNull(formData.get("subject_average")),
+    standard_deviation: parseFormNumberOrNull(formData.get("standard_deviation")),
+    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
+    total_students: parseFormNumberOrNull(formData.get("total_students")),
+    rank_grade: parseFormNumberOrNull(formData.get("rank_grade")),
   };
 
-  const validation = createSchoolScoreSchema.safeParse(rawData);
-  if (!validation.success) {
-    const firstError = validation.error.issues[0];
-    throw new Error(firstError?.message || "입력값이 올바르지 않습니다.");
+  const result = await service.createSchoolScore(input);
+
+  if (result.success) {
+    revalidatePath("/scores");
+    revalidatePath("/dashboard");
   }
 
-  const result = await createSchoolScoreQuery({
-    tenant_id: context.tenantId,
-    student_id: user.userId,
-    ...validation.data,
-  });
-
-  if (!result.success) {
-    throw new Error(result.error || "내신 성적 등록에 실패했습니다.");
-  }
-
-  // 히스토리 기록
-  const supabase = await createSupabaseServerClient();
-  await recordHistory(
-    supabase,
-    user.userId,
-    "score_added",
-    {
-      score_type: "school",
-      grade: validation.data.grade,
-      semester: validation.data.semester,
-      subject_group: validation.data.subject_group,
-      subject_name: validation.data.subject_name,
-      grade_score: validation.data.grade_score,
-    },
-    context.tenantId
-  );
-
-  const skipRedirect = formData.get("skipRedirect") === "true";
-  if (!skipRedirect) {
-    revalidatePath(`/scores/school/${validation.data.grade}/${validation.data.semester}`);
-    redirect(`/scores/school/${validation.data.grade}/${validation.data.semester}?success=created`);
-  } else {
-    revalidatePath(`/scores/school/${validation.data.grade}/${validation.data.semester}`);
-  }
+  return result;
 }
 
 /**
  * 내신 성적 수정
  */
 export async function updateSchoolScoreAction(
-  id: string,
   formData: FormData
-): Promise<void> {
-  const user = await requireStudent();
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
 
-  const rawData = {
-    grade: parseFormNumber(formData.get("grade")),
-    semester: parseFormNumber(formData.get("semester")),
-    subject_group_id: parseFormStringOrNull(formData.get("subject_group_id")),
-    subject_id: parseFormStringOrNull(formData.get("subject_id")),
-    subject_type_id: parseFormStringOrNull(formData.get("subject_type_id")),
-    subject_group: parseFormStringOrNull(formData.get("subject_group")),
-    subject_type: parseFormStringOrNull(formData.get("subject_type")),
-    subject_name: parseFormStringOrNull(formData.get("subject_name")),
-    credit_hours: parseFormNumber(formData.get("credit_hours")),
-    raw_score: parseFormNumber(formData.get("raw_score")),
-    subject_average: parseFormNumber(formData.get("subject_average")),
-    standard_deviation: parseFormNumber(formData.get("standard_deviation")),
-    grade_score: parseFormNumber(formData.get("grade_score")),
-    total_students: parseFormNumber(formData.get("total_students")),
-    rank_grade: parseFormNumber(formData.get("rank_grade")),
+  const scoreId = parseFormString(formData.get("id"));
+  const studentId = parseFormString(formData.get("student_id")) || user.id;
+
+  if (!scoreId) {
+    return { success: false, error: "성적 ID가 필요합니다." };
+  }
+
+  const updates = {
+    grade: parseFormNumberOrNull(formData.get("grade")) || undefined,
+    semester: parseFormNumberOrNull(formData.get("semester")) || undefined,
+    subject_group_id: parseFormString(formData.get("subject_group_id")) || undefined,
+    subject_id: parseFormString(formData.get("subject_id")) || undefined,
+    subject_type_id: parseFormString(formData.get("subject_type_id")) || undefined,
+    subject_group: parseFormString(formData.get("subject_group")) || undefined,
+    subject_type: parseFormString(formData.get("subject_type")) || undefined,
+    subject_name: parseFormString(formData.get("subject_name")) || undefined,
+    credit_hours: parseFormNumberOrNull(formData.get("credit_hours")),
+    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
+    subject_average: parseFormNumberOrNull(formData.get("subject_average")),
+    standard_deviation: parseFormNumberOrNull(formData.get("standard_deviation")),
+    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
+    total_students: parseFormNumberOrNull(formData.get("total_students")),
+    rank_grade: parseFormNumberOrNull(formData.get("rank_grade")),
   };
 
-  const validation = updateSchoolScoreSchema.safeParse(rawData);
-  if (!validation.success) {
-    const firstError = validation.error.issues[0];
-    throw new Error(firstError?.message || "입력값이 올바르지 않습니다.");
+  const result = await service.updateSchoolScore(scoreId, studentId, updates);
+
+  if (result.success) {
+    revalidatePath("/scores");
+    revalidatePath("/dashboard");
   }
 
-  const result = await updateSchoolScoreQuery(id, user.userId, validation.data);
-
-  if (!result.success) {
-    throw new Error(result.error || "내신 성적 수정에 실패했습니다.");
-  }
-
-  const skipRedirect = formData.get("skipRedirect") === "true";
-  if (!skipRedirect && validation.data.grade && validation.data.semester) {
-    revalidatePath(`/scores/school/${validation.data.grade}/${validation.data.semester}`);
-    redirect(`/scores/school/${validation.data.grade}/${validation.data.semester}?success=updated`);
-  } else if (validation.data.grade && validation.data.semester) {
-    revalidatePath(`/scores/school/${validation.data.grade}/${validation.data.semester}`);
-  }
+  return result;
 }
 
 /**
  * 내신 성적 삭제
  */
 export async function deleteSchoolScoreAction(
-  id: string,
-  options?: { skipRedirect?: boolean; grade?: number; semester?: number }
-): Promise<void> {
-  const user = await requireStudent();
-
-  const result = await deleteSchoolScoreQuery(id, user.userId);
-
-  if (!result.success) {
-    throw new Error(result.error || "내신 성적 삭제에 실패했습니다.");
+  scoreId: string,
+  studentId?: string
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
   }
 
-  if (options?.skipRedirect && options.grade && options.semester) {
-    revalidatePath(`/scores/school/${options.grade}/${options.semester}`);
-    return;
+  const targetStudentId = studentId || user.id;
+  const result = await service.deleteSchoolScore(scoreId, targetStudentId);
+
+  if (result.success) {
+    revalidatePath("/scores");
+    revalidatePath("/dashboard");
   }
 
-  revalidatePath("/scores");
-  if (!options?.skipRedirect) {
-    redirect("/scores");
-  }
+  return result;
 }
 
 // ============================================
@@ -262,143 +165,154 @@ export async function deleteSchoolScoreAction(
 // ============================================
 
 /**
- * 모의고사 성적 등록
+ * 모의고사 성적 목록 조회
  */
-export async function addMockScoreAction(formData: FormData): Promise<void> {
-  const user = await requireStudent();
-  const context = await requireTenant();
+export async function getMockScoresAction(
+  studentId: string,
+  tenantId?: string | null,
+  filters?: GetMockScoresFilter
+): Promise<MockScore[]> {
+  return service.getMockScores(studentId, tenantId, filters);
+}
 
-  const rawData = {
-    grade: parseFormNumber(formData.get("grade")),
+/**
+ * 모의고사 성적 단건 조회
+ */
+export async function getMockScoreByIdAction(
+  scoreId: string,
+  studentId: string
+): Promise<MockScore | null> {
+  return service.getMockScoreById(scoreId, studentId);
+}
+
+/**
+ * 모의고사 성적 생성
+ */
+export async function createMockScoreAction(
+  formData: FormData
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const input = {
+    tenant_id: parseFormString(formData.get("tenant_id")) || null,
+    student_id: parseFormString(formData.get("student_id")) || user.id,
+    grade: parseFormNumberOrNull(formData.get("grade")) || 1,
     exam_type: parseFormString(formData.get("exam_type")),
-    subject_group_id: parseFormStringOrNull(formData.get("subject_group_id")),
-    subject_id: parseFormStringOrNull(formData.get("subject_id")),
-    subject_type_id: parseFormStringOrNull(formData.get("subject_type_id")),
-    subject_group: parseFormStringOrNull(formData.get("subject_group")),
-    subject_name: parseFormStringOrNull(formData.get("subject_name")),
-    raw_score: parseFormNumber(formData.get("raw_score")),
-    standard_score: parseFormNumber(formData.get("standard_score")),
-    percentile: parseFormNumber(formData.get("percentile")),
-    grade_score: parseFormNumber(formData.get("grade_score")),
-    exam_round: parseFormStringOrNull(formData.get("exam_round")),
+    subject_group_id: parseFormString(formData.get("subject_group_id")) || null,
+    subject_id: parseFormString(formData.get("subject_id")) || null,
+    subject_type_id: parseFormString(formData.get("subject_type_id")) || null,
+    subject_group: parseFormString(formData.get("subject_group")) || null,
+    subject_name: parseFormString(formData.get("subject_name")) || null,
+    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
+    standard_score: parseFormNumberOrNull(formData.get("standard_score")),
+    percentile: parseFormNumberOrNull(formData.get("percentile")),
+    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
+    exam_round: parseFormString(formData.get("exam_round")) || null,
   };
 
-  const validation = createMockScoreSchema.safeParse(rawData);
-  if (!validation.success) {
-    const firstError = validation.error.issues[0];
-    throw new Error(firstError?.message || "입력값이 올바르지 않습니다.");
+  const result = await service.createMockScore(input);
+
+  if (result.success) {
+    revalidatePath("/scores");
+    revalidatePath("/dashboard");
   }
 
-  // 영어/한국사가 아닌 경우 표준점수, 백분위 필수
-  const subjectGroup = validation.data.subject_group || "";
-  const isEnglishOrKoreanHistory = subjectGroup === "영어" || subjectGroup === "한국사";
-  
-  if (!isEnglishOrKoreanHistory) {
-    if (!validation.data.standard_score || !validation.data.percentile) {
-      throw new Error("표준점수와 백분위를 모두 입력해주세요.");
-    }
-  }
-
-  const result = await createMockScoreQuery({
-    tenant_id: context.tenantId,
-    student_id: user.userId,
-    ...validation.data,
-  });
-
-  if (!result.success) {
-    throw new Error(result.error || "모의고사 성적 등록에 실패했습니다.");
-  }
-
-  // 히스토리 기록
-  const supabase = await createSupabaseServerClient();
-  await recordHistory(
-    supabase,
-    user.userId,
-    "score_added",
-    {
-      score_type: "mock",
-      grade: validation.data.grade,
-      exam_type: validation.data.exam_type,
-      subject_group: validation.data.subject_group,
-      subject_name: validation.data.subject_name,
-      grade_score: validation.data.grade_score,
-    },
-    context.tenantId
-  );
-
-  const skipRedirect = formData.get("skipRedirect") === "true";
-  const month = validation.data.exam_round || "3";
-  const examType = encodeURIComponent(validation.data.exam_type);
-
-  if (skipRedirect) {
-    revalidatePath(`/scores/mock/${validation.data.grade}/${month}/${examType}`);
-  } else {
-    revalidatePath(`/scores/mock/${validation.data.grade}/${month}/${examType}`);
-    redirect(`/scores/mock/${validation.data.grade}/${month}/${examType}?success=created`);
-  }
+  return result;
 }
 
 /**
  * 모의고사 성적 수정
  */
 export async function updateMockScoreAction(
-  id: string,
   formData: FormData
-): Promise<void> {
-  const user = await requireStudent();
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
 
-  const rawData = {
-    grade: parseFormNumber(formData.get("grade")),
-    exam_type: parseFormString(formData.get("exam_type")),
-    subject_group_id: parseFormStringOrNull(formData.get("subject_group_id")),
-    subject_id: parseFormStringOrNull(formData.get("subject_id")),
-    subject_type_id: parseFormStringOrNull(formData.get("subject_type_id")),
-    subject_group: parseFormStringOrNull(formData.get("subject_group")),
-    subject_name: parseFormStringOrNull(formData.get("subject_name")),
-    raw_score: parseFormNumber(formData.get("raw_score")),
-    standard_score: parseFormNumber(formData.get("standard_score")),
-    percentile: parseFormNumber(formData.get("percentile")),
-    grade_score: parseFormNumber(formData.get("grade_score")),
-    exam_round: parseFormStringOrNull(formData.get("exam_round")),
+  const scoreId = parseFormString(formData.get("id"));
+  const studentId = parseFormString(formData.get("student_id")) || user.id;
+
+  if (!scoreId) {
+    return { success: false, error: "성적 ID가 필요합니다." };
+  }
+
+  const updates = {
+    grade: parseFormNumberOrNull(formData.get("grade")) || undefined,
+    exam_type: parseFormString(formData.get("exam_type")) || undefined,
+    subject_group_id: parseFormString(formData.get("subject_group_id")) || undefined,
+    subject_id: parseFormString(formData.get("subject_id")) || undefined,
+    subject_type_id: parseFormString(formData.get("subject_type_id")) || undefined,
+    subject_group: parseFormString(formData.get("subject_group")) || undefined,
+    subject_name: parseFormString(formData.get("subject_name")) || undefined,
+    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
+    standard_score: parseFormNumberOrNull(formData.get("standard_score")),
+    percentile: parseFormNumberOrNull(formData.get("percentile")),
+    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
+    exam_round: parseFormString(formData.get("exam_round")) || undefined,
   };
 
-  const validation = updateMockScoreSchema.safeParse(rawData);
-  if (!validation.success) {
-    const firstError = validation.error.issues[0];
-    throw new Error(firstError?.message || "입력값이 올바르지 않습니다.");
+  const result = await service.updateMockScore(scoreId, studentId, updates);
+
+  if (result.success) {
+    revalidatePath("/scores");
+    revalidatePath("/dashboard");
   }
 
-  const result = await updateMockScoreQuery(id, user.userId, validation.data);
-
-  if (!result.success) {
-    throw new Error(result.error || "모의고사 성적 수정에 실패했습니다.");
-  }
-
-  const skipRedirect = formData.get("skipRedirect") === "true";
-  if (validation.data.grade && validation.data.exam_type) {
-    const month = validation.data.exam_round || "3";
-    const examType = encodeURIComponent(validation.data.exam_type);
-    
-    revalidatePath(`/scores/mock/${validation.data.grade}/${month}/${examType}`);
-    
-    if (!skipRedirect) {
-      redirect(`/scores/mock/${validation.data.grade}/${month}/${examType}?success=updated`);
-    }
-  }
+  return result;
 }
 
 /**
  * 모의고사 성적 삭제
  */
-export async function deleteMockScoreAction(id: string): Promise<void> {
-  const user = await requireStudent();
-
-  const result = await deleteMockScoreQuery(id, user.userId);
-
-  if (!result.success) {
-    throw new Error(result.error || "모의고사 성적 삭제에 실패했습니다.");
+export async function deleteMockScoreAction(
+  scoreId: string,
+  studentId?: string
+): Promise<ScoreActionResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
   }
 
-  revalidatePath("/scores/mock");
+  const targetStudentId = studentId || user.id;
+  const result = await service.deleteMockScore(scoreId, targetStudentId);
+
+  if (result.success) {
+    revalidatePath("/scores");
+    revalidatePath("/dashboard");
+  }
+
+  return result;
 }
 
+// ============================================
+// 비즈니스 로직 Actions
+// ============================================
+
+/**
+ * 평균 등급 조회
+ */
+export async function getAverageGradeAction(
+  studentId: string,
+  tenantId?: string | null
+): Promise<{ schoolAvg: number | null; mockAvg: number | null }> {
+  return service.calculateAverageGrade(studentId, tenantId);
+}
+
+/**
+ * 과목별 성적 추이 조회
+ */
+export async function getScoreTrendAction(
+  studentId: string,
+  subjectGroupId: string,
+  tenantId?: string | null
+): Promise<{
+  school: SchoolScore[];
+  mock: MockScore[];
+}> {
+  return service.getScoreTrendBySubject(studentId, subjectGroupId, tenantId);
+}

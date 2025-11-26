@@ -1,71 +1,35 @@
 /**
  * Score 도메인 Public API
+ *
+ * 외부에서는 이 파일을 통해서만 score 도메인에 접근합니다.
  */
 
-// 타입 내보내기
-export type {
-  StudentScore,
-  SchoolScore,
-  MockScore,
-  MockExamType,
-  GetSchoolScoresFilter,
-  GetMockScoresFilter,
-  CreateSchoolScoreInput,
-  UpdateSchoolScoreInput,
-  CreateMockScoreInput,
-  UpdateMockScoreInput,
-  ScoreActionResult,
-} from "./types";
+// Types
+export * from "./types";
 
-// 검증 스키마 내보내기
+// Validation Schemas
+export * from "./validation";
+
+// Service (비즈니스 로직)
+export * as service from "./service";
+
+// Server Actions
 export {
-  gradeSchema,
-  semesterSchema,
-  gradeScoreSchema,
-  rawScoreSchema,
-  percentileSchema,
-  examTypeSchema,
-  createSchoolScoreSchema,
-  updateSchoolScoreSchema,
-  createMockScoreSchema,
-  updateMockScoreSchema,
-} from "./validation";
-
-export type {
-  CreateSchoolScoreFormData,
-  UpdateSchoolScoreFormData,
-  CreateMockScoreFormData,
-  UpdateMockScoreFormData,
-} from "./validation";
-
-// 데이터 조회 함수 내보내기 (서버 컴포넌트에서 직접 사용)
-export {
-  getSchoolScores,
-  getMockScores,
-  getSchoolScoreById,
-  getMockScoreById,
-  createSchoolScore,
-  updateSchoolScore,
-  deleteSchoolScore,
-  createMockScore,
-  updateMockScore,
-  deleteMockScore,
-} from "./queries";
-
-// Server Actions 내보내기 (클라이언트 컴포넌트에서 사용)
-export {
-  // 조회 Actions
-  getSchoolScoresAction,
-  getMockScoresAction,
-  getSchoolScoreByIdAction,
-  getMockScoreByIdAction,
   // 내신 성적 Actions
-  addSchoolScoreAction,
+  getSchoolScoresAction,
+  getSchoolScoreByIdAction,
+  createSchoolScoreAction,
   updateSchoolScoreAction,
   deleteSchoolScoreAction,
   // 모의고사 성적 Actions
-  addMockScoreAction,
+  getMockScoresAction,
+  getMockScoreByIdAction,
+  createMockScoreAction,
   updateMockScoreAction,
   deleteMockScoreAction,
+  // 비즈니스 로직 Actions
+  getAverageGradeAction,
+  getScoreTrendAction,
 } from "./actions";
 
+// Repository는 외부에 노출하지 않음 (service를 통해 접근)
