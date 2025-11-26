@@ -20,7 +20,6 @@ import {
   toPlanGroupError,
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
-import { getDefaultBlocks } from "@/lib/utils/defaultBlockSet";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -1966,58 +1965,13 @@ export function Step1BasicInfo({
         )}
 
         {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
-        {/* 템플릿 모드에서 블록 세트가 없으면 기본값 블록 정보 표시 */}
-        {(data.block_set_id || (isTemplateMode && !templateId)) && (
+        {data.block_set_id && (
           <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             {(() => {
               const selectedSet = data.block_set_id
                 ? blockSets.find((set) => set.id === data.block_set_id)
                 : null;
               const blocks = selectedSet?.blocks ?? [];
-
-              // 템플릿 모드에서 블록 세트가 없으면 기본값 블록 표시
-              if (isTemplateMode && !templateId && !data.block_set_id) {
-                const defaultBlocks = getDefaultBlocks();
-                const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-                const blocksByDay = defaultBlocks.reduce((acc, block) => {
-                  const day = block.day_of_week;
-                  if (!acc[day]) acc[day] = [];
-                  acc[day].push(block);
-                  return acc;
-                }, {} as Record<number, typeof defaultBlocks>);
-
-                return (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">
-                        기본 블록 세트 (템플릿 저장 시 자동 생성)
-                      </p>
-                      <p className="text-xs font-medium text-blue-700">
-                        기본값: 월~일 10:00~19:00
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      {Object.entries(blocksByDay).map(([day, dayBlocks]) => (
-                        <div key={day} className="text-xs text-gray-600">
-                          <span className="font-medium">
-                            {dayNames[Number(day)]}요일:
-                          </span>{" "}
-                          {dayBlocks.map((block, idx) => (
-                            <span key={idx}>
-                              {block.start_time} ~ {block.end_time}
-                              {idx < dayBlocks.length - 1 && ", "}
-                            </span>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-blue-700 italic">
-                      💡 블록 세트를 생성하지 않으면 템플릿 저장 시 기본 블록
-                      세트가 자동으로 생성됩니다.
-                    </p>
-                  </div>
-                );
-              }
 
               if (blocks.length === 0) {
                 return (
