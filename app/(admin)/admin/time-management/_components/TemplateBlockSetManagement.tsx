@@ -40,19 +40,17 @@ export default function TemplateBlockSetManagement({
   // 특정 세트의 블록만 업데이트
   const updateSetBlocks = useCallback(async (setId: string) => {
     try {
-      const result = await getAllTemplateBlockSets();
+      const data = await getAllTemplateBlockSets();
       
-      if (result.success && result.data) {
-        const updatedSet = result.data.find(s => s.id === setId);
-        if (updatedSet) {
-          setBlockSets((prevSets) =>
-            prevSets.map((set) =>
-              set.id === setId
-                ? { ...set, blocks: updatedSet.blocks ?? [] }
-                : set
-            )
-          );
-        }
+      const updatedSet = data.find(s => s.id === setId);
+      if (updatedSet) {
+        setBlockSets((prevSets) =>
+          prevSets.map((set) =>
+            set.id === setId
+              ? { ...set, blocks: updatedSet.blocks ?? [] }
+              : set
+          )
+        );
       }
     } catch (error) {
       console.error(`세트 ${setId}의 블록 조회 실패:`, error);
@@ -67,13 +65,9 @@ export default function TemplateBlockSetManagement({
         setError(null);
       }
 
-      const result = await getAllTemplateBlockSets();
+      const data = await getAllTemplateBlockSets();
 
-      if (!result.success) {
-        throw new Error(result.error || "블록 세트 조회에 실패했습니다.");
-      }
-
-      const updatedSets = (result.data || []).map(set => ({
+      const updatedSets = (data || []).map(set => ({
         id: set.id,
         name: set.name,
         description: null,

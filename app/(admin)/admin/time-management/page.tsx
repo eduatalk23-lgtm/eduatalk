@@ -33,10 +33,7 @@ export default async function TimeManagementPage() {
   }> = [];
 
   try {
-    const result = await getAllTemplateBlockSets();
-    if (result.success && result.data) {
-      blockSets = result.data;
-    }
+    blockSets = await getAllTemplateBlockSets();
   } catch (error) {
     console.error("블록 세트 조회 실패:", error);
   }

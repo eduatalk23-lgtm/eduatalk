@@ -50,10 +50,7 @@ export default async function TimeManagementPage({
   }> = [];
 
   try {
-    const blockSetsResult = await getTemplateBlockSets(templateId);
-    if (blockSetsResult.success && blockSetsResult.data) {
-      blockSets = blockSetsResult.data;
-    }
+    blockSets = await getTemplateBlockSets(templateId);
   } catch (error) {
     console.error("템플릿 블록 세트 조회 실패:", error);
   }
