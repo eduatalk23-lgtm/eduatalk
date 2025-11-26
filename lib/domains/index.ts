@@ -24,17 +24,18 @@
  */
 
 // Re-export domains
+// 완전 구현된 도메인
 export * from "./school";
 export * from "./score";
 
-// 추가 도메인은 점진적으로 마이그레이션
-// export * from "./plan";
-// export * from "./content";
-// export * from "./goal";
-// export * from "./auth";
-// export * from "./student";
-// export * from "./block";
-// export * from "./camp";
-// export * from "./tenant";
-// export * from "./subject";
+// 기본 구조 (re-export 방식)
+export * from "./plan";
+export * from "./content";
+export * from "./goal";
+export * from "./auth";
+export * from "./student";
+export * from "./block";
+export * from "./camp";
+export * from "./tenant";
+export * from "./subject";
 
