@@ -2,6 +2,7 @@
 // master_books, master_lectures 테이블 사용
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -334,13 +335,20 @@ export async function getContentMasterById(
 
 /**
  * 마스터 교재를 학생 교재로 복사
+ * 주의: Admin 클라이언트를 사용하여 RLS 정책을 우회합니다.
  */
 export async function copyMasterBookToStudent(
   bookId: string,
   studentId: string,
   tenantId: string
 ): Promise<{ bookId: string }> {
-  const supabase = await createSupabaseServerClient();
+  // Admin 클라이언트 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new Error(
+      "Admin 클라이언트를 생성할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY 환경 변수를 확인해주세요."
+    );
+  }
 
   const { book } = await getMasterBookById(bookId);
   if (!book) {
@@ -380,8 +388,20 @@ export async function copyMasterBookToStudent(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 교재 복사 실패", error);
-    throw new Error(error.message || "교재 복사에 실패했습니다.");
+    console.error("[data/contentMasters] 교재 복사 실패", {
+      bookId,
+      studentId,
+      tenantId,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(
+      error.code === "42501"
+        ? "RLS 정책 위반: 교재 복사 권한이 없습니다. Admin 클라이언트를 확인해주세요."
+        : error.message || "교재 복사에 실패했습니다."
+    );
   }
 
   // book_details도 함께 복사
@@ -400,7 +420,11 @@ export async function copyMasterBookToStudent(
       .insert(studentBookDetails);
 
     if (detailsError) {
-      console.error("[data/contentMasters] 교재 상세 정보 복사 실패", detailsError);
+      console.error("[data/contentMasters] 교재 상세 정보 복사 실패", {
+        bookId: studentBook.id,
+        error: detailsError.message,
+        code: detailsError.code,
+      });
       // 상세 정보 복사 실패해도 교재는 복사됨
     }
   }
@@ -410,13 +434,20 @@ export async function copyMasterBookToStudent(
 
 /**
  * 마스터 강의를 학생 강의로 복사
+ * 주의: Admin 클라이언트를 사용하여 RLS 정책을 우회합니다.
  */
 export async function copyMasterLectureToStudent(
   lectureId: string,
   studentId: string,
   tenantId: string
 ): Promise<{ lectureId: string }> {
-  const supabase = await createSupabaseServerClient();
+  // Admin 클라이언트 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new Error(
+      "Admin 클라이언트를 생성할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY 환경 변수를 확인해주세요."
+    );
+  }
 
   const { lecture } = await getMasterLectureById(lectureId);
   if (!lecture) {
@@ -456,8 +487,20 @@ export async function copyMasterLectureToStudent(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 강의 복사 실패", error);
-    throw new Error(error.message || "강의 복사에 실패했습니다.");
+    console.error("[data/contentMasters] 강의 복사 실패", {
+      lectureId,
+      studentId,
+      tenantId,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(
+      error.code === "42501"
+        ? "RLS 정책 위반: 강의 복사 권한이 없습니다. Admin 클라이언트를 확인해주세요."
+        : error.message || "강의 복사에 실패했습니다."
+    );
   }
 
   // episodes도 함께 복사
@@ -476,7 +519,11 @@ export async function copyMasterLectureToStudent(
       .insert(studentEpisodes);
 
     if (episodesError) {
-      console.error("[data/contentMasters] 강의 episode 복사 실패", episodesError);
+      console.error("[data/contentMasters] 강의 episode 복사 실패", {
+        lectureId: studentLecture.id,
+        error: episodesError.message,
+        code: episodesError.code,
+      });
       // episode 복사 실패해도 강의는 복사됨
     }
   }
