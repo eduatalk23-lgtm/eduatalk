@@ -273,6 +273,9 @@ export function Step4RecommendedContents({
       ? data.subject_constraints.required_subjects
       : [];
   
+  // 필수 과목의 subject_category 배열 (렌더링 및 검증용)
+  const requiredSubjectCategories = requiredSubjects.map((req) => req.subject_category);
+  
   // 선택된 콘텐츠를 교과/과목별로 카운트
   const contentCountBySubject = new Map<string, number>();
   
@@ -651,8 +654,8 @@ export function Step4RecommendedContents({
 
   // 필수 과목 우선 정렬
   const sortedSubjects = Array.from(contentsBySubject.keys()).sort((a, b) => {
-    const aIndex = requiredSubjects.indexOf(a);
-    const bIndex = requiredSubjects.indexOf(b);
+    const aIndex = requiredSubjectCategories.indexOf(a);
+    const bIndex = requiredSubjectCategories.indexOf(b);
     if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
     if (aIndex !== -1) return -1;
     if (bIndex !== -1) return 1;
@@ -811,14 +814,15 @@ export function Step4RecommendedContents({
                   필수 과목 현황
                 </div>
                 <div className="space-y-1">
-                  {requiredSubjects.map((subject) => {
-                    const isIncluded = selectedSubjectCategories.has(subject);
+                  {requiredSubjects.map((req) => {
+                    const subjectCategory = req.subject_category;
+                    const isIncluded = selectedSubjectCategories.has(subjectCategory);
                     return (
                       <div
-                        key={subject}
+                        key={subjectCategory}
                         className="flex items-center justify-between text-xs"
                       >
-                        <span className="text-gray-700">{subject}</span>
+                        <span className="text-gray-700">{subjectCategory}</span>
                         {isIncluded ? (
                           <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                             ✓ 포함됨
@@ -1445,7 +1449,7 @@ export function Step4RecommendedContents({
             <div className="space-y-6">
               {sortedSubjects.map((subject) => {
                 const contents = contentsBySubject.get(subject) || [];
-                const isRequired = requiredSubjects.includes(subject);
+                const isRequired = requiredSubjectCategories.includes(subject);
                 const isSelected = selectedSubjectCategories.has(subject);
 
                 return (

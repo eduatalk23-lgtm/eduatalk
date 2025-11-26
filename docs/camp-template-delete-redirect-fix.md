@@ -7,6 +7,7 @@
 ## 문제 분석
 
 `app/(admin)/admin/camp-templates/[id]/CampTemplateDetail.tsx`의 `handleDelete` 함수에서:
+
 - 삭제 성공 후 `router.push("/admin/camp-templates")`를 호출하지만 리다이렉트가 실행되지 않음
 - 삭제 실패 시 `result.success`가 false인 경우에 대한 처리가 없음
 - 삭제된 템플릿의 상세 페이지에서 리다이렉트가 제대로 작동하지 않을 수 있음
@@ -14,6 +15,7 @@
 ## 해결 방안
 
 1. **`router.push` 대신 `router.replace` 사용**
+
    - 브라우저 히스토리에서 삭제된 템플릿 페이지를 제거
    - 뒤로가기 시 삭제된 페이지로 돌아가지 않도록 방지
 
@@ -26,6 +28,7 @@
 ### 파일: `app/(admin)/admin/camp-templates/[id]/CampTemplateDetail.tsx`
 
 **변경 전:**
+
 ```typescript
 const handleDelete = async () => {
   setIsDeleting(true);
@@ -46,6 +49,7 @@ const handleDelete = async () => {
 ```
 
 **변경 후:**
+
 ```typescript
 const handleDelete = async () => {
   setIsDeleting(true);
@@ -72,6 +76,7 @@ const handleDelete = async () => {
 ## 주요 변경사항
 
 1. **`router.push` → `router.replace` 변경**
+
    - 삭제된 템플릿 페이지가 브라우저 히스토리에 남지 않도록 함
    - 뒤로가기 시 삭제된 페이지로 돌아가지 않음
 
@@ -95,4 +100,3 @@ const handleDelete = async () => {
 ## 작업 일시
 
 2025-01-XX
-
