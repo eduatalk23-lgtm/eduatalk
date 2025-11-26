@@ -249,6 +249,8 @@ export function syncCreationDataToWizardData(data: {
         // title과 subject_category가 있으면 포함
         ...(c.title && { title: c.title }),
         ...(c.subject_category && { subject_category: c.subject_category }),
+        // master_content_id가 있으면 포함 (마스터에서 가져온 교재/강의 표시용)
+        ...((c as any).master_content_id && { master_content_id: (c as any).master_content_id }),
       };
 
       if (c.is_auto_recommended || c.recommendation_source) {

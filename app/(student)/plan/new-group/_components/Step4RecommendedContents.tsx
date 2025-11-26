@@ -1237,6 +1237,7 @@ export function Step4RecommendedContents({
                 // 우선순위: 1) WizardData에서 전달된 정보, 2) studentContentSubjects Map, 3) fallback
                 const storedTitle = (content as any).title;
                 const storedSubjectCategory = (content as any).subject_category;
+                const masterContentId = (content as any).master_content_id;
                 const contentInfo = studentContentSubjects.get(content.content_id);
                 
                 const title = storedTitle || contentInfo?.title || "알 수 없음";
@@ -1257,6 +1258,11 @@ export function Step4RecommendedContents({
                       {!subjectCategory && (
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                           과목 미지정
+                        </span>
+                      )}
+                      {masterContentId && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                          📦 마스터에서 가져옴
                         </span>
                       )}
                     </div>
@@ -1974,9 +1980,9 @@ export function Step4RecommendedContents({
                 </div>
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs text-blue-800">
-                    현재 학생 콘텐츠: {currentStudentCount}개, 추천 콘텐츠: {currentRecommendedCount}개
+                    현재 학생 콘텐츠: {data.student_contents.length}개, 추천 콘텐츠: {data.recommended_contents.length}개
                     <br />
-                    추가 가능: {Math.max(0, maxAvailable)}개 / 전체 최대 9개
+                    추가 가능: {Math.max(0, 9 - data.student_contents.length - data.recommended_contents.length)}개 / 전체 최대 9개
                   </p>
                 </div>
               </div>

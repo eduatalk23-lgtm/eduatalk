@@ -175,6 +175,7 @@ export default async function CampContinuePage({
           // title과 subject_category를 명시적으로 전달하여 정보 손실 방지
           title: classifiedContent?.title || undefined,
           subject_category: classifiedContent?.subject_category || undefined,
+          master_content_id: classifiedContent?.masterContentId || c.master_content_id || undefined,
         };
       }),
     exclusions,
