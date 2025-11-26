@@ -2022,11 +2022,22 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
 }> {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== "student") {
+    if (!user) {
       throw new AppError(
         "로그인이 필요합니다.",
         ErrorCode.UNAUTHORIZED,
         401,
+        true
+      );
+    }
+
+    // 관리자 또는 컨설턴트 권한도 허용 (캠프 모드에서 관리자가 플랜 미리보기 시 사용)
+    const { role } = await getCurrentUserRole();
+    if (user.role !== "student" && role !== "admin" && role !== "consultant") {
+      throw new AppError(
+        "학생 권한이 필요합니다.",
+        ErrorCode.UNAUTHORIZED,
+        403,
         true
       );
     }
@@ -2036,11 +2047,22 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     const supabase = await createSupabaseServerClient();
 
     // 1. 플랜 그룹 및 관련 데이터 조회
-    const result = await getPlanGroupWithDetails(groupId, user.userId);
-    const group = result.group;
-    const contents = result.contents || [];
-    const exclusions = result.exclusions || [];
-    const academySchedules = result.academySchedules || [];
+    // 관리자/컨설턴트의 경우 플랜 그룹의 student_id를 직접 조회
+    let group, contents, exclusions, academySchedules;
+    if (role === "admin" || role === "consultant") {
+      const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
+      const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
+      group = result.group;
+      contents = result.contents;
+      exclusions = result.exclusions;
+      academySchedules = result.academySchedules;
+    } else {
+      const result = await getPlanGroupWithDetails(groupId, user.userId);
+      group = result.group;
+      contents = result.contents;
+      exclusions = result.exclusions;
+      academySchedules = result.academySchedules;
+    }
 
     if (!group) {
       throw new AppError(
@@ -2048,6 +2070,23 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         ErrorCode.NOT_FOUND,
         404,
         true
+      );
+    }
+
+    // 관리자/컨설턴트의 경우 플랜 그룹의 student_id 사용
+    const studentId = (role === "admin" || role === "consultant") ? group.student_id : user.userId;
+
+    // Admin/Consultant가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용
+    const isAdminOrConsultant = role === "admin" || role === "consultant";
+    const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
+    const queryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
+    
+    if (isOtherStudent && !queryClient) {
+      throw new AppError(
+        "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        false
       );
     }
 
@@ -2232,10 +2271,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
 
           if (masterBook) {
             // 이미 복사된 학생 교재가 있는지 확인
-            const { data: existingBook } = await supabase
+            const { data: existingBook } = await queryClient
               .from("books")
               .select("id")
-              .eq("student_id", user.userId)
+              .eq("student_id", studentId)
               .eq("master_content_id", content.content_id)
               .maybeSingle();
 
@@ -2256,10 +2295,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
 
           if (masterLecture) {
             // 이미 복사된 학생 강의가 있는지 확인
-            const { data: existingLecture } = await supabase
+            const { data: existingLecture } = await queryClient
               .from("lectures")
               .select("id")
-              .eq("student_id", user.userId)
+              .eq("student_id", studentId)
               .eq("master_content_id", content.content_id)
               .maybeSingle();
 
@@ -2319,11 +2358,11 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
 
       if (content.content_type === "book") {
         // 학생 교재 조회
-        const { data: studentBook } = await supabase
+        const { data: studentBook } = await queryClient
           .from("books")
           .select("id, total_pages, master_content_id")
           .eq("id", finalContentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (studentBook?.total_pages) {
@@ -2350,11 +2389,11 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         }
       } else if (content.content_type === "lecture") {
         // 학생 강의 조회
-        const { data: studentLecture } = await supabase
+        const { data: studentLecture } = await queryClient
           .from("lectures")
           .select("id, duration, master_content_id")
           .eq("id", finalContentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (studentLecture?.duration) {
@@ -2391,11 +2430,11 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         }
 
         // 커스텀 콘텐츠 조회
-        const { data: customContent } = await supabase
+        const { data: customContent } = await queryClient
           .from("student_custom_contents")
           .select("id, total_page_or_time")
           .eq("id", finalContentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (customContent?.total_page_or_time) {
@@ -2477,11 +2516,11 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         contentIdMap.get(content.content_id) || content.content_id;
 
       if (content.content_type === "book") {
-        const { data: book } = await supabase
+        const { data: book } = await queryClient
           .from("books")
           .select("title, subject, subject_category, content_category")
           .eq("id", finalContentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (book) {
@@ -2509,11 +2548,11 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           }
         }
       } else if (content.content_type === "lecture") {
-        const { data: lecture } = await supabase
+        const { data: lecture } = await queryClient
           .from("lectures")
           .select("title, subject, subject_category, content_category")
           .eq("id", finalContentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (lecture) {
@@ -2542,11 +2581,11 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         }
       } else if (content.content_type === "custom") {
         // 커스텀 콘텐츠 조회
-        const { data: customContent } = await supabase
+        const { data: customContent } = await queryClient
           .from("student_custom_contents")
           .select("title, subject, subject_category, content_category")
           .eq("id", finalContentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (customContent) {
