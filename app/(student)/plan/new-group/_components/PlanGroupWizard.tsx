@@ -570,16 +570,6 @@ export function PlanGroupWizard({
     }
 
     if (step === 5) {
-      // Step 4 검증: 필수 과목 (국어, 수학, 영어) 각 1개 이상
-      const requiredSubjects = ["국어", "수학", "영어"];
-      const selectedSubjectCategories = new Set<string>();
-
-      // contents에서 subject_category 추출 (마스터 콘텐츠인 경우)
-      // TODO: 실제로는 마스터 콘텐츠의 subject_category를 조회해야 함
-      // 현재는 Step 4에서 선택한 콘텐츠의 subject_category를 확인
-      // 임시로 contents에 subject_category 정보가 포함되어 있다고 가정
-      // 실제 구현 시 마스터 콘텐츠 정보를 조회해야 함
-
       // 최소 1개 이상의 콘텐츠 필요 (학생 + 추천 합쳐서)
       const totalContents =
         wizardData.student_contents.length +
@@ -587,9 +577,6 @@ export function PlanGroupWizard({
       if (totalContents === 0) {
         errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
       }
-
-      // 필수 과목 검증은 Step 5에서 처리
-      // 여기서는 최소 개수만 확인
     }
 
     if (step === 6) {

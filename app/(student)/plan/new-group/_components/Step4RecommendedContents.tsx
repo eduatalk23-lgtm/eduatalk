@@ -67,6 +67,12 @@ export function Step4RecommendedContents({
   const [hasRequestedRecommendations, setHasRequestedRecommendations] =
     useState(!isEditMode); // 편집 모드일 때는 아직 요청 안 함
   const [hasScoreData, setHasScoreData] = useState(false);
+  
+  // 추천 받기 설정 (교과 선택, 개수)
+  const availableSubjects = ["국어", "수학", "영어", "과학", "사회"];
+  const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
+  const [recommendationCounts, setRecommendationCounts] = useState<Map<string, number>>(new Map());
+  const [autoAssignContents, setAutoAssignContents] = useState(false); // 콘텐츠 자동 배정 옵션
   const [editingRangeIndex, setEditingRangeIndex] = useState<number | null>(
     null
   );
@@ -100,7 +106,240 @@ export function Step4RecommendedContents({
     >
   >(new Map());
 
-  // 추천 목록 조회 함수
+  // 교과별 추천 목록 조회 함수 (고도화 버전)
+  const fetchRecommendationsWithSubjects = useCallback(async (
+    subjects: string[],
+    counts: Map<string, number>,
+    autoAssign: boolean = false
+  ) => {
+    setLoading(true);
+    try {
+      // 교과별 추천 개수를 쿼리 파라미터로 전달
+      const params = new URLSearchParams();
+      subjects.forEach((subject) => {
+        const count = counts.get(subject) || 1;
+        params.append("subjects", subject);
+        params.append(`count_${subject}`, String(count));
+      });
+      
+      const response = await fetch(`/api/recommended-master-contents?${params.toString()}`);
+      if (response.ok) {
+        const result = await response.json();
+        const recommendations = result.recommendations || [];
+        
+        // 추천 콘텐츠가 부족한 경우 확인
+        const recommendedBySubject = new Map<string, RecommendedContent[]>();
+        recommendations.forEach((r: RecommendedContent) => {
+          if (r.subject_category && subjects.includes(r.subject_category)) {
+            if (!recommendedBySubject.has(r.subject_category)) {
+              recommendedBySubject.set(r.subject_category, []);
+            }
+            recommendedBySubject.get(r.subject_category)!.push(r);
+          }
+        });
+        
+        // 부족한 교과 확인 및 메시지 표시
+        const insufficientSubjects: string[] = [];
+        subjects.forEach((subject) => {
+          const requestedCount = counts.get(subject) || 1;
+          const actualCount = recommendedBySubject.get(subject)?.length || 0;
+          if (actualCount < requestedCount) {
+            insufficientSubjects.push(`${subject} (요청: ${requestedCount}개, 실제: ${actualCount}개)`);
+          }
+        });
+        
+        // 추천 콘텐츠가 하나도 없는 경우
+        if (recommendations.length === 0) {
+          alert("추천 콘텐츠가 부족합니다. 다른 교과를 선택하거나 개수를 조정해주세요.");
+          setLoading(false);
+          return;
+        }
+        
+        if (insufficientSubjects.length > 0) {
+          const confirmMessage = `다음 교과의 추천 콘텐츠가 부족합니다:\n${insufficientSubjects.join("\n")}\n\n부족한 교과를 제외하고 추천 받으시겠습니까?`;
+          const shouldContinue = window.confirm(confirmMessage);
+          if (!shouldContinue) {
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 성적 데이터 존재 여부 확인
+        const hasDetailedReasons = recommendations.some(
+          (r: RecommendedContent) =>
+            r.reason.includes("내신") ||
+            r.reason.includes("모의고사") ||
+            r.reason.includes("위험도") ||
+            r.scoreDetails
+        );
+        setHasScoreData(hasDetailedReasons);
+
+        // 중복 제거
+        const existingIds = new Set([
+          ...data.student_contents.map((c) => c.content_id),
+          ...data.recommended_contents.map((c) => c.content_id),
+        ]);
+
+        const { getStudentContentMasterIdsAction } = await import(
+          "@/app/(student)/actions/getStudentContentMasterIds"
+        );
+        const studentContentsForMasterId = data.student_contents.filter(
+          (c) => c.content_type === "book" || c.content_type === "lecture"
+        ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
+
+        let studentMasterIds = new Set<string>();
+        if (studentContentsForMasterId.length > 0) {
+          try {
+            const masterIdResult = await getStudentContentMasterIdsAction(
+              studentContentsForMasterId
+            );
+            if (masterIdResult.success && masterIdResult.data) {
+              masterIdResult.data.forEach((masterId, contentId) => {
+                if (masterId) {
+                  studentMasterIds.add(masterId);
+                }
+              });
+            }
+          } catch (error) {
+            console.warn("[Step4RecommendedContents] master_content_id 조회 실패:", error);
+          }
+        }
+
+        const recommendationsMap = new Map<string, RecommendedContent>();
+        recommendations.forEach((c: RecommendedContent) => {
+          recommendationsMap.set(c.id, c);
+        });
+
+        setAllRecommendedContents((prev) => {
+          const merged = new Map<string, RecommendedContent>();
+          prev.forEach((c) => merged.set(c.id, c));
+          recommendationsMap.forEach((c, id) => {
+            merged.set(id, c);
+          });
+          return Array.from(merged.values());
+        });
+
+        const filteredRecommendations = recommendations.filter(
+          (r: RecommendedContent) => {
+            if (existingIds.has(r.id)) {
+              return false;
+            }
+            if (studentMasterIds.has(r.id)) {
+              return false;
+            }
+            return true;
+          }
+        );
+
+        setRecommendedContents(filteredRecommendations);
+        setHasRequestedRecommendations(true);
+        
+        // 자동 배정 옵션이 활성화된 경우에만 자동으로 추가
+        // 마스터 콘텐츠 상세 정보를 조회하여 범위 자동 설정
+        if (autoAssign && filteredRecommendations.length > 0) {
+          const contentsToAutoAdd: Array<{
+            content_type: "book" | "lecture";
+            content_id: string;
+            start_range: number;
+            end_range: number;
+            title?: string;
+            subject_category?: string;
+          }> = [];
+
+          for (const r of filteredRecommendations) {
+            try {
+              // 마스터 콘텐츠 상세 정보 조회
+              const response = await fetch(
+                `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
+              );
+              
+              let startRange = 1;
+              let endRange = 100;
+
+              if (response.ok) {
+                const result = await response.json();
+                
+                if (r.contentType === "book") {
+                  const details = result.details || [];
+                  if (details.length > 0) {
+                    startRange = details[0].page_number || 1;
+                    endRange = details[details.length - 1].page_number || 100;
+                  }
+                } else if (r.contentType === "lecture") {
+                  const episodes = result.episodes || [];
+                  if (episodes.length > 0) {
+                    startRange = episodes[0].episode_number || 1;
+                    endRange = episodes[episodes.length - 1].episode_number || 100;
+                  }
+                }
+              }
+
+              contentsToAutoAdd.push({
+                content_type: r.contentType as "book" | "lecture",
+                content_id: r.id,
+                start_range: startRange,
+                end_range: endRange,
+                title: r.title,
+                subject_category: r.subject_category || undefined,
+              });
+            } catch (error) {
+              console.warn(`[Step4RecommendedContents] 콘텐츠 ${r.id} 상세 정보 조회 실패:`, error);
+              // 조회 실패 시 기본값 사용
+              contentsToAutoAdd.push({
+                content_type: r.contentType as "book" | "lecture",
+                content_id: r.id,
+                start_range: 1,
+                end_range: 100,
+                title: r.title,
+                subject_category: r.subject_category || undefined,
+              });
+            }
+          }
+          
+          // 최대 9개 제한 확인
+          const currentTotal = data.student_contents.length + data.recommended_contents.length;
+          const toAdd = contentsToAutoAdd.length;
+          
+          if (currentTotal + toAdd > 9) {
+            // 최대 개수 초과 시 자를 개수 계산
+            const maxToAdd = 9 - currentTotal;
+            const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
+            
+            if (trimmed.length > 0) {
+              onUpdate({
+                recommended_contents: [
+                  ...data.recommended_contents,
+                  ...trimmed,
+                ],
+              });
+              alert(`추천 콘텐츠 ${trimmed.length}개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`);
+            } else {
+              alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
+            }
+          } else {
+            onUpdate({
+              recommended_contents: [
+                ...data.recommended_contents,
+                ...contentsToAutoAdd,
+              ],
+            });
+            alert(`추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`);
+          }
+        }
+      }
+    } catch (error) {
+      const planGroupError = toPlanGroupError(
+        error,
+        PlanGroupErrorCodes.CONTENT_FETCH_FAILED
+      );
+      console.error("[Step4RecommendedContents] 추천 목록 조회 실패:", planGroupError);
+      alert("추천 콘텐츠를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [data.student_contents, data.recommended_contents, onUpdate]);
+
+  // 추천 목록 조회 함수 (기존 버전, 편집 모드가 아닐 때 사용)
   const fetchRecommendations = useCallback(async () => {
     setLoading(true);
     try {
@@ -849,29 +1088,6 @@ export function Step4RecommendedContents({
       allContentSubjects.add(subjectCategory);
     }
   });
-  const subjects = Array.from(allContentSubjects).sort();
-
-  // subject_allocations 핸들러
-  const handleSubjectAllocationChange = (
-    subject: string,
-    allocation: {
-      subject_id: string;
-      subject_name: string;
-      subject_type: "strategy" | "weakness";
-      weekly_days?: number;
-    }
-  ) => {
-    const currentAllocations = data.subject_allocations || [];
-    const updatedAllocations = currentAllocations.filter(
-      (a) => a.subject_name !== subject
-    );
-    updatedAllocations.push(allocation);
-    onUpdate({ subject_allocations: updatedAllocations });
-  };
-
-  // 캠프 모드이고 1730_timetable인 경우 취약과목/전략과목 설정 표시
-  const showSubjectAllocations =
-    isCampMode && data.scheduler_type === "1730_timetable";
 
   return (
     <div className="space-y-6">
@@ -1643,23 +1859,180 @@ export function Step4RecommendedContents({
 
       {/* 편집 모드이고 아직 추천을 받지 않은 경우 - 추천받기 버튼 */}
       {isEditMode && !hasRequestedRecommendations && (
-        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
-          <div className="space-y-4">
-            <div>
+        <div className="rounded-lg border border-gray-200 bg-white p-8">
+          <div className="space-y-6">
+            <div className="text-center">
               <h3 className="text-lg font-semibold text-gray-900">
                 추천 콘텐츠 받기
               </h3>
               <p className="mt-2 text-sm text-gray-500">
-                성적 데이터를 기반으로 맞춤형 추천 콘텐츠를 받아보세요.
+                추천 받을 교과와 개수를 선택하세요. (최대 9개까지 가능)
               </p>
             </div>
-            <button
-              type="button"
-              onClick={fetchRecommendations}
-              className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
-              추천받기
-            </button>
+            
+            {/* 교과 선택 */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                교과 선택 <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {availableSubjects.map((subject) => (
+                  <button
+                    key={subject}
+                    type="button"
+                    onClick={() => {
+                      const newSelected = new Set(selectedSubjects);
+                      if (newSelected.has(subject)) {
+                        newSelected.delete(subject);
+                        const newCounts = new Map(recommendationCounts);
+                        newCounts.delete(subject);
+                        setRecommendationCounts(newCounts);
+                      } else {
+                        newSelected.add(subject);
+                        setRecommendationCounts((prev) => {
+                          const newMap = new Map(prev);
+                          newMap.set(subject, 1);
+                          return newMap;
+                        });
+                      }
+                      setSelectedSubjects(newSelected);
+                    }}
+                    className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
+                      selectedSubjects.has(subject)
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    {subject}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 교과별 개수 설정 */}
+            {selectedSubjects.size > 0 && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  교과별 추천 개수
+                </label>
+                <div className="space-y-3">
+                  {Array.from(selectedSubjects).map((subject) => {
+                    const currentCount = recommendationCounts.get(subject) || 1;
+                    const totalSelectedCount = Array.from(recommendationCounts.values()).reduce((sum, count) => sum + count, 0);
+                    const currentStudentCount = data.student_contents.length;
+                    const currentRecommendedCount = data.recommended_contents.length;
+                    const maxAvailable = 9 - currentStudentCount - currentRecommendedCount;
+                    const remainingForOthers = maxAvailable - (totalSelectedCount - currentCount);
+                    const maxForThis = Math.max(1, remainingForOthers);
+
+                    return (
+                      <div key={subject} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <span className="text-sm font-medium text-gray-900">{subject}</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (currentCount > 1) {
+                                setRecommendationCounts((prev) => {
+                                  const newMap = new Map(prev);
+                                  newMap.set(subject, currentCount - 1);
+                                  return newMap;
+                                });
+                              }
+                            }}
+                            disabled={currentCount <= 1}
+                            className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50"
+                          >
+                            -
+                          </button>
+                          <span className="w-8 text-center text-sm font-semibold text-gray-900">
+                            {currentCount}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (currentCount < maxForThis) {
+                                setRecommendationCounts((prev) => {
+                                  const newMap = new Map(prev);
+                                  newMap.set(subject, currentCount + 1);
+                                  return newMap;
+                                });
+                              }
+                            }}
+                            disabled={currentCount >= maxForThis}
+                            className="flex h-8 w-8 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50"
+                          >
+                            +
+                          </button>
+                          <span className="ml-2 text-xs text-gray-500">
+                            (최대 {maxForThis}개)
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs text-blue-800">
+                    현재 학생 콘텐츠: {currentStudentCount}개, 추천 콘텐츠: {currentRecommendedCount}개
+                    <br />
+                    추가 가능: {Math.max(0, maxAvailable)}개 / 전체 최대 9개
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 콘텐츠 자동 배정 옵션 */}
+            <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={autoAssignContents}
+                  onChange={(e) => setAutoAssignContents(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  콘텐츠 자동 배정
+                </span>
+              </label>
+              <p className="text-xs text-gray-500">
+                선택 시 추천 받은 콘텐츠를 자동으로 추가 추천 콘텐츠로 이동합니다.
+              </p>
+            </div>
+
+            {/* 추천받기 버튼 */}
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={async () => {
+                  // 최소 제약 검증
+                  if (selectedSubjects.size === 0) {
+                    alert("최소 1개 이상의 교과를 선택해주세요.");
+                    return;
+                  }
+                  
+                  const totalRequested = Array.from(recommendationCounts.values()).reduce((sum, count) => sum + count, 0);
+                  const currentTotal = data.student_contents.length + data.recommended_contents.length;
+                  
+                  if (totalRequested === 0) {
+                    alert("최소 1개 이상의 콘텐츠를 추천 받으려면 개수를 설정해주세요.");
+                    return;
+                  }
+                  
+                  if (currentTotal + totalRequested > 9) {
+                    alert(`추천 받을 수 있는 최대 개수를 초과했습니다. (현재: ${currentTotal}개, 요청: ${totalRequested}개, 최대: 9개)`);
+                    return;
+                  }
+
+                  // 교과별 추천 개수 정보를 포함하여 추천 요청
+                  await fetchRecommendationsWithSubjects(Array.from(selectedSubjects), recommendationCounts, autoAssignContents);
+                }}
+                disabled={selectedSubjects.size === 0}
+                className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400"
+              >
+                추천받기
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1950,143 +2323,6 @@ export function Step4RecommendedContents({
           </>
         )}
 
-      {/* 취약과목/전략과목 설정 (캠프 모드이고 1730_timetable인 경우) */}
-      {showSubjectAllocations && subjects.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            전략과목/취약과목 정보 <span className="text-red-500">*</span>
-          </h2>
-          <p className="mb-6 text-sm text-gray-600">
-            각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
-            이 설정은 Step 5에서 검증됩니다.
-          </p>
-
-          <div className="space-y-4">
-            {subjects.map((subject) => {
-              const existingAllocation = (data.subject_allocations || []).find(
-                (a) => a.subject_name === subject
-              );
-              const subjectType = existingAllocation?.subject_type || "weakness";
-              const weeklyDays = existingAllocation?.weekly_days || 3;
-
-              // 해당 과목의 콘텐츠 개수 계산
-              const subjectContentCount =
-                data.student_contents.filter(
-                  (sc) => (sc as any).subject_category === subject
-                ).length +
-                data.recommended_contents.filter((rc) => {
-                  const subjectCategory =
-                    (rc as any).subject_category ||
-                    allRecommendedContents.find((c) => c.id === rc.content_id)
-                      ?.subject_category;
-                  return subjectCategory === subject;
-                }).length;
-
-              return (
-                <div
-                  key={subject}
-                  className="rounded-lg border border-gray-200 bg-gray-50 p-4"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      {subject}
-                    </h3>
-                    <span className="text-xs text-gray-500">
-                      {subjectContentCount}개 콘텐츠
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="mb-2 block text-xs font-medium text-gray-700">
-                        과목 유형
-                      </label>
-                      <div className="flex gap-3">
-                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                          <input
-                            type="radio"
-                            name={`subject_type_${subject}`}
-                            value="weakness"
-                            checked={subjectType === "weakness"}
-                            onChange={() => {
-                              handleSubjectAllocationChange(subject, {
-                                subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                subject_name: subject,
-                                subject_type: "weakness",
-                              });
-                            }}
-                            className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">
-                              취약과목
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              전체 학습일에 플랜 배정 (더 많은 시간 필요)
-                            </div>
-                          </div>
-                        </label>
-                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                          <input
-                            type="radio"
-                            name={`subject_type_${subject}`}
-                            value="strategy"
-                            checked={subjectType === "strategy"}
-                            onChange={() => {
-                              handleSubjectAllocationChange(subject, {
-                                subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                subject_name: subject,
-                                subject_type: "strategy",
-                                weekly_days: 3,
-                              });
-                            }}
-                            className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900">
-                              전략과목
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              주당 배정 일수에 따라 배정
-                            </div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-
-                    {subjectType === "strategy" && (
-                      <div>
-                        <label className="mb-2 block text-xs font-medium text-gray-700">
-                          주당 배정 일수
-                        </label>
-                        <select
-                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-                          value={weeklyDays}
-                          onChange={(e) => {
-                            handleSubjectAllocationChange(subject, {
-                              subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                              subject_name: subject,
-                              subject_type: "strategy",
-                              weekly_days: Number(e.target.value),
-                            });
-                          }}
-                        >
-                          <option value="2">주 2일</option>
-                          <option value="3">주 3일</option>
-                          <option value="4">주 4일</option>
-                        </select>
-                        <p className="mt-1 text-xs text-gray-500">
-                          선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

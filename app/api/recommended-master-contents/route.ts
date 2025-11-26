@@ -27,10 +27,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // 쿼리 파라미터에서 교과와 개수 정보 추출
+    const { searchParams } = new URL(request.url);
+    const subjectsParam = searchParams.getAll("subjects");
+    const subjectCounts = new Map<string, number>();
+    
+    if (subjectsParam.length > 0) {
+      // 교과별 개수 파라미터 파싱
+      subjectsParam.forEach((subject) => {
+        const countParam = searchParams.get(`count_${subject}`);
+        const count = countParam ? parseInt(countParam, 10) : 1;
+        if (!isNaN(count) && count > 0) {
+          subjectCounts.set(subject, count);
+        }
+      });
+    }
+
     const recommendations = await getRecommendedMasterContents(
       supabase,
       user.userId,
-      student?.tenant_id || null
+      student?.tenant_id || null,
+      subjectCounts.size > 0 ? subjectCounts : undefined
     );
 
     return NextResponse.json({ recommendations });

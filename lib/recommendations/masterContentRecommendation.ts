@@ -147,7 +147,8 @@ function sortByRevision<T extends { revision?: string | null; updated_at?: strin
 export async function getRecommendedMasterContents(
   supabase: SupabaseServerClient,
   studentId: string,
-  tenantId: string | null
+  tenantId: string | null,
+  requestedSubjectCounts?: Map<string, number>
 ): Promise<RecommendedMasterContent[]> {
   const recommendations: RecommendedMasterContent[] = [];
 
@@ -610,8 +611,31 @@ export async function getRecommendedMasterContents(
       }
     }
 
+    // 교과별 개수 파라미터가 있는 경우 필터링
+    let finalRecommendations = Array.from(contentMap.values()).sort((a, b) => a.priority - b.priority);
+    
+    if (requestedSubjectCounts && requestedSubjectCounts.size > 0) {
+      const filtered: RecommendedMasterContent[] = [];
+      const subjectCounts = new Map<string, number>();
+      
+      // 교과별로 요청된 개수만큼만 추출
+      for (const [subject, requestedCount] of requestedSubjectCounts) {
+        const subjectRecommendations = finalRecommendations.filter(
+          (r) => r.subject_category === subject
+        );
+        const toTake = Math.min(requestedCount, subjectRecommendations.length);
+        subjectCounts.set(subject, toTake);
+        
+        for (let i = 0; i < toTake; i++) {
+          filtered.push(subjectRecommendations[i]);
+        }
+      }
+      
+      finalRecommendations = filtered;
+    }
+    
     // 우선순위 순으로 정렬
-    return Array.from(contentMap.values()).sort((a, b) => a.priority - b.priority);
+    return finalRecommendations.sort((a, b) => a.priority - b.priority);
   } catch (error) {
     console.error("[recommendations/masterContent] 마스터 콘텐츠 추천 생성 실패", error);
     // 에러 발생 시에도 기본 추천 제공
