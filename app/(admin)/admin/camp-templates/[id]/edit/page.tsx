@@ -29,6 +29,28 @@ export default async function EditCampTemplatePage({
     );
   }
 
+  // 활성 상태의 템플릿은 수정 불가
+  if (result.template.status === "active") {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
+          <h2 className="mb-2 text-lg font-semibold text-amber-900">템플릿 수정 불가</h2>
+          <p className="mb-4 text-sm text-amber-800">
+            활성 상태의 템플릿은 수정할 수 없습니다. 템플릿을 초안 상태로 변경한 후 수정해주세요.
+          </p>
+          <div className="flex gap-3">
+            <a
+              href={`/admin/camp-templates/${id}`}
+              className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+            >
+              템플릿 상세로 돌아가기
+            </a>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   // 템플릿 블록 세트 조회 (실제 DB에서)
   let initialBlockSets: Array<{ id: string; name: string; blocks: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> }> = [];
   

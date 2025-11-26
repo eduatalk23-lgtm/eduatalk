@@ -48,7 +48,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
     }
   };
 
-  const handleStatusChange = async (e: React.MouseEvent, newStatus: "draft" | "active") => {
+  const handleStatusChange = async (e: React.MouseEvent, newStatus: "draft" | "active" | "archived") => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -119,18 +119,44 @@ export function TemplateCard({ template }: TemplateCardProps) {
                 </span>
               )}
               {/* 상태 변경 버튼 */}
-              {currentStatus !== "archived" && (
+              {currentStatus === "draft" && (
                 <button
-                  onClick={(e) => handleStatusChange(e, currentStatus === "draft" ? "active" : "draft")}
+                  onClick={(e) => handleStatusChange(e, "active")}
                   disabled={isChangingStatus}
                   className="opacity-0 transition-opacity group-hover:opacity-100 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  title={currentStatus === "draft" ? "활성화" : "초안으로 변경"}
+                  title="활성화"
                 >
-                  {isChangingStatus 
-                    ? "변경 중..." 
-                    : currentStatus === "draft" 
-                    ? "활성화" 
-                    : "초안"}
+                  {isChangingStatus ? "변경 중..." : "활성화"}
+                </button>
+              )}
+              {currentStatus === "active" && (
+                <>
+                  <button
+                    onClick={(e) => handleStatusChange(e, "draft")}
+                    disabled={isChangingStatus}
+                    className="opacity-0 transition-opacity group-hover:opacity-100 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="초안으로 변경"
+                  >
+                    {isChangingStatus ? "변경 중..." : "초안"}
+                  </button>
+                  <button
+                    onClick={(e) => handleStatusChange(e, "archived")}
+                    disabled={isChangingStatus}
+                    className="opacity-0 transition-opacity group-hover:opacity-100 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    title="보관"
+                  >
+                    {isChangingStatus ? "변경 중..." : "보관"}
+                  </button>
+                </>
+              )}
+              {currentStatus === "archived" && (
+                <button
+                  onClick={(e) => handleStatusChange(e, "draft")}
+                  disabled={isChangingStatus}
+                  className="opacity-0 transition-opacity group-hover:opacity-100 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="초안으로 복원"
+                >
+                  {isChangingStatus ? "변경 중..." : "복원"}
                 </button>
               )}
               <button

@@ -42,7 +42,6 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
   const [templateName, setTemplateName] = useState((templateData as Partial<WizardData>).name || template.name || "");
   const [programType, setProgramType] = useState<CampProgramType>(template.program_type);
   const [description, setDescription] = useState(template.description || "");
-  const [status, setStatus] = useState<"draft" | "active" | "archived">(template.status);
   
   // 날짜 형식 안전하게 변환 (이미 문자열인 경우 처리)
   const formatDateForInput = (dateValue: string | null | undefined): string => {
@@ -192,7 +191,7 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     formData.append("name", templateName || finalWizardData.name); // templateName을 명시적으로 사용
     formData.append("program_type", programType);
     formData.append("description", description);
-    formData.append("status", status);
+    // 상태는 수정 폼에서 변경하지 않음 (액션 버튼으로만 변경)
     formData.append("template_data", JSON.stringify(finalWizardData));
     if (campStartDate) {
       formData.append("camp_start_date", campStartDate);
@@ -290,24 +289,6 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
             </select>
           </div>
 
-          {/* 상태 */}
-          <div>
-            <label htmlFor="status" className="mb-2 block text-sm font-medium text-gray-700">
-              상태
-            </label>
-            <select
-              id="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as "draft" | "active" | "archived")}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            >
-              {statuses.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* 설명 */}
           <div className="md:col-span-2">

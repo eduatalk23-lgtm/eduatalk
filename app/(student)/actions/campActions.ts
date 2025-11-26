@@ -256,11 +256,14 @@ export const submitCampParticipation = withErrorHandling(
     creationData.block_set_id = null;
 
     // 템플릿 블록 세트 ID를 scheduler_options에 저장
-    if (templateData.block_set_id) {
+    // mergedData.block_set_id 사용 (wizardData.block_set_id || templateData.block_set_id)
+    // 학생이 블록을 선택했다면 wizardData.block_set_id가 우선적으로 사용됨
+    const blockSetId = mergedData.block_set_id || templateData.block_set_id;
+    if (blockSetId) {
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
-      (creationData.scheduler_options as any).template_block_set_id = templateData.block_set_id;
+      (creationData.scheduler_options as any).template_block_set_id = blockSetId;
     }
 
     let groupId: string;

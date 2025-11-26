@@ -77,7 +77,9 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
           newStatus === "active" 
             ? "템플릿이 활성화되었습니다." 
             : newStatus === "draft"
-            ? "템플릿이 초안 상태로 변경되었습니다."
+            ? currentStatus === "archived"
+            ? "템플릿이 초안 상태로 복원되었습니다."
+            : "템플릿이 초안 상태로 변경되었습니다."
             : "템플릿이 보관되었습니다."
         );
         router.refresh();
@@ -146,17 +148,40 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
           </div>
           <div className="flex flex-wrap gap-3">
             {/* 상태 변경 버튼 */}
-            {currentStatus !== "archived" && (
+            {currentStatus === "draft" && (
               <button
-                onClick={() => handleStatusChange(currentStatus === "draft" ? "active" : "draft")}
+                onClick={() => handleStatusChange("active")}
                 disabled={isChangingStatus}
                 className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isChangingStatus 
-                  ? "변경 중..." 
-                  : currentStatus === "draft" 
-                  ? "활성화" 
-                  : "초안으로 변경"}
+                {isChangingStatus ? "변경 중..." : "활성화"}
+              </button>
+            )}
+            {currentStatus === "active" && (
+              <>
+                <button
+                  onClick={() => handleStatusChange("draft")}
+                  disabled={isChangingStatus}
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isChangingStatus ? "변경 중..." : "초안으로 변경"}
+                </button>
+                <button
+                  onClick={() => handleStatusChange("archived")}
+                  disabled={isChangingStatus}
+                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isChangingStatus ? "변경 중..." : "보관"}
+                </button>
+              </>
+            )}
+            {currentStatus === "archived" && (
+              <button
+                onClick={() => handleStatusChange("draft")}
+                disabled={isChangingStatus}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isChangingStatus ? "변경 중..." : "초안으로 복원"}
               </button>
             )}
             <Link
@@ -171,12 +196,23 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
             >
               참여자 목록
             </Link>
-            <Link
-              href={`/admin/camp-templates/${template.id}/edit`}
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              수정하기
-            </Link>
+            {currentStatus !== "active" && (
+              <Link
+                href={`/admin/camp-templates/${template.id}/edit`}
+                className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                수정하기
+              </Link>
+            )}
+            {currentStatus === "active" && (
+              <button
+                disabled
+                className="inline-flex items-center justify-center rounded-lg bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-500 cursor-not-allowed"
+                title="활성 상태의 템플릿은 수정할 수 없습니다"
+              >
+                수정하기
+              </button>
+            )}
             <button
               onClick={() => setShowDeleteDialog(true)}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"

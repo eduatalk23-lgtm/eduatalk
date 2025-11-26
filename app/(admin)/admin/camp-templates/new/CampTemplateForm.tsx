@@ -37,7 +37,6 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
   const toast = useToast();
   const [programType, setProgramType] = useState<CampProgramType>("기타");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"draft" | "active" | "archived">("draft");
   const [templateName, setTemplateName] = useState("");
   const [campStartDate, setCampStartDate] = useState("");
   const [campEndDate, setCampEndDate] = useState("");
@@ -239,24 +238,6 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
             </select>
           </div>
 
-          {/* 상태 */}
-          <div>
-            <label htmlFor="status" className="mb-2 block text-sm font-medium text-gray-700">
-              상태
-            </label>
-            <select
-              id="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as "draft" | "active" | "archived")}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            >
-              {statuses.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* 설명 */}
           <div className="md:col-span-2">
