@@ -67,33 +67,66 @@ export async function calculateScheduleAvailability(
 
     // 캠프 모드: 템플릿 블록 세트의 블록 조회 (가장 먼저 처리, isTemplateMode보다 우선)
     if (params.isCampMode && params.campTemplateId && params.blockSetId) {
-      // 캠프 모드: 템플릿 블록 세트의 블록 조회 (template_blocks 테이블)
-      const { data: blocksData, error: blocksError } = await supabase
-        .from("template_blocks")
-        .select("day_of_week, start_time, end_time")
-        .eq("template_block_set_id", params.blockSetId)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
+      // 새로운 연결 테이블 방식: camp_template_block_sets를 통해 tenant_block_sets 조회
+      // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+      const { data: templateBlockSetLink, error: linkError } = await supabase
+        .from("camp_template_block_sets")
+        .select("tenant_block_set_id")
+        .eq("camp_template_id", params.campTemplateId)
+        .maybeSingle();
 
-      if (blocksError) {
-        return {
-          success: false,
-          error: `템플릿 블록 조회 실패: ${blocksError.message}`,
-          data: null,
-        };
+      let templateBlockSetId: string | null = null;
+      if (templateBlockSetLink) {
+        templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
+      } else {
+        // 하위 호환성: params.blockSetId가 이미 tenant_block_sets의 ID일 수 있음
+        // 또는 template_data.block_set_id 확인 (마이그레이션 전 데이터용)
+        const { getCampTemplate } = await import("@/lib/data/campTemplates");
+        const template = await getCampTemplate(params.campTemplateId);
+        if (template && template.template_data) {
+          const templateData = template.template_data as any;
+          templateBlockSetId = templateData.block_set_id || params.blockSetId || null;
+        } else {
+          // 연결 테이블에 없고 템플릿 데이터도 없으면 blockSetId를 직접 사용
+          templateBlockSetId = params.blockSetId;
+        }
       }
 
-      blocks =
-        blocksData?.map((b) => ({
-          day_of_week: b.day_of_week,
-          start_time: b.start_time,
-          end_time: b.end_time,
-        })) || [];
+      if (templateBlockSetId) {
+        // tenant_blocks 테이블에서 블록 조회
+        const { data: blocksData, error: blocksError } = await supabase
+          .from("tenant_blocks")
+          .select("day_of_week, start_time, end_time")
+          .eq("tenant_block_set_id", templateBlockSetId)
+          .order("day_of_week", { ascending: true })
+          .order("start_time", { ascending: true });
 
-      if (blocks.length === 0) {
+        if (blocksError) {
+          return {
+            success: false,
+            error: `템플릿 블록 조회 실패: ${blocksError.message}`,
+            data: null,
+          };
+        }
+
+        blocks =
+          blocksData?.map((b) => ({
+            day_of_week: b.day_of_week,
+            start_time: b.start_time,
+            end_time: b.end_time,
+          })) || [];
+
+        if (blocks.length === 0) {
+          return {
+            success: false,
+            error: `템플릿 블록 세트(ID: ${templateBlockSetId})에 블록이 없습니다. 관리자에게 문의해주세요.`,
+            data: null,
+          };
+        }
+      } else {
         return {
           success: false,
-          error: `템플릿 블록 세트(ID: ${params.blockSetId})에 블록이 없습니다. 관리자에게 문의해주세요.`,
+          error: "템플릿에 블록 세트가 설정되지 않았습니다. 관리자에게 문의해주세요.",
           data: null,
         };
       }
