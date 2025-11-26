@@ -647,7 +647,6 @@ export function Step1BasicInfo({
           setIsLoadingBlockSets(false);
         }
       })();
-      ㅑ;
     });
   };
 
