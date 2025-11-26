@@ -18,9 +18,6 @@ DROP INDEX IF EXISTS idx_curriculum_revisions_display_order;
 ALTER TABLE curriculum_revisions
 DROP COLUMN IF EXISTS display_order;
 
--- 1-3. 코멘트 제거
-COMMENT ON COLUMN curriculum_revisions.display_order IS NULL;
-
 -- ============================================
 -- 2. subject_groups 테이블에서 display_order 제거
 -- ============================================
@@ -31,9 +28,6 @@ DROP INDEX IF EXISTS idx_subject_groups_display_order;
 -- 2-2. 컬럼 제거
 ALTER TABLE subject_groups
 DROP COLUMN IF EXISTS display_order;
-
--- 2-3. 코멘트 제거
-COMMENT ON COLUMN subject_groups.display_order IS NULL;
 
 -- ============================================
 -- 3. subjects 테이블에서 display_order 제거
@@ -46,9 +40,6 @@ DROP INDEX IF EXISTS idx_subjects_display_order;
 ALTER TABLE subjects
 DROP COLUMN IF EXISTS display_order;
 
--- 3-3. 코멘트 제거
-COMMENT ON COLUMN subjects.display_order IS NULL;
-
 -- ============================================
 -- 4. subject_types 테이블에서 display_order 제거
 -- ============================================
@@ -59,7 +50,4 @@ DROP INDEX IF EXISTS idx_subject_types_display_order;
 -- 4-2. 컬럼 제거
 ALTER TABLE subject_types
 DROP COLUMN IF EXISTS display_order;
-
--- 4-3. 코멘트 제거
-COMMENT ON COLUMN subject_types.display_order IS NULL;
 
