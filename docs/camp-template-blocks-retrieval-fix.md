@@ -78,6 +78,10 @@ if (isCampMode && group.camp_template_id) {
 1. **조회 우선순위 개선**
    - `scheduler_options.template_block_set_id` 우선 확인
    - `template_data.block_set_id` fallback
+2. **템플릿 ID 검증 정확도 향상 (2024-11-26)**
+   - 템플릿 블록 세트 조회 시 `template_id`까지 함께 조회하도록 수정
+   - `templateBlockSet.template_id`와 `group.camp_template_id` 비교 시 정상 동작
+   - 템플릿 ID 검증 실패로 인해 블록 세트가 표시되지 않던 문제 해결
 
 ## ✅ 검증 체크리스트
 
@@ -104,5 +108,6 @@ if (isCampMode && group.camp_template_id) {
 
 ## 날짜
 
-2024-11-24
+- 2024-11-24: 플랜 그룹/제출 상세보기 템플릿 블록 조회 개선
+- 2024-11-26: 제출 상세보기 템플릿 ID 검증 로직 보완
 

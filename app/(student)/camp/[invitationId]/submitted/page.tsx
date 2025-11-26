@@ -200,7 +200,7 @@ export default async function CampSubmissionDetailPage({
         // 템플릿 블록 세트 조회 (template_id 조건 제거 - block_set_id만으로 조회)
         const { data: templateBlockSet, error: blockSetError } = await supabase
           .from("template_block_sets")
-          .select("id, name")
+          .select("id, name, template_id")
           .eq("id", blockSetId)
           .maybeSingle();
 
