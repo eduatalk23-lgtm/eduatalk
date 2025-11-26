@@ -154,13 +154,38 @@ export default async function CampSubmissionDetailPage({
 
   if (group.plan_type === "camp" && group.camp_template_id) {
     try {
-      // 디버깅: 초기 상태 로그
+      // 디버깅: 초기 상태 로그 (group 객체 전체 확인)
       console.log("[CampSubmissionDetailPage] 블록 세트 조회 시작:", {
         plan_type: group.plan_type,
         camp_template_id: group.camp_template_id,
         scheduler_options_type: typeof group.scheduler_options,
         scheduler_options: group.scheduler_options,
+        group_id: group.id,
+        group_keys: Object.keys(group),
       });
+      
+      // scheduler_options가 실제로 조회되었는지 확인
+      if (group.scheduler_options === undefined) {
+        console.warn("[CampSubmissionDetailPage] scheduler_options가 undefined - getPlanGroupWithDetails에서 조회되지 않았을 수 있음");
+        
+        // 직접 조회 시도
+        const { data: directGroup, error: directError } = await supabase
+          .from("plan_groups")
+          .select("scheduler_options")
+          .eq("id", group.id)
+          .maybeSingle();
+        
+        if (directError) {
+          console.error("[CampSubmissionDetailPage] 직접 조회 에러:", directError);
+        } else if (directGroup) {
+          console.log("[CampSubmissionDetailPage] 직접 조회 결과:", {
+            scheduler_options: directGroup.scheduler_options,
+            scheduler_options_type: typeof directGroup.scheduler_options,
+          });
+          // 직접 조회한 값으로 업데이트
+          (group as any).scheduler_options = directGroup.scheduler_options;
+        }
+      }
 
       // template_data 안전하게 파싱
       let templateData: any = null;
