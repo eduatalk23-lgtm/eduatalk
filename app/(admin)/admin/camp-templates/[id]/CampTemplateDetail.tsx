@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import { getCampInvitationsForTemplate, deleteCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampInvitationsForTemplate, deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { StudentInvitationForm } from "./StudentInvitationForm";
 import { CampInvitationList } from "./CampInvitationList";
@@ -24,6 +24,8 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   const loadInvitations = useCallback(async () => {
@@ -62,12 +64,42 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
     loadInvitations();
   }, [loadInvitations]);
 
+  const handleStatusChange = async (newStatus: "draft" | "active" | "archived") => {
+    if (currentStatus === newStatus) return;
+    
+    setIsChangingStatus(true);
+    try {
+      const result = await updateCampTemplateStatusAction(template.id, newStatus);
+      if (result.success) {
+        setCurrentStatus(newStatus);
+        toast.showSuccess(
+          newStatus === "active" 
+            ? "템플릿이 활성화되었습니다." 
+            : newStatus === "draft"
+            ? "템플릿이 초안 상태로 변경되었습니다."
+            : "템플릿이 보관되었습니다."
+        );
+        router.refresh();
+      } else {
+        toast.showError(result.error || "상태 변경에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("상태 변경 실패:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "상태 변경에 실패했습니다.";
+      toast.showError(errorMessage);
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
+
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
       const result = await deleteCampTemplateAction(template.id);
       if (result.success) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
+        setShowDeleteDialog(false); // 다이얼로그 닫기
         // router.push 대신 router.replace 사용하여 히스토리에서 제거
         router.replace("/admin/camp-templates");
       } else {
@@ -131,21 +163,35 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="text-sm font-medium text-gray-700">상태</label>
-              <div className="mt-1">
-                {template.status === "draft" && (
+              <div className="mt-1 flex items-center gap-3">
+                {currentStatus === "draft" && (
                   <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
                     초안
                   </span>
                 )}
-                {template.status === "active" && (
+                {currentStatus === "active" && (
                   <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
                     활성
                   </span>
                 )}
-                {template.status === "archived" && (
+                {currentStatus === "archived" && (
                   <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
                     보관
                   </span>
+                )}
+                {/* 상태 변경 버튼 */}
+                {currentStatus !== "archived" && (
+                  <button
+                    onClick={() => handleStatusChange(currentStatus === "draft" ? "active" : "draft")}
+                    disabled={isChangingStatus}
+                    className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isChangingStatus 
+                      ? "변경 중..." 
+                      : currentStatus === "draft" 
+                      ? "활성화" 
+                      : "초안으로 변경"}
+                  </button>
                 )}
               </div>
             </div>
@@ -159,6 +205,28 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-gray-700">설명</label>
                 <p className="mt-1 text-sm text-gray-600">{template.description}</p>
+              </div>
+            )}
+            {template.camp_start_date && (
+              <div>
+                <label className="text-sm font-medium text-gray-700">캠프 시작일</label>
+                <p className="mt-1 text-sm text-gray-600">
+                  {new Date(template.camp_start_date).toLocaleDateString("ko-KR")}
+                </p>
+              </div>
+            )}
+            {template.camp_end_date && (
+              <div>
+                <label className="text-sm font-medium text-gray-700">캠프 종료일</label>
+                <p className="mt-1 text-sm text-gray-600">
+                  {new Date(template.camp_end_date).toLocaleDateString("ko-KR")}
+                </p>
+              </div>
+            )}
+            {template.camp_location && (
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-gray-700">캠프 장소</label>
+                <p className="mt-1 text-sm text-gray-600">{template.camp_location}</p>
               </div>
             )}
           </div>
@@ -186,7 +254,11 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
         {/* 학생 초대 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">학생 초대</h2>
-          <StudentInvitationForm templateId={template.id} onInvitationSent={handleInvitationSent} />
+          <StudentInvitationForm 
+            templateId={template.id} 
+            templateStatus={template.status}
+            onInvitationSent={handleInvitationSent} 
+          />
         </div>
       </div>
 

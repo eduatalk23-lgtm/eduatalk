@@ -36,15 +36,30 @@ const statuses: Array<{ value: "draft" | "active" | "archived"; label: string }>
 export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplateEditFormProps) {
   const router = useRouter();
   const toast = useToast();
+  
+  // template_data에서 템플릿 이름 추출
+  const templateData = (template.template_data as Partial<WizardData>) || {};
+  const [templateName, setTemplateName] = useState((templateData as Partial<WizardData>).name || template.name || "");
   const [programType, setProgramType] = useState<CampProgramType>(template.program_type);
   const [description, setDescription] = useState(template.description || "");
   const [status, setStatus] = useState<"draft" | "active" | "archived">(template.status);
-  const [campStartDate, setCampStartDate] = useState(
-    template.camp_start_date ? template.camp_start_date.split("T")[0] : ""
-  );
-  const [campEndDate, setCampEndDate] = useState(
-    template.camp_end_date ? template.camp_end_date.split("T")[0] : ""
-  );
+  
+  // 날짜 형식 안전하게 변환 (이미 문자열인 경우 처리)
+  const formatDateForInput = (dateValue: string | null | undefined): string => {
+    if (!dateValue) return "";
+    // 이미 YYYY-MM-DD 형식인 경우
+    if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue;
+    }
+    // ISO 형식인 경우 (YYYY-MM-DDTHH:mm:ss 형식)
+    if (typeof dateValue === "string" && dateValue.includes("T")) {
+      return dateValue.split("T")[0];
+    }
+    return "";
+  };
+  
+  const [campStartDate, setCampStartDate] = useState(formatDateForInput(template.camp_start_date));
+  const [campEndDate, setCampEndDate] = useState(formatDateForInput(template.camp_end_date));
   const [campLocation, setCampLocation] = useState(template.camp_location || "");
 
   // 개정교육과정 및 교과-과목 데이터
@@ -56,7 +71,6 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   
   // 콘텐츠 선택 검증 설정
-  const templateData = (template.template_data as Partial<WizardData>) || {};
   const subjectConstraints = templateData.subject_constraints;
   const [enableRequiredSubjectsValidation, setEnableRequiredSubjectsValidation] = useState(
     subjectConstraints?.enable_required_subjects_validation || false
@@ -166,6 +180,7 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     // subject_constraints 설정을 wizardData에 병합
     const finalWizardData: WizardData = {
       ...wizardData,
+      name: templateName || wizardData.name, // templateName을 우선 사용
       subject_constraints: {
         enable_required_subjects_validation: enableRequiredSubjectsValidation,
         required_subjects: enableRequiredSubjectsValidation && requiredSubjects.length > 0 ? requiredSubjects : undefined,
@@ -174,7 +189,7 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     };
 
     const formData = new FormData();
-    formData.append("name", finalWizardData.name);
+    formData.append("name", templateName || finalWizardData.name); // templateName을 명시적으로 사용
     formData.append("program_type", programType);
     formData.append("description", description);
     formData.append("status", status);
@@ -206,6 +221,9 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     templateId: template.id,
     templateProgramType: template.program_type,
     templateStatus: template.status,
+    // 학습기간 명시적으로 포함 (templateData에서 가져오기)
+    period_start: templateData.period_start || "",
+    period_end: templateData.period_end || "",
   };
 
   // 디버깅: templateId 확인 (개발 환경에서만)
@@ -225,9 +243,6 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     });
   }
 
-  // 템플릿 이름 추출 (WizardData에서)
-  const templateName = (templateData as Partial<WizardData>).name || "";
-
   return (
     <div className="flex flex-col gap-6">
       {/* 기본 정보 체크리스트 */}
@@ -237,6 +252,24 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold text-gray-900">템플릿 기본 정보</h2>
         <div className="grid gap-4 md:grid-cols-2">
+          {/* 템플릿 이름 */}
+          <div className="md:col-span-2">
+            <label htmlFor="template_name" className="mb-2 block text-sm font-medium text-gray-700">
+              템플릿 이름 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="template_name"
+              value={templateName}
+              onChange={(e) => {
+                setTemplateName(e.target.value);
+              }}
+              placeholder="템플릿 이름을 입력하세요"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              required
+            />
+          </div>
+
           {/* 프로그램 유형 */}
           <div>
             <label htmlFor="program_type" className="mb-2 block text-sm font-medium text-gray-700">
@@ -545,6 +578,7 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
         initialContents={{ books: [], lectures: [], custom: [] }}
         initialData={{
           ...initialData,
+          name: templateName, // templateName state와 동기화
           templateId: template.id, // 명시적으로 template.id 전달 (최우선)
           subject_constraints: {
             enable_required_subjects_validation: enableRequiredSubjectsValidation,

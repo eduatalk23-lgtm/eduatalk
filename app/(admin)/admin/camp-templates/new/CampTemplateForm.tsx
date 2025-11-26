@@ -127,6 +127,7 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
     // subject_constraints 설정을 wizardData에 병합
     const finalWizardData: WizardData = {
       ...wizardData,
+      name: templateName || wizardData.name, // templateName을 우선 사용
       subject_constraints: {
         enable_required_subjects_validation: enableRequiredSubjectsValidation,
         required_subjects: enableRequiredSubjectsValidation && requiredSubjects.length > 0 ? requiredSubjects : undefined,
@@ -135,7 +136,7 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
     };
 
     const formData = new FormData();
-    formData.append("name", finalWizardData.name);
+    formData.append("name", templateName || finalWizardData.name); // templateName을 명시적으로 사용
     formData.append("program_type", programType);
     formData.append("description", description);
     formData.append("status", status);

@@ -483,6 +483,70 @@ export const updateCampTemplateAction = withErrorHandling(
 );
 
 /**
+ * 캠프 템플릿 상태 변경
+ */
+export const updateCampTemplateStatusAction = withErrorHandling(
+  async (
+    templateId: string,
+    status: "draft" | "active" | "archived"
+  ): Promise<{ success: boolean; error?: string }> => {
+    // 권한 검증
+    const { role } = await getCurrentUserRole();
+    if (role !== "admin" && role !== "consultant") {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    // 입력값 검증
+    if (!templateId || typeof templateId !== "string") {
+      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+    }
+
+    const validStatuses = ["draft", "active", "archived"];
+    if (!validStatuses.includes(status)) {
+      throw new AppError("올바른 상태를 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+    }
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+
+    // 템플릿 존재 및 권한 확인
+    const template = await getCampTemplate(templateId);
+    if (!template) {
+      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+
+    if (template.tenant_id !== tenantContext.tenantId) {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    // 상태 변경
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase
+      .from("camp_templates")
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", templateId)
+      .eq("tenant_id", tenantContext.tenantId);
+
+    if (error) {
+      throw new AppError(
+        "템플릿 상태 변경에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { originalError: error.message }
+      );
+    }
+
+    return { success: true };
+  }
+);
+
+/**
  * 캠프 템플릿 삭제
  */
 export const deleteCampTemplateAction = withErrorHandling(
@@ -572,9 +636,15 @@ export const sendCampInvitationsAction = withErrorHandling(
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
     }
 
-    // 템플릿이 활성 상태인지 확인
-    if (template.status === "archived") {
-      throw new AppError("보관된 템플릿에는 초대를 발송할 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+    // 템플릿이 활성 상태인지 확인 (active 상태만 초대 가능)
+    if (template.status !== "active") {
+      const statusMessage = 
+        template.status === "archived" 
+          ? "보관된 템플릿에는 초대를 발송할 수 없습니다."
+          : template.status === "draft"
+          ? "초안 상태의 템플릿에는 초대를 발송할 수 없습니다. 템플릿을 활성화한 후 초대를 발송해주세요."
+          : "활성 상태의 템플릿만 초대를 발송할 수 있습니다.";
+      throw new AppError(statusMessage, ErrorCode.VALIDATION_ERROR, 400, true);
     }
 
   const supabase = await createSupabaseServerClient();
@@ -826,9 +896,15 @@ export const resendCampInvitationsAction = withErrorHandling(
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
     }
 
-    // 템플릿이 활성 상태인지 확인
-    if (template.status === "archived") {
-      throw new AppError("보관된 템플릿에는 초대를 재발송할 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+    // 템플릿이 활성 상태인지 확인 (active 상태만 재발송 가능)
+    if (template.status !== "active") {
+      const statusMessage = 
+        template.status === "archived" 
+          ? "보관된 템플릿에는 초대를 재발송할 수 없습니다."
+          : template.status === "draft"
+          ? "초안 상태의 템플릿에는 초대를 재발송할 수 없습니다. 템플릿을 활성화한 후 재발송해주세요."
+          : "활성 상태의 템플릿만 초대를 재발송할 수 있습니다.";
+      throw new AppError(statusMessage, ErrorCode.VALIDATION_ERROR, 400, true);
     }
 
     // 초대 조회 및 학생 ID 추출

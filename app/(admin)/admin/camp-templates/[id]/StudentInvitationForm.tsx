@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 
 type StudentInvitationFormProps = {
   templateId: string;
+  templateStatus?: "draft" | "active" | "archived";
   onInvitationSent?: () => void;
 };
 
@@ -17,7 +18,7 @@ type Student = {
   class: string;
 };
 
-export function StudentInvitationForm({ templateId, onInvitationSent }: StudentInvitationFormProps) {
+export function StudentInvitationForm({ templateId, templateStatus, onInvitationSent }: StudentInvitationFormProps) {
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [students, setStudents] = useState<Student[]>([]);
@@ -104,6 +105,18 @@ export function StudentInvitationForm({ templateId, onInvitationSent }: StudentI
   };
 
   const handleSendInvitations = () => {
+    // 활성 상태가 아니면 초대 발송 불가
+    if (templateStatus !== "active") {
+      const statusMessage = 
+        templateStatus === "archived" 
+          ? "보관된 템플릿에는 초대를 발송할 수 없습니다."
+          : templateStatus === "draft"
+          ? "초안 상태의 템플릿에는 초대를 발송할 수 없습니다. 템플릿을 활성화한 후 초대를 발송해주세요."
+          : "활성 상태의 템플릿만 초대를 발송할 수 있습니다.";
+      toast.showError(statusMessage);
+      return;
+    }
+    
     if (selectedStudentIds.size === 0) {
       toast.showError("최소 1명 이상의 학생을 선택해주세요.");
       return;
@@ -146,12 +159,28 @@ export function StudentInvitationForm({ templateId, onInvitationSent }: StudentI
     });
   };
 
+  const isActive = templateStatus === "active";
+  const isDisabled = !isActive;
+
   if (loading) {
     return <div className="text-sm text-gray-500">학생 목록을 불러오는 중...</div>;
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {/* 활성 상태가 아닐 때 안내 메시지 */}
+      {!isActive && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-800">
+            {templateStatus === "draft" 
+              ? "⚠️ 초안 상태의 템플릿입니다. 템플릿을 활성화한 후 초대를 발송할 수 있습니다."
+              : templateStatus === "archived"
+              ? "⚠️ 보관된 템플릿입니다. 활성화된 템플릿만 초대를 발송할 수 있습니다."
+              : "⚠️ 활성 상태의 템플릿만 초대를 발송할 수 있습니다."}
+          </p>
+        </div>
+      )}
+
       {/* 검색 및 선택 */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -160,12 +189,14 @@ export function StudentInvitationForm({ templateId, onInvitationSent }: StudentI
             placeholder="학생명 검색..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            disabled={isDisabled}
+            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
           />
           <button
             type="button"
             onClick={handleSelectAll}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            disabled={isDisabled}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
           >
             {selectedStudentIds.size === filteredStudents.length ? "전체 해제" : "전체 선택"}
           </button>
@@ -196,7 +227,8 @@ export function StudentInvitationForm({ templateId, onInvitationSent }: StudentI
                   type="checkbox"
                   checked={selectedStudentIds.has(student.id)}
                   onChange={() => handleToggleStudent(student.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  disabled={isDisabled}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">{student.name}</div>
@@ -215,7 +247,7 @@ export function StudentInvitationForm({ templateId, onInvitationSent }: StudentI
         <button
           type="button"
           onClick={handleSendInvitations}
-          disabled={isPending || selectedStudentIds.size === 0}
+          disabled={isPending || selectedStudentIds.size === 0 || isDisabled}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
         >
           {isPending ? "발송 중..." : `초대 발송 (${selectedStudentIds.size}명)`}
