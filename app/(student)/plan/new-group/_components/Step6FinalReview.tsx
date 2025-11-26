@@ -2445,85 +2445,146 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false 
 
       {/* 제약 조건 검증 결과 (읽기 전용, Step 5에서 검증 완료) */}
       {data.scheduler_type === "1730_timetable" && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-900">
-            제약 조건 검증 결과
-          </h3>
-          <p className="mb-4 text-xs text-gray-600">
-            Step 5에서 검증 완료된 제약 조건 정보입니다. 학습 분량만 조절할 수 있습니다.
-          </p>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">
+                제약 조건 검증 결과
+              </h3>
+              <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                Step 5 검증 완료
+              </span>
+            </div>
+            <p className="mb-4 text-xs text-gray-600">
+              Step 5에서 검증 완료된 제약 조건 정보입니다. 학습 분량만 조절할 수 있습니다.
+            </p>
 
-          {/* 전략과목/취약과목 정보 (읽기 전용) */}
-          {data.subject_allocations && data.subject_allocations.length > 0 && (
-            <div className="mb-4 space-y-2">
-              <h4 className="text-xs font-medium text-gray-700">전략과목/취약과목 설정</h4>
-              <div className="space-y-2">
-                {data.subject_allocations.map((allocation) => {
-                  const subjectContentCount = contentInfos.filter(
-                    (c) => c.subject_category === allocation.subject_name
-                  ).length;
+            {/* 1. 전략과목/취약과목 설정 */}
+            {data.subject_allocations && data.subject_allocations.length > 0 && (
+              <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+                <h4 className="mb-3 text-xs font-semibold text-indigo-900">
+                  📋 전략과목/취약과목 설정
+                </h4>
+                <div className="space-y-2">
+                  {data.subject_allocations.map((allocation) => {
+                    const subjectContentCount = contentInfos.filter(
+                      (c) => c.subject_category === allocation.subject_name
+                    ).length;
 
-                  return (
-                    <div
-                      key={allocation.subject_name}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
+                    return (
+                      <div
+                        key={allocation.subject_name}
+                        className="flex items-center justify-between rounded-lg border border-indigo-200 bg-white px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-gray-900">
                             {allocation.subject_name}
                           </span>
-                          <span className="ml-2 text-xs text-gray-500">
-                            ({allocation.subject_type === "weakness" ? "취약과목" : "전략과목"})
-                            {allocation.subject_type === "strategy" &&
-                              allocation.weekly_days &&
-                              ` - 주 ${allocation.weekly_days}일`}
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            allocation.subject_type === "weakness"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}>
+                            {allocation.subject_type === "weakness" ? "취약과목" : "전략과목"}
                           </span>
+                          {allocation.subject_type === "strategy" &&
+                            allocation.weekly_days && (
+                              <span className="text-xs text-gray-500">
+                                주 {allocation.weekly_days}일 배정
+                              </span>
+                            )}
                         </div>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-600">
                           {subjectContentCount}개 콘텐츠
                         </span>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 교과 제약 조건 (읽기 전용) */}
-          {data.subject_constraints && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-medium text-gray-700">교과 제약 조건</h4>
-              {data.subject_constraints.required_subjects &&
-                data.subject_constraints.required_subjects.length > 0 && (
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                    <div className="text-xs font-medium text-blue-900">
-                      필수 교과:{" "}
-                      {data.subject_constraints.required_subjects
-                        .map((s) => (typeof s === "string" ? s : s.subject_category))
-                        .join(", ")}
-                    </div>
+            {/* 2. 필수 교과 제약 조건 */}
+            {data.subject_constraints?.required_subjects &&
+              data.subject_constraints.required_subjects.length > 0 && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <h4 className="mb-3 text-xs font-semibold text-blue-900">
+                    ✅ 필수 교과 제약 조건
+                  </h4>
+                  <div className="space-y-2">
+                    {data.subject_constraints.required_subjects.map((req, idx) => {
+                      const displayName = typeof req === "string" 
+                        ? req 
+                        : req.subject 
+                          ? `${req.subject_category} - ${req.subject}` 
+                          : req.subject_category;
+                      const minCount = typeof req === "string" ? 1 : req.min_count || 1;
+                      
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between rounded-lg border border-blue-200 bg-white px-3 py-2"
+                        >
+                          <span className="text-sm font-medium text-gray-900">{displayName}</span>
+                          <span className="text-xs text-gray-600">최소 {minCount}개</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
-              {data.subject_constraints.excluded_subjects &&
-                data.subject_constraints.excluded_subjects.length > 0 && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                    <div className="text-xs font-medium text-red-900">
-                      제외 교과: {data.subject_constraints.excluded_subjects.join(", ")}
-                    </div>
+                </div>
+              )}
+
+            {/* 3. 제외 교과 제약 조건 */}
+            {data.subject_constraints?.excluded_subjects &&
+              data.subject_constraints.excluded_subjects.length > 0 && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                  <h4 className="mb-3 text-xs font-semibold text-red-900">
+                    🚫 제외 교과 제약 조건
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {data.subject_constraints.excluded_subjects.map((subject, idx) => (
+                      <span
+                        key={idx}
+                        className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-800"
+                      >
+                        {subject}
+                      </span>
+                    ))}
                   </div>
-                )}
-              <div className="text-xs text-gray-500">
-                처리 방법:{" "}
-                {data.subject_constraints.constraint_handling === "strict"
-                  ? "엄격"
-                  : data.subject_constraints.constraint_handling === "warning"
-                  ? "경고"
-                  : "자동 보완"}
+                </div>
+              )}
+
+            {/* 4. 제약 조건 처리 방법 */}
+            {data.subject_constraints?.constraint_handling && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <h4 className="mb-2 text-xs font-semibold text-gray-700">
+                  ⚙️ 제약 조건 처리 방법
+                </h4>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                    data.subject_constraints.constraint_handling === "strict"
+                      ? "bg-red-100 text-red-800"
+                      : data.subject_constraints.constraint_handling === "warning"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-green-100 text-green-800"
+                  }`}>
+                    {data.subject_constraints.constraint_handling === "strict"
+                      ? "엄격 모드"
+                      : data.subject_constraints.constraint_handling === "warning"
+                      ? "경고 모드"
+                      : "자동 보완 모드"}
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    {data.subject_constraints.constraint_handling === "strict"
+                      ? "제약 조건을 반드시 충족해야 함"
+                      : data.subject_constraints.constraint_handling === "warning"
+                      ? "제약 조건 미충족 시 경고 표시"
+                      : "제약 조건 미충족 시 자동으로 보완"}
+                  </span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
