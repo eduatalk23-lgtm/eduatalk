@@ -39,9 +39,12 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   // 통합 함수 사용 (통계 포함)
   const planGroupsWithStats = await getPlanGroupsWithStats(planGroupFilters);
 
-  // 캠프 템플릿 플랜 제외 (캠프 관련 플랜은 /camp 경로에서만 확인)
+  // 캠프 모드 플랜 제외 (캠프 관련 플랜은 /camp 경로에서만 확인)
   const nonCampPlanGroups = planGroupsWithStats.filter(
-    (group) => !group.camp_template_id && !group.camp_invitation_id
+    (group) => 
+      group.plan_type !== "camp" && 
+      !group.camp_template_id && 
+      !group.camp_invitation_id
   );
 
   // 생성일 기준 정렬
