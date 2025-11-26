@@ -1767,8 +1767,20 @@ async function _generatePlansFromGroup(
   );
 
   // 일반 플랜 먼저 저장
+  // Admin/Consultant가 다른 학생의 플랜을 생성할 때는 Admin 클라이언트 사용
+  const planInsertClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
+  
+  if (isOtherStudent && !planInsertClient) {
+    throw new AppError(
+      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      false
+    );
+  }
+
   if (regularPlans.length > 0) {
-    const { error: insertError } = await supabase
+    const { error: insertError } = await planInsertClient
       .from("student_plan")
       .insert(regularPlans);
 
@@ -1781,11 +1793,11 @@ async function _generatePlansFromGroup(
         const duplicateKey = insertError.message.match(/Key \(([^)]+)\)/)?.[1];
         console.error("[planGroupActions] 중복 키:", duplicateKey);
 
-        // 중복된 플랜 조회
-        const { data: duplicatePlanData } = await supabase
+        // 중복된 플랜 조회 (Admin 클라이언트 사용)
+        const { data: duplicatePlanData } = await planInsertClient
           .from("student_plan")
           .select("id, plan_date, block_index, plan_group_id")
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .limit(10);
 
         if (duplicatePlanData) {
@@ -1820,7 +1832,7 @@ async function _generatePlansFromGroup(
 
   // 더미 UUID를 사용하는 플랜 저장 (에러 발생해도 무시)
   if (dummyPlans.length > 0) {
-    const { error: dummyInsertError } = await supabase
+    const { error: dummyInsertError } = await planInsertClient
       .from("student_plan")
       .insert(dummyPlans);
 
