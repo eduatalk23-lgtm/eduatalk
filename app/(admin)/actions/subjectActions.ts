@@ -68,28 +68,11 @@ export async function createSubjectGroup(formData: FormData): Promise<void> {
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  // display_order 자동 계산: 기존 항목의 최대값 + 1
-  const { data: existingGroups, error: queryError } = await supabaseAdmin
-    .from("subject_groups")
-    .select("display_order")
-    .eq("curriculum_revision_id", curriculumRevisionId)
-    .order("display_order", { ascending: false })
-    .limit(1);
-
-  if (queryError) {
-    throw new Error(`기존 교과 그룹 조회 실패: ${queryError.message}`);
-  }
-
-  const displayOrder = existingGroups && existingGroups.length > 0
-    ? (existingGroups[0].display_order ?? 0) + 1
-    : 0;
-
   const { error } = await supabaseAdmin
     .from("subject_groups")
     .insert({
       curriculum_revision_id: curriculumRevisionId,
       name,
-      display_order: displayOrder,
     });
 
   if (error) {
@@ -130,7 +113,6 @@ export async function updateSubjectGroup(
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  // display_order는 수정 시 변경하지 않음 (기존 값 유지)
   const { error } = await supabaseAdmin
     .from("subject_groups")
     .update({
@@ -216,28 +198,11 @@ export async function createSubject(formData: FormData): Promise<void> {
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  // display_order 자동 계산: 기존 항목의 최대값 + 1
-  const { data: existingSubjects, error: queryError } = await supabaseAdmin
-    .from("subjects")
-    .select("display_order")
-    .eq("subject_group_id", subjectGroupId)
-    .order("display_order", { ascending: false })
-    .limit(1);
-
-  if (queryError) {
-    throw new Error(`기존 과목 조회 실패: ${queryError.message}`);
-  }
-
-  const displayOrder = existingSubjects && existingSubjects.length > 0
-    ? (existingSubjects[0].display_order ?? 0) + 1
-    : 0;
-
   const { error } = await supabaseAdmin
     .from("subjects")
     .insert({
       subject_group_id: subjectGroupId,
       name,
-      display_order: displayOrder,
       subject_type_id: subjectTypeId,
     });
 
@@ -280,7 +245,6 @@ export async function updateSubject(
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  // display_order는 수정 시 변경하지 않음 (기존 값 유지)
   const { error } = await supabaseAdmin
     .from("subjects")
     .update({
@@ -354,28 +318,11 @@ export async function createSubjectType(formData: FormData): Promise<void> {
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  // display_order 자동 계산: 기존 항목의 최대값 + 1
-  const { data: existingTypes, error: queryError } = await supabaseAdmin
-    .from("subject_types")
-    .select("display_order")
-    .eq("curriculum_revision_id", curriculumRevisionId)
-    .order("display_order", { ascending: false })
-    .limit(1);
-
-  if (queryError) {
-    throw new Error(`기존 과목구분 조회 실패: ${queryError.message}`);
-  }
-
-  const displayOrder = existingTypes && existingTypes.length > 0
-    ? (existingTypes[0].display_order ?? 0) + 1
-    : 0;
-
   const { error } = await supabaseAdmin
     .from("subject_types")
     .insert({
       curriculum_revision_id: curriculumRevisionId,
       name,
-      display_order: displayOrder,
       is_active: isActive,
     });
 
@@ -421,7 +368,6 @@ export async function updateSubjectType(
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  // display_order는 수정 시 변경하지 않음 (기존 값 유지)
   const { error } = await supabaseAdmin
     .from("subject_types")
     .update({

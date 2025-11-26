@@ -256,7 +256,10 @@ export function Step1BasicInfo({
       // 하지만 템플릿 블록 세트가 blockSets에 포함되어 있는지 확인
       if (!selectedSet && isCampMode) {
         // 템플릿 블록 세트가 blockSets에 없을 수 있으므로 경고만 (정상 동작)
-        console.log("[Step1BasicInfo] 템플릿 블록 세트를 찾을 수 없습니다:", data.block_set_id);
+        console.log(
+          "[Step1BasicInfo] 템플릿 블록 세트를 찾을 수 없습니다:",
+          data.block_set_id
+        );
       }
     }
   }, [data.block_set_id, blockSets, isCampMode]);
@@ -270,10 +273,10 @@ export function Step1BasicInfo({
       const endParts = data.period_end
         ? parseDateString(data.period_end)
         : getTodayParts();
-      
+
       setDirectState((prev) => {
         // 값이 실제로 변경된 경우에만 업데이트 (무한 루프 방지)
-        const startChanged = 
+        const startChanged =
           prev.startYear !== startParts.year ||
           prev.startMonth !== startParts.month ||
           prev.startDay !== startParts.day;
@@ -281,7 +284,7 @@ export function Step1BasicInfo({
           prev.endYear !== endParts.year ||
           prev.endMonth !== endParts.month ||
           prev.endDay !== endParts.day;
-        
+
         if (startChanged || endChanged) {
           return {
             startYear: startParts.year,
@@ -313,9 +316,11 @@ export function Step1BasicInfo({
       if (data.period_start && data.period_end) {
         const start = new Date(data.period_start);
         const end = new Date(data.period_end);
-        const diffDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(
+          (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+        );
         const weeks = Math.floor(diffDays / 7);
-        
+
         // 주 단위로 나누어떨어지고 4주 이상이면 weeks 모드로 간주
         if (diffDays % 7 === 0 && weeks >= 4) {
           setWeeksState({ startDate: data.period_start, weeks });
@@ -488,7 +493,9 @@ export function Step1BasicInfo({
               templateFormData.append("template_id", templateId);
             }
             templateFormData.append("name", newBlockSetName.trim());
-            const templateResult = await createTemplateBlockSet(templateFormData);
+            const templateResult = await createTemplateBlockSet(
+              templateFormData
+            );
             const templateBlockSetId = templateResult.blockSetId;
             const templateBlockSetName = templateResult.name;
 
@@ -519,7 +526,9 @@ export function Step1BasicInfo({
             }
 
             // 3. 최신 블록 세트 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            const latestBlockSets = await getTemplateBlockSets(
+              templateId || null
+            );
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -615,7 +624,9 @@ export function Step1BasicInfo({
               setIsLoadingBlockSets(false);
               return;
             }
-            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            const latestBlockSets = await getTemplateBlockSets(
+              templateId || null
+            );
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -636,7 +647,7 @@ export function Step1BasicInfo({
         } finally {
           setIsLoadingBlockSets(false);
         }
-      })();
+      })();ㅑ
     });
   };
 
@@ -697,7 +708,9 @@ export function Step1BasicInfo({
             }
 
             // 최신 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            const latestBlockSets = await getTemplateBlockSets(
+              templateId || null
+            );
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -760,7 +773,9 @@ export function Step1BasicInfo({
             await deleteTemplateBlock(blockFormData);
 
             // 최신 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            const latestBlockSets = await getTemplateBlockSets(
+              templateId || null
+            );
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -799,7 +814,9 @@ export function Step1BasicInfo({
             await updateTemplateBlockSet(formData);
 
             // 최신 목록 다시 불러오기
-            const latestBlockSets = await getTemplateBlockSets(templateId || null);
+            const latestBlockSets = await getTemplateBlockSets(
+              templateId || null
+            );
             if (onBlockSetsLoaded) {
               onBlockSetsLoaded(latestBlockSets);
             }
@@ -1995,7 +2012,8 @@ export function Step1BasicInfo({
                       ))}
                     </div>
                     <p className="mt-2 text-xs text-blue-700 italic">
-                      💡 블록 세트를 생성하지 않으면 템플릿 저장 시 기본 블록 세트가 자동으로 생성됩니다.
+                      💡 블록 세트를 생성하지 않으면 템플릿 저장 시 기본 블록
+                      세트가 자동으로 생성됩니다.
                     </p>
                   </div>
                 );

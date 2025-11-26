@@ -5,7 +5,6 @@ export type SubjectGroup = {
   id: string;
   curriculum_revision_id: string;
   name: string;
-  display_order: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -14,7 +13,6 @@ export type SubjectType = {
   id: string;
   curriculum_revision_id: string;
   name: string; // 과목구분명 (예: 공통, 일반선택, 진로선택)
-  display_order: number;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -24,7 +22,6 @@ export type Subject = {
   id: string;
   subject_group_id: string;
   name: string;
-  display_order: number;
   subject_type_id?: string | null; // 과목구분 ID (FK → subject_types)
   subject_type?: string | null; // 과목구분명 (JOIN 결과, 하위 호환성)
   created_at?: string;
@@ -51,7 +48,6 @@ export async function getSubjectGroups(
   }
 
   const { data, error } = await query
-    .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (error) {
@@ -83,7 +79,6 @@ export async function getSubjectTypes(
   }
 
   const { data, error } = await query
-    .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (error) {
@@ -115,7 +110,6 @@ export async function getSubjectsByGroup(
       )
     `)
     .eq("subject_group_id", subjectGroupId)
-    .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
   if (error) {
@@ -202,7 +196,7 @@ export async function getFullSubjectHierarchy(
   if (curriculumRevisionId) {
     revisionQuery = revisionQuery.eq("id", curriculumRevisionId);
   } else {
-    revisionQuery = revisionQuery.eq("is_active", true).order("display_order", { ascending: true }).limit(1);
+    revisionQuery = revisionQuery.eq("is_active", true).order("name", { ascending: true }).limit(1);
   }
 
   const { data: revisionData, error: revisionError } = await revisionQuery.maybeSingle();
@@ -285,13 +279,12 @@ export async function getSubjectHierarchyOptimized(
         subject_types:subject_type_id (
           id,
           name,
-          display_order,
           is_active
         )
       )
     `)
     .eq("curriculum_revision_id", curriculumRevisionId)
-    .order("display_order", { ascending: true });
+    .order("name", { ascending: true });
 
   if (groupsError) {
     console.error("[data/subjects] 교과 그룹 조회 실패", groupsError);
@@ -304,7 +297,7 @@ export async function getSubjectHierarchyOptimized(
     .select("*")
     .eq("curriculum_revision_id", curriculumRevisionId)
     .eq("is_active", true)
-    .order("display_order", { ascending: true });
+    .order("name", { ascending: true });
 
   if (typesError) {
     console.error("[data/subjects] 과목구분 조회 실패", typesError);
@@ -351,7 +344,7 @@ export async function getActiveCurriculumRevision(): Promise<{
     .from("curriculum_revisions")
     .select("id, name, year")
     .eq("is_active", true)
-    .order("display_order", { ascending: true })
+    .order("name", { ascending: true })
     .limit(1)
     .maybeSingle();
 
@@ -384,14 +377,12 @@ export async function getSubjectById(subjectId: string): Promise<
       subject_groups:subject_group_id (
         id,
         curriculum_revision_id,
-        name,
-        display_order
+        name
       ),
       subject_types:subject_type_id (
         id,
         curriculum_revision_id,
         name,
-        display_order,
         is_active
       )
     `)
