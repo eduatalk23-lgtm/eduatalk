@@ -9,34 +9,53 @@ import {
   getCampInvitationsForTemplate as getCampInvitationsForTemplateData,
 } from "@/lib/data/campTemplates";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { AppError, ErrorCode, withErrorHandling, getUserFacingMessage } from "@/lib/errors";
+import {
+  AppError,
+  ErrorCode,
+  withErrorHandling,
+  getUserFacingMessage,
+} from "@/lib/errors";
 
 /**
  * 관리자/컨설턴트 권한 검증 헬퍼 함수
  */
 async function requireAdminOrConsultant() {
   const { userId, role, tenantId } = await getCurrentUserRole();
-  
+
   if (process.env.NODE_ENV === "development") {
-    console.log("[requireAdminOrConsultant] 권한 확인:", { userId, role, tenantId });
+    console.log("[requireAdminOrConsultant] 권한 확인:", {
+      userId,
+      role,
+      tenantId,
+    });
   }
-  
+
   if (!userId) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
   }
-  
+
   if (role !== "admin" && role !== "consultant") {
-    const errorMessage = role === null
-      ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
-      : "관리자 또는 컨설턴트 권한이 필요합니다.";
-    
+    const errorMessage =
+      role === null
+        ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
+        : "관리자 또는 컨설턴트 권한이 필요합니다.";
+
     if (process.env.NODE_ENV === "development") {
-      console.error("[requireAdminOrConsultant] 권한 부족:", { userId, role, tenantId });
+      console.error("[requireAdminOrConsultant] 권한 부족:", {
+        userId,
+        role,
+        tenantId,
+      });
     }
-    
+
     throw new AppError(errorMessage, ErrorCode.FORBIDDEN, 403, true);
   }
-  
+
   return { userId, role, tenantId };
 }
 
@@ -51,7 +70,12 @@ export const getCampTemplates = withErrorHandling(async () => {
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
-    throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    throw new AppError(
+      "기관 정보를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
   }
 
   const supabase = await createSupabaseServerClient();
@@ -77,120 +101,135 @@ export const getCampTemplates = withErrorHandling(async () => {
 /**
  * 캠프 템플릿 상세 조회
  */
-export const getCampTemplateById = withErrorHandling(async (templateId: string) => {
-  // 권한 검증
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+export const getCampTemplateById = withErrorHandling(
+  async (templateId: string) => {
+    // 권한 검증
+    const { role } = await getCurrentUserRole();
+    if (role !== "admin" && role !== "consultant") {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
 
-  // 템플릿 ID 검증
-  if (!templateId || typeof templateId !== "string") {
-    throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
-  }
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
-  }
-
-  // tenant_id로 필터링하여 조회 (RLS 정책 및 권한 검증 강화)
-  const supabase = await createSupabaseServerClient();
-  
-  // 먼저 tenant_id 없이 조회하여 템플릿 존재 여부 확인 (디버깅용)
-  const { data: templateWithoutTenant, error: checkError } = await supabase
-    .from("camp_templates")
-    .select("id, tenant_id, name")
-    .eq("id", templateId)
-    .maybeSingle();
-
-  if (process.env.NODE_ENV === "development" && checkError && checkError.code !== "PGRST116") {
-    console.warn("[getCampTemplateById] tenant_id 없이 조회 시도 실패", {
-      templateId,
-      errorCode: checkError.code,
-      errorMessage: checkError.message,
-    });
-  }
-
-  // tenant_id로 필터링하여 조회
-  const { data: template, error: templateError } = await supabase
-    .from("camp_templates")
-    .select("*")
-    .eq("id", templateId)
-    .eq("tenant_id", tenantContext.tenantId)
-    .maybeSingle();
-
-  if (templateError) {
-    // PGRST116은 결과가 0개일 때 발생하는 정상적인 에러
-    if (templateError.code !== "PGRST116") {
-      console.error("[getCampTemplateById] 템플릿 조회 실패", {
-        templateId,
-        tenantId: tenantContext.tenantId,
-        errorCode: templateError.code,
-        errorMessage: templateError.message,
-      });
+    // 템플릿 ID 검증
+    if (!templateId || typeof templateId !== "string") {
       throw new AppError(
-        "템플릿 조회 중 오류가 발생했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true,
-        {
-          templateId,
-          tenantId: tenantContext.tenantId,
-          originalError: templateError.message,
-        }
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
       );
     }
-  }
 
-  if (!template) {
-    // 디버깅 정보 포함
-    if (process.env.NODE_ENV === "development") {
-      const debugInfo: Record<string, unknown> = {
-        templateId,
-        tenantId: tenantContext.tenantId,
-      };
-      
-      // tenant_id 없이 조회한 결과가 있으면 tenant_id 불일치 가능성 표시
-      if (templateWithoutTenant) {
-        debugInfo.templateExists = true;
-        debugInfo.templateTenantId = templateWithoutTenant.tenant_id;
-        debugInfo.tenantMismatch = templateWithoutTenant.tenant_id !== tenantContext.tenantId;
-        debugInfo.templateName = templateWithoutTenant.name;
-      } else {
-        debugInfo.templateExists = false;
-      }
-      
-      console.warn("[getCampTemplateById] 템플릿을 찾을 수 없음", debugInfo);
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
-    
-    // tenant_id 불일치인 경우와 존재하지 않는 경우를 구분
-    const errorMessage = templateWithoutTenant && templateWithoutTenant.tenant_id !== tenantContext.tenantId
-      ? "다른 기관의 템플릿이거나 권한이 없습니다."
-      : "템플릿을 찾을 수 없습니다.";
-    
-    throw new AppError(
-      errorMessage,
-      ErrorCode.NOT_FOUND,
-      404,
-      true,
-      {
+
+    // tenant_id로 필터링하여 조회 (RLS 정책 및 권한 검증 강화)
+    const supabase = await createSupabaseServerClient();
+
+    // 먼저 tenant_id 없이 조회하여 템플릿 존재 여부 확인 (디버깅용)
+    const { data: templateWithoutTenant, error: checkError } = await supabase
+      .from("camp_templates")
+      .select("id, tenant_id, name")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (
+      process.env.NODE_ENV === "development" &&
+      checkError &&
+      checkError.code !== "PGRST116"
+    ) {
+      console.warn("[getCampTemplateById] tenant_id 없이 조회 시도 실패", {
+        templateId,
+        errorCode: checkError.code,
+        errorMessage: checkError.message,
+      });
+    }
+
+    // tenant_id로 필터링하여 조회
+    const { data: template, error: templateError } = await supabase
+      .from("camp_templates")
+      .select("*")
+      .eq("id", templateId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .maybeSingle();
+
+    if (templateError) {
+      // PGRST116은 결과가 0개일 때 발생하는 정상적인 에러
+      if (templateError.code !== "PGRST116") {
+        console.error("[getCampTemplateById] 템플릿 조회 실패", {
+          templateId,
+          tenantId: tenantContext.tenantId,
+          errorCode: templateError.code,
+          errorMessage: templateError.message,
+        });
+        throw new AppError(
+          "템플릿 조회 중 오류가 발생했습니다.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true,
+          {
+            templateId,
+            tenantId: tenantContext.tenantId,
+            originalError: templateError.message,
+          }
+        );
+      }
+    }
+
+    if (!template) {
+      // 디버깅 정보 포함
+      if (process.env.NODE_ENV === "development") {
+        const debugInfo: Record<string, unknown> = {
+          templateId,
+          tenantId: tenantContext.tenantId,
+        };
+
+        // tenant_id 없이 조회한 결과가 있으면 tenant_id 불일치 가능성 표시
+        if (templateWithoutTenant) {
+          debugInfo.templateExists = true;
+          debugInfo.templateTenantId = templateWithoutTenant.tenant_id;
+          debugInfo.tenantMismatch =
+            templateWithoutTenant.tenant_id !== tenantContext.tenantId;
+          debugInfo.templateName = templateWithoutTenant.name;
+        } else {
+          debugInfo.templateExists = false;
+        }
+
+        console.warn("[getCampTemplateById] 템플릿을 찾을 수 없음", debugInfo);
+      }
+
+      // tenant_id 불일치인 경우와 존재하지 않는 경우를 구분
+      const errorMessage =
+        templateWithoutTenant &&
+        templateWithoutTenant.tenant_id !== tenantContext.tenantId
+          ? "다른 기관의 템플릿이거나 권한이 없습니다."
+          : "템플릿을 찾을 수 없습니다.";
+
+      throw new AppError(errorMessage, ErrorCode.NOT_FOUND, 404, true, {
         templateId,
         tenantId: tenantContext.tenantId,
         templateExists: !!templateWithoutTenant,
         templateTenantId: templateWithoutTenant?.tenant_id,
-      }
-    );
-  }
+      });
+    }
 
-  return { success: true, template };
-});
+    return { success: true, template };
+  }
+);
 
 /**
  * 캠프 템플릿 생성
  */
 export const createCampTemplateAction = withErrorHandling(
-  async (formData: FormData): Promise<{ success: boolean; templateId?: string; error?: string }> => {
+  async (
+    formData: FormData
+  ): Promise<{ success: boolean; templateId?: string; error?: string }> => {
     // 권한 검증
     const { userId, role } = await getCurrentUserRole();
     if (role !== "admin" && role !== "consultant") {
@@ -198,47 +237,102 @@ export const createCampTemplateAction = withErrorHandling(
     }
 
     if (!userId) {
-      throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+      throw new AppError(
+        "로그인이 필요합니다.",
+        ErrorCode.UNAUTHORIZED,
+        401,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 입력값 검증
     const name = String(formData.get("name") ?? "").trim();
-    const description = String(formData.get("description") ?? "").trim() || null;
+    const description =
+      String(formData.get("description") ?? "").trim() || null;
     const programType = String(formData.get("program_type") ?? "").trim();
     const templateDataJson = String(formData.get("template_data") ?? "");
-    const campStartDate = String(formData.get("camp_start_date") ?? "").trim() || null;
-    const campEndDate = String(formData.get("camp_end_date") ?? "").trim() || null;
-    const campLocation = String(formData.get("camp_location") ?? "").trim() || null;
+    const campStartDate =
+      String(formData.get("camp_start_date") ?? "").trim() || null;
+    const campEndDate =
+      String(formData.get("camp_end_date") ?? "").trim() || null;
+    const campLocation =
+      String(formData.get("camp_location") ?? "").trim() || null;
 
     if (!name || name.length === 0) {
-      throw new AppError("템플릿명은 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿명은 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (name.length > 200) {
-      throw new AppError("템플릿명은 200자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿명은 200자 이하여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!programType) {
-      throw new AppError("프로그램 유형은 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "프로그램 유형은 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const validProgramTypes = ["윈터캠프", "썸머캠프", "파이널캠프", "기타"];
     if (!validProgramTypes.includes(programType)) {
-      throw new AppError("올바른 프로그램 유형을 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "올바른 프로그램 유형을 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!templateDataJson) {
-      throw new AppError("템플릿 데이터는 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 데이터는 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     let templateData: Partial<WizardData>;
     try {
       templateData = JSON.parse(templateDataJson);
+
+      // 빈 문자열 block_set_id를 null로 변환 (조회 시 문제 방지)
+      if (
+        templateData.block_set_id === "" ||
+        templateData.block_set_id === undefined
+      ) {
+        templateData.block_set_id = undefined;
+      }
+
+      // 디버깅: block_set_id 저장 확인
+      console.log("[createCampTemplateAction] 템플릿 데이터 파싱 결과:", {
+        has_block_set_id: !!templateData.block_set_id,
+        block_set_id: templateData.block_set_id,
+        templateDataKeys: Object.keys(templateData),
+        original_block_set_id: JSON.parse(templateDataJson).block_set_id,
+      });
     } catch (e) {
       throw new AppError(
         "템플릿 데이터 형식이 올바르지 않습니다.",
@@ -253,16 +347,38 @@ export const createCampTemplateAction = withErrorHandling(
       const start = new Date(campStartDate);
       const end = new Date(campEndDate);
       if (end < start) {
-        throw new AppError("종료일은 시작일보다 이후여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+        throw new AppError(
+          "종료일은 시작일보다 이후여야 합니다.",
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
       }
     }
 
     // 장소 길이 검증
     if (campLocation && campLocation.length > 200) {
-      throw new AppError("캠프 장소는 200자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "캠프 장소는 200자 이하여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // 저장 전 최종 정리: 빈 문자열이나 falsy 값을 undefined로 변환
+    // 빈 문자열이 저장되면 조회 시 block_set_id가 빈 문자열로 조회되어 문제 발생
+    if (!templateData.block_set_id || templateData.block_set_id === "") {
+      templateData.block_set_id = undefined;
     }
 
     // 템플릿 생성 (block_set_id가 없어도 저장 가능)
+    console.log("[createCampTemplateAction] 템플릿 생성 전 최종 확인:", {
+      block_set_id: templateData.block_set_id,
+      template_data_has_block_set_id: !!templateData.block_set_id,
+      will_create_default_block_set: !templateData.block_set_id,
+    });
+
     const result = await createCampTemplate({
       tenant_id: tenantContext.tenantId,
       name,
@@ -275,6 +391,11 @@ export const createCampTemplateAction = withErrorHandling(
       camp_location: campLocation || undefined,
     });
 
+    console.log("[createCampTemplateAction] 템플릿 생성 완료:", {
+      templateId: result.templateId,
+      block_set_id: templateData.block_set_id,
+    });
+
     if (!result.success || !result.templateId) {
       throw new AppError(
         result.error || "템플릿 생성에 실패했습니다.",
@@ -284,62 +405,8 @@ export const createCampTemplateAction = withErrorHandling(
       );
     }
 
-    // block_set_id가 없으면 기본 블록 세트 자동 생성 후 template_data 업데이트
-    // (블록 세트는 필수이므로 자동 생성)
-    if (!templateData.block_set_id) {
-      try {
-        const { createTemplateBlockSet, addTemplateBlock } = await import("@/app/(admin)/actions/templateBlockSets");
-        const { getDefaultBlocks, DEFAULT_BLOCK_SET_NAME } = await import("@/lib/utils/defaultBlockSet");
-        
-        // 기본 블록 세트 생성
-        const blockSetFormData = new FormData();
-        blockSetFormData.append("template_id", result.templateId);
-        blockSetFormData.append("name", DEFAULT_BLOCK_SET_NAME);
-        
-        const blockSetResult = await createTemplateBlockSet(blockSetFormData);
-        
-        if (blockSetResult.blockSetId) {
-          // 기본 블록 추가
-          const defaultBlocks = getDefaultBlocks();
-          for (const block of defaultBlocks) {
-            const blockFormData = new FormData();
-            blockFormData.append("day", String(block.day_of_week));
-            blockFormData.append("start_time", block.start_time);
-            blockFormData.append("end_time", block.end_time);
-            blockFormData.append("block_set_id", blockSetResult.blockSetId);
-            
-            try {
-              await addTemplateBlock(blockFormData);
-            } catch (error) {
-              // 일부 블록 추가 실패해도 계속 진행
-              console.error(`[campTemplateActions] 기본 블록 추가 실패 (요일 ${block.day_of_week}):`, error);
-            }
-          }
-          
-          // template_data에 block_set_id 추가하여 업데이트
-          const supabase = await createSupabaseServerClient();
-          const updatedTemplateData = {
-            ...templateData,
-            block_set_id: blockSetResult.blockSetId,
-          };
-          
-          const { error: updateError } = await supabase
-            .from("camp_templates")
-            .update({ template_data: updatedTemplateData })
-            .eq("id", result.templateId)
-            .eq("tenant_id", tenantContext.tenantId);
-          
-          if (updateError) {
-            console.error("[campTemplateActions] 템플릿 데이터 업데이트 실패:", updateError);
-            // 기본 블록 세트는 생성되었지만 template_data 업데이트 실패
-            // 템플릿 생성은 성공했으므로 계속 진행
-          }
-        }
-      } catch (error) {
-        // 기본 블록 세트 생성 실패해도 템플릿 생성은 성공
-        console.error("[campTemplateActions] 기본 블록 세트 자동 생성 실패:", error);
-      }
-    }
+    // 블록 세트는 템플릿 생성 후 시간 관리 페이지에서 생성하도록 변경
+    // 기본값 자동 생성 로직 제거
 
     return result;
   }
@@ -361,18 +428,33 @@ export const updateCampTemplateAction = withErrorHandling(
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
-      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 존재 및 권한 확인 (강화된 검증)
     const template = await getCampTemplate(templateId);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (template.tenant_id !== tenantContext.tenantId) {
@@ -380,39 +462,73 @@ export const updateCampTemplateAction = withErrorHandling(
     }
 
     const name = String(formData.get("name") ?? "").trim();
-    const description = String(formData.get("description") ?? "").trim() || null;
+    const description =
+      String(formData.get("description") ?? "").trim() || null;
     const programType = String(formData.get("program_type") ?? "").trim();
     const status = String(formData.get("status") ?? "").trim();
     const templateDataJson = String(formData.get("template_data") ?? "");
-    const campStartDate = String(formData.get("camp_start_date") ?? "").trim() || null;
-    const campEndDate = String(formData.get("camp_end_date") ?? "").trim() || null;
-    const campLocation = String(formData.get("camp_location") ?? "").trim() || null;
+    const campStartDate =
+      String(formData.get("camp_start_date") ?? "").trim() || null;
+    const campEndDate =
+      String(formData.get("camp_end_date") ?? "").trim() || null;
+    const campLocation =
+      String(formData.get("camp_location") ?? "").trim() || null;
 
     // 입력값 검증
     if (!name || name.length === 0) {
-      throw new AppError("템플릿명은 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿명은 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (name.length > 200) {
-      throw new AppError("템플릿명은 200자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿명은 200자 이하여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!programType) {
-      throw new AppError("프로그램 유형은 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "프로그램 유형은 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const validProgramTypes = ["윈터캠프", "썸머캠프", "파이널캠프", "기타"];
     if (!validProgramTypes.includes(programType)) {
-      throw new AppError("올바른 프로그램 유형을 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "올바른 프로그램 유형을 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const validStatuses = ["draft", "active", "archived"];
     if (status && !validStatuses.includes(status)) {
-      throw new AppError("올바른 상태를 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "올바른 상태를 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!templateDataJson) {
-      throw new AppError("템플릿 데이터는 필수입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 데이터는 필수입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     let templateData: Partial<WizardData>;
@@ -432,13 +548,23 @@ export const updateCampTemplateAction = withErrorHandling(
       const start = new Date(campStartDate);
       const end = new Date(campEndDate);
       if (end < start) {
-        throw new AppError("종료일은 시작일보다 이후여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+        throw new AppError(
+          "종료일은 시작일보다 이후여야 합니다.",
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
       }
     }
 
     // 장소 길이 검증
     if (campLocation && campLocation.length > 200) {
-      throw new AppError("캠프 장소는 200자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "캠프 장소는 200자 이하여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const supabase = await createSupabaseServerClient();
@@ -498,23 +624,43 @@ export const updateCampTemplateStatusAction = withErrorHandling(
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
-      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const validStatuses = ["draft", "active", "archived"];
     if (!validStatuses.includes(status)) {
-      throw new AppError("올바른 상태를 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "올바른 상태를 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 존재 및 권한 확인
     const template = await getCampTemplate(templateId);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (template.tenant_id !== tenantContext.tenantId) {
@@ -556,18 +702,33 @@ export const deleteCampTemplateAction = withErrorHandling(
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
-      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 존재 및 권한 확인 (강화된 검증)
     const template = await getCampTemplate(templateId);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (template.tenant_id !== tenantContext.tenantId) {
@@ -611,11 +772,21 @@ export const sendCampInvitationsAction = withErrorHandling(
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
-      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      throw new AppError("최소 1명 이상의 학생을 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "최소 1명 이상의 학생을 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 중복 제거
@@ -623,13 +794,23 @@ export const sendCampInvitationsAction = withErrorHandling(
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 존재 및 권한 확인 (강화된 검증)
     const template = await getCampTemplate(templateId);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (template.tenant_id !== tenantContext.tenantId) {
@@ -638,8 +819,8 @@ export const sendCampInvitationsAction = withErrorHandling(
 
     // 템플릿이 활성 상태인지 확인 (active 상태만 초대 가능)
     if (template.status !== "active") {
-      const statusMessage = 
-        template.status === "archived" 
+      const statusMessage =
+        template.status === "archived"
           ? "보관된 템플릿에는 초대를 발송할 수 없습니다."
           : template.status === "draft"
           ? "초안 상태의 템플릿에는 초대를 발송할 수 없습니다. 템플릿을 활성화한 후 초대를 발송해주세요."
@@ -647,43 +828,51 @@ export const sendCampInvitationsAction = withErrorHandling(
       throw new AppError(statusMessage, ErrorCode.VALIDATION_ERROR, 400, true);
     }
 
-  const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
 
-  // 기존 초대 확인 (중복 방지)
-  const { data: existingInvitations } = await supabase
-    .from("camp_invitations")
-    .select("student_id")
-    .eq("camp_template_id", templateId)
-    .in("student_id", studentIds);
+    // 기존 초대 확인 (중복 방지)
+    const { data: existingInvitations } = await supabase
+      .from("camp_invitations")
+      .select("student_id")
+      .eq("camp_template_id", templateId)
+      .in("student_id", studentIds);
 
-  const existingStudentIds = new Set(
-    (existingInvitations || []).map((inv) => inv.student_id)
-  );
+    const existingStudentIds = new Set(
+      (existingInvitations || []).map((inv) => inv.student_id)
+    );
 
-  // 새로 초대할 학생만 필터링
-  const newStudentIds = studentIds.filter((id) => !existingStudentIds.has(id));
+    // 새로 초대할 학생만 필터링
+    const newStudentIds = studentIds.filter(
+      (id) => !existingStudentIds.has(id)
+    );
 
-  if (newStudentIds.length === 0) {
-    return { success: true, count: 0, error: "모든 학생이 이미 초대되었습니다." };
+    if (newStudentIds.length === 0) {
+      return {
+        success: true,
+        count: 0,
+        error: "모든 학생이 이미 초대되었습니다.",
+      };
+    }
+
+    // 초대 생성
+    const invitations = newStudentIds.map((studentId) => ({
+      tenant_id: tenantContext.tenantId,
+      camp_template_id: templateId,
+      student_id: studentId,
+      status: "pending",
+    }));
+
+    const { error } = await supabase
+      .from("camp_invitations")
+      .insert(invitations);
+
+    if (error) {
+      console.error("[actions/campTemplateActions] 초대 발송 실패", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, count: newStudentIds.length };
   }
-
-  // 초대 생성
-  const invitations = newStudentIds.map((studentId) => ({
-    tenant_id: tenantContext.tenantId,
-    camp_template_id: templateId,
-    student_id: studentId,
-    status: "pending",
-  }));
-
-  const { error } = await supabase.from("camp_invitations").insert(invitations);
-
-  if (error) {
-    console.error("[actions/campTemplateActions] 초대 발송 실패", error);
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, count: newStudentIds.length };
-}
 );
 
 /**
@@ -699,12 +888,22 @@ export const getCampInvitationsForTemplate = withErrorHandling(
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
-      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 존재 확인 (템플릿이 없어도 초대 목록은 조회 가능 - 삭제된 템플릿의 초대도 볼 수 있어야 함)
@@ -722,14 +921,16 @@ export const getCampInvitationsForTemplate = withErrorHandling(
     const supabase = await createSupabaseServerClient();
     const { data: invitations, error } = await supabase
       .from("camp_invitations")
-      .select(`
+      .select(
+        `
         *,
         students:student_id (
           name,
           grade,
           class
         )
-      `)
+      `
+      )
       .eq("camp_template_id", templateId)
       .eq("tenant_id", tenantContext.tenantId)
       .order("invited_at", { ascending: false });
@@ -755,7 +956,9 @@ export const getCampInvitationsForTemplate = withErrorHandling(
  * 캠프 초대 삭제
  */
 export const deleteCampInvitationAction = withErrorHandling(
-  async (invitationId: string): Promise<{ success: boolean; error?: string }> => {
+  async (
+    invitationId: string
+  ): Promise<{ success: boolean; error?: string }> => {
     // 권한 검증
     const { role } = await getCurrentUserRole();
     if (role !== "admin" && role !== "consultant") {
@@ -764,25 +967,45 @@ export const deleteCampInvitationAction = withErrorHandling(
 
     // 입력값 검증
     if (!invitationId || typeof invitationId !== "string") {
-      throw new AppError("초대 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "초대 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 초대 존재 및 권한 확인 (강화된 검증)
     const { getCampInvitation } = await import("@/lib/data/campTemplates");
     const invitation = await getCampInvitation(invitationId);
     if (!invitation) {
-      throw new AppError("초대를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 권한 확인
     const template = await getCampTemplate(invitation.camp_template_id);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (template.tenant_id !== tenantContext.tenantId) {
@@ -837,7 +1060,9 @@ export async function deleteCampInvitationsAction(
   }
 
   // 템플릿 권한 확인
-  const templateIds = new Set(validInvitations.map((inv) => inv!.camp_template_id));
+  const templateIds = new Set(
+    validInvitations.map((inv) => inv!.camp_template_id)
+  );
   const templates = await Promise.all(
     Array.from(templateIds).map((id) => getCampTemplate(id))
   );
@@ -871,11 +1096,21 @@ export const resendCampInvitationsAction = withErrorHandling(
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
-      throw new AppError("템플릿 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!Array.isArray(invitationIds) || invitationIds.length === 0) {
-      throw new AppError("재발송할 초대를 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "재발송할 초대를 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 중복 제거
@@ -883,13 +1118,23 @@ export const resendCampInvitationsAction = withErrorHandling(
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿 존재 및 권한 확인 (강화된 검증)
     const template = await getCampTemplate(templateId);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (template.tenant_id !== tenantContext.tenantId) {
@@ -898,8 +1143,8 @@ export const resendCampInvitationsAction = withErrorHandling(
 
     // 템플릿이 활성 상태인지 확인 (active 상태만 재발송 가능)
     if (template.status !== "active") {
-      const statusMessage = 
-        template.status === "archived" 
+      const statusMessage =
+        template.status === "archived"
           ? "보관된 템플릿에는 초대를 재발송할 수 없습니다."
           : template.status === "draft"
           ? "초안 상태의 템플릿에는 초대를 재발송할 수 없습니다. 템플릿을 활성화한 후 재발송해주세요."
@@ -915,7 +1160,12 @@ export const resendCampInvitationsAction = withErrorHandling(
 
     const validInvitations = invitations.filter(Boolean);
     if (validInvitations.length === 0) {
-      throw new AppError("유효한 초대를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "유효한 초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 모든 초대가 같은 템플릿인지 확인
@@ -923,7 +1173,12 @@ export const resendCampInvitationsAction = withErrorHandling(
       (inv) => inv!.camp_template_id === templateId
     );
     if (!allSameTemplate) {
-      throw new AppError("같은 템플릿의 초대만 재발송할 수 있습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "같은 템플릿의 초대만 재발송할 수 있습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const studentIds = validInvitations.map((inv) => inv!.student_id);
@@ -953,7 +1208,7 @@ export const resendCampInvitationsAction = withErrorHandling(
 export const getCampPlanGroupForReview = withErrorHandling(
   async (groupId: string) => {
     console.log("[getCampPlanGroupForReview] 함수 호출됨, groupId:", groupId);
-    
+
     const { role } = await getCurrentUserRole();
     if (role !== "admin" && role !== "consultant") {
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
@@ -961,17 +1216,38 @@ export const getCampPlanGroupForReview = withErrorHandling(
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
-    console.log("[getCampPlanGroupForReview] 플랜 그룹 조회 시작, tenantId:", tenantContext.tenantId);
+    console.log(
+      "[getCampPlanGroupForReview] 플랜 그룹 조회 시작, tenantId:",
+      tenantContext.tenantId
+    );
 
-    const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
-    const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
+    const { getPlanGroupWithDetailsForAdmin } = await import(
+      "@/lib/data/planGroups"
+    );
+    const result = await getPlanGroupWithDetailsForAdmin(
+      groupId,
+      tenantContext.tenantId
+    );
 
     if (!result.group) {
-      console.error("[getCampPlanGroupForReview] 플랜 그룹을 찾을 수 없음, groupId:", groupId);
-      throw new AppError("플랜 그룹을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      console.error(
+        "[getCampPlanGroupForReview] 플랜 그룹을 찾을 수 없음, groupId:",
+        groupId
+      );
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     console.log("[getCampPlanGroupForReview] 플랜 그룹 조회 성공:", {
@@ -983,7 +1259,12 @@ export const getCampPlanGroupForReview = withErrorHandling(
 
     // 캠프 플랜 그룹인지 확인
     if (result.group.plan_type !== "camp") {
-      throw new AppError("캠프 플랜 그룹이 아닙니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "캠프 플랜 그룹이 아닙니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 템플릿 블록 정보 조회
@@ -997,7 +1278,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
 
     if (result.group.camp_template_id) {
       const supabase = await createSupabaseServerClient();
-      
+
       // 템플릿 조회
       const { data: template, error: templateError } = await supabase
         .from("camp_templates")
@@ -1006,20 +1287,26 @@ export const getCampPlanGroupForReview = withErrorHandling(
         .maybeSingle();
 
       if (templateError) {
-        console.error("[getCampPlanGroupForReview] 템플릿 조회 에러:", templateError);
+        console.error(
+          "[getCampPlanGroupForReview] 템플릿 조회 에러:",
+          templateError
+        );
       } else if (!template) {
-        console.warn("[getCampPlanGroupForReview] 템플릿을 찾을 수 없음:", result.group.camp_template_id);
+        console.warn(
+          "[getCampPlanGroupForReview] 템플릿을 찾을 수 없음:",
+          result.group.camp_template_id
+        );
       } else {
         // scheduler_options에서 template_block_set_id 확인 (우선)
         const schedulerOptions = (result.group.scheduler_options as any) || {};
         let templateBlockSetId = schedulerOptions.template_block_set_id;
-        
+
         console.log("[getCampPlanGroupForReview] 템플릿 블록 세트 ID 조회:", {
           fromSchedulerOptions: templateBlockSetId,
           schedulerOptions: JSON.stringify(schedulerOptions),
           hasTemplateData: !!template.template_data,
         });
-        
+
         // scheduler_options에 없으면 template_data에서 확인
         if (!templateBlockSetId && template.template_data) {
           try {
@@ -1029,33 +1316,40 @@ export const getCampPlanGroupForReview = withErrorHandling(
             } else {
               templateData = template.template_data;
             }
-            
+
             templateBlockSetId = templateData?.block_set_id;
-            
+
             console.log("[getCampPlanGroupForReview] template_data에서 조회:", {
               block_set_id: templateBlockSetId,
               templateDataKeys: templateData ? Object.keys(templateData) : [],
             });
           } catch (parseError) {
-            console.error("[getCampPlanGroupForReview] template_data 파싱 에러:", parseError);
+            console.error(
+              "[getCampPlanGroupForReview] template_data 파싱 에러:",
+              parseError
+            );
           }
         }
 
         if (templateBlockSetId) {
           // 템플릿 블록 세트 조회
-          const { data: templateBlockSet, error: blockSetError } = await supabase
-            .from("template_block_sets")
-            .select("id, name")
-            .eq("id", templateBlockSetId)
-            .eq("template_id", result.group.camp_template_id)
-            .maybeSingle();
+          const { data: templateBlockSet, error: blockSetError } =
+            await supabase
+              .from("template_block_sets")
+              .select("id, name")
+              .eq("id", templateBlockSetId)
+              .eq("template_id", result.group.camp_template_id)
+              .maybeSingle();
 
           if (blockSetError) {
-            console.error("[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:", {
-              error: blockSetError,
-              templateBlockSetId,
-              templateId: result.group.camp_template_id,
-            });
+            console.error(
+              "[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:",
+              {
+                error: blockSetError,
+                templateBlockSetId,
+                templateId: result.group.camp_template_id,
+              }
+            );
           } else if (templateBlockSet) {
             templateBlockSetName = templateBlockSet.name;
 
@@ -1068,10 +1362,13 @@ export const getCampPlanGroupForReview = withErrorHandling(
               .order("start_time", { ascending: true });
 
             if (blocksError) {
-              console.error("[getCampPlanGroupForReview] 템플릿 블록 조회 에러:", {
-                error: blocksError,
-                templateBlockSetId,
-              });
+              console.error(
+                "[getCampPlanGroupForReview] 템플릿 블록 조회 에러:",
+                {
+                  error: blocksError,
+                  templateBlockSetId,
+                }
+              );
             } else if (blocks && blocks.length > 0) {
               templateBlocks = blocks.map((b) => ({
                 id: b.id,
@@ -1079,11 +1376,14 @@ export const getCampPlanGroupForReview = withErrorHandling(
                 start_time: b.start_time,
                 end_time: b.end_time,
               }));
-              
-              console.log("[getCampPlanGroupForReview] 템플릿 블록 조회 성공:", {
-                blockSetName: templateBlockSetName,
-                blockCount: templateBlocks.length,
-              });
+
+              console.log(
+                "[getCampPlanGroupForReview] 템플릿 블록 조회 성공:",
+                {
+                  blockSetName: templateBlockSetName,
+                  blockCount: templateBlocks.length,
+                }
+              );
             } else {
               console.warn("[getCampPlanGroupForReview] 템플릿 블록이 없음:", {
                 templateBlockSetId,
@@ -1091,23 +1391,32 @@ export const getCampPlanGroupForReview = withErrorHandling(
               });
             }
           } else {
-            console.warn("[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:", {
-              templateBlockSetId,
-              templateId: result.group.camp_template_id,
-            });
+            console.warn(
+              "[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:",
+              {
+                templateBlockSetId,
+                templateId: result.group.camp_template_id,
+              }
+            );
           }
         } else {
-          console.warn("[getCampPlanGroupForReview] template_block_set_id를 찾을 수 없음:", {
-            campTemplateId: result.group.camp_template_id,
-            schedulerOptions: JSON.stringify(schedulerOptions),
-            hasTemplateData: !!template.template_data,
-          });
+          console.warn(
+            "[getCampPlanGroupForReview] template_block_set_id를 찾을 수 없음:",
+            {
+              campTemplateId: result.group.camp_template_id,
+              schedulerOptions: JSON.stringify(schedulerOptions),
+              hasTemplateData: !!template.template_data,
+            }
+          );
         }
       }
     } else {
-      console.warn("[getCampPlanGroupForReview] camp_template_id가 없음, groupId:", groupId);
+      console.warn(
+        "[getCampPlanGroupForReview] camp_template_id가 없음, groupId:",
+        groupId
+      );
     }
-    
+
     console.log("[getCampPlanGroupForReview] 최종 결과:", {
       templateBlocksCount: templateBlocks.length,
       templateBlockSetName,
@@ -1119,11 +1428,11 @@ export const getCampPlanGroupForReview = withErrorHandling(
     let contentsWithDetails = result.contents;
     if (result.group.student_id && result.contents.length > 0) {
       try {
-        const { classifyPlanContents } = await import("@/lib/data/planContents");
-        const { studentContents, recommendedContents } = await classifyPlanContents(
-          result.contents,
-          result.group.student_id
+        const { classifyPlanContents } = await import(
+          "@/lib/data/planContents"
         );
+        const { studentContents, recommendedContents } =
+          await classifyPlanContents(result.contents, result.group.student_id);
 
         // 상세 페이지 형식으로 변환
         const allContents = [...studentContents, ...recommendedContents];
@@ -1148,7 +1457,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
           };
         });
       } catch (error) {
-        console.error("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 실패:", error);
+        console.error(
+          "[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 실패:",
+          error
+        );
         // 에러가 발생해도 원본 contents 반환
       }
     }
@@ -1182,31 +1494,61 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
     // 입력값 검증
     if (!groupId || typeof groupId !== "string") {
-      throw new AppError("플랜 그룹 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "플랜 그룹 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!wizardData) {
-      throw new AppError("참여 정보가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "참여 정보가 필요합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     const supabase = await createSupabaseServerClient();
 
     // 플랜 그룹 조회 및 권한 확인
-    const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
-    const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
+    const { getPlanGroupWithDetailsForAdmin } = await import(
+      "@/lib/data/planGroups"
+    );
+    const result = await getPlanGroupWithDetailsForAdmin(
+      groupId,
+      tenantContext.tenantId
+    );
 
     if (!result.group) {
-      throw new AppError("플랜 그룹을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 캠프 모드 확인
     if (result.group.plan_type !== "camp") {
-      throw new AppError("캠프 모드 플랜 그룹이 아닙니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "캠프 모드 플랜 그룹이 아닙니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 이미 플랜이 생성된 경우 업데이트 불가
@@ -1217,11 +1559,18 @@ export const continueCampStepsForAdmin = withErrorHandling(
       .limit(1);
 
     if (plans && plans.length > 0) {
-      throw new AppError("이미 플랜이 생성된 그룹은 수정할 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "이미 플랜이 생성된 그룹은 수정할 수 없습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 플랜 그룹 업데이트 (관리자용 직접 업데이트)
-    const { syncWizardDataToCreationData } = await import("@/lib/utils/planGroupDataSync");
+    const { syncWizardDataToCreationData } = await import(
+      "@/lib/utils/planGroupDataSync"
+    );
     const {
       createPlanContents,
       createPlanExclusions,
@@ -1229,15 +1578,19 @@ export const continueCampStepsForAdmin = withErrorHandling(
     } = await import("@/lib/data/planGroups");
 
     // plan_purpose 정규화 함수 (planGroupActions에서 복사)
-    const normalizePlanPurpose = (purpose: string | null | undefined): string | null => {
+    const normalizePlanPurpose = (
+      purpose: string | null | undefined
+    ): string | null => {
       if (!purpose) return null;
       if (purpose === "수능" || purpose === "모의고사") return "모의고사(수능)";
       return purpose;
     };
 
     try {
-      const creationData = syncWizardDataToCreationData(wizardData as WizardData);
-      
+      const creationData = syncWizardDataToCreationData(
+        wizardData as WizardData
+      );
+
       // 캠프 모드에서는 block_set_id를 null로 설정
       creationData.block_set_id = null;
       creationData.plan_type = "camp";
@@ -1261,26 +1614,46 @@ export const continueCampStepsForAdmin = withErrorHandling(
       const updatePayload: Record<string, any> = {
         updated_at: new Date().toISOString(),
       };
-      
-      if (creationData.name !== undefined) updatePayload.name = creationData.name || null;
-      if (creationData.plan_purpose !== undefined) updatePayload.plan_purpose = normalizePlanPurpose(creationData.plan_purpose);
-      if (creationData.scheduler_type !== undefined) updatePayload.scheduler_type = creationData.scheduler_type || null;
+
+      if (creationData.name !== undefined)
+        updatePayload.name = creationData.name || null;
+      if (creationData.plan_purpose !== undefined)
+        updatePayload.plan_purpose = normalizePlanPurpose(
+          creationData.plan_purpose
+        );
+      if (creationData.scheduler_type !== undefined)
+        updatePayload.scheduler_type = creationData.scheduler_type || null;
       if (Object.keys(mergedSchedulerOptions).length > 0) {
         updatePayload.scheduler_options = mergedSchedulerOptions;
       } else {
         updatePayload.scheduler_options = null;
       }
-      if (creationData.period_start !== undefined) updatePayload.period_start = creationData.period_start;
-      if (creationData.period_end !== undefined) updatePayload.period_end = creationData.period_end;
-      if (creationData.target_date !== undefined) updatePayload.target_date = creationData.target_date || null;
-      if (creationData.block_set_id !== undefined) updatePayload.block_set_id = creationData.block_set_id || null;
-      if (creationData.daily_schedule !== undefined) updatePayload.daily_schedule = creationData.daily_schedule || null;
-      if (creationData.subject_constraints !== undefined) updatePayload.subject_constraints = creationData.subject_constraints || null;
-      if (creationData.additional_period_reallocation !== undefined) updatePayload.additional_period_reallocation = creationData.additional_period_reallocation || null;
-      if (creationData.non_study_time_blocks !== undefined) updatePayload.non_study_time_blocks = creationData.non_study_time_blocks || null;
-      if (creationData.plan_type !== undefined) updatePayload.plan_type = creationData.plan_type || null;
-      if (creationData.camp_template_id !== undefined) updatePayload.camp_template_id = creationData.camp_template_id || null;
-      if (creationData.camp_invitation_id !== undefined) updatePayload.camp_invitation_id = creationData.camp_invitation_id || null;
+      if (creationData.period_start !== undefined)
+        updatePayload.period_start = creationData.period_start;
+      if (creationData.period_end !== undefined)
+        updatePayload.period_end = creationData.period_end;
+      if (creationData.target_date !== undefined)
+        updatePayload.target_date = creationData.target_date || null;
+      if (creationData.block_set_id !== undefined)
+        updatePayload.block_set_id = creationData.block_set_id || null;
+      if (creationData.daily_schedule !== undefined)
+        updatePayload.daily_schedule = creationData.daily_schedule || null;
+      if (creationData.subject_constraints !== undefined)
+        updatePayload.subject_constraints =
+          creationData.subject_constraints || null;
+      if (creationData.additional_period_reallocation !== undefined)
+        updatePayload.additional_period_reallocation =
+          creationData.additional_period_reallocation || null;
+      if (creationData.non_study_time_blocks !== undefined)
+        updatePayload.non_study_time_blocks =
+          creationData.non_study_time_blocks || null;
+      if (creationData.plan_type !== undefined)
+        updatePayload.plan_type = creationData.plan_type || null;
+      if (creationData.camp_template_id !== undefined)
+        updatePayload.camp_template_id = creationData.camp_template_id || null;
+      if (creationData.camp_invitation_id !== undefined)
+        updatePayload.camp_invitation_id =
+          creationData.camp_invitation_id || null;
 
       const { error: updateError } = await supabase
         .from("plan_groups")
@@ -1476,7 +1849,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .eq("plan_group_id", groupId);
 
         if (deleteError) {
-          console.error("[campTemplateActions] 기존 제외일 삭제 실패", deleteError);
+          console.error(
+            "[campTemplateActions] 기존 제외일 삭제 실패",
+            deleteError
+          );
         }
 
         if (creationData.exclusions.length > 0) {
@@ -1504,7 +1880,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
       // 학원 일정 업데이트 (학생별 전역 관리)
       if (creationData.academy_schedules !== undefined) {
         const studentId = result.group.student_id;
-        
+
         // 기존 학원 일정 모두 삭제
         const { error: deleteError } = await supabase
           .from("academy_schedules")
@@ -1513,7 +1889,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .eq("tenant_id", tenantContext.tenantId);
 
         if (deleteError) {
-          console.error("[campTemplateActions] 기존 학원 일정 삭제 실패", deleteError);
+          console.error(
+            "[campTemplateActions] 기존 학원 일정 삭제 실패",
+            deleteError
+          );
         }
 
         // 새로운 학원 일정 추가
@@ -1547,7 +1926,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
         const validationErrors: string[] = [];
 
         // 1. 기간 검증
-        const periodStart = updatePayload.period_start || result.group.period_start;
+        const periodStart =
+          updatePayload.period_start || result.group.period_start;
         const periodEnd = updatePayload.period_end || result.group.period_end;
         if (!periodStart || !periodEnd) {
           validationErrors.push("학습 기간이 설정되지 않았습니다.");
@@ -1565,9 +1945,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .select("id")
           .eq("plan_group_id", groupId)
           .limit(1);
-        
+
         if (!planContents || planContents.length === 0) {
-          validationErrors.push("플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요.");
+          validationErrors.push(
+            "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
+          );
         }
 
         // 3. 템플릿 블록 세트 검증 (캠프 모드)
@@ -1590,13 +1972,19 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 .limit(1);
 
               if (!templateBlocks || templateBlocks.length === 0) {
-                validationErrors.push("템플릿 블록 세트에 블록이 없습니다. 관리자에게 문의해주세요.");
+                validationErrors.push(
+                  "템플릿 블록 세트에 블록이 없습니다. 관리자에게 문의해주세요."
+                );
               }
             } else {
-              validationErrors.push("템플릿 블록 세트가 설정되지 않았습니다. 관리자에게 문의해주세요.");
+              validationErrors.push(
+                "템플릿 블록 세트가 설정되지 않았습니다. 관리자에게 문의해주세요."
+              );
             }
           } else {
-            validationErrors.push("템플릿 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.");
+            validationErrors.push(
+              "템플릿 정보를 찾을 수 없습니다. 관리자에게 문의해주세요."
+            );
           }
         }
 
@@ -1614,11 +2002,13 @@ export const continueCampStepsForAdmin = withErrorHandling(
         // 관리자용으로 별도 처리 필요
         // 일단은 generatePlansFromGroupAction을 호출하되,
         // planGroupActions.ts에서 관리자 권한을 지원하도록 수정 필요
-        const { generatePlansFromGroupAction } = await import("@/app/(student)/actions/planGroupActions");
-        
+        const { generatePlansFromGroupAction } = await import(
+          "@/app/(student)/actions/planGroupActions"
+        );
+
         try {
           await generatePlansFromGroupAction(groupId);
-          
+
           // 플랜 생성 후 상태를 "saved"로 변경
           const { error: statusUpdateError } = await supabase
             .from("plan_groups")
@@ -1626,14 +2016,21 @@ export const continueCampStepsForAdmin = withErrorHandling(
             .eq("id", groupId);
 
           if (statusUpdateError) {
-            console.error("[campTemplateActions] 플랜 그룹 상태 업데이트 실패:", statusUpdateError);
+            console.error(
+              "[campTemplateActions] 플랜 그룹 상태 업데이트 실패:",
+              statusUpdateError
+            );
             // 상태 업데이트 실패는 경고만 (플랜은 생성됨)
-            console.warn("[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다.");
+            console.warn(
+              "[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다."
+            );
           }
         } catch (planError) {
           console.error("[campTemplateActions] 플랜 생성 실패:", planError);
           throw new AppError(
-            planError instanceof Error ? planError.message : "플랜 생성에 실패했습니다.",
+            planError instanceof Error
+              ? planError.message
+              : "플랜 생성에 실패했습니다.",
             ErrorCode.DATABASE_ERROR,
             500,
             true
@@ -1643,7 +2040,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
     } catch (error) {
       console.error("[campTemplateActions] 캠프 남은 단계 진행 실패:", error);
       throw new AppError(
-        error instanceof Error ? error.message : "플랜 그룹 업데이트에 실패했습니다.",
+        error instanceof Error
+          ? error.message
+          : "플랜 그룹 업데이트에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
         500,
         true
@@ -1676,7 +2075,12 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     const supabase = await createSupabaseServerClient();
@@ -1690,11 +2094,21 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
       .maybeSingle();
 
     if (groupError || !group) {
-      throw new AppError("플랜 그룹을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (group.plan_type !== "camp") {
-      throw new AppError("캠프 플랜 그룹이 아닙니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "캠프 플랜 그룹이 아닙니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // scheduler_options 업데이트 (subject_allocations 포함)
@@ -1704,7 +2118,8 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
       .eq("id", groupId)
       .maybeSingle();
 
-    const currentSchedulerOptions = (currentGroup?.scheduler_options as any) || {};
+    const currentSchedulerOptions =
+      (currentGroup?.scheduler_options as any) || {};
     const updatedSchedulerOptions = {
       ...currentSchedulerOptions,
       subject_allocations: subjectAllocations,
@@ -1747,7 +2162,12 @@ export const updateCampPlanGroupStatus = withErrorHandling(
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     const supabase = await createSupabaseServerClient();
@@ -1761,11 +2181,21 @@ export const updateCampPlanGroupStatus = withErrorHandling(
       .maybeSingle();
 
     if (groupError || !group) {
-      throw new AppError("플랜 그룹을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (group.plan_type !== "camp") {
-      throw new AppError("캠프 플랜 그룹이 아닙니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "캠프 플랜 그룹이 아닙니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 상태 전이 검증
@@ -1884,11 +2314,21 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     if (!Array.isArray(groupIds) || groupIds.length === 0) {
-      throw new AppError("플랜 그룹을 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "플랜 그룹을 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 중복 제거
@@ -1914,7 +2354,12 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
     }
 
     if (!groups || groups.length === 0) {
-      throw new AppError("선택한 플랜 그룹을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "선택한 플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 캠프 플랜 그룹인지 확인
@@ -1936,7 +2381,10 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
         .in("plan_group_id", uniqueGroupIds);
 
       if (plansError) {
-        console.error("[campTemplateActions] 플랜 개수 일괄 확인 실패", plansError);
+        console.error(
+          "[campTemplateActions] 플랜 개수 일괄 확인 실패",
+          plansError
+        );
         throw new AppError(
           "플랜 개수 확인에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,
@@ -2004,7 +2452,8 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
       if (!statusValidation.valid) {
         errors.push({
           groupId: group.id,
-          error: statusValidation.errors.join(", ") || "상태 전이가 불가능합니다.",
+          error:
+            statusValidation.errors.join(", ") || "상태 전이가 불가능합니다.",
         });
         continue;
       }
@@ -2025,8 +2474,11 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
 
       if (updateError) {
         // 일괄 업데이트 실패 시 개별 업데이트 시도
-        console.error("[campTemplateActions] 일괄 상태 업데이트 실패, 개별 업데이트 시도", updateError);
-        
+        console.error(
+          "[campTemplateActions] 일괄 상태 업데이트 실패, 개별 업데이트 시도",
+          updateError
+        );
+
         for (const groupId of successGroupIds) {
           const { error: individualError } = await supabase
             .from("plan_groups")
@@ -2058,4 +2510,3 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
     };
   }
 );
-

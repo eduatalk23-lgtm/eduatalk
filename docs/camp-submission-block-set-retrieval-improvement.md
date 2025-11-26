@@ -7,10 +7,12 @@
 **파일**: `app/(student)/camp/[invitationId]/submitted/page.tsx`
 
 1. **블록 세트 ID 조회 우선순위** ✅ 올바름
+
    - `scheduler_options.template_block_set_id` 우선 확인 (실제 저장된 값)
    - `template_data.block_set_id` fallback 확인 (템플릿 원본)
 
 2. **템플릿 블록 세트 조회** ✅ 올바름
+
    - 캠프 모드에서는 항상 템플릿 블록 세트를 조회하는 것이 맞음
    - 학생이 선택한 블록도 템플릿 블록 세트 중 하나 (학생 블록 세트가 아님)
 
@@ -22,6 +24,7 @@
 ### 1. 템플릿 ID 검증을 조회 쿼리에 포함
 
 **변경 전**:
+
 ```typescript
 // 템플릿 블록 세트 조회 (template_id 조건 제거 - block_set_id만으로 조회)
 const { data: templateBlockSet } = await supabase
@@ -37,6 +40,7 @@ if (templateBlockSet.template_id !== group.camp_template_id) {
 ```
 
 **변경 후**:
+
 ```typescript
 // 템플릿 블록 세트 조회 (template_id 검증 포함)
 const { data: templateBlockSet } = await supabase
@@ -58,10 +62,12 @@ const { data: templateBlockSet } = await supabase
 ### `app/(student)/camp/[invitationId]/submitted/page.tsx`
 
 1. **템플릿 ID 검증 개선**
+
    - 조회 쿼리에 `template_id` 조건 추가
    - 조회 후 검증 단계 제거 (쿼리 레벨에서 처리)
 
 2. **에러 처리 개선**
+
    - 에러 로그에 컨텍스트 정보 추가 (block_set_id, template_id 등)
    - 경고 메시지에 더 명확한 설명 추가
 
@@ -87,11 +93,13 @@ const { data: templateBlockSet } = await supabase
 ### 캠프 모드에서 템플릿 블록 세트를 조회하는 것이 맞는 이유
 
 1. **캠프 모드의 특성**
+
    - 캠프 모드에서는 항상 템플릿 블록 세트를 사용
    - 학생이 선택한 블록도 템플릿 블록 세트 중 하나
    - 학생의 개인 블록 세트(`student_block_sets`)는 사용하지 않음
 
 2. **데이터 저장 구조**
+
    - `plan_groups.block_set_id`는 `null`로 설정 (캠프 모드)
    - `scheduler_options.template_block_set_id`에 템플릿 블록 세트 ID 저장
    - 템플릿 블록 세트는 `template_block_sets` 테이블에 저장
@@ -103,4 +111,3 @@ const { data: templateBlockSet } = await supabase
 ## 날짜
 
 2024-11-24
-

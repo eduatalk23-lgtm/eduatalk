@@ -123,6 +123,13 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
   };
 
   const handleTemplateSave = async (wizardData: WizardData) => {
+    // 디버깅: wizardData 확인
+    console.log("[CampTemplateForm] handleTemplateSave 호출:", {
+      has_block_set_id: !!wizardData.block_set_id,
+      block_set_id: wizardData.block_set_id,
+      wizardDataKeys: Object.keys(wizardData),
+    });
+
     // subject_constraints 설정을 wizardData에 병합
     const finalWizardData: WizardData = {
       ...wizardData,
@@ -134,12 +141,33 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
       },
     };
 
+    // 디버깅: finalWizardData 확인
+    console.log("[CampTemplateForm] finalWizardData:", {
+      has_block_set_id: !!finalWizardData.block_set_id,
+      block_set_id: finalWizardData.block_set_id,
+      template_data_string: JSON.stringify(finalWizardData).substring(0, 200),
+    });
+
     const formData = new FormData();
     formData.append("name", templateName || finalWizardData.name); // templateName을 명시적으로 사용
     formData.append("program_type", programType);
     formData.append("description", description);
-    formData.append("status", status);
+    formData.append("status", "draft"); // 템플릿 생성 시 기본값은 draft
     formData.append("template_data", JSON.stringify(finalWizardData));
+    
+    // 디버깅: FormData 확인
+    const templateDataFromForm = formData.get("template_data");
+    if (templateDataFromForm) {
+      try {
+        const parsed = JSON.parse(templateDataFromForm as string);
+        console.log("[CampTemplateForm] FormData의 template_data:", {
+          has_block_set_id: !!parsed.block_set_id,
+          block_set_id: parsed.block_set_id,
+        });
+      } catch (e) {
+        console.error("[CampTemplateForm] FormData 파싱 에러:", e);
+      }
+    }
     if (campStartDate) {
       formData.append("camp_start_date", campStartDate);
     }
@@ -155,10 +183,10 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
       throw new Error(result.error || "템플릿 저장에 실패했습니다.");
     }
 
-    // 템플릿 저장 성공 후 상세 페이지로 리다이렉트
+    // 템플릿 저장 성공 후 시간 관리 페이지로 리다이렉트
     if (result.templateId) {
-      toast.showSuccess("템플릿이 성공적으로 생성되었습니다.");
-      router.push(`/admin/camp-templates/${result.templateId}`);
+      toast.showSuccess("템플릿이 성공적으로 생성되었습니다. 이제 블록 세트를 생성해주세요.");
+      router.push(`/admin/camp-templates/${result.templateId}/time-management`);
     }
   };
 
@@ -499,6 +527,24 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
               )}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 블록 세트 안내 */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <span className="text-2xl">ℹ️</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-blue-900 mb-1">
+              블록 세트 설정 안내
+            </h3>
+            <p className="text-sm text-blue-800">
+              템플릿 생성 후 시간 관리 페이지에서 블록 세트를 생성하고 선택할 수 있습니다.
+              템플릿 생성 시에는 블록 세트 선택을 건너뛸 수 있습니다.
+            </p>
+          </div>
         </div>
       </div>
 

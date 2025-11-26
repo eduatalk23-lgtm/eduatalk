@@ -15,10 +15,6 @@ import {
   statusLabels,
   statusColors,
 } from "@/lib/constants/planLabels";
-import {
-  getDefaultBlocks,
-  DEFAULT_BLOCK_SET_NAME,
-} from "@/lib/utils/defaultBlockSet";
 
 type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -291,39 +287,9 @@ export default async function PlanGroupDetailPage({
           });
         }
 
-        // block_set_id가 없거나 블록이 없을 때 기본값 블록 사용
-        if (templateBlocks.length === 0 && !templateBlockSetName) {
-          const defaultBlocks = getDefaultBlocks();
-          templateBlocks = defaultBlocks.map((block) => ({
-            id: `default-${block.day_of_week}`,
-            day_of_week: block.day_of_week,
-            start_time: block.start_time,
-            end_time: block.end_time,
-          }));
-          templateBlockSetName = DEFAULT_BLOCK_SET_NAME;
-          console.log("[PlanGroupDetailPage] 기본값 블록 사용:", {
-            count: templateBlocks.length,
-            blocks: templateBlocks,
-          });
-        }
       }
     } catch (error) {
       console.error("[PlanGroupDetailPage] 템플릿 블록 조회 중 에러:", error);
-
-      // 에러 발생 시에도 기본값 블록 사용
-      if (templateBlocks.length === 0 && !templateBlockSetName) {
-        const defaultBlocks = getDefaultBlocks();
-        templateBlocks = defaultBlocks.map((block) => ({
-          id: `default-${block.day_of_week}`,
-          day_of_week: block.day_of_week,
-          start_time: block.start_time,
-          end_time: block.end_time,
-        }));
-        templateBlockSetName = DEFAULT_BLOCK_SET_NAME;
-        console.log("[PlanGroupDetailPage] 에러 발생 후 기본값 블록 사용:", {
-          count: templateBlocks.length,
-        });
-      }
     }
   }
 

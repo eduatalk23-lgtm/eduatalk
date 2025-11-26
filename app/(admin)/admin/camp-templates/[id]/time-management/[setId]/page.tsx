@@ -1,0 +1,90 @@
+export const dynamic = 'force-dynamic';
+
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
+import TemplateBlockSetDetail from "./_components/TemplateBlockSetDetail";
+import Link from "next/link";
+
+type PageProps = {
+  params: Promise<{ id: string; setId: string }>;
+};
+
+export default async function TemplateBlockSetDetailPage({ params }: PageProps) {
+  const { id, setId } = await params;
+  
+  const { role } = await getCurrentUserRole();
+  if (role !== "admin" && role !== "consultant") {
+    redirect("/login");
+  }
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    redirect("/login");
+  }
+
+  // 템플릿 조회 및 권한 확인
+  const result = await getCampTemplateById(id);
+  if (!result.success || !result.template) {
+    redirect(`/admin/camp-templates/${id}/time-management`);
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 블록 세트 조회
+  const { data: blockSet, error: setError } = await supabase
+    .from("template_block_sets")
+    .select("id, name, description, template_id")
+    .eq("id", setId)
+    .eq("template_id", id)
+    .eq("tenant_id", tenantContext.tenantId)
+    .single();
+
+  if (setError || !blockSet) {
+    redirect(`/admin/camp-templates/${id}/time-management`);
+  }
+
+  // 해당 세트의 블록 조회
+  const { data: blocks, error: blocksError } = await supabase
+    .from("template_blocks")
+    .select("id, day_of_week, start_time, end_time")
+    .eq("template_block_set_id", setId)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (blocksError) {
+    console.error("블록 조회 실패:", blocksError);
+  }
+
+  // 템플릿 데이터에서 선택된 블록 세트 확인
+  const templateData = result.template.template_data as any;
+  const isSelected = templateData?.block_set_id === setId;
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 py-8 md:py-10">
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Link
+            href={`/admin/camp-templates/${id}/time-management`}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            ← 시간 관리
+          </Link>
+        </div>
+        <h1 className="text-2xl font-semibold text-gray-900">블록 세트 상세</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          템플릿: {result.template.name}
+        </p>
+      </div>
+      <TemplateBlockSetDetail
+        templateId={id}
+        blockSet={blockSet}
+        blocks={(blocks as Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>) ?? []}
+        isSelected={isSelected}
+      />
+    </section>
+  );
+}
+

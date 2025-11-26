@@ -115,8 +115,8 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
       if (result.success) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
         setShowDeleteDialog(false); // 다이얼로그 닫기
-        // router.push 대신 router.replace 사용하여 히스토리에서 제거
-        router.replace("/admin/camp-templates");
+        // 삭제 후 목록 페이지로 리다이렉트
+        router.push("/admin/camp-templates");
       } else {
         toast.showError(result.error || "템플릿 삭제에 실패했습니다.");
         setIsDeleting(false);
@@ -201,6 +201,12 @@ export function CampTemplateDetail({ template, templateBlockSet }: CampTemplateD
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               목록으로
+            </Link>
+            <Link
+              href={`/admin/camp-templates/${template.id}/time-management`}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              시간 관리
             </Link>
             <Link
               href={`/admin/camp-templates/${template.id}/participants`}
