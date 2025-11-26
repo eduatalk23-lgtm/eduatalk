@@ -56,12 +56,25 @@ export default async function EditCampTemplatePage({
   
   try {
     // 템플릿에 연결된 블록 세트 조회 (템플릿 ID가 항상 존재하므로 단순 조회)
-    const blockSets = await getTemplateBlockSets(id);
-    initialBlockSets = blockSets.map(bs => ({
-      id: bs.id,
-      name: bs.name,
-      blocks: bs.blocks || []
-    }));
+    const blockSetsResult = await getTemplateBlockSets(id);
+    
+    // getTemplateBlockSets는 withErrorHandling으로 래핑되어 있으므로
+    // 에러가 발생하면 AppError를 던지거나, 성공하면 배열을 반환합니다
+    if (blockSetsResult && Array.isArray(blockSetsResult)) {
+      initialBlockSets = blockSetsResult.map(bs => ({
+        id: bs.id,
+        name: bs.name,
+        blocks: bs.blocks || []
+      }));
+      
+      console.log("[EditCampTemplatePage] 템플릿 블록 세트 조회 성공:", {
+        template_id: id,
+        block_sets_count: initialBlockSets.length,
+        block_set_ids: initialBlockSets.map(bs => bs.id),
+      });
+    } else {
+      console.warn("[EditCampTemplatePage] getTemplateBlockSets가 예상하지 못한 값을 반환했습니다:", blockSetsResult);
+    }
     
     // template_data에 저장된 block_set_id가 initialBlockSets에 있는지 확인
     const templateData = result.template.template_data as any;
@@ -87,7 +100,12 @@ export default async function EditCampTemplatePage({
             .eq("tenant_id", tenantContext.tenantId)
             .maybeSingle();
           
-          if (!blockSetError && missingBlockSet) {
+          if (blockSetError) {
+            console.error("[EditCampTemplatePage] 저장된 block_set_id 조회 실패:", {
+              block_set_id: savedBlockSetId,
+              error: blockSetError,
+            });
+          } else if (missingBlockSet) {
             // 블록 세트의 블록도 조회
             const { data: blocks, error: blocksError } = await supabase
               .from("template_blocks")
@@ -96,7 +114,12 @@ export default async function EditCampTemplatePage({
               .order("day_of_week", { ascending: true })
               .order("start_time", { ascending: true });
             
-            if (!blocksError && blocks) {
+            if (blocksError) {
+              console.error("[EditCampTemplatePage] 저장된 block_set_id의 블록 조회 실패:", {
+                block_set_id: savedBlockSetId,
+                error: blocksError,
+              });
+            } else if (blocks) {
               // 맨 앞에 추가하여 기본값으로 표시
               initialBlockSets = [
                 {
@@ -106,6 +129,12 @@ export default async function EditCampTemplatePage({
                 },
                 ...initialBlockSets,
               ];
+              
+              console.log("[EditCampTemplatePage] 저장된 block_set_id를 initialBlockSets에 추가:", {
+                block_set_id: savedBlockSetId,
+                block_set_name: missingBlockSet.name,
+                blocks_count: blocks.length,
+              });
             }
           } else {
             // 블록 세트를 찾을 수 없으면 경고 로그만 출력
@@ -119,7 +148,11 @@ export default async function EditCampTemplatePage({
       }
     }
   } catch (error) {
-    console.error("[EditCampTemplatePage] 템플릿 블록 세트 조회 실패:", error);
+    console.error("[EditCampTemplatePage] 템플릿 블록 세트 조회 실패:", {
+      template_id: id,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // 에러가 발생해도 빈 배열로 계속 진행
   }
 
