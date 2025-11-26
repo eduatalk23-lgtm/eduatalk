@@ -77,6 +77,7 @@ export function Step4RecommendedContents({
   const [studentContentSubjects, setStudentContentSubjects] = useState<
     Map<string, { title: string; subject_category: string | null }>
   >(new Map());
+  const fetchedRecommendedContentIdsRef = useRef<Set<string>>(new Set());
 
   // 상세정보 관련 상태
   const [contentDetails, setContentDetails] = useState<
@@ -222,6 +223,127 @@ export function Step4RecommendedContents({
 
     fetchStudentContentSubjects();
   }, [data.student_contents]);
+
+  // 편집 모드에서 이미 추가된 추천 콘텐츠 정보 조회
+  useEffect(() => {
+    const fetchExistingRecommendedContents = async () => {
+      if (!isEditMode || data.recommended_contents.length === 0) return;
+
+      const contentsMap = new Map<string, RecommendedContent>();
+
+      for (const content of data.recommended_contents) {
+        // 이미 조회한 콘텐츠는 스킵
+        if (fetchedRecommendedContentIdsRef.current.has(content.content_id)) {
+          continue;
+        }
+
+        // 저장된 정보가 있으면 사용
+        const storedTitle = (content as any).title;
+        const storedSubjectCategory = (content as any).subject_category;
+
+        if (storedTitle && storedSubjectCategory) {
+          contentsMap.set(content.content_id, {
+            id: content.content_id,
+            contentType: content.content_type,
+            title: storedTitle,
+            subject_category: storedSubjectCategory,
+            subject: (content as any).subject || null,
+            semester: (content as any).semester || null,
+            revision: (content as any).revision || null,
+            publisher: (content as any).publisher || null,
+            platform: (content as any).platform || null,
+            difficulty_level: (content as any).difficulty_level || null,
+            reason: (content as any).recommendation_reason || "",
+            priority: 0,
+          });
+          continue;
+        }
+
+        // 저장된 정보가 없으면 서버 액션으로 조회
+        try {
+          const result = await fetchContentMetadataAction(
+            content.content_id,
+            content.content_type
+          );
+          if (result.success && result.data) {
+            contentsMap.set(content.content_id, {
+              id: content.content_id,
+              contentType: content.content_type,
+              title: result.data.title || "알 수 없음",
+              subject_category: result.data.subject_category || null,
+              subject: result.data.subject || null,
+              semester: result.data.semester || null,
+              revision: result.data.revision || null,
+              publisher: result.data.publisher || null,
+              platform: result.data.platform || null,
+              difficulty_level: result.data.difficulty_level || null,
+              reason: (content as any).recommendation_reason || "",
+              priority: 0,
+            });
+          } else {
+            // 조회 실패 시 저장된 정보 또는 기본값 사용
+            contentsMap.set(content.content_id, {
+              id: content.content_id,
+              contentType: content.content_type,
+              title: storedTitle || "알 수 없음",
+              subject_category: storedSubjectCategory || null,
+              subject: (content as any).subject || null,
+              semester: (content as any).semester || null,
+              revision: (content as any).revision || null,
+              publisher: (content as any).publisher || null,
+              platform: (content as any).platform || null,
+              difficulty_level: (content as any).difficulty_level || null,
+              reason: (content as any).recommendation_reason || "",
+              priority: 0,
+            });
+          }
+        } catch (error) {
+          const planGroupError = toPlanGroupError(
+            error,
+            PlanGroupErrorCodes.CONTENT_FETCH_FAILED,
+            { contentId: content.content_id }
+          );
+          console.error("[Step4RecommendedContents] 추천 콘텐츠 정보 조회 실패:", planGroupError);
+          // 에러 발생 시 저장된 정보 또는 기본값 사용
+          contentsMap.set(content.content_id, {
+            id: content.content_id,
+            contentType: content.content_type,
+            title: storedTitle || "알 수 없음",
+            subject_category: storedSubjectCategory || null,
+            subject: (content as any).subject || null,
+            semester: (content as any).semester || null,
+            revision: (content as any).revision || null,
+            publisher: (content as any).publisher || null,
+            platform: (content as any).platform || null,
+            difficulty_level: (content as any).difficulty_level || null,
+            reason: (content as any).recommendation_reason || "",
+            priority: 0,
+          });
+        }
+      }
+
+      // allRecommendedContents에 추가
+      if (contentsMap.size > 0) {
+        // 조회한 콘텐츠 ID 추적
+        contentsMap.forEach((_, id) => {
+          fetchedRecommendedContentIdsRef.current.add(id);
+        });
+
+        setAllRecommendedContents((prev) => {
+          const merged = new Map<string, RecommendedContent>();
+          // 기존 데이터 먼저 추가
+          prev.forEach((c) => merged.set(c.id, c));
+          // 새로 조회한 데이터 추가
+          contentsMap.forEach((c, id) => {
+            merged.set(id, c);
+          });
+          return Array.from(merged.values());
+        });
+      }
+    };
+
+    fetchExistingRecommendedContents();
+  }, [isEditMode, data.recommended_contents]);
 
   // 추천 목록 자동 조회 (생성 모드일 때만)
   useEffect(() => {
