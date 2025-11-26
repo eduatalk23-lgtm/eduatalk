@@ -2149,16 +2149,24 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
 
         // 2. 콘텐츠 검증
-        const { data: planContents } = await supabase
-          .from("plan_contents")
-          .select("id")
-          .eq("plan_group_id", groupId)
-          .limit(1);
+        // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
+        const studentContents = wizardData.student_contents || [];
+        const recommendedContents = wizardData.recommended_contents || [];
+        const totalContents = studentContents.length + recommendedContents.length;
 
-        if (!planContents || planContents.length === 0) {
-          validationErrors.push(
-            "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
-          );
+        // wizardData에 콘텐츠가 없으면 plan_contents 테이블도 확인 (이미 저장된 경우)
+        if (totalContents === 0) {
+          const { data: planContents } = await supabase
+            .from("plan_contents")
+            .select("id")
+            .eq("plan_group_id", groupId)
+            .limit(1);
+
+          if (!planContents || planContents.length === 0) {
+            validationErrors.push(
+              "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
+            );
+          }
         }
 
         // 3. 템플릿 블록 세트 검증 (캠프 모드)
