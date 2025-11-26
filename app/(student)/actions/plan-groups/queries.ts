@@ -1,10 +1,12 @@
 "use server";
 
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanGroupById, getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { timeToMinutes } from "./utils";
 import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
@@ -70,19 +72,81 @@ async function _getPlansByGroupId(groupId: string): Promise<{
 
 /**
  * 플랜 그룹에 플랜이 생성되었는지 확인
+ * Admin/Consultant도 사용 가능 (다른 학생의 플랜 그룹 확인)
  */
 async function _checkPlansExist(groupId: string): Promise<{
   hasPlans: boolean;
   planCount: number;
 }> {
-  const user = await requireStudentAuth();
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  // 관리자 또는 컨설턴트 권한도 허용 (캠프 모드에서 관리자가 플랜 확인 시 사용)
+  const { role } = await getCurrentUserRole();
+  if (user.role !== "student" && role !== "admin" && role !== "consultant") {
+    throw new AppError(
+      "학생 권한이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      403,
+      true
+    );
+  }
 
   const supabase = await createSupabaseServerClient();
-  const { count, error } = await supabase
+
+  // 플랜 그룹 조회하여 student_id 확인
+  let studentId: string;
+  if (role === "admin" || role === "consultant") {
+    const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+    const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
+    if (!result.group) {
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+    studentId = result.group.student_id;
+  } else {
+    studentId = user.userId;
+  }
+
+  // Admin/Consultant가 다른 학생의 플랜을 조회할 때는 Admin 클라이언트 사용
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
+  const queryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
+  
+  if (isOtherStudent && !queryClient) {
+    throw new AppError(
+      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      false
+    );
+  }
+
+  const { count, error } = await queryClient
     .from("student_plan")
     .select("*", { count: "exact", head: true })
     .eq("plan_group_id", groupId)
-    .eq("student_id", user.userId);
+    .eq("student_id", studentId);
 
   if (error) {
     console.error("[planGroupActions] 플랜 개수 확인 실패", error);
