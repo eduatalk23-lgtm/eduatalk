@@ -147,7 +147,8 @@ export async function endStudySession(
 
     // 히스토리 기록
     if (session.content_type && session.content_id) {
-      const sessionDate = new Date(session.started_at).toISOString().slice(0, 10);
+      const { formatDateString } = await import("@/lib/date/calendarUtils");
+      const sessionDate = formatDateString(new Date(session.started_at));
       const supabase = await createSupabaseServerClient();
       await recordHistory(
         supabase,

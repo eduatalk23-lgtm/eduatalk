@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import { formatDateString } from "@/lib/date/calendarUtils";
 import {
   createPlanGroup,
   deletePlanGroup,
@@ -202,10 +203,10 @@ async function _savePlanGroupDraft(
       Object.keys(mergedSchedulerOptions).length > 0
         ? mergedSchedulerOptions
         : null,
-    period_start: data.period_start || new Date().toISOString().slice(0, 10),
+    period_start: data.period_start || formatDateString(new Date()),
     period_end:
       data.period_end ||
-      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      formatDateString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
     status: "draft",
