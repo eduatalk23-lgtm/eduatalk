@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import { deleteCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
+import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { Trash2 } from "lucide-react";
@@ -18,6 +18,8 @@ export function TemplateCard({ template }: TemplateCardProps) {
   const toast = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -46,6 +48,36 @@ export function TemplateCard({ template }: TemplateCardProps) {
     }
   };
 
+  const handleStatusChange = async (e: React.MouseEvent, newStatus: "draft" | "active") => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (currentStatus === newStatus) return;
+    
+    setIsChangingStatus(true);
+    try {
+      const result = await updateCampTemplateStatusAction(template.id, newStatus);
+      if (result.success) {
+        setCurrentStatus(newStatus);
+        toast.showSuccess(
+          newStatus === "active" 
+            ? "템플릿이 활성화되었습니다." 
+            : "템플릿이 초안 상태로 변경되었습니다."
+        );
+        router.refresh();
+      } else {
+        toast.showError(result.error || "상태 변경에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("상태 변경 실패:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "상태 변경에 실패했습니다.";
+      toast.showError(errorMessage);
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
+
   return (
     <>
       <div className="group relative rounded-lg border border-gray-200 bg-white p-6 transition hover:border-indigo-300 hover:shadow-md">
@@ -71,20 +103,35 @@ export function TemplateCard({ template }: TemplateCardProps) {
               </p>
             </div>
             <div className="ml-4 flex items-start gap-2">
-              {template.status === "draft" && (
+              {currentStatus === "draft" && (
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
                   초안
                 </span>
               )}
-              {template.status === "active" && (
+              {currentStatus === "active" && (
                 <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
                   활성
                 </span>
               )}
-              {template.status === "archived" && (
+              {currentStatus === "archived" && (
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
                   보관
                 </span>
+              )}
+              {/* 상태 변경 버튼 */}
+              {currentStatus !== "archived" && (
+                <button
+                  onClick={(e) => handleStatusChange(e, currentStatus === "draft" ? "active" : "draft")}
+                  disabled={isChangingStatus}
+                  className="opacity-0 transition-opacity group-hover:opacity-100 rounded-lg px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={currentStatus === "draft" ? "활성화" : "초안으로 변경"}
+                >
+                  {isChangingStatus 
+                    ? "변경 중..." 
+                    : currentStatus === "draft" 
+                    ? "활성화" 
+                    : "초안"}
+                </button>
               )}
               <button
                 onClick={handleDelete}
