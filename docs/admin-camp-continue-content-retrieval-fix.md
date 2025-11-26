@@ -1,4 +1,4 @@
-# 관리자 페이지 '남은 단계 진행하기' 학생 추가 콘텐츠 조회 개선
+ㅐㅐ# 관리자 페이지 '남은 단계 진행하기' 학생 추가 콘텐츠 조회 개선
 
 ## 🔍 문제 상황
 
@@ -7,10 +7,12 @@
 ### 원인 분석
 
 1. **`master_content_id` 필드 미활용**
+
    - `plan_contents` 테이블에 `master_content_id` 필드가 있지만, `classifyPlanContents` 함수에서 활용하지 않음
    - 학생 콘텐츠를 찾지 못했을 때 fallback 로직이 없어서 콘텐츠 정보가 누락됨
 
 2. **타입 정의 누락**
+
    - `classifyPlanContents` 함수의 입력 타입에 `master_content_id` 필드가 없음
    - `plan_contents`에서 조회한 `master_content_id` 정보가 전달되지 않음
 
@@ -27,6 +29,7 @@
 #### 1. 입력 타입에 `master_content_id` 필드 추가
 
 **변경 전**:
+
 ```typescript
 export async function classifyPlanContents(
   contents: Array<{
@@ -37,10 +40,11 @@ export async function classifyPlanContents(
     // ...
   }>,
   studentId: string
-)
+);
 ```
 
 **변경 후**:
+
 ```typescript
 export async function classifyPlanContents(
   contents: Array<{
@@ -52,12 +56,13 @@ export async function classifyPlanContents(
     // ...
   }>,
   studentId: string
-)
+);
 ```
 
 #### 2. 마스터 콘텐츠 ID 수집 로직 개선
 
 **변경 전**:
+
 ```typescript
 // 4. 마스터 콘텐츠 ID 추출 (학생 콘텐츠의 master_content_id)
 const masterContentIdsForLookup = new Set<string>();
@@ -71,6 +76,7 @@ const masterContentIdsForLookup = new Set<string>();
 ```
 
 **변경 후**:
+
 ```typescript
 // 4. 마스터 콘텐츠 ID 추출 (학생 콘텐츠의 master_content_id + plan_contents의 master_content_id)
 const masterContentIdsForLookup = new Set<string>();
@@ -84,7 +90,10 @@ const masterContentIdsForLookup = new Set<string>();
 );
 // plan_contents의 master_content_id (fallback용)
 contents.forEach((content) => {
-  if (content.master_content_id && (content.content_type === "book" || content.content_type === "lecture")) {
+  if (
+    content.master_content_id &&
+    (content.content_type === "book" || content.content_type === "lecture")
+  ) {
     masterContentIdsForLookup.add(content.master_content_id);
   }
 });
@@ -93,6 +102,7 @@ contents.forEach((content) => {
 #### 3. Fallback 로직 추가 (책)
 
 **변경 전**:
+
 ```typescript
 } else {
   // 학생 교재를 찾지 못한 경우
@@ -105,6 +115,7 @@ contents.forEach((content) => {
 ```
 
 **변경 후**:
+
 ```typescript
 } else {
   // 학생 교재를 찾지 못한 경우
@@ -149,11 +160,13 @@ contents.forEach((content) => {
 ### 조회 우선순위
 
 **변경 전**:
+
 1. `content_id`로 마스터 콘텐츠 조회
 2. `content_id`로 학생 콘텐츠 조회
 3. 둘 다 없으면 누락 처리
 
 **변경 후**:
+
 1. `content_id`로 마스터 콘텐츠 조회
 2. `content_id`로 학생 콘텐츠 조회
 3. 학생 콘텐츠가 없고 `master_content_id`가 있으면, `master_content_id`로 마스터 콘텐츠 조회 (fallback)
@@ -175,7 +188,7 @@ contents.forEach((content) => {
 ## 📝 참고
 
 이제 `classifyPlanContents` 함수가 `plan_contents` 테이블의 `master_content_id` 필드를 활용하여:
+
 - 학생 콘텐츠를 찾지 못했을 때 마스터 콘텐츠 정보를 표시
 - 콘텐츠 정보 조회 성공률 향상
 - 관리자 페이지에서 학생 추가 콘텐츠 정보를 더 정확하게 확인 가능
-
