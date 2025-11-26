@@ -401,6 +401,7 @@ export async function classifyPlanContents(
 
   for (const content of contents) {
     let contentDetail: ContentDetail | null = null;
+    let masterContentId: string | undefined = undefined;
 
     if (content.content_type === "book") {
       // 1. plan_contents에 저장된 master_content_id가 있으면 우선 활용
