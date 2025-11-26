@@ -40,10 +40,10 @@ export default function TemplateBlockSetDetail({
 
     setIsDeleting(true);
     try {
-      const { deleteTemplateBlockSet } = await import("@/app/(admin)/actions/templateBlockSets");
+      const { deleteTenantBlockSet } = await import("@/app/(admin)/actions/tenantBlockSets");
       const formData = new FormData();
       formData.append("id", blockSet.id);
-      await deleteTemplateBlockSet(formData);
+      await deleteTenantBlockSet(formData);
       toast.showSuccess("블록 세트가 삭제되었습니다.");
       router.push(`/admin/camp-templates/${templateId}/time-management`);
     } catch (error: any) {
@@ -58,10 +58,10 @@ export default function TemplateBlockSetDetail({
     }
 
     try {
-      const { deleteTemplateBlock } = await import("@/app/(admin)/actions/templateBlockSets");
+      const { deleteTenantBlock } = await import("@/app/(admin)/actions/tenantBlockSets");
       const formData = new FormData();
       formData.append("id", blockId);
-      await deleteTemplateBlock(formData);
+      await deleteTenantBlock(formData);
       toast.showSuccess("블록이 삭제되었습니다.");
       router.refresh();
     } catch (error: any) {

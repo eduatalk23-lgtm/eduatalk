@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useActionState, useEffect } from "react";
-import { addTemplateBlock } from "@/app/(admin)/actions/templateBlockSets";
+import { addTenantBlock } from "@/app/(admin)/actions/tenantBlockSets";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type TemplateBlockFormState = {
@@ -56,7 +56,7 @@ export default function TemplateBlockForm({
           blockFormData.append("block_set_id", blockSetId);
           
           try {
-            await addTemplateBlock(blockFormData);
+            await addTenantBlock(blockFormData);
             successCount++;
           } catch (blockError: any) {
             const dayLabel = ["일", "월", "화", "수", "목", "금", "토"][day];
