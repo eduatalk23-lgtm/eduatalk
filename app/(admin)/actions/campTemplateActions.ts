@@ -2154,6 +2154,22 @@ export const continueCampStepsForAdmin = withErrorHandling(
         const recommendedContents = wizardData.recommended_contents || [];
         const totalContents = studentContents.length + recommendedContents.length;
 
+        console.log("[campTemplateActions] Step 6 콘텐츠 검증 시작:", {
+          groupId,
+          studentContentsCount: studentContents.length,
+          recommendedContentsCount: recommendedContents.length,
+          totalContents,
+          studentContents: studentContents.map((c) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+            master_content_id: (c as any).master_content_id,
+          })),
+          recommendedContents: recommendedContents.map((c) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+          })),
+        });
+
         // plan_contents 테이블에 콘텐츠가 있는지 확인
         const { data: existingPlanContents } = await supabase
           .from("plan_contents")
@@ -2162,6 +2178,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .limit(1);
 
         const hasPlanContents = existingPlanContents && existingPlanContents.length > 0;
+
+        console.log("[campTemplateActions] Step 6 plan_contents 확인:", {
+          hasPlanContents,
+          existingPlanContentsCount: existingPlanContents?.length || 0,
+        });
 
         // wizardData에 콘텐츠가 있고 plan_contents에 없으면 저장
         if (totalContents > 0 && !hasPlanContents) {
@@ -2396,10 +2417,31 @@ export const continueCampStepsForAdmin = withErrorHandling(
               });
             } else {
               console.warn(
-                `[campTemplateActions] 학생(${result.group.student_id})이 가지고 있는 유효한 콘텐츠가 없습니다.`
+                `[campTemplateActions] 학생(${result.group.student_id})이 가지고 있는 유효한 콘텐츠가 없습니다.`,
+                {
+                  creationDataContentsCount: creationDataForContents.contents.length,
+                  validContentsCount: validContents.length,
+                }
               );
             }
+          } else {
+            console.warn(
+              "[campTemplateActions] Step 6에서 creationDataForContents.contents가 비어있습니다.",
+              {
+                wizardDataStudentContents: studentContents.length,
+                wizardDataRecommendedContents: recommendedContents.length,
+              }
+            );
           }
+        } else {
+          console.log("[campTemplateActions] Step 6 콘텐츠 저장 스킵:", {
+            totalContents,
+            hasPlanContents,
+            reason:
+              totalContents === 0
+                ? "wizardData에 콘텐츠가 없음"
+                : "plan_contents에 이미 콘텐츠가 있음",
+          });
         }
 
         // 최종 콘텐츠 검증 (plan_contents 테이블 확인)
@@ -2408,6 +2450,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .select("id")
           .eq("plan_group_id", groupId)
           .limit(1);
+
+        console.log("[campTemplateActions] Step 6 최종 콘텐츠 검증:", {
+          finalPlanContentsCount: finalPlanContents?.length || 0,
+          hasFinalPlanContents: finalPlanContents && finalPlanContents.length > 0,
+        });
 
         if (!finalPlanContents || finalPlanContents.length === 0) {
           validationErrors.push(
