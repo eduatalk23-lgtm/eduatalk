@@ -1,106 +1,277 @@
-# 컴포넌트 구조 개선 가이드
+# 컴포넌트 구조 가이드
 
-## 서버/클라이언트 컴포넌트 경계 명확화
+## 📅 작성일: 2024년 11월 26일
 
-### 원칙
+---
 
-1. **서버 컴포넌트 우선**: 기본적으로 서버 컴포넌트로 작성
-2. **클라이언트 컴포넌트는 인터랙션만**: 상태 관리, 이벤트 핸들러, 브라우저 API 사용 시에만 클라이언트 컴포넌트 사용
-3. **데이터 페칭은 서버에서**: 서버 컴포넌트에서 데이터 페칭 후 props로 전달
+## 1. 현재 컴포넌트 구조
 
-### 서버 컴포넌트 사용 시기
+### 1.1 공용 컴포넌트 (`components/`)
 
-- 데이터 페칭 (Supabase 쿼리)
-- 정적 콘텐츠 렌더링
-- SEO가 중요한 콘텐츠
-- 서버 사이드 로직 실행
+```
+components/
+├── layout/
+│   └── RoleBasedLayout.tsx
+├── navigation/
+│   ├── global/
+│   │   ├── Breadcrumbs.tsx
+│   │   ├── categoryConfig.ts
+│   │   ├── CategoryNav.tsx
+│   │   └── resolveActiveCategory.ts
+│   └── student/
+│       ├── studentCategories.ts
+│       └── StudentCategoryNav.tsx
+└── ui/
+    ├── Badge.tsx
+    ├── Card.tsx
+    ├── Dialog.tsx
+    ├── EmptyState.tsx
+    ├── ErrorState.tsx
+    ├── FormInput.tsx
+    ├── FormMessage.tsx
+    ├── FormSubmitButton.tsx
+    ├── LoadingSkeleton.tsx
+    ├── ProgressBar.tsx
+    ├── SchoolMultiSelect.tsx
+    ├── SchoolSelect.tsx
+    ├── SectionHeader.tsx
+    ├── SkeletonForm.tsx
+    ├── TimeRangeInput.tsx
+    ├── Toast.tsx
+    └── ToastProvider.tsx
+```
 
-### 클라이언트 컴포넌트 사용 시기
+### 1.2 페이지별 컴포넌트 (`_components/`)
 
-- 사용자 인터랙션 (onClick, onChange 등)
-- 상태 관리 (useState, useReducer)
-- 브라우저 API 사용 (localStorage, window 등)
-- React Hooks 사용 (useEffect, useCallback 등)
-- Context API 사용
-- 실시간 업데이트 (WebSocket, Supabase Realtime)
+- 91개 파일에서 `_components` 폴더 사용 중
+- 각 페이지/기능별로 로컬 컴포넌트 관리
 
-### 현재 구조 분석
+---
 
-#### ✅ 잘 적용된 예시
+## 2. 권장 컴포넌트 구조
 
-1. **`app/(student)/today/page.tsx`** (서버 컴포넌트)
-   - 서버에서 `todayProgress` 계산
-   - 클라이언트 컴포넌트에 props로 전달
+### 2.1 카테고리별 분류
 
-2. **`app/(student)/today/_components/TodayPlanList.tsx`** (서버 컴포넌트)
-   - 서버에서 데이터 페칭
-   - 정적 렌더링
+```
+components/
+├── ui/                   # 기본 UI 컴포넌트 (현재 유지)
+│   ├── Badge.tsx
+│   ├── Button.tsx        # 추가 권장
+│   ├── Card.tsx
+│   ├── Dialog.tsx
+│   ├── Input.tsx         # FormInput 대체
+│   ├── Select.tsx        # 추가 권장
+│   └── ...
+│
+├── forms/                # 폼 관련 컴포넌트 (신규)
+│   ├── FormField.tsx
+│   ├── FormMessage.tsx   # ui/에서 이동
+│   ├── FormSubmitButton.tsx
+│   ├── SchoolSelect.tsx  # ui/에서 이동
+│   ├── SchoolMultiSelect.tsx
+│   └── TimeRangeInput.tsx
+│
+├── layout/               # 레이아웃 컴포넌트 (확장)
+│   ├── RoleBasedLayout.tsx
+│   ├── PageHeader.tsx    # 추가 권장
+│   ├── PageContainer.tsx # 추가 권장
+│   └── Sidebar.tsx       # 추가 권장
+│
+├── navigation/           # 네비게이션 (현재 유지)
+│   ├── global/
+│   └── student/
+│
+├── feedback/             # 피드백 컴포넌트 (신규)
+│   ├── Toast.tsx         # ui/에서 이동
+│   ├── ToastProvider.tsx
+│   ├── Alert.tsx         # 추가 권장
+│   └── Spinner.tsx       # 추가 권장
+│
+├── data-display/         # 데이터 표시 (신규)
+│   ├── EmptyState.tsx    # ui/에서 이동
+│   ├── ErrorState.tsx
+│   ├── LoadingSkeleton.tsx
+│   └── SkeletonForm.tsx
+│
+└── charts/               # 차트 컴포넌트 (신규)
+    ├── BarChart.tsx
+    ├── LineChart.tsx
+    └── PieChart.tsx
+```
 
-3. **`app/(student)/today/_components/TodayRecommendations.tsx`** (서버 컴포넌트)
-   - 서버에서 추천 데이터 조회
-   - 정적 렌더링
+### 2.2 네이밍 규칙
 
-#### ⚠️ 개선 가능한 영역
+| 유형 | 규칙 | 예시 |
+|------|------|------|
+| 컴포넌트 파일 | PascalCase | `SchoolSelect.tsx` |
+| 폴더 | kebab-case | `data-display/` |
+| 상수/설정 | camelCase | `categoryConfig.ts` |
+| 훅 파일 | camelCase + use | `useSchoolSearch.ts` |
 
-1. **`app/(student)/today/_components/PlanViewContainer.tsx`** (클라이언트 컴포넌트)
-   - 실시간 업데이트가 필요하므로 클라이언트 컴포넌트 유지 필요
-   - 하지만 초기 데이터는 서버에서 가져올 수 있음
+---
 
-2. **`app/(student)/today/_components/TodayPageContent.tsx`** (클라이언트 컴포넌트)
-   - 사용자 인터랙션이 많으므로 클라이언트 컴포넌트 유지 필요
-   - 초기 데이터는 서버에서 가져오고 있음 (잘 적용됨)
+## 3. 컴포넌트 분류 기준
 
-### 권장 패턴
+### 3.1 공용 컴포넌트 (`components/`)
 
-#### 패턴 1: 서버 컴포넌트에서 데이터 페칭 후 클라이언트 컴포넌트에 전달
+다음 조건 중 하나 이상을 만족할 때:
 
-```tsx
-// app/page.tsx (서버 컴포넌트)
-export default async function Page() {
-  const data = await fetchData();
-  return <ClientComponent initialData={data} />;
+- **3곳 이상**에서 사용됨
+- **도메인 독립적** (특정 비즈니스 로직 없음)
+- **스타일 일관성** 필요 (브랜드 컴포넌트)
+
+### 3.2 페이지 컴포넌트 (`_components/`)
+
+다음 조건을 모두 만족할 때:
+
+- **1-2곳**에서만 사용
+- **특정 페이지**에 종속
+- **비즈니스 로직** 포함
+
+### 3.3 예시
+
+```typescript
+// ✅ 공용 컴포넌트 (components/ui/)
+// - 3곳 이상에서 사용
+// - 순수 UI (로직 없음)
+export function Badge({ variant, children }: BadgeProps) {
+  return <span className={badgeVariants[variant]}>{children}</span>;
 }
 
-// components/ClientComponent.tsx (클라이언트 컴포넌트)
-"use client";
-export function ClientComponent({ initialData }) {
-  const [data, setData] = useState(initialData);
-  // 인터랙션 로직
+// ✅ 페이지 컴포넌트 (_components/)
+// - scores 페이지에서만 사용
+// - 성적 관련 비즈니스 로직 포함
+export function ScoreForm({ action, initialData }: ScoreFormProps) {
+  // 성적 검증 로직
+  // 성적 계산 로직
+  return <form>...</form>;
 }
 ```
 
-#### 패턴 2: 서버 컴포넌트와 클라이언트 컴포넌트 분리
+---
 
-```tsx
-// components/ServerDataFetcher.tsx (서버 컴포넌트)
-export async function ServerDataFetcher() {
-  const data = await fetchData();
-  return <ClientInteractiveComponent data={data} />;
-}
+## 4. 재사용 가능한 컴포넌트 추출 후보
 
-// components/ClientInteractiveComponent.tsx (클라이언트 컴포넌트)
-"use client";
-export function ClientInteractiveComponent({ data }) {
-  // 인터랙션 로직
-}
+### 4.1 폼 컴포넌트
+
+현재 유사한 폼이 여러 곳에 분산:
+
+```
+app/(student)/scores/_components/ScoreForm.tsx
+app/(student)/scores/_components/ScoreFormModal.tsx
+app/(student)/scores/mock/.../_components/MockScoreFormModal.tsx
+app/(student)/scores/school/.../_components/SchoolScoreForm.tsx
 ```
 
-### 불필요한 "use client" 제거 체크리스트
+**권장 개선:**
 
-- [ ] 단순히 스타일링만 하는 컴포넌트
-- [ ] 서버에서 데이터를 가져올 수 있는 컴포넌트
-- [ ] 정적 콘텐츠만 렌더링하는 컴포넌트
-- [ ] 인터랙션이 없는 컴포넌트
+```typescript
+// components/forms/ScoreForm/
+// ├── ScoreFormBase.tsx      # 공통 폼 구조
+// ├── SchoolScoreFields.tsx  # 내신 전용 필드
+// ├── MockScoreFields.tsx    # 모의고사 전용 필드
+// └── index.tsx              # 조건부 렌더링
+```
 
-### 현재 상태
+### 4.2 차트 컴포넌트
 
-- 대부분의 컴포넌트가 적절하게 서버/클라이언트로 분리되어 있음
-- 실시간 업데이트가 필요한 컴포넌트는 클라이언트 컴포넌트로 유지
-- 서버 컴포넌트에서 데이터 페칭 후 props로 전달하는 패턴이 잘 적용됨
+현재 차트가 각 대시보드에 개별 구현:
 
-### 향후 개선 사항
+```
+app/(student)/scores/dashboard/_components/CourseAverageChart.tsx
+app/(student)/scores/dashboard/school/_components/SchoolGradeDistributionChart.tsx
+app/(student)/report/weekly/_components/WeeklyTimeBarChart.tsx
+```
 
-1. 초기 데이터 로딩 최적화: 클라이언트 컴포넌트의 초기 데이터를 서버에서 가져오도록 개선
-2. 컴포넌트 분리: 데이터 페칭과 인터랙션 로직을 더 명확히 분리
-3. 성능 최적화: 불필요한 클라이언트 번들 크기 감소
+**권장 개선:**
 
+```typescript
+// components/charts/
+// ├── BaseChart.tsx          # 공통 차트 wrapper
+// ├── GradeChart.tsx         # 성적 관련 차트
+// ├── TimeChart.tsx          # 시간 관련 차트
+// └── hooks/useChartData.ts  # 데이터 변환 훅
+```
+
+---
+
+## 5. 점진적 마이그레이션 계획
+
+### Phase 1: 구조 정비 (현재)
+- [x] 컴포넌트 구조 가이드 문서화
+- [ ] 공용 컴포넌트 폴더 확장 (forms, feedback 등)
+
+### Phase 2: 새 컴포넌트 적용
+- [ ] 새로 만드는 컴포넌트는 가이드라인 준수
+- [ ] 기존 컴포넌트 사용 시 위치 유지
+
+### Phase 3: 점진적 통합
+- [ ] 3곳 이상 사용되는 컴포넌트 추출
+- [ ] 중복 컴포넌트 통합
+- [ ] 페이지별 import 경로 업데이트
+
+---
+
+## 6. 컴포넌트 작성 가이드
+
+### 6.1 기본 구조
+
+```typescript
+// components/ui/Button.tsx
+
+import { cn } from "@/lib/cn";
+import { ButtonHTMLAttributes, forwardRef } from "react";
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "ghost";
+  size?: "sm" | "md" | "lg";
+}
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = "primary", size = "md", ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          "rounded-lg font-medium transition-colors",
+          variantStyles[variant],
+          sizeStyles[size],
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+
+Button.displayName = "Button";
+
+const variantStyles = {
+  primary: "bg-blue-600 text-white hover:bg-blue-700",
+  secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+  ghost: "text-gray-600 hover:bg-gray-100",
+};
+
+const sizeStyles = {
+  sm: "px-3 py-1.5 text-sm",
+  md: "px-4 py-2 text-base",
+  lg: "px-6 py-3 text-lg",
+};
+```
+
+### 6.2 Export 규칙
+
+```typescript
+// components/ui/index.ts
+export { Badge } from "./Badge";
+export { Button, type ButtonProps } from "./Button";
+export { Card } from "./Card";
+// ...
+```
+
+---
+
+## 7. 참고
+
+- [Atomic Design](https://bradfrost.com/blog/post/atomic-web-design/)
+- [Component Driven Development](https://www.componentdriven.org/)
