@@ -73,11 +73,31 @@ export function CampPlanGroupReviewForm({
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState<"overview" | "step1" | "step2" | "step3" | "step4">("overview");
 
-  // 콘텐츠 상세 정보 조회
+  // 콘텐츠 상세 정보 조회 (서버에서 이미 조회한 경우 재조회하지 않음)
   useEffect(() => {
     const loadContentInfos = async () => {
       try {
         setLoading(true);
+        
+        // 서버에서 이미 상세 정보를 포함한 경우 확인
+        const hasServerDetails = contents.some(
+          (c) => (c as any).contentTitle || (c as any).contentSubtitle !== undefined
+        );
+
+        if (hasServerDetails) {
+          // 서버에서 이미 조회한 정보 사용
+          const infos = contents.map((content) => ({
+            content_id: content.content_id,
+            content_type: content.content_type,
+            title: (content as any).contentTitle || "",
+            subject_category: (content as any).contentSubtitle || null,
+          }));
+          setContentInfos(infos);
+          setLoading(false);
+          return;
+        }
+
+        // 서버에서 조회하지 않은 경우 클라이언트에서 조회
         const supabase = createSupabaseBrowserClient();
 
         // 콘텐츠별로 과목 정보 조회
@@ -133,6 +153,18 @@ export function CampPlanGroupReviewForm({
                   title = masterLecture.title || "";
                   subject_category = masterLecture.subject_category || null;
                 }
+              }
+            } else if (content.content_type === "custom") {
+              // 커스텀 콘텐츠 조회
+              const { data: custom } = await supabase
+                .from("student_custom_contents")
+                .select("title, subject")
+                .eq("id", content.content_id)
+                .maybeSingle();
+
+              if (custom) {
+                title = custom.title || "";
+                subject_category = custom.subject || null;
               }
             }
 

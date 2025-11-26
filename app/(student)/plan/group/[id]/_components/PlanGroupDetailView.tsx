@@ -80,10 +80,10 @@ export function PlanGroupDetailView({
     { id: 7, label: "스케줄 결과", completed: hasPlans },
   ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, contentsWithDetails, hasPlans]);
 
-  // 캠프 제출 모드일 때 탭 필터링 (1, 2, 4, 5만 표시)
+  // 캠프 제출 모드일 때 탭 필터링 (1, 2, 4만 표시, 추천 콘텐츠 제외)
   const tabs = useMemo(() => {
     if (campSubmissionMode) {
-      return allTabs.filter(tab => [1, 2, 4, 5].includes(tab.id));
+      return allTabs.filter(tab => [1, 2, 4].includes(tab.id));
     }
     return allTabs;
   }, [allTabs, campSubmissionMode]);
@@ -91,7 +91,7 @@ export function PlanGroupDetailView({
   // 허용된 탭 ID 목록
   const allowedTabIds = useMemo(() => {
     if (campSubmissionMode) {
-      return [1, 2, 4, 5];
+      return [1, 2, 4];
     }
     return [1, 2, 3, 4, 5, 6, 7];
   }, [campSubmissionMode]);

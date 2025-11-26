@@ -892,7 +892,12 @@ export const getCampPlanGroupForReview = withErrorHandling(
         .single();
 
       if (template?.template_data) {
-        const templateData = template.template_data as any;
+        let templateData: any = null;
+        if (typeof template.template_data === "string") {
+          templateData = JSON.parse(template.template_data);
+        } else {
+          templateData = template.template_data;
+        }
         
         // scheduler_options에서 template_block_set_id 확인 (우선)
         const schedulerOptions = (result.group.scheduler_options as any) || {};
@@ -900,30 +905,34 @@ export const getCampPlanGroupForReview = withErrorHandling(
         
         // scheduler_options에 없으면 template_data에서 확인
         if (!templateBlockSetId) {
-          templateBlockSetId = templateData.block_set_id;
+          templateBlockSetId = templateData?.block_set_id;
         }
 
         if (templateBlockSetId) {
           // 템플릿 블록 세트 조회
-          const { data: templateBlockSet } = await supabase
+          const { data: templateBlockSet, error: blockSetError } = await supabase
             .from("template_block_sets")
             .select("id, name")
             .eq("id", templateBlockSetId)
             .eq("template_id", result.group.camp_template_id)
-            .single();
+            .maybeSingle();
 
-          if (templateBlockSet) {
+          if (blockSetError) {
+            console.error("[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:", blockSetError);
+          } else if (templateBlockSet) {
             templateBlockSetName = templateBlockSet.name;
 
             // 템플릿 블록 조회
-            const { data: blocks } = await supabase
+            const { data: blocks, error: blocksError } = await supabase
               .from("template_blocks")
               .select("id, day_of_week, start_time, end_time")
               .eq("template_block_set_id", templateBlockSetId)
               .order("day_of_week", { ascending: true })
               .order("start_time", { ascending: true });
 
-            if (blocks) {
+            if (blocksError) {
+              console.error("[getCampPlanGroupForReview] 템플릿 블록 조회 에러:", blocksError);
+            } else if (blocks && blocks.length > 0) {
               templateBlocks = blocks.map((b) => ({
                 id: b.id,
                 day_of_week: b.day_of_week,
@@ -936,10 +945,48 @@ export const getCampPlanGroupForReview = withErrorHandling(
       }
     }
 
+    // 콘텐츠 상세 정보 조회 (관리자가 학생의 추가 콘텐츠 정보를 제대로 볼 수 있도록)
+    let contentsWithDetails = result.contents;
+    if (result.group.student_id && result.contents.length > 0) {
+      try {
+        const { classifyPlanContents } = await import("@/lib/data/planContents");
+        const { studentContents, recommendedContents } = await classifyPlanContents(
+          result.contents,
+          result.group.student_id
+        );
+
+        // 상세 페이지 형식으로 변환
+        const allContents = [...studentContents, ...recommendedContents];
+        const contentsMap = new Map(allContents.map((c) => [c.content_id, c]));
+
+        contentsWithDetails = result.contents.map((content) => {
+          const detail = contentsMap.get(content.content_id);
+          if (!detail) {
+            return {
+              ...content,
+              contentTitle: "알 수 없음",
+              contentSubtitle: null,
+              isRecommended: false,
+            };
+          }
+
+          return {
+            ...content,
+            contentTitle: detail.title || "알 수 없음",
+            contentSubtitle: detail.subject_category || null,
+            isRecommended: detail.isRecommended,
+          };
+        });
+      } catch (error) {
+        console.error("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 실패:", error);
+        // 에러가 발생해도 원본 contents 반환
+      }
+    }
+
     return {
       success: true,
       group: result.group,
-      contents: result.contents,
+      contents: contentsWithDetails,
       exclusions: result.exclusions,
       academySchedules: result.academySchedules,
       templateBlocks,
