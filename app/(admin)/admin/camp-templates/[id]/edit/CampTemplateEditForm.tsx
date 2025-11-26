@@ -4,12 +4,22 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { updateCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
-import { PlanGroupWizard, WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { CampTemplate, CampProgramType, RequiredSubject } from "@/lib/types/plan";
+import {
+  PlanGroupWizard,
+  WizardData,
+} from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import {
+  CampTemplate,
+  CampProgramType,
+  RequiredSubject,
+} from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BlockSetWithBlocks } from "@/lib/data/blockSets";
 import { TemplateFormChecklist } from "../../_components/TemplateFormChecklist";
-import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(admin)/actions/subjectActions";
+import {
+  getSubjectGroupsAction,
+  getSubjectsByGroupAction,
+} from "@/app/(admin)/actions/subjectActions";
 import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
@@ -27,27 +37,40 @@ const programTypes: Array<{ value: CampProgramType; label: string }> = [
   { value: "기타", label: "기타" },
 ];
 
-const statuses: Array<{ value: "draft" | "active" | "archived"; label: string }> = [
+const statuses: Array<{
+  value: "draft" | "active" | "archived";
+  label: string;
+}> = [
   { value: "draft", label: "초안" },
   { value: "active", label: "활성" },
   { value: "archived", label: "보관" },
 ];
 
-export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplateEditFormProps) {
+export function CampTemplateEditForm({
+  template,
+  initialBlockSets,
+}: CampTemplateEditFormProps) {
   const router = useRouter();
   const toast = useToast();
-  
+
   // template_data에서 템플릿 이름 추출
   const templateData = (template.template_data as Partial<WizardData>) || {};
-  const [templateName, setTemplateName] = useState((templateData as Partial<WizardData>).name || template.name || "");
-  const [programType, setProgramType] = useState<CampProgramType>(template.program_type);
+  const [templateName, setTemplateName] = useState(
+    (templateData as Partial<WizardData>).name || template.name || ""
+  );
+  const [programType, setProgramType] = useState<CampProgramType>(
+    template.program_type
+  );
   const [description, setDescription] = useState(template.description || "");
-  
+
   // 날짜 형식 안전하게 변환 (이미 문자열인 경우 처리)
   const formatDateForInput = (dateValue: string | null | undefined): string => {
     if (!dateValue) return "";
     // 이미 YYYY-MM-DD 형식인 경우
-    if (typeof dateValue === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    if (
+      typeof dateValue === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(dateValue)
+    ) {
       return dateValue;
     }
     // ISO 형식인 경우 (YYYY-MM-DDTHH:mm:ss 형식)
@@ -56,28 +79,43 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     }
     return "";
   };
-  
-  const [campStartDate, setCampStartDate] = useState(formatDateForInput(template.camp_start_date));
-  const [campEndDate, setCampEndDate] = useState(formatDateForInput(template.camp_end_date));
-  const [campLocation, setCampLocation] = useState(template.camp_location || "");
+
+  const [campStartDate, setCampStartDate] = useState(
+    formatDateForInput(template.camp_start_date)
+  );
+  const [campEndDate, setCampEndDate] = useState(
+    formatDateForInput(template.camp_end_date)
+  );
+  const [campLocation, setCampLocation] = useState(
+    template.camp_location || ""
+  );
 
   // 개정교육과정 및 교과-과목 데이터
-  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
-  const [selectedRevisionId, setSelectedRevisionId] = useState<string | undefined>(undefined);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<
+    CurriculumRevision[]
+  >([]);
+  const [selectedRevisionId, setSelectedRevisionId] = useState<
+    string | undefined
+  >(undefined);
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
-  const [subjectsByGroup, setSubjectsByGroup] = useState<Map<string, Subject[]>>(new Map());
+  const [subjectsByGroup, setSubjectsByGroup] = useState<
+    Map<string, Subject[]>
+  >(new Map());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [loadingSubjects, setLoadingSubjects] = useState(false);
-  
+
   // 콘텐츠 선택 검증 설정
   const subjectConstraints = templateData.subject_constraints;
-  const [enableRequiredSubjectsValidation, setEnableRequiredSubjectsValidation] = useState(
+  const [
+    enableRequiredSubjectsValidation,
+    setEnableRequiredSubjectsValidation,
+  ] = useState(
     subjectConstraints?.enable_required_subjects_validation || false
   );
   const [requiredSubjects, setRequiredSubjects] = useState<RequiredSubject[]>(
     subjectConstraints?.required_subjects || []
   );
-  
+
   // 개정교육과정 및 교과-과목 데이터 로드
   useEffect(() => {
     loadCurriculumRevisions();
@@ -101,7 +139,7 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
       toast.showError("개정교육과정 목록을 불러오는데 실패했습니다.");
     }
   }
-  
+
   async function loadSubjectGroups(revisionId: string) {
     try {
       setLoadingSubjects(true);
@@ -114,12 +152,12 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
       setLoadingSubjects(false);
     }
   }
-  
+
   async function loadSubjectsForGroup(groupId: string) {
     if (subjectsByGroup.has(groupId)) {
       return; // 이미 로드됨
     }
-    
+
     try {
       const subjects = await getSubjectsByGroupAction(groupId);
       setSubjectsByGroup((prev) => {
@@ -132,7 +170,7 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
       toast.showError("과목 목록을 불러오는데 실패했습니다.");
     }
   }
-  
+
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
       const newSet = new Set(prev);
@@ -146,18 +184,23 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
     });
   };
 
-  const addRequiredSubject = (groupId: string, groupName: string, subjectId?: string, subjectName?: string) => {
+  const addRequiredSubject = (
+    groupId: string,
+    groupName: string,
+    subjectId?: string,
+    subjectName?: string
+  ) => {
     const newSubject: RequiredSubject = {
       subject_category: groupName,
       subject: subjectName,
       min_count: 1,
     };
-    
+
     // 중복 체크
     const isDuplicate = requiredSubjects.some(
       (rs) => rs.subject_category === groupName && rs.subject === subjectName
     );
-    
+
     if (!isDuplicate) {
       setRequiredSubjects((prev) => [...prev, newSubject]);
     }
@@ -182,7 +225,10 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
       name: templateName || wizardData.name, // templateName을 우선 사용
       subject_constraints: {
         enable_required_subjects_validation: enableRequiredSubjectsValidation,
-        required_subjects: enableRequiredSubjectsValidation && requiredSubjects.length > 0 ? requiredSubjects : undefined,
+        required_subjects:
+          enableRequiredSubjectsValidation && requiredSubjects.length > 0
+            ? requiredSubjects
+            : undefined,
         constraint_handling: "strict", // 기본값
       },
     };
@@ -249,11 +295,16 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
 
       {/* 템플릿 메타 정보 입력 섹션 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">템플릿 기본 정보</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          템플릿 기본 정보
+        </h2>
         <div className="grid gap-4 md:grid-cols-2">
           {/* 템플릿 이름 */}
           <div className="md:col-span-2">
-            <label htmlFor="template_name" className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="template_name"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
               템플릿 이름 <span className="text-red-500">*</span>
             </label>
             <input
@@ -271,13 +322,18 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
 
           {/* 프로그램 유형 */}
           <div>
-            <label htmlFor="program_type" className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="program_type"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
               프로그램 유형 <span className="text-red-500">*</span>
             </label>
             <select
               id="program_type"
               value={programType}
-              onChange={(e) => setProgramType(e.target.value as CampProgramType)}
+              onChange={(e) =>
+                setProgramType(e.target.value as CampProgramType)
+              }
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
               required
             >
@@ -289,10 +345,12 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
             </select>
           </div>
 
-
           {/* 설명 */}
           <div className="md:col-span-2">
-            <label htmlFor="description" className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="description"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
               설명
             </label>
             <textarea
@@ -307,7 +365,10 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
 
           {/* 캠프 기간 */}
           <div>
-            <label htmlFor="camp_start_date" className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="camp_start_date"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
               캠프 시작일
             </label>
             <input
@@ -320,7 +381,10 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
           </div>
 
           <div>
-            <label htmlFor="camp_end_date" className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="camp_end_date"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
               캠프 종료일
             </label>
             <input
@@ -335,7 +399,10 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
 
           {/* 캠프 장소 */}
           <div className="md:col-span-2">
-            <label htmlFor="camp_location" className="mb-2 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="camp_location"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
               캠프 장소
             </label>
             <input
@@ -356,7 +423,8 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
             4단계 콘텐츠 선택 검증 설정
           </h3>
           <p className="mb-4 text-sm text-gray-600">
-            학생이 캠프 템플릿 입력 시 4단계 콘텐츠 선택에서 적용될 검증 규칙을 설정합니다.
+            학생이 캠프 템플릿 입력 시 4단계 콘텐츠 선택에서 적용될 검증 규칙을
+            설정합니다.
           </p>
 
           {/* 필수 과목 검증 활성화 */}
@@ -378,7 +446,8 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
               </span>
             </label>
             <p className="mt-1 text-xs text-gray-500">
-              활성화 시, 학생이 선택한 콘텐츠에 지정된 필수 과목이 각각 1개 이상 포함되어야 합니다.
+              활성화 시, 학생이 선택한 콘텐츠에 지정된 필수 과목이 각각 1개 이상
+              포함되어야 합니다.
             </p>
           </div>
 
@@ -392,7 +461,9 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
                 </label>
                 <select
                   value={selectedRevisionId || ""}
-                  onChange={(e) => setSelectedRevisionId(e.target.value || undefined)}
+                  onChange={(e) =>
+                    setSelectedRevisionId(e.target.value || undefined)
+                  }
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   <option value="">선택하세요</option>
@@ -416,82 +487,93 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
               {/* 교과별 트리 구조 */}
               <div className="max-h-96 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-4">
                 {!selectedRevisionId && (
-                  <p className="text-sm text-gray-500">개정교육과정을 선택해주세요.</p>
+                  <p className="text-sm text-gray-500">
+                    개정교육과정을 선택해주세요.
+                  </p>
                 )}
-                {selectedRevisionId && subjectGroups.length === 0 && !loadingSubjects && (
-                  <p className="text-sm text-gray-500">교과 그룹 목록이 없습니다.</p>
-                )}
-                {selectedRevisionId && subjectGroups.map((group) => {
-                  const isExpanded = expandedGroups.has(group.id);
-                  const subjects = subjectsByGroup.get(group.id) || [];
-                  const hasSubjects = subjects.length > 0;
+                {selectedRevisionId &&
+                  subjectGroups.length === 0 &&
+                  !loadingSubjects && (
+                    <p className="text-sm text-gray-500">
+                      교과 그룹 목록이 없습니다.
+                    </p>
+                  )}
+                {selectedRevisionId &&
+                  subjectGroups.map((group) => {
+                    const isExpanded = expandedGroups.has(group.id);
+                    const subjects = subjectsByGroup.get(group.id) || [];
+                    const hasSubjects = subjects.length > 0;
 
-                  return (
-                    <div key={group.id} className="space-y-1">
-                      {/* 교과 헤더 */}
-                      <div className="flex items-center gap-2">
-                        <div
-                          onClick={() => hasSubjects && toggleGroup(group.id)}
-                          className={cn(
-                            "flex flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors",
-                            hasSubjects ? "cursor-pointer hover:bg-gray-100" : "cursor-not-allowed opacity-50"
-                          )}
-                        >
-                          {hasSubjects ? (
-                            isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )
-                          ) : (
-                            <div className="h-4 w-4" />
-                          )}
-                          <span className="flex-1">{group.name}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addRequiredSubject(group.id, group.name);
-                            }}
-                            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
+                    return (
+                      <div key={group.id} className="space-y-1">
+                        {/* 교과 헤더 */}
+                        <div className="flex items-center gap-2">
+                          <div
+                            onClick={() => hasSubjects && toggleGroup(group.id)}
+                            className={cn(
+                              "flex flex-1 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors",
+                              hasSubjects
+                                ? "cursor-pointer hover:bg-gray-100"
+                                : "cursor-not-allowed opacity-50"
+                            )}
                           >
-                            <Plus className="h-3 w-3" />
-                            교과 추가
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 세부 과목 목록 */}
-                      {isExpanded && hasSubjects && (
-                        <div className="ml-6 space-y-1 border-l-2 border-gray-200 pl-3">
-                          {subjects.map((subject) => (
-                            <div
-                              key={subject.id}
-                              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2"
+                            {hasSubjects ? (
+                              isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )
+                            ) : (
+                              <div className="h-4 w-4" />
+                            )}
+                            <span className="flex-1">{group.name}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addRequiredSubject(group.id, group.name);
+                              }}
+                              className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
                             >
-                              <span className="text-sm text-gray-700">{subject.name}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  addRequiredSubject(
-                                    group.id,
-                                    group.name,
-                                    subject.id,
-                                    subject.name
-                                  )
-                                }
-                                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-                              >
-                                <Plus className="h-3 w-3" />
-                                추가
-                              </button>
-                            </div>
-                          ))}
+                              <Plus className="h-3 w-3" />
+                              교과 추가
+                            </button>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        {/* 세부 과목 목록 */}
+                        {isExpanded && hasSubjects && (
+                          <div className="ml-6 space-y-1 border-l-2 border-gray-200 pl-3">
+                            {subjects.map((subject) => (
+                              <div
+                                key={subject.id}
+                                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2"
+                              >
+                                <span className="text-sm text-gray-700">
+                                  {subject.name}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    addRequiredSubject(
+                                      group.id,
+                                      group.name,
+                                      subject.id,
+                                      subject.name
+                                    )
+                                  }
+                                  className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  추가
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
 
               {/* 선택된 필수 과목 목록 */}
@@ -510,12 +592,16 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
                           <div className="text-sm font-medium text-gray-900">
                             {rs.subject_category}
                             {rs.subject && (
-                              <span className="ml-1 text-gray-600">- {rs.subject}</span>
+                              <span className="ml-1 text-gray-600">
+                                - {rs.subject}
+                              </span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <label className="text-xs text-gray-600">최소 개수:</label>
+                          <label className="text-xs text-gray-600">
+                            최소 개수:
+                          </label>
                           <input
                             type="number"
                             min="1"
@@ -543,11 +629,13 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
                 </div>
               )}
 
-              {requiredSubjects.length === 0 && enableRequiredSubjectsValidation && (
-                <p className="text-xs text-amber-600">
-                  필수 과목 검증을 활성화하려면 최소 1개 이상의 교과 또는 과목을 선택해주세요.
-                </p>
-              )}
+              {requiredSubjects.length === 0 &&
+                enableRequiredSubjectsValidation && (
+                  <p className="text-xs text-amber-600">
+                    필수 과목 검증을 활성화하려면 최소 1개 이상의 교과 또는
+                    과목을 선택해주세요.
+                  </p>
+                )}
             </div>
           )}
         </div>
@@ -562,7 +650,8 @@ export function CampTemplateEditForm({ template, initialBlockSets }: CampTemplat
           name: templateName, // templateName state와 동기화
           templateId: template.id, // 명시적으로 template.id 전달 (최우선)
           subject_constraints: {
-            enable_required_subjects_validation: enableRequiredSubjectsValidation,
+            enable_required_subjects_validation:
+              enableRequiredSubjectsValidation,
             required_subjects:
               enableRequiredSubjectsValidation && requiredSubjects.length > 0
                 ? requiredSubjects

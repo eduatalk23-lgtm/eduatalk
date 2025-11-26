@@ -168,17 +168,11 @@ export default async function CampSubmissionDetailPage({
         }
       }
 
-      // block_set_id 찾기: template_data에서 먼저 확인, 없으면 scheduler_options에서 확인
+      // block_set_id 찾기: scheduler_options에서 먼저 확인 (실제 저장된 값), 없으면 template_data에서 확인
       let blockSetId: string | null = null;
       
-      // 1. template_data에서 block_set_id 확인
-      if (templateData?.block_set_id) {
-        blockSetId = templateData.block_set_id;
-        console.log("[CampSubmissionDetailPage] template_data에서 block_set_id 발견:", blockSetId);
-      }
-      
-      // 2. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로)
-      if (!blockSetId && group.scheduler_options) {
+      // 1. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로 - 우선 확인)
+      if (group.scheduler_options) {
         let schedulerOptions: any = null;
         if (typeof group.scheduler_options === "string") {
           try {
@@ -194,6 +188,12 @@ export default async function CampSubmissionDetailPage({
           blockSetId = schedulerOptions.template_block_set_id;
           console.log("[CampSubmissionDetailPage] scheduler_options에서 template_block_set_id 발견:", blockSetId);
         }
+      }
+      
+      // 2. template_data에서 block_set_id 확인 (fallback)
+      if (!blockSetId && templateData?.block_set_id) {
+        blockSetId = templateData.block_set_id;
+        console.log("[CampSubmissionDetailPage] template_data에서 block_set_id 발견:", blockSetId);
       }
       
       if (blockSetId) {
