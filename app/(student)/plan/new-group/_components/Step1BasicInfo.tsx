@@ -246,6 +246,15 @@ export function Step1BasicInfo({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  // 초기 로드 시 블록 세트 목록 자동 로드
+  useEffect(() => {
+    // blockSets가 비어있고 아직 로딩 중이 아닐 때만 자동 로드
+    if (blockSets.length === 0 && !isLoadingBlockSets) {
+      handleLoadBlockSets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 초기 마운트 시에만 실행
+
   // 템플릿 블록 세트 자동 선택 (blockSets가 로드된 후)
   useEffect(() => {
     if (data.block_set_id && blockSets.length > 0) {
@@ -614,15 +623,8 @@ export function Step1BasicInfo({
       (async () => {
         try {
           if (isTemplateMode) {
-            if (!templateId) {
-              // 새 템플릿 생성 시에는 블록 세트 목록이 없음 (정상)
-              if (onBlockSetsLoaded) {
-                onBlockSetsLoaded([]);
-              }
-              setBlockSetMode("select");
-              setIsLoadingBlockSets(false);
-              return;
-            }
+            // templateId가 없어도 템플릿에 연결되지 않은 블록 세트를 조회
+            // (새 템플릿 생성 시에도 기존 블록 세트를 선택할 수 있도록)
             const latestBlockSets = await getTemplateBlockSets(
               templateId || null
             );
