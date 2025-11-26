@@ -235,8 +235,8 @@ export type WizardData = {
 type PlanGroupWizardProps = {
   initialBlockSets?: Array<{ id: string; name: string }>;
   initialContents?: {
-    books: Array<{ id: string; title: string; subtitle?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null }>;
+    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   initialData?: Partial<WizardData> & { groupId?: string; templateId?: string; templateProgramType?: string; templateStatus?: string; _startStep?: number };

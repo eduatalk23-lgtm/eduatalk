@@ -12,6 +12,7 @@ export type ContentItem = {
   id: string;
   title: string;
   subtitle?: string | null;
+  master_content_id?: string | null;
 };
 
 /**
@@ -53,7 +54,7 @@ export async function fetchStudentBooks(
   try {
     const { data, error } = await supabase
       .from("books")
-      .select("id, title, subject")
+      .select("id, title, subject, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -64,6 +65,7 @@ export async function fetchStudentBooks(
         id: book.id,
         title: book.title || "제목 없음",
         subtitle: book.subject || null,
+        master_content_id: book.master_content_id || null,
       })) || []
     );
   } catch (err) {
@@ -83,7 +85,7 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject")
+      .select("id, title, subject, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -94,6 +96,7 @@ export async function fetchStudentLectures(
         id: lecture.id,
         title: lecture.title || "제목 없음",
         subtitle: lecture.subject || null,
+        master_content_id: lecture.master_content_id || null,
       })) || []
     );
   } catch (err) {

@@ -11,8 +11,8 @@ type Step3ContentsProps = {
   data: WizardData;
   onUpdate: (updates: Partial<WizardData>) => void;
   contents: {
-    books: Array<{ id: string; title: string; subtitle?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null }>;
+    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   onSaveDraft?: () => void;
@@ -582,6 +582,11 @@ export function Step3Contents({
                           <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                             📚 교재
                           </span>
+                          {book.master_content_id && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              📦 마스터에서 가져옴
+                            </span>
+                          )}
                           {metadata?.subject && (
                             <>
                               <span>·</span>
@@ -915,6 +920,11 @@ export function Step3Contents({
                           <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
                             🎧 강의
                           </span>
+                          {lecture.master_content_id && (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                              📦 마스터에서 가져옴
+                            </span>
+                          )}
                           {metadata?.subject && (
                             <>
                               <span>·</span>
@@ -1255,6 +1265,18 @@ export function Step3Contents({
                     {content.content_type === "book" && "📚 책"}
                     {content.content_type === "lecture" && "🎧 강의"}
                   </span>
+                  {(() => {
+                    const contentType = content.content_type;
+                    const contentId = content.content_id;
+                    const foundContent = contentType === "book"
+                      ? contents.books.find((b) => b.id === contentId)
+                      : contents.lectures.find((l) => l.id === contentId);
+                    return foundContent?.master_content_id ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                        📦 마스터에서 가져옴
+                      </span>
+                    ) : null;
+                  })()}
                   {getContentSubtitle(
                     content.content_type,
                     content.content_id
