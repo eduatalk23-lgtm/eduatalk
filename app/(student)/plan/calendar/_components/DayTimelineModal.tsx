@@ -62,7 +62,7 @@ export function DayTimelineModal({
 
   // 통계 계산
   const totalPlans = plans.length;
-  const completedPlans = plans.filter((p) => p.progress !== null && p.progress >= 100).length;
+  const completedPlans = plans.filter((p) => p.progress != null && p.progress >= 100).length;
   const activePlans = plans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
   const averageProgress =
     totalPlans > 0
@@ -108,7 +108,6 @@ export function DayTimelineModal({
       open={open}
       onOpenChange={onOpenChange}
       title={formatDateFull(date)}
-      description={description}
       maxWidth="4xl"
     >
       <div className="w-full max-h-[90vh] overflow-hidden">
@@ -237,7 +236,8 @@ export function DayTimelineModal({
                   }
 
                   // 점심시간, 이동시간, 자율학습 등 특수 타임슬롯 표시
-                  if (slot.type !== "학습시간" && slot.type !== "학원일정") {
+                  // (학습시간과 학원일정은 위에서 이미 처리됨)
+                  {
                     const colorClass = getTimeSlotColorClass(slot.type);
                     const icon = getTimeSlotIcon(slot.type);
 

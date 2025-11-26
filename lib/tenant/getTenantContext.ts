@@ -28,7 +28,51 @@ export async function getTenantContext(): Promise<TenantContext | null> {
       return null;
     }
 
-    // students 테이블에서 조회 (tenant_id 포함)
+    // 1. admin_users 테이블에서 조회 (최우선 - superadmin 확인)
+    const selectAdmin = () =>
+      supabase
+        .from("admin_users")
+        .select("id,role,tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    let { data: admin, error: adminError } = await selectAdmin();
+
+    if (adminError && adminError.code === "42703") {
+      // fallback: 컬럼이 없는 경우
+      const fallbackSelect = () =>
+        supabase
+          .from("admin_users")
+          .select("id,role")
+          .eq("id", user.id)
+          .maybeSingle<{ id: string; role?: string }>();
+      const fallbackResult = await fallbackSelect();
+      admin = fallbackResult.data;
+    }
+
+    if (adminError && adminError.code !== "PGRST116" && adminError.code !== "42703") {
+      console.error("[tenant] admin_users 조회 실패", adminError);
+    }
+
+    // Super Admin인 경우
+    if (admin && admin.role === "superadmin") {
+      return {
+        tenantId: null,
+        role: "superadmin",
+        userId: user.id,
+      };
+    }
+
+    // Admin/Consultant인 경우
+    if (admin) {
+      return {
+        tenantId: (admin as { tenant_id?: string | null })?.tenant_id ?? null,
+        role: admin.role === "admin" || admin.role === "consultant" ? admin.role : "admin",
+        userId: user.id,
+      };
+    }
+
+    // 2. students 테이블에서 조회 (tenant_id 포함)
     const selectStudent = () =>
       supabase
         .from("students")

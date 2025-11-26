@@ -1,8 +1,13 @@
 import { getPlansForStudent } from "@/lib/data/studentPlans";
+import type { Plan } from "@/lib/data/studentPlans";
 import { getSessionsInRange } from "@/lib/data/studentSessions";
 import { getGoalsForStudent } from "@/lib/data/studentGoals";
 import { getGoalProgressList } from "@/lib/data/studentGoals";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  calculatePlanStudySeconds,
+  buildActiveSessionMap,
+} from "@/lib/metrics/studyTime";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -49,9 +54,7 @@ export async function calculateTodayProgress(
     });
 
     const planTotalCount = plans.length;
-    const planCompletedCount = plans.filter(
-      (plan) => plan.progress !== null && plan.progress !== undefined && plan.progress >= 100
-    ).length;
+    const planCompletedCount = plans.filter((plan) => !!plan.actual_end_time).length;
 
     // 2. 해당 날짜의 세션 조회 및 학습 시간 계산
     const sessions = await getSessionsInRange({
@@ -63,12 +66,20 @@ export async function calculateTodayProgress(
       },
     });
 
-    const todayStudyMinutes = sessions.reduce((total, session) => {
-      if (session.duration_seconds) {
-        return total + Math.floor(session.duration_seconds / 60);
-      }
-      return total;
+    const activeSessionMap = buildActiveSessionMap(sessions);
+    const nowMs = Date.now();
+    const todayStudySeconds = plans.reduce((total, plan) => {
+      return (
+        total +
+        calculatePlanStudySeconds(
+          plan,
+          nowMs,
+          plan.actual_end_time ? undefined : activeSessionMap.get(plan.id)
+        )
+      );
     }, 0);
+
+    const todayStudyMinutes = Math.floor(todayStudySeconds / 60);
 
     // 3. 오늘 목표 진행률 조회
     const goals = await getGoalsForStudent({
@@ -154,4 +165,5 @@ export async function calculateTodayProgress(
     };
   }
 }
+
 

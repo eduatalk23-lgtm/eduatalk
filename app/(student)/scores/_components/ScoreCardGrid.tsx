@@ -1,0 +1,389 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { SchoolScore } from "@/lib/data/studentScores";
+import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
+import { ScoreCard } from "./ScoreCard";
+import { EmptyScoresState } from "./EmptyScoresState";
+import { Plus, Filter, ArrowUpDown } from "lucide-react";
+import { cn } from "@/lib/cn";
+
+type ScoreCardGridProps = {
+  initialGrade?: number;
+  initialSemester?: number;
+  scores: SchoolScore[];
+  subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
+  subjectTypes: SubjectType[];
+  onAddClick?: () => void;
+  onEdit: (score: SchoolScore) => void;
+  onDelete: (scoreId: string) => void;
+};
+
+type SortField = "grade" | "semester" | "grade_score" | "raw_score" | "subject_name";
+type SortOrder = "asc" | "desc";
+
+export function ScoreCardGrid({
+  initialGrade,
+  initialSemester,
+  scores,
+  subjectGroups,
+  subjectTypes,
+  onAddClick,
+  onEdit,
+  onDelete,
+}: ScoreCardGridProps) {
+  const [sortField, setSortField] = useState<SortField>("grade");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [filterGrade, setFilterGrade] = useState<string>(initialGrade?.toString() || "all");
+  const [filterSemester, setFilterSemester] = useState<string>(initialSemester?.toString() || "all");
+  const [filterSubjectGroup, setFilterSubjectGroup] = useState<string>("all");
+  const [filterSubject, setFilterSubject] = useState<string>("all");
+  const [filterSubjectType, setFilterSubjectType] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // 성적 데이터에 과목 정보 매핑
+  const scoresWithInfo = useMemo(() => {
+    return scores.map((score) => {
+      const group = score.subject_group_id
+        ? subjectGroups.find((g) => g.id === score.subject_group_id)
+        : subjectGroups.find((g) => g.name === score.subject_group);
+      const subject = score.subject_id
+        ? group?.subjects.find((s) => s.id === score.subject_id)
+        : group?.subjects.find((s) => s.name === score.subject_name);
+      const subjectType = score.subject_type_id
+        ? subjectTypes.find((st) => st.id === score.subject_type_id)
+        : score.subject_type
+          ? subjectTypes.find((st) => st.name === score.subject_type)
+          : null;
+
+      return {
+        score,
+        subjectGroupName: group?.name || score.subject_group || "",
+        subjectName: subject?.name || score.subject_name || "",
+        subjectTypeName: subjectType?.name || score.subject_type || "",
+      };
+    });
+  }, [scores, subjectGroups, subjectTypes]);
+
+  // 필터링 및 정렬
+  const filteredAndSortedScores = useMemo(() => {
+    let filtered = [...scoresWithInfo];
+
+    // 학년 필터링
+    if (filterGrade !== "all") {
+      filtered = filtered.filter(
+        (item) => item.score.grade === parseInt(filterGrade)
+      );
+    }
+
+    // 학기 필터링
+    if (filterSemester !== "all") {
+      filtered = filtered.filter(
+        (item) => item.score.semester === parseInt(filterSemester)
+      );
+    }
+
+    // 교과 필터링
+    if (filterSubjectGroup !== "all") {
+      filtered = filtered.filter(
+        (item) => item.subjectGroupName === filterSubjectGroup
+      );
+    }
+
+    // 과목 필터링
+    if (filterSubject !== "all") {
+      filtered = filtered.filter(
+        (item) => item.subjectName === filterSubject
+      );
+    }
+
+    // 과목 유형 필터링
+    if (filterSubjectType !== "all") {
+      filtered = filtered.filter((item) => item.subjectTypeName === filterSubjectType);
+    }
+
+    // 정렬
+    filtered.sort((a, b) => {
+      let aValue: number | string | null = null;
+      let bValue: number | string | null = null;
+
+      switch (sortField) {
+        case "grade":
+          aValue = a.score.grade ?? 0;
+          bValue = b.score.grade ?? 0;
+          break;
+        case "semester":
+          aValue = a.score.semester ?? 0;
+          bValue = b.score.semester ?? 0;
+          break;
+        case "grade_score":
+          aValue = a.score.grade_score ?? 999;
+          bValue = b.score.grade_score ?? 999;
+          break;
+        case "raw_score":
+          aValue = a.score.raw_score ?? 0;
+          bValue = b.score.raw_score ?? 0;
+          break;
+        case "subject_name":
+          aValue = a.subjectName;
+          bValue = b.subjectName;
+          break;
+      }
+
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [scoresWithInfo, sortField, sortOrder, filterGrade, filterSemester, filterSubjectGroup, filterSubject, filterSubjectType]);
+
+  // 고유한 교과 및 과목 유형 목록
+  const availableSubjectGroups = useMemo(() => {
+    const groups = new Set<string>();
+    scoresWithInfo.forEach((item) => {
+      if (item.subjectGroupName) groups.add(item.subjectGroupName);
+    });
+    return Array.from(groups).sort();
+  }, [scoresWithInfo]);
+
+  const availableSubjectTypes = useMemo(() => {
+    const types = new Set<string>();
+    scoresWithInfo.forEach((item) => {
+      if (item.subjectTypeName) types.add(item.subjectTypeName);
+    });
+    return Array.from(types).sort();
+  }, [scoresWithInfo]);
+
+  const availableSubjects = useMemo(() => {
+    const subjects = new Set<string>();
+    scoresWithInfo.forEach((item) => {
+      if (item.subjectName) subjects.add(item.subjectName);
+    });
+    return Array.from(subjects).sort();
+  }, [scoresWithInfo]);
+
+  const availableGrades = useMemo(() => {
+    const grades = new Set<number>();
+    scoresWithInfo.forEach((item) => {
+      if (item.score.grade) grades.add(item.score.grade);
+    });
+    return Array.from(grades).sort();
+  }, [scoresWithInfo]);
+
+  const availableSemesters = useMemo(() => {
+    const semesters = new Set<number>();
+    scoresWithInfo.forEach((item) => {
+      if (item.score.semester) semesters.add(item.score.semester);
+    });
+    return Array.from(semesters).sort();
+  }, [scoresWithInfo]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+  };
+
+  if (scores.length === 0) {
+    return <EmptyScoresState onAddClick={onAddClick} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* 필터 및 정렬 바 */}
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
+                showFilters
+                  ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              <Filter className="h-4 w-4" />
+              필터
+            </button>
+            {onAddClick && (
+              <button
+                onClick={onAddClick}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                <Plus className="h-4 w-4" />
+                성적 추가
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              총 {filteredAndSortedScores.length}개
+            </span>
+          </div>
+        </div>
+
+        {/* 필터 패널 */}
+        {showFilters && (
+          <div className="grid gap-4 border-t border-gray-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {/* 학년 필터 */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700">
+                학년
+              </label>
+              <select
+                value={filterGrade}
+                onChange={(e) => setFilterGrade(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">전체</option>
+                {availableGrades.map((grade) => (
+                  <option key={grade} value={grade.toString()}>
+                    {grade}학년
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 학기 필터 */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700">
+                학기
+              </label>
+              <select
+                value={filterSemester}
+                onChange={(e) => setFilterSemester(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">전체</option>
+                {availableSemesters.map((semester) => (
+                  <option key={semester} value={semester.toString()}>
+                    {semester}학기
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 교과 필터 */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700">
+                교과
+              </label>
+              <select
+                value={filterSubjectGroup}
+                onChange={(e) => {
+                  setFilterSubjectGroup(e.target.value);
+                  setFilterSubject("all"); // 교과 변경 시 과목 필터 초기화
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">전체</option>
+                {availableSubjectGroups.map((group) => (
+                  <option key={group} value={group}>
+                    {group}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 과목 필터 */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700">
+                과목
+              </label>
+              <select
+                value={filterSubject}
+                onChange={(e) => setFilterSubject(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">전체</option>
+                {availableSubjects.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 과목 유형 필터 */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700">
+                과목 유형
+              </label>
+              <select
+                value={filterSubjectType}
+                onChange={(e) => setFilterSubjectType(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="all">전체</option>
+                {availableSubjectTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 정렬 순서 */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700">
+                정렬 순서
+              </label>
+              <button
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition hover:bg-gray-50"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                {sortOrder === "asc" ? "오름차순" : "내림차순"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 필터 적용 중일 때 결과가 없을 경우 */}
+      {(filterGrade !== "all" || filterSemester !== "all" || filterSubjectGroup !== "all" || filterSubject !== "all" || filterSubjectType !== "all") &&
+        filteredAndSortedScores.length === 0 && (
+          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
+            <p className="text-sm text-gray-500">
+              선택한 필터 조건에 맞는 성적이 없습니다.
+            </p>
+            <button
+              onClick={() => {
+                setFilterGrade("all");
+                setFilterSemester("all");
+                setFilterSubjectGroup("all");
+                setFilterSubject("all");
+                setFilterSubjectType("all");
+              }}
+              className="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              필터 초기화
+            </button>
+          </div>
+        )}
+
+      {/* 카드 그리드 */}
+      {filteredAndSortedScores.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredAndSortedScores.map((item) => (
+            <ScoreCard
+              key={item.score.id}
+              score={item.score}
+              subjectGroupName={item.subjectGroupName}
+              subjectName={item.subjectName}
+              subjectTypeName={item.subjectTypeName}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

@@ -6,9 +6,59 @@
 export type PlanPurpose = "내신대비" | "모의고사" | "수능" | "기타";
 
 /**
+ * 플랜 유형
+ */
+export type PlanType = "individual" | "integrated" | "camp";
+
+/**
+ * 캠프 프로그램 유형
+ */
+export type CampProgramType = "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타";
+
+/**
+ * 캠프 초대 상태
+ */
+export type CampInvitationStatus = "pending" | "accepted" | "declined";
+
+/**
+ * 캠프 템플릿
+ */
+export type CampTemplate = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  program_type: CampProgramType;
+  template_data: any; // WizardData 구조의 JSON (Partial<WizardData>)
+  status: "draft" | "active" | "archived";
+  camp_start_date: string | null; // 캠프 시작일 (date)
+  camp_end_date: string | null; // 캠프 종료일 (date)
+  camp_location: string | null; // 캠프 장소
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 캠프 초대
+ */
+export type CampInvitation = {
+  id: string;
+  tenant_id: string;
+  camp_template_id: string;
+  student_id: string;
+  status: CampInvitationStatus;
+  invited_at: string;
+  accepted_at: string | null;
+  declined_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
  * 스케줄러 유형
  */
-export type SchedulerType = "자동스케줄러" | "1730_timetable";
+export type SchedulerType = "1730_timetable";
 
 /**
  * 플랜 상태
@@ -77,12 +127,21 @@ export type PlanGroup = {
   status: PlanStatus;
   deleted_at: string | null;
   daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보 (Step7에서 생성)
+  subject_constraints?: SubjectConstraints | null; // JSONB: 교과 제약 조건
+  additional_period_reallocation?: AdditionalPeriodReallocation | null; // JSONB: 추가 기간 재배치 정보
+  non_study_time_blocks?: NonStudyTimeBlock[] | null; // JSONB: 학습 시간 제외 항목
+  study_hours?: StudyHours | null; // JSONB: 학습 시간 설정
+  self_study_hours?: SelfStudyHours | null; // JSONB: 자율학습 시간 설정
+  // 캠프 관련 필드
+  plan_type?: PlanType | null;
+  camp_template_id?: string | null;
+  camp_invitation_id?: string | null;
   created_at: string;
   updated_at: string;
 };
 
 /**
- * 개별 플랜 항목 (기존 구조 유지)
+ * 개별 플랜 항목 (기존 구조 유지 + 1730 Timetable 확장)
  */
 export type Plan = {
   id: string;
@@ -101,8 +160,69 @@ export type Plan = {
   start_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 시작 시간
   end_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 종료 시간
   is_reschedulable: boolean;
+  // 1730 Timetable 추가 필드
+  cycle_day_number?: number | null; // 주기 내 일자 번호
+  date_type?: "study" | "review" | "exclusion" | null; // 날짜 유형
+  time_slot_type?: "study" | "self_study" | null; // 시간대 유형
+  duration_info?: DurationInfo | null; // JSONB: 소요시간 정보
+  review_info?: ReviewInfo | null; // JSONB: 복습일 정보
+  allocation_type?: AllocationType | null; // JSONB: 배정 방식 정보
+  split_info?: SplitInfo | null; // JSONB: 분할된 플랜 정보
+  reallocation_info?: ReallocationInfo | null; // JSONB: 추가 기간 재배치 정보
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+/**
+ * 소요시간 정보
+ */
+export type DurationInfo = {
+  base_duration: number; // 기본 소요시간 (분)
+  student_level_factor: number; // 학생 수준 보정 계수
+  subject_factor: number; // 과목별 보정 계수
+  difficulty_factor: number; // 난이도 보정 계수
+  review_factor?: number; // 복습 보정 계수 (복습일인 경우)
+  review_of_review_factor?: number; // 복습의 복습 보정 계수 (추가 기간인 경우)
+  final_duration: number; // 최종 소요시간 (분)
+};
+
+/**
+ * 복습일 정보
+ */
+export type ReviewInfo = {
+  previous_study_days_range: string; // 직전 학습일 범위 (예: "2025-01-01 ~ 2025-01-06")
+  previous_study_duration: number; // 직전 학습일 학습 소요시간 (분)
+  review_factor: number; // 복습 보정 계수
+  review_duration: number; // 복습 소요시간 (분)
+};
+
+/**
+ * 배정 방식 정보
+ */
+export type AllocationType = {
+  type: "all_study_days" | "weekly_days"; // 취약과목: 전체 학습일, 전략과목: 주당 배정 일수
+  weekly_days?: number; // 전략과목인 경우 주당 배정 일수 (2, 3, 4)
+};
+
+/**
+ * 분할된 플랜 정보
+ */
+export type SplitInfo = {
+  original_plan_id: string; // 원본 플랜 ID (분할된 플랜들을 연결)
+  split_order: number; // 원본 플랜 내에서의 분할 순서
+  total_split_count: number; // 전체 분할 개수
+  total_duration: number; // 전체 소요시간 (모든 분할된 시간대의 합)
+};
+
+/**
+ * 추가 기간 재배치 정보
+ */
+export type ReallocationInfo = {
+  is_reallocated: boolean; // 재배치된 플랜 여부
+  original_plan_id?: string; // 원본 플랜 ID
+  original_period_start?: string; // 원본 플랜 기간 시작일
+  original_period_end?: string; // 원본 플랜 기간 종료일
+  review_of_review_factor?: number; // 복습의 복습 보정 계수
 };
 
 /**
@@ -117,6 +237,22 @@ export type PlanContent = {
   start_range: number;
   end_range: number;
   display_order: number;
+  // 자동 추천 관련 필드
+  is_auto_recommended?: boolean;
+  recommendation_source?: "auto" | "admin" | "template" | null;
+  recommendation_reason?: string | null;
+  recommendation_metadata?: {
+    scoreDetails?: {
+      schoolGrade?: number | null;
+      schoolAverageGrade?: number | null;
+      mockPercentile?: number | null;
+      mockGrade?: number | null;
+      riskScore?: number;
+    };
+    priority?: number;
+  } | null;
+  recommended_at?: string | null;
+  recommended_by?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -276,20 +412,95 @@ export type ContentMasterDetail = {
 };
 
 /**
+ * 학습일/복습일 주기 설정
+ */
+export type StudyReviewCycle = {
+  study_days: number; // 학습일 수 (기본값: 6)
+  review_days: number; // 복습일 수 (기본값: 1)
+};
+
+/**
+ * 학습 시간 설정
+ */
+export type StudyHours = {
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+};
+
+/**
+ * 자율학습 시간 설정
+ */
+export type SelfStudyHours = {
+  enabled: boolean; // 자율학습 시간 사용 여부
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+  allow_on_holiday?: boolean; // 지정휴일에 자율학습 시간 배정 여부
+};
+
+/**
+ * 학습 시간 설정
+ */
+export type StudyHours = {
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+};
+
+/**
+ * 자율학습 시간 설정
+ */
+export type SelfStudyHours = {
+  enabled: boolean; // 자율학습 시간 사용 여부
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+  allow_on_holiday?: boolean; // 지정휴일에 자율학습 시간 배정 여부
+};
+
+/**
+ * 교과 제약 조건
+ */
+export type RequiredSubject = {
+  subject_category: string; // 교과 (예: 국어, 수학, 영어)
+  subject?: string; // 세부 과목 (선택사항, 예: 화법과 작문, 미적분)
+  min_count: number; // 최소 개수 (기본값: 1)
+};
+
+export type SubjectConstraints = {
+  required_subjects?: RequiredSubject[]; // 필수 교과/과목 목록 (위계 구조 + 개수)
+  excluded_subjects?: string[]; // 제외 교과 목록
+  constraint_handling: "strict" | "warning" | "auto_fix"; // 제약 조건 처리 방법
+};
+
+/**
+ * 추가 기간 재배치 설정
+ */
+export type AdditionalPeriodReallocation = {
+  period_start: string; // YYYY-MM-DD
+  period_end: string; // YYYY-MM-DD
+  type: "additional_review"; // 추가 복습
+  original_period_start: string; // 원본 플랜 기간 시작일
+  original_period_end: string; // 원본 플랜 기간 종료일
+  subjects?: string[]; // 재배치할 과목 목록 (없으면 전체)
+  review_of_review_factor?: number; // 복습의 복습 보정 계수 (기본값: 0.25)
+};
+
+/**
+ * 학습 시간 제외 항목
+ */
+export type NonStudyTimeBlock = {
+  type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "기타";
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+  day_of_week?: number[]; // 요일 적용 범위 (0-6, 없으면 매일)
+  description?: string; // 설명
+};
+
+/**
  * 스케줄러 옵션
  */
 export type SchedulerOptions = {
-  // 자동 스케줄러
-  difficulty_weight?: number;
-  progress_weight?: number;
-  score_weight?: number;
   weak_subject_focus?: "low" | "medium" | "high" | boolean;
-  exam_urgency_enabled?: boolean;
-  allow_consecutive?: boolean;
-  // 1730 Timetable
-  study_days?: number;
-  review_days?: number;
-  review_scope?: "full" | "partial";
+  study_days?: number; // 학습일 수 (기본값: 6)
+  review_days?: number; // 복습일 수 (기본값: 1)
 };
 
 /**
@@ -304,6 +515,21 @@ export type TimeSettings = {
   // 자율학습 시간 배정 토글
   enable_self_study_for_holidays?: boolean; // 지정휴일 자율학습 시간 배정
   enable_self_study_for_study_days?: boolean; // 학습일/복습일 자율학습 시간 배정
+};
+
+/**
+ * 학생 수준
+ */
+export type StudentLevel = "high" | "medium" | "low";
+
+/**
+ * 전략과목/취약과목 정보
+ */
+export type SubjectAllocation = {
+  subject_id: string;
+  subject_name: string;
+  subject_type: "strategy" | "weakness";
+  weekly_days?: number; // 전략과목인 경우: 2, 3, 4
 };
 
 /**
@@ -322,6 +548,18 @@ export type PlanGroupCreationData = {
   contents: PlanContentInput[];
   exclusions: PlanExclusionInput[];
   academy_schedules: AcademyScheduleInput[];
+  // 1730 Timetable 추가 필드
+  study_review_cycle?: StudyReviewCycle; // 학습일/복습일 주기 설정
+  student_level?: StudentLevel; // 학생 수준 정보 (필수)
+  subject_allocations?: SubjectAllocation[]; // 전략과목/취약과목 정보 (필수)
+  subject_constraints?: SubjectConstraints; // 교과 제약 조건
+  additional_period_reallocation?: AdditionalPeriodReallocation; // 추가 기간 재배치 설정
+  non_study_time_blocks?: NonStudyTimeBlock[]; // 학습 시간 제외 항목
+  daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보 (Step 2.5에서 생성)
+  // 캠프 관련 필드
+  plan_type?: PlanType;
+  camp_template_id?: string | null;
+  camp_invitation_id?: string | null;
 };
 
 /**

@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
-import { getBooks, getLectures, getCustomContents } from "@/lib/data/studentContents";
+import {
+  getBooks,
+  getLectures,
+  getCustomContents,
+} from "@/lib/data/studentContents";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function normalizeIsoDate(value: string | null): string | null {
+  if (!value || !ISO_DATE_REGEX.test(value)) {
+    return null;
+  }
+
+  const date = new Date(value + "T00:00:00Z");
+  return Number.isNaN(date.getTime()) ? null : value;
+}
+
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
@@ -20,18 +35,22 @@ export async function GET() {
     today.setHours(0, 0, 0, 0);
     const todayDate = today.toISOString().slice(0, 10);
 
-    // 오늘 플랜 조회
+    const { searchParams } = new URL(request.url);
+    const requestedDateParam = normalizeIsoDate(searchParams.get("date"));
+    const targetDate = requestedDateParam ?? todayDate;
+
+    // 선택한 날짜 플랜 조회
     let plans = await getPlansForStudent({
       studentId: user.userId,
       tenantId: tenantContext?.tenantId || null,
-      planDate: todayDate,
+      planDate: targetDate,
     });
 
-    let displayDate = todayDate;
-    let isToday = true;
+    let displayDate = targetDate;
+    let isToday = targetDate === todayDate;
 
     // 오늘 플랜이 없으면 가장 가까운 미래 날짜의 플랜 찾기
-    if (plans.length === 0) {
+    if (!requestedDateParam && plans.length === 0) {
       const shortRangeEndDate = new Date(today);
       shortRangeEndDate.setDate(shortRangeEndDate.getDate() + 30);
       const shortRangeEndDateStr = shortRangeEndDate.toISOString().slice(0, 10);

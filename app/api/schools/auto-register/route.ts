@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSchoolByName, getRegions } from "@/lib/data/schools";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -25,29 +26,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = await createSupabaseServerClient();
-
-    // 중복 확인
-    const { data: existing } = await supabase
-      .from("schools")
-      .select("id, name, type, region")
-      .eq("name", name)
-      .eq("type", type)
-      .maybeSingle();
+    // 기존 학교 확인
+    const existing = await getSchoolByName(name, type);
 
     if (existing) {
-      return NextResponse.json({ school: existing });
+      return NextResponse.json({
+        school: {
+          id: existing.id,
+          name: existing.name,
+          type: existing.type,
+          region: existing.region,
+        },
+      });
+    }
+
+    // 지역 매칭 (region 텍스트로 region_id 찾기)
+    let regionId: string | null = null;
+    if (region) {
+      const regions = await getRegions();
+      const matchedRegion = regions.find((r) => r.name === region);
+      if (matchedRegion) {
+        regionId = matchedRegion.id;
+      }
     }
 
     // 새로 등록
+    const supabase = await createSupabaseServerClient();
     const { data: newSchool, error } = await supabase
       .from("schools")
       .insert({
         name,
         type,
-        region: region || null,
+        region_id: regionId,
       })
-      .select("id, name, type, region")
+      .select("id, name, type")
       .single();
 
     if (error) {
@@ -58,7 +70,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ school: newSchool });
+    // 지역 정보 포함하여 반환
+    const schoolWithRegion = await getSchoolByName(name, type);
+
+    return NextResponse.json({
+      school: schoolWithRegion
+        ? {
+            id: schoolWithRegion.id,
+            name: schoolWithRegion.name,
+            type: schoolWithRegion.type,
+            region: schoolWithRegion.region,
+          }
+        : {
+            id: newSchool.id,
+            name: newSchool.name,
+            type: newSchool.type,
+            region: null,
+          },
+    });
   } catch (error) {
     console.error("[api/schools/auto-register] 오류:", error);
     return NextResponse.json(

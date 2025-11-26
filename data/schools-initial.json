@@ -1,0 +1,74 @@
+{
+  "regions": [
+    { "name": "서울특별시", "display_order": 1 },
+    { "name": "부산광역시", "display_order": 2 },
+    { "name": "대구광역시", "display_order": 3 },
+    { "name": "인천광역시", "display_order": 4 },
+    { "name": "광주광역시", "display_order": 5 },
+    { "name": "대전광역시", "display_order": 6 },
+    { "name": "울산광역시", "display_order": 7 },
+    { "name": "세종특별자치시", "display_order": 8 },
+    { "name": "경기도", "display_order": 9 },
+    { "name": "강원특별자치도", "display_order": 10 },
+    { "name": "충청북도", "display_order": 11 },
+    { "name": "충청남도", "display_order": 12 },
+    { "name": "전북특별자치도", "display_order": 13 },
+    { "name": "전라남도", "display_order": 14 },
+    { "name": "경상북도", "display_order": 15 },
+    { "name": "경상남도", "display_order": 16 },
+    { "name": "제주특별자치도", "display_order": 17 }
+  ],
+  "schools": [
+    {
+      "name": "서울중학교",
+      "type": "중학교",
+      "region": "서울특별시",
+      "address": "서울특별시 강남구 테헤란로 123",
+      "display_order": 1
+    },
+    {
+      "name": "서울고등학교",
+      "type": "고등학교",
+      "region": "서울특별시",
+      "address": "서울특별시 강남구 테헤란로 456",
+      "display_order": 1
+    },
+    {
+      "name": "서울대학교",
+      "type": "대학교",
+      "region": "서울특별시",
+      "address": "서울특별시 관악구 관악로 1",
+      "display_order": 1
+    },
+    {
+      "name": "부산중학교",
+      "type": "중학교",
+      "region": "부산광역시",
+      "address": "부산광역시 해운대구 해운대해변로 264",
+      "display_order": 1
+    },
+    {
+      "name": "부산고등학교",
+      "type": "고등학교",
+      "region": "부산광역시",
+      "address": "부산광역시 해운대구 해운대해변로 265",
+      "display_order": 1
+    },
+    {
+      "name": "부산대학교",
+      "type": "대학교",
+      "region": "부산광역시",
+      "address": "부산광역시 금정구 부산대학로 63번길 2",
+      "display_order": 1
+    }
+  ]
+}
+
+
+
+
+
+
+
+
+

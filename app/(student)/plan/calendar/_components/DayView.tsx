@@ -188,7 +188,7 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
 
   // 플랜 통계 계산
   const totalPlans = dayPlans.length;
-  const completedPlans = dayPlans.filter((p) => p.progress !== null && p.progress >= 100).length;
+  const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length;
   const activePlans = dayPlans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
   const averageProgress = totalPlans > 0
     ? Math.round(
@@ -382,9 +382,9 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
                     {blockPlans.length > 0 ? (
                       blockPlans.map((plan, planIndex) => {
                         const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type];
-                        const isCompleted = plan.progress !== null && plan.progress >= 100;
+                        const isCompleted = plan.progress != null && plan.progress >= 100;
                         const isActive = plan.actual_start_time && !plan.actual_end_time;
-                        const progressPercentage = plan.progress !== null ? Math.round(plan.progress) : null;
+                        const progressPercentage = plan.progress != null ? Math.round(plan.progress) : null;
 
                         return (
                           <tr
@@ -536,7 +536,7 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
                                   </div>
                                 )}
                                 {/* 소요 시간 */}
-                                {plan.total_duration_seconds !== null && (
+                                {plan.total_duration_seconds != null && (
                                   <div className="text-xs text-gray-500">
                                     소요: {Math.floor(plan.total_duration_seconds / 60)}분
                                   </div>

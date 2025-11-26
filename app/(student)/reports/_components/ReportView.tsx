@@ -275,7 +275,7 @@ export function ReportView({ data }: ReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold text-gray-900">
-              📅 다음주 자동 스케줄 요약
+              📅 다음주 학습 스케줄 요약
             </h2>
           <div className="space-y-4">
             {nextWeekSchedule.map((day) => (

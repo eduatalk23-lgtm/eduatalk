@@ -6,9 +6,22 @@ type Step2DetailViewProps = {
   group: PlanGroup;
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
+  templateBlocks?: Array<{
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  }>;
+  templateBlockSetName?: string | null;
 };
 
-export function Step2DetailView({ group, exclusions, academySchedules }: Step2DetailViewProps) {
+export function Step2DetailView({ 
+  group, 
+  exclusions, 
+  academySchedules,
+  templateBlocks = [],
+  templateBlockSetName = null,
+}: Step2DetailViewProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -21,9 +34,39 @@ export function Step2DetailView({ group, exclusions, academySchedules }: Step2De
       {/* 블록 세트 정보 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h3 className="mb-4 text-lg font-semibold text-gray-900">블록 세트</h3>
-        <p className="text-sm text-gray-600">
-          {group.block_set_id ? "블록 세트가 설정되었습니다." : "블록 세트가 설정되지 않았습니다."}
-        </p>
+        {templateBlockSetName ? (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-gray-900">
+              {templateBlockSetName}
+            </p>
+            {templateBlocks.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-500">시간 블록</p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {templateBlocks.map((block) => (
+                    <div
+                      key={block.id}
+                      className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                    >
+                      <div className="text-sm font-medium text-gray-900">
+                        {weekdayLabels[block.day_of_week]}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {block.start_time} ~ {block.end_time}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">등록된 시간 블록이 없습니다.</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            {group.block_set_id ? "블록 세트가 설정되었습니다." : "블록 세트가 설정되지 않았습니다."}
+          </p>
+        )}
       </div>
 
       {/* 학습 제외일 */}

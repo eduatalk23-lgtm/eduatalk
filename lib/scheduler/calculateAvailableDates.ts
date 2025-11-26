@@ -1,6 +1,6 @@
 /**
  * 스케줄 가능 날짜 및 시간 계산 모듈
- * 1730 Timetable 및 자동 스케줄러를 위한 학습 가능 날짜 산출
+ * 1730 Timetable 기반 학습 가능 날짜 산출
  */
 
 export type DayType = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정";
@@ -97,8 +97,16 @@ export type AcademySchedule = {
   travel_time?: number; // 이동시간 (분 단위, 기본값: 60분)
 };
 
-type CalculateOptions = {
-  scheduler_type: "1730_timetable" | "자동스케줄러";
+export type NonStudyTimeBlock = {
+  type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "기타";
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+  day_of_week?: number[]; // 0-6, 없으면 매일
+  description?: string;
+};
+
+export type CalculateOptions = {
+  scheduler_type: "1730_timetable";
   scheduler_options?: {
     study_days?: number; // 1730 Timetable: 학습일 수 (기본 6)
     review_days?: number; // 1730 Timetable: 복습일 수 (기본 1)
@@ -110,6 +118,7 @@ type CalculateOptions = {
   use_self_study_with_blocks?: boolean; // 블록이 있어도 자율학습시간 사용 (기본: false)
   enable_self_study_for_holidays?: boolean; // 지정휴일 자율학습 시간 배정 (기본: false)
   enable_self_study_for_study_days?: boolean; // 학습일/복습일 자율학습 시간 배정 (기본: false)
+  non_study_time_blocks?: NonStudyTimeBlock[]; // 학습 시간 제외 항목
 };
 
 /**
@@ -273,6 +282,28 @@ function getAcademySchedulesForDate(
 ): AcademySchedule[] {
   const dayOfWeek = getDayOfWeek(date);
   return academySchedules.filter((s) => s.day_of_week === dayOfWeek);
+}
+
+/**
+ * 특정 날짜에 적용되는 학습 시간 제외 항목 조회
+ */
+function getNonStudyTimeBlocksForDate(
+  date: Date,
+  nonStudyTimeBlocks?: NonStudyTimeBlock[]
+): NonStudyTimeBlock[] {
+  if (!nonStudyTimeBlocks || nonStudyTimeBlocks.length === 0) {
+    return [];
+  }
+
+  const dayOfWeek = getDayOfWeek(date);
+  return nonStudyTimeBlocks.filter((block) => {
+    // day_of_week가 없으면 매일 적용
+    if (!block.day_of_week || block.day_of_week.length === 0) {
+      return true;
+    }
+    // day_of_week에 포함되어 있으면 적용
+    return block.day_of_week.includes(dayOfWeek);
+  });
 }
 
 /**
@@ -483,6 +514,7 @@ function generateTimeSlots(
   const slots: TimeSlot[] = [];
   const dateBlocks = getBlocksForDate(date, blocks);
   const dateAcademySchedules = getAcademySchedulesForDate(date, academySchedules);
+  const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDate(date, options.non_study_time_blocks);
 
   // 기본 설정값
   const campStudyHours: TimeRange =
@@ -584,7 +616,7 @@ function generateTimeSlots(
       }
     }
 
-    // 모든 시간 구간을 수집 (점심시간, 학원일정, 이동시간)
+    // 모든 시간 구간을 수집 (점심시간, 학원일정, 이동시간, 학습 시간 제외 항목)
     // 시간 순으로 정렬하여 겹치지 않도록 처리
     const allSegments: Array<{ start: number; end: number; type: TimeSlot["type"]; label?: string }> = [];
 
@@ -604,6 +636,22 @@ function generateTimeSlots(
       type: e.type as TimeSlot["type"],
       label: e.label,
     })));
+
+    // 학습 시간 제외 항목 추가 (범위 내에 있는 경우)
+    for (const block of dateNonStudyTimeBlocks) {
+      const blockStart = timeToMinutes(block.start_time);
+      const blockEnd = timeToMinutes(block.end_time);
+      
+      // 학습 시간 범위 내에 있는 경우만 추가
+      if (blockStart < rangeEnd && blockEnd > rangeStart) {
+        allSegments.push({
+          start: Math.max(rangeStart, blockStart),
+          end: Math.min(rangeEnd, blockEnd),
+          type: "점심시간", // 점심시간과 동일한 타입으로 처리 (학습 불가 시간)
+          label: block.type,
+        });
+      }
+    }
 
     // 시간 순으로 정렬
     allSegments.sort((a, b) => {
@@ -775,6 +823,19 @@ function calculateAvailableTimeForDate(
         subtractTimeRange(range, academyRangeWithTravel)
       );
     }
+
+    // 학습 시간 제외 항목 제외
+    const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDate(date, options.non_study_time_blocks);
+    for (const block of dateNonStudyTimeBlocks) {
+      const blockRange: TimeRange = {
+        start: block.start_time,
+        end: block.end_time,
+      };
+      
+      availableRanges = availableRanges.flatMap((range) =>
+        subtractTimeRange(range, blockRange)
+      );
+    }
   }
 
   // 병합 및 정리
@@ -893,56 +954,32 @@ export function calculateAvailableDates(
   let dayTypeMap: Map<string, DayType>;
   let weekMap: Map<string, number> = new Map(); // 날짜 -> 주차 번호 매핑 (모든 날짜 포함)
   
-  if (options.scheduler_type === "1730_timetable") {
-    const studyDays = options.scheduler_options?.study_days || 6;
-    const reviewDays = options.scheduler_options?.review_days || 1;
-    dayTypeMap = classifyDaysFor1730(dates, exclusions, studyDays, reviewDays);
+  const studyDays = options.scheduler_options?.study_days || 6;
+  const reviewDays = options.scheduler_options?.review_days || 1;
+  dayTypeMap = classifyDaysFor1730(dates, exclusions, studyDays, reviewDays);
+  
+  // 주차 정보 매핑 (학습일/복습일 분류용)
+  // 모든 날짜를 주차에 매핑 (제외일 포함)
+  // 주차는 날짜 순서대로 배정하되, 학습일/복습일 분류는 별도로 처리
+  let currentWeek = 1;
+  let currentWeekCount = 0;
+  
+  for (const date of dates) {
+    const dateStr = formatDate(date);
+    const exclusion = getExclusionForDate(dateStr, exclusions);
     
-    // 주차 정보 매핑 (학습일/복습일 분류용)
-    const weeks = calculateWeeksFor1730(dates, exclusions);
-    
-    // 모든 날짜를 주차에 매핑 (제외일 포함)
-    // 주차는 날짜 순서대로 배정하되, 학습일/복습일 분류는 별도로 처리
-    let currentWeek = 1;
-    let currentWeekCount = 0;
-    
-    for (const date of dates) {
-      const dateStr = formatDate(date);
-      const exclusion = getExclusionForDate(dateStr, exclusions);
-      
-      // 제외일이 아닌 경우에만 주차 카운트 증가 (학습일/복습일 분류용)
-      if (!exclusion) {
-        currentWeekCount++;
-        // 7일이 되면 다음 주차로
-        if (currentWeekCount > 7) {
-          currentWeek++;
-          currentWeekCount = 1;
-        }
-      }
-      
-      // 모든 날짜를 현재 주차에 매핑
-      weekMap.set(dateStr, currentWeek);
-    }
-  } else {
-    // 자동 스케줄러: 제외일만 고려
-    dayTypeMap = new Map();
-    for (const date of dates) {
-      const dateStr = formatDate(date);
-      const exclusion = getExclusionForDate(dateStr, exclusions);
-      if (exclusion) {
-        if (exclusion.exclusion_type === "휴가") {
-          dayTypeMap.set(dateStr, "휴가");
-        } else if (exclusion.exclusion_type === "개인사정") {
-          dayTypeMap.set(dateStr, "개인일정");
-        } else if (exclusion.exclusion_type === "휴일지정") {
-          dayTypeMap.set(dateStr, "지정휴일");
-        } else {
-          dayTypeMap.set(dateStr, "학습일");
-        }
-      } else {
-        dayTypeMap.set(dateStr, "학습일");
+    // 제외일이 아닌 경우에만 주차 카운트 증가 (학습일/복습일 분류용)
+    if (!exclusion) {
+      currentWeekCount++;
+      // 7일이 되면 다음 주차로
+      if (currentWeekCount > 7) {
+        currentWeek++;
+        currentWeekCount = 1;
       }
     }
+    
+    // 모든 날짜를 현재 주차에 매핑
+    weekMap.set(dateStr, currentWeek);
   }
 
   // 일별 스케줄 계산
@@ -1001,12 +1038,21 @@ export function calculateAvailableDates(
     });
 
     // 통계 계산
+    // 학습 시간 계산: timeSlots에서 "학습시간" 타입만 계산 (자율학습 제외)
+    const studyHoursOnly = timeSlots
+      .filter((slot) => slot.type === "학습시간")
+      .reduce((sum, slot) => {
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        return sum + (slotEnd - slotStart) / 60;
+      }, 0);
+
     if (dayType === "학습일") {
       totalStudyDays++;
-      totalStudyHours_학습일 += hours;
+      totalStudyHours_학습일 += studyHoursOnly; // 자율학습 제외한 순수 학습 시간만
     } else if (dayType === "복습일") {
       totalReviewDays++;
-      totalStudyHours_복습일 += hours;
+      totalStudyHours_복습일 += studyHoursOnly; // 자율학습 제외한 순수 학습 시간만
     } else if (dayType === "휴가") {
       totalExclusionDays.휴가++;
     } else if (dayType === "개인일정") {
@@ -1014,7 +1060,7 @@ export function calculateAvailableDates(
     } else if (dayType === "지정휴일") {
       totalExclusionDays.지정휴일++;
     }
-    totalStudyHours += hours;
+    totalStudyHours += hours; // 전체 시간은 hours 사용 (자율학습 포함)
     
     // 자율학습 시간 계산 (timeSlots에서 "자율학습" 타입의 시간 합산)
     if (timeSlots && timeSlots.length > 0) {

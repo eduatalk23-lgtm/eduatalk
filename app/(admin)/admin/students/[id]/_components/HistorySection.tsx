@@ -20,7 +20,7 @@ const eventTypeLabels: Record<string, string> = {
   score_added: "성적 추가",
   score_updated: "성적 수정",
   content_progress: "콘텐츠 진행",
-  auto_schedule_generated: "자동 스케줄 생성",
+  auto_schedule_generated: "학습 플랜 생성",
 };
 
 export async function HistorySection({ studentId }: { studentId: string }) {

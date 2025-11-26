@@ -71,14 +71,7 @@ export default async function MasterLectureDetailPage({
             { label: "난이도", value: lecture.difficulty_level },
             {
               label: "연결된 교재",
-              value: linkedBook ? (
-                <Link
-                  href={`/admin/master-books/${linkedBook.id}`}
-                  className="text-indigo-600 hover:underline"
-                >
-                  {linkedBook.title}
-                </Link>
-              ) : null,
+              value: linkedBook ? linkedBook.title : null,
             },
             { label: "메모", value: lecture.notes },
           ]}

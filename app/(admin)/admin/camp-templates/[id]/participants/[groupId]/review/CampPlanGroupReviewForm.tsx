@@ -1,0 +1,632 @@
+"use client";
+
+import { useState, useTransition, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/ToastProvider";
+import {
+  updateCampPlanGroupSubjectAllocations,
+  getCampPlanGroupForReview,
+} from "@/app/(admin)/actions/campTemplateActions";
+import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import { generatePlansFromGroupAction } from "@/app/(student)/actions/planGroupActions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Step1DetailView } from "@/app/(student)/plan/group/[id]/_components/Step1DetailView";
+import { Step2DetailView } from "@/app/(student)/plan/group/[id]/_components/Step2DetailView";
+import { Step3DetailView } from "@/app/(student)/plan/group/[id]/_components/Step3DetailView";
+import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
+
+type SubjectAllocation = {
+  subject_id: string;
+  subject_name: string;
+  subject_type: "strategy" | "weakness";
+  weekly_days?: number;
+};
+
+type CampPlanGroupReviewFormProps = {
+  templateId: string;
+  groupId: string;
+  group: PlanGroup;
+  contents: PlanContent[];
+  exclusions: PlanExclusion[];
+  academySchedules: AcademySchedule[];
+  templateBlocks?: Array<{
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  }>;
+  templateBlockSetName?: string | null;
+  studentInfo?: {
+    name: string;
+    grade: string | null;
+    class: string | null;
+  } | null;
+};
+
+export function CampPlanGroupReviewForm({
+  templateId,
+  groupId,
+  group,
+  contents: initialContents,
+  exclusions,
+  academySchedules,
+  templateBlocks = [],
+  templateBlockSetName = null,
+  studentInfo,
+}: CampPlanGroupReviewFormProps) {
+  const router = useRouter();
+  const toast = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [contents, setContents] = useState(initialContents);
+  const [contentInfos, setContentInfos] = useState<
+    Array<{
+      content_id: string;
+      content_type: "book" | "lecture" | "custom";
+      title: string;
+      subject_category?: string | null;
+    }>
+  >([]);
+  const [subjectAllocations, setSubjectAllocations] = useState<SubjectAllocation[]>(
+    ((group.scheduler_options as any)?.subject_allocations as SubjectAllocation[]) || []
+  );
+  const [loading, setLoading] = useState(true);
+  const [currentTab, setCurrentTab] = useState<"overview" | "step1" | "step2" | "step3" | "step4">("overview");
+
+  // 콘텐츠 상세 정보 조회
+  useEffect(() => {
+    const loadContentInfos = async () => {
+      try {
+        setLoading(true);
+        const supabase = createSupabaseBrowserClient();
+
+        // 콘텐츠별로 과목 정보 조회
+        const infos = await Promise.all(
+          contents.map(async (content) => {
+            let title = "";
+            let subject_category: string | null = null;
+
+            if (content.content_type === "book") {
+              // 학생 교재 조회
+              const { data: book } = await supabase
+                .from("books")
+                .select("title, subject_category")
+                .eq("id", content.content_id)
+                .maybeSingle();
+
+              if (book) {
+                title = book.title || "";
+                subject_category = book.subject_category || null;
+              } else {
+                // 마스터 교재 조회
+                const { data: masterBook } = await supabase
+                  .from("master_books")
+                  .select("title, subject_category")
+                  .eq("id", content.content_id)
+                  .maybeSingle();
+
+                if (masterBook) {
+                  title = masterBook.title || "";
+                  subject_category = masterBook.subject_category || null;
+                }
+              }
+            } else if (content.content_type === "lecture") {
+              // 학생 강의 조회
+              const { data: lecture } = await supabase
+                .from("lectures")
+                .select("title, subject_category")
+                .eq("id", content.content_id)
+                .maybeSingle();
+
+              if (lecture) {
+                title = lecture.title || "";
+                subject_category = lecture.subject_category || null;
+              } else {
+                // 마스터 강의 조회
+                const { data: masterLecture } = await supabase
+                  .from("master_lectures")
+                  .select("title, subject_category")
+                  .eq("id", content.content_id)
+                  .maybeSingle();
+
+                if (masterLecture) {
+                  title = masterLecture.title || "";
+                  subject_category = masterLecture.subject_category || null;
+                }
+              }
+            }
+
+            return {
+              content_id: content.content_id,
+              content_type: content.content_type,
+              title,
+              subject_category,
+            };
+          })
+        );
+
+        setContentInfos(infos);
+      } catch (error) {
+        console.error("콘텐츠 정보 조회 실패:", error);
+        toast.showError("콘텐츠 정보를 불러오는데 실패했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (contents.length > 0) {
+      loadContentInfos();
+    } else {
+      setLoading(false);
+    }
+  }, [contents, toast]);
+
+  // 선택된 콘텐츠에서 과목 목록 추출
+  const subjects = Array.from(
+    new Set(
+      contentInfos
+        .map((info) => info.subject_category)
+        .filter((cat): cat is string => !!cat)
+    )
+  ).sort();
+
+  // 학생 콘텐츠와 추천 콘텐츠 분리
+  const studentContents = useMemo(() => {
+    return contents.filter((c) => {
+      // is_recommended 필드가 있으면 그것을 사용, 없으면 추정
+      return !(c as any).is_recommended;
+    });
+  }, [contents]);
+
+  // 콘텐츠 상세 정보 추가
+  const studentContentsWithDetails = useMemo(() => {
+    return studentContents.map((content) => {
+      const info = contentInfos.find((ci) => ci.content_id === content.content_id);
+      return {
+        ...content,
+        contentTitle: info?.title || "알 수 없음",
+        contentSubtitle: info?.subject_category || null,
+        isRecommended: false,
+      };
+    });
+  }, [studentContents, contentInfos]);
+
+  const handleSubjectAllocationChange = (
+    subject: string,
+    allocation: SubjectAllocation
+  ) => {
+    setSubjectAllocations((prev) => {
+      const filtered = prev.filter((a) => a.subject_name !== subject);
+      return [...filtered, allocation];
+    });
+  };
+
+  const handleSave = async () => {
+    // 모든 과목에 대한 설정이 있는지 확인
+    const missingSubjects = subjects.filter(
+      (subject) => !subjectAllocations.some((a) => a.subject_name === subject)
+    );
+
+    if (missingSubjects.length > 0) {
+      toast.showError(
+        `다음 과목의 전략과목/취약과목 설정이 필요합니다: ${missingSubjects.join(", ")}`
+      );
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        // subject_allocations 업데이트
+        const result = await updateCampPlanGroupSubjectAllocations(
+          groupId,
+          subjectAllocations
+        );
+
+        if (!result.success) {
+          throw new Error("전략과목/취약과목 설정 저장에 실패했습니다.");
+        }
+
+        toast.showSuccess("전략과목/취약과목 설정이 저장되었습니다.");
+      } catch (error) {
+        console.error("저장 실패:", error);
+        toast.showError(
+          error instanceof Error
+            ? error.message
+            : "전략과목/취약과목 설정 저장에 실패했습니다."
+        );
+      }
+    });
+  };
+
+  const handleGeneratePlans = async () => {
+    // 모든 과목에 대한 설정이 있는지 확인
+    const missingSubjects = subjects.filter(
+      (subject) => !subjectAllocations.some((a) => a.subject_name === subject)
+    );
+
+    if (missingSubjects.length > 0) {
+      toast.showError(
+        `다음 과목의 전략과목/취약과목 설정이 필요합니다: ${missingSubjects.join(", ")}`
+      );
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        // 먼저 subject_allocations 저장
+        const updateResult = await updateCampPlanGroupSubjectAllocations(
+          groupId,
+          subjectAllocations
+        );
+
+        if (!updateResult.success) {
+          throw new Error("전략과목/취약과목 설정 저장에 실패했습니다.");
+        }
+
+        // 플랜 생성
+        const generateResult = await generatePlansFromGroupAction(groupId);
+
+        if (!generateResult || generateResult.count === 0) {
+          throw new Error("플랜 생성에 실패했습니다.");
+        }
+
+        toast.showSuccess(`플랜이 생성되었습니다. (${generateResult.count}개)`);
+        router.push(`/plan/group/${groupId}`);
+      } catch (error) {
+        console.error("플랜 생성 실패:", error);
+        toast.showError(
+          error instanceof Error ? error.message : "플랜 생성에 실패했습니다."
+        );
+      }
+    });
+  };
+
+  if (loading) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="text-sm text-gray-500">콘텐츠 정보를 불러오는 중...</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <div className="flex flex-col gap-8">
+        {/* Header */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">캠프 관리</p>
+            <h1 className="text-3xl font-semibold text-gray-900">플랜 그룹 검토</h1>
+            <p className="text-sm text-gray-500">{group.name || "플랜 그룹"}</p>
+            {studentInfo && (
+              <p className="mt-1 text-sm text-gray-600">
+                학생: {studentInfo.name}
+                {studentInfo.grade && studentInfo.class
+                  ? ` (${studentInfo.grade}학년 ${studentInfo.class}반)`
+                  : ""}
+              </p>
+            )}
+          </div>
+          <Link
+            href={`/admin/camp-templates/${templateId}/participants`}
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            참여자 목록으로 돌아가기
+          </Link>
+        </div>
+
+        {/* 탭 네비게이션 */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setCurrentTab("overview")}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                currentTab === "overview"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              }`}
+            >
+              개요
+            </button>
+            <button
+              onClick={() => setCurrentTab("step1")}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                currentTab === "step1"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              }`}
+            >
+              Step 1: 기본 정보
+            </button>
+            <button
+              onClick={() => setCurrentTab("step2")}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                currentTab === "step2"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              }`}
+            >
+              Step 2: 블록 및 제외일
+            </button>
+            <button
+              onClick={() => setCurrentTab("step3")}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                currentTab === "step3"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              }`}
+            >
+              Step 3: 스케줄 확인
+            </button>
+            <button
+              onClick={() => setCurrentTab("step4")}
+              className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+                currentTab === "step4"
+                  ? "border-indigo-500 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+              }`}
+            >
+              Step 4: 콘텐츠 선택
+            </button>
+          </nav>
+        </div>
+
+        {/* 탭 컨텐츠 */}
+        {currentTab === "overview" && (
+          <>
+            {/* 플랜 그룹 정보 */}
+            <div className="rounded-lg border border-gray-200 bg-white p-6">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">플랜 그룹 정보</h2>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">학습 기간:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(group.period_start).toLocaleDateString("ko-KR")} ~{" "}
+                    {new Date(group.period_end).toLocaleDateString("ko-KR")}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">스케줄러 유형:</span>
+                  <span className="ml-2 text-gray-900">
+                    {group.scheduler_type
+                      ? schedulerTypeLabels[group.scheduler_type] || group.scheduler_type
+                      : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">플랜 목적:</span>
+                  <span className="ml-2 text-gray-900">
+                    {group.plan_purpose
+                      ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
+                      : "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">콘텐츠 개수:</span>
+                  <span className="ml-2 text-gray-900">{studentContents.length}개</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">제외일 개수:</span>
+                  <span className="ml-2 text-gray-900">{exclusions.length}개</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">학원 일정 개수:</span>
+                  <span className="ml-2 text-gray-900">{academySchedules.length}개</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">상태:</span>
+                  <span className="ml-2 text-gray-900">{group.status}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">제출일:</span>
+                  <span className="ml-2 text-gray-900">
+                    {group.created_at
+                      ? new Date(group.created_at).toLocaleDateString("ko-KR")
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {currentTab === "step1" && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <Step1DetailView group={group} />
+          </div>
+        )}
+
+        {currentTab === "step2" && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <Step2DetailView 
+              group={group} 
+              exclusions={exclusions} 
+              academySchedules={academySchedules}
+              templateBlocks={templateBlocks}
+              templateBlockSetName={templateBlockSetName}
+            />
+          </div>
+        )}
+
+        {currentTab === "step3" && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">스케줄 확인</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  학생이 확인한 스케줄 미리보기 정보입니다.
+                </p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm text-gray-600">
+                  스케줄 미리보기는 학생이 입력한 블록 및 제외일, 학원 일정을 기반으로 생성됩니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentTab === "step4" && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <Step3DetailView contents={studentContentsWithDetails} />
+          </div>
+        )}
+
+        {/* 전략과목/취약과목 정보 설정 (개요 탭에서만 표시) */}
+        {currentTab === "overview" && group.scheduler_type === "1730_timetable" && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              전략과목/취약과목 정보 <span className="text-red-500">*</span>
+            </h2>
+            <p className="mb-6 text-sm text-gray-600">
+              각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
+            </p>
+
+            {subjects.length === 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                선택된 콘텐츠에 과목 정보가 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {subjects.map((subject) => {
+                  const existingAllocation = subjectAllocations.find(
+                    (a) => a.subject_name === subject
+                  );
+                  const subjectType = existingAllocation?.subject_type || "weakness";
+                  const weeklyDays = existingAllocation?.weekly_days || 3;
+
+                  return (
+                    <div
+                      key={subject}
+                      className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                    >
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-gray-900">{subject}</h3>
+                        <span className="text-xs text-gray-500">
+                          {
+                            contentInfos.filter((c) => c.subject_category === subject)
+                              .length
+                          }
+                          개 콘텐츠
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-700">
+                            과목 유형
+                          </label>
+                          <div className="flex gap-3">
+                            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                              <input
+                                type="radio"
+                                name={`subject_type_${subject}`}
+                                value="weakness"
+                                checked={subjectType === "weakness"}
+                                onChange={() => {
+                                  handleSubjectAllocationChange(subject, {
+                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                    subject_name: subject,
+                                    subject_type: "weakness",
+                                  });
+                                }}
+                                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  취약과목
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  전체 학습일에 플랜 배정 (더 많은 시간 필요)
+                                </div>
+                              </div>
+                            </label>
+                            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                              <input
+                                type="radio"
+                                name={`subject_type_${subject}`}
+                                value="strategy"
+                                checked={subjectType === "strategy"}
+                                onChange={() => {
+                                  handleSubjectAllocationChange(subject, {
+                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                    subject_name: subject,
+                                    subject_type: "strategy",
+                                    weekly_days: 3,
+                                  });
+                                }}
+                                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  전략과목
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  주당 배정 일수에 따라 배정
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        {subjectType === "strategy" && (
+                          <div>
+                            <label className="mb-2 block text-xs font-medium text-gray-700">
+                              주당 배정 일수
+                            </label>
+                            <select
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                              value={weeklyDays}
+                              onChange={(e) => {
+                                handleSubjectAllocationChange(subject, {
+                                  subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                  subject_name: subject,
+                                  subject_type: "strategy",
+                                  weekly_days: Number(e.target.value),
+                                });
+                              }}
+                            >
+                              <option value="2">주 2일</option>
+                              <option value="3">주 3일</option>
+                              <option value="4">주 4일</option>
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500">
+                              선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 액션 버튼 (개요 탭에서만 표시) */}
+        {currentTab === "overview" && group.scheduler_type === "1730_timetable" && (
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isPending || subjects.length === 0}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? "저장 중..." : "설정 저장"}
+            </button>
+            <button
+              type="button"
+              onClick={handleGeneratePlans}
+              disabled={isPending || subjects.length === 0}
+              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? "생성 중..." : "플랜 생성하기"}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+

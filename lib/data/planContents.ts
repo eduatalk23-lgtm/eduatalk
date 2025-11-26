@@ -26,6 +26,20 @@ export type ContentDetail = {
   subject_category?: string | null;
   isRecommended: boolean; // 추천 콘텐츠 여부
   masterContentId?: string; // 원본 마스터 콘텐츠 ID
+  // 자동 추천 관련 필드
+  is_auto_recommended?: boolean;
+  recommendation_source?: "auto" | "admin" | "template" | null;
+  recommendation_reason?: string | null;
+  recommendation_metadata?: {
+    scoreDetails?: {
+      schoolGrade?: number | null;
+      schoolAverageGrade?: number | null;
+      mockPercentile?: number | null;
+      mockGrade?: number | null;
+      riskScore?: number;
+    };
+    priority?: number;
+  } | null;
 };
 
 /**
@@ -149,6 +163,20 @@ export async function classifyPlanContents(
     content_id: string;
     start_range: number;
     end_range: number;
+    // 자동 추천 관련 필드 (선택)
+    is_auto_recommended?: boolean;
+    recommendation_source?: "auto" | "admin" | "template" | null;
+    recommendation_reason?: string | null;
+    recommendation_metadata?: {
+      scoreDetails?: {
+        schoolGrade?: number | null;
+        schoolAverageGrade?: number | null;
+        mockPercentile?: number | null;
+        mockGrade?: number | null;
+        riskScore?: number;
+      };
+      priority?: number;
+    } | null;
   }>,
   studentId: string
 ): Promise<{
@@ -294,6 +322,11 @@ export async function classifyPlanContents(
           subject_category: masterBook.subject_category || null,
           isRecommended: true,
           masterContentId: content.content_id,
+          // 자동 추천 정보 전달
+          is_auto_recommended: content.is_auto_recommended ?? false,
+          recommendation_source: content.recommendation_source ?? null,
+          recommendation_reason: content.recommendation_reason ?? null,
+          recommendation_metadata: content.recommendation_metadata ?? null,
         };
       } else {
         // 학생 콘텐츠
@@ -347,6 +380,11 @@ export async function classifyPlanContents(
           subject_category: masterLecture.subject_category || null,
           isRecommended: true,
           masterContentId: content.content_id,
+          // 자동 추천 정보 전달
+          is_auto_recommended: content.is_auto_recommended ?? false,
+          recommendation_source: content.recommendation_source ?? null,
+          recommendation_reason: content.recommendation_reason ?? null,
+          recommendation_metadata: content.recommendation_metadata ?? null,
         };
       } else {
         // 학생 콘텐츠

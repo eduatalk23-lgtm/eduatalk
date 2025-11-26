@@ -1,9 +1,13 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { SubjectGroup, Subject } from "@/lib/data/subjects";
+import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import {
+  getSubjectGroupsAction,
+  getSubjectsByGroupAction,
+  getSubjectTypesAction,
   createSubjectGroup,
   updateSubjectGroup,
   deleteSubjectGroup,
@@ -11,24 +15,79 @@ import {
   updateSubject,
   deleteSubject,
 } from "@/app/(admin)/actions/subjectActions";
+import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
 import { Card } from "@/components/ui/Card";
 
 type SubjectGroupWithSubjects = SubjectGroup & { subjects: Subject[] };
 
 type SubjectGroupManagementProps = {
   initialData: SubjectGroupWithSubjects[];
+  curriculumRevisions: CurriculumRevision[];
+  defaultRevisionId?: string;
 };
 
 export function SubjectGroupManagement({
   initialData,
+  curriculumRevisions,
+  defaultRevisionId,
 }: SubjectGroupManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | undefined>(defaultRevisionId);
   const [data, setData] = useState<SubjectGroupWithSubjects[]>(initialData);
+  const [subjectTypes, setSubjectTypes] = useState<SubjectType[]>([]);
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
   const [newGroupForm, setNewGroupForm] = useState(false);
   const [newSubjectForm, setNewSubjectForm] = useState<{ groupId: string } | null>(null);
+
+  // 초기 과목구분 로드
+  useEffect(() => {
+    async function loadInitialTypes() {
+      if (defaultRevisionId) {
+        try {
+          const types = await getSubjectTypesAction(defaultRevisionId);
+          setSubjectTypes(types);
+        } catch (error) {
+          console.error("과목구분 조회 실패:", error);
+        }
+      }
+    }
+    loadInitialTypes();
+  }, [defaultRevisionId]);
+
+  // 개정교육과정 변경 시 데이터 다시 로드
+  useEffect(() => {
+    async function loadData() {
+      if (!selectedRevisionId) {
+        setData([]);
+        setSubjectTypes([]);
+        return;
+      }
+      
+      try {
+        const [groups, types] = await Promise.all([
+          getSubjectGroupsAction(selectedRevisionId),
+          getSubjectTypesAction(selectedRevisionId),
+        ]);
+        
+        setSubjectTypes(types);
+        
+        const groupsWithSubjects = await Promise.all(
+          groups.map(async (group) => {
+            const subjects = await getSubjectsByGroupAction(group.id);
+            return { ...group, subjects };
+          })
+        );
+        setData(groupsWithSubjects);
+      } catch (error) {
+        console.error("교과/과목 조회 실패:", error);
+        alert("교과/과목을 불러오는데 실패했습니다.");
+      }
+    }
+    
+    loadData();
+  }, [selectedRevisionId]);
 
   // 교과 그룹 추가
   const handleAddGroup = async (formData: FormData) => {
@@ -116,13 +175,51 @@ export function SubjectGroupManagement({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 개정교육과정 선택 */}
+      <div className="flex items-center gap-4">
+        <label className="text-sm font-medium text-gray-700">
+          개정교육과정:
+        </label>
+        <select
+          value={selectedRevisionId || ""}
+          onChange={(e) => setSelectedRevisionId(e.target.value || undefined)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        >
+          <option value="">전체</option>
+          {curriculumRevisions.map((revision) => (
+            <option key={revision.id} value={revision.id}>
+              {revision.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* 교과 그룹 추가 버튼 */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
+        {!selectedRevisionId && curriculumRevisions.length > 0 && (
+          <span className="text-sm text-gray-500">
+            교과 그룹을 추가하려면 개정교육과정을 선택해주세요.
+          </span>
+        )}
+        {curriculumRevisions.length === 0 && (
+          <span className="text-sm text-amber-600">
+            먼저 개정교육과정을 생성해주세요.
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setNewGroupForm(true)}
-          disabled={isPending || newGroupForm}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          disabled={isPending || newGroupForm || !selectedRevisionId}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            !selectedRevisionId
+              ? curriculumRevisions.length === 0
+                ? "개정교육과정을 먼저 생성해주세요"
+                : "개정교육과정을 선택해주세요"
+              : newGroupForm
+              ? "이미 추가 폼이 열려있습니다"
+              : undefined
+          }
         >
           + 교과 그룹 추가
         </button>
@@ -138,7 +235,12 @@ export function SubjectGroupManagement({
             className="flex flex-col gap-4"
           >
             <h3 className="text-lg font-semibold text-gray-900">새 교과 그룹 추가</h3>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <input
+              type="hidden"
+              name="curriculum_revision_id"
+              value={selectedRevisionId || ""}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   교과 그룹명 <span className="text-red-500">*</span>
@@ -150,20 +252,6 @@ export function SubjectGroupManagement({
                   placeholder="예: 국어"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  기본 과목 유형
-                </label>
-                <select
-                  name="default_subject_type"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
-                  <option value="">선택 안 함</option>
-                  <option value="공통">공통</option>
-                  <option value="일반선택">일반선택</option>
-                  <option value="진로선택">진로선택</option>
-                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -213,22 +301,17 @@ export function SubjectGroupManagement({
                   className="flex flex-1 items-center gap-2"
                 >
                   <input
+                    type="hidden"
+                    name="curriculum_revision_id"
+                    value={group.curriculum_revision_id}
+                  />
+                  <input
                     type="text"
                     name="name"
                     defaultValue={group.name}
                     required
                     className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
-                  <select
-                    name="default_subject_type"
-                    defaultValue={group.default_subject_type || ""}
-                    className="w-28 rounded-lg border border-gray-300 px-2 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  >
-                    <option value="">선택 안 함</option>
-                    <option value="공통">공통</option>
-                    <option value="일반선택">일반선택</option>
-                    <option value="진로선택">진로선택</option>
-                  </select>
                   <input
                     type="number"
                     name="display_order"
@@ -257,9 +340,6 @@ export function SubjectGroupManagement({
                   <div>
                     <h2 className="text-xl font-semibold text-gray-900">{group.name}</h2>
                     <div className="flex gap-4 text-sm text-gray-500">
-                      {group.default_subject_type && (
-                        <span>기본 과목 유형: {group.default_subject_type}</span>
-                      )}
                       <span>표시 순서: {group.display_order}</span>
                     </div>
                   </div>
@@ -315,18 +395,20 @@ export function SubjectGroupManagement({
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
-                  <div className="w-28">
+                  <div className="w-32">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      과목 유형
+                      과목구분
                     </label>
                     <select
-                      name="subject_type"
+                      name="subject_type_id"
                       className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     >
-                      <option value="">교과 기본값 사용</option>
-                      <option value="공통">공통</option>
-                      <option value="일반선택">일반선택</option>
-                      <option value="진로선택">진로선택</option>
+                      <option value="">선택 안 함</option>
+                      {subjectTypes.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="w-24">
@@ -408,14 +490,16 @@ export function SubjectGroupManagement({
                                   className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                 />
                                 <select
-                                  name="subject_type"
-                                  defaultValue={subject.subject_type || ""}
-                                  className="w-28 rounded-lg border border-gray-300 px-2 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  name="subject_type_id"
+                                  defaultValue={subject.subject_type_id || ""}
+                                  className="w-32 rounded-lg border border-gray-300 px-2 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                 >
-                                  <option value="">교과 기본값 사용</option>
-                                  <option value="공통">공통</option>
-                                  <option value="일반선택">일반선택</option>
-                                  <option value="진로선택">진로선택</option>
+                                  <option value="">선택 안 함</option>
+                                  {subjectTypes.map((type) => (
+                                    <option key={type.id} value={type.id}>
+                                      {type.name}
+                                    </option>
+                                  ))}
                                 </select>
                                 <input
                                   type="number"

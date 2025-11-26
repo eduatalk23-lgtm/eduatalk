@@ -164,7 +164,7 @@ export async function TodayPlanList() {
               오늘 배울 내용이 없습니다
             </h3>
             <p className="text-sm text-gray-500">
-              자동 스케줄러를 실행해보세요.
+              학습 플랜을 생성해보세요.
             </p>
           </div>
         </div>

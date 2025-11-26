@@ -37,27 +37,26 @@ export function SubjectTrendSection({
       subjectMap.get(score.subject_group)!.push(score);
     });
 
-    // 각 교과별로 날짜순 정렬
+    // 각 교과별로 학년/학기 순 정렬
     subjectMap.forEach((scores, group) => {
       scores.sort((a, b) => {
-        const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-        const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
+        // 학년 → 학기 → 생성일 순으로 정렬
+        if (a.grade !== b.grade) return a.grade - b.grade;
+        if (a.semester !== b.semester) return a.semester - b.semester;
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateA - dateB;
       });
     });
 
-    // 날짜별로 데이터 포인트 생성
+    // 학년/학기별로 데이터 포인트 생성
     const dateMap = new Map<string, Record<string, number | null>>();
 
     subjectMap.forEach((scores, group) => {
       const displayScores = showAll ? scores : scores.slice(-3); // 최근 3개 또는 전체
 
       displayScores.forEach((score) => {
-        if (!score.test_date) return;
-        const dateKey = new Date(score.test_date).toLocaleDateString("ko-KR", {
-          month: "short",
-          day: "numeric",
-        });
+        const dateKey = `${score.grade}학년 ${score.semester}학기`;
 
         if (!dateMap.has(dateKey)) {
           dateMap.set(dateKey, {});

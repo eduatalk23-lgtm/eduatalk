@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { Toast } from "./Toast";
 
 type ToastType = "success" | "error" | "info";
@@ -23,6 +23,12 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // 클라이언트에서만 마운트되도록 보장
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -72,7 +78,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast() {
   const context = useContext(ToastContext);
   if (context === undefined) {
-    throw new Error("useToast must be used within a ToastProvider");
+    // 개발 환경에서만 에러를 던지고, 프로덕션에서는 기본 동작 제공
+    if (process.env.NODE_ENV === "development") {
+      console.error("useToast must be used within a ToastProvider");
+    }
+    // 기본 동작 제공 (에러를 던지지 않음)
+    return {
+      showToast: () => {},
+      showSuccess: () => {},
+      showError: (message: string) => {
+        console.error("Toast Error:", message);
+      },
+      showInfo: () => {},
+    };
   }
   return context;
 }

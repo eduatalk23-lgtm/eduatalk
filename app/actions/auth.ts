@@ -97,8 +97,8 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
     );
   }
 
-  // 🔥 Step1 적용: 학생정보 여부를 post-login에서 판단하도록 이동
-  redirect("/post-login");
+  // 로그인 성공 시 루트 페이지로 리다이렉트 (역할별 리다이렉트는 루트 페이지에서 처리)
+  redirect("/");
 }
 
 // 에러 핸들링 래퍼 적용

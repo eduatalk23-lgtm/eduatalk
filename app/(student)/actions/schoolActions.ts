@@ -1,5 +1,11 @@
 "use server";
 
+import {
+  getSchoolById as getSchoolByIdData,
+  getSchoolByName as getSchoolByNameData,
+  getSchools,
+  getRegions,
+} from "@/lib/data/schools";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type School = {
@@ -14,20 +20,17 @@ export type School = {
  */
 export async function getSchoolById(schoolId: string): Promise<School | null> {
   try {
-    const supabase = await createSupabaseServerClient();
-
-    const { data: school, error } = await supabase
-      .from("schools")
-      .select("id, name, type, region")
-      .eq("id", schoolId)
-      .maybeSingle();
-
-    if (error) {
-      console.error("[schoolActions] ID 조회 실패:", error);
+    const school = await getSchoolByIdData(schoolId);
+    if (!school) {
       return null;
     }
 
-    return school as School | null;
+    return {
+      id: school.id,
+      name: school.name,
+      type: school.type,
+      region: school.region,
+    };
   } catch (error) {
     console.error("[schoolActions] ID 조회 오류:", error);
     return null;
@@ -38,23 +41,21 @@ export async function getSchoolById(schoolId: string): Promise<School | null> {
  * 학교명으로 학교 정보 조회
  */
 export async function getSchoolByName(
-  schoolName: string
+  schoolName: string,
+  type?: "중학교" | "고등학교" | "대학교"
 ): Promise<School | null> {
   try {
-    const supabase = await createSupabaseServerClient();
-
-    const { data: schools, error } = await supabase
-      .from("schools")
-      .select("id, name, type, region")
-      .eq("name", schoolName)
-      .limit(1);
-
-    if (error) {
-      console.error("[schoolActions] 이름 조회 실패:", error);
+    const school = await getSchoolByNameData(schoolName, type);
+    if (!school) {
       return null;
     }
 
-    return (schools && schools.length > 0 ? schools[0] : null) as School | null;
+    return {
+      id: school.id,
+      name: school.name,
+      type: school.type,
+      region: school.region,
+    };
   } catch (error) {
     console.error("[schoolActions] 이름 조회 오류:", error);
     return null;
@@ -72,32 +73,21 @@ export async function searchSchools(
   type?: "중학교" | "고등학교" | "대학교"
 ): Promise<School[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    const schools = await getSchools({ type, includeInactive: false });
 
-    let schoolsQuery = supabase
-      .from("schools")
-      .select("id, name, type, region")
-      .order("name", { ascending: true })
-      .limit(50);
+    // 검색어 필터링 (클라이언트 사이드)
+    const filtered = query.trim()
+      ? schools.filter((school) =>
+          school.name.toLowerCase().includes(query.toLowerCase())
+        )
+      : schools;
 
-    // 검색어가 있으면 필터링
-    if (query.trim()) {
-      schoolsQuery = schoolsQuery.ilike("name", `%${query.trim()}%`);
-    }
-
-    // 타입 필터
-    if (type && ["중학교", "고등학교", "대학교"].includes(type)) {
-      schoolsQuery = schoolsQuery.eq("type", type);
-    }
-
-    const { data: schools, error } = await schoolsQuery;
-
-    if (error) {
-      console.error("[schoolActions] 검색 실패:", error);
-      return [];
-    }
-
-    return (schools || []) as School[];
+    return filtered.map((school) => ({
+      id: school.id,
+      name: school.name,
+      type: school.type,
+      region: school.region,
+    }));
   } catch (error) {
     console.error("[schoolActions] 검색 오류:", error);
     return [];
@@ -116,15 +106,24 @@ export async function autoRegisterSchool(
     const supabase = await createSupabaseServerClient();
 
     // 중복 확인
-    const { data: existing } = await supabase
-      .from("schools")
-      .select("id, name, type, region")
-      .eq("name", name)
-      .eq("type", type)
-      .maybeSingle();
-
+    const existing = await getSchoolByNameData(name, type);
     if (existing) {
-      return existing as School;
+      return {
+        id: existing.id,
+        name: existing.name,
+        type: existing.type,
+        region: existing.region,
+      };
+    }
+
+    // 지역 매칭 (region 텍스트로 region_id 찾기)
+    let regionId: string | null = null;
+    if (region) {
+      const regions = await getRegions();
+      const matchedRegion = regions.find((r) => r.name === region);
+      if (matchedRegion) {
+        regionId = matchedRegion.id;
+      }
     }
 
     // 새로 등록
@@ -133,9 +132,9 @@ export async function autoRegisterSchool(
       .insert({
         name,
         type,
-        region: region || null,
+        region_id: regionId,
       })
-      .select("id, name, type, region")
+      .select("id, name, type")
       .single();
 
     if (error) {
@@ -143,7 +142,21 @@ export async function autoRegisterSchool(
       return null;
     }
 
-    return school as School | null;
+    // 지역 정보 포함하여 반환
+    const schoolWithRegion = await getSchoolByNameData(name, type);
+    return schoolWithRegion
+      ? {
+          id: schoolWithRegion.id,
+          name: schoolWithRegion.name,
+          type: schoolWithRegion.type,
+          region: schoolWithRegion.region,
+        }
+      : {
+          id: school.id,
+          name: school.name,
+          type: school.type,
+          region: null,
+        };
   } catch (error) {
     console.error("[schoolActions] 자동 등록 오류:", error);
     return null;

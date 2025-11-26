@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  getPlatforms,
-  createPlatform,
-  updatePlatform,
-  deletePlatform,
-  type Platform,
-} from "@/lib/data/contentMetadata";
+  getPlatformsAction,
+  createPlatformAction,
+  updatePlatformAction,
+  deletePlatformAction,
+} from "@/app/(admin)/actions/contentMetadataActions";
+import type { Platform } from "@/lib/data/contentMetadata";
 
 export function PlatformsManager() {
   const [items, setItems] = useState<Platform[]>([]);
@@ -23,7 +23,7 @@ export function PlatformsManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getPlatforms();
+      const data = await getPlatformsAction();
       setItems(data);
     } catch (error) {
       console.error("플랫폼 조회 실패:", error);
@@ -40,7 +40,7 @@ export function PlatformsManager() {
     }
 
     try {
-      await createPlatform(formData.name, formData.display_order);
+      await createPlatformAction(formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       loadItems();
@@ -57,7 +57,7 @@ export function PlatformsManager() {
     }
 
     try {
-      await updatePlatform(id, {
+      await updatePlatformAction(id, {
         name: formData.name,
         display_order: formData.display_order,
       });
@@ -74,7 +74,7 @@ export function PlatformsManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deletePlatform(id);
+      await deletePlatformAction(id);
       loadItems();
     } catch (error) {
       console.error("플랫폼 삭제 실패:", error);
@@ -209,7 +209,7 @@ export function PlatformsManager() {
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) =>
-                            updatePlatform(item.id, { is_active: e.target.checked }).then(() =>
+                            updatePlatformAction(item.id, { is_active: e.target.checked }).then(() =>
                               loadItems()
                             )
                           }

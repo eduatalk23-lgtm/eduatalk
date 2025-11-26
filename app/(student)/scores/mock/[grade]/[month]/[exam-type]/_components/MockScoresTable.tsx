@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MockScore } from "@/lib/data/studentScores";
-import type { SubjectGroup, Subject } from "@/lib/data/subjects";
+import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { addMockScore, updateMockScoreAction, deleteMockScoreAction } from "@/app/(student)/actions/scoreActions";
 
 type MockScoresTableProps = {
@@ -12,6 +12,7 @@ type MockScoresTableProps = {
   month: string;
   initialScores: MockScore[];
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
+  subjectTypes: SubjectType[];
 };
 
 type MockScoreFormData = {
@@ -24,8 +25,8 @@ type MockScoreFormData = {
   exam_round: string; // 회차 (월) - 탭의 월 값으로 자동 설정됨 (UI에서 입력 불가)
 };
 
-// 기본 교과 목록 (항상 표시) - 모의고사 기본 세트 (탐구는 사탐/과탐 분리)
-const DEFAULT_SUBJECT_GROUP_NAMES = ["국어", "수학", "영어", "탐구-사탐", "탐구-과탐"];
+// 기본 교과 목록 (항상 표시) - 모의고사 기본 세트
+const DEFAULT_SUBJECT_GROUP_NAMES = ["국어", "수학", "영어", "사회", "과학"];
 
 export default function MockScoresTable({
   grade,
@@ -33,6 +34,7 @@ export default function MockScoresTable({
   month,
   initialScores,
   subjectGroups,
+  subjectTypes,
 }: MockScoresTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -42,19 +44,23 @@ export default function MockScoresTable({
   const [scores, setScores] = useState<MockScoreFormData[]>(() => {
     const scoreMap = new Map<string, MockScoreFormData>();
 
-    // 기존 성적 데이터를 맵에 저장 (subject_group:subject_name을 키로 사용)
+    // 기존 성적 데이터를 맵에 저장 (subject_group_id:subject_id를 키로 사용)
     initialScores.forEach((score) => {
-      const group = subjectGroups.find((g) => g.name === score.subject_group);
+      // FK 기반으로 교과/과목 찾기
+      const group = score.subject_group_id
+        ? subjectGroups.find((g) => g.id === score.subject_group_id)
+        : subjectGroups.find((g) => g.name === score.subject_group);
       if (!group) return;
 
-      const subject = group.subjects.find((s) => s.name === score.subject_name);
-      if (!subject) return;
+      const subject = score.subject_id
+        ? group.subjects.find((s) => s.id === score.subject_id)
+        : group.subjects.find((s) => s.name === score.subject_name);
 
-      const key = `${score.subject_group}:${score.subject_name || ""}`;
+      const key = `${group.id}:${subject?.id || ""}`;
       scoreMap.set(key, {
         id: score.id,
         subject_group_id: group.id,
-        subject_id: subject.id,
+        subject_id: subject?.id || "",
         standard_score: score.standard_score?.toString() || "",
         percentile: score.percentile?.toString() || "",
         grade_score: score.grade_score?.toString() || "",
@@ -68,17 +74,18 @@ export default function MockScoresTable({
       const defaultGroup = subjectGroups.find((g) => g.name === groupName);
       if (!defaultGroup) {
         // 교과 그룹이 없으면 빈 행
-        return {
-          subject_group_id: "",
-          subject_id: "",
-          standard_score: "",
-          percentile: "",
-          grade_score: "",
-          exam_round: month, // 탭의 월 값을 자동 사용
-        };
+      return {
+        subject_group_id: "",
+        subject_id: "",
+        standard_score: "",
+        percentile: "",
+        grade_score: "",
+        exam_round: month, // 탭의 월 값을 자동 사용
+      };
       }
 
-      // 해당 교과의 첫 번째 과목으로 기존 성적 찾기
+      // 국어/수학/영어는 과목을 사용하지 않음
+      const shouldUseSubject = ["사회", "과학"].includes(groupName);
       const firstSubject = defaultGroup.subjects[0];
       const key = firstSubject ? `${groupName}:${firstSubject.name}` : null;
       const existingScore = key ? scoreMap.get(key) : undefined;
@@ -89,7 +96,7 @@ export default function MockScoresTable({
 
       return {
         subject_group_id: defaultGroup.id,
-        subject_id: firstSubject?.id || "",
+        subject_id: shouldUseSubject ? (firstSubject?.id || "") : "",
         standard_score: "",
         percentile: "",
         grade_score: "",
@@ -171,7 +178,7 @@ export default function MockScoresTable({
     );
   };
 
-  // 교과 선택 시 과목 필터링 및 과목유형 자동 설정
+  // 교과 선택 시 과목 필터링
   const handleSubjectGroupChange = (index: number, groupId: string) => {
     const group = subjectGroups.find((g) => g.id === groupId);
     if (!group) {
@@ -180,7 +187,8 @@ export default function MockScoresTable({
       return;
     }
 
-    // 교과 선택 시 첫 번째 과목 자동 선택 (없으면 빈 값)
+    // 사회/과학일 때만 과목 선택, 국어/수학/영어는 과목을 사용하지 않음
+    const shouldUseSubject = ["사회", "과학"].includes(group.name);
     const firstSubject = group.subjects[0];
 
     setScores((prev) =>
@@ -189,7 +197,7 @@ export default function MockScoresTable({
           ? {
               ...row,
               subject_group_id: group.id,
-              subject_id: firstSubject?.id || "",
+              subject_id: shouldUseSubject ? (firstSubject?.id || "") : "",
             }
           : row
       )
@@ -240,14 +248,21 @@ export default function MockScoresTable({
     ]);
   };
 
+  // 과목 선택이 필요한 교과인지 확인
+  const shouldShowSubjectSelect = (groupName: string | null): boolean => {
+    if (!groupName) return false;
+    return ["사회", "과학"].includes(groupName);
+  };
+
   // 필수 필드 검증
   const validateRow = (row: MockScoreFormData): string[] => {
     const missingFields: string[] = [];
     const group = subjectGroups.find((g) => g.id === row.subject_group_id);
     const isEnglishOrKoreanHistory = group?.name === "영어" || group?.name === "한국사";
+    const needsSubject = shouldShowSubjectSelect(group?.name || null);
     
     if (!row.subject_group_id) missingFields.push("교과");
-    if (!row.subject_id) missingFields.push("과목");
+    if (needsSubject && !row.subject_id) missingFields.push("과목");
     if (!row.grade_score) missingFields.push("등급");
     if (!isEnglishOrKoreanHistory) {
       if (!row.standard_score) missingFields.push("표준점수");
@@ -264,9 +279,10 @@ export default function MockScoresTable({
       const group = subjectGroups.find((g) => g.id === row.subject_group_id);
       const isEnglishOrKoreanHistory = group?.name === "영어" || group?.name === "한국사";
       
+      const needsSubject = shouldShowSubjectSelect(group?.name || null);
       return (
         row.subject_group_id &&
-        row.subject_id &&
+        (!needsSubject || row.subject_id) &&
         row.grade_score &&
         (isEnglishOrKoreanHistory || (row.standard_score && row.percentile))
       );
@@ -298,24 +314,35 @@ export default function MockScoresTable({
       try {
         const savePromises = rowsToSave.map((row) => {
           const group = subjectGroups.find((g) => g.id === row.subject_group_id);
-          const subject = group?.subjects.find((s) => s.id === row.subject_id);
+          const needsSubject = shouldShowSubjectSelect(group?.name || null);
+          const subject = needsSubject && row.subject_id 
+            ? group?.subjects.find((s) => s.id === row.subject_id)
+            : null;
 
-          if (!group || !subject) {
+          if (!group || (needsSubject && !subject)) {
             return Promise.resolve();
           }
 
           const formData = new FormData();
           formData.append("grade", grade.toString());
           formData.append("exam_type", examType);
+          // FK 필드 전달
+          formData.append("subject_group_id", group.id);
+          if (needsSubject && subject) {
+            formData.append("subject_id", subject.id);
+            formData.append("subject_name", subject.name);
+          } else {
+            // 국어/수학/영어는 subject_id를 빈 문자열로 저장
+            formData.append("subject_id", "");
+            formData.append("subject_name", "");
+          }
+          // 하위 호환성을 위해 텍스트 필드도 함께 전달
           formData.append("subject_group", group.name);
-          formData.append("subject_name", subject.name);
           // raw_score는 null (모의고사에는 원점수가 없음)
           if (row.standard_score) formData.append("standard_score", row.standard_score);
           if (row.percentile) formData.append("percentile", row.percentile);
           formData.append("grade_score", row.grade_score);
           formData.append("exam_round", month); // 탭의 월 값을 자동 사용
-          // test_date는 현재 날짜로 설정 (필수 필드)
-          formData.append("test_date", new Date().toISOString().split("T")[0]);
 
           if (row.id) {
             return updateMockScoreAction(row.id, formData);
@@ -410,9 +437,10 @@ export default function MockScoresTable({
             {scores.map((row, index) => {
               const subjectsInGroup = getSubjectsByGroupId(row.subject_group_id);
               const missingFields = validateRow(row);
-              const hasIncompleteRequiredFields = missingFields.length > 0 && (row.subject_group_id || row.subject_id || row.grade_score);
               const group = subjectGroups.find((g) => g.id === row.subject_group_id);
               const isEnglishOrKoreanHistory = group?.name === "영어" || group?.name === "한국사";
+              const needsSubject = shouldShowSubjectSelect(group?.name || null);
+              const hasIncompleteRequiredFields = missingFields.length > 0 && (row.subject_group_id || (needsSubject && row.subject_id) || row.grade_score);
               
               return (
                 <tr
@@ -447,25 +475,29 @@ export default function MockScoresTable({
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-3">
-                    <select
-                      value={row.subject_id}
-                      onChange={(e) => handleSubjectChange(index, e.target.value)}
-                      disabled={!row.subject_group_id}
-                      className={`w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                        !row.subject_id && hasIncompleteRequiredFields
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:ring-indigo-500"
-                      }`}
-                    >
-                      <option value="">선택</option>
-                      {subjectsInGroup.map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+                  {needsSubject ? (
+                    <td className="px-3 py-3">
+                      <select
+                        value={row.subject_id}
+                        onChange={(e) => handleSubjectChange(index, e.target.value)}
+                        disabled={!row.subject_group_id}
+                        className={`w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                          !row.subject_id && hasIncompleteRequiredFields
+                            ? "border-red-300 focus:border-red-500 focus:ring-red-500"
+                            : "border-gray-300 focus:ring-indigo-500"
+                        }`}
+                      >
+                        <option value="">선택</option>
+                        {subjectsInGroup.map((subject) => (
+                          <option key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  ) : (
+                    <td className="px-3 py-3 text-xs text-gray-500">-</td>
+                  )}
                   <td className="px-3 py-3">
                     <input
                       type="number"

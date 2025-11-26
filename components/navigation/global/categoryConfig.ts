@@ -41,6 +41,19 @@ const studentCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "camp",
+    label: "캠프 참여",
+    icon: "🏕️",
+    items: [
+      {
+        id: "camp-main",
+        label: "캠프 참여",
+        href: "/camp",
+        icon: "🏕️",
+      },
+    ],
+  },
+  {
     id: "learning",
     label: "학습 관리",
     icon: "📅",
@@ -258,6 +271,18 @@ const adminCategories: NavigationCategory[] = [
     icon: "📚",
     items: [
       {
+        id: "admin-content-metadata",
+        label: "콘텐츠 메타데이터",
+        href: "/admin/content-metadata",
+        icon: "📋",
+      },
+      {
+        id: "admin-subjects",
+        label: "교과/과목 관리",
+        href: "/admin/subjects",
+        icon: "📚",
+      },
+      {
         id: "admin-master-books",
         label: "교재 관리",
         href: "/admin/master-books",
@@ -274,6 +299,19 @@ const adminCategories: NavigationCategory[] = [
         label: "학교 관리",
         href: "/admin/schools",
         icon: "🏫",
+      },
+    ],
+  },
+  {
+    id: "admin-camp",
+    label: "캠프 관리",
+    icon: "🏕️",
+    items: [
+      {
+        id: "admin-camp-templates",
+        label: "캠프 템플릿",
+        href: "/admin/camp-templates",
+        icon: "🏕️",
       },
     ],
   },

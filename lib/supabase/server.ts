@@ -38,13 +38,23 @@ export async function createSupabaseServerClient(
   cookieStore?: ReadonlyRequestCookies,
   options?: { rememberMe?: boolean }
 ) {
-  const store = cookieStore ?? await cookies();
-  const rememberMe = options?.rememberMe ?? false;
+  try {
+    const store = cookieStore ?? await cookies();
+    const rememberMe = options?.rememberMe ?? false;
 
-  return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
+    // 환경 변수 검증
+    if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error("[supabase/server] 환경 변수가 설정되지 않았습니다", {
+        hasUrl: !!env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      });
+      // 환경 변수가 없어도 클라이언트는 생성하되, 사용 시 에러가 발생할 수 있음
+    }
+
+    return createServerClient(
+      env.NEXT_PUBLIC_SUPABASE_URL || "",
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+      {
       global: {
         fetch: rateLimitedFetch, // Rate limit 처리된 fetch 사용
       },
@@ -99,7 +109,41 @@ export async function createSupabaseServerClient(
         },
       },
     }
-  );
+    );
+  } catch (error) {
+    // Supabase 클라이언트 생성 실패 시 에러 로깅
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[supabase/server] 클라이언트 생성 실패", {
+      message: errorMessage,
+      error,
+    });
+    // 에러가 발생해도 기본 클라이언트를 반환 (사용 시 에러 발생 가능)
+    // 이렇게 하면 서버 컴포넌트 렌더링이 중단되지 않음
+    try {
+      return createServerClient(
+        env.NEXT_PUBLIC_SUPABASE_URL || "",
+        env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+        {
+          cookies: {
+            get() { return undefined; },
+            set() {},
+            remove() {},
+          },
+        }
+      );
+    } catch (fallbackError) {
+      // fallback 클라이언트 생성도 실패한 경우
+      console.error("[supabase/server] Fallback 클라이언트 생성도 실패", fallbackError);
+      // 최후의 수단: 빈 URL과 키로 클라이언트 생성 (사용 시 에러 발생)
+      return createServerClient("", "", {
+        cookies: {
+          get() { return undefined; },
+          set() {},
+          remove() {},
+        },
+      });
+    }
+  }
 }
 
 /**

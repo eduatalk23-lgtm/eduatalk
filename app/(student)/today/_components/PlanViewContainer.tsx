@@ -1,71 +1,167 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { SinglePlanView } from "./SinglePlanView";
 import { DailyPlanListView } from "./DailyPlanListView";
 import { ViewModeSelector } from "./ViewModeSelector";
-import { groupPlansByPlanNumber, PlanWithContent } from "../_utils/planGroupUtils";
+import { PlanDateNavigator } from "./PlanDateNavigator";
+import { usePlanRealtimeUpdates } from "@/lib/realtime/usePlanRealtimeUpdates";
+import {
+  groupPlansByPlanNumber,
+  PlanGroup,
+  PlanWithContent,
+} from "../_utils/planGroupUtils";
+import {
+  formatKoreanDateWithDay,
+  getRelativeDateLabel,
+  getTodayISODate,
+} from "../_utils/dateDisplay";
 
 export type ViewMode = "single" | "daily";
 
 type PlanViewContainerProps = {
   initialMode?: ViewMode;
   initialSelectedPlanNumber?: number | null;
+  initialPlanDate?: string | null;
+  onDateChange?: (date: string, options?: { isToday: boolean }) => void;
+  userId?: string;
 };
+
+type SessionState = {
+  isPaused: boolean;
+  pausedAt?: string | null;
+  resumedAt?: string | null;
+};
+
+type PlansResponse = {
+  plans: PlanWithContent[];
+  sessions: Record<string, SessionState>;
+  planDate: string;
+  isToday?: boolean;
+};
+
+const SESSION_REFRESH_INTERVAL_MS = 30000;
+
+function shiftIsoDate(baseDate: string, delta: number): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) {
+    return null;
+  }
+
+  const [year, month, day] = baseDate.split("-").map(Number);
+  if (
+    [year, month, day].some(
+      (value) => typeof value !== "number" || Number.isNaN(value)
+    )
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, (month ?? 1) - 1, day ?? 1);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  date.setDate(date.getDate() + delta);
+
+  const formattedMonth = String(date.getMonth() + 1).padStart(2, "0");
+  const formattedDay = String(date.getDate()).padStart(2, "0");
+
+  return `${date.getFullYear()}-${formattedMonth}-${formattedDay}`;
+}
 
 export function PlanViewContainer({
   initialMode = "daily",
   initialSelectedPlanNumber = null,
+  initialPlanDate = null,
+  onDateChange,
+  userId,
 }: PlanViewContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
     initialSelectedPlanNumber
   );
-  
-  // 공유 데이터 상태
-  const [groups, setGroups] = useState<Array<{
-    planNumber: number | null;
-    plans: PlanWithContent[];
-    content: any;
-    sequence: number | null;
-  }>>([]);
-  const [sessions, setSessions] = useState<Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>>(new Map());
-  const [planDate, setPlanDate] = useState<string>("");
-  const [loading, setLoading] = useState(true);
 
-  // 데이터 로딩
-  useEffect(() => {
-    async function loadData() {
+  const [groups, setGroups] = useState<PlanGroup[]>([]);
+  const [sessions, setSessions] = useState<Map<string, SessionState>>(
+    new Map()
+  );
+  const [planDate, setPlanDate] = useState<string>("");
+  const [isToday, setIsToday] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const queryDateRef = useRef<string | null>(null);
+
+  // Realtime 구독 설정 (30초 폴링 대체)
+  usePlanRealtimeUpdates({
+    planDate: planDate || getTodayISODate(),
+    userId: userId || "",
+    enabled: Boolean(userId && planDate),
+  });
+
+  const loadData = useCallback(
+    async (date?: string, options?: { silent?: boolean }) => {
+      const targetDate = date ?? queryDateRef.current;
+      queryDateRef.current = targetDate ?? null;
+
+      if (!options?.silent) {
+        setLoading(true);
+      }
+
       try {
-        const response = await fetch("/api/today/plans");
+        const query = targetDate ? `?date=${targetDate}` : "";
+        const response = await fetch(`/api/today/plans${query}`, {
+          cache: "no-store",
+        });
         if (!response.ok) throw new Error("플랜 조회 실패");
-        
-        const data = await response.json();
-        
+
+        const data = (await response.json()) as PlansResponse;
         const grouped = groupPlansByPlanNumber(data.plans);
+
         setGroups(grouped);
-        setSessions(new Map(Object.entries(data.sessions || {})));
-        setPlanDate(data.planDate || "");
-        
-        // 선택된 플랜이 없으면 첫 번째 플랜 선택
-        if (!selectedPlanNumber && grouped.length > 0) {
-          setSelectedPlanNumber(grouped[0]?.planNumber ?? null);
+        const sessionEntries = Object.entries(data.sessions || {}) as [
+          string,
+          SessionState,
+        ][];
+        setSessions(new Map(sessionEntries));
+        const resolvedDate = data.planDate || targetDate || "";
+        setPlanDate(resolvedDate);
+        queryDateRef.current = resolvedDate || null;
+        const resolvedIsToday = Boolean(data.isToday);
+        setIsToday(resolvedIsToday);
+        if (resolvedDate) {
+          onDateChange?.(resolvedDate, { isToday: resolvedIsToday });
         }
+        setSelectedPlanNumber((prev) => {
+          if (grouped.length === 0) {
+            return null;
+          }
+          if (prev != null && grouped.some((g) => g.planNumber === prev)) {
+            return prev;
+          }
+          return grouped[0]?.planNumber ?? null;
+        });
       } catch (error) {
         console.error("[PlanViewContainer] 데이터 로딩 실패", error);
       } finally {
-        setLoading(false);
+        if (!options?.silent) {
+          setLoading(false);
+        }
+        setIsNavigating(false);
       }
+    },
+    [onDateChange]
+  );
+
+  useEffect(() => {
+    if (initialPlanDate) {
+      queryDateRef.current = initialPlanDate;
+      loadData(initialPlanDate);
+    } else {
+      loadData();
     }
-    
-    loadData();
-    
-    // 세션 상태 동기화를 위한 주기적 갱신
-    // 타이머는 클라이언트에서 계산되므로 30초 간격으로 충분
-    const interval = setInterval(loadData, 30000); // 30초 간격으로 변경
-    
-    return () => clearInterval(interval);
-  }, [selectedPlanNumber]);
+    // Realtime 구독으로 대체하여 폴링 제거
+  }, [initialPlanDate, loadData]);
 
   const handleViewDetail = (planNumber: number | null) => {
     setSelectedPlanNumber(planNumber);
@@ -75,12 +171,27 @@ export function PlanViewContainer({
   const handleModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     if (mode === "single" && !selectedPlanNumber && groups.length > 0) {
-      // 단일 뷰로 전환할 때 선택된 플랜이 없으면 첫 번째 플랜 선택
       setSelectedPlanNumber(groups[0]?.planNumber ?? null);
     }
   };
 
-  if (loading) {
+  const handleMoveDay = (delta: number) => {
+    const baseDate =
+      planDate || queryDateRef.current || getTodayISODate();
+    const nextDate = shiftIsoDate(baseDate, delta);
+    if (!nextDate) return;
+
+    setIsNavigating(true);
+    loadData(nextDate);
+  };
+
+  const handleResetToToday = () => {
+    const today = getTodayISODate();
+    setIsNavigating(true);
+    loadData(today);
+  };
+
+  if (loading && groups.length === 0) {
     return (
       <div className="mb-6 flex items-center justify-center p-8">
         <div className="text-gray-500">로딩 중...</div>
@@ -89,8 +200,30 @@ export function PlanViewContainer({
   }
 
   return (
-    <div className="mb-6">
-      <div className="mb-4 flex items-center justify-end">
+    <div className="flex flex-col gap-4">
+      <PlanDateNavigator
+        planDate={planDate}
+        isToday={isToday}
+        isLoading={loading}
+        isNavigating={isNavigating}
+        onMoveDay={handleMoveDay}
+        onResetToToday={handleResetToToday}
+      />
+
+      {!isToday && planDate && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-amber-900">
+              {getRelativeDateLabel(planDate)}의 플랜을 보고 있습니다
+            </p>
+            <p className="text-xs text-amber-700">
+              {formatKoreanDateWithDay(planDate)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-end">
         <ViewModeSelector mode={viewMode} onChange={handleModeChange} />
       </div>
 

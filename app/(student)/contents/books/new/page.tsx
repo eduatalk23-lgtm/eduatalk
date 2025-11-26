@@ -10,10 +10,10 @@ import {
   getCurriculumRevisionsAction,
   getGradesAction,
   getSemestersAction,
-  getSubjectCategoriesAction,
-  getSubjectsAction,
   getPublishersAction,
 } from "@/app/(student)/actions/contentMetadataActions";
+import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(admin)/actions/subjectActions";
+import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 
 export default function NewBookPage() {
   const [isPending, startTransition] = useTransition();
@@ -22,16 +22,14 @@ export default function NewBookPage() {
   const [revisions, setRevisions] = useState<Array<{ id: string; name: string }>>([]);
   const [grades, setGrades] = useState<Array<{ id: string; name: string }>>([]);
   const [semesters, setSemesters] = useState<Array<{ id: string; name: string }>>([]);
-  const [subjectCategories, setSubjectCategories] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-  const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [publishers, setPublishers] = useState<Array<{ id: string; name: string }>>([]);
 
   const [selectedRevisionId, setSelectedRevisionId] = useState<string>("");
   const [selectedGradeId, setSelectedGradeId] = useState<string>("");
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
-  const [selectedSubjectCategoryId, setSelectedSubjectCategoryId] = useState<string>("");
+  const [selectedSubjectGroupId, setSelectedSubjectGroupId] = useState<string>("");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [selectedPublisherId, setSelectedPublisherId] = useState<string>("");
 
@@ -41,20 +39,20 @@ export default function NewBookPage() {
 
   useEffect(() => {
     if (selectedRevisionId) {
-      loadSubjectCategories(selectedRevisionId);
+      loadSubjectGroups(selectedRevisionId);
     } else {
-      setSubjectCategories([]);
+      setSubjectGroups([]);
       setSubjects([]);
     }
   }, [selectedRevisionId]);
 
   useEffect(() => {
-    if (selectedSubjectCategoryId) {
-      loadSubjects(selectedSubjectCategoryId);
+    if (selectedSubjectGroupId) {
+      loadSubjects(selectedSubjectGroupId);
     } else {
       setSubjects([]);
     }
-  }, [selectedSubjectCategoryId]);
+  }, [selectedSubjectGroupId]);
 
   async function loadMetadata() {
     try {
@@ -73,21 +71,21 @@ export default function NewBookPage() {
     }
   }
 
-  async function loadSubjectCategories(revisionId: string) {
+  async function loadSubjectGroups(revisionId: string) {
     try {
-      const categories = await getSubjectCategoriesAction(revisionId);
-      setSubjectCategories(categories.filter((c) => c.is_active));
-      setSelectedSubjectCategoryId("");
+      const groups = await getSubjectGroupsAction(revisionId);
+      setSubjectGroups(groups);
+      setSelectedSubjectGroupId("");
       setSubjects([]);
     } catch (error) {
-      console.error("교과 로드 실패:", error);
+      console.error("교과 그룹 로드 실패:", error);
     }
   }
 
-  async function loadSubjects(subjectCategoryId: string) {
+  async function loadSubjects(subjectGroupId: string) {
     try {
-      const subs = await getSubjectsAction(subjectCategoryId);
-      setSubjects(subs.filter((s) => s.is_active));
+      const subs = await getSubjectsByGroupAction(subjectGroupId);
+      setSubjects(subs);
       setSelectedSubjectId("");
     } catch (error) {
       console.error("과목 로드 실패:", error);
@@ -116,10 +114,10 @@ export default function NewBookPage() {
     }
 
     // 교과 이름 추가
-    if (selectedSubjectCategoryId) {
-      const category = subjectCategories.find((c) => c.id === selectedSubjectCategoryId);
-      if (category) {
-        formData.set("subject_category", category.name);
+    if (selectedSubjectGroupId) {
+      const group = subjectGroups.find((g) => g.id === selectedSubjectGroupId);
+      if (group) {
+        formData.set("subject_category", group.name);
       }
     }
 
@@ -182,7 +180,7 @@ export default function NewBookPage() {
               value={selectedRevisionId}
               onChange={(e) => {
                 setSelectedRevisionId(e.target.value);
-                setSelectedSubjectCategoryId("");
+                setSelectedSubjectGroupId("");
                 setSelectedSubjectId("");
               }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -234,9 +232,9 @@ export default function NewBookPage() {
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">교과</label>
             <select
-              value={selectedSubjectCategoryId}
+              value={selectedSubjectGroupId}
               onChange={(e) => {
-                setSelectedSubjectCategoryId(e.target.value);
+                setSelectedSubjectGroupId(e.target.value);
                 setSelectedSubjectId("");
               }}
               disabled={!selectedRevisionId}
@@ -245,9 +243,9 @@ export default function NewBookPage() {
               <option value="">
                 {selectedRevisionId ? "선택하세요" : "개정교육과정을 먼저 선택하세요"}
               </option>
-              {subjectCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
+              {subjectGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
                 </option>
               ))}
             </select>
@@ -259,11 +257,11 @@ export default function NewBookPage() {
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
-              disabled={!selectedSubjectCategoryId}
+              disabled={!selectedSubjectGroupId}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">
-                {selectedSubjectCategoryId ? "선택하세요" : "교과를 먼저 선택하세요"}
+                {selectedSubjectGroupId ? "선택하세요" : "교과를 먼저 선택하세요"}
               </option>
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>

@@ -84,12 +84,6 @@ export default async function WeeklyReportPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href={`/report/weekly/pdf?week=${weekStart.toISOString().slice(0, 10)}`}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              PDF로 저장하기
-            </Link>
-            <Link
               href="/dashboard"
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
@@ -97,11 +91,6 @@ export default async function WeeklyReportPage() {
             </Link>
           </div>
         </div>
-        {hasData && (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
-            학부모 상담용으로 다운로드할 수 있는 리포트입니다.
-          </div>
-        )}
 
         {!hasData ? (
           <EmptyState

@@ -90,8 +90,13 @@ export function MockSummarySection({
     const sorted = [...mockScores]
       .filter((s) => s.percentile !== null || s.grade_score !== null)
       .sort((a, b) => {
-        const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-        const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
+        // 학년 → 회차 → 생성일 순으로 정렬
+        if (a.grade !== b.grade) return b.grade - a.grade;
+        const roundA = a.exam_round || "";
+        const roundB = b.exam_round || "";
+        if (roundA !== roundB) return roundB.localeCompare(roundA);
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
       });
     return sorted.slice(0, 3);
@@ -227,12 +232,7 @@ export function MockSummarySection({
                     className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2"
                   >
                     <span className="text-xs text-gray-600">
-                      {score.test_date
-                        ? new Date(score.test_date).toLocaleDateString("ko-KR", {
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : "-"}
+                      {score.grade}학년 {score.exam_round || "-"}회차
                     </span>
                     <div className="flex items-center gap-2">
                       {score.percentile !== null && (

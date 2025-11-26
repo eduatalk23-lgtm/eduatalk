@@ -18,6 +18,12 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   const handleToggleSelect = (groupId: string) => {
+    // 캠프 플랜은 선택 불가
+    const group = groups.find((g) => g.id === groupId);
+    if (group && group.plan_type === "camp" && group.camp_invitation_id) {
+      return;
+    }
+    
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(groupId)) {
@@ -29,13 +35,22 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
     });
   };
 
+  // 캠프 플랜 제외한 그룹 목록
+  const selectableGroups = groups.filter(
+    (g) => !(g.plan_type === "camp" && g.camp_invitation_id)
+  );
+  const selectableGroupIds = new Set(selectableGroups.map((g) => g.id));
+  const allSelectableSelected = 
+    selectableGroups.length > 0 && 
+    selectableGroups.every((g) => selectedIds.has(g.id));
+
   const handleSelectAll = () => {
-    if (selectedIds.size === groups.length) {
+    if (allSelectableSelected) {
       // 전체 해제
       setSelectedIds(new Set());
     } else {
-      // 전체 선택
-      setSelectedIds(new Set(groups.map((g) => g.id)));
+      // 캠프 플랜 제외하고 전체 선택
+      setSelectedIds(new Set(selectableGroupIds));
     }
   };
 
@@ -78,7 +93,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
     );
   }
 
-  const allSelected = selectedIds.size === groups.length && groups.length > 0;
+  const allSelected = allSelectableSelected;
 
   return (
     <>

@@ -1,6 +1,9 @@
 import { SchoolForm } from "./SchoolForm";
+import { getRegions } from "@/lib/data/schools";
 
-export default function NewSchoolPage() {
+export default async function NewSchoolPage() {
+  const regions = await getRegions();
+
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
       <div className="flex flex-col gap-6">
@@ -11,7 +14,7 @@ export default function NewSchoolPage() {
           </p>
         </div>
 
-        <SchoolForm />
+        <SchoolForm regions={regions.map((r) => ({ id: r.id, name: r.name }))} />
       </div>
     </section>
   );

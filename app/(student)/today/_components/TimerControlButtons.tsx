@@ -43,11 +43,12 @@ export function TimerControlButtons({
     return (
       <button
         onClick={() => router.push(`/today/plan/${planId}`)}
+        aria-label="완료한 플랜 상세보기"
         className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 ${
           className || ""
         }`}
       >
-        <FileText className="h-4 w-4" />
+        <FileText className="h-4 w-4" aria-hidden="true" />
         상세보기
       </button>
     );
@@ -58,12 +59,14 @@ export function TimerControlButtons({
       <button
         onClick={onStart}
         disabled={isLoading || hasOtherActivePlan}
+        aria-label="학습 시작하기"
+        aria-disabled={isLoading || hasOtherActivePlan}
         className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 ${
           className || ""
         }`}
         title={hasOtherActivePlan ? "다른 플랜의 타이머가 실행 중입니다. 먼저 해당 플랜의 타이머를 중지해주세요." : ""}
       >
-        <Play className="h-4 w-4" />
+        <Play className="h-4 w-4" aria-hidden="true" />
         시작하기
       </button>
     );
@@ -75,17 +78,20 @@ export function TimerControlButtons({
         <button
           onClick={onPause}
           disabled={isLoading}
+          aria-label="학습 일시정지"
+          aria-pressed={false}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-yellow-700 disabled:opacity-50"
         >
-          <Pause className="h-4 w-4" />
+          <Pause className="h-4 w-4" aria-hidden="true" />
           일시정지
         </button>
         <button
           onClick={handleComplete}
           disabled={isLoading}
+          aria-label="학습 완료하기"
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
         >
-          <Square className="h-4 w-4" />
+          <Square className="h-4 w-4" aria-hidden="true" />
           완료하기
         </button>
       </div>
@@ -98,17 +104,20 @@ export function TimerControlButtons({
         <button
           onClick={onResume}
           disabled={isLoading}
+          aria-label="학습 재개하기"
+          aria-pressed={true}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
         >
-          <Play className="h-4 w-4" />
+          <Play className="h-4 w-4" aria-hidden="true" />
           재개
         </button>
         <button
           onClick={handleComplete}
           disabled={isLoading}
+          aria-label="학습 완료하기"
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
         >
-          <Square className="h-4 w-4" />
+          <Square className="h-4 w-4" aria-hidden="true" />
           완료하기
         </button>
       </div>

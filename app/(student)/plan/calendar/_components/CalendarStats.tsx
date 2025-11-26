@@ -9,7 +9,7 @@ type CalendarStatsProps = {
 
 export function CalendarStats({ plans }: CalendarStatsProps) {
   const totalPlans = plans.length;
-  const completedPlans = plans.filter((p) => p.progress !== null && p.progress >= 100).length;
+  const completedPlans = plans.filter((p) => p.progress != null && p.progress >= 100).length;
   const activePlans = plans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
   const averageProgress =
     totalPlans > 0

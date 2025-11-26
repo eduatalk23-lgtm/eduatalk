@@ -40,6 +40,12 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     const { userId, role, tenantId } = await getCurrentUserRole();
 
     if (!userId || !role) {
+      console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
+        userId,
+        role,
+        userEmail: user.email,
+        userIdFromAuth: user.id,
+      });
       return null;
     }
 

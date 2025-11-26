@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { WizardData } from "./PlanGroupWizard";
+import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import { fetchContentMetadataAction, fetchContentMetadataBatchAction } from "@/app/(student)/actions/fetchContentMetadata";
 
 type Step6FinalReviewProps = {
   data: WizardData;
@@ -11,6 +13,7 @@ type Step6FinalReviewProps = {
     lectures: Array<{ id: string; title: string; subtitle?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
+  isCampMode?: boolean;
 };
 
 type ContentInfo = {
@@ -21,6 +24,20 @@ type ContentInfo = {
   start_range: number;
   end_range: number;
   isRecommended: boolean;
+  // 자동 추천 관련 필드
+  is_auto_recommended?: boolean;
+  recommendation_source?: "auto" | "admin" | "template" | null;
+  recommendation_reason?: string | null;
+  recommendation_metadata?: {
+    scoreDetails?: {
+      schoolGrade?: number | null;
+      schoolAverageGrade?: number | null;
+      mockPercentile?: number | null;
+      mockGrade?: number | null;
+      riskScore?: number;
+    };
+    priority?: number;
+  } | null;
   subject?: string | null;
   semester?: string | null;
   revision?: string | null;
@@ -42,7 +59,7 @@ type LectureEpisode = {
   episode_title: string | null;
 };
 
-export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewProps) {
+export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false }: Step6FinalReviewProps) {
   const [contentInfos, setContentInfos] = useState<ContentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingRangeIndex, setEditingRangeIndex] = useState<{
@@ -76,21 +93,25 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
         let title = (content as any).title;
         let subjectCategory = (content as any).subject_category;
 
-        // 저장된 정보가 없으면 조회
+        // 저장된 정보가 없으면 서버 액션으로 조회
         let metadata: any = null;
         if (!title || !subjectCategory) {
           try {
-            const response = await fetch(
-              `/api/student-content-info?content_type=${content.content_type}&content_id=${content.content_id}`
+            const result = await fetchContentMetadataAction(
+              content.content_id,
+              content.content_type
             );
-            if (response.ok) {
-              const info = await response.json();
-              title = title || info.title || "알 수 없음";
-              subjectCategory = subjectCategory || info.subject_category;
-              metadata = info;
+            if (result.success && result.data) {
+              title = title || result.data.title || "알 수 없음";
+              subjectCategory = subjectCategory || result.data.subject_category;
+              metadata = result.data;
             }
           } catch (error) {
-            console.error("학생 콘텐츠 정보 조회 실패:", error);
+            const planGroupError = toPlanGroupError(
+              error,
+              PlanGroupErrorCodes.CONTENT_FETCH_FAILED
+            );
+            console.error("[Step6FinalReview] 학생 콘텐츠 메타데이터 조회 실패:", planGroupError);
           }
         }
 
@@ -105,7 +126,11 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
               metadata = result.metadata;
             }
           } catch (error) {
-            console.error("학생 콘텐츠 메타데이터 조회 실패:", error);
+            const planGroupError = toPlanGroupError(
+              error,
+              PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+            );
+            console.error("[Step6FinalReview] 학생 콘텐츠 메타데이터 조회 실패:", planGroupError);
           }
         }
 
@@ -144,21 +169,25 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
         let title = (content as any).title;
         let subjectCategory = (content as any).subject_category;
 
-        // 저장된 정보가 없으면 마스터 콘텐츠 조회
+        // 저장된 정보가 없으면 서버 액션으로 조회 (마스터 콘텐츠)
         let metadata: any = null;
         if (!title || !subjectCategory) {
           try {
-            const response = await fetch(
-              `/api/master-content-info?content_type=${content.content_type}&content_id=${content.content_id}`
+            const result = await fetchContentMetadataAction(
+              content.content_id,
+              content.content_type
             );
-            if (response.ok) {
-              const info = await response.json();
-              title = title || info.title || "알 수 없음";
-              subjectCategory = subjectCategory || info.subject_category;
-              metadata = info;
+            if (result.success && result.data) {
+              title = title || result.data.title || "알 수 없음";
+              subjectCategory = subjectCategory || result.data.subject_category;
+              metadata = result.data;
             }
           } catch (error) {
-            console.error("마스터 콘텐츠 정보 조회 실패:", error);
+            const planGroupError = toPlanGroupError(
+              error,
+              PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+            );
+            console.error("[Step6FinalReview] 마스터 콘텐츠 메타데이터 조회 실패:", planGroupError);
           }
         }
 
@@ -173,7 +202,11 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
               metadata = result.metadata;
             }
           } catch (error) {
-            console.error("마스터 콘텐츠 메타데이터 조회 실패:", error);
+            const planGroupError = toPlanGroupError(
+              error,
+              PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+            );
+            console.error("[Step6FinalReview] 마스터 콘텐츠 메타데이터 조회 실패:", planGroupError);
           }
         }
 
@@ -185,6 +218,11 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
           start_range: content.start_range,
           end_range: content.end_range,
           isRecommended: true,
+          // 자동 추천 정보 (content에 포함된 경우)
+          is_auto_recommended: (content as any).is_auto_recommended ?? false,
+          recommendation_source: (content as any).recommendation_source ?? null,
+          recommendation_reason: (content as any).recommendation_reason ?? null,
+          recommendation_metadata: (content as any).recommendation_metadata ?? null,
           subject: metadata?.subject || null,
           semester: metadata?.semester || null,
           revision: metadata?.revision || null,
@@ -262,7 +300,11 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
           }
         }
       } catch (error) {
-        console.error("상세정보 조회 실패:", error);
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+        );
+        console.error("[Step6FinalReview] 상세정보 조회 실패:", planGroupError);
       } finally {
         setLoadingDetails((prev) => {
           const newSet = new Set(prev);
@@ -509,7 +551,12 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
                   }
                 }
               } catch (detailsError) {
-                console.error(`콘텐츠 ${contentInfo.content_id} 상세정보 조회 실패 (총량 추정용)`, detailsError);
+                const planGroupError = toPlanGroupError(
+                  detailsError,
+                  PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED,
+                  { contentId: contentInfo.content_id }
+                );
+                console.error(`[Step6FinalReview] 콘텐츠 ${contentInfo.content_id} 상세정보 조회 실패 (총량 추정용):`, planGroupError);
               }
             }
             
@@ -518,7 +565,12 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
             }
           }
         } catch (error) {
-          console.error(`콘텐츠 ${contentInfo.content_id} 총량 조회 실패`, error);
+          const planGroupError = toPlanGroupError(
+            error,
+            PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED,
+            { contentId: contentInfo.content_id }
+          );
+          console.error(`[Step6FinalReview] 콘텐츠 ${contentInfo.content_id} 총량 조회 실패:`, planGroupError);
         }
       }
 
@@ -1084,15 +1136,29 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
                             <div className="flex items-center gap-2">
                               <div className="font-medium text-gray-900">{info.title}</div>
                               {info.isRecommended ? (
-                                <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
-                                  추천 콘텐츠
-                                </span>
+                                <>
+                                  {info.is_auto_recommended ? (
+                                    <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-800" title={info.recommendation_reason || "자동 추천된 콘텐츠"}>
+                                      🤖 자동 추천
+                                    </span>
+                                  ) : (
+                                    <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
+                                      추천 콘텐츠
+                                    </span>
+                                  )}
+                                </>
                               ) : (
                                 <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800">
                                   학생 콘텐츠
                                 </span>
                               )}
                             </div>
+                            {/* 자동 추천 이유 표시 */}
+                            {info.is_auto_recommended && info.recommendation_reason && (
+                              <div className="mt-1 text-xs text-purple-600">
+                                💡 {info.recommendation_reason}
+                              </div>
+                            )}
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                               {info.content_type === "book" && (
                                 <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
@@ -2326,6 +2392,232 @@ export function Step6FinalReview({ data, onUpdate, contents }: Step6FinalReviewP
           </p>
         </div>
       )}
+
+
+      {/* 전략과목/취약과목 정보 설정 (1730 Timetable 필수) */}
+      {data.scheduler_type === "1730_timetable" && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            전략과목/취약과목 정보 <span className="text-red-500">*</span>
+          </h3>
+          <p className="mb-4 text-xs text-gray-600">
+            각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
+          </p>
+
+          <div className="space-y-3">
+            {(() => {
+              // 선택된 콘텐츠에서 과목 목록 추출
+              const subjectSet = new Set<string>();
+              contentInfos.forEach((info) => {
+                if (info.subject_category) {
+                  subjectSet.add(info.subject_category);
+                }
+              });
+              const subjects = Array.from(subjectSet).sort();
+
+              if (subjects.length === 0) {
+                return (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    선택된 콘텐츠에 과목 정보가 없습니다. 콘텐츠를 선택해주세요.
+                  </div>
+                );
+              }
+
+              return subjects.map((subject) => {
+                const existingAllocation = data.subject_allocations?.find(
+                  (a) => a.subject_name === subject
+                );
+                const subjectType = existingAllocation?.subject_type || "weakness";
+                const weeklyDays = existingAllocation?.weekly_days || 3;
+
+                return (
+                  <div
+                    key={subject}
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-gray-900">{subject}</h4>
+                      <span className="text-xs text-gray-500">
+                        {contentInfos.filter((c) => c.subject_category === subject).length}개 콘텐츠
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="mb-2 block text-xs font-medium text-gray-700">
+                          과목 유형
+                        </label>
+                        <div className="flex gap-3">
+                          <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                            <input
+                              type="radio"
+                              name={`subject_type_${subject}`}
+                              value="weakness"
+                              checked={subjectType === "weakness"}
+                              onChange={() => {
+                                const current = data.subject_allocations || [];
+                                const filtered = current.filter((a) => a.subject_name !== subject);
+                                onUpdate({
+                                  subject_allocations: [
+                                    ...filtered,
+                                    {
+                                      subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                      subject_name: subject,
+                                      subject_type: "weakness",
+                                    },
+                                  ],
+                                });
+                              }}
+                              className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">취약과목</div>
+                              <div className="text-xs text-gray-500">
+                                전체 학습일에 플랜 배정 (더 많은 시간 필요)
+                              </div>
+                            </div>
+                          </label>
+                          <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                            <input
+                              type="radio"
+                              name={`subject_type_${subject}`}
+                              value="strategy"
+                              checked={subjectType === "strategy"}
+                              onChange={() => {
+                                const current = data.subject_allocations || [];
+                                const filtered = current.filter((a) => a.subject_name !== subject);
+                                onUpdate({
+                                  subject_allocations: [
+                                    ...filtered,
+                                    {
+                                      subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                      subject_name: subject,
+                                      subject_type: "strategy",
+                                      weekly_days: 3,
+                                    },
+                                  ],
+                                });
+                              }}
+                              className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">전략과목</div>
+                              <div className="text-xs text-gray-500">
+                                주당 배정 일수에 따라 배정
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {subjectType === "strategy" && (
+                        <div>
+                          <label className="mb-2 block text-xs font-medium text-gray-700">
+                            주당 배정 일수
+                          </label>
+                          <select
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                            value={weeklyDays}
+                            onChange={(e) => {
+                              const current = data.subject_allocations || [];
+                              const filtered = current.filter((a) => a.subject_name !== subject);
+                              onUpdate({
+                                subject_allocations: [
+                                  ...filtered,
+                                  {
+                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                                    subject_name: subject,
+                                    subject_type: "strategy",
+                                    weekly_days: Number(e.target.value),
+                                  },
+                                ],
+                              });
+                            }}
+                          >
+                            <option value="2">주 2일</option>
+                            <option value="3">주 3일</option>
+                            <option value="4">주 4일</option>
+                          </select>
+                          <p className="mt-1 text-xs text-gray-500">
+                            선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* 교과 제약 조건 설정 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="mb-3 text-sm font-semibold text-gray-900">교과 제약 조건</h3>
+        <p className="mb-4 text-xs text-gray-600">
+          플랜에 반드시 포함되어야 하는 교과를 선택하세요. (학생 제출 후 추가한 콘텐츠와 추천 콘텐츠 반영 후 점검)
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 block text-xs font-medium text-gray-700">필수 교과 (선택사항)</label>
+            <div className="flex flex-wrap gap-3">
+              {["국어", "수학", "영어", "과학", "사회"].map((subject) => (
+                <label
+                  key={subject}
+                  className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={data.subject_constraints?.required_subjects?.includes(subject) || false}
+                    onChange={(e) => {
+                      const currentSubjects = data.subject_constraints?.required_subjects || [];
+                      const newSubjects = e.target.checked
+                        ? [...currentSubjects, subject]
+                        : currentSubjects.filter((s) => s !== subject);
+                      onUpdate({
+                        subject_constraints: {
+                          ...data.subject_constraints,
+                          required_subjects: newSubjects.length > 0 ? newSubjects : undefined,
+                          constraint_handling: data.subject_constraints?.constraint_handling || "strict",
+                        },
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  />
+                  <span className="text-gray-700">{subject}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              선택한 교과가 플랜에 반드시 포함되어야 합니다.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-medium text-gray-700">제약 조건 처리 방법</label>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              value={data.subject_constraints?.constraint_handling || "strict"}
+              onChange={(e) => {
+                onUpdate({
+                  subject_constraints: {
+                    ...data.subject_constraints,
+                    constraint_handling: e.target.value as "strict" | "warning" | "auto_fix",
+                    required_subjects: data.subject_constraints?.required_subjects,
+                  },
+                });
+              }}
+            >
+              <option value="strict">엄격 (조건 불만족 시 플랜 생성 실패)</option>
+              <option value="warning">경고 (조건 불만족 시 경고만 표시)</option>
+              <option value="auto_fix">자동 보완 (조건 불만족 시 자동으로 보완)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

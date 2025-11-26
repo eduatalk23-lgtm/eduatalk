@@ -28,8 +28,8 @@ export async function TodayHeader() {
   const dateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
   return (
-    <div className="mb-6">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">
           {student?.name || "학생"}님, 오늘 시작해볼까요?
         </h1>
@@ -55,8 +55,8 @@ export async function TodayHeader() {
     const dateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
 
     return (
-      <div className="mb-6">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">
             학생님, 오늘 시작해볼까요?
           </h1>

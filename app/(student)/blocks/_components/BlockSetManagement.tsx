@@ -46,9 +46,9 @@ export default function BlockSetManagement({
   const [blockSets, setBlockSets] = useState<BlockSet[]>(initialBlockSets.map(set => ({
     id: set.id,
     name: set.name,
-    description: 'description' in set ? set.description : null,
-    display_order: 'display_order' in set ? set.display_order : 0,
-    blocks: set.blocks,
+    description: ('description' in set ? set.description : null) ?? null,
+    display_order: ('display_order' in set ? set.display_order : 0) ?? 0,
+    blocks: set.blocks ?? [],
   })));
   const [activeSetId, setActiveSetId] = useState<string | null>(initialActiveSetId);
   const [isLoading, setIsLoading] = useState(false);
@@ -263,8 +263,8 @@ export default function BlockSetManagement({
             .map(set => ({
               id: set.id,
               name: set.name,
-              description: 'description' in set ? set.description : null,
-              display_order: 'display_order' in set ? set.display_order : 0,
+              description: ('description' in set ? set.description : null) ?? null,
+              display_order: ('display_order' in set ? set.display_order : 0) ?? 0,
               blocks: set.blocks ?? [],
             }));
           

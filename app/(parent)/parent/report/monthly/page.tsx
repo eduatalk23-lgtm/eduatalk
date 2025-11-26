@@ -113,12 +113,6 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href={`/report/monthly/pdf?month=${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}&studentId=${selectedStudentId}`}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              PDF로 저장하기
-            </Link>
-            <Link
               href="/parent/dashboard"
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
@@ -137,7 +131,7 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
 
         {hasData && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
-            자녀의 월간 학습 리포트입니다. PDF로 다운로드하여 보관하실 수 있습니다.
+            자녀의 월간 학습 리포트입니다. 상담이나 공유용으로 활용해 보세요.
           </div>
         )}
 

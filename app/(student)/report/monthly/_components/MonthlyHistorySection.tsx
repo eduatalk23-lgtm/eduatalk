@@ -18,7 +18,7 @@ const eventTypeLabels: Record<string, string> = {
   score_added: "성적 등록",
   score_updated: "성적 수정",
   content_progress: "콘텐츠 진행",
-  auto_schedule_generated: "자동 스케줄 생성",
+  auto_schedule_generated: "학습 플랜 생성",
 };
 
 const formatEventDetail = (eventType: string, detail: any): string => {
@@ -39,7 +39,7 @@ const formatEventDetail = (eventType: string, detail: any): string => {
     case "content_progress":
       return `콘텐츠 진행률 ${detail.progress || 0}%`;
     case "auto_schedule_generated":
-      return `${detail.plans_count || 0}개 플랜 자동 생성`;
+      return `${detail.plans_count || 0}개 학습 플랜 생성`;
     default:
       return "이벤트 발생";
   }

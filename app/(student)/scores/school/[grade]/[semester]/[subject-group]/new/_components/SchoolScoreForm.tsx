@@ -22,7 +22,6 @@ type FormErrors = {
   total_students?: string;
   rank_grade?: string;
   class_rank?: string;
-  test_date?: string;
 };
 
 export default function SchoolScoreForm({
@@ -115,15 +114,6 @@ export default function SchoolScoreForm({
           }
         }
         break;
-      case "test_date":
-        if (!value || value === "") {
-          return "시험일을 선택해주세요.";
-        }
-        const date = new Date(value as string);
-        if (isNaN(date.getTime())) {
-          return "올바른 날짜를 선택해주세요.";
-        }
-        break;
     }
     return undefined;
   };
@@ -152,7 +142,7 @@ export default function SchoolScoreForm({
     const formErrors: FormErrors = {};
 
     // 필수 필드 검증
-    const requiredFields = ["subject_type", "subject_name", "credit_hours", "raw_score", "grade_score", "test_date"];
+    const requiredFields = ["subject_type", "subject_name", "credit_hours", "raw_score", "grade_score"];
     requiredFields.forEach((field) => {
       const value = formData.get(field);
       const error = validateField(field, value as string);
@@ -481,30 +471,6 @@ export default function SchoolScoreForm({
             )}
           </div>
 
-          {/* 시험일 */}
-          <div>
-            <label
-              htmlFor="test_date"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              시험일 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="date"
-              id="test_date"
-              name="test_date"
-              onBlur={handleBlur}
-              onChange={handleChange}
-              className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
-                errors.test_date
-                  ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                  : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
-              }`}
-            />
-            {errors.test_date && touched.test_date && (
-              <p className="mt-1 text-xs text-red-600">{errors.test_date}</p>
-            )}
-          </div>
         </div>
 
         <div className="flex gap-3 pt-2">

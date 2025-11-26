@@ -212,8 +212,13 @@ export function MockDetailedMetrics({
       const sortedScores = mockScores
         .filter((s) => s.subject_group === subject && s.percentile !== null)
         .sort((a, b) => {
-          const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-          const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
+          // 학년 → 회차 → 생성일 순으로 정렬
+          if (a.grade !== b.grade) return b.grade - a.grade;
+          const roundA = a.exam_round || "";
+          const roundB = b.exam_round || "";
+          if (roundA !== roundB) return roundB.localeCompare(roundA);
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
           return dateB - dateA;
         })
         .slice(0, 2);

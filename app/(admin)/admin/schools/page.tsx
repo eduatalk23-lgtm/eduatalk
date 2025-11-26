@@ -1,239 +1,228 @@
-import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+"use client";
 
-export default async function SchoolsPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
-  const params = await searchParams;
-  const { role } = await getCurrentUserRole();
+import { useState, useEffect, useMemo } from "react";
+import { getSchoolsAction } from "@/app/(admin)/actions/schoolActions";
+import SchoolTypeTabs from "./_components/SchoolTypeTabs";
+import SchoolFilterPanel from "./_components/SchoolFilterPanel";
+import SchoolTable from "./_components/SchoolTable";
+import SchoolFormModal from "./_components/SchoolFormModal";
+import SchoolStats from "./_components/SchoolStats";
+import type { School } from "@/lib/data/schools";
 
-  const supabase = await createSupabaseServerClient();
+export default function SchoolsPage() {
+  const [schools, setSchools] = useState<School[]>([]);
+  const [allSchools, setAllSchools] = useState<School[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<
+    "중학교" | "고등학교" | "대학교"
+  >("중학교");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [regionId, setRegionId] = useState<string | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  const [universityType, setUniversityType] = useState<string | null>(null);
+  const [universityOwnership, setUniversityOwnership] = useState<string | null>(
+    null
+  );
+  const [showFormModal, setShowFormModal] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | undefined>(
+    undefined
+  );
 
-  // 검색 필터 구성
-  const searchQuery = params.search || "";
-  const typeFilter = params.type || "";
-  const regionFilter = params.region || "";
-
-  // 학교 목록 조회
-  let schoolsQuery = supabase
-    .from("schools")
-    .select("id, name, type, region, address, created_at")
-    .order("name", { ascending: true })
-    .limit(100);
-
-  // 검색어 필터
-  if (searchQuery.trim()) {
-    schoolsQuery = schoolsQuery.ilike("name", `%${searchQuery.trim()}%`);
+  // 모든 타입의 학교 목록 로드 (통계용)
+  async function loadAllSchools() {
+    try {
+      const [middleSchools, highSchools, universities] = await Promise.all([
+        getSchoolsAction({ type: "중학교", includeInactive: false }),
+        getSchoolsAction({ type: "고등학교", includeInactive: false }),
+        getSchoolsAction({ type: "대학교", includeInactive: false }),
+      ]);
+      setAllSchools([
+        ...(middleSchools || []),
+        ...(highSchools || []),
+        ...(universities || []),
+      ]);
+    } catch (error) {
+      console.error("전체 학교 목록 조회 실패:", error);
+      setAllSchools([]);
+    }
   }
 
-  // 타입 필터
-  if (typeFilter && ["중학교", "고등학교", "대학교"].includes(typeFilter)) {
-    schoolsQuery = schoolsQuery.eq("type", typeFilter);
+  // 선택한 탭의 학교 목록 로드
+  async function loadSchools() {
+    setLoading(true);
+    try {
+      const data = await getSchoolsAction({
+        type: selectedType,
+        includeInactive: false,
+      });
+      setSchools(data || []);
+    } catch (error) {
+      console.error("학교 목록 조회 실패:", error);
+      setSchools([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // 지역 필터
-  if (regionFilter.trim()) {
-    schoolsQuery = schoolsQuery.ilike("region", `%${regionFilter.trim()}%`);
+  // 컴포넌트 마운트 시 전체 학교 로드
+  useEffect(() => {
+    loadAllSchools();
+  }, []);
+
+  // 선택한 탭 변경 시 해당 탭의 학교 로드
+  useEffect(() => {
+    loadSchools();
+  }, [selectedType]);
+
+  // 필터링된 학교 목록
+  const filteredSchools = useMemo(() => {
+    let filtered = [...schools];
+
+    // 검색어 필터
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((school) =>
+        school.name.toLowerCase().includes(query)
+      );
+    }
+
+    // 지역 필터
+    if (regionId) {
+      filtered = filtered.filter((school) => school.region_id === regionId);
+    }
+
+    // 고등학교 유형 필터
+    if (selectedType === "고등학교" && category) {
+      filtered = filtered.filter((school) => school.category === category);
+    }
+
+    // 대학교 유형 필터
+    if (selectedType === "대학교") {
+      if (universityType) {
+        filtered = filtered.filter(
+          (school) => school.university_type === universityType
+        );
+      }
+      if (universityOwnership) {
+        filtered = filtered.filter(
+          (school) => school.university_ownership === universityOwnership
+        );
+      }
+    }
+
+    return filtered;
+  }, [
+    schools,
+    searchQuery,
+    regionId,
+    category,
+    universityType,
+    universityOwnership,
+    selectedType,
+  ]);
+
+  function handleCreateClick() {
+    setEditingSchool(undefined);
+    setShowFormModal(true);
   }
 
-  const { data: schools, error } = await schoolsQuery;
-
-  if (error) {
-    console.error("[admin/schools] 학교 목록 조회 실패:", error);
+  function handleEditClick(school: School) {
+    setEditingSchool(school);
+    setShowFormModal(true);
   }
 
-  // 필터 옵션 조회
-  const { data: allSchools } = await supabase
-    .from("schools")
-    .select("type, region")
-    .order("type, region");
+  function handleFormSuccess() {
+    setShowFormModal(false);
+    setEditingSchool(undefined);
+    loadSchools();
+    loadAllSchools(); // 통계 갱신을 위해 전체 학교도 다시 로드
+  }
 
-  const types = Array.from(
-    new Set((allSchools || []).map((s) => s.type).filter(Boolean))
-  ).sort();
-  const regions = Array.from(
-    new Set((allSchools || []).map((s) => s.region).filter(Boolean))
-  ).sort();
+  function handleFormCancel() {
+    setShowFormModal(false);
+    setEditingSchool(undefined);
+  }
+
+  function handleResetFilters() {
+    setSearchQuery("");
+    setRegionId(null);
+    setCategory(null);
+    setUniversityType(null);
+    setUniversityOwnership(null);
+  }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="flex flex-col gap-8">
-        {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-500">서비스 마스터</p>
-            <h1 className="text-3xl font-semibold text-gray-900">학교 관리</h1>
-            <p className="text-sm text-gray-500">
-              중학교, 고등학교, 대학교 정보를 관리하세요.
-            </p>
-          </div>
-          {(role === "admin" || role === "consultant") && (
-            <Link
-              href="/admin/schools/new"
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              + 학교 등록
-            </Link>
-          )}
-        </div>
-
-        {/* 검색 필터 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <form
-            action="/admin/schools"
-            method="get"
-            className="flex flex-wrap items-end gap-4"
-          >
-            {/* 학교 타입 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">
-                학교 타입
-              </label>
-              <select
-                name="type"
-                defaultValue={typeFilter || ""}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                {types.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 지역 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">지역</label>
-              <input
-                type="text"
-                name="region"
-                defaultValue={regionFilter || ""}
-                placeholder="지역명 입력"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* 학교명 검색 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">
-                학교명 검색
-              </label>
-              <input
-                type="text"
-                name="search"
-                defaultValue={searchQuery || ""}
-                placeholder="학교명 입력"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* 검색 버튼 */}
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              검색
-            </button>
-
-            {/* 초기화 버튼 */}
-            <Link
-              href="/admin/schools"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              초기화
-            </Link>
-          </form>
-        </div>
-
-        {/* 결과 개수 */}
-        <div className="text-sm text-gray-600">
-          총 <span className="font-semibold">{schools?.length || 0}</span>개의
-          학교가 검색되었습니다.
-        </div>
-
-        {/* 학교 목록 */}
-        <div>
-          {!schools || schools.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-              <div className="mx-auto flex max-w-md flex-col gap-6">
-                <div className="text-6xl">🏫</div>
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    검색 결과가 없습니다
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    다른 검색 조건으로 시도해보세요.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                      학교명
-                    </th>
-                    <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                      타입
-                    </th>
-                    <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                      지역
-                    </th>
-                    <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                      주소
-                    </th>
-                    <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                      등록일
-                    </th>
-                    <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                      작업
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {schools.map((school) => (
-                    <tr key={school.id} className="hover:bg-gray-50">
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
-                        {school.name}
-                      </td>
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
-                        {school.type}
-                      </td>
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
-                        {school.region || "—"}
-                      </td>
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
-                        {school.address || "—"}
-                      </td>
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
-                        {school.created_at
-                          ? new Date(school.created_at).toLocaleDateString("ko-KR")
-                          : "—"}
-                      </td>
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm">
-                        <Link
-                          href={`/admin/schools/${school.id}/edit`}
-                          className="text-indigo-600 hover:text-indigo-800"
-                        >
-                          수정
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+    <section className="mx-auto w-full max-w-7xl px-4 py-8">
+      <div className="mb-6">
+        <p className="text-sm font-medium text-gray-500">서비스 마스터</p>
+        <h1 className="text-3xl font-semibold text-gray-900">학교 관리</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          중학교, 고등학교, 대학교 정보를 관리하세요.
+        </p>
       </div>
+
+      {/* 탭 네비게이션 */}
+      <div className="mb-6">
+        <SchoolTypeTabs
+          selectedType={selectedType}
+          onTypeChange={setSelectedType}
+          onCreateClick={handleCreateClick}
+        />
+      </div>
+
+      {/* 통계 */}
+      <div className="mb-6">
+        <SchoolStats schools={allSchools} />
+      </div>
+
+      {/* 검색 및 필터 */}
+      <div className="mb-6">
+        <SchoolFilterPanel
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          regionId={regionId}
+          onRegionChange={setRegionId}
+          category={category}
+          onCategoryChange={setCategory}
+          universityType={universityType}
+          onUniversityTypeChange={setUniversityType}
+          universityOwnership={universityOwnership}
+          onUniversityOwnershipChange={setUniversityOwnership}
+          schoolType={selectedType}
+          onReset={handleResetFilters}
+        />
+      </div>
+
+      {/* 결과 개수 */}
+      <div className="mb-4 text-sm text-gray-600">
+        총 <span className="font-semibold">{filteredSchools.length}</span>개의
+        학교가 검색되었습니다.
+      </div>
+
+      {/* 학교 목록 테이블 */}
+      <div className="mb-6">
+        {loading ? (
+          <div className="rounded-lg border border-gray-200 bg-white p-12 text-center">
+            <div className="text-sm text-gray-500">로딩 중...</div>
+          </div>
+        ) : (
+          <SchoolTable
+            schools={filteredSchools}
+            onEdit={handleEditClick}
+            onRefresh={loadSchools}
+          />
+        )}
+      </div>
+
+      {/* 학교 등록/수정 모달 */}
+      {showFormModal && (
+        <SchoolFormModal
+          school={editingSchool}
+          defaultType={selectedType}
+          onSuccess={handleFormSuccess}
+          onCancel={handleFormCancel}
+        />
+      )}
     </section>
   );
 }
-

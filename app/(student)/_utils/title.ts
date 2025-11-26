@@ -104,7 +104,6 @@ export function isSectionRoot(pathname: string): boolean {
     "/scores",
     "/analysis",
     "/today",
-    "/scheduler",
     "/blocks",
     "/reports",
   ];

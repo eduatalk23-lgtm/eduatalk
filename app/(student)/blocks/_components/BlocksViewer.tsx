@@ -29,6 +29,7 @@ type BlocksViewerProps = {
   activeSetId: string | null;
   isLoading?: boolean;
   onCreateSetSuccess?: () => void;
+  onBlockChange?: (setId: string) => Promise<void>;
   existingSetCount?: number;
 };
 

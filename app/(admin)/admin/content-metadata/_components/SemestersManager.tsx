@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  getSemesters,
-  createSemester,
-  updateSemester,
-  deleteSemester,
-  type Semester,
-} from "@/lib/data/contentMetadata";
+  getSemestersAction,
+  createSemesterAction,
+  updateSemesterAction,
+  deleteSemesterAction,
+} from "@/app/(admin)/actions/contentMetadataActions";
+import type { Semester } from "@/lib/data/contentMetadata";
 
 export function SemestersManager() {
   const [items, setItems] = useState<Semester[]>([]);
@@ -23,7 +23,7 @@ export function SemestersManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getSemesters();
+      const data = await getSemestersAction();
       setItems(data);
     } catch (error) {
       console.error("학기 조회 실패:", error);
@@ -40,7 +40,7 @@ export function SemestersManager() {
     }
 
     try {
-      await createSemester(formData.name, formData.display_order);
+      await createSemesterAction(formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       loadItems();
@@ -57,7 +57,7 @@ export function SemestersManager() {
     }
 
     try {
-      await updateSemester(id, {
+      await updateSemesterAction(id, {
         name: formData.name,
         display_order: formData.display_order,
       });
@@ -74,7 +74,7 @@ export function SemestersManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deleteSemester(id);
+      await deleteSemesterAction(id);
       loadItems();
     } catch (error) {
       console.error("학기 삭제 실패:", error);
@@ -209,7 +209,7 @@ export function SemestersManager() {
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) =>
-                            updateSemester(item.id, { is_active: e.target.checked }).then(() =>
+                            updateSemesterAction(item.id, { is_active: e.target.checked }).then(() =>
                               loadItems()
                             )
                           }

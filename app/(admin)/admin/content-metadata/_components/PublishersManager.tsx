@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  getPublishers,
-  createPublisher,
-  updatePublisher,
-  deletePublisher,
-  type Publisher,
-} from "@/lib/data/contentMetadata";
+  getPublishersAction,
+  createPublisherAction,
+  updatePublisherAction,
+  deletePublisherAction,
+} from "@/app/(admin)/actions/contentMetadataActions";
+import type { Publisher } from "@/lib/data/contentMetadata";
 
 export function PublishersManager() {
   const [items, setItems] = useState<Publisher[]>([]);
@@ -23,7 +23,7 @@ export function PublishersManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getPublishers();
+      const data = await getPublishersAction();
       setItems(data);
     } catch (error) {
       console.error("출판사 조회 실패:", error);
@@ -40,7 +40,7 @@ export function PublishersManager() {
     }
 
     try {
-      await createPublisher(formData.name, formData.display_order);
+      await createPublisherAction(formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       loadItems();
@@ -57,7 +57,7 @@ export function PublishersManager() {
     }
 
     try {
-      await updatePublisher(id, {
+      await updatePublisherAction(id, {
         name: formData.name,
         display_order: formData.display_order,
       });
@@ -74,7 +74,7 @@ export function PublishersManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deletePublisher(id);
+      await deletePublisherAction(id);
       loadItems();
     } catch (error) {
       console.error("출판사 삭제 실패:", error);
@@ -209,7 +209,7 @@ export function PublishersManager() {
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) =>
-                            updatePublisher(item.id, { is_active: e.target.checked }).then(() =>
+                            updatePublisherAction(item.id, { is_active: e.target.checked }).then(() =>
                               loadItems()
                             )
                           }

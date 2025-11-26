@@ -15,7 +15,6 @@ type SchoolScoreRow = {
   raw_score: number | null;
   grade_score: number | null;
   class_rank: number | null;
-  test_date: string | null;
   created_at: string | null;
 };
 
@@ -28,7 +27,7 @@ type ScoreListTableProps = {
   DeleteButton: React.ComponentType<{ id: string }>;
 };
 
-type SortField = "test_date" | "grade_score" | "raw_score" | "class_rank";
+type SortField = "grade" | "semester" | "grade_score" | "raw_score" | "class_rank";
 type SortOrder = "asc" | "desc";
 
 export function ScoreListTable({
@@ -39,8 +38,8 @@ export function ScoreListTable({
   type,
   DeleteButton,
 }: ScoreListTableProps) {
-  const [sortField, setSortField] = useState<SortField>("test_date");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [sortField, setSortField] = useState<SortField>("grade");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [filterSubjectType, setFilterSubjectType] = useState<string>("all");
 
   // 필터링 및 정렬
@@ -60,9 +59,13 @@ export function ScoreListTable({
       let bValue: number | string | null = null;
 
       switch (sortField) {
-        case "test_date":
-          aValue = a.test_date ? new Date(a.test_date).getTime() : 0;
-          bValue = b.test_date ? new Date(b.test_date).getTime() : 0;
+        case "grade":
+          aValue = a.grade ?? 0;
+          bValue = b.grade ?? 0;
+          break;
+        case "semester":
+          aValue = a.semester ?? 0;
+          bValue = b.semester ?? 0;
           break;
         case "grade_score":
           aValue = a.grade_score ?? 999;
@@ -133,12 +136,20 @@ export function ScoreListTable({
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span>정렬:</span>
           <button
-            onClick={() => handleSort("test_date")}
+            onClick={() => handleSort("grade")}
             className={`rounded px-2 py-1 text-xs transition hover:bg-gray-100 ${
-              sortField === "test_date" ? "bg-gray-100 font-medium" : ""
+              sortField === "grade" ? "bg-gray-100 font-medium" : ""
             }`}
           >
-            날짜 <SortIcon field="test_date" />
+            학년 <SortIcon field="grade" />
+          </button>
+          <button
+            onClick={() => handleSort("semester")}
+            className={`rounded px-2 py-1 text-xs transition hover:bg-gray-100 ${
+              sortField === "semester" ? "bg-gray-100 font-medium" : ""
+            }`}
+          >
+            학기 <SortIcon field="semester" />
           </button>
           <button
             onClick={() => handleSort("grade_score")}
@@ -165,14 +176,6 @@ export function ScoreListTable({
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
-                  <button
-                    onClick={() => handleSort("test_date")}
-                    className="flex items-center gap-1 hover:text-gray-900"
-                  >
-                    시험일 <SortIcon field="test_date" />
-                  </button>
-                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
                   과목 유형
                 </th>
@@ -213,11 +216,6 @@ export function ScoreListTable({
                 const gradeColor = getGradeColor(score.grade_score);
                 return (
                   <tr key={score.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {score.test_date
-                        ? new Date(score.test_date).toLocaleDateString("ko-KR")
-                        : "-"}
-                    </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {score.subject_type || "-"}
                     </td>
@@ -279,15 +277,6 @@ export function ScoreListTable({
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {score.test_date
-                        ? new Date(score.test_date).toLocaleDateString("ko-KR", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "-"}
-                    </span>
                   </div>
                   {score.grade_score !== null && (
                     <span

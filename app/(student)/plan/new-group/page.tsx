@@ -5,10 +5,7 @@ import { PlanGroupWizard } from "./_components/PlanGroupWizard";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import {
-  fetchAllStudentContents,
-  classifyPlanContents,
-} from "@/lib/data/planContents";
+import { fetchAllStudentContents } from "@/lib/data/planContents";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -41,54 +38,15 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
         );
 
       if (group && group.status === "draft") {
-        // 콘텐츠 분류 (통합 함수 사용)
-        const { studentContents, recommendedContents } =
-          await classifyPlanContents(contents, user.id);
-
-        // Wizard 형식으로 변환
-        const studentContentsForWizard = studentContents.map((c) => ({
-          content_type: c.content_type,
-          content_id: c.masterContentId || c.content_id, // 추천 콘텐츠의 경우 원본 마스터 콘텐츠 ID 사용
-          start_range: c.start_range,
-          end_range: c.end_range,
-          title: c.title,
-          subject_category: c.subject_category,
-        }));
-
-        const recommendedContentsForWizard = recommendedContents.map((c) => ({
-          content_type: c.content_type,
-          content_id: c.content_id, // 이미 마스터 콘텐츠 ID
-          start_range: c.start_range,
-          end_range: c.end_range,
-          title: c.title,
-          subject_category: c.subject_category,
-        }));
-
-        initialData = {
-          groupId: group.id,
-          name: group.name || "",
-          plan_purpose: group.plan_purpose || "",
-          scheduler_type: group.scheduler_type || "",
-          period_start: group.period_start,
-          period_end: group.period_end,
-          target_date: group.target_date,
-          block_set_id: group.block_set_id || "",
-          exclusions: exclusions.map((e) => ({
-            exclusion_date: e.exclusion_date,
-            exclusion_type: e.exclusion_type,
-            reason: e.reason || undefined,
-          })),
-          academy_schedules: academySchedules.map((s) => ({
-            day_of_week: s.day_of_week,
-            start_time: s.start_time,
-            end_time: s.end_time,
-            academy_name: s.academy_name || undefined,
-            subject: s.subject || undefined,
-            travel_time: undefined, // TODO: travel_time 저장/로드 추가 필요
-          })),
-          student_contents: studentContentsForWizard,
-          recommended_contents: recommendedContentsForWizard,
-        };
+        // 데이터 변환 함수 사용
+        const { transformPlanGroupToWizardData } = await import("@/lib/utils/planGroupTransform");
+        initialData = await transformPlanGroupToWizardData(
+          group,
+          contents,
+          exclusions,
+          academySchedules,
+          user.id
+        );
       }
     } catch (error) {
       console.error("[plan/new-group] Draft 불러오기 실패", error);
@@ -97,31 +55,8 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
   }
 
   // 블록 세트 목록 조회 (시간 블록 정보 포함)
-  const { data: blockSetsData } = await supabase
-    .from("student_block_sets")
-    .select("id, name")
-    .eq("student_id", user.id)
-    .order("display_order", { ascending: true });
-
-  // 각 블록 세트의 시간 블록 조회
-  const blockSets = blockSetsData
-    ? await Promise.all(
-        blockSetsData.map(async (set) => {
-          const { data: blocks } = await supabase
-            .from("student_block_schedule")
-            .select("id, day_of_week, start_time, end_time")
-            .eq("block_set_id", set.id)
-            .eq("student_id", user.id)
-            .order("day_of_week", { ascending: true })
-            .order("start_time", { ascending: true });
-
-          return {
-            ...set,
-            blocks: (blocks as Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>) ?? [],
-          };
-        })
-      )
-    : [];
+  const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
+  const blockSets = await fetchBlockSetsWithBlocks(user.id);
 
   // 콘텐츠 목록 조회 (통합 함수 사용)
   const { books, lectures, custom } = await fetchAllStudentContents(user.id);

@@ -39,8 +39,13 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   // 통합 함수 사용 (통계 포함)
   const planGroupsWithStats = await getPlanGroupsWithStats(planGroupFilters);
 
+  // 캠프 템플릿 플랜 제외 (캠프 관련 플랜은 /camp 경로에서만 확인)
+  const nonCampPlanGroups = planGroupsWithStats.filter(
+    (group) => !group.camp_template_id && !group.camp_invitation_id
+  );
+
   // 생성일 기준 정렬
-  const sortedPlanGroups = [...planGroupsWithStats].sort((a, b) => {
+  const sortedPlanGroups = [...nonCampPlanGroups].sort((a, b) => {
     const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
     const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
     return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
@@ -52,7 +57,8 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   const planCounts = new Map<string, number>();
   const planProgressData = new Map<string, { completedCount: number; totalCount: number }>();
 
-  planGroupsWithStats.forEach((group) => {
+  // 필터링된 플랜 그룹만 통계에 포함
+  nonCampPlanGroups.forEach((group) => {
     planCounts.set(group.id, group.planCount);
     planProgressData.set(group.id, {
       completedCount: group.completedCount,

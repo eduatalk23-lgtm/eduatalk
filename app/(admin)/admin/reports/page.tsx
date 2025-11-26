@@ -171,13 +171,6 @@ export default async function AdminReportsPage({
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                     <div className="flex gap-3">
                       <Link
-                        href={`/report/${period}/pdf?studentId=${student.id}`}
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700"
-                        target="_blank"
-                      >
-                        PDF 보기
-                      </Link>
-                      <Link
                         href={`/admin/students/${student.id}?tab=analysis`}
                         className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
                       >

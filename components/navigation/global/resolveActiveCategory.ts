@@ -2,7 +2,11 @@
  * 현재 경로에 대한 활성 카테고리 및 아이템 확인
  */
 
-import type { NavigationCategory, NavigationItem, NavigationRole } from "./categoryConfig";
+import type {
+  NavigationCategory,
+  NavigationItem,
+  NavigationRole,
+} from "./categoryConfig";
 import { getCategoriesForRole } from "./categoryConfig";
 
 export type ActiveCategoryInfo = {
@@ -26,14 +30,10 @@ function isPathActive(
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-
 /**
  * 특정 아이템이 현재 경로와 활성 상태인지 확인
  */
-function isItemActive(
-  pathname: string,
-  item: NavigationItem
-): boolean {
+function isItemActive(pathname: string, item: NavigationItem): boolean {
   // 정확히 일치해야 하는 경우
   if (item.exactMatch) {
     return pathname === item.href;
@@ -54,7 +54,11 @@ function isItemActive(
   }
 
   // 동적 세그먼트 패턴 매칭 (예: /contents/books/[id] 형태)
-  if (item.href.includes("[") || pathname.includes("/[") || pathname.match(/\/[^/]+\/[^/]+$/)) {
+  if (
+    item.href.includes("[") ||
+    pathname.includes("/[") ||
+    pathname.match(/\/[^/]+\/[^/]+$/)
+  ) {
     // 부모 경로 확인 (예: /contents/books/[id] → /contents/books)
     const parentHref = item.href.replace(/\/\[.+?\]/g, "");
     if (pathname.startsWith(parentHref) && pathname !== parentHref) {
@@ -161,22 +165,36 @@ export function getBreadcrumbChain(
   const categories = getCategoriesForRole(role);
 
   // 홈 추가 (역할별)
-  const homeHref = role === "student" ? "/dashboard" : role === "admin" ? "/admin/dashboard" : "/parent/dashboard";
-  const homeLabel = role === "student" ? "홈" : role === "admin" ? "관리자 홈" : "학부모 홈";
+  const homeHref =
+    role === "student"
+      ? "/dashboard"
+      : role === "admin"
+      ? "/admin/dashboard"
+      : "/parent/dashboard";
+  const homeLabel =
+    role === "student" ? "홈" : role === "admin" ? "관리자 홈" : "학부모 홈";
   chain.push({ label: homeLabel, href: homeHref });
 
   // 특별 처리: /contents/books/new, /contents/lectures/new (정확한 매칭보다 먼저 처리)
-  if (pathname === "/contents/books/new" || pathname === "/contents/lectures/new") {
+  if (
+    pathname === "/contents/books/new" ||
+    pathname === "/contents/lectures/new"
+  ) {
     // 콘텐츠 관리 추가
     chain.push({ label: "콘텐츠 관리", href: "/contents" });
     // 등록 페이지 추가
-    const label = pathname === "/contents/books/new" ? "책 등록하기" : "강의 등록하기";
+    const label =
+      pathname === "/contents/books/new" ? "책 등록하기" : "강의 등록하기";
     chain.push({ label, href: pathname });
     return chain;
   }
 
   // 모든 아이템 플랫 리스트 생성 (매칭용)
-  const allItems: Array<{ category: NavigationCategory; item: NavigationItem; child?: NavigationItem }> = [];
+  const allItems: Array<{
+    category: NavigationCategory;
+    item: NavigationItem;
+    child?: NavigationItem;
+  }> = [];
   for (const category of categories) {
     for (const item of category.items) {
       allItems.push({ category, item });
@@ -197,22 +215,29 @@ export function getBreadcrumbChain(
 
   for (const { category, item, child } of sortedItems) {
     const itemPath = child?.href || item.href;
-    
+
     // 정확한 경로 매칭
     if (isPathActive(pathname, itemPath)) {
       // 하위 메뉴가 1개이고 children이 없는 경우: 카테고리 라벨만 사용 (아이템 라벨 건너뛰기)
-      const singleItem = category.items.length === 1 && !category.items[0].children;
-      
+      const singleItem =
+        category.items.length === 1 && !category.items[0].children;
+
       if (singleItem) {
         // 카테고리 라벨만 추가
         const categoryHref = category.items[0]?.href || item.href;
-        if (chain.length === 1 || chain[chain.length - 1].href !== categoryHref) {
+        if (
+          chain.length === 1 ||
+          chain[chain.length - 1].href !== categoryHref
+        ) {
           chain.push({ label: category.label, href: categoryHref });
         }
       } else {
         // 카테고리 추가 (중복 방지)
         const categoryHref = category.items[0]?.href || item.href;
-        if (chain.length === 1 || chain[chain.length - 1].href !== categoryHref) {
+        if (
+          chain.length === 1 ||
+          chain[chain.length - 1].href !== categoryHref
+        ) {
           chain.push({ label: category.label, href: categoryHref });
         }
 
@@ -233,28 +258,35 @@ export function getBreadcrumbChain(
   for (const { category, item } of sortedItems) {
     // children이 있는 아이템만 동적 라우트로 처리
     if (item.children) continue;
-    
+
     if (matchesDynamicRoute(pathname, item.href)) {
       // 하위 메뉴가 1개이고 children이 없는 경우: 카테고리 라벨만 사용
-      const singleItem = category.items.length === 1 && !category.items[0].children;
-      
+      const singleItem =
+        category.items.length === 1 && !category.items[0].children;
+
       if (singleItem) {
         // 카테고리 라벨만 추가
         const categoryHref = category.items[0]?.href || item.href;
-        if (chain.length === 1 || chain[chain.length - 1].href !== categoryHref) {
+        if (
+          chain.length === 1 ||
+          chain[chain.length - 1].href !== categoryHref
+        ) {
           chain.push({ label: category.label, href: categoryHref });
         }
       } else {
         // 카테고리 추가
         const categoryHref = category.items[0]?.href || item.href;
-        if (chain.length === 1 || chain[chain.length - 1].href !== categoryHref) {
+        if (
+          chain.length === 1 ||
+          chain[chain.length - 1].href !== categoryHref
+        ) {
           chain.push({ label: category.label, href: categoryHref });
         }
 
         // 아이템 추가
         chain.push({ label: item.label, href: item.href });
       }
-      
+
       // 동적 라우트이므로 마지막에 상세 라벨 추가
       chain.push({ label: "상세보기", href: pathname });
 
@@ -268,10 +300,14 @@ export function getBreadcrumbChain(
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
-    
+
     // UUID나 긴 ID 형태인 경우 스킵 (동적 세그먼트)
-    if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) || 
-        segment.length > 20) {
+    if (
+      segment.match(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      ) ||
+      segment.length > 20
+    ) {
       // 마지막 세그먼트인 경우 "상세보기" 추가
       if (i === segments.length - 1) {
         chain.push({ label: "상세보기", href: pathname });
@@ -292,7 +328,7 @@ export function getBreadcrumbChain(
 
     currentPath += `/${segment}`;
     const label = getSegmentLabel(segment, role);
-    
+
     // 이미 체인에 추가된 항목이 아닌 경우만 추가
     if (!chain.some((c) => c.href === currentPath)) {
       chain.push({ label, href: currentPath });
@@ -374,6 +410,8 @@ function getSegmentLabel(segment: string, role: NavigationRole): string {
       tools: "도구",
       superadmin: "Super Admin",
       tenants: "기관 관리",
+      subjects: "교과/과목 관리",
+      schools: "학교 관리",
     },
     parent: {
       parent: "학부모",
@@ -390,4 +428,3 @@ function getSegmentLabel(segment: string, role: NavigationRole): string {
 
   return labelMap[role]?.[segment] || segment;
 }
-

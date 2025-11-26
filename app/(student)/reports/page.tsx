@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { collectReportData } from "./_utils";
 import { ReportView } from "./_components/ReportView";
-import { ReportActions } from "./_components/ReportActions";
 
 export default async function ReportsPage({
   searchParams,
@@ -29,7 +28,7 @@ export default async function ReportsPage({
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold text-gray-900">학습 리포트</h1>
           <p className="text-sm text-gray-500">
-            주간/월간 학습 성과를 요약한 리포트를 확인하고 PDF로 다운로드할 수 있습니다.
+            주간/월간 학습 성과를 요약한 리포트를 한눈에 확인할 수 있습니다.
           </p>
         </div>
 
@@ -55,11 +54,6 @@ export default async function ReportsPage({
           >
             월간 리포트
           </Link>
-        </div>
-
-        {/* 액션 버튼 */}
-        <div className="flex justify-end">
-          <ReportActions period={period} />
         </div>
 
         <ReportView data={reportData} />

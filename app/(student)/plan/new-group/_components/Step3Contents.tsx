@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WizardData } from "./PlanGroupWizard";
+import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 
 type Step3ContentsProps = {
   data: WizardData;
@@ -15,6 +17,8 @@ type Step3ContentsProps = {
   };
   onSaveDraft?: () => void;
   isSavingDraft?: boolean;
+  isCampMode?: boolean;
+  editable?: boolean; // 편집 가능 여부 (기본값: true)
 };
 
 type ContentType = "book" | "lecture";
@@ -38,6 +42,8 @@ export function Step3Contents({
   contents,
   onSaveDraft,
   isSavingDraft = false,
+  isCampMode = false,
+  editable = true,
 }: Step3ContentsProps) {
   const router = useRouter();
   const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(
@@ -129,7 +135,13 @@ export function Step3Contents({
             }
           }
         } catch (error) {
-          console.error(`콘텐츠 ${contentId} 상세 정보 조회 실패`, error);
+          const planGroupError = toPlanGroupError(
+            error,
+            PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED,
+            { contentId, contentType }
+          );
+          console.error(`[Step3Contents] 콘텐츠 ${contentId} 상세 정보 조회 실패:`, planGroupError);
+          // 에러가 발생해도 다른 콘텐츠 조회는 계속 진행
         } finally {
           newLoadingSet.delete(contentId);
           setLoadingDetails(new Set(newLoadingSet));
@@ -235,9 +247,10 @@ export function Step3Contents({
       newRanges.delete(contentId);
       setContentRanges(newRanges);
     } else {
-      // 최대 9개 제한 (학생 + 추천 합쳐서)
-      const totalContents =
-        data.student_contents.length + data.recommended_contents.length;
+      // 최대 9개 제한 (캠프 모드일 때는 추천 콘텐츠 제외)
+      const totalContents = isCampMode
+        ? data.student_contents.length
+        : data.student_contents.length + data.recommended_contents.length;
       if (totalContents + newSet.size >= 9) {
         alert("플랜 대상 콘텐츠는 최대 9개까지 가능합니다.");
         return;
@@ -316,18 +329,20 @@ export function Step3Contents({
         ? contents.books.find((b) => b.id === contentId)
         : contents.lectures.find((l) => l.id === contentId);
 
-      // subject_category 조회 (API를 통해)
+      // subject_category 조회 (서버 액션 사용)
       let subjectCategory: string | undefined = undefined;
       try {
-        const response = await fetch(
-          `/api/student-content-info?content_type=${contentType}&content_id=${contentId}`
-        );
-        if (response.ok) {
-          const info = await response.json();
-          subjectCategory = info.subject_category || undefined;
+        const result = await fetchContentMetadataAction(contentId, contentType);
+        if (result.success && result.data) {
+          subjectCategory = result.data.subject_category || undefined;
         }
       } catch (error) {
-        console.error("학생 콘텐츠 정보 조회 실패:", error);
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.CONTENT_FETCH_FAILED,
+          { contentId, contentType }
+        );
+        console.error("[Step3Contents] 콘텐츠 메타데이터 조회 실패:", planGroupError);
         // 에러 시 subtitle 사용 (fallback)
         subjectCategory = content?.subtitle || undefined;
       }
@@ -347,9 +362,10 @@ export function Step3Contents({
       return;
     }
 
-    // 최대 9개 제한 (학생 + 추천 합쳐서)
-    const totalContents =
-      data.student_contents.length + data.recommended_contents.length;
+    // 최대 9개 제한 (캠프 모드일 때는 추천 콘텐츠 제외)
+    const totalContents = isCampMode
+      ? data.student_contents.length
+      : data.student_contents.length + data.recommended_contents.length;
     if (totalContents + contentsToAdd.length > 9) {
       alert("플랜 대상 콘텐츠는 최대 9개까지 가능합니다.");
       return;
@@ -418,7 +434,8 @@ export function Step3Contents({
 
   const studentCount = data.student_contents.length;
   const recommendedCount = data.recommended_contents.length;
-  const totalCount = studentCount + recommendedCount;
+  // 캠프 모드일 때는 추천 콘텐츠를 제외하고 계산
+  const totalCount = isCampMode ? studentCount : studentCount + recommendedCount;
   const canAddMore = totalCount < 9;
   const remainingSlots = 9 - totalCount;
 
@@ -440,8 +457,8 @@ export function Step3Contents({
               {totalCount}/9
             </div>
             <div className="text-xs text-gray-500">
-              학생 {studentCount}개{" "}
-              {recommendedCount > 0 && `/ 추천 ${recommendedCount}개`}
+              학생 {studentCount}개
+              {!isCampMode && recommendedCount > 0 && ` / 추천 ${recommendedCount}개`}
             </div>
           </div>
         </div>
@@ -454,7 +471,7 @@ export function Step3Contents({
             />
           </div>
         </div>
-        {!canAddMore && (
+        {!canAddMore && !isCampMode && (
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm text-amber-800">
               ⚠️ 최대 9개의 콘텐츠를 모두 선택하셨습니다. 추천 콘텐츠는 받을 수
@@ -462,12 +479,21 @@ export function Step3Contents({
             </p>
           </div>
         )}
+        {!canAddMore && isCampMode && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm text-amber-800">
+              ⚠️ 최대 9개의 콘텐츠를 모두 선택하셨습니다.
+            </p>
+          </div>
+        )}
         {canAddMore && totalCount > 0 && (
           <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
             <p className="text-sm text-blue-800">
               💡 {remainingSlots}개의 콘텐츠를 더 선택할 수 있습니다.{" "}
-              {studentCount < 9 &&
+              {!isCampMode && studentCount < 9 &&
                 "다음 단계에서 추천 콘텐츠를 받을 수 있습니다."}
+              {isCampMode &&
+                "제출 후 관리자가 전략과목/취약과목을 설정하고 플랜을 생성합니다."}
             </p>
           </div>
         )}
@@ -543,7 +569,8 @@ export function Step3Contents({
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleContentSelection(book.id, "book")}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                    disabled={!editable}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                   <div className="flex-1">
                     <div className="flex items-start justify-between gap-2">
@@ -634,7 +661,8 @@ export function Step3Contents({
                                                   detail.id
                                                 )
                                               }
-                                              className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                              disabled={!editable}
+                                              className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                             />
                                             <div className="flex-1 text-xs">
                                               <span className="font-medium">
@@ -683,7 +711,8 @@ export function Step3Contents({
                                               onChange={() =>
                                                 setEndRange(book.id, detail.id)
                                               }
-                                              className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500"
+                                              disabled={!editable}
+                                              className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-50"
                                             />
                                             <div className="flex-1 text-xs">
                                               <span className="font-medium">
@@ -873,7 +902,8 @@ export function Step3Contents({
                     onChange={() =>
                       toggleContentSelection(lecture.id, "lecture")
                     }
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                    disabled={!editable}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                   <div className="flex-1">
                     <div className="flex items-start justify-between gap-2">
@@ -964,7 +994,8 @@ export function Step3Contents({
                                                   episode.id
                                                 )
                                               }
-                                              className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                              disabled={!editable}
+                                              className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                             />
                                             <div className="flex-1 text-xs">
                                               <span className="font-medium">
@@ -1007,6 +1038,7 @@ export function Step3Contents({
                                             <input
                                               type="radio"
                                               name={`end-${lecture.id}`}
+                                              disabled={!editable}
                                               checked={isSelected}
                                               onChange={() =>
                                                 setEndRange(
@@ -1014,7 +1046,7 @@ export function Step3Contents({
                                                   episode.id
                                                 )
                                               }
-                                              className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500"
+                                              className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-50"
                                             />
                                             <div className="flex-1 text-xs">
                                               <span className="font-medium">
@@ -1136,7 +1168,7 @@ export function Step3Contents({
             <span className="text-sm font-medium text-gray-700">
               선택된 콘텐츠: {selectedContentIds.size}개
             </span>
-            {!canAddMore && (
+            {!canAddMore && !isCampMode && (
               <span className="text-xs text-amber-600 font-medium">
                 ⚠️ 추천 콘텐츠 불가
               </span>
@@ -1169,6 +1201,7 @@ export function Step3Contents({
             type="button"
             onClick={addSelectedContents}
             disabled={
+              !editable ||
               Array.from(selectedContentIds).some((id) => {
                 const range = contentRanges.get(id);
                 return (
@@ -1179,10 +1212,12 @@ export function Step3Contents({
                   range.end.trim() === ""
                 );
               }) ||
-              data.student_contents.length +
-                data.recommended_contents.length +
-                selectedContentIds.size >
-                9
+              (isCampMode
+                ? data.student_contents.length + selectedContentIds.size > 9
+                : data.student_contents.length +
+                    data.recommended_contents.length +
+                    selectedContentIds.size >
+                  9)
             }
             className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
@@ -1243,7 +1278,12 @@ export function Step3Contents({
               <button
                 type="button"
                 onClick={() => removeContent(index)}
-                className="ml-4 text-sm text-red-600 hover:text-red-800"
+                disabled={!editable}
+                className={`ml-4 text-sm ${
+                  !editable
+                    ? "cursor-not-allowed text-gray-400"
+                    : "text-red-600 hover:text-red-800"
+                }`}
               >
                 삭제
               </button>

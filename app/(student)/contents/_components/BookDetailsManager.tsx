@@ -114,7 +114,9 @@ export function BookDetailsManager({
     };
     updateDetails([...details, newDetail]);
     // 새로 추가된 대단원은 자동으로 펼침
-    setExpandedGroups((prev) => new Set([...prev, newDetail.major_unit]));
+    if (newDetail.major_unit) {
+      setExpandedGroups((prev) => new Set([...prev, newDetail.major_unit!]));
+    }
   };
 
   // 중단원 추가 (특정 대단원 아래)

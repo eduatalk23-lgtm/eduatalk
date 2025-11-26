@@ -39,7 +39,7 @@ export async function getPlanGroupsForStudent(
     supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
       )
       .eq("student_id", filters.studentId);
 
@@ -85,7 +85,7 @@ export async function getPlanGroupsForStudent(
     const fallbackQuery = supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
       )
       .eq("student_id", filters.studentId);
 
@@ -142,7 +142,7 @@ export async function getPlanGroupById(
     supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,created_at,updated_at"
       )
       .eq("id", groupId)
       .eq("student_id", studentId)
@@ -167,7 +167,7 @@ export async function getPlanGroupById(
       supabase
         .from("plan_groups")
         .select(
-          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,created_at,updated_at"
+          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,created_at,updated_at"
         )
         .eq("id", groupId)
         .eq("student_id", studentId)
@@ -227,6 +227,14 @@ export async function createPlanGroup(
     target_date?: string | null;
     block_set_id?: string | null;
     status?: string;
+    subject_constraints?: any | null;
+    additional_period_reallocation?: any | null;
+    non_study_time_blocks?: any | null;
+    daily_schedule?: any | null; // JSONB: 일별 스케줄 정보
+    // 캠프 관련 필드
+    plan_type?: string | null;
+    camp_template_id?: string | null;
+    camp_invitation_id?: string | null;
   }
 ): Promise<{ success: boolean; groupId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -248,6 +256,34 @@ export async function createPlanGroup(
   // null이나 undefined가 아닐 때만 추가
   if (group.scheduler_options !== undefined && group.scheduler_options !== null) {
     payload.scheduler_options = group.scheduler_options;
+  }
+
+  // 1730 Timetable 추가 필드
+  if (group.subject_constraints !== undefined && group.subject_constraints !== null) {
+    payload.subject_constraints = group.subject_constraints;
+  }
+
+  if (group.additional_period_reallocation !== undefined && group.additional_period_reallocation !== null) {
+    payload.additional_period_reallocation = group.additional_period_reallocation;
+  }
+
+  if (group.non_study_time_blocks !== undefined && group.non_study_time_blocks !== null) {
+    payload.non_study_time_blocks = group.non_study_time_blocks;
+  }
+
+  if (group.daily_schedule !== undefined && group.daily_schedule !== null) {
+    payload.daily_schedule = group.daily_schedule;
+  }
+
+  // 캠프 관련 필드
+  if (group.plan_type !== undefined && group.plan_type !== null) {
+    payload.plan_type = group.plan_type;
+  }
+  if (group.camp_template_id !== undefined && group.camp_template_id !== null) {
+    payload.camp_template_id = group.camp_template_id;
+  }
+  if (group.camp_invitation_id !== undefined && group.camp_invitation_id !== null) {
+    payload.camp_invitation_id = group.camp_invitation_id;
   }
 
   let { data, error } = await supabase
@@ -328,6 +364,10 @@ export async function updatePlanGroup(
     target_date?: string | null;
     block_set_id?: string | null;
     status?: string;
+    daily_schedule?: any | null; // JSONB: 일별 스케줄 정보
+    subject_constraints?: any | null; // JSONB: 교과 제약 조건
+    additional_period_reallocation?: any | null; // JSONB: 추가 기간 재배치 정보
+    non_study_time_blocks?: any | null; // JSONB: 학습 시간 제외 항목
   }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -342,6 +382,10 @@ export async function updatePlanGroup(
   if (updates.target_date !== undefined) payload.target_date = updates.target_date;
   if (updates.block_set_id !== undefined) payload.block_set_id = updates.block_set_id;
   if (updates.status !== undefined) payload.status = updates.status;
+  if (updates.daily_schedule !== undefined) payload.daily_schedule = updates.daily_schedule;
+  if (updates.subject_constraints !== undefined) payload.subject_constraints = updates.subject_constraints;
+  if (updates.additional_period_reallocation !== undefined) payload.additional_period_reallocation = updates.additional_period_reallocation;
+  if (updates.non_study_time_blocks !== undefined) payload.non_study_time_blocks = updates.non_study_time_blocks;
 
   let { error } = await supabase
     .from("plan_groups")
@@ -443,7 +487,7 @@ export async function getPlanContents(
     supabase
       .from("plan_contents")
       .select(
-        "id,tenant_id,plan_group_id,content_type,content_id,start_range,end_range,display_order,created_at,updated_at"
+        "id,tenant_id,plan_group_id,content_type,content_id,start_range,end_range,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
       )
       .eq("plan_group_id", groupId)
       .order("display_order", { ascending: true });
@@ -456,11 +500,36 @@ export async function getPlanContents(
   let { data, error } = await query;
 
   if (error && error.code === "42703") {
-    ({ data, error } = await selectContents());
+    // 컬럼이 없는 경우 fallback 쿼리 시도
+    const fallbackSelect = () =>
+      supabase
+        .from("plan_contents")
+        .select("id,tenant_id,plan_group_id,content_type,content_id,start_range,end_range,display_order")
+        .eq("plan_group_id", groupId)
+        .order("display_order", { ascending: true });
+    
+    let fallbackQuery = fallbackSelect();
+    if (tenantId) {
+      fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+    }
+    
+    ({ data, error } = await fallbackQuery);
   }
 
   if (error) {
-    console.error("[data/planGroups] 플랜 콘텐츠 조회 실패", error);
+    // 에러 정보를 더 자세히 로깅
+    const errorInfo: Record<string, unknown> = {
+      message: error.message || String(error),
+      code: error.code || "UNKNOWN",
+      details: (error as any).details || null,
+      hint: (error as any).hint || null,
+      groupId,
+      tenantId,
+    };
+    
+    console.error("[data/planGroups] 플랜 콘텐츠 조회 실패", errorInfo);
+    
+    // 에러가 발생해도 빈 배열 반환 (페이지가 깨지지 않도록)
     return [];
   }
 
@@ -479,6 +548,22 @@ export async function createPlanContents(
     start_range: number;
     end_range: number;
     display_order?: number;
+    // 자동 추천 관련 필드 (선택)
+    is_auto_recommended?: boolean;
+    recommendation_source?: "auto" | "admin" | "template" | null;
+    recommendation_reason?: string | null;
+    recommendation_metadata?: {
+      scoreDetails?: {
+        schoolGrade?: number | null;
+        schoolAverageGrade?: number | null;
+        mockPercentile?: number | null;
+        mockGrade?: number | null;
+        riskScore?: number;
+      };
+      priority?: number;
+    } | null;
+    recommended_at?: string | null;
+    recommended_by?: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -495,12 +580,29 @@ export async function createPlanContents(
     start_range: content.start_range,
     end_range: content.end_range,
     display_order: content.display_order ?? index,
+    // 자동 추천 관련 필드
+    is_auto_recommended: content.is_auto_recommended ?? false,
+    recommendation_source: content.recommendation_source ?? null,
+    recommendation_reason: content.recommendation_reason ?? null,
+    recommendation_metadata: content.recommendation_metadata ?? null,
+    recommended_at: content.recommended_at ?? null,
+    recommended_by: content.recommended_by ?? null,
   }));
 
   let { error } = await supabase.from("plan_contents").insert(payload);
 
   if (error && error.code === "42703") {
-    const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
+    // 필드가 없는 경우 fallback (하위 호환성)
+    const fallbackPayload = payload.map(({ 
+      tenant_id: _tenantId, 
+      is_auto_recommended: _isAuto,
+      recommendation_source: _source,
+      recommendation_reason: _reason,
+      recommendation_metadata: _metadata,
+      recommended_at: _at,
+      recommended_by: _by,
+      ...rest 
+    }) => rest);
     ({ error } = await supabase.from("plan_contents").insert(fallbackPayload));
   }
 
@@ -921,6 +1023,58 @@ export async function createStudentAcademySchedules(
 }
 
 /**
+ * 관리자용 플랜 그룹 조회 (student_id 없이 조회)
+ */
+export async function getPlanGroupByIdForAdmin(
+  groupId: string,
+  tenantId: string
+): Promise<PlanGroup | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const selectGroup = () =>
+    supabase
+      .from("plan_groups")
+      .select(
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+      )
+      .eq("id", groupId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null);
+
+  let { data, error } = await selectGroup().maybeSingle<PlanGroup>();
+
+  if (error && error.code === "42703") {
+    // 컬럼이 없는 경우 fallback
+    const fallbackSelect = () =>
+      supabase
+        .from("plan_groups")
+        .select(
+          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+        )
+        .eq("id", groupId)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null);
+
+    ({ data, error } = await fallbackSelect().maybeSingle<PlanGroup>());
+
+    if (data && !error) {
+      data = { ...data, scheduler_options: null } as PlanGroup;
+    }
+  }
+
+  if (error && error.code !== "PGRST116") {
+    console.error("[data/planGroups] 관리자용 플랜 그룹 조회 실패", {
+      error,
+      groupId,
+      tenantId,
+    });
+    return null;
+  }
+
+  return data ?? null;
+}
+
+/**
  * 플랜 그룹 전체 조회 (관련 데이터 포함)
  */
 export async function getPlanGroupWithDetails(
@@ -934,11 +1088,79 @@ export async function getPlanGroupWithDetails(
   academySchedules: AcademySchedule[];
 }> {
   // 플랜 그룹별 제외일과 학원 일정 조회
-  const [group, contents, exclusions, academySchedules] = await Promise.all([
+  // 각 조회가 실패해도 다른 데이터는 정상적으로 반환되도록 Promise.allSettled 사용
+  const [groupResult, contentsResult, exclusionsResult, academySchedulesResult] = await Promise.allSettled([
     getPlanGroupById(groupId, studentId, tenantId),
     getPlanContents(groupId, tenantId),
     getPlanExclusions(groupId, tenantId), // 플랜 그룹별 제외일
     getStudentAcademySchedules(studentId, tenantId), // 학원 일정은 여전히 전역 관리
+  ]);
+
+  // 결과 추출 (실패 시 기본값 사용)
+  const group = groupResult.status === "fulfilled" ? groupResult.value : null;
+  const contents = contentsResult.status === "fulfilled" ? contentsResult.value : [];
+  const exclusions = exclusionsResult.status === "fulfilled" ? exclusionsResult.value : [];
+  const academySchedules = academySchedulesResult.status === "fulfilled" ? academySchedulesResult.value : [];
+
+  // 실패한 조회가 있으면 로깅
+  if (contentsResult.status === "rejected") {
+    console.error("[data/planGroups] 플랜 콘텐츠 조회 실패 (getPlanGroupWithDetails)", {
+      groupId,
+      tenantId,
+      error: contentsResult.reason,
+    });
+  }
+  if (exclusionsResult.status === "rejected") {
+    console.error("[data/planGroups] 플랜 제외일 조회 실패 (getPlanGroupWithDetails)", {
+      groupId,
+      tenantId,
+      error: exclusionsResult.reason,
+    });
+  }
+  if (academySchedulesResult.status === "rejected") {
+    console.error("[data/planGroups] 학원 일정 조회 실패 (getPlanGroupWithDetails)", {
+      studentId,
+      tenantId,
+      error: academySchedulesResult.reason,
+    });
+  }
+
+  return {
+    group,
+    contents,
+    exclusions,
+    academySchedules,
+  };
+}
+
+/**
+ * 관리자용 플랜 그룹 전체 조회 (관련 데이터 포함)
+ */
+export async function getPlanGroupWithDetailsForAdmin(
+  groupId: string,
+  tenantId: string
+): Promise<{
+  group: PlanGroup | null;
+  contents: PlanContent[];
+  exclusions: PlanExclusion[];
+  academySchedules: AcademySchedule[];
+}> {
+  const group = await getPlanGroupByIdForAdmin(groupId, tenantId);
+  
+  if (!group) {
+    return {
+      group: null,
+      contents: [],
+      exclusions: [],
+      academySchedules: [],
+    };
+  }
+
+  // 플랜 그룹별 제외일과 학원 일정 조회
+  const [contents, exclusions, academySchedules] = await Promise.all([
+    getPlanContents(groupId, tenantId),
+    getPlanExclusions(groupId, tenantId),
+    getStudentAcademySchedules(group.student_id, tenantId),
   ]);
 
   return {

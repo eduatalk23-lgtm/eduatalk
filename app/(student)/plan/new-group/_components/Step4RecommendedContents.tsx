@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { formatNumber } from "@/lib/utils/formatNumber";
+import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 
 type BookDetail = {
   id: string;
@@ -21,6 +23,7 @@ type Step4RecommendedContentsProps = {
   data: WizardData;
   onUpdate: (updates: Partial<WizardData>) => void;
   isEditMode?: boolean;
+  isCampMode?: boolean;
 };
 
 type RecommendedContent = {
@@ -49,6 +52,7 @@ export function Step4RecommendedContents({
   data,
   onUpdate,
   isEditMode = false,
+  isCampMode = false,
 }: Step4RecommendedContentsProps) {
   const [recommendedContents, setRecommendedContents] = useState<
     RecommendedContent[]
@@ -148,7 +152,11 @@ export function Step4RecommendedContents({
         setHasRequestedRecommendations(true);
       }
     } catch (error) {
-      console.error("추천 목록 조회 실패", error);
+      const planGroupError = toPlanGroupError(
+        error,
+        PlanGroupErrorCodes.CONTENT_FETCH_FAILED
+      );
+      console.error("[Step4RecommendedContents] 추천 목록 조회 실패:", planGroupError);
     } finally {
       setLoading(false);
     }
@@ -177,16 +185,16 @@ export function Step4RecommendedContents({
           continue;
         }
 
-        // 저장된 정보가 없으면 API로 조회
+        // 저장된 정보가 없으면 서버 액션으로 조회
         try {
-          const response = await fetch(
-            `/api/student-content-info?content_type=${content.content_type}&content_id=${content.content_id}`
+          const result = await fetchContentMetadataAction(
+            content.content_id,
+            content.content_type
           );
-          if (response.ok) {
-            const info = await response.json();
+          if (result.success && result.data) {
             subjectMap.set(content.content_id, {
-              title: info.title || "알 수 없음",
-              subject_category: info.subject_category || null,
+              title: result.data.title || "알 수 없음",
+              subject_category: result.data.subject_category || null,
             });
           } else {
             // 조회 실패 시 기본값
@@ -196,7 +204,12 @@ export function Step4RecommendedContents({
             });
           }
         } catch (error) {
-          console.error("학생 콘텐츠 정보 조회 실패:", error);
+          const planGroupError = toPlanGroupError(
+            error,
+            PlanGroupErrorCodes.CONTENT_FETCH_FAILED,
+            { contentId: content.content_id }
+          );
+          console.error("[Step4RecommendedContents] 콘텐츠 메타데이터 조회 실패:", planGroupError);
           subjectMap.set(content.content_id, {
             title: storedTitle || "알 수 없음",
             subject_category: storedSubjectCategory || null,
@@ -251,11 +264,79 @@ export function Step4RecommendedContents({
     }
   });
 
-  // 필수 과목 검증 (전체 기준: 학생 + 추천 콘텐츠 모두 포함)
-  const requiredSubjects = ["국어", "수학", "영어"];
-  const missingRequiredSubjects = requiredSubjects.filter(
-    (subject) => !selectedSubjectCategories.has(subject)
-  );
+  // 필수 과목 검증 (템플릿 설정에 따라 동적 처리)
+  // enable_required_subjects_validation이 true이고 required_subjects가 설정된 경우에만 검증
+  const requiredSubjects =
+    data.subject_constraints?.enable_required_subjects_validation &&
+    data.subject_constraints?.required_subjects &&
+    data.subject_constraints.required_subjects.length > 0
+      ? data.subject_constraints.required_subjects
+      : [];
+  
+  // 선택된 콘텐츠를 교과/과목별로 카운트
+  const contentCountBySubject = new Map<string, number>();
+  
+  // 학생 콘텐츠 카운트
+  data.student_contents.forEach((sc) => {
+    const subjectCategory = (sc as any).subject_category;
+    const subject = (sc as any).subject;
+    if (subjectCategory) {
+      const key = subject ? `${subjectCategory}:${subject}` : subjectCategory;
+      contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
+    }
+  });
+
+  // 추천 콘텐츠 카운트
+  data.recommended_contents.forEach((rc) => {
+    const subjectCategory =
+      (rc as any).subject_category ||
+      allRecommendedContents.find((c) => c.id === rc.content_id)?.subject_category;
+    const subject = (rc as any).subject;
+    if (subjectCategory) {
+      const key = subject ? `${subjectCategory}:${subject}` : subjectCategory;
+      contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
+    }
+  });
+
+  // 현재 선택 중인 추천 콘텐츠 카운트
+  Array.from(selectedContentIds).forEach((id) => {
+    const content = recommendedContents.find((c) => c.id === id);
+    if (content?.subject_category) {
+      const key = content.subject_category; // 추천 콘텐츠는 세부 과목 정보가 없을 수 있음
+      contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
+    }
+  });
+
+  // 필수 과목 검증
+  const missingRequiredSubjects: Array<{ name: string; current: number; required: number }> = [];
+  
+  requiredSubjects.forEach((req) => {
+    let count = 0;
+    
+    if (req.subject) {
+      // 세부 과목이 지정된 경우
+      const exactKey = `${req.subject_category}:${req.subject}`;
+      count = contentCountBySubject.get(exactKey) || 0;
+    } else {
+      // 교과만 지정된 경우: 해당 교과의 모든 콘텐츠 카운트
+      contentCountBySubject.forEach((cnt, key) => {
+        if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
+          count += cnt;
+        }
+      });
+    }
+    
+    if (count < req.min_count) {
+      const displayName = req.subject 
+        ? `${req.subject_category} - ${req.subject}` 
+        : req.subject_category;
+      missingRequiredSubjects.push({
+        name: displayName,
+        current: count,
+        required: req.min_count,
+      });
+    }
+  });
 
   const toggleContentSelection = (contentId: string) => {
     const newSet = new Set(selectedContentIds);
@@ -351,7 +432,11 @@ export function Step4RecommendedContents({
           }
         }
       } catch (error) {
-        console.error("상세정보 조회 실패:", error);
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+        );
+        console.error("[Step4RecommendedContents] 상세정보 조회 실패:", planGroupError);
       } finally {
         setLoadingDetails((prev) => {
           const newSet = new Set(prev);
@@ -448,12 +533,17 @@ export function Step4RecommendedContents({
       return;
     }
 
-    // 필수 과목 검증
-    if (missingRequiredSubjects.length > 0) {
+    // 필수 과목 검증 (템플릿 설정에 따라 검증)
+    // enable_required_subjects_validation이 true이고 required_subjects가 설정된 경우에만 검증
+    if (
+      requiredSubjects.length > 0 &&
+      missingRequiredSubjects.length > 0
+    ) {
+      const missingList = missingRequiredSubjects
+        .map((m) => `${m.name} (현재 ${m.current}개, 필요 ${m.required}개)`)
+        .join("\n");
       alert(
-        `다음 필수 과목을 각각 1개 이상 선택해주세요: ${missingRequiredSubjects.join(
-          ", "
-        )}`
+        `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다:\n${missingList}`
       );
       return;
     }
@@ -518,7 +608,11 @@ export function Step4RecommendedContents({
           });
         }
       } catch (error) {
-        console.error("마스터 콘텐츠 정보 조회 실패:", error);
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+        );
+        console.error("[Step4RecommendedContents] 마스터 콘텐츠 정보 조회 실패:", planGroupError);
         // 에러 시 기본값 사용
         contentsToAdd.push({
           content_type: content.contentType,
@@ -670,53 +764,60 @@ export function Step4RecommendedContents({
               })}
             </div>
 
-            {/* 필수 과목 안내 */}
-            <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <div className="mb-2 text-xs font-semibold text-gray-700">
-                필수 과목 현황
-              </div>
-              <div className="space-y-1">
-                {requiredSubjects.map((subject) => {
-                  const isIncluded = selectedSubjectCategories.has(subject);
-                  return (
-                    <div
-                      key={subject}
-                      className="flex items-center justify-between text-xs"
-                    >
-                      <span className="text-gray-700">{subject}</span>
-                      {isIncluded ? (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                          ✓ 포함됨
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                          ✗ 누락됨
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {missingRequiredSubjects.length > 0 && (
-                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2">
-                  <p className="text-xs font-medium text-amber-800">
-                    ⚠️ 다음 필수 과목을 각각 1개 이상 선택해주세요:{" "}
-                    {missingRequiredSubjects.join(", ")}
-                  </p>
-                  <p className="mt-1 text-xs text-amber-700">
-                    추천 콘텐츠에서 {missingRequiredSubjects.join(", ")} 과목을
-                    선택하시면 더 효과적인 학습 플랜을 만들 수 있습니다.
-                  </p>
+            {/* 필수 과목 안내 (템플릿 설정에 따라 표시) */}
+            {requiredSubjects.length > 0 && (
+              <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="mb-2 text-xs font-semibold text-gray-700">
+                  필수 과목 현황
                 </div>
-              )}
-              {missingRequiredSubjects.length === 0 && (
-                <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-2">
-                  <p className="text-xs font-medium text-green-800">
-                    ✅ 모든 필수 과목이 포함되어 있습니다.
-                  </p>
+                <div className="space-y-1">
+                  {requiredSubjects.map((subject) => {
+                    const isIncluded = selectedSubjectCategories.has(subject);
+                    return (
+                      <div
+                        key={subject}
+                        className="flex items-center justify-between text-xs"
+                      >
+                        <span className="text-gray-700">{subject}</span>
+                        {isIncluded ? (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                            ✓ 포함됨
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                            ✗ 누락됨
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
+                {missingRequiredSubjects.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2">
+                    <p className="text-xs font-medium text-amber-800">
+                      ⚠️ 다음 필수 과목의 최소 개수 조건을 만족하지 않습니다:
+                    </p>
+                    <ul className="mt-1 list-inside list-disc space-y-1 text-xs text-amber-700">
+                      {missingRequiredSubjects.map((m, idx) => (
+                        <li key={idx}>
+                          {m.name}: 현재 {m.current}개 / 필요 {m.required}개
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-amber-700">
+                      추천 콘텐츠에서 위 과목을 선택하시면 더 효과적인 학습 플랜을 만들 수 있습니다.
+                    </p>
+                  </div>
+                )}
+                {missingRequiredSubjects.length === 0 && (
+                  <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-2">
+                    <p className="text-xs font-medium text-green-800">
+                      ✅ 모든 필수 과목이 포함되어 있습니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1505,9 +1606,12 @@ export function Step4RecommendedContents({
                       </span>
                     )}
                   </div>
-                  {missingRequiredSubjects.length > 0 && (
+                  {requiredSubjects.length > 0 && missingRequiredSubjects.length > 0 && (
                     <div className="text-xs font-medium text-red-600">
-                      필수 과목 미선택: {missingRequiredSubjects.join(", ")}
+                      필수 과목 미충족:{" "}
+                      {missingRequiredSubjects
+                        .map((m) => `${m.name} (${m.current}/${m.required})`)
+                        .join(", ")}
                     </div>
                   )}
                 </div>
@@ -1545,7 +1649,7 @@ export function Step4RecommendedContents({
                 onClick={addSelectedContents}
                 disabled={
                   selectedContentIds.size === 0 ||
-                  missingRequiredSubjects.length > 0 ||
+                  (requiredSubjects.length > 0 && missingRequiredSubjects.length > 0) ||
                   totalCount + selectedContentIds.size > 9
                 }
                 className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"

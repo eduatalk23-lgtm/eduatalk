@@ -1,0 +1,302 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { CampInvitation } from "@/lib/types/plan";
+import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
+import { useToast } from "@/components/ui/ToastProvider";
+
+type CampInvitationListProps = {
+  invitations: Array<CampInvitation & { student_name?: string | null; student_grade?: string | null; student_class?: string | null }>;
+  loading: boolean;
+  templateId: string;
+  onRefresh?: () => void;
+};
+
+export function CampInvitationList({ invitations, loading, templateId, onRefresh }: CampInvitationListProps) {
+  const toast = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  if (loading) {
+    return <div className="text-sm text-gray-500">초대 목록을 불러오는 중...</div>;
+  }
+
+  if (invitations.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <p className="text-sm text-gray-500">발송된 초대가 없습니다.</p>
+      </div>
+    );
+  }
+
+  // 상태별 통계
+  const stats = {
+    pending: invitations.filter((inv) => inv.status === "pending").length,
+    accepted: invitations.filter((inv) => inv.status === "accepted").length,
+    declined: invitations.filter((inv) => inv.status === "declined").length,
+  };
+
+  const handleToggleSelect = (invitationId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(invitationId)) {
+        next.delete(invitationId);
+      } else {
+        next.add(invitationId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === invitations.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(invitations.map((inv) => inv.id)));
+    }
+  };
+
+  const handleDelete = (invitationId: string) => {
+    const invitation = invitations.find((inv) => inv.id === invitationId);
+    const warningMessage =
+      invitation?.status === "accepted"
+        ? "이미 수락된 초대입니다. 정말 삭제하시겠습니까?"
+        : "정말 이 초대를 삭제하시겠습니까?";
+
+    if (!confirm(warningMessage)) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await deleteCampInvitationAction(invitationId);
+        if (result.success) {
+          toast.showSuccess("초대가 삭제되었습니다.");
+          onRefresh?.();
+        } else {
+          toast.showError(result.error || "초대 삭제에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("초대 삭제 실패:", error);
+        toast.showError("초대 삭제에 실패했습니다.");
+      }
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) {
+      toast.showError("삭제할 초대를 선택해주세요.");
+      return;
+    }
+
+    const selectedInvitations = invitations.filter((inv) => selectedIds.has(inv.id));
+    const hasAccepted = selectedInvitations.some((inv) => inv.status === "accepted");
+    const warningMessage = hasAccepted
+      ? `${selectedIds.size}개의 초대를 삭제합니다. 이미 수락된 초대가 포함되어 있습니다. 계속하시겠습니까?`
+      : `${selectedIds.size}개의 초대를 삭제합니다. 계속하시겠습니까?`;
+
+    if (!confirm(warningMessage)) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await deleteCampInvitationsAction(Array.from(selectedIds));
+        if (result.success) {
+          toast.showSuccess(`${result.count || selectedIds.size}개의 초대가 삭제되었습니다.`);
+          setSelectedIds(new Set());
+          onRefresh?.();
+        } else {
+          toast.showError(result.error || "초대 삭제에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("초대 일괄 삭제 실패:", error);
+        toast.showError("초대 삭제에 실패했습니다.");
+      }
+    });
+  };
+
+  const handleResend = () => {
+    if (selectedIds.size === 0) {
+      toast.showError("재발송할 초대를 선택해주세요.");
+      return;
+    }
+
+    if (!confirm(`${selectedIds.size}개의 초대를 재발송합니다. 계속하시겠습니까?`)) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await resendCampInvitationsAction(templateId, Array.from(selectedIds));
+        if (result.success) {
+          toast.showSuccess(`${result.count || selectedIds.size}개의 초대가 재발송되었습니다.`);
+          setSelectedIds(new Set());
+          onRefresh?.();
+        } else {
+          toast.showError(result.error || "초대 재발송에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("초대 재발송 실패:", error);
+        toast.showError("초대 재발송에 실패했습니다.");
+      }
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* 통계 */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-sm text-gray-600">대기중</div>
+          <div className="mt-1 text-2xl font-semibold text-yellow-600">{stats.pending}</div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-sm text-gray-600">수락</div>
+          <div className="mt-1 text-2xl font-semibold text-green-600">{stats.accepted}</div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-sm text-gray-600">거절</div>
+          <div className="mt-1 text-2xl font-semibold text-red-600">{stats.declined}</div>
+        </div>
+      </div>
+
+      {/* 액션 버튼 */}
+      {invitations.length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              {selectedIds.size === invitations.length ? "전체 해제" : "전체 선택"}
+            </button>
+            {selectedIds.size > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={isPending}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:bg-indigo-400"
+                >
+                  {isPending ? "처리 중..." : `재발송 (${selectedIds.size})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={isPending}
+                  className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:bg-gray-100"
+                >
+                  {isPending ? "삭제 중..." : `삭제 (${selectedIds.size})`}
+                </button>
+              </>
+            )}
+          </div>
+          {selectedIds.size > 0 && (
+            <div className="text-sm text-gray-600">
+              {selectedIds.size}개 선택됨
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 초대 목록 */}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === invitations.length && invitations.length > 0}
+                  onChange={handleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </th>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                학생명
+              </th>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                학년/반
+              </th>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                상태
+              </th>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                초대일
+              </th>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                처리일
+              </th>
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                작업
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {invitations.map((invitation) => (
+              <tr key={invitation.id} className="hover:bg-gray-50">
+                <td className="border-b border-gray-100 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(invitation.id)}
+                    onChange={() => handleToggleSelect(invitation.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </td>
+                <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
+                  {invitation.student_name || "이름 없음"}
+                </td>
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                  {invitation.student_grade && invitation.student_class
+                    ? `${invitation.student_grade}학년 ${invitation.student_class}반`
+                    : "—"}
+                </td>
+                <td className="border-b border-gray-100 px-4 py-3 text-sm">
+                  {invitation.status === "pending" && (
+                    <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+                      대기중
+                    </span>
+                  )}
+                  {invitation.status === "accepted" && (
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
+                      수락
+                    </span>
+                  )}
+                  {invitation.status === "declined" && (
+                    <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
+                      거절
+                    </span>
+                  )}
+                </td>
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                  {invitation.invited_at
+                    ? new Date(invitation.invited_at).toLocaleDateString("ko-KR")
+                    : "—"}
+                </td>
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                  {invitation.accepted_at
+                    ? new Date(invitation.accepted_at).toLocaleDateString("ko-KR")
+                    : invitation.declined_at
+                    ? new Date(invitation.declined_at).toLocaleDateString("ko-KR")
+                    : "—"}
+                </td>
+                <td className="border-b border-gray-100 px-4 py-3 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(invitation.id)}
+                    disabled={isPending}
+                    className="text-red-600 hover:text-red-800 disabled:text-gray-400"
+                  >
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+

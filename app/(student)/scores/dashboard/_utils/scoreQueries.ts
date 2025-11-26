@@ -15,7 +15,6 @@ export type SchoolScoreRow = {
   raw_score: number | null;
   grade_score: number | null;
   class_rank: number | null;
-  test_date: string | null;
   created_at: string | null;
 };
 
@@ -30,7 +29,6 @@ export type MockScoreRow = {
   percentile: number | null;
   grade_score: number | null;
   exam_round: string | null;
-  test_date: string | null;
   created_at: string | null;
 };
 

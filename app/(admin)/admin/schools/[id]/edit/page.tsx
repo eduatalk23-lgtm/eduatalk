@@ -1,6 +1,6 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { SchoolEditForm } from "./SchoolEditForm";
+import { getSchoolById, getRegions } from "@/lib/data/schools";
 
 export default async function EditSchoolPage({
   params,
@@ -8,18 +8,13 @@ export default async function EditSchoolPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createSupabaseServerClient();
+  const school = await getSchoolById(id);
 
-  const { data: school, error } = await supabase
-    .from("schools")
-    .select("id, name, type, region, address")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error || !school) {
-    console.error("[admin/schools/edit] 학교 조회 실패:", error);
+  if (!school) {
     redirect("/admin/schools");
   }
+
+  const regions = await getRegions();
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -29,7 +24,10 @@ export default async function EditSchoolPage({
           <p className="text-sm text-gray-500">학교 정보를 수정하세요.</p>
         </div>
 
-        <SchoolEditForm school={school} />
+        <SchoolEditForm
+          school={school}
+          regions={regions.map((r) => ({ id: r.id, name: r.name }))}
+        />
       </div>
     </section>
   );

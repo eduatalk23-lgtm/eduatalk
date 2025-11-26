@@ -1,18 +1,5 @@
 import type { PlanGroup } from "@/lib/types/plan";
-
-const planPurposeLabels: Record<string, string> = {
-  내신대비: "내신대비",
-  모의고사: "모의고사",
-  수능: "수능",
-  기타: "기타",
-};
-
-const schedulerTypeLabels: Record<string, string> = {
-  성적기반: "성적 기반 배정",
-  "1730_timetable": "1730 Timetable (6일 학습, 1일 복습)",
-  전략취약과목: "전략/취약과목 학습일 조정",
-  커스텀: "커스텀",
-};
+import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
 
 type Step1DetailViewProps = {
   group: PlanGroup;

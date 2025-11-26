@@ -1,4 +1,5 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -23,6 +24,7 @@ export type HistoryDetail = {
 /**
  * 히스토리 기록 함수
  * 기록 실패해도 메인 기능에는 영향 주지 않도록 try/catch 처리
+ * RLS 정책을 우회하기 위해 Admin 클라이언트 사용
  */
 export async function recordHistory(
   supabase: SupabaseServerClient,
@@ -40,7 +42,7 @@ export async function recordHistory(
         .select("tenant_id")
         .eq("id", studentId)
         .maybeSingle();
-      
+
       finalTenantId = student?.tenant_id || null;
     }
 
@@ -51,21 +53,73 @@ export async function recordHistory(
       detail,
     };
 
-    let { error } = await supabase.from("student_history").insert(payload);
+    // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      console.warn(
+        `[history] Admin 클라이언트를 사용할 수 없어 서버 클라이언트로 시도합니다.`
+      );
+      // Admin 클라이언트가 없으면 서버 클라이언트로 시도
+      let { error } = await supabase.from("student_history").insert(payload);
+
+      if (error && error.code === "42703") {
+        // fallback: tenant_id 컬럼이 없는 경우
+        const { tenant_id: _tenantId, ...fallbackPayload } = payload;
+        void _tenantId;
+        ({ error } = await supabase
+          .from("student_history")
+          .insert(fallbackPayload));
+      }
+
+      if (error) {
+        console.error(`[history] ${eventType} 기록 실패:`, {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          studentId,
+          eventType,
+        });
+      }
+      return;
+    }
+
+    // Admin 클라이언트로 INSERT 시도
+    let { error } = await adminClient.from("student_history").insert(payload);
 
     if (error && error.code === "42703") {
       // fallback: tenant_id 컬럼이 없는 경우
       const { tenant_id: _tenantId, ...fallbackPayload } = payload;
       void _tenantId;
-      ({ error } = await supabase.from("student_history").insert(fallbackPayload));
+      ({ error } = await adminClient
+        .from("student_history")
+        .insert(fallbackPayload));
     }
 
     if (error) {
-      console.error(`[history] ${eventType} 기록 실패:`, error);
+      console.error(`[history] ${eventType} 기록 실패:`, {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        studentId,
+        eventType,
+      });
     }
   } catch (error) {
     // 히스토리 기록 실패는 메인 기능에 영향 주지 않음
-    console.error(`[history] ${eventType} 기록 중 예외 발생:`, error);
+    const errorInfo =
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          }
+        : { error };
+    console.error(`[history] ${eventType} 기록 중 예외 발생:`, {
+      ...errorInfo,
+      studentId,
+      eventType,
+    });
   }
 }
-

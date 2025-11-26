@@ -1,27 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { CurriculumRevisionsManager } from "./CurriculumRevisionsManager";
+import { CurriculumHierarchyManager } from "./CurriculumHierarchyManager";
 import { GradesManager } from "./GradesManager";
 import { SemestersManager } from "./SemestersManager";
-import { SubjectCategoriesManager } from "./SubjectCategoriesManager";
-import { SubjectsManager } from "./SubjectsManager";
 import { PlatformsManager } from "./PlatformsManager";
 import { PublishersManager } from "./PublishersManager";
+import { CareerFieldsManager } from "./CareerFieldsManager";
 
-type TabKey = "revisions" | "grades" | "semesters" | "subject-categories" | "subjects" | "platforms" | "publishers";
+type TabKey = "hierarchy" | "grades" | "semesters" | "platforms" | "publishers" | "career-fields";
 
 export function ContentMetadataTabs() {
-  const [activeTab, setActiveTab] = useState<TabKey>("revisions");
+  const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
 
   const tabs = [
-    { key: "revisions" as TabKey, label: "개정교육과정" },
+    { key: "hierarchy" as TabKey, label: "교육과정 계층" },
     { key: "grades" as TabKey, label: "학년" },
     { key: "semesters" as TabKey, label: "학기" },
-    { key: "subject-categories" as TabKey, label: "교과" },
-    { key: "subjects" as TabKey, label: "과목" },
     { key: "platforms" as TabKey, label: "플랫폼" },
     { key: "publishers" as TabKey, label: "출판사" },
+    { key: "career-fields" as TabKey, label: "진로 계열" },
   ];
 
   return (
@@ -47,13 +45,12 @@ export function ContentMetadataTabs() {
 
       {/* 탭 컨텐츠 */}
       <div className="mt-6">
-        {activeTab === "revisions" && <CurriculumRevisionsManager />}
+        {activeTab === "hierarchy" && <CurriculumHierarchyManager />}
         {activeTab === "grades" && <GradesManager />}
         {activeTab === "semesters" && <SemestersManager />}
-        {activeTab === "subject-categories" && <SubjectCategoriesManager />}
-        {activeTab === "subjects" && <SubjectsManager />}
         {activeTab === "platforms" && <PlatformsManager />}
         {activeTab === "publishers" && <PublishersManager />}
+        {activeTab === "career-fields" && <CareerFieldsManager />}
       </div>
     </div>
   );

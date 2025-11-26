@@ -31,42 +31,44 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">취약과목 추천</h3>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {subjects.map((subject) => {
-          const riskColor =
-            subject.riskScore >= 70
-              ? "border-red-300 bg-red-50"
-              : subject.riskScore >= 50
-              ? "border-orange-300 bg-orange-50"
-              : "border-yellow-300 bg-yellow-50";
+      <div className="flex flex-col gap-4">
+        <h3 className="text-lg font-semibold text-gray-900">취약과목 추천</h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {subjects.map((subject) => {
+            const riskColor =
+              subject.riskScore >= 70
+                ? "border-red-300 bg-red-50"
+                : subject.riskScore >= 50
+                ? "border-orange-300 bg-orange-50"
+                : "border-yellow-300 bg-yellow-50";
 
-          return (
-            <div key={subject.subject} className={`rounded-lg border p-4 ${riskColor}`}>
-              <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-base font-semibold text-gray-900">{subject.subject}</h4>
-                <span className="text-2xl">{trendIcons[subject.trend]}</span>
-              </div>
-              <div className="mb-2">
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="text-gray-600">위험도</span>
-                  <span className="font-semibold text-gray-900">{subject.riskScore}점</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                  <div
-                    className={`h-full ${
-                      subject.riskScore >= 70
-                        ? "bg-red-600"
-                        : subject.riskScore >= 50
-                        ? "bg-orange-600"
-                        : "bg-yellow-600"
-                    }`}
-                    style={{ width: `${subject.riskScore}%` }}
-                  />
-                </div>
-              </div>
-              <p className="mb-2 text-xs text-gray-700">{subject.reason}</p>
-              <div className="space-y-1 text-xs text-gray-600">
+            return (
+              <div key={subject.subject} className={`rounded-lg border p-4 ${riskColor}`}>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-semibold text-gray-900">{subject.subject}</h4>
+                    <span className="text-2xl">{trendIcons[subject.trend]}</span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">위험도</span>
+                      <span className="font-semibold text-gray-900">{subject.riskScore}점</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className={`h-full ${
+                          subject.riskScore >= 70
+                            ? "bg-red-600"
+                            : subject.riskScore >= 50
+                            ? "bg-orange-600"
+                            : "bg-yellow-600"
+                        }`}
+                        style={{ width: `${subject.riskScore}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-700">{subject.reason}</p>
+                  <div className="space-y-1 text-xs text-gray-600">
                 <div>이번 주 학습: {subject.studyTimeMinutes}분</div>
                 {subject.studyTimeChange !== 0 && (
                   <div
@@ -83,11 +85,13 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
                     {subject.scoreChange < 0 ? "▲" : "▼"} 등급 변화
                   </div>
                 )}
-                <div className="text-gray-500">트렌드: {trendLabels[subject.trend]}</div>
+                    <div className="text-gray-500">트렌드: {trendLabels[subject.trend]}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -2,12 +2,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ScoreTypeTabs } from "../../../../_components/ScoreTypeTabs";
-import { GradeTabs } from "../../../../_components/GradeTabs";
-import { MockMonthTabs } from "../../../../_components/MockMonthTabs";
-import { MockExamTypeTabs } from "../../../../_components/MockExamTypeTabs";
 import { getMockScores } from "@/lib/data/studentScores";
-import { getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
-import MockScoresTable from "./_components/MockScoresTable";
+import { getSubjectHierarchyOptimized, getActiveCurriculumRevision } from "@/lib/data/subjects";
+import { MockScoresView } from "./_components/MockScoresView";
 
 type PageProps = {
   params: Promise<{
@@ -51,66 +48,42 @@ export default async function MockScoresPage({
     redirect("/login");
   }
 
-  // 기존 성적 데이터 조회 (해당 월의 exam_round로 필터링)
-  const allScores = await getMockScores(user.id, tenantContext.tenantId, {
-    grade: parseInt(grade),
-    examType: examType,
-  });
+  // 모든 성적 데이터 조회 (필터는 클라이언트에서 처리)
+  const scores = await getMockScores(user.id, tenantContext.tenantId);
 
-  // 해당 월(회차)의 성적만 필터링
-  const scores = allScores.filter((score) => score.exam_round === month);
+  // 활성화된 개정교육과정 조회
+  const activeCurriculum = await getActiveCurriculumRevision();
+  if (!activeCurriculum) {
+    throw new Error("활성화된 개정교육과정을 찾을 수 없습니다.");
+  }
 
-  // 교과/과목 데이터 조회
-  const subjectGroupsWithSubjects = await getSubjectGroupsWithSubjects(
-    tenantContext.tenantId
-  );
-
-  const successMessage = paramsQuery.success;
+  // 교과/과목/과목구분 데이터 조회 (개정교육과정별)
+  const subjectHierarchy = await getSubjectHierarchyOptimized(activeCurriculum.id);
+  const subjectGroupsWithSubjects = subjectHierarchy.subjectGroups;
+  const subjectTypes = subjectHierarchy.subjectTypes;
 
   return (
     <section className="mx-auto max-w-6xl p-6 md:p-8">
       <div className="mb-6 flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-gray-900">모의고사 성적</h1>
         <p className="text-sm text-gray-600">
-          {grade}학년 {month}월 {examType} 모의고사 성적을 입력하고 관리하세요.
+          모의고사 성적을 입력하고 관리하세요.
         </p>
       </div>
 
       {/* 탭 네비게이션 */}
-      <div className="mb-6 flex flex-col gap-4">
+      <div className="mb-6">
         <ScoreTypeTabs />
-        <GradeTabs
-          basePath="/scores/mock"
-          currentGrade={grade}
-          additionalParams={[month, examType]}
-        />
-        <MockMonthTabs
-          basePath={`/scores/mock/${grade}`}
-          currentMonth={month}
-          additionalParams={[examType]}
-        />
-        <MockExamTypeTabs
-          basePath={`/scores/mock/${grade}/${month}`}
-          currentExamType={examType}
-        />
       </div>
 
-      {/* 성공 메시지 */}
-      {successMessage && (
-        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-          {successMessage === "created" && "성적이 성공적으로 등록되었습니다."}
-          {successMessage === "updated" && "성적이 성공적으로 수정되었습니다."}
-          {successMessage === "deleted" && "성적이 성공적으로 삭제되었습니다."}
-        </div>
-      )}
-
-      {/* 성적 입력 테이블 */}
-      <MockScoresTable
-        grade={parseInt(grade)}
-        examType={examType}
-        month={month}
-        initialScores={scores}
+      {/* 성적 카드 그리드 */}
+      <MockScoresView
+        initialGrade={parseInt(grade)}
+        initialExamType={examType}
+        initialMonth={month}
+        scores={scores}
         subjectGroups={subjectGroupsWithSubjects}
+        subjectTypes={subjectTypes}
       />
     </section>
   );

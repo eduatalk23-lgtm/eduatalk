@@ -394,7 +394,7 @@ export function generateLearningStrategies(
   });
 }
 
-// 다음주 자동 스케줄 요약
+// 다음주 학습 스케줄 요약
 export async function fetchNextWeekSchedule(
   supabase: SupabaseServerClient,
   studentId: string

@@ -252,16 +252,6 @@ export class PlanValidator {
       );
     }
 
-    // 모의고사/수능 + 자동스케줄러 조합 경고
-    if (
-      (purpose === "모의고사" || purpose === "수능") &&
-      schedulerType === "자동스케줄러"
-    ) {
-      warnings.push(
-        "모의고사/수능 대비에는 1730 Timetable이나 전략/취약과목 조정이 더 적합할 수 있습니다."
-      );
-    }
-
     return { valid: errors.length === 0, errors, warnings };
   }
 

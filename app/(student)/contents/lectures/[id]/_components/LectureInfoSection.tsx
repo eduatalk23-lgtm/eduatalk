@@ -279,7 +279,7 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
           { label: "난이도", value: lecture.difficulty_level },
           {
             label: "총 회차",
-            value: lecture.total_episodes ? `${lecture.total_episodes}회` : null,
+            value: (lecture as any).total_episodes ? `${(lecture as any).total_episodes}회` : null,
           },
           {
             label: "총 길이",

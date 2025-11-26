@@ -63,17 +63,17 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
           exclusions: exclusions.map((e) => ({
             exclusion_date: e.exclusion_date,
             exclusion_type: e.exclusion_type,
-            reason: e.reason,
+            reason: e.reason ?? undefined,
           })),
           academySchedules: academySchedules.map((s) => ({
             day_of_week: s.day_of_week,
             start_time: s.start_time,
             end_time: s.end_time,
-            academy_name: s.academy_name,
-            subject: s.subject,
-            travel_time: s.travel_time,
+            academy_name: s.academy_name ?? undefined,
+            subject: s.subject ?? undefined,
+            travel_time: s.travel_time ?? undefined,
           })),
-          schedulerType: group.scheduler_type as "1730_timetable" | "자동스케줄러",
+          schedulerType: "1730_timetable",
           schedulerOptions: Object.keys(schedulerOptionsWithoutTimeSettings).length > 0 ? schedulerOptionsWithoutTimeSettings : undefined,
           timeSettings: hasTimeSettings ? timeSettings : undefined,
         });
@@ -312,20 +312,35 @@ export function Step2_5DetailView({ group, exclusions, academySchedules }: Step2
                     return sum + selfStudyMinutes / 60;
                   }, 0);
 
+                  const weekStudyDays = days.filter((d) => d.day_type === "학습일").length;
+                  const weekReviewDays = days.filter((d) => d.day_type === "복습일").length;
+                  const weekTotalDays = weekStudyDays + weekReviewDays;
+
                   return (
                     <div key={weekNum} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {weekNum}주차
+                      <div className="mb-2 flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-semibold text-gray-900">
+                            {weekNum}주차
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-600">
+                            <span>학습일 {weekStudyDays}일</span>
+                            <span>복습일 {weekReviewDays}일</span>
+                            {weekStudyHours > 0 && (
+                              <span>학습시간 {formatNumber(weekStudyHours)}시간</span>
+                            )}
+                            {weekSelfStudyHours > 0 && (
+                              <span>자율학습시간 {formatNumber(weekSelfStudyHours)}시간</span>
+                            )}
+                            <span>총시간 {formatNumber(weekStudyHours + weekSelfStudyHours)}시간</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-600">
-                          {weekStudyHours > 0 && (
-                            <span>학습 {formatNumber(weekStudyHours)}시간</span>
-                          )}
-                          {weekSelfStudyHours > 0 && (
-                            <span>자율학습 {formatNumber(weekSelfStudyHours)}시간</span>
-                          )}
-                        </div>
+                        {weekTotalDays > 0 && (
+                          <div className="text-xs text-gray-400">
+                            평균: {formatNumber((weekStudyHours + weekSelfStudyHours) / weekTotalDays)}시간/일
+                            ({formatNumber(weekStudyHours + weekSelfStudyHours)}시간 ÷ {weekTotalDays}일)
+                          </div>
+                        )}
                       </div>
                       <div className="grid grid-cols-7 gap-2">
                         {sortedDays.map((day, dayIndex) => (

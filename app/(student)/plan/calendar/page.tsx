@@ -33,10 +33,15 @@ export default async function PlanCalendarPage({
 
   try {
     // 활성화된 플랜 그룹 조회
-    const activePlanGroups = await getPlanGroupsForStudent({
+    const allActivePlanGroups = await getPlanGroupsForStudent({
       studentId: user.id,
       status: "active",
     });
+
+    // 캠프 템플릿 플랜 제외 (캠프 관련 플랜은 /camp 경로에서만 확인)
+    const activePlanGroups = allActivePlanGroups.filter(
+      (group) => !group.camp_template_id && !group.camp_invitation_id
+    );
 
     if (activePlanGroups.length === 0) {
       return (
@@ -61,18 +66,18 @@ export default async function PlanCalendarPage({
     const dateRanges = activePlanGroups.map((group) => {
       // Date 객체이면 문자열로 변환, 문자열이면 그대로 사용
       const startStr =
-        group.period_start instanceof Date
-          ? group.period_start.toISOString().slice(0, 10)
-          : typeof group.period_start === "string"
+        typeof group.period_start === "string"
           ? group.period_start.slice(0, 10)
-          : String(group.period_start).slice(0, 10);
+          : group.period_start
+          ? String(group.period_start).slice(0, 10)
+          : "";
 
       const endStr =
-        group.period_end instanceof Date
-          ? group.period_end.toISOString().slice(0, 10)
-          : typeof group.period_end === "string"
+        typeof group.period_end === "string"
           ? group.period_end.slice(0, 10)
-          : String(group.period_end).slice(0, 10);
+          : group.period_end
+          ? String(group.period_end).slice(0, 10)
+          : "";
 
       return {
         start: startStr,
@@ -130,7 +135,7 @@ export default async function PlanCalendarPage({
 
     // 플랜 그룹 불일치 확인
     const planGroupIdsInPlans = [...new Set(filteredPlans.map((p) => p.plan_group_id).filter(Boolean))];
-    const unmatchedGroupIds = planGroupIdsInPlans.filter((id) => !activeGroupIds.includes(id));
+    const unmatchedGroupIds = planGroupIdsInPlans.filter((id): id is string => id != null && !activeGroupIds.includes(id));
     const hasUnmatchedPlans = unmatchedGroupIds.length > 0 || filteredPlans.some((p) => !p.plan_group_id);
 
     // 교과 정보가 없는 플랜의 콘텐츠 ID 수집
@@ -224,7 +229,7 @@ export default async function PlanCalendarPage({
 
     // 통계 계산
     const totalPlans = plansWithContent.length;
-    const completedPlans = plansWithContent.filter((p) => p.progress !== null && p.progress >= 100).length;
+    const completedPlans = plansWithContent.filter((p) => p.progress != null && p.progress >= 100).length;
     const activePlans = plansWithContent.filter((p) => p.actual_start_time && !p.actual_end_time).length;
     const averageProgress = totalPlans > 0
       ? Math.round(

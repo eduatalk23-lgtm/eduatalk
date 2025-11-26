@@ -91,12 +91,6 @@ export default async function AnalysisPage() {
           >
             성적 관리
           </Link>
-          <Link
-            href="/scheduler"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            자동 스케줄러
-          </Link>
         </div>
       </div>
 

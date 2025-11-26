@@ -9,45 +9,15 @@ import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { classifyPlanContents } from "@/lib/data/planContents";
 import type { PlanStatus } from "@/lib/types/plan";
+import {
+  planPurposeLabels,
+  schedulerTypeLabels,
+  statusLabels,
+  statusColors,
+} from "@/lib/constants/planLabels";
 
 type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
-};
-
-const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
-
-const planPurposeLabels: Record<string, string> = {
-  내신대비: "내신대비",
-  모의고사: "모의고사",
-  수능: "수능",
-  기타: "기타",
-};
-
-const schedulerTypeLabels: Record<string, string> = {
-  성적기반: "성적 기반 배정",
-  "1730_timetable": "1730 Timetable (6일 학습, 1일 복습)",
-  전략취약과목: "전략/취약과목 학습일 조정",
-  커스텀: "커스텀",
-};
-
-const statusLabels: Record<string, string> = {
-  active: "활성",
-  paused: "일시정지",
-  completed: "완료",
-  cancelled: "중단", // 기존 데이터 호환성을 위해 유지 (새로는 paused 사용)
-};
-
-const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  paused: "bg-yellow-100 text-yellow-800",
-  completed: "bg-purple-100 text-purple-800",
-  cancelled: "bg-red-100 text-red-800",
-};
-
-const contentTypeLabels: Record<string, string> = {
-  book: "📚 책",
-  lecture: "🎧 강의",
-  custom: "📝 커스텀",
 };
 
 export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPageProps) {
@@ -149,19 +119,22 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
 
   const displayStatus = getDisplayStatus();
 
+  // 캠프 모드 확인
+  const isCampMode = group.plan_type === "camp";
+
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
       <div className="flex flex-col gap-6">
         {/* 상단 액션 바 */}
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <Link
-            href="/plan"
+            href={isCampMode ? "/camp" : "/plan"}
             className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            플랜 목록으로
+            {isCampMode ? "캠프 목록으로" : "플랜 목록으로"}
           </Link>
 
           <PlanGroupActionButtons
@@ -172,6 +145,25 @@ export default async function PlanGroupDetailPage({ params }: PlanGroupDetailPag
             canDelete={canDelete || isCompleted}
           />
         </div>
+
+        {/* 캠프 모드 안내 */}
+        {isCampMode && !hasPlans && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-blue-900">관리자 검토 중</h3>
+                <p className="mt-1 text-sm text-blue-700">
+                  캠프 참여 정보를 제출하셨습니다. 관리자가 남은 단계를 진행한 후 플랜이 생성됩니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 헤더 정보 카드 */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

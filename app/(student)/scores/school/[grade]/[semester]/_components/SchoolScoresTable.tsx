@@ -3,7 +3,7 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SchoolScore } from "@/lib/data/studentScores";
-import type { SubjectGroup, Subject } from "@/lib/data/subjects";
+import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { numericToAlphabetGrade, alphabetToNumericGrade, ALPHABET_GRADES } from "@/lib/scores/gradeScoreUtils";
 import { addSchoolScore, updateSchoolScoreAction, deleteSchoolScoreAction } from "@/app/(student)/actions/scoreActions";
 
@@ -12,11 +12,12 @@ type SchoolScoresTableProps = {
   semester: number;
   initialScores: SchoolScore[];
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
+  subjectTypes: SubjectType[];
 };
 
 type ScoreFormData = {
   id?: string; // 기존 성적 ID (수정 시)
-  subject_type: string;
+  subject_type_id: string; // 과목구분 ID (FK)
   subject_group_id: string;
   subject_id: string;
   credit_hours: string;
@@ -36,6 +37,7 @@ export default function SchoolScoresTable({
   semester,
   initialScores,
   subjectGroups,
+  subjectTypes,
 }: SchoolScoresTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -47,16 +49,32 @@ export default function SchoolScoresTable({
 
     // 기존 성적 데이터를 맵에 저장 (subject_group:subject_name을 키로 사용)
     initialScores.forEach((score) => {
-      const group = subjectGroups.find((g) => g.name === score.subject_group);
+      // FK 기반으로 교과/과목 찾기
+      const group = score.subject_group_id
+        ? subjectGroups.find((g) => g.id === score.subject_group_id)
+        : subjectGroups.find((g) => g.name === score.subject_group);
       if (!group) return;
 
-      const subject = group.subjects.find((s) => s.name === score.subject_name);
+      const subject = score.subject_id
+        ? group.subjects.find((s) => s.id === score.subject_id)
+        : group.subjects.find((s) => s.name === score.subject_name);
       if (!subject) return;
 
-      const key = `${group.name}:${subject.name}`;
+      // 과목구분 ID 찾기 (FK 우선, 없으면 텍스트로 찾기)
+      let subjectTypeId = score.subject_type_id || "";
+      if (!subjectTypeId && score.subject_type) {
+        const subjectType = subjectTypes.find((st) => st.name === score.subject_type);
+        subjectTypeId = subjectType?.id || "";
+      }
+      // 과목에 과목구분이 설정되어 있으면 사용
+      if (!subjectTypeId && subject.subject_type_id) {
+        subjectTypeId = subject.subject_type_id;
+      }
+
+      const key = `${group.id}:${subject.id}`;
       scoreMap.set(key, {
         id: score.id,
-        subject_type: score.subject_type || "",
+        subject_type_id: subjectTypeId,
         subject_group_id: group.id,
         subject_id: subject.id,
         credit_hours: score.credit_hours?.toString() || "",
@@ -105,11 +123,12 @@ export default function SchoolScoresTable({
         return existingScore;
       }
 
-      // 교과 그룹의 기본 과목 유형 사용
+      // 첫 번째 과목의 과목구분 ID 사용 (없으면 빈 값)
+      const firstSubject = defaultGroup.subjects[0];
       return {
-        subject_type: defaultGroup.default_subject_type || "",
+        subject_type_id: firstSubject?.subject_type_id || "",
         subject_group_id: defaultGroup.id,
-        subject_id: defaultGroup.subjects[0]?.id || "",
+        subject_id: firstSubject?.id || "",
         credit_hours: "",
         raw_score: "",
         subject_average: "",
@@ -196,19 +215,20 @@ export default function SchoolScoresTable({
   };
 
 
-  // 교과 선택 시 과목 필터링 및 과목유형 자동 설정
+  // 교과 선택 시 과목 필터링 및 과목구분 자동 설정
   const handleSubjectGroupChange = (index: number, groupId: string) => {
     const group = subjectGroups.find((g) => g.id === groupId);
     if (!group) {
       updateField(index, "subject_group_id", groupId);
       updateField(index, "subject_id", "");
+      updateField(index, "subject_type_id", "");
       return;
     }
 
     // 교과 선택 시 첫 번째 과목 자동 선택 (없으면 빈 값)
     const firstSubject = group.subjects[0];
-    // 교과 그룹의 기본 과목 유형 사용
-    const autoSubjectType = group.default_subject_type || "";
+    // 첫 번째 과목의 과목구분 ID 사용 (없으면 빈 값)
+    const autoSubjectTypeId = firstSubject?.subject_type_id || "";
 
     setScores((prev) =>
       prev.map((row, i) =>
@@ -217,22 +237,22 @@ export default function SchoolScoresTable({
               ...row,
               subject_group_id: group.id,
               subject_id: firstSubject?.id || "",
-              subject_type: autoSubjectType,
+              subject_type_id: autoSubjectTypeId,
             }
           : row
       )
     );
   };
 
-  // 과목 선택 시 교과 그룹 자동 설정 및 과목유형 자동 설정
+  // 과목 선택 시 교과 그룹 자동 설정 및 과목구분 자동 설정
   const handleSubjectChange = (index: number, subjectId: string) => {
     const group = subjectGroups.find((g) =>
       g.subjects.some((s) => s.id === subjectId)
     );
     if (group) {
       const subject = group.subjects.find((s) => s.id === subjectId);
-      // 과목에 과목 유형이 있으면 사용, 없으면 교과 그룹의 기본값 사용
-      const autoSubjectType = subject?.subject_type || group.default_subject_type || "";
+      // 과목의 과목구분 ID 사용 (없으면 빈 값)
+      const autoSubjectTypeId = subject?.subject_type_id || "";
 
       setScores((prev) =>
         prev.map((row, i) =>
@@ -241,7 +261,7 @@ export default function SchoolScoresTable({
                 ...row,
                 subject_id: subjectId,
                 subject_group_id: group.id,
-                subject_type: autoSubjectType,
+                subject_type_id: autoSubjectTypeId,
               }
             : row
         )
@@ -263,7 +283,7 @@ export default function SchoolScoresTable({
     setScores((prev) => [
       ...prev,
       {
-        subject_type: "",
+        subject_type_id: "",
         subject_group_id: "",
         subject_id: "",
         credit_hours: "",
@@ -282,7 +302,7 @@ export default function SchoolScoresTable({
     const missingFields: string[] = [];
     if (!row.subject_group_id) missingFields.push("교과");
     if (!row.subject_id) missingFields.push("과목");
-    if (!row.subject_type) missingFields.push("과목 유형");
+    if (!row.subject_type_id) missingFields.push("과목구분");
     if (!row.credit_hours) missingFields.push("학점수");
     if (!row.raw_score) missingFields.push("원점수");
     if (!row.grade_score) missingFields.push("성취도");
@@ -296,7 +316,7 @@ export default function SchoolScoresTable({
       return (
         row.subject_group_id &&
         row.subject_id &&
-        row.subject_type &&
+        row.subject_type_id &&
         row.credit_hours &&
         row.raw_score &&
         row.grade_score
@@ -338,8 +358,14 @@ export default function SchoolScoresTable({
           const formData = new FormData();
           formData.append("grade", grade.toString());
           formData.append("semester", semester.toString());
+          // FK 필드 전달
+          formData.append("subject_group_id", group.id);
+          formData.append("subject_id", subject.id);
+          if (row.subject_type_id) formData.append("subject_type_id", row.subject_type_id);
+          // 하위 호환성을 위해 텍스트 필드도 함께 전달
           formData.append("subject_group", group.name);
-          formData.append("subject_type", row.subject_type);
+          const subjectType = subjectTypes.find((st) => st.id === row.subject_type_id);
+          if (subjectType) formData.append("subject_type", subjectType.name);
           formData.append("subject_name", subject.name);
           formData.append("credit_hours", row.credit_hours);
           formData.append("raw_score", row.raw_score);
@@ -475,20 +501,22 @@ export default function SchoolScoresTable({
                   </td>
                   <td className="px-3 py-3">
                     <select
-                      value={row.subject_type}
+                      value={row.subject_type_id}
                       onChange={(e) =>
-                        updateField(index, "subject_type", e.target.value)
+                        updateField(index, "subject_type_id", e.target.value)
                       }
                       className={`w-full rounded-lg border px-2 py-1.5 text-xs focus:outline-none focus:ring-1 ${
-                        !row.subject_type && hasIncompleteRequiredFields
+                        !row.subject_type_id && hasIncompleteRequiredFields
                           ? "border-red-300 focus:border-red-500 focus:ring-red-500"
                           : "border-gray-300 focus:ring-indigo-500"
                       }`}
                     >
                       <option value="">선택</option>
-                      <option value="공통">공통</option>
-                      <option value="일반선택">일반선택</option>
-                      <option value="진로선택">진로선택</option>
+                      {subjectTypes.map((subjectType) => (
+                        <option key={subjectType.id} value={subjectType.id}>
+                          {subjectType.name}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td className="px-3 py-3">

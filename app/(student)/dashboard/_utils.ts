@@ -194,22 +194,88 @@ async function fetchBlocksForDay(
   dayOfWeek: number
 ): Promise<BlockRow[]> {
   try {
-    const selectBlocks = () =>
-      supabase
+    // 활성 블록 세트 조회
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("active_block_set_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (studentError && studentError.code !== "PGRST116") {
+      console.warn("[dashboard] 학생 정보 조회 실패:", studentError);
+    }
+
+    const activeBlockSetId = student?.active_block_set_id;
+
+    // 활성 블록 세트가 없으면 빈 배열 반환
+    if (!activeBlockSetId) {
+      return [];
+    }
+
+    // 블록 조회 (block_index 컬럼이 있을 수도 있고 없을 수도 있음)
+    const selectBlocks = () => {
+      const query = supabase
         .from("student_block_schedule")
         .select("id,day_of_week,start_time,end_time,block_index")
         .eq("day_of_week", dayOfWeek)
-        .order("block_index", { ascending: true });
+        .eq("block_set_id", activeBlockSetId)
+        .eq("student_id", studentId);
 
-    let { data, error } = await selectBlocks().eq("student_id", studentId);
+      // block_index 컬럼이 있으면 정렬, 없으면 start_time으로 정렬
+      return query.order("block_index", { ascending: true });
+    };
+
+    let { data, error } = await selectBlocks();
+    
+    // block_index 컬럼이 없는 경우 (42703 에러)
     if (error && error.code === "42703") {
-      ({ data, error } = await selectBlocks());
-    }
-    if (error) throw error;
+      // block_index 없이 조회하고 start_time으로 정렬
+      const fallbackQuery = supabase
+        .from("student_block_schedule")
+        .select("id,day_of_week,start_time,end_time")
+        .eq("day_of_week", dayOfWeek)
+        .eq("block_set_id", activeBlockSetId)
+        .eq("student_id", studentId)
+        .order("start_time", { ascending: true });
 
-    return (data as BlockRow[] | null) ?? [];
+      const fallbackResult = await fallbackQuery;
+      // block_index가 없는 경우 null로 채움
+      data = fallbackResult.data?.map(block => ({ ...block, block_index: null })) ?? null;
+      error = fallbackResult.error;
+    }
+
+    if (error) {
+      console.error("[dashboard] 블록 조회 실패:", {
+        error,
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        studentId,
+        dayOfWeek,
+        activeBlockSetId,
+      });
+      throw error;
+    }
+
+    const blocks = (data as BlockRow[] | null) ?? [];
+    
+    // block_index가 없는 경우 동적으로 계산
+    if (blocks.length > 0 && (blocks[0].block_index === null || blocks[0].block_index === undefined)) {
+      return blocks.map((block, index) => ({
+        ...block,
+        block_index: index + 1,
+      }));
+    }
+
+    return blocks;
   } catch (error) {
-    console.error("[dashboard] 블록 조회 실패", error);
+    console.error("[dashboard] 블록 조회 실패:", {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      studentId,
+      dayOfWeek,
+    });
     return [];
   }
 }

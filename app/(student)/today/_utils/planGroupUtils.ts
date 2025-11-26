@@ -80,14 +80,32 @@ export function getActivePlan(
 /**
  * 플랜 그룹의 전체 진행률 계산
  */
-export function calculateGroupProgress(planGroup: PlanGroup): number {
-  const plan = planGroup.plan;
-  const totalPages = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
-  const completedPages = plan.completed_amount ?? 0;
+export function getPlanProgressPercent(plan: PlanWithContent): number {
+  if (plan.actual_end_time) {
+    return 100;
+  }
 
-  return totalPages > 0
-    ? Math.round((completedPages / totalPages) * 100)
-    : 0;
+  if (typeof plan.progress === "number" && !Number.isNaN(plan.progress)) {
+    return Math.min(100, Math.max(0, Math.round(plan.progress)));
+  }
+
+  const totalRange =
+    (plan.planned_end_page_or_time ?? 0) -
+    (plan.planned_start_page_or_time ?? 0);
+  const completedAmount = plan.completed_amount ?? null;
+
+  if (completedAmount !== null && totalRange > 0) {
+    return Math.min(
+      100,
+      Math.max(0, Math.round((completedAmount / totalRange) * 100))
+    );
+  }
+
+  return 0;
+}
+
+export function calculateGroupProgress(planGroup: PlanGroup): number {
+  return getPlanProgressPercent(planGroup.plan);
 }
 
 /**

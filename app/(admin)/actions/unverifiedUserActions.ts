@@ -76,8 +76,9 @@ export async function resendVerificationEmail(
     }
 
     // 인증 링크 생성 및 이메일 발송
+    // 기존 사용자이므로 magiclink 사용 (password 불필요)
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-      type: "signup",
+      type: "magiclink",
       email: email,
     });
 

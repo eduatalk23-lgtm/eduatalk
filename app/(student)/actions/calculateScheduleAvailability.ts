@@ -15,7 +15,7 @@ type CalculateScheduleAvailabilityParams = {
   blockSetId: string;
   exclusions: Exclusion[];
   academySchedules: AcademySchedule[];
-  schedulerType: "1730_timetable" | "자동스케줄러";
+  schedulerType: "1730_timetable";
   schedulerOptions?: {
     study_days?: number;
     review_days?: number;
@@ -29,6 +29,12 @@ type CalculateScheduleAvailabilityParams = {
     enable_self_study_for_holidays?: boolean;
     enable_self_study_for_study_days?: boolean;
   };
+  // 템플릿 모드일 때 블록 데이터를 직접 전달
+  blocks?: Block[];
+  isTemplateMode?: boolean;
+  // 캠프 모드일 때 템플릿 ID (템플릿 블록 조회용)
+  isCampMode?: boolean;
+  campTemplateId?: string;
 };
 
 export async function calculateScheduleAvailability(
@@ -48,29 +54,96 @@ export async function calculateScheduleAvailability(
   }
 
   try {
-    // 블록 세트의 블록 조회
-    const { data: blocksData, error: blocksError } = await supabase
-      .from("student_block_schedule")
-      .select("day_of_week, start_time, end_time")
-      .eq("student_id", user.id)
-      .eq("block_set_id", params.blockSetId)
-      .order("day_of_week", { ascending: true })
-      .order("start_time", { ascending: true });
-
-    if (blocksError) {
+    // 캠프 모드에서 campTemplateId 필수 검증
+    if (params.isCampMode && !params.campTemplateId) {
       return {
         success: false,
-        error: `블록 조회 실패: ${blocksError.message}`,
+        error: "캠프 모드에서는 템플릿 ID가 필수입니다. 페이지를 새로고침하거나 관리자에게 문의해주세요.",
         data: null,
       };
     }
 
-    const blocks: Block[] =
-      blocksData?.map((b) => ({
-        day_of_week: b.day_of_week,
-        start_time: b.start_time,
-        end_time: b.end_time,
-      })) || [];
+    let blocks: Block[] = [];
+
+    // 캠프 모드: 템플릿 블록 세트의 블록 조회 (가장 먼저 처리, isTemplateMode보다 우선)
+    if (params.isCampMode && params.campTemplateId && params.blockSetId) {
+      // 캠프 모드: 템플릿 블록 세트의 블록 조회 (template_blocks 테이블)
+      const { data: blocksData, error: blocksError } = await supabase
+        .from("template_blocks")
+        .select("day_of_week, start_time, end_time")
+        .eq("template_block_set_id", params.blockSetId)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
+
+      if (blocksError) {
+        return {
+          success: false,
+          error: `템플릿 블록 조회 실패: ${blocksError.message}`,
+          data: null,
+        };
+      }
+
+      blocks =
+        blocksData?.map((b) => ({
+          day_of_week: b.day_of_week,
+          start_time: b.start_time,
+          end_time: b.end_time,
+        })) || [];
+
+      if (blocks.length === 0) {
+        return {
+          success: false,
+          error: `템플릿 블록 세트(ID: ${params.blockSetId})에 블록이 없습니다. 관리자에게 문의해주세요.`,
+          data: null,
+        };
+      }
+    } else if (params.isTemplateMode) {
+      // 템플릿 모드이거나 블록 데이터가 직접 전달된 경우
+      if (params.blocks && params.blocks.length > 0) {
+        blocks = params.blocks;
+      } else {
+        return {
+          success: false,
+          error: "템플릿 모드에서는 블록 세트에 최소 1개 이상의 블록이 필요합니다. Step 1에서 블록을 추가해주세요.",
+          data: null,
+        };
+      }
+    } else if (params.blocks) {
+      // 블록 데이터가 직접 전달된 경우 사용
+      blocks = params.blocks;
+    } else {
+      // 일반 모드: 학생 블록 세트의 블록 조회 (student_block_schedule 테이블)
+      const { data: blocksData, error: blocksError } = await supabase
+        .from("student_block_schedule")
+        .select("day_of_week, start_time, end_time")
+        .eq("student_id", user.id)
+        .eq("block_set_id", params.blockSetId)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
+
+      if (blocksError) {
+        return {
+          success: false,
+          error: `블록 조회 실패: ${blocksError.message}`,
+          data: null,
+        };
+      }
+
+      blocks =
+        blocksData?.map((b) => ({
+          day_of_week: b.day_of_week,
+          start_time: b.start_time,
+          end_time: b.end_time,
+        })) || [];
+
+      if (blocks.length === 0) {
+        return {
+          success: false,
+          error: `블록 세트(ID: ${params.blockSetId})에 블록이 없습니다. Step 1에서 블록을 추가해주세요.`,
+          data: null,
+        };
+      }
+    }
 
     // 계산 옵션 설정
     const options: CalculateOptions = {
@@ -86,6 +159,34 @@ export async function calculateScheduleAvailability(
       enable_self_study_for_study_days: params.timeSettings?.enable_self_study_for_study_days,
     };
 
+    // 입력값 사전 검증
+    if (!params.periodStart || !params.periodEnd) {
+      return {
+        success: false,
+        error: "학습 기간(시작일, 종료일)을 입력해주세요.",
+        data: null,
+      };
+    }
+
+    const startDate = new Date(params.periodStart);
+    const endDate = new Date(params.periodEnd);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return {
+        success: false,
+        error: "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD 형식이어야 합니다)",
+        data: null,
+      };
+    }
+
+    if (startDate > endDate) {
+      return {
+        success: false,
+        error: "시작일은 종료일보다 앞서야 합니다.",
+        data: null,
+      };
+    }
+
     // 계산 실행
     const result = calculateAvailableDates(
       params.periodStart,
@@ -95,6 +196,15 @@ export async function calculateScheduleAvailability(
       params.academySchedules,
       options
     );
+
+    // 계산 결과에 에러가 있으면 실패로 처리
+    if (result.errors && result.errors.length > 0) {
+      return {
+        success: false,
+        error: result.errors.join(" "),
+        data: null,
+      };
+    }
 
     return {
       success: true,

@@ -44,6 +44,14 @@ type PlanGroupDetailViewProps = {
   canEdit: boolean;
   groupId: string;
   hasPlans?: boolean;
+  campSubmissionMode?: boolean;
+  templateBlocks?: Array<{
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  }>;
+  templateBlockSetName?: string | null;
 };
 
 export function PlanGroupDetailView({
@@ -55,12 +63,14 @@ export function PlanGroupDetailView({
   canEdit,
   groupId,
   hasPlans = false,
+  campSubmissionMode = false,
+  templateBlocks = [],
+  templateBlockSetName = null,
 }: PlanGroupDetailViewProps) {
-  const [currentTab, setCurrentTab] = useState(1);
   const scheduleViewRef = useRef<PlanScheduleViewRef | null>(null);
 
   // 탭 정보 메모이제이션
-  const tabs = useMemo(() => [
+  const allTabs = useMemo(() => [
     { id: 1, label: "기본 정보", completed: !!group.name && !!group.plan_purpose && !!group.scheduler_type },
     { id: 2, label: "블록 및 제외일", completed: !!group.block_set_id },
     { id: 3, label: "스케줄 미리보기", completed: true },
@@ -69,6 +79,29 @@ export function PlanGroupDetailView({
     { id: 6, label: "최종 검토", completed: true },
     { id: 7, label: "스케줄 결과", completed: hasPlans },
   ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, contentsWithDetails, hasPlans]);
+
+  // 캠프 제출 모드일 때 탭 필터링 (1, 2, 4, 5만 표시)
+  const tabs = useMemo(() => {
+    if (campSubmissionMode) {
+      return allTabs.filter(tab => [1, 2, 4, 5].includes(tab.id));
+    }
+    return allTabs;
+  }, [allTabs, campSubmissionMode]);
+
+  // 허용된 탭 ID 목록
+  const allowedTabIds = useMemo(() => {
+    if (campSubmissionMode) {
+      return [1, 2, 4, 5];
+    }
+    return [1, 2, 3, 4, 5, 6, 7];
+  }, [campSubmissionMode]);
+
+  // 초기 탭 설정 (허용된 탭 중 첫 번째)
+  const initialTab = useMemo(() => {
+    return allowedTabIds[0];
+  }, [allowedTabIds]);
+
+  const [currentTab, setCurrentTab] = useState(initialTab);
 
   // 필터링된 콘텐츠 메모이제이션
   const studentContents = useMemo(() => 
@@ -83,8 +116,13 @@ export function PlanGroupDetailView({
 
   // 탭 변경 핸들러 메모이제이션
   const handleTabChange = useCallback((tab: number) => {
+    // 캠프 제출 모드일 때 허용되지 않은 탭으로 변경 시도 시 무시
+    if (campSubmissionMode && !allowedTabIds.includes(tab)) {
+      setCurrentTab(initialTab);
+      return;
+    }
     setCurrentTab(tab);
-  }, []);
+  }, [campSubmissionMode, allowedTabIds, initialTab]);
 
   // 스케줄 뷰 준비 핸들러 메모이제이션
   const handleScheduleViewReady = useCallback((ref: PlanScheduleViewRef | null) => {
@@ -97,7 +135,12 @@ export function PlanGroupDetailView({
   }, []);
 
   const renderTabContent = () => {
-    switch (currentTab) {
+    // 캠프 제출 모드일 때 허용되지 않은 탭 접근 시 첫 번째 허용된 탭 콘텐츠 표시
+    const displayTab = campSubmissionMode && !allowedTabIds.includes(currentTab) 
+      ? initialTab 
+      : currentTab;
+
+    switch (displayTab) {
       case 1:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
@@ -107,7 +150,13 @@ export function PlanGroupDetailView({
       case 2:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step2DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />
+            <Step2DetailView 
+              group={group} 
+              exclusions={exclusions} 
+              academySchedules={academySchedules}
+              templateBlocks={templateBlocks}
+              templateBlockSetName={templateBlockSetName}
+            />
           </Suspense>
         );
       case 3:
@@ -172,8 +221,8 @@ export function PlanGroupDetailView({
         </ErrorBoundary>
       </div>
 
-      {/* 플랜 생성은 Step 7에서만 표시 */}
-      {currentTab === 7 && (
+      {/* 플랜 생성은 Step 7에서만 표시 (읽기 전용 모드에서는 숨김) */}
+      {currentTab === 7 && canEdit && (
         <div className="mt-8 border-t border-gray-200 pt-8">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">플랜 생성</h2>

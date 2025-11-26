@@ -17,19 +17,21 @@ export type CareerField =
   | "기타";
 
 export type StudentFormData = {
+  // 기본 정보
   name: string;
-  school: string;
+  school_id: string; // school text → school_id FK
   grade: string;
   birth_date: string;
+  // 프로필 정보
   gender: Gender | "";
   phone: string;
   mother_phone: string;
   father_phone: string;
+  // 진로 정보
   exam_year: string;
   curriculum_revision: CurriculumRevision | "";
-  desired_university_1: string;
-  desired_university_2: string;
-  desired_university_3: string;
+  desired_university_ids: string[]; // 희망 대학교 ID 배열 (최대 3개)
+  // 진로 계열 (단일 선택)
   desired_career_field: CareerField | "";
 };
 

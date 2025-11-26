@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  getGrades,
-  createGrade,
-  updateGrade,
-  deleteGrade,
-  type Grade,
-} from "@/lib/data/contentMetadata";
+  getGradesAction,
+  createGradeAction,
+  updateGradeAction,
+  deleteGradeAction,
+} from "@/app/(admin)/actions/contentMetadataActions";
+import type { Grade } from "@/lib/data/contentMetadata";
 
 export function GradesManager() {
   const [items, setItems] = useState<Grade[]>([]);
@@ -23,7 +23,7 @@ export function GradesManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getGrades();
+      const data = await getGradesAction();
       setItems(data);
     } catch (error) {
       console.error("학년 조회 실패:", error);
@@ -40,7 +40,7 @@ export function GradesManager() {
     }
 
     try {
-      await createGrade(formData.name, formData.display_order);
+      await createGradeAction(formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       loadItems();
@@ -57,7 +57,7 @@ export function GradesManager() {
     }
 
     try {
-      await updateGrade(id, {
+      await updateGradeAction(id, {
         name: formData.name,
         display_order: formData.display_order,
       });
@@ -74,7 +74,7 @@ export function GradesManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deleteGrade(id);
+      await deleteGradeAction(id);
       loadItems();
     } catch (error) {
       console.error("학년 삭제 실패:", error);
@@ -209,7 +209,7 @@ export function GradesManager() {
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) =>
-                            updateGrade(item.id, { is_active: e.target.checked }).then(() =>
+                            updateGradeAction(item.id, { is_active: e.target.checked }).then(() =>
                               loadItems()
                             )
                           }

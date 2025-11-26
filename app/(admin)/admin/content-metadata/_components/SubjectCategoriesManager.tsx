@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import {
-  getSubjectCategories,
-  createSubjectCategory,
-  updateSubjectCategory,
-  deleteSubjectCategory,
-  getCurriculumRevisions,
-  type SubjectCategory,
-  type CurriculumRevision,
-} from "@/lib/data/contentMetadata";
+  getSubjectCategoriesAction,
+  createSubjectCategoryAction,
+  updateSubjectCategoryAction,
+  deleteSubjectCategoryAction,
+  getCurriculumRevisionsAction,
+} from "@/app/(admin)/actions/contentMetadataActions";
+import type { SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
 
 export function SubjectCategoriesManager() {
   const [items, setItems] = useState<SubjectCategory[]>([]);
@@ -27,7 +26,7 @@ export function SubjectCategoriesManager() {
 
   async function loadRevisions() {
     try {
-      const data = await getCurriculumRevisions();
+      const data = await getCurriculumRevisionsAction();
       setRevisions(data);
       if (data.length > 0 && !selectedRevisionId) {
         setSelectedRevisionId(data[0].id);
@@ -40,7 +39,7 @@ export function SubjectCategoriesManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getSubjectCategories();
+      const data = await getSubjectCategoriesAction();
       setItems(data);
     } catch (error) {
       console.error("교과 조회 실패:", error);
@@ -61,7 +60,7 @@ export function SubjectCategoriesManager() {
     }
 
     try {
-      await createSubjectCategory(selectedRevisionId, formData.name, formData.display_order);
+      await createSubjectCategoryAction(selectedRevisionId, formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       loadItems();
@@ -78,7 +77,7 @@ export function SubjectCategoriesManager() {
     }
 
     try {
-      await updateSubjectCategory(id, {
+      await updateSubjectCategoryAction(id, {
         name: formData.name,
         display_order: formData.display_order,
       });
@@ -95,7 +94,7 @@ export function SubjectCategoriesManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deleteSubjectCategory(id);
+      await deleteSubjectCategoryAction(id);
       loadItems();
     } catch (error) {
       console.error("교과 삭제 실패:", error);
@@ -106,7 +105,8 @@ export function SubjectCategoriesManager() {
   function startEdit(item: SubjectCategory) {
     setEditingId(item.id);
     setFormData({ name: item.name, display_order: item.display_order });
-    setSelectedRevisionId(item.revision_id);
+    // revision_id는 SubjectCategory에 없으므로 현재 선택된 revision 사용
+    // setSelectedRevisionId(item.revision_id);
     setIsCreating(false);
   }
 
@@ -116,9 +116,9 @@ export function SubjectCategoriesManager() {
     setFormData({ name: "", display_order: 0 });
   }
 
-  const filteredItems = selectedRevisionId
-    ? items.filter((item) => item.revision_id === selectedRevisionId)
-    : items;
+  // SubjectCategory에는 revision_id가 없으므로 모든 항목 표시
+  // TODO: 데이터베이스 스키마에 revision_id 관계가 추가되면 필터링 로직 구현
+  const filteredItems = items;
 
   if (loading) {
     return <div className="text-center py-8 text-gray-500">로딩 중...</div>;
@@ -126,6 +126,26 @@ export function SubjectCategoriesManager() {
 
   return (
     <div className="space-y-4">
+      {/* 경고 메시지 */}
+      <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="text-yellow-600">⚠️</div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-yellow-800">주의</h3>
+            <p className="mt-1 text-sm text-yellow-700">
+              이 페이지는 deprecated된 테이블을 사용합니다. 교과 관리는{" "}
+              <a
+                href="/admin/subjects"
+                className="font-semibold text-yellow-800 underline hover:text-yellow-900"
+              >
+                교과/과목 관리 페이지
+              </a>
+              에서 진행해주세요.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">교과 관리</h2>
         <button
@@ -253,7 +273,7 @@ export function SubjectCategoriesManager() {
                 editingId === item.id ? (
                   <tr key={item.id}>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.revision?.name || "-"}
+                      -
                     </td>
                     <td className="px-6 py-4">
                       <input
@@ -279,7 +299,7 @@ export function SubjectCategoriesManager() {
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) =>
-                            updateSubjectCategory(item.id, { is_active: e.target.checked }).then(
+                            updateSubjectCategoryAction(item.id, { is_active: e.target.checked }).then(
                               () => loadItems()
                             )
                           }
@@ -310,7 +330,7 @@ export function SubjectCategoriesManager() {
                 ) : (
                   <tr key={item.id}>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.revision?.name || "-"}
+                      -
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.display_order}</td>

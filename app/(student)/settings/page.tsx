@@ -31,9 +31,11 @@ import {
   toFormDataValue,
 } from "./types";
 import SchoolSelect from "@/components/ui/SchoolSelect";
+import SchoolMultiSelect from "@/components/ui/SchoolMultiSelect";
 import { SettingsTabs } from "./_components/SettingsTabs";
 import { SkeletonForm } from "@/components/ui/SkeletonForm";
 import { cn } from "@/lib/cn";
+import { getSchoolById } from "@/app/(student)/actions/schoolActions";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -49,15 +51,15 @@ export default function SettingsPage() {
     "basic"
   );
 
-  // 학교 구분 상태 (기본 정보 탭용)
-  const [schoolTypeFilter, setSchoolTypeFilter] = useState<
-    "중학교" | "고등학교" | ""
-  >("");
+  // 학교 타입 상태 (school_id로부터 조회)
+  const [schoolType, setSchoolType] = useState<
+    "중학교" | "고등학교" | undefined
+  >(undefined);
 
   // 폼 상태
   const [formData, setFormData] = useState<StudentFormData>({
     name: "",
-    school: "",
+    school_id: "",
     grade: "",
     birth_date: "",
     gender: "",
@@ -66,9 +68,7 @@ export default function SettingsPage() {
     father_phone: "",
     exam_year: "",
     curriculum_revision: "",
-    desired_university_1: "",
-    desired_university_2: "",
-    desired_university_3: "",
+    desired_university_ids: [],
     desired_career_field: "",
   });
 
@@ -84,7 +84,7 @@ export default function SettingsPage() {
 
   // Student 데이터를 FormData로 변환하는 헬퍼 함수
   const transformStudentToFormData = useCallback(
-    async (studentData: Student): Promise<StudentFormData> => {
+    async (studentData: Student & { desired_career_field?: string }): Promise<StudentFormData> => {
       const supabase = (await import("@/lib/supabase/client")).supabase;
       const {
         data: { user },
@@ -97,11 +97,11 @@ export default function SettingsPage() {
         "";
 
       // 학년을 숫자 형식으로 변환 (중3/고1 -> 3/1)
-      const gradeNumber = parseGradeNumber(studentData.grade);
+      const gradeNumber = parseGradeNumber(studentData.grade || "");
 
       return {
         name: displayName,
-        school: studentData.school || "",
+        school_id: studentData.school_id || "",
         grade: gradeNumber,
         birth_date: studentData.birth_date || "",
         gender: toFormDataValue(studentData.gender, isGender),
@@ -113,13 +113,8 @@ export default function SettingsPage() {
           studentData.curriculum_revision,
           isCurriculumRevision
         ),
-        desired_university_1: studentData.desired_university_1 || "",
-        desired_university_2: studentData.desired_university_2 || "",
-        desired_university_3: studentData.desired_university_3 || "",
-        desired_career_field: toFormDataValue(
-          studentData.desired_career_field,
-          isCareerField
-        ),
+        desired_university_ids: studentData.desired_university_ids || [],
+        desired_career_field: toFormDataValue(studentData.desired_career_field, isCareerField),
       };
     },
     []
@@ -158,17 +153,35 @@ export default function SettingsPage() {
     [activeTab, hasChanges]
   );
 
-  // 학교 타입 메모이제이션
-  const schoolType = useMemo(
-    () => detectSchoolType(formData.school),
-    [formData.school]
-  );
-
   // 학년 표시 형식 메모이제이션
   const gradeDisplay = useMemo(
     () => formatGradeDisplay(formData.grade, schoolType),
     [formData.grade, schoolType]
   );
+
+  // school_id로부터 학교 타입 조회
+  useEffect(() => {
+    async function fetchSchoolType() {
+      if (!formData.school_id) {
+        setSchoolType(undefined);
+        return;
+      }
+
+      try {
+        const school = await getSchoolById(formData.school_id);
+        if (school && (school.type === "중학교" || school.type === "고등학교")) {
+          setSchoolType(school.type);
+        } else {
+          setSchoolType(undefined);
+        }
+      } catch (error) {
+        console.error("학교 타입 조회 실패:", error);
+        setSchoolType(undefined);
+      }
+    }
+
+    fetchSchoolType();
+  }, [formData.school_id]);
 
   useEffect(() => {
     async function loadStudent() {
@@ -185,10 +198,6 @@ export default function SettingsPage() {
         }
 
         setStudent(studentData);
-
-        // 학교 타입 자동 감지
-        const detectedSchoolType = detectSchoolType(studentData.school);
-        setSchoolTypeFilter(detectedSchoolType);
 
         // Student 데이터를 FormData로 변환
         const initialFormData = await transformStudentToFormData(studentData);
@@ -347,20 +356,19 @@ export default function SettingsPage() {
     []
   );
 
-  // 학교 타입 변경 핸들러
-  const handleSchoolTypeChange = useCallback(
-    (schoolType: "중학교" | "고등학교" | "") => {
-      setSchoolTypeFilter(schoolType);
-      if (schoolType) {
-        setFormData((prev) => ({ ...prev, school: "" }));
-      }
-    },
-    []
-  );
-
-  // 학교 선택 핸들러
+  // 학교 선택 핸들러 (ID 저장)
   const handleSchoolSelect = useCallback(
-    (school: { type: string }) => {
+    (school: { id: string; type: string }) => {
+      // 학교 ID 저장
+      setFormData((prev) => ({ ...prev, school_id: school.id }));
+      
+      // 학교 타입 설정 (useEffect에서 자동으로 조회되지만 즉시 반영)
+      if (school.type === "중학교" || school.type === "고등학교") {
+        setSchoolType(school.type);
+      } else {
+        setSchoolType(undefined);
+      }
+      
       // 학교 선택 시 타입에 따라 학년 자동 설정 (숫자만)
       if (
         school.type === "중학교" &&
@@ -376,6 +384,8 @@ export default function SettingsPage() {
     },
     [formData.grade]
   );
+
+
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -421,7 +431,7 @@ export default function SettingsPage() {
       try {
         const formDataObj = new FormData();
         formDataObj.append("name", formData.name);
-        formDataObj.append("school", formData.school);
+        formDataObj.append("school_id", formData.school_id);
         formDataObj.append("grade", formData.grade);
         formDataObj.append("birth_date", formData.birth_date);
         if (formData.gender) formDataObj.append("gender", formData.gender);
@@ -435,23 +445,13 @@ export default function SettingsPage() {
             "curriculum_revision",
             formData.curriculum_revision
           );
-        formDataObj.append(
-          "desired_university_1",
-          formData.desired_university_1
-        );
-        formDataObj.append(
-          "desired_university_2",
-          formData.desired_university_2
-        );
-        formDataObj.append(
-          "desired_university_3",
-          formData.desired_university_3
-        );
-        if (formData.desired_career_field)
-          formDataObj.append(
-            "desired_career_field",
-            formData.desired_career_field
-          );
+        // desired_university_ids 배열을 FormData에 추가
+        formData.desired_university_ids.forEach((id) => {
+          formDataObj.append("desired_university_ids", id);
+        });
+        if (formData.desired_career_field) {
+          formDataObj.append("desired_career_field", formData.desired_career_field);
+        }
 
         const result = await updateStudentProfile(formDataObj);
 
@@ -489,27 +489,36 @@ export default function SettingsPage() {
           // 저장 후 자동 계산 로직이 실행되어 formData가 변경되는 것을 방지
           setFormData(savedFormData);
 
-          // 학교 타입이 변경되었을 수 있으므로 다시 감지
-          const detectedSchoolType = detectSchoolType(formData.school);
-          setSchoolTypeFilter(detectedSchoolType);
+          // 학교 타입은 schoolTypeFilter에서 관리되므로 별도 감지 불필요
+          // 필요시 school_id로 학교 정보 조회하여 타입 확인 가능
 
           // 저장 후 자동 계산 로직이 실행되지 않도록 충분한 시간 동안 플래그 유지
           // formData 업데이트가 완료된 후 플래그 해제
           setTimeout(() => {
             isSavingRef.current = false;
           }, 300);
+
+          // 성공 메시지 표시
+          setSuccess(true);
+          setError(null);
+          // 3초 후 성공 메시지 자동 숨김
+          setTimeout(() => {
+            setSuccess(false);
+          }, 3000);
         } else {
           setError(result.error || "저장에 실패했습니다.");
+          setSuccess(false);
           isSavingRef.current = false;
         }
       } catch (err: any) {
         setError(err.message || "저장 중 오류가 발생했습니다.");
+        setSuccess(false);
         isSavingRef.current = false;
       } finally {
         setSaving(false);
       }
     },
-    [formData]
+    [formData, autoCalculateExamYear, autoCalculateCurriculum, schoolType]
   );
 
   if (loading) {
@@ -529,6 +538,82 @@ export default function SettingsPage() {
         <h1 className="mb-6 text-3xl font-semibold">마이페이지</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          {/* 성공/에러 메시지 */}
+          {success && (
+            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-5 w-5 text-green-600"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm font-medium text-green-800">
+                  저장되었습니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuccess(false)}
+                className="text-green-600 hover:text-green-800"
+                aria-label="닫기"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-5 w-5 text-red-600"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm font-medium text-red-800">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="text-red-600 hover:text-red-800"
+                aria-label="닫기"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* 탭 네비게이션 */}
           <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
@@ -565,91 +650,43 @@ export default function SettingsPage() {
                 <label className="text-sm font-medium text-gray-700">
                   학교
                 </label>
-                <div className="flex gap-2">
-                  <select
-                    value={schoolTypeFilter}
-                    onChange={(e) =>
-                      handleSchoolTypeChange(
-                        e.target.value as "중학교" | "고등학교" | ""
-                      )
-                    }
-                    className="w-32 rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  >
-                    <option value="">학교 구분</option>
-                    <option value="중학교">중학교</option>
-                    <option value="고등학교">고등학교</option>
-                  </select>
-                  <div className="flex-1">
-                    <SchoolSelect
-                      value={formData.school}
-                      onChange={handleFieldChange("school")}
-                      onSchoolSelect={handleSchoolSelect}
-                      // 학교 구분 선택에 따라 타입 제한
-                      type={schoolTypeFilter || undefined}
-                      placeholder={
-                        schoolTypeFilter
-                          ? `${schoolTypeFilter}를 검색하세요`
-                          : "먼저 학교 구분을 선택하세요"
-                      }
-                      disabled={!schoolTypeFilter}
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500">
-                  먼저 학교 구분을 선택한 후 학교를 검색하세요.
-                </p>
+                <SchoolSelect
+                  value={formData.school_id}
+                  onChange={() => {
+                    // SchoolSelect는 학교명을 반환하지만, onSchoolSelect에서 ID를 저장
+                    // 여기서는 빈 값으로 처리 (실제 ID는 onSchoolSelect에서 저장됨)
+                  }}
+                  onSchoolSelect={handleSchoolSelect}
+                  placeholder="학교를 검색하세요"
+                />
               </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
-                  학년
+                  학년 <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <select
-                    value={schoolType}
-                    onChange={(e) => {
-                      const newSchoolType = e.target.value as
-                        | "중학교"
-                        | "고등학교"
-                        | "";
-                      if (newSchoolType) {
-                        // 학교 타입에 따라 기본 학년 설정
-                        const defaultGrade =
-                          newSchoolType === "중학교" ? "3" : "1";
-                        setFormData((prev) => ({
-                          ...prev,
-                          grade: defaultGrade,
-                        }));
-                      }
-                    }}
-                    className="w-32 rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  >
-                    <option value="">학교 구분</option>
-                    <option value="중학교">중학교</option>
-                    <option value="고등학교">고등학교</option>
-                  </select>
-                  <div className="flex gap-2">
-                    {[1, 2, 3].map((grade) => (
-                      <button
-                        key={grade}
-                        type="button"
-                        onClick={() =>
-                          handleFieldChange("grade")(grade.toString())
-                        }
-                        className={cn(
-                          "flex-1 rounded-lg border-2 px-4 py-2 text-sm font-medium transition-all",
-                          formData.grade === grade.toString()
-                            ? "border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm"
-                            : "border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
-                        )}
-                      >
-                        {grade}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {formData.grade && (
-                  <p className="text-xs text-gray-500">{gradeDisplay}</p>
+                <select
+                  value={formData.grade}
+                  onChange={(e) => {
+                    handleFieldChange("grade")(e.target.value);
+                    if (errors.grade) {
+                      setErrors((prev) => ({ ...prev, grade: undefined }));
+                    }
+                  }}
+                  className={`rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+                    errors.grade
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                      : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
+                  }`}
+                  required
+                >
+                  <option value="">학년 선택</option>
+                  <option value="1">1학년</option>
+                  <option value="2">2학년</option>
+                  <option value="3">3학년</option>
+                </select>
+                {errors.grade && (
+                  <p className="text-sm text-red-500">{errors.grade}</p>
                 )}
               </div>
 
@@ -845,37 +882,22 @@ export default function SettingsPage() {
             <section className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
-                  진학 희망 대학교 1순위
+                  진학 희망 대학교 (1순위, 2순위, 3순위)
                 </label>
-                <SchoolSelect
-                  value={formData.desired_university_1}
-                  onChange={handleFieldChange("desired_university_1")}
+                <p className="text-xs text-gray-500 mb-1">
+                  최대 3개까지 선택 가능하며, 선택한 순서대로 1순위, 2순위, 3순위로 표시됩니다.
+                </p>
+                <SchoolMultiSelect
+                  value={formData.desired_university_ids}
+                  onChange={(ids) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      desired_university_ids: ids,
+                    }));
+                  }}
                   type="대학교"
                   placeholder="대학교를 검색하세요"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  진학 희망 대학교 2순위
-                </label>
-                <SchoolSelect
-                  value={formData.desired_university_2}
-                  onChange={handleFieldChange("desired_university_2")}
-                  type="대학교"
-                  placeholder="대학교를 검색하세요"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  진학 희망 대학교 3순위
-                </label>
-                <SchoolSelect
-                  value={formData.desired_university_3}
-                  onChange={handleFieldChange("desired_university_3")}
-                  type="대학교"
-                  placeholder="대학교를 검색하세요"
+                  maxCount={3}
                 />
               </div>
 
@@ -932,12 +954,6 @@ export default function SettingsPage() {
                       } = await supabase.auth.getUser();
 
                       setStudent(studentData);
-
-                      // 학교 타입 자동 감지
-                      const detectedSchoolType = detectSchoolType(
-                        studentData.school
-                      );
-                      setSchoolTypeFilter(detectedSchoolType);
 
                       // Student 데이터를 FormData로 변환하여 초기값으로 리셋
                       const resetFormData = await transformStudentToFormData(

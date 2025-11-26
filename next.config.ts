@@ -52,15 +52,6 @@ const nextConfig: NextConfig = {
       };
     }
 
-    // 서버 전용 패키지 제외 (클라이언트 번들에서)
-    if (!isServer) {
-      config.externals = config.externals || [];
-      config.externals.push({
-        "puppeteer": "commonjs puppeteer",
-        "pdfkit": "commonjs pdfkit",
-      });
-    }
-
     return config;
   },
 };

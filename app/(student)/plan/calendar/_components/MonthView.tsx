@@ -64,7 +64,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
       const planNumberGroups = new Map<number | null, PlanWithContent[]>();
       
       dayPlans.forEach((plan) => {
-        const planNumber = plan.plan_number;
+        const planNumber = plan.plan_number ?? null;
         if (!planNumberGroups.has(planNumber)) {
           planNumberGroups.set(planNumber, []);
         }
@@ -221,7 +221,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               ? sortedSlots.filter((slot) => slot.type === "학습시간")
               : sortedSlots;
             
-            const items: JSX.Element[] = [];
+            const items: React.ReactElement[] = [];
             const addedPlanIds = new Set<string>();
             
             // 최대 6개까지만 표시 (공간 제약)
@@ -367,7 +367,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
   );
 
   // 캘린더 그리드 생성
-  const cells: (JSX.Element | null)[] = [];
+  const cells: (React.ReactElement | null)[] = [];
   
   // 첫 주의 빈 셀
   for (let i = 0; i < startingDayOfWeek; i++) {

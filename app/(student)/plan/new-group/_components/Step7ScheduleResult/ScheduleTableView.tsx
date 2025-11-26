@@ -967,10 +967,10 @@ function WeekSection({
   expandedDates: Set<string>;
   onToggleDate: (date: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (weekNum === undefined) {
-    // 주차 정보가 없는 경우 (자동 스케줄러 등)
+    // 주차 정보가 없는 경우 (예외 상황 보정)
     return (
       <div>
         {schedules.map((schedule) => {
@@ -1068,15 +1068,21 @@ function WeekSection({
               <div className="text-sm font-semibold text-gray-900">
                 {weekNum}주차 {formatDateRange()}
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-gray-600">
-                <span>학습일 {weekStudyDays}일</span>
-                <span>복습일 {weekReviewDays}일</span>
-                {weekExclusionDays > 0 && (
-                  <span className="text-gray-500">제외일 {weekExclusionDays}일</span>
-                )}
-                <span>총 {formatNumber(weekTotalHours)}시간</span>
-                {weekSelfStudyHours > 0 && (
-                  <span>자율학습 {formatNumber(weekSelfStudyHours)}시간</span>
+              <div className="mt-1 flex flex-col gap-1">
+                <div className="flex items-center gap-3 text-xs text-gray-600">
+                  <span>학습일 {weekStudyDays}일</span>
+                  <span>복습일 {weekReviewDays}일</span>
+                  <span>학습시간 {formatNumber(weekTotalHours)}시간</span>
+                  {weekSelfStudyHours > 0 && (
+                    <span>자율학습시간 {formatNumber(weekSelfStudyHours)}시간</span>
+                  )}
+                  <span>총시간 {formatNumber(weekTotalHours + weekSelfStudyHours)}시간</span>
+                </div>
+                {weekStudyDays + weekReviewDays > 0 && (
+                  <div className="text-xs text-gray-400">
+                    평균: {formatNumber((weekTotalHours + weekSelfStudyHours) / (weekStudyDays + weekReviewDays))}시간/일
+                    ({formatNumber(weekTotalHours + weekSelfStudyHours)}시간 ÷ {weekStudyDays + weekReviewDays}일)
+                  </div>
                 )}
               </div>
             </div>

@@ -1,42 +1,79 @@
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
-import { SubjectGroupManagement } from "./_components/SubjectGroupManagement";
+"use client";
 
-export default async function SubjectsPage() {
-  const tenantContext = await getTenantContext();
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
+import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
+import CurriculumRevisionTabs from "./_components/CurriculumRevisionTabs";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
-  if (!tenantContext?.tenantId) {
-    return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          기관 정보를 찾을 수 없습니다.
-        </div>
-      </section>
-    );
+export default function SubjectsPage() {
+  const toast = useToast();
+  const [revisions, setRevisions] = useState<CurriculumRevision[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadRevisions();
+  }, []);
+
+  async function loadRevisions() {
+    setLoading(true);
+    try {
+      const data = await getCurriculumRevisionsAction();
+      setRevisions(data || []);
+      // 첫 번째 개정교육과정을 기본으로 선택
+      if (data && data.length > 0 && !selectedRevisionId) {
+        setSelectedRevisionId(data[0].id);
+      }
+    } catch (error) {
+      console.error("개정교육과정 조회 실패:", error);
+      toast.showError("개정교육과정을 불러오는데 실패했습니다.");
+      setRevisions([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const subjectGroupsWithSubjects = await getSubjectGroupsWithSubjects(
-    tenantContext.tenantId
+  function handleRevisionChange(revisionId: string) {
+    setSelectedRevisionId(revisionId);
+  }
+
+  function handleRefresh() {
+    loadRevisions();
+  }
+
+  const sortedRevisions = [...revisions].sort(
+    (a, b) =>
+      a.display_order - b.display_order || a.name.localeCompare(b.name)
   );
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="flex flex-col gap-8">
-        {/* Header */}
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-500">서비스 관리</p>
-          <h1 className="text-3xl font-semibold text-gray-900">교과/과목 관리</h1>
+    <section className="mx-auto w-full max-w-7xl px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-semibold text-gray-900">교과/과목 관리</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          개정교육과정, 교과, 과목, 과목구분을 통합 관리합니다.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="py-8 text-center text-sm text-gray-500">
+          로딩 중...
+        </div>
+      ) : sortedRevisions.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-sm text-gray-500">
-            내신 성적 입력에 사용할 교과와 과목을 관리하세요.
+            개정교육과정이 없습니다. 개정교육과정을 생성해주세요.
           </p>
         </div>
-
-        {/* 교과/과목 관리 */}
-        <SubjectGroupManagement
-          initialData={subjectGroupsWithSubjects}
+      ) : (
+        <CurriculumRevisionTabs
+          revisions={sortedRevisions}
+          selectedRevisionId={selectedRevisionId}
+          onRevisionChange={handleRevisionChange}
+          onRefresh={handleRefresh}
         />
-      </div>
+      )}
     </section>
   );
 }
-

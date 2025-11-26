@@ -1,11 +1,16 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getPlanById } from "@/lib/data/studentPlans";
+import { getPlanById, getPlansForStudent, Plan } from "@/lib/data/studentPlans";
 import { getBooks, getLectures, getCustomContents } from "@/lib/data/studentContents";
 import { getActiveSession } from "@/lib/data/studentSessions";
 import { PlanExecutionForm } from "./_components/PlanExecutionForm";
 import Link from "next/link";
+import {
+  calculateStudyTimeFromTimestamps,
+  formatTime,
+  formatTimestamp,
+} from "@/app/(student)/today/_utils/planGroupUtils";
 
 type PlanExecutionPageProps = {
   params: Promise<{ planId: string }>;
@@ -52,6 +57,18 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
     tenantContext?.tenantId || null
   );
 
+  let relatedPlans: Plan[] = [plan];
+  if (plan.plan_number !== null && plan.plan_number !== undefined) {
+    const plansOnSameDay = await getPlansForStudent({
+      studentId: user.userId,
+      tenantId: tenantContext?.tenantId || null,
+      planDate: plan.plan_date,
+    });
+    relatedPlans = plansOnSameDay
+      .filter((p) => p.plan_number === plan.plan_number)
+      .sort((a, b) => (a.block_index ?? 0) - (b.block_index ?? 0));
+  }
+
   const contentTypeLabels: Record<string, string> = {
     book: "책",
     lecture: "강의",
@@ -68,6 +85,21 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
     plan.planned_end_page_or_time !== undefined
       ? plan.planned_end_page_or_time - plan.planned_start_page_or_time
       : null;
+  const hasCompletedTimer = !!(plan.actual_start_time && plan.actual_end_time);
+  const formattedActualStart = plan.actual_start_time
+    ? formatTimestamp(plan.actual_start_time)
+    : null;
+  const formattedActualEnd = plan.actual_end_time
+    ? formatTimestamp(plan.actual_end_time)
+    : null;
+  const pureStudySeconds = hasCompletedTimer
+    ? calculateStudyTimeFromTimestamps(
+        plan.actual_start_time,
+        plan.actual_end_time,
+        plan.paused_duration_seconds
+      )
+    : 0;
+  const formattedPureStudyTime = hasCompletedTimer ? formatTime(Math.max(0, pureStudySeconds)) : null;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
@@ -114,11 +146,32 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
           )}
         </div>
 
+        {hasCompletedTimer && formattedActualStart && formattedActualEnd && formattedPureStudyTime && (
+          <div className="mb-6 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+            <h2 className="text-sm font-semibold text-indigo-900">학습 완료 기록</h2>
+            <div className="mt-3 grid gap-3 text-sm text-indigo-950 md:grid-cols-3">
+              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
+                <span className="text-xs text-indigo-600">시작 시간</span>
+                <span className="text-sm font-semibold">{formattedActualStart}</span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
+                <span className="text-xs text-indigo-600">종료 시간</span>
+                <span className="text-sm font-semibold">{formattedActualEnd}</span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
+                <span className="text-xs text-indigo-600">총 학습 시간 (일시정지 제외)</span>
+                <span className="text-lg font-bold text-indigo-900">{formattedPureStudyTime}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <PlanExecutionForm
           plan={plan}
           content={content}
           activeSession={activeSession}
           unitLabel={unitLabel}
+          relatedPlans={relatedPlans}
         />
       </div>
     </div>

@@ -27,9 +27,9 @@ export function PlanCard({
   isMiddle = false,
 }: PlanCardProps) {
   const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type];
-  const isCompleted = plan.progress !== null && plan.progress >= 100;
+  const isCompleted = plan.progress != null && plan.progress >= 100;
   const isActive = plan.actual_start_time && !plan.actual_end_time;
-  const progressPercentage = plan.progress !== null ? Math.round(plan.progress) : null;
+  const progressPercentage = plan.progress != null ? Math.round(plan.progress) : null;
 
   if (compact) {
     // 연결선 스타일 결정

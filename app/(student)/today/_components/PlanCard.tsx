@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PlanGroup, PlanWithContent } from "../_utils/planGroupUtils";
-import {
-  calculateGroupProgress,
-  calculateGroupTotalStudyTime,
-  getActivePlansCount,
-  getCompletedPlansCount,
-  formatTime,
-  getActivePlan,
-  getTimeStats,
-} from "../_utils/planGroupUtils";
+import { PlanGroup } from "../_utils/planGroupUtils";
+import { getActivePlan, getTimeStats } from "../_utils/planGroupUtils";
 import { PlanTimer } from "./PlanTimer";
-import { startPlan, pausePlan, resumePlan, stopAllActiveSessionsForPlan } from "../actions/todayActions";
-import { togglePlanCompletion } from "@/app/actions/today";
-import { CheckCircle2, Circle } from "lucide-react";
+import {
+  startPlan,
+  pausePlan,
+  resumePlan,
+  stopAllActiveSessionsForPlan,
+  postponePlan,
+} from "../actions/todayActions";
+import { Clock } from "lucide-react";
+
+type PlanRunState = "idle" | "running" | "paused" | "completed";
+type PendingAction = "start" | "pause" | "resume" | "complete";
 
 type PlanCardProps = {
   group: PlanGroup;
@@ -34,142 +34,70 @@ export function PlanCard({
 }: PlanCardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   // 콘텐츠 정보
-  const contentInfo = useMemo(() => ({
-    title: group.content?.title || "제목 없음",
-    icon: group.plan.content_type === "book"
-      ? "📚"
-      : group.plan.content_type === "lecture"
-      ? "🎧"
-      : "📝",
-  }), [group.content?.title, group.plan.content_type]);
-
-  // 집계 정보
-  const aggregatedInfo = useMemo(() => ({
-    totalProgress: calculateGroupProgress(group),
-    totalStudyTime: calculateGroupTotalStudyTime(group, sessions),
-    activePlansCount: getActivePlansCount(group, sessions),
-    completedPlansCount: getCompletedPlansCount(group),
-    activePlan: getActivePlan(group, sessions),
-  }), [group, sessions]);
-
-  // 그룹 상태
-  const groupStatus = useMemo(() => {
-    const plan = group.plan;
-    const session = sessions.get(plan.id);
-    const isGroupRunning = !!aggregatedInfo.activePlan;
-    const isGroupPaused = plan.actual_start_time &&
-      !plan.actual_end_time &&
-      session &&
-      session.isPaused;
-    const isGroupCompleted = aggregatedInfo.completedPlansCount === 1;
-
-    return {
-      isGroupRunning,
-      isGroupPaused,
-      isGroupCompleted,
-    };
-  }, [aggregatedInfo, group.plan, sessions]);
-
-  // 시간 통계
-  const timeStats = useMemo(() =>
-    getTimeStats([group.plan], aggregatedInfo.activePlan, sessions),
-    [group.plan, aggregatedInfo.activePlan, sessions]
+  const contentInfo = useMemo(
+    () => ({
+      title: group.content?.title || "제목 없음",
+      icon:
+        group.plan.content_type === "book"
+          ? "📚"
+          : group.plan.content_type === "lecture"
+          ? "🎧"
+          : "📝",
+    }),
+    [group.content?.title, group.plan.content_type]
   );
 
-  // 타이머 제어 핸들러
-  const handleStart = async () => {
-    const plan = group.plan;
-    if (plan.actual_start_time || plan.actual_end_time) return;
-    const waitingPlan = plan;
+  const activePlan = useMemo(
+    () => getActivePlan(group, sessions),
+    [group, sessions]
+  );
 
-    setIsLoading(true);
-    try {
-      const timestamp = new Date().toISOString();
-      const result = await startPlan(waitingPlan.id, timestamp);
-      if (!result.success) {
-        alert(result.error || "플랜 시작에 실패했습니다.");
-      }
-    } catch (error) {
-      alert("오류가 발생했습니다.");
-    } finally {
-      setIsLoading(false);
+  const sessionForPlan = sessions.get(group.plan.id);
+
+  const derivedStatus = useMemo<PlanRunState>(() => {
+    if (group.plan.actual_end_time) {
+      return "completed";
     }
-  };
+    if (group.plan.actual_start_time) {
+      return sessionForPlan?.isPaused ? "paused" : "running";
+    }
+    return "idle";
+  }, [group.plan.actual_end_time, group.plan.actual_start_time, sessionForPlan?.isPaused]);
 
-  const handlePause = async () => {
+  const [optimisticStatus, setOptimisticStatus] = useState<PlanRunState | null>(null);
+
+  useEffect(() => {
+    setOptimisticStatus(null);
+  }, [derivedStatus]);
+
+  const resolvedStatus = optimisticStatus ?? derivedStatus;
+  const isRunning = resolvedStatus === "running";
+  const isPausedState = resolvedStatus === "paused";
+
+  // 시간 통계
+  const timeStats = useMemo(
+    () => getTimeStats([group.plan], activePlan, sessions),
+    [group.plan, activePlan, sessions]
+  );
+
+  const handlePostponePlan = async (planId: string) => {
     if (isLoading) return;
-
-    const plan = group.plan;
-    const session = sessions.get(plan.id);
-    const isActive = plan.actual_start_time &&
-      !plan.actual_end_time &&
-      session &&
-      !session.isPaused;
-
-    if (!isActive) {
-      alert("일시정지할 활성 플랜이 없습니다.");
+    if (!group.plan.is_reschedulable) {
+      alert("이 플랜은 일정 미루기가 허용되지 않습니다.");
+      return;
+    }
+    if (!confirm("이 플랜을 내일 일정으로 미루시겠습니까?")) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const timestamp = new Date().toISOString();
-      await pausePlan(plan.id, timestamp);
-    } catch (error) {
-      alert("오류가 발생했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResume = async () => {
-    const plan = group.plan;
-    const session = sessions.get(plan.id);
-    const isPaused = session && session.isPaused;
-
-    if (!isPaused) {
-      alert("재개할 일시정지된 플랜이 없습니다.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const timestamp = new Date().toISOString();
-      await resumePlan(plan.id, timestamp);
-    } catch (error) {
-      alert("오류가 발생했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (!aggregatedInfo.activePlan) {
-      router.push(`/today/plan/${group.plan.id}`);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await stopAllActiveSessionsForPlan(aggregatedInfo.activePlan.id);
-      router.refresh();
-      router.push(`/today/plan/${aggregatedInfo.activePlan.id}`);
-    } catch (error) {
-      alert("오류가 발생했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 완료/미완료 토글
-  const handleToggleCompletion = async (planId: string, isCompleted: boolean) => {
-    setIsLoading(true);
-    try {
-      const result = await togglePlanCompletion(planId, !isCompleted);
+      const result = await postponePlan(planId);
       if (!result.success) {
-        alert(result.error || "완료 상태 변경에 실패했습니다.");
+        alert(result.error || "일정을 미루는 중 오류가 발생했습니다.");
       } else {
         router.refresh();
       }
@@ -180,118 +108,181 @@ export function PlanCard({
     }
   };
 
+  // 타이머 제어 핸들러
+  const handleStart = async () => {
+    const plan = group.plan;
+    if (plan.actual_start_time || plan.actual_end_time || isLoading) return;
+    const waitingPlan = plan;
+
+    setIsLoading(true);
+    setPendingAction("start");
+    setOptimisticStatus("running");
+    try {
+      const timestamp = new Date().toISOString();
+      const result = await startPlan(waitingPlan.id, timestamp);
+      if (!result.success) {
+        alert(result.error || "플랜 시작에 실패했습니다.");
+        setOptimisticStatus(null);
+      }
+    } catch (error) {
+      setOptimisticStatus(null);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setPendingAction(null);
+      setIsLoading(false);
+    }
+  };
+
+  const handlePause = async () => {
+    if (isLoading) return;
+    if (resolvedStatus !== "running") {
+      alert("일시정지할 활성 플랜이 없습니다.");
+      return;
+    }
+
+    const plan = group.plan;
+    setOptimisticStatus("paused");
+    setIsLoading(true);
+    setPendingAction("pause");
+    try {
+      const timestamp = new Date().toISOString();
+      const result = await pausePlan(plan.id, timestamp);
+      if (!result.success) {
+        setOptimisticStatus(null);
+        alert(result.error || "플랜 일시정지에 실패했습니다.");
+      }
+    } catch (error) {
+      setOptimisticStatus(null);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setPendingAction(null);
+      setIsLoading(false);
+    }
+  };
+
+  const handleResume = async () => {
+    if (resolvedStatus !== "paused") {
+      alert("재개할 일시정지된 플랜이 없습니다.");
+      return;
+    }
+
+    const plan = group.plan;
+    setOptimisticStatus("running");
+    setIsLoading(true);
+    setPendingAction("resume");
+    try {
+      const timestamp = new Date().toISOString();
+      const result = await resumePlan(plan.id, timestamp);
+      if (!result.success) {
+        setOptimisticStatus(null);
+        alert(result.error || "플랜 재개에 실패했습니다.");
+      }
+    } catch (error) {
+      setOptimisticStatus(null);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setPendingAction(null);
+      setIsLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!activePlan) {
+      router.push(`/today/plan/${group.plan.id}`);
+      return;
+    }
+
+    setIsLoading(true);
+    setPendingAction("complete");
+    try {
+      await stopAllActiveSessionsForPlan(activePlan.id);
+      router.refresh();
+      router.push(`/today/plan/${activePlan.id}`);
+    } catch (error) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setPendingAction(null);
+      setIsLoading(false);
+    }
+  };
+
+  const planTimeRange =
+    group.plan.start_time && group.plan.end_time
+      ? `${group.plan.start_time} ~ ${group.plan.end_time}`
+      : null;
+
+  const getChapterIcon = (contentType: PlanGroup["plan"]["content_type"]) => {
+    if (contentType === "book") return "📖";
+    if (contentType === "lecture") return "🎧";
+    return "📝";
+  };
+
+  const getRangeLabel = (planData: PlanGroup["plan"]) => {
+    const { planned_start_page_or_time: start, planned_end_page_or_time: end, content_type } = planData;
+    if (start === null || end === null) {
+      return null;
+    }
+    if (content_type === "book") {
+      return `📄 페이지: ${start} ~ ${end}`;
+    }
+    if (content_type === "lecture") {
+      return `🎧 강의: ${start} ~ ${end}`;
+    }
+    return `📝 범위: ${start} ~ ${end}`;
+  };
+
+  const planChapterIcon = getChapterIcon(group.plan.content_type);
+  const planRangeLabel = getRangeLabel(group.plan);
+
   // 단일 뷰
   if (viewMode === "single") {
     return (
       <div className="flex flex-col gap-6">
         {/* 헤더 */}
-        <div className="text-center">
-          <div className="text-4xl mb-2">{contentInfo.icon}</div>
+        <div className="flex flex-col items-center gap-3 text-center">
+          {planTimeRange && (
+            <div className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-1 text-sm font-semibold text-indigo-900 shadow-sm">
+              <Clock className="h-4 w-4 text-indigo-500" aria-hidden="true" />
+              <span>{planTimeRange}</span>
+            </div>
+          )}
+          <div className="text-4xl">{contentInfo.icon}</div>
           <h2 className="text-2xl font-bold text-gray-900">{contentInfo.title}</h2>
+          <div className="flex items-center gap-3">
+            <span className="text-4xl" aria-hidden="true">
+              {planChapterIcon}
+            </span>
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-gray-900">
+                {group.plan.chapter || "챕터 정보 없음"}
+              </span>
+            </div>
+          </div>
+          {planRangeLabel && (
+            <div className="text-sm text-gray-600">{planRangeLabel}</div>
+          )}
         </div>
 
         {/* 타이머 */}
         <PlanTimer
           timeStats={timeStats}
-          isPaused={groupStatus.isGroupPaused}
-          isActive={groupStatus.isGroupRunning}
+          isPaused={isPausedState}
+          isActive={isRunning}
           isLoading={isLoading}
           onStart={handleStart}
           onPause={handlePause}
           onResume={handleResume}
           onComplete={handleComplete}
+          pendingAction={pendingAction}
+          onPostpone={
+            group.plan.is_reschedulable && !group.plan.actual_end_time
+              ? () => handlePostponePlan(group.plan.id)
+              : undefined
+          }
+          canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
         />
 
-        {/* 진행률 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2 text-center">
-              <h3 className="text-lg font-semibold text-gray-900">전체 진행률</h3>
-              <div className="text-3xl font-bold text-indigo-600">
-                {aggregatedInfo.totalProgress}%
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full bg-indigo-500 transition-all duration-300"
-                  style={{ width: `${aggregatedInfo.totalProgress}%` }}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1 text-center">
-              <p className="text-sm text-gray-600">총 학습 시간</p>
-              <p className="text-2xl font-bold text-indigo-600">
-                {formatTime(aggregatedInfo.totalStudyTime)}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* 플랜 목록 - 통합 정보 사용 */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">플랜 목록</h3>
-          {(() => {
-            const representativePlan = group.plans[0];
-            const contentType = representativePlan.content_type;
-            const contentTypeIcon = contentType === "book"
-              ? "📖"
-              : contentType === "lecture"
-              ? "🎧"
-              : "📝";
-
-            const plan = group.plan;
-            const isCompleted = !!plan.actual_end_time;
-            const progress = plan.progress ?? 0;
-            const timeDisplay = plan.start_time && plan.end_time
-              ? `${plan.start_time} ~ ${plan.end_time}`
-              : null;
-
-            return (
-              <div
-                key={group.planNumber ?? 'no-number'}
-                className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4"
-              >
-                <button
-                  onClick={() => handleToggleCompletion(plan.id, isCompleted)}
-                  disabled={isLoading}
-                  className="flex-shrink-0"
-                >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  ) : (
-                    <Circle className="h-6 w-6 text-gray-400" />
-                  )}
-                </button>
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">
-                    {contentTypeIcon} 챕터: {plan.chapter || "정보 없음"}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
-                      <>
-                        {contentType === "book" && <>📄 페이지: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
-                        {contentType === "lecture" && <>🎧 강의: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
-                        {contentType === "custom" && <>📝 범위: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
-                      </>
-                    )}
-                  </div>
-                  {timeDisplay && (
-                    <div className="mt-1 text-xs text-blue-600">
-                      ⏰ 시간: {timeDisplay}
-                    </div>
-                  )}
-                  {progress > 0 && (
-                    <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full bg-indigo-500 transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
       </div>
     );
   }
@@ -301,121 +292,62 @@ export function PlanCard({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-4">
         {/* 카드 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{contentInfo.icon}</span>
-            <h3 className="font-semibold text-gray-900">{contentInfo.title}</h3>
-          </div>
-          {onViewDetail && (
-            <button
-              onClick={onViewDetail}
-              className="text-sm text-indigo-600 hover:text-indigo-700"
-            >
-              상세보기 →
-            </button>
+        <div className="flex flex-col gap-3 text-center sm:text-left">
+          {planTimeRange && (
+            <div className="inline-flex items-center justify-center gap-2 self-center rounded-md bg-white px-3 py-1 text-xs font-semibold text-indigo-900 shadow-sm sm:self-start">
+              <Clock className="h-4 w-4 text-indigo-500" aria-hidden="true" />
+              <span>{planTimeRange}</span>
+            </div>
           )}
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-lg">
+              <span>{contentInfo.icon}</span>
+              <h3 className="font-semibold text-gray-900">{contentInfo.title}</h3>
+            </div>
+            {onViewDetail && (
+              <button
+                onClick={onViewDetail}
+                className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+              >
+                상세보기 →
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-2 sm:items-start">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden="true">
+                {planChapterIcon}
+              </span>
+              <span className="text-sm font-semibold text-gray-900">
+                {group.plan.chapter || "챕터 정보 없음"}
+              </span>
+            </div>
+            {planRangeLabel && (
+              <div className="text-sm text-gray-600">{planRangeLabel}</div>
+            )}
+          </div>
         </div>
 
         {/* 타이머 */}
         <PlanTimer
           timeStats={timeStats}
-          isPaused={groupStatus.isGroupPaused}
-          isActive={groupStatus.isGroupRunning}
+          isPaused={isPausedState}
+          isActive={isRunning}
           isLoading={isLoading}
           onStart={handleStart}
           onPause={handlePause}
           onResume={handleResume}
           onComplete={handleComplete}
+          pendingAction={pendingAction}
+          onPostpone={
+            group.plan.is_reschedulable && !group.plan.actual_end_time
+              ? () => handlePostponePlan(group.plan.id)
+              : undefined
+          }
+          canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
           compact
         />
 
-        {/* 집계 정보 */}
-        <div className="rounded-lg bg-gray-50 p-3">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">전체 진행률</span>
-              <span className="font-semibold text-gray-900">
-                {aggregatedInfo.totalProgress}%
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-indigo-500 transition-all duration-300"
-                style={{ width: `${aggregatedInfo.totalProgress}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>총 학습 시간: {formatTime(aggregatedInfo.totalStudyTime)}</span>
-              <span>
-                활성: {aggregatedInfo.activePlansCount} | 완료: {aggregatedInfo.completedPlansCount}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 플랜 목록 (간단 버전) */}
-        <div className="flex flex-col gap-2">
-          {(() => {
-            const plan = group.plan;
-            const contentType = plan.content_type;
-            const contentTypeIcon = contentType === "book"
-              ? "📖"
-              : contentType === "lecture"
-              ? "🎧"
-              : "📝";
-            const isCompleted = !!plan.actual_end_time;
-            const progress = plan.progress ?? 0;
-            const timeDisplay = plan.start_time && plan.end_time
-              ? `${plan.start_time} ~ ${plan.end_time}`
-              : null;
-            
-            return (
-              <div
-                key={group.planNumber ?? 'no-number'}
-                className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2"
-              >
-                <button
-                  onClick={() => handleToggleCompletion(plan.id, isCompleted)}
-                  disabled={isLoading}
-                  className="flex-shrink-0"
-                >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-                <div className="flex-1 text-xs">
-                  <div className="font-medium text-gray-900">
-                    {contentTypeIcon} 챕터: {plan.chapter || "정보 없음"}
-                  </div>
-                  <div className="text-gray-500">
-                    {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
-                      <>
-                        {contentType === "book" && <>📄 페이지: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
-                        {contentType === "lecture" && <>🎧 강의: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
-                        {contentType === "custom" && <>📝 범위: {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}</>}
-                      </>
-                    )}
-                  </div>
-                  {timeDisplay && (
-                    <div className="mt-0.5 text-xs text-blue-600">
-                      ⏰ 시간: {timeDisplay}
-                    </div>
-                  )}
-                </div>
-                {progress > 0 && (
-                  <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-200">
-                    <div
-                      className="h-full bg-indigo-500"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
       </div>
     </div>
   );

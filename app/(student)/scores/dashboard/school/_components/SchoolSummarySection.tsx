@@ -83,8 +83,11 @@ export function SchoolSummarySection({
     const sorted = [...schoolScores]
       .filter((s) => s.grade_score !== null)
       .sort((a, b) => {
-        const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-        const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
+        // 학년 → 학기 → 생성일 순으로 정렬
+        if (a.grade !== b.grade) return b.grade - a.grade;
+        if (a.semester !== b.semester) return b.semester - a.semester;
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
       });
     return sorted.slice(0, 3);
@@ -231,12 +234,7 @@ export function SchoolSummarySection({
                     className={`flex items-center justify-between rounded-lg border px-3 py-2 ${gradeColor.border} ${gradeColor.bg}`}
                   >
                     <span className="text-xs text-gray-600">
-                      {score.test_date
-                        ? new Date(score.test_date).toLocaleDateString("ko-KR", {
-                            month: "short",
-                            day: "numeric",
-                          })
-                        : "-"}
+                      {score.grade}학년 {score.semester}학기
                     </span>
                     <span
                       className={`rounded-full px-2 py-1 text-sm font-semibold ${gradeColor.badge}`}

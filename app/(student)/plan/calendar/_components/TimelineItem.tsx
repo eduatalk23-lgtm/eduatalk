@@ -21,8 +21,8 @@ type TimelineItemProps = {
 };
 
 export function TimelineItem({ slot, isLast = false, connectedPlanIds }: TimelineItemProps) {
-  const colorClass = getTimeSlotColorClass(slot.type);
-  const icon = getTimeSlotIcon(slot.type);
+  const colorClass = getTimeSlotColorClass(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
+  const icon = getTimeSlotIcon(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
 
   // 시간에서 시(hour)만 추출 (예: "10:00" -> "10시")
   const startHour = slot.start.split(":")[0];

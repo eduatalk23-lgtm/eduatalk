@@ -96,8 +96,16 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       console.error("[auth] admin_users 조회 실패", errorDetails);
     }
 
-    // admin_users에 레코드가 있으면 admin/consultant 반환
+    // admin_users에 레코드가 있으면 admin/consultant/superadmin 반환
     if (admin) {
+      // superadmin인 경우 tenant_id는 null이어야 함
+      if (admin.role === "superadmin") {
+        return {
+          userId: user.id,
+          role: "superadmin",
+          tenantId: null,
+        };
+      }
       return {
         userId: user.id,
         role: admin.role === "admin" || admin.role === "consultant" ? admin.role : "admin",
@@ -166,7 +174,17 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
     }
 
     // 어떤 테이블에도 없으면 null 반환
-    console.log("[auth] 사용자 역할을 찾을 수 없음", { userId: user.id });
+    console.warn("[auth] 사용자 역할을 찾을 수 없음", { 
+      userId: user.id,
+      email: user.email,
+      adminFound: !!admin,
+      parentFound: !!parent,
+      studentFound: !!student,
+      studentError: studentError ? {
+        code: studentError.code,
+        message: studentError.message,
+      } : null,
+    });
     return { userId: user.id, role: null, tenantId: null };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

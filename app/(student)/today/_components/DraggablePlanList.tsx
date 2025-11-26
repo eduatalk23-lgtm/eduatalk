@@ -102,16 +102,32 @@ export function DraggablePlanList({ plans: initialPlans, planDate }: DraggablePl
             오늘 배울 내용이 없습니다
           </h3>
           <p className="text-sm text-gray-500">
-            자동 스케줄러를 실행해보세요.
+            학습 플랜을 생성해보세요.
           </p>
         </div>
       </div>
     );
   }
 
+  const primaryPlanIds = (() => {
+    const ids = new Set<string>();
+    const seen = new Set<number>();
+    sortedPlans.forEach((plan) => {
+      if (plan.plan_number === null || plan.plan_number === undefined) {
+        ids.add(plan.id);
+        return;
+      }
+      if (!seen.has(plan.plan_number)) {
+        ids.add(plan.id);
+        seen.add(plan.plan_number);
+      }
+    });
+    return ids;
+  })();
+
   return (
     <div className="mb-6">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">오늘 플랜</h2>
+      <h2 className="mb-4 text-lg font-semibold text-gray-900">선택 날짜 플랜</h2>
       <div className="space-y-3">
         {sortedPlans.map((plan, index) => {
           const isActive = !!plan.actual_start_time && !plan.actual_end_time;
@@ -165,6 +181,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate }: DraggablePl
                   activeSessionId={plan.session ? plan.id : null}
                   isPaused={plan.session?.isPaused || false}
                   currentPausedAt={plan.session?.pausedAt ?? null}
+                  allowTimerControl={primaryPlanIds.has(plan.id)}
                 />
               </div>
             );

@@ -174,7 +174,6 @@ export async function getMockScoreSummary(
         .from("student_mock_scores")
         .select("*")
         .eq("student_id", studentId)
-        .order("test_date", { ascending: false })
         .order("created_at", { ascending: false });
 
     let { data: scores, error } = await selectScores();
@@ -183,12 +182,17 @@ export async function getMockScoreSummary(
       ({ data: scores, error } = await supabase
         .from("student_mock_scores")
         .select("*")
-        .order("test_date", { ascending: false })
         .order("created_at", { ascending: false }));
     }
 
     if (error) {
-      console.error("[scoreLoader] 모의고사 성적 조회 실패", error);
+      console.error("[scoreLoader] 모의고사 성적 조회 실패", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        error,
+      });
       return result;
     }
 
@@ -203,7 +207,6 @@ export async function getMockScoreSummary(
       subject_group: string | null;
       percentile: number | null;
       grade_score: number | null;
-      test_date: string | null;
     }>).forEach((score) => {
       if (!score.subject_group) return;
       const subject = score.subject_group.toLowerCase().trim();
@@ -234,34 +237,10 @@ export async function getMockScoreSummary(
           ? validGrades.reduce((a, b) => a + b, 0) / validGrades.length
           : null;
 
-      // 다음 시험일 계산
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      let nextTestDate: string | null = null;
-      let daysUntilNextTest: number | null = null;
-
-      const futureTests = subjectScores
-        .filter((s) => {
-          if (!s.test_date) return false;
-          const testDate = new Date(s.test_date);
-          testDate.setHours(0, 0, 0, 0);
-          return testDate >= now;
-        })
-        .sort((a, b) => {
-          const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-          const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
-          return dateA - dateB;
-        });
-
-      if (futureTests.length > 0) {
-        nextTestDate = futureTests[0].test_date || null;
-        if (nextTestDate) {
-          const testDate = new Date(nextTestDate);
-          testDate.setHours(0, 0, 0, 0);
-          const diffTime = testDate.getTime() - now.getTime();
-          daysUntilNextTest = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
-      }
+      // 다음 시험일 계산 (test_date 컬럼이 제거되어 null로 설정)
+      // TODO: 향후 다른 방식으로 다음 시험일 추적 필요
+      const nextTestDate: string | null = null;
+      const daysUntilNextTest: number | null = null;
 
       result.set(subject, {
         subject,

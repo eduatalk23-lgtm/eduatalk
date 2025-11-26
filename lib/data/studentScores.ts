@@ -25,8 +25,16 @@ export type SchoolScore = {
   student_id: string;
   grade: number;
   semester: number;
-  subject_group: string;
+  // FK 필드 (새로운 방식)
+  subject_group_id?: string | null;
+  subject_id?: string | null;
+  subject_type_id?: string | null;
+  // Deprecated: 텍스트 필드 (하위 호환성 유지)
+  /** @deprecated subject_group_id를 사용하세요 */
+  subject_group?: string | null;
+  /** @deprecated subject_type_id를 사용하세요 */
   subject_type?: string | null;
+  /** @deprecated subject_id를 사용하세요 */
   subject_name?: string | null;
   credit_hours?: number | null;
   raw_score?: number | null;
@@ -44,15 +52,21 @@ export type MockScore = {
   tenant_id?: string | null;
   student_id: string;
   grade: number;
-  subject_group: string;
   exam_type: string;
+  // FK 필드 (새로운 방식)
+  subject_group_id?: string | null;
+  subject_id?: string | null;
+  subject_type_id?: string | null;
+  // Deprecated: 텍스트 필드 (하위 호환성 유지)
+  /** @deprecated subject_group_id를 사용하세요 */
+  subject_group?: string | null;
+  /** @deprecated subject_id를 사용하세요 */
   subject_name?: string | null;
   raw_score?: number | null;
   standard_score?: number | null;
   percentile?: number | null;
   grade_score?: number | null;
   exam_round?: string | null;
-  test_date?: string | null;
   created_at?: string | null;
 };
 
@@ -368,7 +382,8 @@ export async function getMockScores(
 
   query = query
     .order("grade", { ascending: true })
-    .order("test_date", { ascending: true });
+    .order("exam_round", { ascending: true })
+    .order("created_at", { ascending: false });
 
   let { data, error } = await query;
 
@@ -390,7 +405,8 @@ export async function getMockScores(
 
     ({ data, error } = await fallbackQuery
       .order("grade", { ascending: true })
-      .order("test_date", { ascending: true }));
+      .order("exam_round", { ascending: true })
+      .order("created_at", { ascending: false }));
   }
 
   if (error) {
@@ -410,7 +426,12 @@ export async function createSchoolScore(
     student_id: string;
     grade: number;
     semester: number;
-    subject_group: string;
+    // FK 필드 (우선 사용)
+    subject_group_id?: string | null;
+    subject_id?: string | null;
+    subject_type_id?: string | null;
+    // 하위 호환성을 위한 텍스트 필드 (deprecated)
+    subject_group?: string | null;
     subject_type?: string | null;
     subject_name?: string | null;
     credit_hours?: number | null;
@@ -424,12 +445,17 @@ export async function createSchoolScore(
 ): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload = {
+  const payload: Record<string, any> = {
     tenant_id: score.tenant_id || null,
     student_id: score.student_id,
     grade: score.grade,
     semester: score.semester,
-    subject_group: score.subject_group,
+    // FK 필드 (우선 사용)
+    subject_group_id: score.subject_group_id || null,
+    subject_id: score.subject_id || null,
+    subject_type_id: score.subject_type_id || null,
+    // 하위 호환성을 위한 텍스트 필드 (deprecated)
+    subject_group: score.subject_group || null,
     subject_type: score.subject_type || null,
     subject_name: score.subject_name || null,
     credit_hours: score.credit_hours || null,
@@ -473,32 +499,40 @@ export async function createMockScore(
     tenant_id?: string | null;
     student_id: string;
     grade: number;
-    subject_group: string;
     exam_type: string;
+    // FK 필드 (우선 사용)
+    subject_group_id?: string | null;
+    subject_id?: string | null;
+    subject_type_id?: string | null;
+    // 하위 호환성을 위한 텍스트 필드 (deprecated)
+    subject_group?: string | null;
     subject_name?: string | null;
     raw_score?: number | null;
     standard_score?: number | null;
     percentile?: number | null;
     grade_score?: number | null;
     exam_round?: string | null;
-    test_date?: string | null;
   }
 ): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload = {
+  const payload: Record<string, any> = {
     tenant_id: score.tenant_id || null,
     student_id: score.student_id,
     grade: score.grade,
-    subject_group: score.subject_group,
     exam_type: score.exam_type,
+    // FK 필드 (우선 사용)
+    subject_group_id: score.subject_group_id || null,
+    subject_id: score.subject_id || null,
+    subject_type_id: score.subject_type_id || null,
+    // 하위 호환성을 위한 텍스트 필드 (deprecated)
+    subject_group: score.subject_group || null,
     subject_name: score.subject_name || null,
     raw_score: score.raw_score || null,
     standard_score: score.standard_score || null,
     percentile: score.percentile || null,
     grade_score: score.grade_score || null,
     exam_round: score.exam_round || null,
-    test_date: score.test_date || null,
   };
 
   let { data, error } = await supabase
@@ -538,6 +572,11 @@ export async function updateSchoolScore(
   const payload: Record<string, any> = {};
   if (updates.grade !== undefined) payload.grade = updates.grade;
   if (updates.semester !== undefined) payload.semester = updates.semester;
+  // FK 필드 (우선 사용)
+  if (updates.subject_group_id !== undefined) payload.subject_group_id = updates.subject_group_id;
+  if (updates.subject_id !== undefined) payload.subject_id = updates.subject_id;
+  if (updates.subject_type_id !== undefined) payload.subject_type_id = updates.subject_type_id;
+  // 하위 호환성을 위한 텍스트 필드 (deprecated)
   if (updates.subject_group !== undefined) payload.subject_group = updates.subject_group;
   if (updates.subject_type !== undefined) payload.subject_type = updates.subject_type;
   if (updates.subject_name !== undefined) payload.subject_name = updates.subject_name;
@@ -582,15 +621,19 @@ export async function updateMockScore(
 
   const payload: Record<string, any> = {};
   if (updates.grade !== undefined) payload.grade = updates.grade;
-  if (updates.subject_group !== undefined) payload.subject_group = updates.subject_group;
   if (updates.exam_type !== undefined) payload.exam_type = updates.exam_type;
+  // FK 필드 (우선 사용)
+  if (updates.subject_group_id !== undefined) payload.subject_group_id = updates.subject_group_id;
+  if (updates.subject_id !== undefined) payload.subject_id = updates.subject_id;
+  if (updates.subject_type_id !== undefined) payload.subject_type_id = updates.subject_type_id;
+  // 하위 호환성을 위한 텍스트 필드 (deprecated)
+  if (updates.subject_group !== undefined) payload.subject_group = updates.subject_group;
   if (updates.subject_name !== undefined) payload.subject_name = updates.subject_name;
   if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
   if (updates.standard_score !== undefined) payload.standard_score = updates.standard_score;
   if (updates.percentile !== undefined) payload.percentile = updates.percentile;
   if (updates.grade_score !== undefined) payload.grade_score = updates.grade_score;
   if (updates.exam_round !== undefined) payload.exam_round = updates.exam_round;
-  if (updates.test_date !== undefined) payload.test_date = updates.test_date;
 
   let { error } = await supabase
     .from("student_mock_scores")

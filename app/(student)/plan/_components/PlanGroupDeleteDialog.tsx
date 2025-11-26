@@ -14,6 +14,7 @@ type PlanGroupDeleteDialogProps = {
   groupId: string;
   groupName: string | null;
   groupStatus?: PlanStatus;
+  isCampPlan?: boolean;
 };
 
 export function PlanGroupDeleteDialog({
@@ -22,16 +23,25 @@ export function PlanGroupDeleteDialog({
   groupId,
   groupName,
   groupStatus,
+  isCampPlan = false,
 }: PlanGroupDeleteDialogProps) {
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
-  const canDelete = groupStatus
+  // 캠프 플랜은 삭제 불가
+  const canDeleteByStatus = groupStatus
     ? PlanStatusManager.canDelete(groupStatus)
     : true; // 상태 정보가 없으면 시도 (서버에서 체크)
+  const canDelete = !isCampPlan && canDeleteByStatus;
 
   const handleDelete = () => {
+    if (isCampPlan) {
+      toast.showError("캠프 프로그램 플랜은 삭제할 수 없습니다. 캠프 참여 메뉴에서 관리해주세요.");
+      onOpenChange(false);
+      return;
+    }
+    
     if (!canDelete && groupStatus) {
       toast.showError(
         `${PlanStatusManager.getConstraints(groupStatus).description}에서는 삭제할 수 없습니다.`
@@ -72,7 +82,17 @@ export function PlanGroupDeleteDialog({
     >
       <DialogContent>
         <div className="flex flex-col gap-4">
-          {!canDelete && groupStatus && (
+          {isCampPlan && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+              <p className="text-sm font-medium text-orange-800">
+                캠프 프로그램 플랜은 삭제할 수 없습니다.
+              </p>
+              <p className="mt-1 text-xs text-orange-700">
+                캠프 참여 메뉴에서 플랜을 관리해주세요. 제출 전까지는 수정이 가능합니다.
+              </p>
+            </div>
+          )}
+          {!canDelete && !isCampPlan && groupStatus && (
             <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
               <p className="text-sm font-medium text-yellow-800">
                 현재 상태에서는 삭제할 수 없습니다.
@@ -82,10 +102,12 @@ export function PlanGroupDeleteDialog({
               </p>
             </div>
           )}
-          <p className="text-sm text-gray-600">
-            이 작업은 되돌릴 수 없습니다. 플랜 그룹과 관련된 모든 플랜이 함께
-            삭제됩니다.
-          </p>
+          {!isCampPlan && (
+            <p className="text-sm text-gray-600">
+              이 작업은 되돌릴 수 없습니다. 플랜 그룹과 관련된 모든 플랜이 함께
+              삭제됩니다.
+            </p>
+          )}
         </div>
       </DialogContent>
       <DialogFooter>

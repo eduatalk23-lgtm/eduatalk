@@ -3,10 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { PlanGroupWizard } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
-import {
-  fetchAllStudentContents,
-  classifyPlanContents,
-} from "@/lib/data/planContents";
+import { fetchAllStudentContents } from "@/lib/data/planContents";
 
 type EditPlanGroupPageProps = {
   params: Promise<{ id: string }>;
@@ -39,111 +36,22 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
     redirect(`/plan/group/${id}`);
   }
 
-  // 블록 세트 목록 조회
-  const { data: blockSetsData } = await supabase
-    .from("student_block_sets")
-    .select("id, name")
-    .eq("student_id", user.id)
-    .order("display_order", { ascending: true });
-
-  const blockSets = blockSetsData
-    ? await Promise.all(
-        blockSetsData.map(async (set) => {
-          const { data: blocks } = await supabase
-            .from("student_block_schedule")
-            .select("id, day_of_week, start_time, end_time")
-            .eq("block_set_id", set.id)
-            .eq("student_id", user.id)
-            .order("day_of_week", { ascending: true })
-            .order("start_time", { ascending: true });
-
-          return {
-            ...set,
-            blocks:
-              (blocks as Array<{
-                id: string;
-                day_of_week: number;
-                start_time: string;
-                end_time: string;
-              }>) ?? [],
-          };
-        })
-      )
-    : [];
+  // 블록 세트 목록 조회 (통합 함수 사용)
+  const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
+  const blockSets = await fetchBlockSetsWithBlocks(user.id);
 
   // 콘텐츠 목록 조회 (통합 함수 사용)
   const { books, lectures, custom } = await fetchAllStudentContents(user.id);
 
-  // 콘텐츠 분류 (통합 함수 사용)
-  const { studentContents, recommendedContents } =
-    await classifyPlanContents(contents, user.id);
-
-  // scheduler_options에서 time_settings 추출
-  const schedulerOptions = (group.scheduler_options as any) || {};
-  const timeSettings = {
-    lunch_time: schedulerOptions.lunch_time,
-    camp_study_hours: schedulerOptions.camp_study_hours,
-    camp_self_study_hours: schedulerOptions.camp_self_study_hours,
-    designated_holiday_hours: schedulerOptions.designated_holiday_hours,
-    use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
-    enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays,
-    enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days,
-  };
-  
-  // time_settings 필드 중 하나라도 값이 있으면 포함
-  const hasTimeSettings = 
-    timeSettings.lunch_time !== undefined ||
-    timeSettings.camp_study_hours !== undefined ||
-    timeSettings.camp_self_study_hours !== undefined ||
-    timeSettings.designated_holiday_hours !== undefined ||
-    timeSettings.use_self_study_with_blocks !== undefined ||
-    timeSettings.enable_self_study_for_holidays !== undefined ||
-    timeSettings.enable_self_study_for_study_days !== undefined;
-  
-  // scheduler_options에서 time_settings 필드 제거
-  const { lunch_time, camp_study_hours, camp_self_study_hours, designated_holiday_hours, use_self_study_with_blocks, enable_self_study_for_holidays, enable_self_study_for_study_days, ...schedulerOptionsWithoutTimeSettings } = schedulerOptions;
-  
-  // 초기 데이터 구성
-  const initialData = {
-    groupId: group.id,
-    name: group.name || "",
-    plan_purpose: group.plan_purpose || "",
-    scheduler_type: group.scheduler_type || "",
-    scheduler_options: Object.keys(schedulerOptionsWithoutTimeSettings).length > 0 ? schedulerOptionsWithoutTimeSettings : undefined,
-    time_settings: hasTimeSettings ? timeSettings : undefined,
-    period_start: group.period_start,
-    period_end: group.period_end,
-    target_date: group.target_date || undefined,
-    block_set_id: group.block_set_id || "",
-    student_contents: studentContents.map((c) => ({
-      content_type: c.content_type as "book" | "lecture" | "custom",
-      content_id: c.masterContentId || c.content_id, // 추천 콘텐츠의 경우 원본 마스터 콘텐츠 ID 사용
-      start_range: c.start_range,
-      end_range: c.end_range,
-      title: c.title,
-      subject_category: c.subject_category,
-    })),
-    recommended_contents: recommendedContents.map((c) => ({
-      content_type: c.content_type as "book" | "lecture" | "custom",
-      content_id: c.content_id, // 이미 마스터 콘텐츠 ID
-      start_range: c.start_range,
-      end_range: c.end_range,
-      title: c.title,
-      subject_category: c.subject_category,
-    })),
-    exclusions: exclusions.map((e) => ({
-      exclusion_date: e.exclusion_date,
-      exclusion_type: e.exclusion_type as "휴가" | "개인사정" | "휴일지정" | "기타",
-      reason: e.reason || undefined,
-    })),
-    academy_schedules: academySchedules.map((s) => ({
-      day_of_week: s.day_of_week,
-      start_time: s.start_time,
-      end_time: s.end_time,
-      academy_name: s.academy_name || undefined,
-      subject: s.subject || undefined,
-    })),
-  };
+  // 데이터 변환 함수 사용
+  const { transformPlanGroupToWizardData } = await import("@/lib/utils/planGroupTransform");
+  const initialData = await transformPlanGroupToWizardData(
+    group,
+    contents,
+    exclusions,
+    academySchedules,
+    user.id
+  );
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-10">
@@ -166,88 +74,10 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
           lectures,
           custom,
         }}
-        initialData={initialData}
+        initialData={initialData as any}
         isEditMode={true}
       />
     </section>
   );
-}
-
-async function fetchBooks(
-  supabase: SupabaseServerClient,
-  studentId: string
-): Promise<Array<{ id: string; title: string; subtitle?: string | null }>> {
-  try {
-    const { data, error } = await supabase
-      .from("books")
-      .select("id, title, subject")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    return (
-      data?.map((book) => ({
-        id: book.id,
-        title: book.title || "제목 없음",
-        subtitle: book.subject || null,
-      })) || []
-    );
-  } catch (err) {
-    console.error("[plan/group/edit] 책 목록 조회 실패", err);
-    return [];
-  }
-}
-
-async function fetchLectures(
-  supabase: SupabaseServerClient,
-  studentId: string
-): Promise<Array<{ id: string; title: string; subtitle?: string | null }>> {
-  try {
-    const { data, error } = await supabase
-      .from("lectures")
-      .select("id, title, subject")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    return (
-      data?.map((lecture) => ({
-        id: lecture.id,
-        title: lecture.title || "제목 없음",
-        subtitle: lecture.subject || null,
-      })) || []
-    );
-  } catch (err) {
-    console.error("[plan/group/edit] 강의 목록 조회 실패", err);
-    return [];
-  }
-}
-
-async function fetchCustomContents(
-  supabase: SupabaseServerClient,
-  studentId: string
-): Promise<Array<{ id: string; title: string; subtitle?: string | null }>> {
-  try {
-    const { data, error } = await supabase
-      .from("student_custom_contents")
-      .select("id, title, content_type")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    return (
-      data?.map((custom) => ({
-        id: custom.id,
-        title: custom.title || "커스텀 콘텐츠",
-        subtitle: custom.content_type || null,
-      })) || []
-    );
-  } catch (err) {
-    console.error("[plan/group/edit] 커스텀 콘텐츠 조회 실패", err);
-    return [];
-  }
 }
 

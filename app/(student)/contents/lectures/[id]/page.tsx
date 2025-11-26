@@ -31,10 +31,10 @@ export default async function LectureDetailPage({
 
   let { data: lecture, error } = await selectLecture()
     .eq("student_id", user.id)
-    .maybeSingle<Lecture & { master_content_id?: string | null }>();
+    .maybeSingle<Lecture & { master_content_id?: string | null; linked_book_id?: string | null; total_episodes?: number | null }>();
 
   if (error && error.code === "42703") {
-    ({ data: lecture, error } = await selectLecture().maybeSingle<Lecture & { master_content_id?: string | null }>());
+    ({ data: lecture, error } = await selectLecture().maybeSingle<Lecture & { master_content_id?: string | null; linked_book_id?: string | null }>());
   }
 
   if (error) {

@@ -68,12 +68,25 @@ export function logError(
   error: unknown,
   context?: Record<string, unknown>
 ): void {
-  const errorInfo = {
+  const errorInfo: Record<string, unknown> = {
     message: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
     context,
     timestamp: new Date().toISOString(),
   };
+
+  // AppError인 경우 추가 정보 포함
+  if (error instanceof AppError) {
+    errorInfo.code = error.code;
+    errorInfo.statusCode = error.statusCode;
+    errorInfo.isUserFacing = error.isUserFacing;
+    errorInfo.name = error.name;
+    if (error.details) {
+      errorInfo.details = error.details;
+    }
+  } else if (error instanceof Error) {
+    errorInfo.name = error.name;
+  }
 
   // 개발 환경에서는 console.error 사용
   if (process.env.NODE_ENV === "development") {
@@ -81,7 +94,7 @@ export function logError(
   } else {
     // 프로덕션에서는 에러 트래킹 서비스로 전송
     // 예: Sentry, LogRocket 등
-    console.error("[Error]", JSON.stringify(errorInfo));
+    console.error("[Error]", JSON.stringify(errorInfo, null, 2));
   }
 }
 

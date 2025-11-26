@@ -71,8 +71,14 @@ export function PlanGroupListItem({
   const isCompleted = group.status === "completed";
   const isCancelled = group.status === "cancelled";
   
+  // 캠프 플랜 여부 확인
+  const isCampPlan = !!(group.plan_type === "camp" && group.camp_invitation_id);
+  
   // 플랜이 생성되고, 완료/중단 상태가 아닌 경우만 토글 가능
   const canToggle = hasPlans && planCount > 0 && !isCompleted && !isCancelled;
+  
+  // 캠프 플랜은 삭제 불가 (제출 전까지는 수정 가능)
+  const canDelete = !isCampPlan;
 
   const handleToggleActiveClick = () => {
     if (!canToggle) {
@@ -162,7 +168,7 @@ export function PlanGroupListItem({
         <div className="flex items-center justify-between gap-3">
           {/* 좌측: 체크박스 + 뱃지 */}
           <div className="flex items-center gap-2">
-            {onToggleSelect && (
+            {onToggleSelect && !isCampPlan && (
               <button
                 type="button"
                 onClick={onToggleSelect}
@@ -177,7 +183,18 @@ export function PlanGroupListItem({
                 )}
               </button>
             )}
+            {onToggleSelect && isCampPlan && (
+              <div className="inline-flex items-center justify-center rounded-lg p-1 text-gray-300 cursor-not-allowed">
+                <Square className="h-5 w-5" />
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-1.5">
+              {/* 캠프 플랜 뱃지 */}
+              {isCampPlan && (
+                <Badge variant="warning" size="sm">
+                  캠프 프로그램
+                </Badge>
+              )}
               {/* 플랜 생성 완료 뱃지 */}
               {hasPlans && planCount > 0 && (
                 <Badge variant="info" size="sm">
@@ -236,15 +253,27 @@ export function PlanGroupListItem({
               )}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setDeleteDialogOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-            aria-label="플랜 그룹 삭제"
-            title="삭제"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canDelete ? (
+            <button
+              type="button"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+              aria-label="플랜 그룹 삭제"
+              title="삭제"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-300 cursor-not-allowed"
+              aria-label="캠프 플랜은 삭제할 수 없습니다"
+              title="캠프 플랜은 삭제할 수 없습니다"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
         </div>
 
@@ -274,7 +303,7 @@ export function PlanGroupListItem({
                           ? "green"
                           : completedCount > 0
                           ? "blue"
-                          : "gray"
+                          : "orange"
                       }
                     />
                   </div>
@@ -338,6 +367,7 @@ export function PlanGroupListItem({
         groupId={group.id}
         groupName={group.name}
         groupStatus={group.status as any}
+        isCampPlan={isCampPlan}
       />
 
       <PlanGroupActiveToggleDialog

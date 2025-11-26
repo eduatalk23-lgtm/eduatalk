@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from "react";
 import {
-  getSubjects,
-  createSubject,
-  updateSubject,
-  deleteSubject,
-  getSubjectCategories,
-  getCurriculumRevisions,
-  type Subject,
-  type SubjectCategory,
-  type CurriculumRevision,
-} from "@/lib/data/contentMetadata";
+  getSubjectsAction,
+  createSubjectAction,
+  updateSubjectAction,
+  deleteSubjectAction,
+  getSubjectCategoriesAction,
+  getCurriculumRevisionsAction,
+} from "@/app/(admin)/actions/contentMetadataActions";
+import type { Subject, SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
 
 export function SubjectsManager() {
   const [items, setItems] = useState<Subject[]>([]);
@@ -39,7 +37,7 @@ export function SubjectsManager() {
 
   async function loadRevisions() {
     try {
-      const data = await getCurriculumRevisions();
+      const data = await getCurriculumRevisionsAction();
       setRevisions(data);
       if (data.length > 0 && !selectedRevisionId) {
         setSelectedRevisionId(data[0].id);
@@ -51,7 +49,7 @@ export function SubjectsManager() {
 
   async function loadSubjectCategories(revisionId: string) {
     try {
-      const data = await getSubjectCategories(revisionId);
+      const data = await getSubjectCategoriesAction(revisionId);
       setSubjectCategories(data);
       if (data.length > 0 && !selectedCategoryId) {
         setSelectedCategoryId(data[0].id);
@@ -64,7 +62,7 @@ export function SubjectsManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getSubjects();
+      const data = await getSubjectsAction();
       setItems(data);
     } catch (error) {
       console.error("과목 조회 실패:", error);
@@ -85,7 +83,7 @@ export function SubjectsManager() {
     }
 
     try {
-      await createSubject(selectedCategoryId, formData.name, formData.display_order);
+      await createSubjectAction(selectedCategoryId, formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       loadItems();
@@ -102,7 +100,7 @@ export function SubjectsManager() {
     }
 
     try {
-      await updateSubject(id, {
+      await updateSubjectAction(id, {
         name: formData.name,
         display_order: formData.display_order,
       });
@@ -119,7 +117,7 @@ export function SubjectsManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deleteSubject(id);
+      await deleteSubjectAction(id);
       loadItems();
     } catch (error) {
       console.error("과목 삭제 실패:", error);
@@ -130,8 +128,7 @@ export function SubjectsManager() {
   function startEdit(item: Subject) {
     setEditingId(item.id);
     setFormData({ name: item.name, display_order: item.display_order });
-    if (item.subject_category) {
-      setSelectedRevisionId(item.subject_category.revision_id);
+    if (item.subject_category_id) {
       setSelectedCategoryId(item.subject_category_id);
     }
     setIsCreating(false);
@@ -143,13 +140,11 @@ export function SubjectsManager() {
     setFormData({ name: "", display_order: 0 });
   }
 
+  // Subject에는 subject_category_id만 있으므로 category로만 필터링
+  // TODO: revision_id 관계가 추가되면 revision 필터링 로직 구현
   const filteredItems = selectedCategoryId
     ? items.filter((item) => item.subject_category_id === selectedCategoryId)
-    : selectedRevisionId
-      ? items.filter(
-          (item) => item.subject_category?.revision_id === selectedRevisionId
-        )
-      : items;
+    : items;
 
   if (loading) {
     return <div className="text-center py-8 text-gray-500">로딩 중...</div>;
@@ -157,6 +152,26 @@ export function SubjectsManager() {
 
   return (
     <div className="space-y-4">
+      {/* 경고 메시지 */}
+      <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="text-yellow-600">⚠️</div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-yellow-800">주의</h3>
+            <p className="mt-1 text-sm text-yellow-700">
+              이 페이지는 deprecated된 테이블을 사용합니다. 과목 관리는{" "}
+              <a
+                href="/admin/subjects"
+                className="font-semibold text-yellow-800 underline hover:text-yellow-900"
+              >
+                교과/과목 관리 페이지
+              </a>
+              에서 진행해주세요.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">과목 관리</h2>
         <button
@@ -333,10 +348,10 @@ export function SubjectsManager() {
                 editingId === item.id ? (
                   <tr key={item.id}>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.subject_category?.revision?.name || "-"}
+                      -
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.subject_category?.name || "-"}
+                      -
                     </td>
                     <td className="px-6 py-4">
                       <input
@@ -362,7 +377,7 @@ export function SubjectsManager() {
                           type="checkbox"
                           checked={item.is_active}
                           onChange={(e) =>
-                            updateSubject(item.id, { is_active: e.target.checked }).then(() =>
+                            updateSubjectAction(item.id, { is_active: e.target.checked }).then(() =>
                               loadItems()
                             )
                           }
@@ -393,10 +408,10 @@ export function SubjectsManager() {
                 ) : (
                   <tr key={item.id}>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.subject_category?.revision?.name || "-"}
+                      -
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {item.subject_category?.name || "-"}
+                      -
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{item.display_order}</td>

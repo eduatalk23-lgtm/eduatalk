@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Info, RefreshCw } from "lucide-react";
+import { Info, RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "./PlanGroupWizard";
 import { TimeRangeInput } from "@/components/ui/TimeRangeInput";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   syncTimeManagementExclusionsAction,
   syncTimeManagementAcademySchedulesAction,
@@ -16,6 +17,14 @@ type Step2BlocksAndExclusionsProps = {
   periodEnd: string;
   groupId?: string; // 편집 모드일 때 플랜 그룹 ID
   onNavigateToStep?: (step: number) => void; // Step2로 이동하기 위한 콜백
+  campMode?: boolean;
+  isTemplateMode?: boolean; // 템플릿 모드 여부
+  templateExclusions?: Array<{
+    exclusion_date: string;
+    exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
+    reason?: string;
+  }>;
+  editable?: boolean; // 편집 가능 여부 (기본값: true)
 };
 
 const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
@@ -36,7 +45,49 @@ export function Step2BlocksAndExclusions({
   periodEnd,
   groupId,
   onNavigateToStep,
+  campMode = false,
+  isTemplateMode = false,
+  templateExclusions,
+  editable = true,
 }: Step2BlocksAndExclusionsProps) {
+  const toast = useToast();
+  // 템플릿 고정 필드 확인
+  const lockedFields = data.templateLockedFields?.step2 || {};
+  
+  // 템플릿 모드에서 필드 제어 토글
+  const toggleFieldControl = (fieldName: keyof typeof lockedFields) => {
+    if (!isTemplateMode) return;
+    
+    const currentLocked = data.templateLockedFields?.step2 || {};
+    const newLocked = {
+      ...currentLocked,
+      [fieldName]: !currentLocked[fieldName],
+    };
+    
+    onUpdate({
+      templateLockedFields: {
+        ...data.templateLockedFields,
+        step2: newLocked,
+      },
+    });
+  };
+  
+  // 학생 모드에서 입력 가능 여부 확인
+  const canStudentInputExclusions = campMode 
+    ? (lockedFields.allow_student_exclusions !== false) // 기본값: true (허용)
+    : true; // 일반 모드에서는 항상 허용
+  
+  const canStudentInputAcademySchedules = campMode
+    ? (lockedFields.allow_student_academy_schedules !== false) // 기본값: true (허용)
+    : true; // 일반 모드에서는 항상 허용
+  
+  const canStudentInputTimeSettings = campMode
+    ? (lockedFields.allow_student_time_settings !== false) // 기본값: true (허용)
+    : true; // 일반 모드에서는 항상 허용
+  
+  const canStudentInputNonStudyTimeBlocks = campMode
+    ? (lockedFields.allow_student_non_study_time_blocks !== false) // 기본값: true (허용)
+    : true; // 일반 모드에서는 항상 허용
   const [exclusionInputType, setExclusionInputType] = useState<ExclusionInputType>("single");
   const [newExclusionDate, setNewExclusionDate] = useState("");
   const [newExclusionStartDate, setNewExclusionStartDate] = useState("");
@@ -54,6 +105,20 @@ export function Step2BlocksAndExclusions({
 
   // 시간 설정 접이식 상태
   const [isTimeSettingsOpen, setIsTimeSettingsOpen] = useState(false);
+  
+  // 학습 시간 제외 항목 상태
+  const [isNonStudyTimeBlocksOpen, setIsNonStudyTimeBlocksOpen] = useState(false);
+  const [newNonStudyTimeBlock, setNewNonStudyTimeBlock] = useState<{
+    type: "아침식사" | "저녁식사" | "수면" | "기타"; // "점심식사" 제거
+    start_time: string;
+    end_time: string;
+    day_of_week?: number[];
+    description?: string;
+  }>({
+    type: "아침식사", // 기본값 변경
+    start_time: "07:00",
+    end_time: "08:00",
+  });
 
   const toggleWeekday = (day: number) => {
     setNewAcademyDays((prev) =>
@@ -86,23 +151,23 @@ export function Step2BlocksAndExclusions({
 
     if (exclusionInputType === "single") {
       if (!newExclusionDate) {
-        alert("날짜를 선택해주세요.");
+        toast.showError("날짜를 선택해주세요.");
         return;
       }
       datesToAdd = [newExclusionDate];
     } else if (exclusionInputType === "range") {
       if (!newExclusionStartDate || !newExclusionEndDate) {
-        alert("시작일과 종료일을 선택해주세요.");
+        toast.showError("시작일과 종료일을 선택해주세요.");
         return;
       }
       if (new Date(newExclusionStartDate) > new Date(newExclusionEndDate)) {
-        alert("시작일은 종료일보다 앞서야 합니다.");
+        toast.showError("시작일은 종료일보다 앞서야 합니다.");
         return;
       }
       datesToAdd = generateDateRange(newExclusionStartDate, newExclusionEndDate);
     } else if (exclusionInputType === "multiple") {
       if (newExclusionDates.length === 0) {
-        alert("날짜를 최소 1개 이상 선택해주세요.");
+        toast.showError("날짜를 최소 1개 이상 선택해주세요.");
         return;
       }
       datesToAdd = [...newExclusionDates];
@@ -112,16 +177,20 @@ export function Step2BlocksAndExclusions({
     const existingDates = new Set(data.exclusions.map((e) => e.exclusion_date));
     const duplicates = datesToAdd.filter((date) => existingDates.has(date));
 
-    if (duplicates.length > 0) {
-      alert(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
-      return;
-    }
+      if (duplicates.length > 0) {
+        toast.showError(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
+        return;
+      }
 
     // 같은 사유의 학습 제외일로 추가
+    // 템플릿 모드에서는 source: "template", is_locked: true
+    // 일반 모드에서는 source: "student"
     const newExclusions = datesToAdd.map((date) => ({
       exclusion_date: date,
       exclusion_type: newExclusionType,
       reason: newExclusionReason || undefined,
+      source: isTemplateMode ? ("template" as const) : ("student" as const),
+      is_locked: isTemplateMode ? true : undefined,
     }));
 
     onUpdate({
@@ -137,6 +206,21 @@ export function Step2BlocksAndExclusions({
   };
 
   const removeExclusion = (index: number) => {
+    const exclusion = data.exclusions[index];
+    
+    // 권한별 삭제 가능 여부 확인
+    // 템플릿은 캠프 모드에서만 사용되므로, 템플릿 제외일도 캠프 모드에서만 존재
+    // - isTemplateMode (관리자 템플릿 생성/수정): 모든 제외일 삭제 가능
+    // - campMode (학생 캠프 참여 입력): 템플릿 제외일 삭제 불가
+    // - 일반 모드: 템플릿 제외일이 존재하지 않으므로 항상 삭제 가능
+    const isTemplateExclusion = exclusion.is_locked || exclusion.source === "template";
+    
+    // campMode일 때만 템플릿 제외일 삭제 불가
+    if (campMode && isTemplateExclusion) {
+      toast.showError("템플릿에서 지정된 제외일은 삭제할 수 없습니다.");
+      return;
+    }
+    
     onUpdate({
       exclusions: data.exclusions.filter((_, i) => i !== index),
     });
@@ -144,27 +228,29 @@ export function Step2BlocksAndExclusions({
 
   const addAcademySchedule = () => {
     if (newAcademyDays.length === 0) {
-      alert("요일을 최소 1개 이상 선택해주세요.");
+      toast.showError("요일을 최소 1개 이상 선택해주세요.");
       return;
     }
     if (!newAcademyStartTime || !newAcademyEndTime) {
-      alert("시작 시간과 종료 시간을 입력해주세요.");
+      toast.showError("시작 시간과 종료 시간을 입력해주세요.");
       return;
     }
     if (!newAcademyName.trim()) {
-      alert("학원 이름을 입력해주세요.");
+      toast.showError("학원 이름을 입력해주세요.");
       return;
     }
     if (!newAcademySubject.trim()) {
-      alert("과목을 입력해주세요.");
+      toast.showError("과목을 입력해주세요.");
       return;
     }
     if (!newAcademyTravelTime || newAcademyTravelTime <= 0) {
-      alert("이동시간을 입력해주세요. (최소 1분 이상)");
+      toast.showError("이동시간을 입력해주세요. (최소 1분 이상)");
       return;
     }
 
     // 선택된 요일마다 일정 추가
+    // 템플릿 모드에서는 source: "template", is_locked: true
+    // 일반 모드에서는 source: "student"
     const newSchedules = newAcademyDays.map((day) => ({
       day_of_week: day,
       start_time: newAcademyStartTime,
@@ -172,6 +258,8 @@ export function Step2BlocksAndExclusions({
       academy_name: newAcademyName.trim(),
       subject: newAcademySubject.trim(),
       travel_time: newAcademyTravelTime || 60, // 기본값: 60분
+      source: isTemplateMode ? ("template" as const) : ("student" as const),
+      is_locked: isTemplateMode ? true : undefined,
     }));
 
     onUpdate({
@@ -188,6 +276,21 @@ export function Step2BlocksAndExclusions({
   };
 
   const removeAcademySchedule = (index: number) => {
+    const schedule = data.academy_schedules[index];
+    
+    // 권한별 삭제 가능 여부 확인
+    // 템플릿은 캠프 모드에서만 사용되므로, 템플릿 학원 일정도 캠프 모드에서만 존재
+    // - isTemplateMode (관리자 템플릿 생성/수정): 모든 학원 일정 삭제 가능
+    // - campMode (학생 캠프 참여 입력): 템플릿 학원 일정 삭제 불가
+    // - 일반 모드: 템플릿 학원 일정이 존재하지 않으므로 항상 삭제 가능
+    const isTemplateSchedule = schedule.is_locked || schedule.source === "template";
+    
+    // campMode일 때만 템플릿 학원 일정 삭제 불가
+    if (campMode && isTemplateSchedule) {
+      toast.showError("템플릿에서 지정된 학원 일정은 삭제할 수 없습니다.");
+      return;
+    }
+    
     onUpdate({
       academy_schedules: data.academy_schedules.filter((_, i) => i !== index),
     });
@@ -228,50 +331,68 @@ export function Step2BlocksAndExclusions({
       {/* 학습 제외일 */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">학습 제외일</h3>
-          {groupId && (
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const result = await syncTimeManagementExclusionsAction(
-                    groupId,
-                    periodStart,
-                    periodEnd
-                  );
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">학습 제외일</h3>
+            {isTemplateMode && (
+              <label className="flex items-center gap-2 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={lockedFields.allow_student_exclusions === true}
+                  onChange={() => toggleFieldControl("allow_student_exclusions")}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                />
+                <span>학생 입력 허용</span>
+              </label>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const result = await syncTimeManagementExclusionsAction(
+                  groupId || null,
+                  periodStart,
+                  periodEnd
+                );
+                
+                if (result.exclusions && result.exclusions.length > 0) {
+                  // 기존 제외일과 병합 (중복 제거)
+                  const existingDates = new Set(data.exclusions.map((e) => e.exclusion_date));
+                  const newExclusions = result.exclusions
+                    .filter((e) => !existingDates.has(e.exclusion_date))
+                    .map((e) => ({ ...e, source: "time_management" as const }));
                   
-                  if (result.exclusions && result.exclusions.length > 0) {
-                    // 최신 제외일 데이터로 상태 업데이트
-                    onUpdate({
-                      exclusions: result.exclusions,
-                    });
-                    
-                    // Step2로 이동하여 변경사항 확인 (다른 Step에서 호출된 경우)
-                    if (onNavigateToStep) {
-                      onNavigateToStep(2);
-                    }
-                    
-                    alert(`시간 관리에서 ${result.count}개의 제외일을 반영했습니다.`);
-                  } else {
-                    alert("반영할 새로운 제외일이 없습니다.");
+                  onUpdate({
+                    exclusions: [...data.exclusions, ...newExclusions],
+                  });
+                  
+                  // Step2로 이동하여 변경사항 확인 (다른 Step에서 호출된 경우)
+                  if (onNavigateToStep) {
+                    onNavigateToStep(2);
                   }
-                } catch (error) {
-                  alert(
-                    error instanceof Error
-                      ? error.message
-                      : "제외일 반영에 실패했습니다."
-                  );
+                  
+                  toast.showSuccess(`시간 관리에서 ${newExclusions.length}개의 제외일을 불러왔습니다.`);
+                } else {
+                  toast.showInfo("불러올 새로운 제외일이 없습니다.");
                 }
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <RefreshCw className="h-3 w-3" />
-              시간 관리에서 반영하기
-            </button>
-          )}
+              } catch (error) {
+                toast.showError(
+                  error instanceof Error
+                    ? error.message
+                    : "제외일 불러오기에 실패했습니다."
+                );
+              }
+            }}
+            disabled={!editable}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            시간 관리에서 불러오기
+          </button>
         </div>
 
         {/* 제외일 추가 폼 */}
+        {editable && (!campMode || canStudentInputExclusions) && (
         <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           {/* 입력 유형 선택 */}
           <div className="mb-4 flex gap-2">
@@ -491,6 +612,7 @@ export function Step2BlocksAndExclusions({
             type="button"
             onClick={addExclusion}
             disabled={
+              !editable ||
               (exclusionInputType === "single" && !newExclusionDate) ||
               (exclusionInputType === "range" &&
                 (!newExclusionStartDate || !newExclusionEndDate)) ||
@@ -501,6 +623,7 @@ export function Step2BlocksAndExclusions({
             제외일 추가
           </button>
         </div>
+        )}
 
         {/* 제외일 목록 */}
         {data.exclusions.length > 0 ? (
@@ -531,6 +654,24 @@ export function Step2BlocksAndExclusions({
                     <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
                       <span>{exclusion.exclusion_type}</span>
                       {exclusion.reason && <span>· {exclusion.reason}</span>}
+                      {exclusion.source === "template" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                          <Lock className="h-3 w-3" />
+                          템플릿
+                        </span>
+                      )}
+                      {exclusion.source === "time_management" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                          <Clock className="h-3 w-3" />
+                          시간 관리
+                        </span>
+                      )}
+                      {exclusion.source === "student" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          <User className="h-3 w-3" />
+                          직접 입력
+                        </span>
+                      )}
                     </div>
                     {exclusion.exclusion_type === "휴일지정" &&
                       data.scheduler_type === "1730_timetable" && (
@@ -545,7 +686,20 @@ export function Step2BlocksAndExclusions({
                   <button
                     type="button"
                     onClick={() => removeExclusion(index)}
-                    className="ml-4 text-sm text-red-600 hover:text-red-800"
+                    disabled={
+                      !editable ||
+                      (campMode && (exclusion.is_locked || exclusion.source === "template"))
+                    }
+                    className={`ml-4 text-sm ${
+                      !editable || (campMode && (exclusion.is_locked || exclusion.source === "template"))
+                        ? "cursor-not-allowed text-gray-400"
+                        : "text-red-600 hover:text-red-800"
+                    }`}
+                    title={
+                      campMode && (exclusion.is_locked || exclusion.source === "template")
+                        ? "템플릿에서 지정된 제외일은 삭제할 수 없습니다."
+                        : "삭제"
+                    }
                   >
                     삭제
                   </button>
@@ -561,46 +715,70 @@ export function Step2BlocksAndExclusions({
       {/* 학원 일정 */}
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">학원 일정</h3>
-          {groupId && (
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const result = await syncTimeManagementAcademySchedulesAction(groupId);
-                  
-                  if (result.academySchedules && result.academySchedules.length > 0) {
-                    // 최신 학원일정 데이터로 상태 업데이트
-                    onUpdate({
-                      academy_schedules: result.academySchedules,
-                    });
-                    
-                    // Step2로 이동하여 변경사항 확인 (다른 Step에서 호출된 경우)
-                    if (onNavigateToStep) {
-                      onNavigateToStep(2);
-                    }
-                    
-                    alert(`시간 관리에서 ${result.count}개의 학원일정을 반영했습니다.`);
-                  } else {
-                    alert("반영할 새로운 학원일정이 없습니다.");
-                  }
-                } catch (error) {
-                  alert(
-                    error instanceof Error
-                      ? error.message
-                      : "학원일정 반영에 실패했습니다."
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">학원 일정</h3>
+            {isTemplateMode && (
+              <label className="flex items-center gap-2 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={lockedFields.allow_student_academy_schedules === true}
+                  onChange={() => toggleFieldControl("allow_student_academy_schedules")}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                />
+                <span>학생 입력 허용</span>
+              </label>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const result = await syncTimeManagementAcademySchedulesAction(groupId || null);
+                
+                if (result.academySchedules && result.academySchedules.length > 0) {
+                  // 기존 학원 일정과 병합 (중복 제거 - 요일+시간 기준)
+                  const existingKeys = new Set(
+                    data.academy_schedules.map(
+                      (s) => `${s.day_of_week}-${s.start_time}-${s.end_time}`
+                    )
                   );
+                  const newSchedules = result.academySchedules
+                    .filter(
+                      (s) =>
+                        !existingKeys.has(`${s.day_of_week}-${s.start_time}-${s.end_time}`)
+                    )
+                    .map((s) => ({ ...s, source: "time_management" as const }));
+                  
+                  onUpdate({
+                    academy_schedules: [...data.academy_schedules, ...newSchedules],
+                  });
+                  
+                  // Step2로 이동하여 변경사항 확인 (다른 Step에서 호출된 경우)
+                  if (onNavigateToStep) {
+                    onNavigateToStep(2);
+                  }
+                  
+                  toast.showSuccess(`시간 관리에서 ${newSchedules.length}개의 학원 일정을 불러왔습니다.`);
+                } else {
+                  toast.showInfo("불러올 새로운 학원 일정이 없습니다.");
                 }
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <RefreshCw className="h-3 w-3" />
-              시간 관리에서 반영하기
-            </button>
-          )}
+              } catch (error) {
+                toast.showError(
+                  error instanceof Error
+                    ? error.message
+                    : "학원 일정 불러오기에 실패했습니다."
+                );
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw className="h-3 w-3" />
+            시간 관리에서 불러오기
+          </button>
         </div>
 
         {/* 학원 일정 추가 폼 */}
+        {editable && (!campMode || canStudentInputAcademySchedules) && (
         <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="mb-4">
             <label className="mb-2 block text-xs font-medium text-gray-700">
@@ -711,6 +889,7 @@ export function Step2BlocksAndExclusions({
             type="button"
             onClick={addAcademySchedule}
             disabled={
+              !editable ||
               newAcademyDays.length === 0 ||
               !newAcademyStartTime ||
               !newAcademyEndTime ||
@@ -724,6 +903,7 @@ export function Step2BlocksAndExclusions({
             학원 일정 추가
           </button>
         </div>
+        )}
 
         {/* 학원 일정 목록 */}
         {data.academy_schedules.length > 0 ? (
@@ -741,12 +921,43 @@ export function Step2BlocksAndExclusions({
                     {schedule.academy_name && <span>{schedule.academy_name}</span>}
                     {schedule.subject && <span>· {schedule.subject}</span>}
                     <span>· 이동시간: {schedule.travel_time || 60}분</span>
+                    {schedule.source === "template" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                        <Lock className="h-3 w-3" />
+                        템플릿
+                      </span>
+                    )}
+                    {schedule.source === "time_management" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                        <Clock className="h-3 w-3" />
+                        시간 관리
+                      </span>
+                    )}
+                    {schedule.source === "student" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        <User className="h-3 w-3" />
+                        직접 입력
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => removeAcademySchedule(index)}
-                  className="ml-4 text-sm text-red-600 hover:text-red-800"
+                  disabled={
+                    !editable ||
+                    (campMode && (schedule.is_locked || schedule.source === "template"))
+                  }
+                  className={`ml-4 text-sm ${
+                    !editable || (campMode && (schedule.is_locked || schedule.source === "template"))
+                      ? "cursor-not-allowed text-gray-400"
+                      : "text-red-600 hover:text-red-800"
+                  }`}
+                  title={
+                    campMode && (schedule.is_locked || schedule.source === "template")
+                      ? "템플릿에서 지정된 학원 일정은 삭제할 수 없습니다."
+                      : "삭제"
+                  }
                 >
                   삭제
                 </button>
@@ -760,35 +971,51 @@ export function Step2BlocksAndExclusions({
 
       {/* 시간 설정 */}
       <div>
-        <button
-          type="button"
-          onClick={() => setIsTimeSettingsOpen(!isTimeSettingsOpen)}
-          className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
-        >
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">시간 설정</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              점심시간 및 학습 시간대를 조정할 수 있습니다.
-            </p>
-          </div>
-          <span className="text-gray-400">
-            {isTimeSettingsOpen ? "▲" : "▼"}
-          </span>
-        </button>
+        <div className="mb-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setIsTimeSettingsOpen(!isTimeSettingsOpen)}
+            className="flex flex-1 items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
+          >
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">시간 설정</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                점심시간 및 학습 시간대를 조정할 수 있습니다.
+              </p>
+            </div>
+            <span className="text-gray-400">
+              {isTimeSettingsOpen ? "▲" : "▼"}
+            </span>
+          </button>
+          {isTemplateMode && (
+            <label className="ml-3 flex items-center gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox"
+                checked={lockedFields.allow_student_time_settings === true}
+                onChange={() => toggleFieldControl("allow_student_time_settings")}
+                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              />
+              <span>학생 입력 허용</span>
+            </label>
+          )}
+        </div>
 
         {isTimeSettingsOpen && (
           <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             {/* 점심시간 */}
-            <TimeRangeInput
-              label="점심시간"
-              description="모든 학습일에서 제외할 점심 시간대"
-              value={data.time_settings?.lunch_time}
-              onChange={(range) => updateTimeSetting("lunch_time", range)}
-              defaultStart="12:00"
-              defaultEnd="13:00"
-            />
+            {(!campMode || canStudentInputTimeSettings) && (
+              <TimeRangeInput
+                label="점심시간"
+                description="모든 학습일에서 제외할 점심 시간대"
+                value={data.time_settings?.lunch_time}
+                onChange={(range) => updateTimeSetting("lunch_time", range)}
+                defaultStart="12:00"
+                defaultEnd="13:00"
+              />
+            )}
 
             {/* 자율학습 시간 배정 토글 */}
+            {(!campMode || canStudentInputTimeSettings) && (
             <div className="space-y-3">
               {/* 지정휴일 자율학습 시간 배정하기 토글 */}
               <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
@@ -884,8 +1111,210 @@ export function Step2BlocksAndExclusions({
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
+
+        {/* 학습 시간 제외 항목 설정 */}
+        <div className="rounded-lg border border-gray-200 bg-white">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-900">학습 시간 제외 항목</h3>
+              {isTemplateMode && (
+                <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={lockedFields.allow_student_non_study_time_blocks === true}
+                    onChange={() => toggleFieldControl("allow_student_non_study_time_blocks")}
+                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  />
+                  <span>학생 입력 허용</span>
+                </label>
+              )}
+              <Info className="h-4 w-4 text-gray-400" />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsNonStudyTimeBlocksOpen(!isNonStudyTimeBlocksOpen)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <span className="text-gray-400">{isNonStudyTimeBlocksOpen ? "▲" : "▼"}</span>
+            </button>
+          </div>
+
+          {isNonStudyTimeBlocksOpen && (
+            <div className="border-t border-gray-200 p-4">
+              <p className="mb-4 text-xs text-gray-600">
+                학습 시간 내에서 플랜 배정을 제외할 시간대를 설정합니다. (식사 시간, 수면 시간 등)
+              </p>
+
+              {/* 기존 제외 항목 목록 */}
+              {data.non_study_time_blocks && data.non_study_time_blocks.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  {data.non_study_time_blocks.map((block, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                    >
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">{block.type}</div>
+                        <div className="text-xs text-gray-600">
+                          {block.start_time} ~ {block.end_time}
+                          {block.day_of_week && block.day_of_week.length > 0 && (
+                            <span className="ml-2">
+                              ({block.day_of_week.map((d) => weekdayLabels[d]).join(", ")})
+                            </span>
+                          )}
+                        </div>
+                        {block.description && (
+                          <div className="mt-1 text-xs text-gray-500">{block.description}</div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = [...(data.non_study_time_blocks || [])];
+                          updated.splice(index, 1);
+                          onUpdate({ non_study_time_blocks: updated.length > 0 ? updated : undefined });
+                        }}
+                        className="ml-2 text-xs text-red-600 hover:text-red-800"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 새 제외 항목 추가 폼 */}
+              {(!campMode || canStudentInputNonStudyTimeBlocks) && (
+              <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <h4 className="text-sm font-semibold text-gray-900">새 제외 항목 추가</h4>
+                
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">제외 항목 유형</label>
+                  <select
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    value={newNonStudyTimeBlock.type}
+                    onChange={(e) =>
+                      setNewNonStudyTimeBlock({
+                        ...newNonStudyTimeBlock,
+                        type: e.target.value as any,
+                      })
+                    }
+                  >
+                    <option value="아침식사">아침식사</option>
+                    <option value="저녁식사">저녁식사</option>
+                    <option value="수면">수면</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-700">시작 시간</label>
+                    <input
+                      type="time"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                      value={newNonStudyTimeBlock.start_time}
+                      onChange={(e) =>
+                        setNewNonStudyTimeBlock({
+                          ...newNonStudyTimeBlock,
+                          start_time: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-700">종료 시간</label>
+                    <input
+                      type="time"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                      value={newNonStudyTimeBlock.end_time}
+                      onChange={(e) =>
+                        setNewNonStudyTimeBlock({
+                          ...newNonStudyTimeBlock,
+                          end_time: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">적용 요일 (선택사항, 없으면 매일)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {weekdayLabels.map((label, day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          const currentDays = newNonStudyTimeBlock.day_of_week || [];
+                          const updatedDays = currentDays.includes(day)
+                            ? currentDays.filter((d) => d !== day)
+                            : [...currentDays, day];
+                          setNewNonStudyTimeBlock({
+                            ...newNonStudyTimeBlock,
+                            day_of_week: updatedDays.length > 0 ? updatedDays : undefined,
+                          });
+                        }}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                          (newNonStudyTimeBlock.day_of_week || []).includes(day)
+                            ? "bg-gray-900 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">설명 (선택사항)</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    placeholder="예: 점심 식사 시간"
+                    value={newNonStudyTimeBlock.description || ""}
+                    onChange={(e) =>
+                      setNewNonStudyTimeBlock({
+                        ...newNonStudyTimeBlock,
+                        description: e.target.value || undefined,
+                      })
+                    }
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newNonStudyTimeBlock.start_time || !newNonStudyTimeBlock.end_time) {
+                      toast.showError("시작 시간과 종료 시간을 입력해주세요.");
+                      return;
+                    }
+                    if (newNonStudyTimeBlock.start_time >= newNonStudyTimeBlock.end_time) {
+                      toast.showError("시작 시간은 종료 시간보다 앞서야 합니다.");
+                      return;
+                    }
+
+                    const updated = [...(data.non_study_time_blocks || []), { ...newNonStudyTimeBlock }];
+                    onUpdate({ non_study_time_blocks: updated });
+                    setNewNonStudyTimeBlock({
+                      type: "아침식사",
+                      start_time: "07:00",
+                      end_time: "08:00",
+                    });
+                  }}
+                  className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                >
+                  제외 항목 추가
+                </button>
+              </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -203,7 +203,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
             ? "bg-amber-100 text-amber-800"
             : "bg-gray-100 text-gray-800";
 
-          const completedPlans = dayPlans.filter((p) => p.progress !== null && p.progress >= 100).length;
+          const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length;
 
           const handleDateClick = () => {
             setSelectedDate(date);
@@ -242,7 +242,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                     </div>
                     <div className="text-center">
                       <div className="font-bold text-green-600">
-                        {dayPlans.filter((p) => p.progress !== null && p.progress >= 100).length}
+                        {dayPlans.filter((p) => p.progress != null && p.progress >= 100).length}
                       </div>
                       <div className="text-gray-500">완료</div>
                     </div>
@@ -282,7 +282,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                     );
                   }
                   
-                  const items: JSX.Element[] = [];
+                  const items: React.ReactElement[] = [];
                   const addedPlanIds = new Set<string>(); // 이미 추가된 플랜 ID 추적
                   
                   filteredSlots.forEach((slot, slotIndex) => {
@@ -325,7 +325,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                             addedPlanIds.add(plan.id);
 
                             const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type] || "📚";
-                            const isCompleted = plan.progress !== null && plan.progress >= 100;
+                            const isCompleted = plan.progress != null && plan.progress >= 100;
                             const isActive = plan.actual_start_time && !plan.actual_end_time;
                             
                             // 플랜 카드 스타일
@@ -399,7 +399,8 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                     }
                     
                     // 점심시간, 이동시간, 자율학습 등 특수 타임슬롯 표시
-                    if (slot.type !== "학습시간" && slot.type !== "학원일정") {
+                    // (학습시간과 학원일정은 위에서 이미 처리됨)
+                    {
                       const colorClass = getTimeSlotColorClass(slot.type);
                       const icon = getTimeSlotIcon(slot.type);
                       

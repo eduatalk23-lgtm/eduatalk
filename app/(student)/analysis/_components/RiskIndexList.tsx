@@ -174,10 +174,10 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <Link
-                      href={`/scheduler?subject=${encodeURIComponent(analysis.subject)}&enable_score_based=on&weak_subject_focus=on`}
+                      href="/plan/new-group"
                       className="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50"
                     >
-                      스케줄 생성
+                      학습 플랜 생성
                     </Link>
                   </td>
                 </tr>

@@ -110,23 +110,6 @@ export const customContentSchema = contentBaseSchema.extend({
 });
 
 /**
- * 자동 스케줄 생성 스키마
- */
-export const autoScheduleSchema = z.object({
-  period: z.number().int().min(1).max(30).optional(),
-  single_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "날짜는 YYYY-MM-DD 형식이어야 합니다.").optional(),
-  priority: z.enum(["difficulty", "progress", "score"]).optional(),
-  difficulty_weight: z.number().int().min(0).max(100).optional(),
-  progress_weight: z.number().int().min(0).max(100).optional(),
-  score_weight: z.number().int().min(0).max(100).optional(),
-  conflict_mode: z.enum(["empty_only", "overwrite"]).optional(),
-  allow_consecutive: z.enum(["on", "off"]).optional(),
-  enable_score_based: z.enum(["on", "off"]).optional(),
-  weak_subject_focus: z.enum(["on", "off"]).optional(),
-  exam_urgency_enabled: z.enum(["on", "off"]).optional(),
-});
-
-/**
  * FormData에서 객체로 변환하는 헬퍼
  */
 export function formDataToObject(formData: FormData): Record<string, unknown> {

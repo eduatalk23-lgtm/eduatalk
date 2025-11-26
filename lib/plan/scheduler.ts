@@ -101,22 +101,10 @@ export function generatePlansFromGroup(
   });
 
   // 3. 스케줄러 유형별로 플랜 생성
+  let plans: ScheduledPlan[] = [];
   switch (group.scheduler_type) {
-    case "자동스케줄러":
-      return generateAutoSchedulerPlans(
-        availableDates,
-        contentInfos,
-        blocks,
-        academySchedules,
-        exclusions,
-        group.scheduler_options,
-        riskIndexMap,
-        dateAvailableTimeRanges,
-        dateTimeSlots,
-        contentDurationMap
-      );
     case "1730_timetable":
-      return generate1730TimetablePlans(
+      plans = generate1730TimetablePlans(
         availableDates,
         contentInfos,
         blocks,
@@ -128,8 +116,9 @@ export function generatePlansFromGroup(
         dateTimeSlots,
         contentDurationMap
       );
+      break;
     default:
-      return generateDefaultPlans(
+      plans = generateDefaultPlans(
         availableDates,
         contentInfos,
         blocks,
@@ -140,7 +129,324 @@ export function generatePlansFromGroup(
         dateTimeSlots,
         contentDurationMap
       );
+      break;
   }
+
+  // 4. 추가 기간 재배치 처리 (복습의 복습)
+  const additionalReallocation = (group as any).additional_period_reallocation as {
+    period_start: string;
+    period_end: string;
+    type: "additional_review";
+    original_period_start: string;
+    original_period_end: string;
+    subjects?: string[];
+    review_of_review_factor?: number;
+  } | null | undefined;
+
+  if (additionalReallocation && additionalReallocation.type === "additional_review") {
+    const reallocatedPlans = generateAdditionalPeriodReallocationPlans(
+      plans,
+      additionalReallocation,
+      group,
+      exclusions,
+      blocks,
+      academySchedules,
+      contentSubjects,
+      riskIndexMap,
+      dateAvailableTimeRanges,
+      dateTimeSlots,
+      contentDurationMap
+    );
+    plans = [...plans, ...reallocatedPlans];
+  }
+
+  return plans;
+}
+
+/**
+ * 추가 기간 재배치 플랜 생성 (복습의 복습)
+ */
+function generateAdditionalPeriodReallocationPlans(
+  originalPlans: ScheduledPlan[],
+  reallocation: {
+    period_start: string;
+    period_end: string;
+    type: "additional_review";
+    original_period_start: string;
+    original_period_end: string;
+    subjects?: string[];
+    review_of_review_factor?: number;
+  },
+  group: PlanGroup,
+  exclusions: PlanExclusion[],
+  blocks: BlockInfo[],
+  academySchedules: AcademySchedule[],
+  contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>,
+  riskIndexMap?: Map<string, { riskScore: number }>,
+  dateAvailableTimeRanges?: DateAvailableTimeRanges,
+  dateTimeSlots?: DateTimeSlots,
+  contentDurationMap?: ContentDurationMap
+): ScheduledPlan[] {
+  const reallocatedPlans: ScheduledPlan[] = [];
+  const reviewOfReviewFactor = reallocation.review_of_review_factor ?? 0.25;
+
+  // 1. 원본 플랜 기간의 플랜들을 필터링 (원본 기간 내의 플랜만)
+  const originalPeriodPlans = originalPlans.filter((plan) => {
+    const planDate = new Date(plan.plan_date);
+    const originalStart = new Date(reallocation.original_period_start);
+    const originalEnd = new Date(reallocation.original_period_end);
+    return planDate >= originalStart && planDate <= originalEnd;
+  });
+
+  if (originalPeriodPlans.length === 0) {
+    console.warn("[scheduler] 추가 기간 재배치: 원본 플랜이 없습니다.");
+    return reallocatedPlans;
+  }
+
+  // 2. 원본 플랜들을 콘텐츠별로 그룹화
+  const plansByContent = new Map<string, ScheduledPlan[]>();
+  for (const plan of originalPeriodPlans) {
+    const key = `${plan.content_type}:${plan.content_id}`;
+    if (!plansByContent.has(key)) {
+      plansByContent.set(key, []);
+    }
+    plansByContent.get(key)!.push(plan);
+  }
+
+  // 3. 과목 필터링 (지정된 경우)
+  const targetSubjects = reallocation.subjects && reallocation.subjects.length > 0
+    ? new Set(reallocation.subjects.map(s => s.toLowerCase().trim()))
+    : null;
+
+  // 4. 추가 기간의 날짜 목록 생성 (제외일 제외)
+  const additionalDates = calculateAvailableDatesSimple(
+    reallocation.period_start,
+    reallocation.period_end,
+    exclusions
+  );
+
+  if (additionalDates.length === 0) {
+    console.warn("[scheduler] 추가 기간 재배치: 학습 가능한 날짜가 없습니다.");
+    return reallocatedPlans;
+  }
+
+  // 5. 추가 기간의 학습일/복습일 분류 (1730_timetable인 경우)
+  const studyDays = (group.scheduler_options as any)?.study_days ?? 6;
+  const reviewDays = (group.scheduler_options as any)?.review_days ?? 1;
+  const weekSize = studyDays + reviewDays;
+
+  const additionalStudyDates: string[] = [];
+  const additionalReviewDates: string[] = [];
+
+  // 주차별로 학습일/복습일 분류 (기본적으로 1730 Timetable 패턴 적용)
+  const weeks: string[][] = [];
+  for (let i = 0; i < additionalDates.length; i += weekSize) {
+    weeks.push(additionalDates.slice(i, i + weekSize));
+  }
+
+  weeks.forEach((weekDates) => {
+    const studyDaysList = weekDates.slice(0, studyDays);
+    const reviewDaysList = weekDates.slice(studyDays, weekSize);
+    additionalStudyDates.push(...studyDaysList);
+    additionalReviewDates.push(...reviewDaysList);
+  });
+
+  // 6. 각 콘텐츠별로 재배치 플랜 생성
+  for (const [contentKey, contentPlans] of plansByContent.entries()) {
+    const [contentType, contentId] = contentKey.split(":");
+    
+    // 과목 필터링
+    if (targetSubjects) {
+      const subjectInfo = contentSubjects?.get(contentId);
+      const subjectCategory = subjectInfo?.subject_category?.toLowerCase().trim();
+      if (!subjectCategory || !targetSubjects.has(subjectCategory)) {
+        continue;
+      }
+    }
+
+    // 원본 플랜의 총 학습 범위 계산
+    let totalStartRange = Infinity;
+    let totalEndRange = -Infinity;
+    for (const plan of contentPlans) {
+      totalStartRange = Math.min(totalStartRange, plan.planned_start_page_or_time);
+      totalEndRange = Math.max(totalEndRange, plan.planned_end_page_or_time);
+    }
+
+    const totalRange = totalEndRange - totalStartRange;
+    if (totalRange <= 0) {
+      continue;
+    }
+
+    // 원본 플랜의 총 소요시간 계산 (contentDurationMap 사용)
+    let originalTotalDuration = 0;
+    if (contentDurationMap) {
+      const durationInfo = contentDurationMap.get(contentId);
+      if (durationInfo) {
+        // 페이지당 또는 시간당 소요시간 계산
+        if (contentType === "book" && durationInfo.total_pages) {
+          const minutesPerPage = durationInfo.duration ? durationInfo.duration / durationInfo.total_pages : 1;
+          originalTotalDuration = totalRange * minutesPerPage;
+        } else if (contentType === "lecture" && durationInfo.duration) {
+          // 강의의 경우 범위가 시간(분) 단위
+          originalTotalDuration = totalRange;
+        } else {
+          // 기본값: 범위당 1분
+          originalTotalDuration = totalRange;
+        }
+      }
+    } else {
+      // contentDurationMap이 없으면 기본값 사용
+      originalTotalDuration = totalRange;
+    }
+
+    // 7. 추가 기간 학습일에 재배치
+    const studyDaysCount = additionalStudyDates.length;
+    if (studyDaysCount > 0) {
+      const dailyRange = totalRange / studyDaysCount;
+      const dailyOriginalDuration = originalTotalDuration / studyDaysCount;
+      const dailyReallocatedDuration = dailyOriginalDuration * reviewOfReviewFactor;
+
+      let currentStart = totalStartRange;
+      for (let i = 0; i < studyDaysCount; i++) {
+        const date = additionalStudyDates[i];
+        const isLastDay = i === studyDaysCount - 1;
+        const dayRange = isLastDay ? (totalEndRange - currentStart) : dailyRange;
+        const dayEnd = currentStart + dayRange;
+
+        // 사용 가능한 시간 범위 조회
+        const availableRanges = dateAvailableTimeRanges?.get(date) || [];
+        if (availableRanges.length === 0) {
+          currentStart = dayEnd;
+          continue;
+        }
+
+        // 첫 번째 사용 가능한 시간 범위 사용
+        const firstRange = availableRanges[0];
+        const startTime = firstRange.start;
+        
+        // 소요시간을 고려하여 종료 시간 계산
+        const startMinutes = timeToMinutes(startTime);
+        const endMinutes = startMinutes + Math.ceil(dailyReallocatedDuration);
+        const endTime = minutesToTime(endMinutes);
+
+        // 블록 인덱스 계산 (날짜별로 순차적으로 증가)
+        let blockIndex = 0;
+        for (const existingPlan of reallocatedPlans) {
+          if (existingPlan.plan_date === date) {
+            blockIndex = Math.max(blockIndex, existingPlan.block_index + 1);
+          }
+        }
+
+        reallocatedPlans.push({
+          plan_date: date,
+          block_index: blockIndex,
+          content_type: contentType as "book" | "lecture" | "custom",
+          content_id: contentId,
+          planned_start_page_or_time: Math.round(currentStart),
+          planned_end_page_or_time: Math.round(dayEnd),
+          chapter: null,
+          is_reschedulable: true,
+          start_time: startTime,
+          end_time: endTime,
+        });
+
+        currentStart = dayEnd;
+      }
+    }
+
+    // 8. 추가 기간 복습일에 재배치 (1730_timetable인 경우)
+    if (group.scheduler_type === "1730_timetable" && additionalReviewDates.length > 0) {
+      const reviewDaysCount = additionalReviewDates.length;
+      const reviewRange = totalRange; // 전체 범위 복습
+      const reviewOriginalDuration = originalTotalDuration;
+      
+      // 복습 보정 계수 (기본값: 0.4)
+      const reviewFactor = 0.4;
+      const reviewDuration = reviewOriginalDuration * reviewFactor * reviewOfReviewFactor;
+
+      for (let i = 0; i < reviewDaysCount; i++) {
+        const date = additionalReviewDates[i];
+        
+        // 사용 가능한 시간 범위 조회
+        const availableRanges = dateAvailableTimeRanges?.get(date) || [];
+        if (availableRanges.length === 0) {
+          continue;
+        }
+
+        // 첫 번째 사용 가능한 시간 범위 사용
+        const firstRange = availableRanges[0];
+        const startTime = firstRange.start;
+        
+        // 소요시간을 고려하여 종료 시간 계산
+        const startMinutes = timeToMinutes(startTime);
+        const endMinutes = startMinutes + Math.ceil(reviewDuration);
+        const endTime = minutesToTime(endMinutes);
+
+        // 블록 인덱스 계산
+        let blockIndex = 0;
+        for (const existingPlan of reallocatedPlans) {
+          if (existingPlan.plan_date === date) {
+            blockIndex = Math.max(blockIndex, existingPlan.block_index + 1);
+          }
+        }
+
+        reallocatedPlans.push({
+          plan_date: date,
+          block_index: blockIndex,
+          content_type: contentType as "book" | "lecture" | "custom",
+          content_id: contentId,
+          planned_start_page_or_time: Math.round(totalStartRange),
+          planned_end_page_or_time: Math.round(totalEndRange),
+          chapter: null,
+          is_reschedulable: true,
+          start_time: startTime,
+          end_time: endTime,
+        });
+      }
+    }
+  }
+
+  return reallocatedPlans;
+}
+
+/**
+ * 날짜 범위의 모든 날짜 생성 (제외일 제외) - 간단한 버전
+ */
+function calculateAvailableDatesSimple(
+  periodStart: string,
+  periodEnd: string,
+  exclusions: PlanExclusion[]
+): string[] {
+  const startDate = new Date(periodStart);
+  const endDate = new Date(periodEnd);
+  const dates: string[] = [];
+  const exclusionDates = new Set(exclusions.map(e => e.exclusion_date));
+
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+
+  while (current <= end) {
+    const dateStr = formatDateSimple(current);
+    if (!exclusionDates.has(dateStr)) {
+      dates.push(dateStr);
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+/**
+ * 날짜를 YYYY-MM-DD 형식으로 변환 - 간단한 버전
+ */
+function formatDateSimple(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -481,53 +787,6 @@ function generateDefaultPlans(
   });
 
   return plans;
-}
-
-/**
- * 자동 스케줄러: 가중치 기반 자동 배정 (학습 범위 기반)
- */
-function generateAutoSchedulerPlans(
-  dates: string[],
-  contents: ContentInfo[],
-  blocks: BlockInfo[],
-  academySchedules: AcademySchedule[],
-  exclusions: PlanExclusion[],
-  options?: any,
-  riskIndexMap?: Map<string, { riskScore: number }>,
-  dateAvailableTimeRanges?: DateAvailableTimeRanges,
-  dateTimeSlots?: DateTimeSlots,
-  contentDurationMap?: ContentDurationMap
-): ScheduledPlan[] {
-  // 취약과목 집중 모드 확인
-  const weakSubjectFocus = options?.weak_subject_focus === "high" || options?.weak_subject_focus === true;
-  
-  // 취약과목 필터링 (Risk Score 30 이상)
-  let filteredContents = contents;
-  if (weakSubjectFocus && riskIndexMap) {
-    filteredContents = contents.filter((content) => {
-      const subject = content.subject?.toLowerCase().trim() || "";
-      const risk = riskIndexMap.get(subject);
-      return risk && risk.riskScore >= 30;
-    });
-
-    // 필터링 결과가 없으면 전체 콘텐츠 사용
-    if (filteredContents.length === 0) {
-      filteredContents = contents;
-    }
-  }
-
-  // 기본 스케줄러와 동일한 로직 사용 (학습 범위 기반)
-  return generateDefaultPlans(
-    dates,
-    filteredContents,
-    blocks,
-    academySchedules,
-    exclusions,
-    riskIndexMap,
-    dateAvailableTimeRanges,
-    dateTimeSlots,
-    contentDurationMap
-  );
 }
 
 /**

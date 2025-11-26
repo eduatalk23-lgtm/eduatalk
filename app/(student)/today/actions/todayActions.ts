@@ -257,7 +257,7 @@ export async function completePlan(
 
     // 플랜의 actual_end_time 및 시간 정보 업데이트
     const now = new Date();
-    const actualEndTime = now.toISOString();
+    const actualEndTime = plan.actual_end_time || now.toISOString();
 
     // 플랜의 actual_start_time 조회
     const { data: planData } = await supabase
@@ -649,11 +649,25 @@ export async function stopAllActiveSessionsForPlan(
 
   try {
     const supabase = await createSupabaseServerClient();
+    const now = new Date();
 
-    // 해당 플랜의 모든 활성 세션 조회
+    // 플랜 정보 조회 (시간 계산용)
+    const { data: planData, error: planError } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, actual_end_time, paused_duration_seconds")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planError || !planData) {
+      console.error("[todayActions] 플랜 조회 실패:", planError);
+      return { success: false, error: "플랜 정보를 가져오지 못했습니다." };
+    }
+
+    // 해당 플랜의 모든 활성 세션 조회 (일시정지 정보 포함)
     const { data: activeSessions, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id")
+      .select("id, paused_duration_seconds, paused_at, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null);
@@ -663,12 +677,45 @@ export async function stopAllActiveSessionsForPlan(
       return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
     }
 
-    // 모든 활성 세션 종료
+    let newlyAccumulatedPausedSeconds = 0;
+
     if (activeSessions && activeSessions.length > 0) {
       for (const session of activeSessions) {
+        let pausedSeconds = session.paused_duration_seconds || 0;
+
+        // 현재 일시정지 중이었다면 추가 계산
+        if (session.paused_at && !session.resumed_at) {
+          const pausedAt = new Date(session.paused_at);
+          const currentPause = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
+          pausedSeconds += currentPause;
+        }
+
+        newlyAccumulatedPausedSeconds += pausedSeconds;
         await endStudySession(session.id);
       }
     }
+
+    const planPausedDuration = planData.paused_duration_seconds || 0;
+    const updatedPausedDuration = planPausedDuration + newlyAccumulatedPausedSeconds;
+
+    const actualEndTime = planData.actual_end_time || now.toISOString();
+    const endDate = new Date(actualEndTime);
+
+    let totalDurationSeconds: number | null = null;
+    if (planData.actual_start_time) {
+      const startTime = new Date(planData.actual_start_time);
+      totalDurationSeconds = Math.floor((endDate.getTime() - startTime.getTime()) / 1000);
+    }
+
+    await supabase
+      .from("student_plan")
+      .update({
+        actual_end_time: actualEndTime,
+        total_duration_seconds: totalDurationSeconds,
+        paused_duration_seconds: updatedPausedDuration,
+      })
+      .eq("id", planId)
+      .eq("student_id", user.userId);
 
     revalidatePath("/today");
     return { success: true };

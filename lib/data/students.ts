@@ -9,18 +9,10 @@ export type Student = {
   grade?: string | null;
   class?: string | null;
   birth_date?: string | null;
-  // 마이페이지 필드
-  school?: string | null;
-  gender?: "남" | "여" | null;
-  phone?: string | null;
-  mother_phone?: string | null;
-  father_phone?: string | null;
-  exam_year?: number | null;
-  curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
-  desired_university_1?: string | null;
-  desired_university_2?: string | null;
-  desired_university_3?: string | null;
-  desired_career_field?: "인문계열" | "사회계열" | "자연계열" | "공학계열" | "의약계열" | "예체능계열" | "교육계열" | "농업계열" | "해양계열" | "기타" | null;
+  school_id?: string | null;
+  student_number?: string | null;
+  enrolled_at?: string | null;
+  status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -34,11 +26,11 @@ export async function getStudentById(
 ): Promise<Student | null> {
   const supabase = await createSupabaseServerClient();
 
-  // tenant_id는 더 이상 사용하지 않으므로 조회하지 않음
+  // 기본 학적 정보만 조회 (프로필/진로 정보는 별도 테이블에서 조회)
   const selectStudent = () =>
     supabase
       .from("students")
-      .select("id,name,grade,class,birth_date,school,gender,phone,mother_phone,father_phone,exam_year,curriculum_revision,desired_university_1,desired_university_2,desired_university_3,desired_career_field,created_at,updated_at")
+      .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
       .eq("id", studentId);
 
   let { data, error } = await selectStudent().maybeSingle<Student>();
@@ -60,11 +52,11 @@ export async function listStudentsByTenant(
 ): Promise<Student[]> {
   const supabase = await createSupabaseServerClient();
 
-  // tenant_id는 더 이상 사용하지 않으므로 모든 학생 조회
+  // 기본 학적 정보만 조회
   const selectStudents = () =>
     supabase
       .from("students")
-      .select("id,name,grade,class,birth_date,school,gender,phone,mother_phone,father_phone,exam_year,curriculum_revision,desired_university_1,desired_university_2,desired_university_3,desired_career_field,created_at,updated_at")
+      .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
       .order("created_at", { ascending: false });
 
   let { data, error } = await selectStudents();
@@ -78,28 +70,20 @@ export async function listStudentsByTenant(
 }
 
 /**
- * 학생 정보 생성/업데이트
+ * 학생 기본 정보 생성/업데이트
  */
 export async function upsertStudent(
   student: {
     id: string;
     tenant_id: string | null;
-    name: string;
+    name?: string | null;
     grade: string;
     class: string;
     birth_date: string;
-    // 마이페이지 필드 (선택사항)
-    school?: string | null;
-    gender?: "남" | "여" | null;
-    phone?: string | null;
-    mother_phone?: string | null;
-    father_phone?: string | null;
-    exam_year?: number | null;
-    curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
-    desired_university_1?: string | null;
-    desired_university_2?: string | null;
-    desired_university_3?: string | null;
-    desired_career_field?: "인문계열" | "사회계열" | "자연계열" | "공학계열" | "의약계열" | "예체능계열" | "교육계열" | "농업계열" | "해양계열" | "기타" | null;
+    school_id?: string | null;
+    student_number?: string | null;
+    enrolled_at?: string | null;
+    status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -133,25 +117,47 @@ export async function upsertStudent(
     tenantId = defaultTenant.id;
   }
 
-  const payload = {
+  // 기존 학생 정보 조회 (name이 없을 경우 기존 값 유지)
+  let nameValue = student.name;
+  if (!nameValue) {
+    const { data: existingStudent } = await supabase
+      .from("students")
+      .select("name")
+      .eq("id", student.id)
+      .maybeSingle();
+    
+    if (existingStudent?.name) {
+      nameValue = existingStudent.name;
+    }
+  }
+
+  const payload: {
+    id: string;
+    tenant_id: string;
+    name?: string | null;
+    grade: string;
+    class: string;
+    birth_date: string;
+    school_id: string | null;
+    student_number: string | null;
+    enrolled_at: string | null;
+    status: string;
+  } = {
     id: student.id,
     tenant_id: tenantId,
-    name: student.name,
     grade: student.grade,
     class: student.class,
     birth_date: student.birth_date,
-    school: student.school ?? null,
-    gender: student.gender ?? null,
-    phone: student.phone ?? null,
-    mother_phone: student.mother_phone ?? null,
-    father_phone: student.father_phone ?? null,
-    exam_year: student.exam_year ?? null,
-    curriculum_revision: student.curriculum_revision ?? null,
-    desired_university_1: student.desired_university_1 ?? null,
-    desired_university_2: student.desired_university_2 ?? null,
-    desired_university_3: student.desired_university_3 ?? null,
-    desired_career_field: student.desired_career_field ?? null,
+    school_id: student.school_id ?? null,
+    student_number: student.student_number ?? null,
+    enrolled_at: student.enrolled_at ?? null,
+    status: student.status ?? "enrolled",
   };
+
+  // name이 있으면 payload에 추가
+  if (nameValue !== undefined) {
+    payload.name = nameValue;
+  }
 
   const { error } = await supabase
     .from("students")

@@ -361,7 +361,7 @@ export async function updateLecture(id: string, formData: FormData) {
     platform: platform || null,
     difficulty_level: difficulty || null,
     duration: duration || null,
-    linked_book_id: linkedBookId || null,
+    // linked_book_id는 master_lectures에만 있고 student_lectures에는 없음
     notes: notes || null,
   });
 
