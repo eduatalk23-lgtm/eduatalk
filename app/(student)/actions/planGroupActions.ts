@@ -19,32 +19,32 @@
  */
 
 // Create actions
-export {
+import {
   createPlanGroupAction,
   savePlanGroupDraftAction,
   copyPlanGroupAction,
 } from "./plan-groups/create";
 
 // Update actions
-export {
+import {
   updatePlanGroupDraftAction,
   updatePlanGroupAction,
 } from "./plan-groups/update";
 
 // Delete actions
-export { deletePlanGroupAction } from "./plan-groups/delete";
+import { deletePlanGroupAction } from "./plan-groups/delete";
 
 // Status actions
-export { updatePlanGroupStatus } from "./plan-groups/status";
+import { updatePlanGroupStatus } from "./plan-groups/status";
 
 // Plan generation actions
-export {
+import {
   generatePlansFromGroupAction,
   previewPlansFromGroupAction,
 } from "./plan-groups/plans";
 
 // Query actions
-export {
+import {
   getPlansByGroupIdAction,
   checkPlansExistAction,
   getScheduleResultDataAction,
@@ -52,14 +52,14 @@ export {
 } from "./plan-groups/queries";
 
 // Exclusion actions
-export {
+import {
   addPlanExclusion,
   deletePlanExclusion,
   syncTimeManagementExclusionsAction,
 } from "./plan-groups/exclusions";
 
 // Academy actions
-export {
+import {
   addAcademySchedule,
   updateAcademySchedule,
   deleteAcademySchedule,
@@ -69,3 +69,31 @@ export {
   deleteAcademy,
   syncTimeManagementAcademySchedulesAction,
 } from "./plan-groups/academy";
+
+// Re-export all actions
+export {
+  createPlanGroupAction,
+  savePlanGroupDraftAction,
+  copyPlanGroupAction,
+  updatePlanGroupDraftAction,
+  updatePlanGroupAction,
+  deletePlanGroupAction,
+  updatePlanGroupStatus,
+  generatePlansFromGroupAction,
+  previewPlansFromGroupAction,
+  getPlansByGroupIdAction,
+  checkPlansExistAction,
+  getScheduleResultDataAction,
+  getActivePlanGroups,
+  addPlanExclusion,
+  deletePlanExclusion,
+  syncTimeManagementExclusionsAction,
+  addAcademySchedule,
+  updateAcademySchedule,
+  deleteAcademySchedule,
+  getAcademySchedulesAction,
+  createAcademy,
+  updateAcademy,
+  deleteAcademy,
+  syncTimeManagementAcademySchedulesAction,
+};
