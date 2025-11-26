@@ -3,7 +3,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampPlanGroupForReview } from "@/app/(admin)/actions/campTemplateActions";
 import { PlanGroupWizard } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { fetchAllStudentContents } from "@/lib/data/planContents";
+import { fetchAllStudentContents, classifyPlanContents } from "@/lib/data/planContents";
 import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";
 import { syncCreationDataToWizardData } from "@/lib/utils/planGroupDataSync";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -127,10 +127,36 @@ export default async function CampContinuePage({
   // 콘텐츠 조회
   const { books, lectures, custom } = await fetchAllStudentContents(studentId);
 
+  // 콘텐츠 정보 조회 및 학생/추천 구분 (제목, 과목 등 메타데이터 포함)
+  const { studentContents: classifiedStudentContents, recommendedContents: classifiedRecommendedContents } = 
+    await classifyPlanContents(contents, studentId);
+
+  // 콘텐츠 정보를 Map으로 변환하여 빠른 조회
+  const contentsMap = new Map(
+    [...classifiedStudentContents, ...classifiedRecommendedContents].map((c) => [c.content_id, c])
+  );
+
   // 플랜 그룹 데이터를 WizardData로 변환
+  // classifyPlanContents로 조회한 정보를 사용하여 콘텐츠 정보를 제대로 표시
+  // 남은 단계 진행 시에는 기존 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
   const wizardData = syncCreationDataToWizardData({
     group,
-    contents,
+    contents: contents
+      .filter((c) => {
+        // 추천 콘텐츠 필터링: is_auto_recommended가 true이거나 recommendation_source가 있는 경우 제거
+        // 남은 단계 진행 시에는 Step 4에서 새로운 추천 콘텐츠를 선택할 수 있도록 함
+        return !(c.is_auto_recommended || c.recommendation_source);
+      })
+      .map((c) => {
+        const classifiedContent = contentsMap.get(c.content_id);
+        return {
+          ...c,
+          // classifyPlanContents에서 조회한 정보가 있으면 사용
+          // 없으면 기존 데이터 사용 (fallback)
+          title: classifiedContent?.title,
+          subject_category: classifiedContent?.subject_category,
+        };
+      }),
     exclusions,
     academySchedules,
   });

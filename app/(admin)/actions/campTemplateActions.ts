@@ -1326,6 +1326,73 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
       // Step 6 또는 Step 7일 때 플랜 생성 (Step 6에서 Step 7로 이동하기 전에 플랜 생성)
       if (step === 6 || step === 7) {
+        // 플랜 생성 전 필수 데이터 검증
+        const validationErrors: string[] = [];
+
+        // 1. 기간 검증
+        const periodStart = updatePayload.period_start || result.group.period_start;
+        const periodEnd = updatePayload.period_end || result.group.period_end;
+        if (!periodStart || !periodEnd) {
+          validationErrors.push("학습 기간이 설정되지 않았습니다.");
+        } else {
+          const start = new Date(periodStart);
+          const end = new Date(periodEnd);
+          if (start >= end) {
+            validationErrors.push("시작일은 종료일보다 이전이어야 합니다.");
+          }
+        }
+
+        // 2. 콘텐츠 검증
+        const { data: planContents } = await supabase
+          .from("plan_contents")
+          .select("id")
+          .eq("plan_group_id", groupId)
+          .limit(1);
+        
+        if (!planContents || planContents.length === 0) {
+          validationErrors.push("플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요.");
+        }
+
+        // 3. 템플릿 블록 세트 검증 (캠프 모드)
+        if (result.group.camp_template_id) {
+          const { data: templateData } = await supabase
+            .from("camp_templates")
+            .select("template_data")
+            .eq("id", result.group.camp_template_id)
+            .maybeSingle();
+
+          if (templateData?.template_data) {
+            const templateDataObj = templateData.template_data as any;
+            const templateBlockSetId = templateDataObj.block_set_id;
+
+            if (templateBlockSetId) {
+              const { data: templateBlocks } = await supabase
+                .from("template_blocks")
+                .select("id")
+                .eq("template_block_set_id", templateBlockSetId)
+                .limit(1);
+
+              if (!templateBlocks || templateBlocks.length === 0) {
+                validationErrors.push("템플릿 블록 세트에 블록이 없습니다. 관리자에게 문의해주세요.");
+              }
+            } else {
+              validationErrors.push("템플릿 블록 세트가 설정되지 않았습니다. 관리자에게 문의해주세요.");
+            }
+          } else {
+            validationErrors.push("템플릿 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.");
+          }
+        }
+
+        // 검증 실패 시 에러 발생
+        if (validationErrors.length > 0) {
+          throw new AppError(
+            `플랜 생성 전 검증 실패:\n${validationErrors.join("\n")}`,
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
+          );
+        }
+
         // generatePlansFromGroupAction은 학생 권한만 허용하므로,
         // 관리자용으로 별도 처리 필요
         // 일단은 generatePlansFromGroupAction을 호출하되,
