@@ -325,14 +325,6 @@ export const createCampTemplateAction = withErrorHandling(
       ) {
         templateData.block_set_id = undefined;
       }
-
-      // 디버깅: block_set_id 저장 확인
-      console.log("[createCampTemplateAction] 템플릿 데이터 파싱 결과:", {
-        has_block_set_id: !!templateData.block_set_id,
-        block_set_id: templateData.block_set_id,
-        templateDataKeys: Object.keys(templateData),
-        original_block_set_id: JSON.parse(templateDataJson).block_set_id,
-      });
     } catch (e) {
       throw new AppError(
         "템플릿 데이터 형식이 올바르지 않습니다.",
@@ -373,12 +365,6 @@ export const createCampTemplateAction = withErrorHandling(
     }
 
     // 템플릿 생성 (block_set_id가 없어도 저장 가능)
-    console.log("[createCampTemplateAction] 템플릿 생성 전 최종 확인:", {
-      block_set_id: templateData.block_set_id,
-      template_data_has_block_set_id: !!templateData.block_set_id,
-      will_create_default_block_set: !templateData.block_set_id,
-    });
-
     const result = await createCampTemplate({
       tenant_id: tenantContext.tenantId,
       name,
@@ -391,11 +377,6 @@ export const createCampTemplateAction = withErrorHandling(
       camp_location: campLocation || undefined,
     });
 
-    console.log("[createCampTemplateAction] 템플릿 생성 완료:", {
-      templateId: result.templateId,
-      block_set_id: templateData.block_set_id,
-    });
-
     if (!result.success || !result.templateId) {
       throw new AppError(
         result.error || "템플릿 생성에 실패했습니다.",
@@ -404,9 +385,6 @@ export const createCampTemplateAction = withErrorHandling(
         true
       );
     }
-
-    // 블록 세트는 템플릿 생성 후 시간 관리 페이지에서 생성하도록 변경
-    // 기본값 자동 생성 로직 제거
 
     return result;
   }

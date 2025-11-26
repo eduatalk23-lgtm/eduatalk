@@ -480,34 +480,20 @@ export function Step1BasicInfo({
       try {
         // 템플릿 모드: 실제 템플릿 블록 세트 생성
         if (isTemplateMode) {
-          if (!templateId) {
-            alert(
-              "블록 세트를 생성하려면 먼저 템플릿을 저장해주세요. 템플릿 저장 후 편집 모드에서 블록 세트를 생성할 수 있습니다."
-            );
-            return;
-          }
-
-          // 1. 템플릿 블록 세트 생성
+          // 1. 템플릿 블록 세트 생성 (템플릿 ID가 없어도 생성 가능)
           const formData = new FormData();
-          formData.append("template_id", templateId);
+          // templateId가 있으면 추가, 없으면 템플릿에 연결되지 않은 블록 세트로 생성
+          if (templateId) {
+            formData.append("template_id", templateId);
+          }
           formData.append("name", newBlockSetName.trim());
           const result = await createTemplateBlockSet(formData);
           const blockSetId = result.blockSetId;
           const blockSetName = result.name;
 
-          // 2. 추가된 블록들을 실제로 추가
-          // 추가된 블록이 없으면 기본값(월~일 10:00~19:00) 생성
-          const blocksToAdd =
-            addedBlocks.length > 0
-              ? addedBlocks
-              : // 월(1)~일(0) 10:00~19:00 기본 블록 생성
-                [1, 2, 3, 4, 5, 6, 0].map((day) => ({
-                  day,
-                  startTime: "10:00",
-                  endTime: "19:00",
-                }));
-
-          for (const block of blocksToAdd) {
+          // 2. 추가된 블록들을 실제로 추가 (사용자가 명시적으로 추가한 블록만)
+          if (addedBlocks.length > 0) {
+            for (const block of addedBlocks) {
             const blockFormData = new FormData();
             blockFormData.append("day", String(block.day));
             blockFormData.append("start_time", block.startTime);
@@ -531,7 +517,7 @@ export function Step1BasicInfo({
           }
 
           // 3. 최신 블록 세트 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId);
+          const latestBlockSets = await getTemplateBlockSets(templateId || null);
           if (onBlockSetsLoaded) {
             onBlockSetsLoaded(latestBlockSets);
           }
@@ -625,7 +611,7 @@ export function Step1BasicInfo({
             setIsLoadingBlockSets(false);
             return;
           }
-          const latestBlockSets = await getTemplateBlockSets(templateId);
+          const latestBlockSets = await getTemplateBlockSets(templateId || null);
           if (onBlockSetsLoaded) {
             onBlockSetsLoaded(latestBlockSets);
           }
@@ -681,13 +667,6 @@ export function Step1BasicInfo({
     startTransition(async () => {
       try {
         if (isTemplateMode) {
-          if (!templateId) {
-            alert(
-              "블록을 추가하려면 먼저 템플릿을 저장해주세요. 템플릿 저장 후 편집 모드에서 블록을 추가할 수 있습니다."
-            );
-            return;
-          }
-
           for (const day of selectedWeekdays) {
             const blockFormData = new FormData();
             blockFormData.append("day", String(day));
@@ -712,7 +691,7 @@ export function Step1BasicInfo({
           }
 
           // 최신 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId);
+          const latestBlockSets = await getTemplateBlockSets(templateId || null);
           if (onBlockSetsLoaded) {
             onBlockSetsLoaded(latestBlockSets);
           }
@@ -770,14 +749,10 @@ export function Step1BasicInfo({
         blockFormData.append("id", blockId);
 
         if (isTemplateMode) {
-          if (!templateId) {
-            alert("블록을 삭제하려면 먼저 템플릿을 저장해주세요.");
-            return;
-          }
           await deleteTemplateBlock(blockFormData);
 
           // 최신 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId);
+          const latestBlockSets = await getTemplateBlockSets(templateId || null);
           if (onBlockSetsLoaded) {
             onBlockSetsLoaded(latestBlockSets);
           }
@@ -811,14 +786,10 @@ export function Step1BasicInfo({
         formData.append("name", editingBlockSetName.trim());
 
         if (isTemplateMode) {
-          if (!templateId) {
-            alert("블록 세트를 수정하려면 먼저 템플릿을 저장해주세요.");
-            return;
-          }
           await updateTemplateBlockSet(formData);
 
           // 최신 목록 다시 불러오기
-          const latestBlockSets = await getTemplateBlockSets(templateId);
+          const latestBlockSets = await getTemplateBlockSets(templateId || null);
           if (onBlockSetsLoaded) {
             onBlockSetsLoaded(latestBlockSets);
           }
