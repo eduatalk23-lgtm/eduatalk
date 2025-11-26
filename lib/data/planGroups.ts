@@ -573,7 +573,7 @@ export async function getPlanContents(
     supabase
       .from("plan_contents")
       .select(
-        "id,tenant_id,plan_group_id,content_type,content_id,start_range,end_range,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
+        "id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
       )
       .eq("plan_group_id", groupId)
       .order("display_order", { ascending: true });
@@ -590,7 +590,7 @@ export async function getPlanContents(
     const fallbackSelect = () =>
       supabase
         .from("plan_contents")
-        .select("id,tenant_id,plan_group_id,content_type,content_id,start_range,end_range,display_order")
+        .select("id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,display_order")
         .eq("plan_group_id", groupId)
         .order("display_order", { ascending: true });
     
@@ -631,6 +631,7 @@ export async function createPlanContents(
   contents: Array<{
     content_type: string;
     content_id: string;
+    master_content_id?: string | null; // 마스터 콘텐츠 ID (학생 콘텐츠가 마스터 콘텐츠와 연계된 경우)
     start_range: number;
     end_range: number;
     display_order?: number;
@@ -663,6 +664,7 @@ export async function createPlanContents(
     plan_group_id: groupId,
     content_type: content.content_type,
     content_id: content.content_id,
+    master_content_id: content.master_content_id ?? null,
     start_range: content.start_range,
     end_range: content.end_range,
     display_order: content.display_order ?? index,
@@ -681,6 +683,7 @@ export async function createPlanContents(
     // 필드가 없는 경우 fallback (하위 호환성)
     const fallbackPayload = payload.map(({ 
       tenant_id: _tenantId, 
+      master_content_id: _masterContentId,
       is_auto_recommended: _isAuto,
       recommendation_source: _source,
       recommendation_reason: _reason,

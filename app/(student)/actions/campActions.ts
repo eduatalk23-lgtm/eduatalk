@@ -250,6 +250,46 @@ export const submitCampParticipation = withErrorHandling(
     );
     const creationData = syncWizardDataToCreationData(mergedData as WizardData);
 
+    // 학생 콘텐츠의 master_content_id 조회 (배치 조회)
+    const masterContentIdMap = new Map<string, string | null>();
+    const studentContentIds = (wizardData.student_contents || []).filter(
+      (c: any) => c.content_type === "book" || c.content_type === "lecture"
+    );
+    const bookIds = studentContentIds
+      .filter((c: any) => c.content_type === "book")
+      .map((c: any) => c.content_id);
+    const lectureIds = studentContentIds
+      .filter((c: any) => c.content_type === "lecture")
+      .map((c: any) => c.content_id);
+
+    if (bookIds.length > 0) {
+      const { data: books } = await supabase
+        .from("books")
+        .select("id, master_content_id")
+        .in("id", bookIds)
+        .eq("student_id", user.userId);
+      books?.forEach((book) => {
+        masterContentIdMap.set(book.id, book.master_content_id || null);
+      });
+    }
+
+    if (lectureIds.length > 0) {
+      const { data: lectures } = await supabase
+        .from("lectures")
+        .select("id, master_content_id")
+        .in("id", lectureIds)
+        .eq("student_id", user.userId);
+      lectures?.forEach((lecture) => {
+        masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
+      });
+    }
+
+    // creationData.contents에 master_content_id 추가
+    creationData.contents = creationData.contents.map((c) => ({
+      ...c,
+      master_content_id: masterContentIdMap.get(c.content_id) || null,
+    }));
+
     // 캠프 모드에서는 block_set_id를 null로 설정
     // 템플릿의 block_set_id는 template_block_sets 테이블의 ID이므로
     // plan_groups.block_set_id (student_block_sets 참조)에 저장할 수 없음

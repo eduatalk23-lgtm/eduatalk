@@ -26,7 +26,7 @@
     // 중복 콘텐츠 검증
     const contentKeys = new Set<string>();
     const duplicateContents: string[] = [];
-    
+
     allContents.forEach((content, index) => {
       const key = `${content.content_type}:${content.content_id}`;
       if (contentKeys.has(key)) {
@@ -65,6 +65,7 @@
 ```
 
 학생 콘텐츠와 추천 콘텐츠를 합쳐서 `contents` 배열로 변환합니다. 각 콘텐츠는 다음 정보만 포함됩니다:
+
 - `content_type`: 콘텐츠 유형 (book, lecture, custom)
 - `content_id`: 콘텐츠 ID
 - `start_range`: 시작 범위 (페이지/회차)
@@ -128,15 +129,15 @@ export async function createPlanContents(
 
   if (error && error.code === "42703") {
     // 필드가 없는 경우 fallback (하위 호환성)
-    const fallbackPayload = payload.map(({ 
-      tenant_id: _tenantId, 
+    const fallbackPayload = payload.map(({
+      tenant_id: _tenantId,
       is_auto_recommended: _isAuto,
       recommendation_source: _source,
       recommendation_reason: _reason,
       recommendation_metadata: _metadata,
       recommended_at: _at,
       recommended_by: _by,
-      ...rest 
+      ...rest
     }) => rest);
     ({ error } = await supabase.from("plan_contents").insert(fallbackPayload));
   }
@@ -157,6 +158,7 @@ export async function createPlanContents(
 학생 추가 콘텐츠는 다음 정보만 저장됩니다:
 
 #### 기본 필드
+
 - `tenant_id`: 테넌트 ID
 - `plan_group_id`: 플랜 그룹 ID
 - `content_type`: 콘텐츠 유형 (`book`, `lecture`, `custom`)
@@ -166,6 +168,7 @@ export async function createPlanContents(
 - `display_order`: 표시 순서
 
 #### 자동 추천 관련 필드 (학생 추가 콘텐츠의 경우 대부분 null)
+
 - `is_auto_recommended`: 자동 추천 여부 (기본값: `false`)
 - `recommendation_source`: 추천 출처 (`auto`, `admin`, `template`, `null`)
 - `recommendation_reason`: 추천 이유
@@ -178,6 +181,7 @@ export async function createPlanContents(
 다음 정보는 **저장되지 않습니다**:
 
 ### 콘텐츠 상세 정보
+
 - 콘텐츠 제목 (`title`)
 - 과목 카테고리 (`subject_category`)
 - 과목 (`subject`)
@@ -189,6 +193,7 @@ export async function createPlanContents(
 - 기타 메타데이터
 
 ### 이유
+
 - 콘텐츠 상세 정보는 각 테이블(`books`, `lectures`, `student_custom_contents`)에서 조회해야 합니다
 - `plan_contents` 테이블은 **참조 관계**만 저장하며, 실제 콘텐츠 정보는 별도 테이블에서 관리합니다
 - 이렇게 하면 콘텐츠 정보가 변경되어도 `plan_contents`를 수정할 필요가 없습니다
@@ -246,6 +251,7 @@ export async function classifyPlanContents(
 ## 요약
 
 ### 저장되는 정보
+
 ✅ 콘텐츠 ID (`content_id`)
 ✅ 콘텐츠 유형 (`content_type`)
 ✅ 학습 범위 (`start_range`, `end_range`)
@@ -253,10 +259,12 @@ export async function classifyPlanContents(
 ✅ 플랜 그룹 참조 (`plan_group_id`)
 
 ### 저장되지 않는 정보
+
 ❌ 콘텐츠 제목, 과목, 학년 등 상세 정보
 ❌ 콘텐츠 메타데이터
 
 ### 조회 방법
+
 - `plan_contents` 테이블에서 콘텐츠 ID 조회
 - 각 콘텐츠 테이블(`books`, `lectures`, `student_custom_contents`)에서 상세 정보 조회
 - `classifyPlanContents` 함수 사용 (권장)
@@ -266,4 +274,3 @@ export async function classifyPlanContents(
 - `plan_contents` 테이블은 **참조 관계**만 저장하는 중간 테이블입니다
 - 실제 콘텐츠 정보는 정규화된 구조로 각 테이블에서 관리됩니다
 - 이 구조는 데이터 일관성과 유지보수성을 보장합니다
-

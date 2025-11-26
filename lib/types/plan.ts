@@ -234,6 +234,7 @@ export type PlanContent = {
   plan_group_id: string; // plan_groups 참조
   content_type: ContentType;
   content_id: string;
+  master_content_id?: string | null; // 마스터 콘텐츠 ID (학생 콘텐츠가 마스터 콘텐츠와 연계된 경우)
   start_range: number;
   end_range: number;
   display_order: number;
@@ -568,6 +569,7 @@ export type PlanGroupCreationData = {
 export type PlanContentInput = {
   content_type: ContentType;
   content_id: string;
+  master_content_id?: string | null; // 마스터 콘텐츠 ID (학생 콘텐츠가 마스터 콘텐츠와 연계된 경우)
   start_range: number;
   end_range: number;
   display_order?: number;

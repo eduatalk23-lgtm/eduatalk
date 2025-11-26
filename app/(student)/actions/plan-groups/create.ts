@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { formatDateString } from "@/lib/date/calendarUtils";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   createPlanGroup,
   deletePlanGroup,
@@ -86,11 +87,44 @@ async function _createPlanGroup(
 
   const groupId = groupResult.groupId;
 
+  // 학생 콘텐츠의 master_content_id 조회 (배치 조회)
+  const supabase = await createSupabaseServerClient();
+  const masterContentIdMap = new Map<string, string | null>();
+  const bookIds = data.contents
+    .filter((c) => c.content_type === "book")
+    .map((c) => c.content_id);
+  const lectureIds = data.contents
+    .filter((c) => c.content_type === "lecture")
+    .map((c) => c.content_id);
+
+  if (bookIds.length > 0) {
+    const { data: books } = await supabase
+      .from("books")
+      .select("id, master_content_id")
+      .in("id", bookIds)
+      .eq("student_id", user.userId);
+    books?.forEach((book) => {
+      masterContentIdMap.set(book.id, book.master_content_id || null);
+    });
+  }
+
+  if (lectureIds.length > 0) {
+    const { data: lectures } = await supabase
+      .from("lectures")
+      .select("id, master_content_id")
+      .in("id", lectureIds)
+      .eq("student_id", user.userId);
+    lectures?.forEach((lecture) => {
+      masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
+    });
+  }
+
   // 마스터 콘텐츠 ID를 그대로 저장 (복사는 플랜 생성 시에만 수행)
   // 이렇게 하면 불러올 때 마스터 콘텐츠로 올바르게 인식할 수 있음
   const processedContents = data.contents.map((c) => ({
     content_type: c.content_type,
     content_id: c.content_id, // 마스터 콘텐츠 ID 그대로 저장
+    master_content_id: masterContentIdMap.get(c.content_id) || null,
     start_range: c.start_range,
     end_range: c.end_range,
     display_order: c.display_order ?? 0,
