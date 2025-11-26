@@ -12,6 +12,35 @@ import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroup
 import { AppError, ErrorCode, withErrorHandling, getUserFacingMessage } from "@/lib/errors";
 
 /**
+ * 관리자/컨설턴트 권한 검증 헬퍼 함수
+ */
+async function requireAdminOrConsultant() {
+  const { userId, role, tenantId } = await getCurrentUserRole();
+  
+  if (process.env.NODE_ENV === "development") {
+    console.log("[requireAdminOrConsultant] 권한 확인:", { userId, role, tenantId });
+  }
+  
+  if (!userId) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+  
+  if (role !== "admin" && role !== "consultant") {
+    const errorMessage = role === null
+      ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
+      : "관리자 또는 컨설턴트 권한이 필요합니다.";
+    
+    if (process.env.NODE_ENV === "development") {
+      console.error("[requireAdminOrConsultant] 권한 부족:", { userId, role, tenantId });
+    }
+    
+    throw new AppError(errorMessage, ErrorCode.FORBIDDEN, 403, true);
+  }
+  
+  return { userId, role, tenantId };
+}
+
+/**
  * 캠프 템플릿 목록 조회
  */
 export const getCampTemplates = withErrorHandling(async () => {
@@ -459,10 +488,7 @@ export const updateCampTemplateAction = withErrorHandling(
 export const deleteCampTemplateAction = withErrorHandling(
   async (templateId: string): Promise<{ success: boolean; error?: string }> => {
     // 권한 검증
-    const { role } = await getCurrentUserRole();
-    if (role !== "admin" && role !== "consultant") {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    await requireAdminOrConsultant();
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
