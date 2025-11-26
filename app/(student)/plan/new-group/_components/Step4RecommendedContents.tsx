@@ -180,6 +180,16 @@ export function Step4RecommendedContents({
           ...data.recommended_contents.map((c) => c.content_id),
         ]);
 
+        // allRecommendedContents에서도 이미 추가된 콘텐츠 ID 수집 (추가 안전장치)
+        // 추천 콘텐츠를 추가한 직후 다시 조회할 때를 대비
+        const allRecommendedIds = new Set(
+          allRecommendedContents
+            .filter((c) => 
+              data.recommended_contents.some((rc) => rc.content_id === c.id)
+            )
+            .map((c) => c.id)
+        );
+
         const { getStudentContentMasterIdsAction } = await import(
           "@/app/(student)/actions/getStudentContentMasterIds"
         );
@@ -221,9 +231,15 @@ export function Step4RecommendedContents({
 
         const filteredRecommendations = recommendations.filter(
           (r: RecommendedContent) => {
+            // content_id로 직접 비교
             if (existingIds.has(r.id)) {
               return false;
             }
+            // allRecommendedContents에서도 확인 (추가 안전장치)
+            if (allRecommendedIds.has(r.id)) {
+              return false;
+            }
+            // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
             if (studentMasterIds.has(r.id)) {
               return false;
             }
@@ -337,7 +353,7 @@ export function Step4RecommendedContents({
     } finally {
       setLoading(false);
     }
-  }, [data.student_contents, data.recommended_contents, onUpdate]);
+  }, [data.student_contents, data.recommended_contents, allRecommendedContents, onUpdate]);
 
   // 추천 목록 조회 함수 (기존 버전, 편집 모드가 아닐 때 사용)
   const fetchRecommendations = useCallback(async () => {
@@ -363,6 +379,17 @@ export function Step4RecommendedContents({
           ...data.student_contents.map((c) => c.content_id),
           ...data.recommended_contents.map((c) => c.content_id),
         ]);
+
+        // allRecommendedContents에서도 이미 추가된 콘텐츠 ID 수집 (추가 안전장치)
+        // 추천 콘텐츠를 추가한 직후 다시 조회할 때를 대비
+        // data.recommended_contents에 있는 콘텐츠는 allRecommendedContents에서도 제외
+        const allRecommendedIds = new Set(
+          allRecommendedContents
+            .filter((c) => 
+              data.recommended_contents.some((rc) => rc.content_id === c.id)
+            )
+            .map((c) => c.id)
+        );
 
         // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
         const { getStudentContentMasterIdsAction } = await import(
@@ -422,6 +449,10 @@ export function Step4RecommendedContents({
             if (existingIds.has(r.id)) {
               return false;
             }
+            // allRecommendedContents에서도 확인 (추가 안전장치)
+            if (allRecommendedIds.has(r.id)) {
+              return false;
+            }
             // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
             if (studentMasterIds.has(r.id)) {
               return false;
@@ -442,7 +473,7 @@ export function Step4RecommendedContents({
     } finally {
       setLoading(false);
     }
-  }, [data.student_contents, data.recommended_contents]);
+  }, [data.student_contents, data.recommended_contents, allRecommendedContents]);
 
   // 학생 콘텐츠의 과목 정보 조회 (추천 전 안내용)
   useEffect(() => {
@@ -1039,6 +1070,11 @@ export function Step4RecommendedContents({
     // 추가된 콘텐츠를 추천 목록에서 제거
     const addedContentIds = new Set(contentsToAdd.map((c) => c.content_id));
     setRecommendedContents((prev) =>
+      prev.filter((c) => !addedContentIds.has(c.id))
+    );
+    
+    // allRecommendedContents에서도 제거 (다시 추천 목록 조회 시 중복 방지)
+    setAllRecommendedContents((prev) =>
       prev.filter((c) => !addedContentIds.has(c.id))
     );
 
