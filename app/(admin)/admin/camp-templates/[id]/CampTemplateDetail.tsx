@@ -68,7 +68,11 @@ export function CampTemplateDetail({ template }: CampTemplateDetailProps) {
       const result = await deleteCampTemplateAction(template.id);
       if (result.success) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
-        router.push("/admin/camp-templates");
+        // router.push 대신 router.replace 사용하여 히스토리에서 제거
+        router.replace("/admin/camp-templates");
+      } else {
+        toast.showError(result.error || "템플릿 삭제에 실패했습니다.");
+        setIsDeleting(false);
       }
     } catch (error) {
       console.error("템플릿 삭제 실패:", error);
