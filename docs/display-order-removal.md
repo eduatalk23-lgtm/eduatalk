@@ -84,5 +84,21 @@
 
 ## 🗓 작업 일자
 
-2025-01-XX
+2025-01-27
+
+## 📦 마이그레이션 파일
+
+`supabase/migrations/20250127120000_remove_display_order_from_education_tables.sql`
+
+이 마이그레이션 파일을 실행하면 다음 테이블에서 `display_order` 컬럼이 제거됩니다:
+- `curriculum_revisions`
+- `subject_groups`
+- `subjects`
+- `subject_types`
+
+또한 관련 인덱스도 함께 제거됩니다:
+- `idx_curriculum_revisions_display_order` (있다면)
+- `idx_subject_groups_display_order` (있다면)
+- `idx_subjects_display_order` (있다면)
+- `idx_subject_types_display_order`
 
