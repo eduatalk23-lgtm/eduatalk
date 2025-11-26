@@ -64,10 +64,11 @@
       })),
 ```
 
-학생 콘텐츠와 추천 콘텐츠를 합쳐서 `contents` 배열로 변환합니다. 각 콘텐츠는 다음 정보만 포함됩니다:
+학생 콘텐츠와 추천 콘텐츠를 합쳐서 `contents` 배열로 변환합니다. 각 콘텐츠는 다음 정보를 포함합니다:
 
 - `content_type`: 콘텐츠 유형 (book, lecture, custom)
 - `content_id`: 콘텐츠 ID
+- `master_content_id`: 마스터 콘텐츠 ID (학생 콘텐츠가 마스터 콘텐츠와 연계된 경우) ⭐ **새로 추가됨**
 - `start_range`: 시작 범위 (페이지/회차)
 - `end_range`: 종료 범위 (페이지/회차)
 - `display_order`: 표시 순서
@@ -253,6 +254,7 @@ export async function classifyPlanContents(
 ### 저장되는 정보
 
 ✅ 콘텐츠 ID (`content_id`)
+✅ **마스터 콘텐츠 ID (`master_content_id`)** ⭐ **새로 추가됨**
 ✅ 콘텐츠 유형 (`content_type`)
 ✅ 학습 범위 (`start_range`, `end_range`)
 ✅ 표시 순서 (`display_order`)
@@ -265,12 +267,23 @@ export async function classifyPlanContents(
 
 ### 조회 방법
 
-- `plan_contents` 테이블에서 콘텐츠 ID 조회
+- `plan_contents` 테이블에서 콘텐츠 ID 및 마스터 콘텐츠 ID 조회
 - 각 콘텐츠 테이블(`books`, `lectures`, `student_custom_contents`)에서 상세 정보 조회
+- `master_content_id`가 있으면 마스터 콘텐츠 테이블에서 직접 조회 가능 (성능 향상)
 - `classifyPlanContents` 함수 사용 (권장)
+
+### `master_content_id` 저장 이유
+
+학생이 추가한 콘텐츠가 마스터 콘텐츠와 연계되어 있는 경우, `master_content_id`를 함께 저장합니다:
+
+1. **조회 성능 향상**: 학생 콘텐츠 테이블을 조인하지 않고도 마스터 콘텐츠 정보를 바로 조회 가능
+2. **데이터 추적 용이**: 학생 콘텐츠가 삭제되어도 마스터 콘텐츠 정보 유지
+3. **중복 방지**: 자동 추천 시스템에서 이미 등록된 마스터 콘텐츠를 쉽게 확인 가능
 
 ## 참고
 
 - `plan_contents` 테이블은 **참조 관계**만 저장하는 중간 테이블입니다
 - 실제 콘텐츠 정보는 정규화된 구조로 각 테이블에서 관리됩니다
 - 이 구조는 데이터 일관성과 유지보수성을 보장합니다
+- `master_content_id` 필드는 학생 콘텐츠가 마스터 콘텐츠와 연계된 경우에만 값이 있습니다
+- `master_content_id`가 있으면 조회 시 마스터 콘텐츠 테이블에서 직접 정보를 가져올 수 있어 성능이 향상됩니다
