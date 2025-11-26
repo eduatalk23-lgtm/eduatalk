@@ -115,19 +115,23 @@ export function PlanViewContainer({
         });
         if (!response.ok) throw new Error("플랜 조회 실패");
 
-        const data = (await response.json()) as PlansResponse;
-        const grouped = groupPlansByPlanNumber(data.plans);
+        const responseData = await response.json();
+        // API 응답이 { success: true, data: { plans, sessions, ... } } 형식인지 확인
+        const data = (responseData.success && responseData.data 
+          ? responseData.data 
+          : responseData) as PlansResponse;
+        const grouped = groupPlansByPlanNumber(data?.plans);
 
         setGroups(grouped);
-        const sessionEntries = Object.entries(data.sessions || {}) as [
+        const sessionEntries = Object.entries(data?.sessions || {}) as [
           string,
           SessionState,
         ][];
         setSessions(new Map(sessionEntries));
-        const resolvedDate = data.planDate || targetDate || "";
+        const resolvedDate = data?.planDate || targetDate || "";
         setPlanDate(resolvedDate);
         queryDateRef.current = resolvedDate || null;
-        const resolvedIsToday = Boolean(data.isToday);
+        const resolvedIsToday = Boolean(data?.isToday);
         setIsToday(resolvedIsToday);
         if (resolvedDate) {
           onDateChange?.(resolvedDate, { isToday: resolvedIsToday });

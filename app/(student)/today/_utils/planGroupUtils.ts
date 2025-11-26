@@ -22,7 +22,11 @@ export type PlanGroup = {
  * 같은 plan_number를 가진 플랜들을 그룹화
  * 같은 plan_number를 가진 플랜들은 같은 정보를 가지므로, 가장 빠른 시작 시간을 가진 플랜 하나만 선택
  */
-export function groupPlansByPlanNumber(plans: PlanWithContent[]): PlanGroup[] {
+export function groupPlansByPlanNumber(plans: PlanWithContent[] | null | undefined): PlanGroup[] {
+  if (!plans || !Array.isArray(plans)) {
+    return [];
+  }
+
   const groups = new Map<number | null, PlanWithContent[]>();
 
   plans.forEach((plan) => {
