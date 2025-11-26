@@ -6,7 +6,7 @@ import TemplateBlockForm from "../../_components/TemplateBlockForm";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type TemplateBlockSetDetailProps = {
-  templateId: string;
+  templateId: string | null; // null이면 템플릿에 연결되지 않은 블록 세트
   blockSet: {
     id: string;
     name: string;
@@ -45,7 +45,11 @@ export default function TemplateBlockSetDetail({
       formData.append("id", blockSet.id);
       await deleteTemplateBlockSet(formData);
       toast.showSuccess("블록 세트가 삭제되었습니다.");
-      router.push(`/admin/time-management/${templateId}`);
+      if (templateId) {
+        router.push(`/admin/time-management/${templateId}`);
+      } else {
+        router.push("/admin/time-management");
+      }
     } catch (error: any) {
       toast.showError(error.message || "블록 세트 삭제에 실패했습니다.");
       setIsDeleting(false);

@@ -15,7 +15,7 @@ type BlockSet = {
 };
 
 type TemplateBlocksViewerProps = {
-  templateId: string;
+  templateId: string | null; // null이면 템플릿에 연결되지 않은 블록 세트
   blocks: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
   blockSets: BlockSet[];
   selectedBlockSetId: string | null;
@@ -219,7 +219,7 @@ export default function TemplateBlocksViewer({
 
                 {/* 액션 버튼들 - 하단 고정 */}
                 <div className="flex gap-2 mt-auto">
-                  {selectedBlockSetId !== set.id && (
+                  {templateId && selectedBlockSetId !== set.id && (
                     <button
                       type="button"
                       onClick={async () => {
@@ -265,12 +265,21 @@ export default function TemplateBlocksViewer({
                       선택하기
                     </button>
                   )}
-                  <a
-                    href={`/admin/time-management/${templateId}/${set.id}`}
-                    className={`${selectedBlockSetId === set.id ? 'flex-1 ' : ''}block text-center px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors`}
-                  >
-                    상세 보기
-                  </a>
+                  {templateId ? (
+                    <a
+                      href={`/admin/time-management/${templateId}/${set.id}`}
+                      className={`${selectedBlockSetId === set.id ? 'flex-1 ' : ''}block text-center px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors`}
+                    >
+                      상세 보기
+                    </a>
+                  ) : (
+                    <a
+                      href={`/admin/time-management/global/${set.id}`}
+                      className={`${selectedBlockSetId === set.id ? 'flex-1 ' : ''}block text-center px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors`}
+                    >
+                      상세 보기
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
@@ -307,7 +316,7 @@ function TemplateBlockSetCreateForm({
   onCancel,
   existingCount,
 }: {
-  templateId: string;
+  templateId: string | null; // null이면 템플릿에 연결되지 않은 블록 세트
   onSuccess: (newSetId?: string) => void | Promise<void>;
   onCancel: () => void;
   existingCount: number;
@@ -328,7 +337,10 @@ function TemplateBlockSetCreateForm({
           return { error: firstError?.message || "입력값이 올바르지 않습니다." };
         }
 
-        formData.append("template_id", templateId);
+        // templateId가 있으면 추가, 없으면 null로 처리
+        if (templateId) {
+          formData.append("template_id", templateId);
+        }
         const result = await createTemplateBlockSet(formData);
         
         // 시간 블록이 입력된 경우 추가
