@@ -27,24 +27,46 @@ new row for relation "student_history" violates check constraint "student_histor
 - `auto_schedule_generated`
 - `risk_evaluation` (새로 추가)
 
-### 2. React Client Manifest 에러 확인
+### 2. React Client Manifest 에러 해결
 
 **문제**: `app/(admin)/error.tsx` 모듈을 React Client Manifest에서 찾을 수 없다는 에러
 
-**상태**: 
-- `app/(admin)/error.tsx` 파일은 이미 `"use client"` 지시어가 포함되어 있음
-- 파일 구조는 올바르게 설정되어 있음
-- 이는 Next.js 빌드 캐시 문제일 가능성이 높음
-
-**권장 해결 방법**:
-```bash
-# 개발 서버 재시작
-npm run dev
-
-# 또는 빌드 캐시 삭제 후 재시작
-rm -rf .next
-npm run dev
+**에러 메시지**:
 ```
+Error: Could not find the module "[project]/app/(admin)/error.tsx#default" in the React Client Manifest. 
+This is probably a bug in the React Server Components bundler.
+```
+
+**원인**: 
+- Next.js 16의 알려진 버그 (React Server Components bundler)
+- 빌드 캐시 문제
+- 타입 정의 방식 문제
+
+**해결 방법**:
+1. **타입 정의 명시화**: 인라인 타입 대신 인터페이스로 분리
+   ```typescript
+   interface ErrorProps {
+     error: Error & { digest?: string };
+     reset: () => void;
+   }
+   ```
+
+2. **빌드 캐시 삭제 및 재시작**:
+   ```bash
+   # 빌드 캐시 삭제
+   rm -rf .next
+   
+   # 개발 서버 재시작
+   npm run dev
+   ```
+
+3. **파일 재생성** (필요한 경우):
+   - 파일을 삭제하고 다시 생성
+   - 다른 error.tsx 파일과 동일한 구조로 작성
+
+**수정 내용**:
+- `app/(admin)/error.tsx` 파일의 타입 정의를 인터페이스로 분리하여 명시화
+- 다른 error.tsx 파일들(`app/(student)/error.tsx`, `app/(parent)/error.tsx`)과 동일한 구조로 통일
 
 ## 관련 파일
 

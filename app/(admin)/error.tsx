@@ -3,13 +3,12 @@
 import { useEffect } from "react";
 import { ErrorState } from "@/components/ui/ErrorState";
 
-export default function Error({
-  error,
-  reset,
-}: {
+interface ErrorProps {
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}
+
+export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
     console.error("[admin] 에러 발생", error);
   }, [error]);
