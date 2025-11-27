@@ -61,7 +61,7 @@ export default async function MasterLectureDetailPage({
             { label: "교과", value: lecture.subject_category },
             { label: "과목", value: lecture.subject },
             { label: "플랫폼", value: lecture.platform },
-            { label: "총 회차", value: `${lecture.total_episodes}회` },
+            { label: "총 회차", value: lecture.total_episodes ? `${lecture.total_episodes}회` : null },
             {
               label: "총 강의시간",
               value: lecture.total_duration

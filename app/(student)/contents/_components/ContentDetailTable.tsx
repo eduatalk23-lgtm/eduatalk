@@ -26,10 +26,15 @@ function DetailRow({
   label: string;
   value: string | number | null;
 }) {
+  // null, undefined, 빈 문자열 처리
+  const displayValue = value === null || value === undefined || value === "" 
+    ? "알 수 없음" 
+    : String(value);
+  
   return (
     <div>
       <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-base text-gray-900">{value ?? "—"}</p>
+      <p className="mt-1 text-base text-gray-900">{displayValue}</p>
     </div>
   );
 }

@@ -194,6 +194,14 @@ export async function getRecommendedMasterContents(
     const contentMap = new Map<string, RecommendedMasterContent>();
 
     // 1. 취약 과목 기반 추천 (우선순위 1-20)
+    console.log("[recommendations/masterContent] 추천 시작:", {
+      studentId,
+      tenantId,
+      weakSubjectsCount: weakSubjects.length,
+      riskSubjectsCount: riskSubjects.length,
+      hasScoreData,
+    });
+    
     for (let i = 0; i < weakSubjects.length && i < 5; i++) {
       const subject = weakSubjects[i];
       const riskInfo = riskIndexMap.get(subject);
@@ -223,6 +231,18 @@ export async function getRecommendedMasterContents(
           limit: 10,
         }),
       ]);
+      
+      console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 검색 결과:`, {
+        subject,
+        riskScore,
+        recommendedDifficulty,
+        requestedBookCount: bookCount,
+        requestedLectureCount: lectureCount,
+        foundBooks: booksResult.data.length,
+        foundLectures: lecturesResult.data.length,
+        totalBooks: booksResult.total || 0,
+        totalLectures: lecturesResult.total || 0,
+      });
 
       // 최신 개정판 우선 정렬
       const sortedBooks = sortByRevision(booksResult.data);
@@ -240,6 +260,7 @@ export async function getRecommendedMasterContents(
         : sortedLectures;
 
       // 교재 추천
+      const addedBooks = [];
       for (const book of filteredBooks.slice(0, bookCount)) {
         const key = `book:${book.id}`;
         if (!contentMap.has(key)) {
@@ -271,10 +292,12 @@ export async function getRecommendedMasterContents(
               riskScore: riskInfo?.riskScore,
             },
           });
+          addedBooks.push(book.id);
         }
       }
-
+      
       // 강의 추천
+      const addedLectures = [];
       for (const lecture of filteredLectures.slice(0, lectureCount)) {
         const key = `lecture:${lecture.id}`;
         if (!contentMap.has(key)) {
@@ -306,7 +329,26 @@ export async function getRecommendedMasterContents(
               riskScore: riskInfo?.riskScore,
             },
           });
+          addedLectures.push(lecture.id);
         }
+      }
+      
+      // 콘텐츠 부족 이유 분석
+      if (addedBooks.length < bookCount || addedLectures.length < lectureCount) {
+        console.warn(`[recommendations/masterContent] 취약 과목 "${subject}" 콘텐츠 부족:`, {
+          subject,
+          requestedBookCount: bookCount,
+          requestedLectureCount: lectureCount,
+          addedBookCount: addedBooks.length,
+          addedLectureCount: addedLectures.length,
+          availableBooks: filteredBooks.length,
+          availableLectures: filteredLectures.length,
+          reason: filteredBooks.length < bookCount 
+            ? `교재 부족: 요청 ${bookCount}개, 사용 가능 ${filteredBooks.length}개`
+            : filteredLectures.length < lectureCount
+            ? `강의 부족: 요청 ${lectureCount}개, 사용 가능 ${filteredLectures.length}개`
+            : "중복 제거로 인한 부족",
+        });
       }
     }
 
@@ -626,6 +668,18 @@ export async function getRecommendedMasterContents(
         const toTake = Math.min(requestedCount, subjectRecommendations.length);
         subjectCounts.set(subject, toTake);
         
+        // 요청된 개수보다 적은 경우 경고
+        if (toTake < requestedCount) {
+          console.warn(`[recommendations/masterContent] 교과 "${subject}" 추천 부족:`, {
+            subject,
+            requestedCount,
+            availableCount: subjectRecommendations.length,
+            reason: subjectRecommendations.length === 0 
+              ? "해당 교과의 추천 콘텐츠가 없음"
+              : `요청된 ${requestedCount}개보다 ${subjectRecommendations.length}개만 사용 가능`,
+          });
+        }
+        
         for (let i = 0; i < toTake; i++) {
           filtered.push(subjectRecommendations[i]);
         }
@@ -633,6 +687,22 @@ export async function getRecommendedMasterContents(
       
       finalRecommendations = filtered;
     }
+    
+    // 최종 추천 결과 로깅
+    console.log("[recommendations/masterContent] 최종 추천 결과:", {
+      totalRecommendations: finalRecommendations.length,
+      bySubject: Array.from(
+        finalRecommendations.reduce((acc, r) => {
+          const count = acc.get(r.subject_category) || 0;
+          acc.set(r.subject_category, count + 1);
+          return acc;
+        }, new Map<string, number>())
+      ).map(([subject, count]) => ({ subject, count })),
+      byType: finalRecommendations.reduce((acc, r) => {
+        acc[r.contentType] = (acc[r.contentType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+    });
     
     // 우선순위 순으로 정렬
     return finalRecommendations.sort((a, b) => a.priority - b.priority);

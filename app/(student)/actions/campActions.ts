@@ -300,10 +300,27 @@ export const submitCampParticipation = withErrorHandling(
     }
 
     // creationData.contents에 master_content_id 추가
-    creationData.contents = creationData.contents.map((c) => ({
-      ...c,
-      master_content_id: masterContentIdMap.get(c.content_id) || null,
-    }));
+    creationData.contents = creationData.contents.map((c) => {
+      const masterContentId = masterContentIdMap.get(c.content_id) || null;
+      
+      // 캠프모드 콘텐츠 정보 로깅 (디버깅용)
+      if (wizardData.student_contents?.some((sc: any) => sc.content_id === c.content_id)) {
+        console.log("[campActions] 학생 추가 콘텐츠 정보:", {
+          content_id: c.content_id,
+          content_type: c.content_type,
+          master_content_id: masterContentId,
+          start_range: c.start_range,
+          end_range: c.end_range,
+          start_detail_id: (c as any).start_detail_id ?? null,
+          end_detail_id: (c as any).end_detail_id ?? null,
+        });
+      }
+      
+      return {
+        ...c,
+        master_content_id: masterContentId,
+      };
+    });
 
     // 캠프 모드에서는 block_set_id를 null로 설정
     // 템플릿의 block_set_id는 template_block_sets 테이블의 ID이므로

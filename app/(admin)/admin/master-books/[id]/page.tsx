@@ -45,7 +45,7 @@ export default async function MasterBookDetailPage({
             { label: "교과", value: book.subject_category },
             { label: "과목", value: book.subject },
             { label: "출판사", value: book.publisher },
-            { label: "총 페이지", value: `${book.total_pages}p` },
+            { label: "총 페이지", value: book.total_pages ? `${book.total_pages}p` : null },
             { label: "난이도", value: book.difficulty_level },
             { label: "메모", value: book.notes },
           ]}
