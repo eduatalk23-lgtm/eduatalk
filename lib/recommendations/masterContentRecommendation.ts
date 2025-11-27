@@ -200,6 +200,7 @@ export async function getRecommendedMasterContents(
       weakSubjectsCount: weakSubjects.length,
       riskSubjectsCount: riskSubjects.length,
       hasScoreData,
+      requestedSubjectCounts: requestedSubjectCounts ? Object.fromEntries(requestedSubjectCounts) : null,
     });
     
     for (let i = 0; i < weakSubjects.length && i < 5; i++) {
@@ -219,6 +220,12 @@ export async function getRecommendedMasterContents(
       );
 
       // 최대 개수로 검색 (난이도 필터링은 정렬 후 적용)
+      console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 마스터 콘텐츠 조회 시작:`, {
+        subject,
+        tenantId,
+        studentId,
+      });
+      
       const [booksResult, lecturesResult] = await Promise.all([
         searchMasterBooks({
           subject_category: subject,
@@ -231,6 +238,14 @@ export async function getRecommendedMasterContents(
           limit: 10,
         }, supabase),
       ]);
+      
+      console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 마스터 콘텐츠 조회 결과:`, {
+        subject,
+        booksCount: booksResult.data.length,
+        lecturesCount: lecturesResult.data.length,
+        booksTotal: booksResult.total,
+        lecturesTotal: lecturesResult.total,
+      });
       
       console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 검색 결과:`, {
         subject,

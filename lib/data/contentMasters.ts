@@ -109,10 +109,28 @@ export async function searchMasterBooks(
     throw new Error(error.message || "교재 검색에 실패했습니다.");
   }
 
-  return {
+  const result = {
     data: (data as MasterBook[] | null) ?? [],
     total: count ?? 0,
   };
+
+  // 로그: 서비스 마스터 교재 조회 결과
+  console.log("[data/contentMasters] 서비스 마스터 교재 조회:", {
+    filters: {
+      subject: filters.subject,
+      subject_category: filters.subject_category,
+      semester: filters.semester,
+      tenantId: filters.tenantId,
+      limit: filters.limit,
+    },
+    result: {
+      count: result.data.length,
+      total: result.total,
+      titles: result.data.slice(0, 3).map(b => b.title), // 처음 3개만
+    },
+  });
+
+  return result;
 }
 
 /**
@@ -231,10 +249,28 @@ export async function searchMasterLectures(
     throw new Error(error.message || "강의 검색에 실패했습니다.");
   }
 
-  return {
+  const result = {
     data: (data as MasterLecture[] | null) ?? [],
     total: count ?? 0,
   };
+
+  // 로그: 서비스 마스터 강의 조회 결과
+  console.log("[data/contentMasters] 서비스 마스터 강의 조회:", {
+    filters: {
+      subject: filters.subject,
+      subject_category: filters.subject_category,
+      semester: filters.semester,
+      tenantId: filters.tenantId,
+      limit: filters.limit,
+    },
+    result: {
+      count: result.data.length,
+      total: result.total,
+      titles: result.data.slice(0, 3).map(l => l.title), // 처음 3개만
+    },
+  });
+
+  return result;
 }
 
 /**
