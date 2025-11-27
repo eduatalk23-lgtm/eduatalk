@@ -42,12 +42,12 @@ const studentCategories: NavigationCategory[] = [
   },
   {
     id: "camp",
-    label: "캠프 참여",
+    label: "캠프 관리",
     icon: "🏕️",
     items: [
       {
         id: "camp-main",
-        label: "캠프 참여",
+        label: "캠프 관리",
         href: "/camp",
         icon: "🏕️",
         children: [
@@ -56,6 +56,18 @@ const studentCategories: NavigationCategory[] = [
             label: "캠프 목록",
             href: "/camp",
             icon: "📋",
+          },
+          {
+            id: "camp-calendar",
+            label: "캠프 플랜 캘린더",
+            href: "/camp/calendar",
+            icon: "🗓️",
+          },
+          {
+            id: "camp-today",
+            label: "캠프 학습관리",
+            href: "/camp/today",
+            icon: "📅",
           },
         ],
       },

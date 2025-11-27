@@ -8,6 +8,7 @@ import {
   calculatePlanStudySeconds,
   buildActiveSessionMap,
 } from "@/lib/metrics/studyTime";
+import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -28,11 +29,13 @@ export type TodayProgress = {
  * @param studentId 학생 ID
  * @param tenantId 테넌트 ID
  * @param targetDate 계산할 날짜 (YYYY-MM-DD 형식, 기본값: 오늘)
+ * @param excludeCampMode 캠프 모드 플랜 제외 여부 (기본값: false)
  */
 export async function calculateTodayProgress(
   studentId: string,
   tenantId?: string | null,
-  targetDate?: string
+  targetDate?: string,
+  excludeCampMode: boolean = false
 ): Promise<TodayProgress> {
   try {
     // targetDate가 없으면 오늘 날짜 사용
@@ -47,10 +50,27 @@ export async function calculateTodayProgress(
     const targetEndStr = targetEnd.toISOString();
 
     // 1. 해당 날짜의 플랜 조회
+    let planGroupIds: string[] | undefined = undefined;
+    if (excludeCampMode) {
+      // 일반 모드: 캠프 플랜 그룹 제외
+      const allPlanGroups = await getPlanGroupsForStudent({
+        studentId,
+        tenantId,
+      });
+      const nonCampPlanGroups = allPlanGroups.filter(
+        (group) =>
+          group.plan_type !== "camp" &&
+          group.camp_template_id === null &&
+          group.camp_invitation_id === null
+      );
+      planGroupIds = nonCampPlanGroups.map((g) => g.id);
+    }
+
     const plans = await getPlansForStudent({
       studentId,
       tenantId,
       planDate: todayDate,
+      planGroupIds: planGroupIds && planGroupIds.length > 0 ? planGroupIds : undefined,
     });
 
     const planTotalCount = plans.length;

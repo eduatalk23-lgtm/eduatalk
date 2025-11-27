@@ -18,7 +18,10 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
   const categories = getCategoriesForRole(role);
   
   // 캠프 모드 감지: /plan/group/[id] 경로이고 camp=true 쿼리 파라미터가 있는 경우
-  const isCampMode = pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true";
+  // 또는 /camp/calendar, /camp/today 경로인 경우
+  const isCampMode = 
+    (pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true") ||
+    pathname?.startsWith("/camp/");
   
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
     // 현재 활성 카테고리 초기 확장

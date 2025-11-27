@@ -25,6 +25,7 @@ type PlanViewContainerProps = {
   initialPlanDate?: string | null;
   onDateChange?: (date: string, options?: { isToday: boolean }) => void;
   userId?: string;
+  campMode?: boolean;
 };
 
 type SessionState = {
@@ -75,6 +76,7 @@ export function PlanViewContainer({
   initialPlanDate = null,
   onDateChange,
   userId,
+  campMode = false,
 }: PlanViewContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
@@ -109,7 +111,14 @@ export function PlanViewContainer({
       }
 
       try {
-        const query = targetDate ? `?date=${targetDate}` : "";
+        const queryParams = new URLSearchParams();
+        if (targetDate) {
+          queryParams.set("date", targetDate);
+        }
+        if (campMode) {
+          queryParams.set("camp", "true");
+        }
+        const query = queryParams.toString() ? `?${queryParams.toString()}` : "";
         const response = await fetch(`/api/today/plans${query}`, {
           cache: "no-store",
         });

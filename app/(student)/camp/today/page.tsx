@@ -6,11 +6,11 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
-import { TodayHeader } from "./_components/TodayHeader";
-import { TodayPageContent } from "./_components/TodayPageContent";
-import { CurrentLearningSection } from "./_components/CurrentLearningSection";
+import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
+import { TodayPageContent } from "@/app/(student)/today/_components/TodayPageContent";
+import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";
 
-type TodayPageProps = {
+type CampTodayPageProps = {
   searchParams?:
     | ReadonlyURLSearchParams
     | URLSearchParams
@@ -22,7 +22,7 @@ type TodayPageProps = {
       >;
 };
 
-export default async function TodayPage({ searchParams }: TodayPageProps) {
+export default async function CampTodayPage({ searchParams }: CampTodayPageProps) {
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "student") {
@@ -103,14 +103,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const targetProgressDate = requestedDate ?? todayDate;
 
-  // 진행률 계산 (캠프 모드 제외)
+  // 진행률 계산 (캠프 모드 필터링은 calculateTodayProgress 내부에서 처리 필요)
+  // TODO: calculateTodayProgress에 캠프 모드 필터링 추가 필요
   const todayProgressPromise = calculateTodayProgress(
     userId,
     tenantContext?.tenantId || null,
-    targetProgressDate,
-    true // excludeCampMode: true
+    targetProgressDate
   ).catch((error) => {
-    console.error("[TodayPage] 진행률 계산 실패", error);
+    console.error("[CampTodayPage] 진행률 계산 실패", error);
     return {
       todayStudyMinutes: 0,
       planCompletedCount: 0,
@@ -125,7 +125,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
-        <TodayHeader />
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">캠프 학습관리</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              캠프 플랜을 확인하고 학습을 진행하세요
+            </p>
+          </div>
+        </div>
         <CurrentLearningSection />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="lg:col-span-8">
@@ -136,6 +143,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               initialProgress={todayProgress}
               showAchievements={false}
               userId={userId}
+              campMode={true}
             />
           </div>
           <div className="lg:col-span-4">
@@ -147,6 +155,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
                 initialProgress={todayProgress}
                 showPlans={false}
                 userId={userId}
+                campMode={true}
               />
             </div>
           </div>
@@ -155,3 +164,4 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     </div>
   );
 }
+

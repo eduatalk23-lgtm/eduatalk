@@ -13,6 +13,7 @@ import {
   apiUnauthorized,
   handleApiError,
 } from "@/lib/api";
+import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,12 +58,44 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestedDateParam = normalizeIsoDate(searchParams.get("date"));
     const targetDate = requestedDateParam ?? todayDate;
+    const isCampMode = searchParams.get("camp") === "true";
+
+    // 캠프 모드 필터링을 위한 플랜 그룹 조회
+    let planGroupIds: string[] | undefined = undefined;
+    if (isCampMode) {
+      // 캠프 모드: 캠프 플랜 그룹만 필터링
+      const allPlanGroups = await getPlanGroupsForStudent({
+        studentId: user.userId,
+        tenantId: tenantContext?.tenantId || null,
+      });
+      const campPlanGroups = allPlanGroups.filter(
+        (group) =>
+          group.plan_type === "camp" ||
+          group.camp_template_id !== null ||
+          group.camp_invitation_id !== null
+      );
+      planGroupIds = campPlanGroups.map((g) => g.id);
+    } else {
+      // 일반 모드: 캠프 플랜 그룹 제외
+      const allPlanGroups = await getPlanGroupsForStudent({
+        studentId: user.userId,
+        tenantId: tenantContext?.tenantId || null,
+      });
+      const nonCampPlanGroups = allPlanGroups.filter(
+        (group) =>
+          group.plan_type !== "camp" &&
+          group.camp_template_id === null &&
+          group.camp_invitation_id === null
+      );
+      planGroupIds = nonCampPlanGroups.map((g) => g.id);
+    }
 
     // 선택한 날짜 플랜 조회
     let plans = await getPlansForStudent({
       studentId: user.userId,
       tenantId: tenantContext?.tenantId || null,
       planDate: targetDate,
+      planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
     });
 
     let displayDate = targetDate;
@@ -81,6 +114,7 @@ export async function GET(request: Request) {
           start: todayDate,
           end: shortRangeEndDateStr,
         },
+        planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
       });
 
       if (futurePlans.length === 0) {
@@ -95,6 +129,7 @@ export async function GET(request: Request) {
             start: todayDate,
             end: longRangeEndDateStr,
           },
+          planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
         });
       }
 

@@ -10,7 +10,10 @@ function StudentCategoryNavContent() {
   const searchParams = useSearchParams();
   
   // 캠프 모드 감지: /plan/group/[id] 경로이고 camp=true 쿼리 파라미터가 있는 경우
-  const isCampMode = pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true";
+  // 또는 /camp/calendar, /camp/today 경로인 경우
+  const isCampMode = 
+    (pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true") ||
+    pathname?.startsWith("/camp/");
 
   // pathname이 /dashboard, /today, /plan, /contents, /analysis 중 하나와 매칭되는지 확인
   const isActive = (href: string) => {

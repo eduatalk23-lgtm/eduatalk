@@ -13,6 +13,7 @@ type TodayPageContentProps = {
   showPlans?: boolean;
   showAchievements?: boolean;
   userId?: string;
+  campMode?: boolean;
 };
 
 type ProgressResponse = {
@@ -28,6 +29,7 @@ export function TodayPageContent({
   showPlans = true,
   showAchievements = true,
   userId,
+  campMode = false,
 }: TodayPageContentProps) {
   const fallbackDate = initialPlanDate ?? initialProgressDate;
   const [selectedDate, setSelectedDate] = useState<string>(fallbackDate);
@@ -94,6 +96,7 @@ export function TodayPageContent({
           initialPlanDate={initialPlanDate}
           onDateChange={handleDateChange}
           userId={userId}
+          campMode={campMode}
         />
       )}
       {showAchievements && <TodayAchievements {...achievementsProps} />}
