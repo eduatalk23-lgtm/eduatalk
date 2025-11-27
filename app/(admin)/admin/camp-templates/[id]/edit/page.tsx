@@ -3,6 +3,8 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
 import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
 import { getTemplateBlockSet } from "@/app/(admin)/actions/campTemplateBlockSets";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getCampTemplateImpactSummary } from "@/lib/data/campTemplates";
 import { CampTemplateEditForm } from "./CampTemplateEditForm";
 
 export default async function EditCampTemplatePage({
@@ -51,6 +53,22 @@ export default async function EditCampTemplatePage({
       </section>
     );
   }
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-red-800">기관 정보를 찾을 수 없습니다.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const impactSummary = await getCampTemplateImpactSummary(
+    id,
+    tenantContext.tenantId
+  );
 
   // 테넌트 블록 세트 조회 및 템플릿에 연결된 블록 세트 확인
   let initialBlockSets: Array<{ id: string; name: string; blocks: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> }> = [];
@@ -108,6 +126,7 @@ export default async function EditCampTemplatePage({
           template={result.template} 
           initialBlockSets={initialBlockSets}
           selectedBlockSetId={selectedBlockSetId}
+          impactSummary={impactSummary}
         />
       </div>
     </section>

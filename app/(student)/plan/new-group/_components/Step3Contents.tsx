@@ -15,7 +15,7 @@ type Step3ContentsProps = {
     lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
-  onSaveDraft?: () => void;
+  onSaveDraft?: () => Promise<void> | void;
   isSavingDraft?: boolean;
   isCampMode?: boolean;
   editable?: boolean; // 편집 가능 여부 (기본값: true)

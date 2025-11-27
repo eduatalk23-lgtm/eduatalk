@@ -248,6 +248,107 @@ export async function getCampInvitationsForTemplate(
   }));
 }
 
+export type CampTemplateImpactSummary = {
+  invitationStats: {
+    pending: number;
+    accepted: number;
+    declined: number;
+  };
+  planGroupStats: {
+    draft: number;
+    saved: number;
+    active: number;
+    paused: number;
+    completed: number;
+    cancelled: number;
+  };
+  totalInvitations: number;
+  submittedInvitationCount: number;
+  hasPendingInvites: boolean;
+  hasAcceptedInvites: boolean;
+  hasReviewInProgress: boolean;
+  hasActivatedPlans: boolean;
+};
+
+export async function getCampTemplateImpactSummary(
+  templateId: string,
+  tenantId: string
+): Promise<CampTemplateImpactSummary> {
+  const supabase = await createSupabaseServerClient();
+
+  const invitationStats = {
+    pending: 0,
+    accepted: 0,
+    declined: 0,
+  };
+
+  const planGroupStats = {
+    draft: 0,
+    saved: 0,
+    active: 0,
+    paused: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+
+  const { data: invitations, error: invitationsError } = await supabase
+    .from("camp_invitations")
+    .select("id, status")
+    .eq("camp_template_id", templateId)
+    .eq("tenant_id", tenantId);
+
+  if (invitationsError) {
+    console.error(
+      "[data/campTemplates] 초대 통계 조회 실패",
+      invitationsError
+    );
+  } else {
+    (invitations || []).forEach((invitation) => {
+      const status = invitation.status as keyof typeof invitationStats;
+      if (status in invitationStats) {
+        invitationStats[status]++;
+      }
+    });
+  }
+
+  const submittedInvitationIds = new Set<string>();
+  const { data: planGroups, error: planGroupsError } = await supabase
+    .from("plan_groups")
+    .select("id, status, camp_invitation_id")
+    .eq("camp_template_id", templateId)
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null);
+
+  if (planGroupsError) {
+    console.error(
+      "[data/campTemplates] 플랜 그룹 통계 조회 실패",
+      planGroupsError
+    );
+  } else {
+    (planGroups || []).forEach((group) => {
+      if (group.camp_invitation_id) {
+        submittedInvitationIds.add(group.camp_invitation_id);
+      }
+      const status = group.status as keyof typeof planGroupStats;
+      if (status in planGroupStats) {
+        planGroupStats[status]++;
+      }
+    });
+  }
+
+  return {
+    invitationStats,
+    planGroupStats,
+    totalInvitations: invitations?.length || 0,
+    submittedInvitationCount: submittedInvitationIds.size,
+    hasPendingInvites: invitationStats.pending > 0,
+    hasAcceptedInvites: invitationStats.accepted > 0,
+    hasReviewInProgress:
+      planGroupStats.draft > 0 || planGroupStats.saved > 0,
+    hasActivatedPlans: planGroupStats.active > 0,
+  };
+}
+
 /**
  * 캠프 초대 삭제
  */

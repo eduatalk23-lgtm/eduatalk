@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 
 /**
  * 템플릿에 블록 세트 연결 (기존 연결이 있으면 업데이트)
@@ -13,10 +13,7 @@ async function _linkBlockSetToTemplate(
   templateId: string,
   blockSetId: string
 ): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -80,10 +77,7 @@ async function _linkBlockSetToTemplate(
  * 템플릿에서 블록 세트 연결 해제
  */
 async function _unlinkBlockSetFromTemplate(templateId: string): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -132,10 +126,7 @@ async function _getTemplateBlockSet(templateId: string): Promise<{
   name: string;
   blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
 } | null> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -224,10 +215,7 @@ async function _getBlockSetTemplates(blockSetId: string): Promise<
     program_type: string;
   }>
 > {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {

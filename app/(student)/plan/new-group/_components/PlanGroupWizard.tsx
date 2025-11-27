@@ -497,7 +497,10 @@ export function PlanGroupWizard({
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveSnapshotRef = useRef<string>("");
   const isInitialMountRef = useRef(true);
+  const shouldTrackAutoSave =
+    isCampMode && !isTemplateMode && !isAdminMode && !isAdminContinueMode;
 
   const updateWizardData = (updates: Partial<WizardData>) => {
     setWizardData((prev) => ({ ...prev, ...updates }));
@@ -720,79 +723,108 @@ export function PlanGroupWizard({
     }
   };
 
-  const handleSaveDraft = useCallback(async (silent = false) => {
-    // 최소 조건 체크: name이 있어야 저장
-    if (!wizardData.name || wizardData.name.trim() === "") {
-      if (!silent) {
-        setValidationErrors(["플랜 이름을 입력해주세요."]);
-      }
-      return;
+  const buildAutoSaveSnapshot = useCallback(() => {
+    if (!shouldTrackAutoSave) {
+      return "";
     }
 
-    // 템플릿 모드: 템플릿 업데이트
-    if (isTemplateMode) {
-      // 새 템플릿 생성 시에는 templateId가 없을 수 있음 (정상)
-      // 수정 모드일 때만 templateId 필요
-      if (!onTemplateSave) {
-        if (!silent) {
-          toast.showError("템플릿 저장에 실패했습니다.");
-        }
-        return;
-      }
+    try {
+      return JSON.stringify({
+        name: wizardData.name,
+        plan_purpose: wizardData.plan_purpose,
+        scheduler_type: wizardData.scheduler_type,
+        period_start: wizardData.period_start,
+        period_end: wizardData.period_end,
+        block_set_id: wizardData.block_set_id,
+        exclusions: wizardData.exclusions,
+        academy_schedules: wizardData.academy_schedules,
+        student_contents: wizardData.student_contents,
+      });
+    } catch (error) {
+      console.warn("[PlanGroupWizard] 자동 저장 스냅샷 생성 실패", error);
+      return "";
+    }
+  }, [
+    shouldTrackAutoSave,
+    wizardData.name,
+    wizardData.plan_purpose,
+    wizardData.scheduler_type,
+    wizardData.period_start,
+    wizardData.period_end,
+    wizardData.block_set_id,
+    wizardData.exclusions,
+    wizardData.academy_schedules,
+    wizardData.student_contents,
+  ]);
 
-      // 템플릿 모드: 새 템플릿 생성 또는 수정
-      startTransition(async () => {
-        try {
-          // 템플릿 모드에서는 block_set_id만 저장 (실제 블록 세트는 별도 테이블에 있음)
+  const handleSaveDraft = useCallback(
+    (silent = false, nextSnapshot?: string | null) => {
+      const executeSave = async () => {
+        if (!wizardData.name || wizardData.name.trim() === "") {
+          if (!silent) {
+            setValidationErrors(["플랜 이름을 입력해주세요."]);
+          }
+          if (!silent && shouldTrackAutoSave) {
+            setAutoSaveStatus("idle");
+          }
+          return;
+        }
+
+        if (isTemplateMode) {
+          if (!onTemplateSave) {
+            if (!silent) {
+              toast.showError("템플릿 저장에 실패했습니다.");
+            }
+            return;
+          }
+
           const templateWizardData = {
             ...wizardData,
-            // block_set 객체는 제거 (불필요)
           } as WizardData;
 
-          if (templateId) {
-            // 수정 모드: 기존 템플릿 업데이트
-            const formData = new FormData();
-            formData.append("name", wizardData.name);
-            formData.append("program_type", templateProgramType);
-            formData.append("description", "");
-            formData.append("status", templateStatus);
-            formData.append("template_data", JSON.stringify(templateWizardData));
+          try {
+            if (templateId) {
+              const formData = new FormData();
+              formData.append("name", wizardData.name);
+              formData.append("program_type", templateProgramType);
+              formData.append("description", "");
+              formData.append("status", templateStatus);
+              formData.append("template_data", JSON.stringify(templateWizardData));
 
-            const result = await updateCampTemplateAction(templateId, formData);
-            if (!result.success) {
-              throw new Error(result.error || "템플릿 저장에 실패했습니다.");
+              const result = await updateCampTemplateAction(templateId, formData);
+              if (!result.success) {
+                throw new Error(result.error || "템플릿 저장에 실패했습니다.");
+              }
+            } else {
+              await onTemplateSave(templateWizardData);
             }
-          } else {
-            // 새 템플릿 생성: onTemplateSave 호출 (createCampTemplateAction 실행)
-            await onTemplateSave(templateWizardData);
-          }
 
-          if (!silent) {
-            toast.showSuccess("저장되었습니다.");
+            if (!silent) {
+              toast.showSuccess("저장되었습니다.");
+            }
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : "템플릿 저장에 실패했습니다.";
+            if (!silent) {
+              toast.showError(errorMessage);
+            }
           }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "템플릿 저장에 실패했습니다.";
-          if (!silent) {
-            toast.showError(errorMessage);
-          }
+          return;
         }
-      });
-      return;
-    }
 
-    // 일반 모드: 플랜 그룹 임시 저장
-    // Step 1이 완료되지 않았으면 저장하지 않음
-    if (currentStep === 1 && (!wizardData.plan_purpose || !wizardData.scheduler_type || !wizardData.period_start || !wizardData.period_end)) {
-      if (!silent) {
-        setAutoSaveStatus("idle");
-      }
-      return;
-    }
+        if (
+          currentStep === 1 &&
+          (!wizardData.plan_purpose ||
+            !wizardData.scheduler_type ||
+            !wizardData.period_start ||
+            !wizardData.period_end)
+        ) {
+          if (!silent) {
+            setAutoSaveStatus("idle");
+          }
+          return;
+        }
 
-    setAutoSaveStatus("saving");
-
-    startTransition(async () => {
-      try {
         // 데이터 일관성 검증
         const consistencyCheck = validateDataConsistency(wizardData);
         if (!consistencyCheck.valid) {
@@ -804,15 +836,14 @@ export function PlanGroupWizard({
           );
         }
 
+        const snapshotValue =
+          nextSnapshot ?? (shouldTrackAutoSave ? buildAutoSaveSnapshot() : null);
+
         // 데이터 변환 (일관성 보장)
         const creationData = syncWizardDataToCreationData(wizardData);
 
-        // 캠프 모드에서는 block_set_id가 template_block_sets 테이블의 ID이므로
-        // plan_groups.block_set_id (student_block_sets 참조)에 저장할 수 없음
-        // 따라서 null로 설정
         if (isCampMode) {
           creationData.block_set_id = null;
-          // 캠프 관련 필드 설정
           if (campInvitationId) {
             creationData.camp_invitation_id = campInvitationId;
           }
@@ -823,15 +854,17 @@ export function PlanGroupWizard({
         }
 
         if (draftGroupId) {
-          // 기존 draft 업데이트
           await updatePlanGroupDraftAction(draftGroupId, creationData);
-          toast.showSuccess("저장되었습니다.");
+          if (!silent) {
+            toast.showSuccess("저장되었습니다.");
+          }
         } else {
-          // 새 draft 생성
           const result = await savePlanGroupDraftAction(creationData);
           if (result?.groupId) {
             setDraftGroupId(result.groupId);
-            toast.showSuccess("저장되었습니다.");
+            if (!silent) {
+              toast.showSuccess("저장되었습니다.");
+            }
           } else {
             throw new PlanGroupError(
               "Draft 생성 결과가 없습니다.",
@@ -841,21 +874,124 @@ export function PlanGroupWizard({
             );
           }
         }
-      } catch (error) {
-        const planGroupError = toPlanGroupError(
-          error,
-          PlanGroupErrorCodes.DRAFT_SAVE_FAILED
-        );
-        toast.showError(planGroupError.userMessage);
-        setValidationErrors([planGroupError.userMessage]);
-        
-        // 복구 불가능한 에러인 경우 로깅
-        if (!isRecoverableError(planGroupError)) {
-          console.error("[PlanGroupWizard] Draft 저장 실패:", planGroupError);
+
+        if (snapshotValue) {
+          autoSaveSnapshotRef.current = snapshotValue;
         }
+
+        if (!silent && shouldTrackAutoSave) {
+          setAutoSaveStatus("saved");
+          setLastSavedAt(new Date());
+        }
+      };
+
+      if (!silent && shouldTrackAutoSave) {
+        setAutoSaveStatus("saving");
       }
-    });
-  }, [wizardData, currentStep, draftGroupId, toast, isTemplateMode, templateId, templateProgramType, templateStatus, onTemplateSave, blockSets]);
+
+      return new Promise<void>((resolve, reject) => {
+        startTransition(() => {
+          executeSave()
+            .then(resolve)
+            .catch((error) => {
+              const planGroupError = toPlanGroupError(
+                error,
+                PlanGroupErrorCodes.DRAFT_SAVE_FAILED
+              );
+              if (!silent) {
+                toast.showError(planGroupError.userMessage);
+                setValidationErrors([planGroupError.userMessage]);
+                setAutoSaveStatus("error");
+              }
+              if (!isRecoverableError(planGroupError)) {
+                console.error("[PlanGroupWizard] Draft 저장 실패:", planGroupError);
+              }
+              reject(error);
+            });
+        });
+      });
+    },
+    [
+      wizardData,
+      shouldTrackAutoSave,
+      isTemplateMode,
+      onTemplateSave,
+      templateId,
+      templateProgramType,
+      templateStatus,
+      toast,
+      currentStep,
+      isCampMode,
+      campInvitationId,
+      initialData?.templateId,
+      draftGroupId,
+      buildAutoSaveSnapshot,
+    ]
+  );
+
+  useEffect(() => {
+    if (!shouldTrackAutoSave) {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
+      }
+      if (autoSaveStatus !== "idle") {
+        setAutoSaveStatus("idle");
+      }
+      return;
+    }
+
+    const snapshot = buildAutoSaveSnapshot();
+    if (!snapshot) {
+      return;
+    }
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      autoSaveSnapshotRef.current = snapshot;
+      return;
+    }
+
+    if (snapshot === autoSaveSnapshotRef.current) {
+      return;
+    }
+
+    if (!wizardData.name || !wizardData.period_start || !wizardData.period_end) {
+      return;
+    }
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus("saving");
+      handleSaveDraft(true, snapshot)
+        .then(() => {
+          autoSaveSnapshotRef.current = snapshot;
+          setLastSavedAt(new Date());
+          setAutoSaveStatus("saved");
+        })
+        .catch(() => {
+          setAutoSaveStatus("error");
+        });
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+        autoSaveTimeoutRef.current = null;
+      }
+    };
+  }, [
+    shouldTrackAutoSave,
+    buildAutoSaveSnapshot,
+    handleSaveDraft,
+    wizardData.name,
+    wizardData.period_start,
+    wizardData.period_end,
+    autoSaveStatus,
+  ]);
 
   const handleSubmit = (generatePlans: boolean = true) => {
     // Step 6 검증 (학습 분량 관련만)

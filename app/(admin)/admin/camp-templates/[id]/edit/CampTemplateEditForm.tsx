@@ -14,11 +14,14 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { BlockSetWithBlocks } from "@/lib/data/blockSets";
 import { TemplateFormChecklist } from "../../_components/TemplateFormChecklist";
+import { CampTemplateImpactSummary } from "@/lib/data/campTemplates";
+import Link from "next/link";
 
 type CampTemplateEditFormProps = {
   template: CampTemplate;
   initialBlockSets: BlockSetWithBlocks[];
   selectedBlockSetId?: string | null;
+  impactSummary?: CampTemplateImpactSummary | null;
 };
 
 const programTypes: Array<{ value: CampProgramType; label: string }> = [
@@ -41,6 +44,7 @@ export function CampTemplateEditForm({
   template,
   initialBlockSets,
   selectedBlockSetId = null,
+  impactSummary,
 }: CampTemplateEditFormProps) {
   const router = useRouter();
   const toast = useToast();
@@ -145,8 +149,75 @@ export function CampTemplateEditForm({
     });
   }
 
+  const hasLiveInvites =
+    !!impactSummary &&
+    (impactSummary.hasPendingInvites || impactSummary.hasAcceptedInvites);
+  const hasReviewInProgress = !!impactSummary && impactSummary.hasReviewInProgress;
+  const hasActivatedPlans = !!impactSummary && impactSummary.hasActivatedPlans;
+
   return (
     <div className="flex flex-col gap-6">
+      {impactSummary && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-amber-700">
+                초대 현황
+              </p>
+              <p className="text-base font-semibold">
+                대기 {impactSummary.invitationStats.pending} · 참여{" "}
+                {impactSummary.invitationStats.accepted} · 거절{" "}
+                {impactSummary.invitationStats.declined}
+              </p>
+            </div>
+            <div className="h-6 w-px bg-amber-200" aria-hidden="true" />
+            <div>
+              <p className="text-xs uppercase tracking-wide text-amber-700">
+                플랜 진행
+              </p>
+              <p className="text-base font-semibold">
+                작성 중 {impactSummary.planGroupStats.draft} · 검토 중{" "}
+                {impactSummary.planGroupStats.saved} · 활성{" "}
+                {impactSummary.planGroupStats.active}
+              </p>
+            </div>
+          </div>
+          {(hasLiveInvites || hasReviewInProgress || hasActivatedPlans) && (
+            <div className="mt-3 space-y-2">
+              <p className="font-semibold">
+                이미 진행 중인 초대가 있어 템플릿 변경 반영에 제한이 있습니다.
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                {hasLiveInvites && (
+                  <li>
+                    템플릿 수정 내용은 새로 발송하는 초대부터 적용됩니다. 현재
+                    초대받은 학생에게는 영향을 주지 않습니다.
+                  </li>
+                )}
+                {hasReviewInProgress && (
+                  <li>
+                    제출·검토 중인 캠프 참여 데이터가 있어, 변경 후 학생 데이터와
+                    불일치가 발생할 수 있습니다.
+                  </li>
+                )}
+                {hasActivatedPlans && (
+                  <li>
+                    이미 활성화된 플랜이 있어 구조 변경(블록 세트, 기간 등)은
+                    권장하지 않습니다. 필요한 경우 새 템플릿을 복제해 사용하세요.
+                  </li>
+                )}
+              </ul>
+              <Link
+                href={`/admin/camp-templates/${template.id}/participants`}
+                className="inline-flex items-center gap-1 text-sm font-semibold text-amber-900 underline-offset-4 hover:underline"
+              >
+                참여자 현황 확인 →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 기본 정보 체크리스트 */}
       <TemplateFormChecklist name={templateName} programType={programType} />
 
