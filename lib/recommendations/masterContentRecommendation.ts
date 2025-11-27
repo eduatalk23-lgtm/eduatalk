@@ -609,18 +609,30 @@ export async function getRecommendedMasterContents(
         );
 
         if (!hasSubject) {
+          console.log(`[recommendations/masterContent] 필수 과목 "${requiredSubject}" 기본 추천 조회:`, {
+            subject: requiredSubject,
+            tenantId,
+            studentId,
+          });
+          
           const [booksResult, lecturesResult] = await Promise.all([
             searchMasterBooks({
               subject_category: requiredSubject,
               tenantId,
               limit: 3,
-            }),
+            }, supabase),
             searchMasterLectures({
               subject_category: requiredSubject,
               tenantId,
               limit: 3,
-            }),
+            }, supabase),
           ]);
+          
+          console.log(`[recommendations/masterContent] 필수 과목 "${requiredSubject}" 기본 추천 조회 결과:`, {
+            subject: requiredSubject,
+            booksCount: booksResult.data.length,
+            lecturesCount: lecturesResult.data.length,
+          });
 
           // 최신 개정판 우선 정렬
           const sortedBooks = sortByRevision(booksResult.data);
