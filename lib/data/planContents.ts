@@ -217,16 +217,25 @@ export async function classifyPlanContents(
       if (content.master_content_id) {
         masterBookIds.push(content.master_content_id);
       }
+      // content_id 자체가 마스터 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함
+      // (중복 제거는 Set을 사용하지 않고 배열에 push 후 나중에 조회 시 처리)
+      masterBookIds.push(content.content_id);
     } else if (content.content_type === "lecture") {
       lectureContentIds.push(content.content_id);
       // plan_contents에 저장된 master_content_id가 있으면 마스터 콘텐츠 ID로도 수집
       if (content.master_content_id) {
         masterLectureIds.push(content.master_content_id);
       }
+      // content_id 자체가 마스터 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함
+      masterLectureIds.push(content.content_id);
     } else if (content.content_type === "custom") {
       customContentIds.push(content.content_id);
     }
   });
+
+  // 중복 제거
+  const uniqueMasterBookIds = [...new Set(masterBookIds)];
+  const uniqueMasterLectureIds = [...new Set(masterLectureIds)];
 
   if (process.env.NODE_ENV === "development") {
     console.log("[classifyPlanContents] 콘텐츠 ID 분류:", {
@@ -241,6 +250,7 @@ export async function classifyPlanContents(
 
   // 2. 배치 조회 (N+1 문제 해결)
   // plan_contents.master_content_id를 우선 활용하여 마스터 콘텐츠 조회
+  // content_id 자체가 마스터 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함
   const [
     masterBooksResult,
     masterLecturesResult,
@@ -248,18 +258,18 @@ export async function classifyPlanContents(
     studentLecturesResult,
     customContentsResult,
   ] = await Promise.all([
-    // 마스터 콘텐츠 조회 (plan_contents.master_content_id 우선)
-    masterBookIds.length > 0
+    // 마스터 콘텐츠 조회 (plan_contents.master_content_id + content_id)
+    uniqueMasterBookIds.length > 0
       ? supabase
           .from("master_books")
           .select("id, title, subject_category, subject")
-          .in("id", masterBookIds)
+          .in("id", uniqueMasterBookIds)
       : Promise.resolve({ data: [], error: null }),
-    masterLectureIds.length > 0
+    uniqueMasterLectureIds.length > 0
       ? supabase
           .from("master_lectures")
           .select("id, title, subject_category, subject")
-          .in("id", masterLectureIds)
+          .in("id", uniqueMasterLectureIds)
       : Promise.resolve({ data: [], error: null }),
     // 학생 콘텐츠 조회
     bookContentIds.length > 0
@@ -304,6 +314,11 @@ export async function classifyPlanContents(
         ids: studentBooksResult.data?.map((b) => b.id) || [],
         masterContentIds: studentBooksResult.data?.map((b) => b.master_content_id).filter(Boolean) || [],
         error: studentBooksResult.error?.message || null,
+        queryParams: {
+          studentId,
+          bookContentIds,
+          searchedIds: bookContentIds,
+        },
       },
       studentLectures: {
         count: studentLecturesResult.data?.length || 0,
@@ -468,12 +483,34 @@ export async function classifyPlanContents(
           recommendation_metadata: content.recommendation_metadata ?? null,
         };
       } else {
-        // 둘 다 없는 경우
-        missingContents.push({
-          content_type: "book",
-          content_id: content.content_id,
-          reason: `학생(${studentId})의 교재를 찾을 수 없습니다. master_books에도 존재하지 않습니다.`,
-        });
+        // 학생 콘텐츠도 없고 plan_contents의 master_content_id로도 조회 실패
+        // content_id 자체가 마스터 콘텐츠 ID인지 확인 (이미 masterBooksMap에 조회됨)
+        const masterBookByContentId = masterBooksMap.get(content.content_id);
+        if (masterBookByContentId) {
+          // content_id가 마스터 콘텐츠 ID인 경우 → 추천 콘텐츠
+          contentDetail = {
+            content_type: "book",
+            content_id: content.content_id,
+            start_range: content.start_range,
+            end_range: content.end_range,
+            title: masterBookByContentId.title || "제목 없음",
+            subject_category: masterBookByContentId.subject_category || masterBookByContentId.subject || null,
+            isRecommended: true, // 마스터 콘텐츠이므로 추천 콘텐츠
+            masterContentId: content.content_id, // content_id 자체가 마스터 ID
+            // 자동 추천 정보 전달
+            is_auto_recommended: content.is_auto_recommended ?? false,
+            recommendation_source: content.recommendation_source ?? null,
+            recommendation_reason: content.recommendation_reason ?? null,
+            recommendation_metadata: content.recommendation_metadata ?? null,
+          };
+        } else {
+          // 정말로 찾을 수 없는 경우
+          missingContents.push({
+            content_type: "book",
+            content_id: content.content_id,
+            reason: `학생(${studentId})의 교재를 찾을 수 없습니다. master_books에도 존재하지 않습니다.`,
+          });
+        }
       }
     } else if (content.content_type === "lecture") {
       // 1. plan_contents에 저장된 master_content_id가 있으면 우선 활용
@@ -540,12 +577,34 @@ export async function classifyPlanContents(
           recommendation_metadata: content.recommendation_metadata ?? null,
         };
       } else {
-        // 둘 다 없는 경우
-        missingContents.push({
-          content_type: "lecture",
-          content_id: content.content_id,
-          reason: `학생(${studentId})의 강의를 찾을 수 없습니다. master_lectures에도 존재하지 않습니다.`,
-        });
+        // 학생 콘텐츠도 없고 plan_contents의 master_content_id로도 조회 실패
+        // content_id 자체가 마스터 콘텐츠 ID인지 확인 (이미 masterLecturesMap에 조회됨)
+        const masterLectureByContentId = masterLecturesMap.get(content.content_id);
+        if (masterLectureByContentId) {
+          // content_id가 마스터 콘텐츠 ID인 경우 → 추천 콘텐츠
+          contentDetail = {
+            content_type: "lecture",
+            content_id: content.content_id,
+            start_range: content.start_range,
+            end_range: content.end_range,
+            title: masterLectureByContentId.title || "제목 없음",
+            subject_category: masterLectureByContentId.subject_category || masterLectureByContentId.subject || null,
+            isRecommended: true, // 마스터 콘텐츠이므로 추천 콘텐츠
+            masterContentId: content.content_id, // content_id 자체가 마스터 ID
+            // 자동 추천 정보 전달
+            is_auto_recommended: content.is_auto_recommended ?? false,
+            recommendation_source: content.recommendation_source ?? null,
+            recommendation_reason: content.recommendation_reason ?? null,
+            recommendation_metadata: content.recommendation_metadata ?? null,
+          };
+        } else {
+          // 정말로 찾을 수 없는 경우
+          missingContents.push({
+            content_type: "lecture",
+            content_id: content.content_id,
+            reason: `학생(${studentId})의 강의를 찾을 수 없습니다. master_lectures에도 존재하지 않습니다.`,
+          });
+        }
       }
     } else if (content.content_type === "custom") {
       // 커스텀 콘텐츠는 항상 학생 콘텐츠
