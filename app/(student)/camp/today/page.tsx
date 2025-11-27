@@ -9,6 +9,8 @@ import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
 import { TodayPageContent } from "@/app/(student)/today/_components/TodayPageContent";
 import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";
+import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type CampTodayPageProps = {
   searchParams?:
@@ -102,6 +104,50 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   const todayDate = today.toISOString().slice(0, 10);
 
   const targetProgressDate = requestedDate ?? todayDate;
+
+  // 활성화된 캠프 플랜 그룹 확인
+  const supabase = await createSupabaseServerClient();
+  const allActivePlanGroups = await getPlanGroupsForStudent({
+    studentId: userId,
+    status: "active",
+  });
+
+  // 캠프 모드 플랜 그룹만 필터링
+  const activeCampPlanGroups = allActivePlanGroups.filter(
+    (group) =>
+      group.plan_type === "camp" ||
+      group.camp_template_id !== null ||
+      group.camp_invitation_id !== null
+  );
+
+  // 활성 캠프 플랜 그룹이 없을 때 안내 메시지 표시
+  if (activeCampPlanGroups.length === 0) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">캠프 학습관리</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                캠프 플랜을 확인하고 학습을 진행하세요
+              </p>
+            </div>
+          </div>
+          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
+            <div className="mx-auto flex max-w-md flex-col gap-4">
+              <div className="text-6xl">🏕️</div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                활성화된 캠프 플랜 그룹이 없습니다
+              </h3>
+              <p className="text-sm text-gray-500">
+                캠프 프로그램에 참여하고 플랜이 활성화되면 여기서 확인할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 진행률 계산 (캠프 모드 필터링은 calculateTodayProgress 내부에서 처리 필요)
   // TODO: calculateTodayProgress에 캠프 모드 필터링 추가 필요

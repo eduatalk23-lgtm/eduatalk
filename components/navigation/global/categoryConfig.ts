@@ -46,30 +46,22 @@ const studentCategories: NavigationCategory[] = [
     icon: "🏕️",
     items: [
       {
-        id: "camp-main",
-        label: "캠프 관리",
+        id: "camp-list",
+        label: "캠프 목록",
         href: "/camp",
-        icon: "🏕️",
-        children: [
-          {
-            id: "camp-list",
-            label: "캠프 목록",
-            href: "/camp",
-            icon: "📋",
-          },
-          {
-            id: "camp-calendar",
-            label: "캠프 플랜 캘린더",
-            href: "/camp/calendar",
-            icon: "🗓️",
-          },
-          {
-            id: "camp-today",
-            label: "캠프 학습관리",
-            href: "/camp/today",
-            icon: "📅",
-          },
-        ],
+        icon: "📋",
+      },
+      {
+        id: "camp-calendar",
+        label: "캠프 플랜 캘린더",
+        href: "/camp/calendar",
+        icon: "🗓️",
+      },
+      {
+        id: "camp-today",
+        label: "캠프 학습관리",
+        href: "/camp/today",
+        icon: "📅",
       },
     ],
   },

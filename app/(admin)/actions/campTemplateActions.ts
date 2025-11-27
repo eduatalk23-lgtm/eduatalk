@@ -2671,10 +2671,12 @@ export const updateCampPlanGroupStatus = withErrorHandling(
         );
       }
 
-      // 활성화 시 다른 활성 플랜 그룹 비활성화 (학생별로 1개만 활성 가능)
-      const { data: activeGroups, error: activeGroupsError } = await supabase
+      // 활성화 시 같은 모드(캠프 모드)의 다른 활성 플랜 그룹만 비활성화
+      // 일반 모드와 캠프 모드는 각각 1개씩 활성화 가능
+      // 이 함수는 캠프 플랜 그룹 활성화이므로, 캠프 모드 활성 플랜 그룹만 비활성화
+      const { data: allActiveGroups, error: activeGroupsError } = await supabase
         .from("plan_groups")
-        .select("id")
+        .select("id, plan_type, camp_template_id, camp_invitation_id")
         .eq("student_id", group.student_id)
         .eq("status", "active")
         .neq("id", groupId)
@@ -2685,20 +2687,30 @@ export const updateCampPlanGroupStatus = withErrorHandling(
           "[campTemplateActions] 활성 플랜 그룹 조회 실패",
           activeGroupsError
         );
-      } else if (activeGroups && activeGroups.length > 0) {
-        // 다른 활성 플랜 그룹들을 "saved" 상태로 변경
-        const activeGroupIds = activeGroups.map((g) => g.id);
-        const { error: deactivateError } = await supabase
-          .from("plan_groups")
-          .update({ status: "saved", updated_at: new Date().toISOString() })
-          .in("id", activeGroupIds);
+      } else if (allActiveGroups && allActiveGroups.length > 0) {
+        // 캠프 모드 활성 플랜 그룹만 필터링
+        const campModeGroups = allActiveGroups.filter(
+          (g) =>
+            g.plan_type === "camp" ||
+            g.camp_template_id !== null ||
+            g.camp_invitation_id !== null
+        );
 
-        if (deactivateError) {
-          console.error(
-            "[campTemplateActions] 다른 활성 플랜 그룹 비활성화 실패",
-            deactivateError
-          );
-          // 비활성화 실패해도 계속 진행 (경고만)
+        if (campModeGroups.length > 0) {
+          // 같은 모드(캠프 모드)의 다른 활성 플랜 그룹들을 "saved" 상태로 변경
+          const activeGroupIds = campModeGroups.map((g) => g.id);
+          const { error: deactivateError } = await supabase
+            .from("plan_groups")
+            .update({ status: "saved", updated_at: new Date().toISOString() })
+            .in("id", activeGroupIds);
+
+          if (deactivateError) {
+            console.error(
+              "[campTemplateActions] 같은 모드(캠프 모드)의 다른 활성 플랜 그룹 비활성화 실패",
+              deactivateError
+            );
+            // 비활성화 실패해도 계속 진행 (경고만)
+          }
         }
       }
     }

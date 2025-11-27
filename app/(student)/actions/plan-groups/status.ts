@@ -43,36 +43,56 @@ async function _updatePlanGroupStatus(
 
   const supabase = await createSupabaseServerClient();
 
-  // 활성화 시 다른 활성 플랜 그룹 비활성화 (1개만 활성 가능)
+  // 활성화 시 같은 모드의 다른 활성 플랜 그룹만 비활성화
+  // 일반 모드와 캠프 모드는 각각 1개씩 활성화 가능
   if (status === "active") {
-    // 현재 활성 상태인 다른 플랜 그룹 조회
-    const { data: activeGroups, error: activeGroupsError } = await supabase
+    // 현재 활성화하려는 그룹이 캠프 모드인지 확인
+    const isCampMode =
+      group.plan_type === "camp" ||
+      group.camp_template_id !== null ||
+      group.camp_invitation_id !== null;
+
+    // 같은 모드의 활성 플랜 그룹만 조회
+    let query = supabase
       .from("plan_groups")
-      .select("id")
+      .select("id, plan_type, camp_template_id, camp_invitation_id")
       .eq("student_id", user.userId)
       .eq("status", "active")
       .neq("id", groupId)
       .is("deleted_at", null);
+
+    const { data: allActiveGroups, error: activeGroupsError } = await query;
 
     if (activeGroupsError) {
       console.error(
         "[planGroupActions] 활성 플랜 그룹 조회 실패",
         activeGroupsError
       );
-    } else if (activeGroups && activeGroups.length > 0) {
-      // 다른 활성 플랜 그룹들을 "saved" 상태로 변경
-      const activeGroupIds = activeGroups.map((g) => g.id);
-      const { error: deactivateError } = await supabase
-        .from("plan_groups")
-        .update({ status: "saved" })
-        .in("id", activeGroupIds);
+    } else if (allActiveGroups && allActiveGroups.length > 0) {
+      // 같은 모드의 활성 플랜 그룹만 필터링
+      const sameModeGroups = allActiveGroups.filter((g) => {
+        const gIsCampMode =
+          g.plan_type === "camp" ||
+          g.camp_template_id !== null ||
+          g.camp_invitation_id !== null;
+        return isCampMode === gIsCampMode;
+      });
 
-      if (deactivateError) {
-        console.error(
-          "[planGroupActions] 다른 활성 플랜 그룹 비활성화 실패",
-          deactivateError
-        );
-        // 비활성화 실패해도 계속 진행 (경고만)
+      if (sameModeGroups.length > 0) {
+        // 같은 모드의 다른 활성 플랜 그룹들을 "saved" 상태로 변경
+        const activeGroupIds = sameModeGroups.map((g) => g.id);
+        const { error: deactivateError } = await supabase
+          .from("plan_groups")
+          .update({ status: "saved" })
+          .in("id", activeGroupIds);
+
+        if (deactivateError) {
+          console.error(
+            "[planGroupActions] 같은 모드의 다른 활성 플랜 그룹 비활성화 실패",
+            deactivateError
+          );
+          // 비활성화 실패해도 계속 진행 (경고만)
+        }
       }
     }
   }

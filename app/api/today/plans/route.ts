@@ -60,15 +60,17 @@ export async function GET(request: Request) {
     const targetDate = requestedDateParam ?? todayDate;
     const isCampMode = searchParams.get("camp") === "true";
 
-    // 캠프 모드 필터링을 위한 플랜 그룹 조회
+    // 활성 플랜 그룹만 조회 (캠프 모드/일반 모드 필터링)
     let planGroupIds: string[] | undefined = undefined;
+    const allActivePlanGroups = await getPlanGroupsForStudent({
+      studentId: user.userId,
+      tenantId: tenantContext?.tenantId || null,
+      status: "active",
+    });
+
     if (isCampMode) {
-      // 캠프 모드: 캠프 플랜 그룹만 필터링
-      const allPlanGroups = await getPlanGroupsForStudent({
-        studentId: user.userId,
-        tenantId: tenantContext?.tenantId || null,
-      });
-      const campPlanGroups = allPlanGroups.filter(
+      // 캠프 모드: 캠프 활성 플랜 그룹만 필터링
+      const campPlanGroups = allActivePlanGroups.filter(
         (group) =>
           group.plan_type === "camp" ||
           group.camp_template_id !== null ||
@@ -76,12 +78,8 @@ export async function GET(request: Request) {
       );
       planGroupIds = campPlanGroups.map((g) => g.id);
     } else {
-      // 일반 모드: 캠프 플랜 그룹 제외
-      const allPlanGroups = await getPlanGroupsForStudent({
-        studentId: user.userId,
-        tenantId: tenantContext?.tenantId || null,
-      });
-      const nonCampPlanGroups = allPlanGroups.filter(
+      // 일반 모드: 일반 활성 플랜 그룹만 필터링
+      const nonCampPlanGroups = allActivePlanGroups.filter(
         (group) =>
           group.plan_type !== "camp" &&
           group.camp_template_id === null &&

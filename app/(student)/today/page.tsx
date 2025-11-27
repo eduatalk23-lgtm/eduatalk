@@ -9,6 +9,7 @@ import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPageContent } from "./_components/TodayPageContent";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
+import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 
 type TodayPageProps = {
   searchParams?:
@@ -102,6 +103,42 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const todayDate = today.toISOString().slice(0, 10);
 
   const targetProgressDate = requestedDate ?? todayDate;
+
+  // 활성화된 일반 플랜 그룹 확인
+  const allActivePlanGroups = await getPlanGroupsForStudent({
+    studentId: userId,
+    status: "active",
+  });
+
+  // 일반 모드 플랜 그룹만 필터링 (캠프 모드 제외)
+  const activePlanGroups = allActivePlanGroups.filter(
+    (group) =>
+      group.plan_type !== "camp" &&
+      group.camp_template_id === null &&
+      group.camp_invitation_id === null
+  );
+
+  // 활성 일반 플랜 그룹이 없을 때 안내 메시지 표시
+  if (activePlanGroups.length === 0) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        <div className="flex flex-col gap-6">
+          <TodayHeader />
+          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
+            <div className="mx-auto flex max-w-md flex-col gap-4">
+              <div className="text-6xl">📚</div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                활성화된 플랜 그룹이 없습니다
+              </h3>
+              <p className="text-sm text-gray-500">
+                플랜 그룹을 생성하고 활성화하면 여기서 확인할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 진행률 계산 (캠프 모드 제외)
   const todayProgressPromise = calculateTodayProgress(
