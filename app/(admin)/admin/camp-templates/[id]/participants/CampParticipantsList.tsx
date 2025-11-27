@@ -982,7 +982,7 @@ export function CampParticipantsList({
                                     상세 보기
                                   </Link>
                                   <Link
-                                    href={`/plan/group/${participant.plan_group_id}`}
+                                    href={`/admin/plan-groups/${participant.plan_group_id}`}
                                     className="text-indigo-600 hover:text-indigo-800 text-xs"
                                   >
                                     플랜 보기
