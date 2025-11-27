@@ -36,7 +36,7 @@ export default async function Home() {
   } else if (role === "student") {
     redirect("/dashboard");
   } else {
-    // role이 null이면 학생 설정 페이지로
-    redirect("/student-setup");
+    // role이 null이면 마이페이지로 (초기 설정)
+    redirect("/settings");
   }
 }

@@ -82,6 +82,11 @@ export default function SettingsPage() {
   // 초기 폼 데이터 참조 (변경사항 추적용)
   const initialFormDataRef = useRef<StudentFormData | null>(null);
 
+  // 초기 설정 모드 감지 (학생 정보가 없을 때)
+  const isInitialSetup = useMemo(() => {
+    return student === null;
+  }, [student]);
+
   // Student 데이터를 FormData로 변환하는 헬퍼 함수
   const transformStudentToFormData = useCallback(
     async (studentData: Student & { desired_career_field?: string }): Promise<StudentFormData> => {
@@ -221,8 +226,14 @@ export default function SettingsPage() {
           }
         } else {
           // 학생 정보가 없으면 빈 폼으로 시작
-          // 기본값은 이미 useState에서 설정되어 있음
-          initialFormDataRef.current = formData;
+          // 이름은 user_metadata의 display_name을 기본값으로 사용
+          const displayName = (user.user_metadata?.display_name as string | undefined) || "";
+          const initialFormData: StudentFormData = {
+            ...formData,
+            name: displayName,
+          };
+          setFormData(initialFormData);
+          initialFormDataRef.current = initialFormData;
         }
       } catch (err) {
         console.error("학생 정보 로드 실패:", err);
@@ -511,6 +522,12 @@ export default function SettingsPage() {
             isSavingRef.current = false;
           }, 300);
 
+          // 초기 설정 모드에서 저장 성공 시 대시보드로 리다이렉트
+          if (isInitialSetup) {
+            router.push("/dashboard");
+            return;
+          }
+
           // 성공 메시지 표시
           setSuccess(true);
           setError(null);
@@ -531,7 +548,7 @@ export default function SettingsPage() {
         setSaving(false);
       }
     },
-    [formData, autoCalculateExamYear, autoCalculateCurriculum, schoolType]
+    [formData, autoCalculateExamYear, autoCalculateCurriculum, schoolType, isInitialSetup, router]
   );
 
   if (loading) {
@@ -545,10 +562,97 @@ export default function SettingsPage() {
     );
   }
 
+  // 단계별 진행 상태 계산
+  const setupProgress = useMemo(() => {
+    if (!isInitialSetup) return null;
+    
+    const steps = [
+      { key: "basic", label: "기본 정보", completed: !!(formData.name && formData.grade && formData.birth_date) },
+      { key: "exam", label: "시험 정보", completed: !!(formData.exam_year && formData.curriculum_revision) },
+      { key: "career", label: "진로 정보", completed: !!(formData.desired_university_ids.length > 0 || formData.desired_career_field) },
+    ];
+    
+    const completedCount = steps.filter(s => s.completed).length;
+    const currentStep = steps.findIndex(s => !s.completed);
+    
+    return {
+      steps,
+      completedCount,
+      totalSteps: steps.length,
+      currentStep: currentStep === -1 ? steps.length : currentStep + 1,
+    };
+  }, [isInitialSetup, formData]);
+
   return (
     <div className="p-6 md:p-8">
       <div className="mx-auto max-w-2xl">
         <h1 className="mb-6 text-3xl font-semibold">마이페이지</h1>
+
+        {/* 초기 설정 모드: 환영 메시지 및 단계별 가이드 */}
+        {isInitialSetup && setupProgress && (
+          <div className="mb-6 rounded-lg bg-indigo-50 border border-indigo-200 p-6">
+            <div className="flex flex-col gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-indigo-900 mb-2">
+                  환영합니다! 🎉
+                </h2>
+                <p className="text-sm text-indigo-700">
+                  먼저 기본 정보를 입력해주세요. 단계별로 진행하시면 더 쉽게 설정하실 수 있습니다.
+                </p>
+              </div>
+              
+              {/* 진행 단계 표시 */}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-indigo-900">
+                    진행 단계: {setupProgress.currentStep}/{setupProgress.totalSteps}
+                  </span>
+                  <span className="text-indigo-600">
+                    {setupProgress.completedCount}/{setupProgress.totalSteps} 완료
+                  </span>
+                </div>
+                
+                {/* 단계별 진행 바 */}
+                <div className="w-full bg-indigo-200 rounded-full h-2">
+                  <div
+                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(setupProgress.completedCount / setupProgress.totalSteps) * 100}%` }}
+                  />
+                </div>
+                
+                {/* 단계별 체크리스트 */}
+                <div className="flex flex-col gap-2 mt-2">
+                  {setupProgress.steps.map((step, index) => (
+                    <div key={step.key} className="flex items-center gap-2 text-sm">
+                      {step.completed ? (
+                        <svg
+                          className="h-5 w-5 text-green-600"
+                          fill="none"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <div className="h-5 w-5 rounded-full border-2 border-indigo-300 flex items-center justify-center">
+                          <span className="text-xs text-indigo-600 font-medium">
+                            {index + 1}
+                          </span>
+                        </div>
+                      )}
+                      <span className={step.completed ? "text-green-700 line-through" : "text-indigo-700"}>
+                        {step.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* 성공/에러 메시지 */}
@@ -634,8 +738,13 @@ export default function SettingsPage() {
           {activeTab === "basic" && (
             <section className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   이름 <span className="text-red-500">*</span>
+                  {isInitialSetup && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">
+                      필수
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -646,11 +755,14 @@ export default function SettingsPage() {
                       setErrors((prev) => ({ ...prev, name: undefined }));
                     }
                   }}
-                  className={`rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+                  className={cn(
+                    "rounded-lg border px-3 py-2 focus:outline-none focus:ring-2",
                     errors.name
                       ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                      : isInitialSetup && !formData.name
+                      ? "border-indigo-400 focus:border-indigo-500 focus:ring-indigo-200 bg-indigo-50"
                       : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
-                  }`}
+                  )}
                   required
                   placeholder="이름을 입력하세요"
                 />
@@ -675,8 +787,13 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   학년 <span className="text-red-500">*</span>
+                  {isInitialSetup && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">
+                      필수
+                    </span>
+                  )}
                 </label>
                 <select
                   value={formData.grade}
@@ -686,11 +803,14 @@ export default function SettingsPage() {
                       setErrors((prev) => ({ ...prev, grade: undefined }));
                     }
                   }}
-                  className={`rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+                  className={cn(
+                    "rounded-lg border px-3 py-2 focus:outline-none focus:ring-2",
                     errors.grade
                       ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                      : isInitialSetup && !formData.grade
+                      ? "border-indigo-400 focus:border-indigo-500 focus:ring-indigo-200 bg-indigo-50"
                       : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
-                  }`}
+                  )}
                   required
                 >
                   <option value="">학년 선택</option>
@@ -704,8 +824,13 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  생년월일
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  생년월일 <span className="text-red-500">*</span>
+                  {isInitialSetup && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-medium">
+                      필수
+                    </span>
+                  )}
                 </label>
                 <input
                   type="date"
@@ -716,11 +841,14 @@ export default function SettingsPage() {
                       setErrors((prev) => ({ ...prev, birth_date: undefined }));
                     }
                   }}
-                  className={`rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+                  className={cn(
+                    "rounded-lg border px-3 py-2 focus:outline-none focus:ring-2",
                     errors.birth_date
                       ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                      : isInitialSetup && !formData.birth_date
+                      ? "border-indigo-400 focus:border-indigo-500 focus:ring-indigo-200 bg-indigo-50"
                       : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
-                  }`}
+                  )}
                   required
                 />
                 {errors.birth_date && (
@@ -988,10 +1116,14 @@ export default function SettingsPage() {
               </button>
               <button
                 type="submit"
-                disabled={saving || !hasChanges}
+                disabled={saving || (!hasChanges && !isInitialSetup)}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
               >
-                {saving ? "저장 중..." : "저장하기"}
+                {saving 
+                  ? "저장 중..." 
+                  : isInitialSetup 
+                  ? "시작하기" 
+                  : "저장하기"}
               </button>
             </div>
           </div>
