@@ -186,6 +186,16 @@ export async function getRecommendedMasterContents(
     // 필수 과목 (국어, 수학, 영어)
     const requiredSubjects = ["국어", "수학", "영어"];
     
+    // requestedSubjectCounts가 있으면 요청된 교과를 필수 과목 목록에 추가 (기본 추천 보장)
+    if (requestedSubjectCounts && requestedSubjectCounts.size > 0) {
+      const requestedSubjects = Array.from(requestedSubjectCounts.keys());
+      for (const subject of requestedSubjects) {
+        if (!requiredSubjects.includes(subject)) {
+          requiredSubjects.push(subject);
+        }
+      }
+    }
+    
     // 성적 데이터가 있는지 확인
     const hasScoreData = weakSubjects.length > 0 || riskSubjects.length > 0 || 
                          schoolSummaryMap.size > 0 || mockSummaryMap.size > 0;
@@ -675,86 +685,6 @@ export async function getRecommendedMasterContents(
                 priority: 51 + requiredSubjects.indexOf(requiredSubject),
               });
             }
-          }
-        }
-      }
-    }
-
-    // 교과별 개수 파라미터가 있는 경우, 요청된 교과 중 contentMap에 없는 교과에 대해 기본 추천 추가
-    if (requestedSubjectCounts && requestedSubjectCounts.size > 0) {
-      // 요청된 교과 중 contentMap에 없는 교과 확인
-      const requestedSubjects = Array.from(requestedSubjectCounts.keys());
-      const missingSubjects = requestedSubjects.filter(
-        (subject) => !Array.from(contentMap.values()).some((c) => c.subject_category === subject)
-      );
-      
-      // 없는 교과에 대해 기본 추천 추가
-      for (const subject of missingSubjects) {
-        console.log(`[recommendations/masterContent] 요청된 교과 "${subject}" 기본 추천 조회:`, {
-          subject,
-          tenantId,
-          studentId,
-        });
-        
-        const [booksResult, lecturesResult] = await Promise.all([
-          searchMasterBooks({
-            subject_category: subject,
-            tenantId,
-            limit: 3,
-          }, supabase),
-          searchMasterLectures({
-            subject_category: subject,
-            tenantId,
-            limit: 3,
-          }, supabase),
-        ]);
-        
-        console.log(`[recommendations/masterContent] 요청된 교과 "${subject}" 기본 추천 조회 결과:`, {
-          subject,
-          booksCount: booksResult.data.length,
-          lecturesCount: lecturesResult.data.length,
-        });
-        
-        // 최신 개정판 우선 정렬
-        const sortedBooks = sortByRevision(booksResult.data);
-        const sortedLectures = sortByRevision(lecturesResult.data);
-        
-        // 교재 우선
-        if (sortedBooks.length > 0) {
-          const book = sortedBooks[0];
-          const key = `book:${book.id}`;
-          if (!contentMap.has(key)) {
-            contentMap.set(key, {
-              id: book.id,
-              contentType: "book",
-              title: book.title,
-              subject_category: book.subject_category,
-              subject: book.subject,
-              semester: book.semester,
-              revision: book.revision,
-              publisher: book.publisher,
-              difficulty_level: book.difficulty_level,
-              reason: `요청된 교과 "${subject}" (기본 추천)`,
-              priority: 70 + missingSubjects.indexOf(subject), // 필수 과목보다 낮은 우선순위
-            });
-          }
-        } else if (sortedLectures.length > 0) {
-          const lecture = sortedLectures[0];
-          const key = `lecture:${lecture.id}`;
-          if (!contentMap.has(key)) {
-            contentMap.set(key, {
-              id: lecture.id,
-              contentType: "lecture",
-              title: lecture.title,
-              subject_category: lecture.subject_category,
-              subject: lecture.subject,
-              semester: lecture.semester,
-              revision: lecture.revision,
-              platform: lecture.platform,
-              difficulty_level: lecture.difficulty_level,
-              reason: `요청된 교과 "${subject}" (기본 추천)`,
-              priority: 70 + missingSubjects.indexOf(subject),
-            });
           }
         }
       }
