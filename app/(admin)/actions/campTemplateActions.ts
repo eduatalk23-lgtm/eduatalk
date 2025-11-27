@@ -1586,6 +1586,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
       success: true,
       group: result.group,
       contents: contentsWithDetails,
+      originalContents: result.contents, // 원본 contents (master_content_id 포함) - classifyPlanContents 호출용
       exclusions: result.exclusions,
       academySchedules: result.academySchedules,
       templateBlocks,

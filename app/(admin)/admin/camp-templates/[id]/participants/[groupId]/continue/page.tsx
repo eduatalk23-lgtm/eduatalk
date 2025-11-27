@@ -35,7 +35,7 @@ export default async function CampContinuePage({
     notFound();
   }
 
-  const { group, contents, exclusions, academySchedules } = result;
+  const { group, contents, originalContents, exclusions, academySchedules } = result;
 
   // 캠프 모드 확인
   if (group.plan_type !== "camp") {
@@ -147,8 +147,10 @@ export default async function CampContinuePage({
   const { books, lectures, custom } = await fetchAllStudentContents(studentId);
 
   // 콘텐츠 정보 조회 및 학생/추천 구분 (제목, 과목 등 메타데이터 포함)
+  // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 조회
+  const contentsForClassification = originalContents || contents;
   const { studentContents: classifiedStudentContents, recommendedContents: classifiedRecommendedContents } = 
-    await classifyPlanContents(contents, studentId);
+    await classifyPlanContents(contentsForClassification, studentId);
 
   // 콘텐츠 정보를 Map으로 변환하여 빠른 조회 (content_id를 키로 사용)
   const contentsMap = new Map(
@@ -158,9 +160,11 @@ export default async function CampContinuePage({
   // 플랜 그룹 데이터를 WizardData로 변환
   // classifyPlanContents로 조회한 정보를 사용하여 콘텐츠 정보를 제대로 표시
   // 남은 단계 진행 시에는 기존 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
+  // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 변환
+  const contentsForWizard = originalContents || contents;
   const wizardData = syncCreationDataToWizardData({
     group,
-    contents: contents
+    contents: contentsForWizard
       .filter((c) => {
         // 추천 콘텐츠 필터링: is_auto_recommended가 true이거나 recommendation_source가 있는 경우 제거
         // 남은 단계 진행 시에는 Step 4에서 새로운 추천 콘텐츠를 선택할 수 있도록 함
@@ -173,9 +177,10 @@ export default async function CampContinuePage({
           ...c,
           // classifyPlanContents에서 조회한 정보가 있으면 사용
           // title과 subject_category를 명시적으로 전달하여 정보 손실 방지
+          // master_content_id는 원본 데이터(c.master_content_id)를 우선 사용
           title: classifiedContent?.title || undefined,
           subject_category: classifiedContent?.subject_category || undefined,
-          master_content_id: classifiedContent?.masterContentId || c.master_content_id || undefined,
+          master_content_id: c.master_content_id || classifiedContent?.masterContentId || undefined,
         };
       }),
     exclusions,
