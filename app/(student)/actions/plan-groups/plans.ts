@@ -2119,9 +2119,12 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     // Admin/Consultant가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용
     const isAdminOrConsultant = role === "admin" || role === "consultant";
     const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
-    const queryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
+    const queryClientRaw = isOtherStudent ? createSupabaseAdminClient() : supabase;
+    
+    // 마스터 콘텐츠 조회용 클라이언트 (관리자가 조회할 때도 Admin 클라이언트 사용)
+    const masterQueryClientRaw = isAdminOrConsultant ? createSupabaseAdminClient() : supabase;
 
-    if (isOtherStudent && !queryClient) {
+    if (isOtherStudent && !queryClientRaw) {
       throw new AppError(
         "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
         ErrorCode.INTERNAL_ERROR,
@@ -2129,6 +2132,19 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         false
       );
     }
+    
+    if (isAdminOrConsultant && !masterQueryClientRaw) {
+      throw new AppError(
+        "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        false
+      );
+    }
+    
+    // null 체크 후 타입 단언 (위에서 이미 체크했으므로 null이 아님)
+    const queryClient = queryClientRaw!;
+    const masterQueryClient = masterQueryClientRaw!;
 
     // 2. 상태 확인
     // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 미리보기 가능)
@@ -2309,7 +2325,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       try {
         // 마스터 콘텐츠인지 확인하고 기존 복사본이 있는지 확인
         if (content.content_type === "book") {
-          const { data: masterBook } = await queryClient
+          const { data: masterBook } = await masterQueryClient
             .from("master_books")
             .select("id")
             .eq("id", content.content_id)
@@ -2333,7 +2349,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             contentIdMap.set(content.content_id, content.content_id);
           }
         } else if (content.content_type === "lecture") {
-          const { data: masterLecture } = await queryClient
+          const { data: masterLecture } = await masterQueryClient
             .from("master_lectures")
             .select("id")
             .eq("id", content.content_id)
@@ -2418,8 +2434,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             total_pages: studentBook.total_pages,
           });
         } else if (studentBook?.master_content_id) {
-          // 마스터 교재 조회
-          const { data: masterBook } = await queryClient
+          // 마스터 교재 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
+          const { data: masterBook } = await masterQueryClient
             .from("master_books")
             .select("id, total_pages")
             .eq("id", studentBook.master_content_id)
@@ -2449,8 +2465,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             duration: studentLecture.duration,
           });
         } else if (studentLecture?.master_content_id) {
-          // 마스터 강의 조회
-          const { data: masterLecture } = await queryClient
+          // 마스터 강의 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
+          const { data: masterLecture } = await masterQueryClient
             .from("master_lectures")
             .select("id, total_duration")
             .eq("id", studentLecture.master_content_id)
@@ -2599,8 +2615,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
               category: bookByMaster.content_category || null,
             });
           } else {
-            // 마스터 교재 조회
-            const { data: masterBook } = await queryClient
+            // 마스터 교재 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
+            const { data: masterBook } = await masterQueryClient
               .from("master_books")
               .select("title, subject, subject_category, content_category")
               .eq("id", masterContentId)
@@ -2654,8 +2670,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
               category: lectureByMaster.content_category || null,
             });
           } else {
-            // 마스터 강의 조회
-            const { data: masterLecture } = await queryClient
+            // 마스터 강의 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
+            const { data: masterLecture } = await masterQueryClient
               .from("master_lectures")
               .select("title, subject, subject_category, content_category")
               .eq("id", masterContentId)
