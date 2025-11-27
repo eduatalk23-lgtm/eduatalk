@@ -21,14 +21,25 @@ supabase link --project-ref <your-project-ref>
 supabase db push
 ```
 
-### 방법 2: Supabase Studio에서 직접 실행
+### 방법 2: Supabase Studio에서 직접 실행 (CLI 연결 불가 시 권장)
 
-1. Supabase Dashboard 접속
-2. SQL Editor 열기
-3. 다음 파일 내용을 복사하여 실행:
-   ```
-   supabase/migrations/20251128000000_remove_schools_add_unified_view.sql
-   ```
+1. **Supabase Dashboard 접속**
+   - https://supabase.com/dashboard 접속
+   - 프로젝트 선택
+
+2. **SQL Editor 열기**
+   - 좌측 메뉴에서 "SQL Editor" 클릭
+   - "New query" 클릭
+
+3. **마이그레이션 SQL 복사 및 실행**
+   - 파일 열기: `supabase/migrations/20251128000000_remove_schools_add_unified_view.sql`
+   - 전체 내용 복사 (Ctrl+A → Ctrl+C)
+   - SQL Editor에 붙여넣기 (Ctrl+V)
+   - "Run" 버튼 클릭 또는 `Ctrl+Enter`
+
+4. **실행 결과 확인**
+   - 성공 메시지 확인
+   - 에러 발생 시 에러 메시지 확인
 
 ---
 
@@ -36,8 +47,23 @@ supabase db push
 
 - [ ] 데이터베이스 백업 완료
 - [ ] `school_info`, `universities`, `university_campuses` 테이블에 데이터 존재 확인
-- [ ] `students.school_id`에 데이터가 있는지 확인 (현재 0개로 확인됨)
+- [ ] `students.school_id`에 데이터가 있는지 확인
+  - 확인 스크립트 실행: `pnpm tsx scripts/check-students-school-columns.ts`
+  - 현재 상태: students 테이블 비어있음 (0명)
 - [ ] 프로덕션 환경이면 **유지보수 시간대**에 실행
+
+### 현재 상태 확인
+
+```bash
+# students 테이블의 학교 관련 컬럼 상태 확인
+pnpm tsx scripts/check-students-school-columns.ts
+```
+
+**확인 결과 (2025-11-28)**:
+- ✅ `school_info`, `universities`, `university_campuses` 테이블 존재
+- ⚠️ `students` 테이블 비어있음 (학생 데이터 없음)
+- ❌ `students.school_type` 컬럼 없음 (마이그레이션 필요)
+- ⚠️ `schools` 테이블 아직 존재 (마이그레이션 필요)
 
 ---
 
