@@ -12,9 +12,7 @@ import {
   copyMasterBookToStudent,
   copyMasterLectureToStudent,
 } from "@/lib/data/contentMasters";
-import {
-  assignPlanTimes,
-} from "@/lib/plan/assignPlanTimes";
+import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
 import { updatePlanGroupStatus } from "./status";
 import { timeToMinutes } from "./utils";
 
@@ -30,7 +28,7 @@ async function _generatePlansFromGroup(
       true
     );
   }
-  
+
   // 관리자 또는 컨설턴트 권한도 허용 (캠프 모드에서 관리자가 플랜 생성 시 사용)
   const { role } = await getCurrentUserRole();
   if (user.role !== "student" && role !== "admin" && role !== "consultant") {
@@ -50,9 +48,14 @@ async function _generatePlansFromGroup(
   // 관리자/컨설턴트의 경우 플랜 그룹의 student_id를 직접 조회
   let group, contents, exclusions, academySchedules;
   if (role === "admin" || role === "consultant") {
-    const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
+    const { getPlanGroupWithDetailsForAdmin } = await import(
+      "@/lib/data/planGroups"
+    );
     const tenantContext = await requireTenantContext();
-    const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
+    const result = await getPlanGroupWithDetailsForAdmin(
+      groupId,
+      tenantContext.tenantId
+    );
     group = result.group;
     contents = result.contents;
     exclusions = result.exclusions;
@@ -75,13 +78,14 @@ async function _generatePlansFromGroup(
   }
 
   // 관리자/컨설턴트의 경우 플랜 그룹의 student_id 사용
-  const studentId = (role === "admin" || role === "consultant") ? group.student_id : user.userId;
+  const studentId =
+    role === "admin" || role === "consultant" ? group.student_id : user.userId;
 
   // 2. 상태 확인
   // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 생성 가능)
   const isAdminOrConsultant = role === "admin" || role === "consultant";
   const isCampMode = group.plan_type === "camp";
-  
+
   if (!isAdminOrConsultant && !isCampMode) {
     // 일반 학생 모드에서만 상태 체크
     if (group.status !== "saved" && group.status !== "active") {
@@ -453,11 +457,14 @@ async function _generatePlansFromGroup(
   }
 
   // 6. 교과 제약 조건 검증 (플랜 생성 전)
-  const subjectConstraints = (group as any).subject_constraints as {
-    required_subjects?: string[];
-    excluded_subjects?: string[];
-    constraint_handling?: "strict" | "warning" | "auto_fix";
-  } | null | undefined;
+  const subjectConstraints = (group as any).subject_constraints as
+    | {
+        required_subjects?: string[];
+        excluded_subjects?: string[];
+        constraint_handling?: "strict" | "warning" | "auto_fix";
+      }
+    | null
+    | undefined;
 
   if (subjectConstraints) {
     // 콘텐츠의 교과 정보를 먼저 조회해야 함 (아래에서 조회하므로 여기서는 검증만)
@@ -584,17 +591,23 @@ async function _generatePlansFromGroup(
       }
     });
 
-    const constraintHandling = subjectConstraints.constraint_handling || "strict";
+    const constraintHandling =
+      subjectConstraints.constraint_handling || "strict";
     const errors: string[] = [];
     const warnings: string[] = [];
 
     // 필수 교과 검증
-    if (subjectConstraints.required_subjects && subjectConstraints.required_subjects.length > 0) {
+    if (
+      subjectConstraints.required_subjects &&
+      subjectConstraints.required_subjects.length > 0
+    ) {
       const missingSubjects = subjectConstraints.required_subjects.filter(
         (subject) => !selectedSubjectCategories.has(subject)
       );
       if (missingSubjects.length > 0) {
-        const message = `다음 필수 교과가 플랜에 포함되지 않았습니다: ${missingSubjects.join(", ")}`;
+        const message = `다음 필수 교과가 플랜에 포함되지 않았습니다: ${missingSubjects.join(
+          ", "
+        )}`;
         if (constraintHandling === "strict") {
           errors.push(message);
         } else if (constraintHandling === "warning") {
@@ -605,12 +618,18 @@ async function _generatePlansFromGroup(
     }
 
     // 제외 교과 검증
-    if (subjectConstraints.excluded_subjects && subjectConstraints.excluded_subjects.length > 0) {
-      const includedExcludedSubjects = subjectConstraints.excluded_subjects.filter((subject) =>
-        selectedSubjectCategories.has(subject)
-      );
+    if (
+      subjectConstraints.excluded_subjects &&
+      subjectConstraints.excluded_subjects.length > 0
+    ) {
+      const includedExcludedSubjects =
+        subjectConstraints.excluded_subjects.filter((subject) =>
+          selectedSubjectCategories.has(subject)
+        );
       if (includedExcludedSubjects.length > 0) {
-        const message = `다음 제외 교과가 플랜에 포함되어 있습니다: ${includedExcludedSubjects.join(", ")}`;
+        const message = `다음 제외 교과가 플랜에 포함되어 있습니다: ${includedExcludedSubjects.join(
+          ", "
+        )}`;
         if (constraintHandling === "strict") {
           errors.push(message);
         } else if (constraintHandling === "warning") {
@@ -632,7 +651,10 @@ async function _generatePlansFromGroup(
 
     // 경고가 있으면 로그만 출력
     if (warnings.length > 0) {
-      console.warn("[planGroupActions] 교과 제약 조건 경고:", warnings.join("; "));
+      console.warn(
+        "[planGroupActions] 교과 제약 조건 경고:",
+        warnings.join("; ")
+      );
     }
   }
 
@@ -694,8 +716,10 @@ async function _generatePlansFromGroup(
   // Admin/Consultant가 다른 학생의 교재를 조회할 때는 Admin 클라이언트 사용
   // isAdminOrConsultant는 위에서 이미 선언되었으므로 재사용
   const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
-  const bookQueryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
-  
+  const bookQueryClient = isOtherStudent
+    ? createSupabaseAdminClient()
+    : supabase;
+
   if (isOtherStudent && !bookQueryClient) {
     throw new AppError(
       "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
@@ -750,7 +774,7 @@ async function _generatePlansFromGroup(
                 studentId,
                 tenantContext.tenantId
               );
-              
+
               // 복사된 교재 조회 (Admin 클라이언트 사용)
               const { data: copiedBook } = await bookQueryClient
                 .from("books")
@@ -758,7 +782,7 @@ async function _generatePlansFromGroup(
                 .eq("id", bookId)
                 .eq("student_id", studentId)
                 .maybeSingle();
-              
+
               if (copiedBook) {
                 studentBook = { data: copiedBook, error: null };
                 console.log(
@@ -883,7 +907,7 @@ async function _generatePlansFromGroup(
                 studentId,
                 tenantContext.tenantId
               );
-              
+
               // 복사된 강의 조회 (Admin 클라이언트 사용)
               const { data: copiedLecture } = await bookQueryClient
                 .from("lectures")
@@ -891,7 +915,7 @@ async function _generatePlansFromGroup(
                 .eq("id", lectureId)
                 .eq("student_id", studentId)
                 .maybeSingle();
-              
+
               if (copiedLecture) {
                 studentLecture = { data: copiedLecture, error: null };
                 console.log(
@@ -1023,7 +1047,7 @@ async function _generatePlansFromGroup(
 
   // 9. 스케줄러로 플랜 생성 (Step 2.5 스케줄 결과 및 콘텐츠 소요시간 정보 전달)
   const { generatePlansFromGroup } = await import("@/lib/plan/scheduler");
-  
+
   // 디버깅을 위한 로그 추가
   console.log("[planGroupActions] 플랜 생성 시작:", {
     groupId,
@@ -1037,7 +1061,7 @@ async function _generatePlansFromGroup(
     exclusionsCount: exclusions.length,
     academySchedulesCount: academySchedules.length,
   });
-  
+
   const scheduledPlans = generatePlansFromGroup(
     group,
     contents,
@@ -1064,7 +1088,7 @@ async function _generatePlansFromGroup(
       `제외일: ${exclusions.length}개`,
       `학원 일정: ${academySchedules.length}개`,
     ].join(", ");
-    
+
     throw new AppError(
       `생성된 플랜이 없습니다. 기간, 제외일, 블록 설정을 확인해주세요. (${errorDetails})`,
       ErrorCode.VALIDATION_ERROR,
@@ -1104,7 +1128,6 @@ async function _generatePlansFromGroup(
 
   // 삭제 확인
   if (existingPlans && existingPlans.length > 0) {
-
     // 삭제 확인: 실제로 삭제되었는지 재확인
     const { data: verifyPlans, error: verifyError } = await supabase
       .from("student_plan")
@@ -1775,8 +1798,10 @@ async function _generatePlansFromGroup(
 
   // 일반 플랜 먼저 저장
   // Admin/Consultant가 다른 학생의 플랜을 생성할 때는 Admin 클라이언트 사용
-  const planInsertClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
-  
+  const planInsertClient = isOtherStudent
+    ? createSupabaseAdminClient()
+    : supabase;
+
   if (isOtherStudent && !planInsertClient) {
     throw new AppError(
       "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
@@ -2057,8 +2082,13 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     // 관리자/컨설턴트의 경우 플랜 그룹의 student_id를 직접 조회
     let group, contents, exclusions, academySchedules;
     if (role === "admin" || role === "consultant") {
-      const { getPlanGroupWithDetailsForAdmin } = await import("@/lib/data/planGroups");
-      const result = await getPlanGroupWithDetailsForAdmin(groupId, tenantContext.tenantId);
+      const { getPlanGroupWithDetailsForAdmin } = await import(
+        "@/lib/data/planGroups"
+      );
+      const result = await getPlanGroupWithDetailsForAdmin(
+        groupId,
+        tenantContext.tenantId
+      );
       group = result.group;
       contents = result.contents;
       exclusions = result.exclusions;
@@ -2081,13 +2111,16 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     }
 
     // 관리자/컨설턴트의 경우 플랜 그룹의 student_id 사용
-    const studentId = (role === "admin" || role === "consultant") ? group.student_id : user.userId;
+    const studentId =
+      role === "admin" || role === "consultant"
+        ? group.student_id
+        : user.userId;
 
     // Admin/Consultant가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용
     const isAdminOrConsultant = role === "admin" || role === "consultant";
     const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
     const queryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
-    
+
     if (isOtherStudent && !queryClient) {
       throw new AppError(
         "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
@@ -2100,7 +2133,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     // 2. 상태 확인
     // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 미리보기 가능)
     const isCampMode = group.plan_type === "camp";
-    
+
     if (!isAdminOrConsultant && !isCampMode) {
       // 일반 학생 모드에서만 상태 체크
       if (group.status !== "saved" && group.status !== "active") {

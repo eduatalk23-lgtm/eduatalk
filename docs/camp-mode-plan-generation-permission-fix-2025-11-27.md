@@ -108,11 +108,26 @@ if (!isAdminOrConsultant && !isCampMode) {
 
 3. **플랜 미리보기 기능도 동일하게 수정**: 관리자가 캠프 모드에서 플랜을 미리볼 때도 동일한 권한 우회가 적용됩니다.
 
+## 추가 확인 사항
+
+### 관리자 페이지에서의 사용
+
+관리자 페이지(`/admin/camp-templates/[id]/participants/[groupId]/continue`)에서:
+- `PlanGroupWizard` 컴포넌트에 `isAdminMode={true}`, `isAdminContinueMode={true}` props 전달
+- Step 6에서 "플랜 생성하기" 버튼 클릭 시 `generatePlansFromGroupAction` 호출
+- Step 7에서 "플랜 미리보기 및 재생성" 버튼 클릭 시 `PlanPreviewDialog` 사용
+- `PlanPreviewDialog`에서 "플랜 미리보기" 버튼 클릭 시 `previewPlansFromGroupAction` 호출
+- `PlanPreviewDialog`에서 "플랜 생성하기" 버튼 클릭 시 `generatePlansFromGroupAction` 호출
+
+모든 액션들이 `_generatePlansFromGroup` 또는 `_previewPlansFromGroup` 함수를 사용하므로, 관리자 권한 우회가 정상적으로 작동합니다.
+
 ## 테스트 필요 사항
 
 1. 캠프 모드에서 관리자가 "draft" 상태의 플랜 그룹으로 플랜 생성 테스트
 2. 일반 학생 모드에서 "draft" 상태의 플랜 그룹으로 플랜 생성 시도 시 에러 발생 확인
 3. 캠프 모드에서 관리자가 플랜 미리보기 기능 테스트
+4. 관리자 페이지에서 Step 6의 "플랜 생성하기" 버튼 테스트
+5. 관리자 페이지에서 Step 7의 "플랜 미리보기 및 재생성" 버튼 테스트
 
 ## 관련 파일
 
