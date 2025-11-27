@@ -407,7 +407,8 @@ export function Step4RecommendedContents({
       const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
-        const recommendations = result.recommendations || [];
+        // API 응답 구조: { success: true, data: { recommendations } }
+        const recommendations = result.data?.recommendations || [];
 
         // 성적 데이터 존재 여부 확인 (추천 이유에 성적 정보가 포함되어 있는지)
         const hasDetailedReasons = recommendations.some(
