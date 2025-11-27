@@ -29,11 +29,29 @@ export async function getStudentById(
 
   // 기본 학적 정보만 조회 (프로필/진로 정보는 별도 테이블에서 조회)
   // name 필드도 포함하여 조회
-  const { data, error } = await supabase
+  // school_type 컬럼은 마이그레이션 후 추가되므로, 에러 발생 시 재시도
+  let { data, error } = await supabase
     .from("students")
     .select("id,tenant_id,name,grade,class,birth_date,school_id,school_type,student_number,enrolled_at,status,created_at,updated_at")
     .eq("id", studentId)
     .maybeSingle<Student>();
+  
+  // school_type 컬럼이 없으면 (42703 에러) school_type 없이 재시도
+  if (error && error.code === "42703" && error.message?.includes("school_type")) {
+    const retryResult = await supabase
+      .from("students")
+      .select("id,tenant_id,name,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+      .eq("id", studentId)
+      .maybeSingle<Student>();
+    
+    data = retryResult.data;
+    error = retryResult.error;
+    
+    // school_type이 없으면 null로 설정
+    if (data) {
+      data = { ...data, school_type: null };
+    }
+  }
 
   if (error) {
     // PGRST116은 레코드가 없는 경우이므로 null 반환
@@ -67,7 +85,7 @@ export async function listStudentsByTenant(
     () =>
       supabase
         .from("students")
-        .select("id,tenant_id,grade,class,birth_date,school_id,school_type,student_number,enrolled_at,status,created_at,updated_at")
+        .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
         .order("created_at", { ascending: false }),
     {
       context: "[data/students]",
@@ -177,41 +195,46 @@ export async function upsertStudent(
     }
   }
 
-  const payload: {
-    id: string;
-    tenant_id: string;
-    name?: string | null;
-    grade: string;
-    class: string;
-    birth_date: string;
-    school_id: string | null;
-    school_type: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
-    student_number: string | null;
-    enrolled_at: string | null;
-    status: string;
-  } = {
+  const payload: Record<string, any> = {
     id: student.id,
     tenant_id: tenantId,
     grade: student.grade,
     class: student.class,
     birth_date: student.birth_date,
     school_id: student.school_id ?? null,
-    school_type: schoolType ?? null,
     student_number: student.student_number ?? null,
     enrolled_at: student.enrolled_at ?? null,
     status: student.status ?? "enrolled",
   };
-
+  
   // name이 있으면 payload에 추가
   if (nameValue !== undefined) {
     payload.name = nameValue;
+  }
+  
+  // school_type이 있으면 추가 (마이그레이션 후 컬럼이 있을 때만)
+  if (schoolType) {
+    payload.school_type = schoolType;
   }
 
   const { error } = await supabase
     .from("students")
     .upsert(payload, { onConflict: "id" });
 
-  if (error) {
+  // school_type 컬럼이 없어서 에러가 발생하면 school_type 제거하고 재시도
+  if (error && error.code === "42703" && error.message?.includes("school_type")) {
+    delete payload.school_type;
+    const retryResult = await supabase
+      .from("students")
+      .upsert(payload, { onConflict: "id" });
+    
+    if (retryResult.error) {
+      console.error("[data/students] 학생 정보 저장 실패", retryResult.error);
+      return { success: false, error: retryResult.error.message };
+    }
+    
+    console.warn("[data/students] school_type 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
+  } else if (error) {
     console.error("[data/students] 학생 정보 저장 실패", error);
     return { success: false, error: error.message };
   }
