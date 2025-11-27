@@ -2562,9 +2562,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         contentIdMap.get(content.content_id) || content.content_id;
 
       if (content.content_type === "book") {
+        // 학생 교재 조회 (master_content_id도 함께 조회)
         const { data: book } = await queryClient
           .from("books")
-          .select("title, subject, subject_category, content_category")
+          .select("title, subject, subject_category, content_category, master_content_id")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -2577,26 +2578,45 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             category: book.content_category || null,
           });
         } else {
-          // 마스터 교재 조회
-          const { data: masterBook } = await supabase
-            .from("master_books")
-            .select("title, subject, subject_category, content_category")
-            .eq("id", content.content_id)
+          // 학생 교재가 없으면 마스터 콘텐츠 ID로 학생 교재 찾기
+          const masterContentId = content.content_id;
+          const { data: bookByMaster } = await queryClient
+            .from("books")
+            .select("title, subject, subject_category, content_category, master_content_id")
+            .eq("student_id", studentId)
+            .eq("master_content_id", masterContentId)
             .maybeSingle();
 
-          if (masterBook) {
+          if (bookByMaster) {
             contentMetadataMap.set(content.content_id, {
-              title: masterBook.title || null,
-              subject: masterBook.subject || null,
-              subject_category: masterBook.subject_category || null,
-              category: masterBook.content_category || null,
+              title: bookByMaster.title || null,
+              subject: bookByMaster.subject || null,
+              subject_category: bookByMaster.subject_category || null,
+              category: bookByMaster.content_category || null,
             });
+          } else {
+            // 마스터 교재 조회
+            const { data: masterBook } = await supabase
+              .from("master_books")
+              .select("title, subject, subject_category, content_category")
+              .eq("id", masterContentId)
+              .maybeSingle();
+
+            if (masterBook) {
+              contentMetadataMap.set(content.content_id, {
+                title: masterBook.title || null,
+                subject: masterBook.subject || null,
+                subject_category: masterBook.subject_category || null,
+                category: masterBook.content_category || null,
+              });
+            }
           }
         }
       } else if (content.content_type === "lecture") {
+        // 학생 강의 조회 (master_content_id도 함께 조회)
         const { data: lecture } = await queryClient
           .from("lectures")
-          .select("title, subject, subject_category, content_category")
+          .select("title, subject, subject_category, content_category, master_content_id")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -2609,20 +2629,38 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             category: lecture.content_category || null,
           });
         } else {
-          // 마스터 강의 조회
-          const { data: masterLecture } = await supabase
-            .from("master_lectures")
-            .select("title, subject, subject_category, content_category")
-            .eq("id", content.content_id)
+          // 학생 강의가 없으면 마스터 콘텐츠 ID로 학생 강의 찾기
+          const masterContentId = content.content_id;
+          const { data: lectureByMaster } = await queryClient
+            .from("lectures")
+            .select("title, subject, subject_category, content_category, master_content_id")
+            .eq("student_id", studentId)
+            .eq("master_content_id", masterContentId)
             .maybeSingle();
 
-          if (masterLecture) {
+          if (lectureByMaster) {
             contentMetadataMap.set(content.content_id, {
-              title: masterLecture.title || null,
-              subject: masterLecture.subject || null,
-              subject_category: masterLecture.subject_category || null,
-              category: masterLecture.content_category || null,
+              title: lectureByMaster.title || null,
+              subject: lectureByMaster.subject || null,
+              subject_category: lectureByMaster.subject_category || null,
+              category: lectureByMaster.content_category || null,
             });
+          } else {
+            // 마스터 강의 조회
+            const { data: masterLecture } = await supabase
+              .from("master_lectures")
+              .select("title, subject, subject_category, content_category")
+              .eq("id", masterContentId)
+              .maybeSingle();
+
+            if (masterLecture) {
+              contentMetadataMap.set(content.content_id, {
+                title: masterLecture.title || null,
+                subject: masterLecture.subject || null,
+                subject_category: masterLecture.subject_category || null,
+                category: masterLecture.content_category || null,
+              });
+            }
           }
         }
       } else if (content.content_type === "custom") {

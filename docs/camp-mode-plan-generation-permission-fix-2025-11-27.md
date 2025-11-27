@@ -129,6 +129,75 @@ if (!isAdminOrConsultant && !isCampMode) {
 4. 관리자 페이지에서 Step 6의 "플랜 생성하기" 버튼 테스트
 5. 관리자 페이지에서 Step 7의 "플랜 미리보기 및 재생성" 버튼 테스트
 
+## 추가 수정 사항 (2025-11-27)
+
+### 플랜 미리보기에서 교재 정보 조회 문제 수정
+
+**문제**: 플랜 미리보기에서 교재 정보가 제대로 표시되지 않음
+
+**원인**:
+- `_previewPlansFromGroup` 함수에서 학생 교재 조회 시 `master_content_id`를 확인하지 않음
+- 학생 교재가 없을 때 마스터 콘텐츠 ID로 학생 교재를 찾는 로직이 없음
+- `_generatePlansFromGroup`과 달리 마스터 콘텐츠 ID로 학생 콘텐츠를 찾는 로직이 누락됨
+
+**수정 내용**:
+1. 학생 교재 조회 시 `master_content_id`도 함께 조회
+2. 학생 교재가 없을 때 마스터 콘텐츠 ID로 학생 교재 찾기 로직 추가
+3. 학생 강의에도 동일한 로직 적용
+
+```typescript
+// 수정 전
+const { data: book } = await queryClient
+  .from("books")
+  .select("title, subject, subject_category, content_category")
+  .eq("id", finalContentId)
+  .eq("student_id", studentId)
+  .maybeSingle();
+
+if (book) {
+  // ...
+} else {
+  // 마스터 교재 조회 (바로 조회)
+  const { data: masterBook } = await supabase
+    .from("master_books")
+    .select("...")
+    .eq("id", content.content_id)
+    .maybeSingle();
+}
+
+// 수정 후
+const { data: book } = await queryClient
+  .from("books")
+  .select("title, subject, subject_category, content_category, master_content_id")
+  .eq("id", finalContentId)
+  .eq("student_id", studentId)
+  .maybeSingle();
+
+if (book) {
+  // ...
+} else {
+  // 마스터 콘텐츠 ID로 학생 교재 찾기
+  const masterContentId = content.content_id;
+  const { data: bookByMaster } = await queryClient
+    .from("books")
+    .select("...")
+    .eq("student_id", studentId)
+    .eq("master_content_id", masterContentId)
+    .maybeSingle();
+
+  if (bookByMaster) {
+    // ...
+  } else {
+    // 마스터 교재 조회
+    const { data: masterBook } = await supabase
+      .from("master_books")
+      .select("...")
+      .eq("id", masterContentId)
+      .maybeSingle();
+  }
+}
+```
+
 ## 관련 파일
 
 - `app/(student)/actions/plan-groups/plans.ts`
