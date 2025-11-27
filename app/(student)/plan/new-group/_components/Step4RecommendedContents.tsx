@@ -134,6 +134,18 @@ export function Step4RecommendedContents({
         const result = await response.json();
         const recommendations = result.recommendations || [];
         
+        console.log("[Step4RecommendedContents] 추천 결과:", {
+          totalRecommendations: recommendations.length,
+          requestedSubjects: subjects,
+          requestedCounts: Object.fromEntries(counts),
+          recommendations: recommendations.map((r: RecommendedContent) => ({
+            id: r.id,
+            title: r.title,
+            subject_category: r.subject_category,
+            contentType: r.contentType,
+          })),
+        });
+        
         // 추천 콘텐츠가 부족한 경우 확인
         const recommendedBySubject = new Map<string, RecommendedContent[]>();
         recommendations.forEach((r: RecommendedContent) => {
@@ -145,6 +157,12 @@ export function Step4RecommendedContents({
           }
         });
         
+        console.log("[Step4RecommendedContents] 교과별 추천 분류:", {
+          recommendedBySubject: Object.fromEntries(
+            Array.from(recommendedBySubject.entries()).map(([k, v]) => [k, v.length])
+          ),
+        });
+        
         // 부족한 교과 확인 및 메시지 표시
         const insufficientSubjects: string[] = [];
         subjects.forEach((subject) => {
@@ -153,6 +171,10 @@ export function Step4RecommendedContents({
           if (actualCount < requestedCount) {
             insufficientSubjects.push(`${subject} (요청: ${requestedCount}개, 실제: ${actualCount}개)`);
           }
+        });
+        
+        console.log("[Step4RecommendedContents] 부족한 교과:", {
+          insufficientSubjects,
         });
         
         // 추천 콘텐츠가 하나도 없는 경우
