@@ -66,19 +66,6 @@ const studentCategories: NavigationCategory[] = [
     ],
   },
   {
-    id: "learning",
-    label: "학습 관리",
-    icon: "📅",
-    items: [
-      {
-        id: "today-main",
-        label: "오늘 학습",
-        href: "/today",
-        icon: "📅",
-      },
-    ],
-  },
-  {
     id: "plan",
     label: "플랜 관리",
     icon: "📋",
@@ -94,6 +81,12 @@ const studentCategories: NavigationCategory[] = [
         label: "플랜 캘린더",
         href: "/plan/calendar",
         icon: "🗓️",
+      },
+      {
+        id: "plan-today",
+        label: "학습 관리",
+        href: "/today",
+        icon: "📅",
       },
     ],
   },
