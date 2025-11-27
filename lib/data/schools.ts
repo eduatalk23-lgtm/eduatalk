@@ -313,31 +313,89 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
 
     // 대학교 검색
     if (!options.schoolType || options.schoolType === "UNIVERSITY") {
-      let campusQuery = supabase
-        .from("university_campuses")
-        .select(`
-          id,
-          campus_name,
-          region,
-          university:universities!inner(university_code, name_kor)
-        `)
-        .eq("campus_status", "기존");
-
-      if (query) {
-        campusQuery = campusQuery.or(`campus_name.ilike.%${query}%,university.name_kor.ilike.%${query}%`);
-      }
-
-      if (options.region) {
-        campusQuery = campusQuery.ilike("region", `%${options.region}%`);
-      }
-
       const limit = options.limit ? Math.floor(options.limit / 2) : 25;
-      const { data: campusData, error: campusError } = await campusQuery
-        .limit(limit)
-        .order("campus_name", { ascending: true });
+      
+      if (query) {
+        // 검색어가 있을 때: 두 개의 쿼리로 나누어 검색
+        // 1. 캠퍼스명으로 검색
+        let campusNameQuery = supabase
+          .from("university_campuses")
+          .select(`
+            id,
+            campus_name,
+            region,
+            campus_type,
+            university:universities!inner(university_code, name_kor)
+          `)
+          .eq("campus_status", "기존")
+          .ilike("campus_name", `%${query}%`);
 
-      if (!campusError && campusData) {
-        for (const uc of campusData) {
+        if (options.region) {
+          campusNameQuery = campusNameQuery.ilike("region", `%${options.region}%`);
+        }
+
+        const { data: campusNameData, error: campusNameError } = await campusNameQuery
+          .limit(limit)
+          .order("campus_name", { ascending: true });
+
+        // 2. 대학명으로 검색: universities 테이블에서 먼저 검색 후 university_campuses 조회
+        const { data: universitiesData, error: universitiesError } = await supabase
+          .from("universities")
+          .select("id")
+          .ilike("name_kor", `%${query}%`)
+          .limit(limit);
+
+        let universityNameData: any[] = [];
+        if (!universitiesError && universitiesData && universitiesData.length > 0) {
+          const universityIds = universitiesData.map(u => u.id);
+          
+          let universityCampusQuery = supabase
+            .from("university_campuses")
+            .select(`
+              id,
+              campus_name,
+              region,
+              campus_type,
+              university:universities!inner(university_code, name_kor)
+            `)
+            .eq("campus_status", "기존")
+            .in("university_id", universityIds);
+
+          if (options.region) {
+            universityCampusQuery = universityCampusQuery.ilike("region", `%${options.region}%`);
+          }
+
+          const { data: campusData, error: campusError } = await universityCampusQuery
+            .limit(limit)
+            .order("campus_name", { ascending: true });
+
+          if (!campusError && campusData) {
+            universityNameData = campusData;
+          }
+        }
+
+        // 결과 합치기 (중복 제거)
+        const allCampusData: any[] = [];
+        const seenIds = new Set<number>();
+
+        if (!campusNameError && campusNameData) {
+          for (const uc of campusNameData) {
+            if (!seenIds.has(uc.id)) {
+              seenIds.add(uc.id);
+              allCampusData.push(uc);
+            }
+          }
+        }
+
+        for (const uc of universityNameData) {
+          if (!seenIds.has(uc.id)) {
+            seenIds.add(uc.id);
+            allCampusData.push(uc);
+          }
+        }
+
+        // 결과 변환
+        for (const uc of allCampusData.slice(0, limit)) {
           const university = uc.university as any;
           const campusName = uc.campus_name;
           const universityName = university?.name_kor || campusName;
@@ -355,6 +413,48 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
             sourceTable: "university_campuses",
             sourceId: uc.id,
           });
+        }
+      } else {
+        // 검색어가 없을 때: 전체 조회
+        let campusQuery = supabase
+          .from("university_campuses")
+          .select(`
+            id,
+            campus_name,
+            region,
+            campus_type,
+            university:universities!inner(university_code, name_kor)
+          `)
+          .eq("campus_status", "기존");
+
+        if (options.region) {
+          campusQuery = campusQuery.ilike("region", `%${options.region}%`);
+        }
+
+        const { data: campusData, error: campusError } = await campusQuery
+          .limit(limit)
+          .order("campus_name", { ascending: true });
+
+        if (!campusError && campusData) {
+          for (const uc of campusData) {
+            const university = uc.university as any;
+            const campusName = uc.campus_name;
+            const universityName = university?.name_kor || campusName;
+            
+            // 캠퍼스명이 대학명과 같으면 대학명만, 다르면 "대학명 (캠퍼스명)" 형식
+            const displayName = campusName === universityName
+              ? universityName
+              : `${universityName} (${uc.campus_type || ""})`;
+            
+            results.push({
+              id: `UNIV_${uc.id}`,
+              name: displayName,
+              schoolType: "UNIVERSITY",
+              region: uc.region,
+              sourceTable: "university_campuses",
+              sourceId: uc.id,
+            });
+          }
         }
       }
     }
@@ -665,23 +765,66 @@ export async function searchUniversityCampuses(
 ): Promise<UniversityWithCampus[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
+  // 1. 캠퍼스명으로 검색
+  const { data: campusNameData, error: campusNameError } = await supabase
     .from("university_campuses")
     .select(`
       *,
       university:universities!inner(*)
     `)
     .eq("campus_status", "기존")
-    .or(`campus_name.ilike.%${query}%,university.name_kor.ilike.%${query}%`)
+    .ilike("campus_name", `%${query}%`)
     .limit(limit)
     .order("campus_name", { ascending: true });
 
-  if (error) {
-    console.error("[data/schools] 대학교 검색 실패", error);
-    return [];
+  // 2. 대학명으로 검색: universities 테이블에서 먼저 검색 후 university_campuses 조회
+  const { data: universitiesData, error: universitiesError } = await supabase
+    .from("universities")
+    .select("id")
+    .ilike("name_kor", `%${query}%`)
+    .limit(limit);
+
+  let universityNameData: any[] = [];
+  if (!universitiesError && universitiesData && universitiesData.length > 0) {
+    const universityIds = universitiesData.map(u => u.id);
+    
+    const { data: campusData, error: campusError } = await supabase
+      .from("university_campuses")
+      .select(`
+        *,
+        university:universities!inner(*)
+      `)
+      .eq("campus_status", "기존")
+      .in("university_id", universityIds)
+      .limit(limit)
+      .order("campus_name", { ascending: true });
+
+    if (!campusError && campusData) {
+      universityNameData = campusData;
+    }
   }
 
-  return (data as UniversityWithCampus[]) ?? [];
+  // 결과 합치기 (중복 제거)
+  const allCampusData: any[] = [];
+  const seenIds = new Set<number>();
+
+  if (!campusNameError && campusNameData) {
+    for (const uc of campusNameData) {
+      if (!seenIds.has(uc.id)) {
+        seenIds.add(uc.id);
+        allCampusData.push(uc);
+      }
+    }
+  }
+
+  for (const uc of universityNameData) {
+    if (!seenIds.has(uc.id)) {
+      seenIds.add(uc.id);
+      allCampusData.push(uc);
+    }
+  }
+
+  return (allCampusData.slice(0, limit) as UniversityWithCampus[]) ?? [];
 }
 
 // ============================================
