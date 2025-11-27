@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getCampPlanGroupForReview,
 } from "@/app/(admin)/actions/campTemplateActions";
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
-import { generatePlansFromGroupAction } from "@/app/(student)/actions/planGroupActions";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Step1DetailView } from "@/app/(student)/plan/group/[id]/_components/Step1DetailView";
 import { Step2DetailView } from "@/app/(student)/plan/group/[id]/_components/Step2DetailView";
@@ -47,9 +45,7 @@ export function CampPlanGroupReviewForm({
   templateBlockSetName = null,
   studentInfo,
 }: CampPlanGroupReviewFormProps) {
-  const router = useRouter();
   const toast = useToast();
-  const [isPending, startTransition] = useTransition();
   const [contents, setContents] = useState(initialContents);
   const [contentInfos, setContentInfos] = useState<
     Array<{
@@ -204,26 +200,6 @@ export function CampPlanGroupReviewForm({
     });
   }, [studentContents, contentInfos]);
 
-  const handleGeneratePlans = async () => {
-    startTransition(async () => {
-      try {
-        // 플랜 생성
-        const generateResult = await generatePlansFromGroupAction(groupId);
-
-        if (!generateResult || generateResult.count === 0) {
-          throw new Error("플랜 생성에 실패했습니다.");
-        }
-
-        toast.showSuccess(`플랜이 생성되었습니다. (${generateResult.count}개)`);
-        router.push(`/plan/group/${groupId}`);
-      } catch (error) {
-        console.error("플랜 생성 실패:", error);
-        toast.showError(
-          error instanceof Error ? error.message : "플랜 생성에 실패했습니다."
-        );
-      }
-    });
-  };
 
   if (loading) {
     return (
@@ -416,19 +392,6 @@ export function CampPlanGroupReviewForm({
           </div>
         )}
 
-        {/* 액션 버튼 (개요 탭에서만 표시) */}
-        {currentTab === "overview" && group.scheduler_type === "1730_timetable" && (
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleGeneratePlans}
-              disabled={isPending}
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPending ? "생성 중..." : "플랜 생성하기"}
-            </button>
-          </div>
-        )}
       </div>
     </section>
   );
