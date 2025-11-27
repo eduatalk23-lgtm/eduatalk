@@ -2602,9 +2602,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         });
         const { data: book, error: bookError } = await queryClient
           .from("books")
-          .select(
-            "title, subject, subject_category, master_content_id"
-          )
+          .select("title, subject, subject_category, master_content_id")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -2637,7 +2635,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         } else {
           // 학생 교재가 없으면 마스터 콘텐츠 ID로 학생 교재 찾기
           // content.master_content_id를 사용 (content.content_id는 학생 교재 ID)
-          const masterContentId = content.master_content_id || content.content_id;
+          const masterContentId =
+            content.master_content_id || content.content_id;
           console.log(
             "[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 교재 찾기",
             {
@@ -2650,9 +2649,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           const { data: bookByMaster, error: bookByMasterError } =
             await queryClient
               .from("books")
-              .select(
-                "title, subject, subject_category, master_content_id"
-              )
+              .select("title, subject, subject_category, master_content_id")
               .eq("student_id", studentId)
               .eq("master_content_id", masterContentId)
               .maybeSingle();
@@ -2690,7 +2687,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           } else {
             // 마스터 교재 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
             // content.master_content_id를 사용 (content.content_id는 학생 교재 ID)
-            const actualMasterContentId = content.master_content_id || content.content_id;
+            const actualMasterContentId =
+              content.master_content_id || content.content_id;
             console.log("[_previewPlansFromGroup] 마스터 교재 조회 시도", {
               masterContentId: actualMasterContentId,
               usingAdminClient: isAdminOrConsultant,
@@ -2753,7 +2751,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         const { data: lecture, error: lectureError } = await queryClient
           .from("lectures")
           .select(
-            "title, subject, subject_category, content_category, master_content_id"
+            "title, subject, subject_category, master_content_id"
           )
           .eq("id", finalContentId)
           .eq("student_id", studentId)
@@ -2766,7 +2764,6 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
                 title: lecture.title,
                 subject: lecture.subject,
                 subject_category: lecture.subject_category,
-                content_category: lecture.content_category,
                 master_content_id: lecture.master_content_id,
               }
             : null,
@@ -2778,7 +2775,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             title: lecture.title || null,
             subject: lecture.subject || null,
             subject_category: lecture.subject_category || null,
-            category: lecture.content_category || null,
+            category: null, // lectures 테이블에 content_category 컬럼이 없을 수 있음
           };
           contentMetadataMap.set(content.content_id, metadata);
           console.log("[_previewPlansFromGroup] 학생 강의 메타데이터 저장", {
@@ -2787,19 +2784,22 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           });
         } else {
           // 학생 강의가 없으면 마스터 콘텐츠 ID로 학생 강의 찾기
-          const masterContentId = content.content_id;
+          // content.master_content_id를 사용 (content.content_id는 학생 강의 ID)
+          const masterContentId = content.master_content_id || content.content_id;
           console.log(
             "[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 강의 찾기",
             {
               masterContentId,
               studentId,
+              content_content_id: content.content_id,
+              content_master_content_id: content.master_content_id,
             }
           );
           const { data: lectureByMaster, error: lectureByMasterError } =
             await queryClient
               .from("lectures")
               .select(
-                "title, subject, subject_category, content_category, master_content_id"
+                "title, subject, subject_category, master_content_id"
               )
               .eq("student_id", studentId)
               .eq("master_content_id", masterContentId)
@@ -2814,7 +2814,6 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
                     title: lectureByMaster.title,
                     subject: lectureByMaster.subject,
                     subject_category: lectureByMaster.subject_category,
-                    content_category: lectureByMaster.content_category,
                   }
                 : null,
               error: lectureByMasterError,
@@ -2826,7 +2825,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
               title: lectureByMaster.title || null,
               subject: lectureByMaster.subject || null,
               subject_category: lectureByMaster.subject_category || null,
-              category: lectureByMaster.content_category || null,
+              category: null, // lectures 테이블에 content_category 컬럼이 없을 수 있음
             };
             contentMetadataMap.set(content.content_id, metadata);
             console.log(
@@ -2838,15 +2837,19 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             );
           } else {
             // 마스터 강의 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
+            // content.master_content_id를 사용 (content.content_id는 학생 강의 ID)
+            const actualMasterContentId = content.master_content_id || content.content_id;
             console.log("[_previewPlansFromGroup] 마스터 강의 조회 시도", {
-              masterContentId,
+              masterContentId: actualMasterContentId,
               usingAdminClient: isAdminOrConsultant,
+              content_content_id: content.content_id,
+              content_master_content_id: content.master_content_id,
             });
             const { data: masterLecture, error: masterLectureError } =
               await masterQueryClient
                 .from("master_lectures")
                 .select("title, subject, subject_category, content_category")
-                .eq("id", masterContentId)
+                .eq("id", actualMasterContentId)
                 .maybeSingle();
 
             console.log("[_previewPlansFromGroup] 마스터 강의 조회 결과", {
