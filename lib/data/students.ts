@@ -27,18 +27,29 @@ export async function getStudentById(
   const supabase = await createSupabaseServerClient();
 
   // 기본 학적 정보만 조회 (프로필/진로 정보는 별도 테이블에서 조회)
-  return executeSingleQuery<Student>(
-    () =>
-      supabase
-        .from("students")
-        .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
-        .eq("id", studentId)
-        .maybeSingle(),
-    {
-      context: "[data/students]",
-      defaultValue: null,
+  // name 필드도 포함하여 조회
+  const { data, error } = await supabase
+    .from("students")
+    .select("id,tenant_id,name,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+    .eq("id", studentId)
+    .maybeSingle<Student>();
+
+  if (error) {
+    // PGRST116은 레코드가 없는 경우이므로 null 반환
+    if (error.code === "PGRST116") {
+      return null;
     }
-  );
+    console.error("[data/students] 학생 정보 조회 실패", {
+      studentId,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    return null;
+  }
+
+  return data ?? null;
 }
 
 /**

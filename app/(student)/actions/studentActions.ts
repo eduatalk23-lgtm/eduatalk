@@ -92,10 +92,32 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
       return createResult;
     }
     
-    // 생성된 학생 정보 다시 조회
-    existingStudent = await getStudentById(user.id);
+    // 생성된 학생 정보 다시 조회 (약간의 지연 후 재시도)
+    // Supabase의 eventual consistency를 고려하여 재시도 로직 추가
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 100; // 100ms
+    
+    while (retryCount < maxRetries) {
+      existingStudent = await getStudentById(user.id);
+      if (existingStudent) {
+        break;
+      }
+      
+      retryCount++;
+      if (retryCount < maxRetries) {
+        // 마지막 시도가 아니면 잠시 대기 후 재시도
+        await new Promise((resolve) => setTimeout(resolve, retryDelay * retryCount));
+      }
+    }
+    
     if (!existingStudent) {
-      return { success: false, error: "학생 정보 생성 후 조회에 실패했습니다." };
+      console.error("[studentActions] 학생 정보 생성 후 조회 실패", {
+        userId: user.id,
+        retryCount,
+        createResult,
+      });
+      return { success: false, error: "학생 정보 생성 후 조회에 실패했습니다. 잠시 후 다시 시도해주세요." };
     }
   }
 
