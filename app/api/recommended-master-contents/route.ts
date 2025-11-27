@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
@@ -26,21 +27,37 @@ export async function GET(request: NextRequest) {
     }
 
     const { role } = await getCurrentUserRole();
-    const supabase = await createSupabaseServerClient();
-
+    
     // 쿼리 파라미터에서 교과와 개수 정보 추출
     const { searchParams } = new URL(request.url);
     const studentIdParam = searchParams.get("student_id");
     
     // 학생 ID 결정: 관리자/컨설턴트인 경우 student_id 파라미터 사용, 학생인 경우 자신의 ID 사용
     let targetStudentId: string;
-    if (role === "admin" || role === "consultant") {
+    const isAdminOrConsultant = role === "admin" || role === "consultant";
+    
+    if (isAdminOrConsultant) {
       if (!studentIdParam) {
         return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
       }
       targetStudentId = studentIdParam;
     } else {
       targetStudentId = user.userId;
+    }
+
+    // 관리자/컨설턴트가 다른 학생의 추천 콘텐츠를 조회할 때는 Admin 클라이언트 사용 (RLS 우회)
+    // 마스터 콘텐츠 조회 시에도 RLS 문제가 있을 수 있으므로 Admin 클라이언트 사용
+    let supabase;
+    if (isAdminOrConsultant && studentIdParam) {
+      const adminClient = createSupabaseAdminClient();
+      if (!adminClient) {
+        console.warn("[api/recommended-master-contents] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+        supabase = await createSupabaseServerClient();
+      } else {
+        supabase = adminClient;
+      }
+    } else {
+      supabase = await createSupabaseServerClient();
     }
 
     // 대상 학생의 tenant_id 조회
