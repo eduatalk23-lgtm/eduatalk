@@ -692,7 +692,7 @@ async function _generatePlansFromGroup(
   });
 
   // Admin/Consultant가 다른 학생의 교재를 조회할 때는 Admin 클라이언트 사용
-  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  // isAdminOrConsultant는 위에서 이미 선언되었으므로 재사용
   const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
   const bookQueryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
   
