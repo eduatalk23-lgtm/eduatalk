@@ -26,9 +26,21 @@ export async function saveStudentInfo(formData: FormData): Promise<void> {
     throw new Error("모든 필드를 입력해주세요.");
   }
 
+  // 이름을 user_metadata에도 저장
+  if (name && name !== user.user_metadata?.display_name) {
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { display_name: name },
+    });
+    if (updateError) {
+      console.error("이름 업데이트 실패:", updateError);
+      // 이름 업데이트 실패는 치명적이지 않으므로 계속 진행
+    }
+  }
+
   const result = await upsertStudent({
     id: user.id,
     tenant_id: null, // null이면 upsertStudent에서 기본 tenant 자동 할당
+    name,
     grade,
     class: klass,
     birth_date: birthDate,
