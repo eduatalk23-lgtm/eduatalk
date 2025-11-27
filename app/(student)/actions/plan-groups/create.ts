@@ -214,6 +214,36 @@ async function _savePlanGroupDraft(
     );
   }
 
+  // camp_invitation_id가 있는 경우, 기존 draft를 먼저 확인
+  // 자동저장 시 중복 생성 방지
+  if (data.camp_invitation_id) {
+    const supabase = await createSupabaseServerClient();
+    const { data: existingGroup, error: checkError } = await supabase
+      .from("plan_groups")
+      .select("id, status")
+      .eq("camp_invitation_id", data.camp_invitation_id)
+      .eq("student_id", user.userId)
+      .eq("status", "draft")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== "PGRST116") {
+      // PGRST116은 "multiple rows" 에러인데, 이는 이미 처리됨 (limit(1) 사용)
+      console.error("[savePlanGroupDraft] 기존 플랜 그룹 확인 중 에러:", checkError);
+      // 에러가 있어도 계속 진행 (새로 생성 시도)
+    }
+
+    // 기존 draft가 있으면 업데이트
+    if (existingGroup && existingGroup.status === "draft") {
+      const { updatePlanGroupDraftAction } = await import("./update");
+      await updatePlanGroupDraftAction(existingGroup.id, data);
+      revalidatePath("/plan");
+      return { groupId: existingGroup.id };
+    }
+  }
+
   // 플랜 그룹 생성 (draft 상태)
   // time_settings를 scheduler_options에 병합
   const mergedSchedulerOptions = data.scheduler_options || {};
