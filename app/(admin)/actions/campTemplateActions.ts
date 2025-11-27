@@ -1498,8 +1498,13 @@ export const getCampPlanGroupForReview = withErrorHandling(
         const { classifyPlanContents } = await import(
           "@/lib/data/planContents"
         );
+        // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
+        const { userId } = await getCurrentUserRole();
         const { studentContents, recommendedContents } =
-          await classifyPlanContents(result.contents, result.group.student_id);
+          await classifyPlanContents(result.contents, result.group.student_id, {
+            currentUserRole: role,
+            currentUserId: userId || undefined,
+          });
 
         // 상세 페이지 형식으로 변환
         const allContents = [...studentContents, ...recommendedContents];

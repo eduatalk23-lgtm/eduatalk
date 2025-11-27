@@ -43,9 +43,15 @@ export default async function AdminPlanGroupDetailPage({
   }
 
   // 콘텐츠 정보 조회 및 학생/추천 구분
+  // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
+  const { userId } = await getCurrentUserRole();
   const { studentContents, recommendedContents } = await classifyPlanContents(
     contents,
-    group.student_id
+    group.student_id,
+    {
+      currentUserRole: role,
+      currentUserId: userId || undefined,
+    }
   );
 
   // 상세 페이지 형식으로 변환

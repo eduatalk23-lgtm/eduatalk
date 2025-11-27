@@ -1,6 +1,7 @@
 // 플랜 콘텐츠 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PlanContent } from "@/lib/types/plan";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
@@ -158,6 +159,7 @@ export async function fetchAllStudentContents(studentId: string): Promise<{
  * 
  * @param contents 플랜 콘텐츠 목록
  * @param studentId 학생 ID
+ * @param options 선택적 옵션 (관리자/컨설턴트 권한 관련)
  * @returns 분류된 콘텐츠 목록
  */
 export async function classifyPlanContents(
@@ -182,12 +184,31 @@ export async function classifyPlanContents(
       priority?: number;
     } | null;
   }>,
-  studentId: string
+  studentId: string,
+  options?: {
+    currentUserRole?: "student" | "admin" | "consultant" | "parent";
+    currentUserId?: string;
+  }
 ): Promise<{
   studentContents: Array<ContentDetail>;
   recommendedContents: Array<ContentDetail>;
 }> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용 (RLS 우회)
+  const isAdminOrConsultant = options?.currentUserRole === "admin" || options?.currentUserRole === "consultant";
+  const isOtherStudent = isAdminOrConsultant && options?.currentUserId && studentId !== options.currentUserId;
+  
+  let supabase: SupabaseServerClient;
+  if (isOtherStudent) {
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      console.warn("[classifyPlanContents] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      supabase = await createSupabaseServerClient();
+    } else {
+      supabase = adminClient as any; // Admin 클라이언트를 SupabaseServerClient 타입으로 사용
+    }
+  } else {
+    supabase = await createSupabaseServerClient();
+  }
 
   // 디버깅: 입력 데이터 로그
   if (process.env.NODE_ENV === "development") {
