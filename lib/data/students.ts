@@ -9,7 +9,8 @@ export type Student = {
   grade?: string | null;
   class?: string | null;
   birth_date?: string | null;
-  school_id?: string | null;
+  school_id?: string | null; // 통합 ID (SCHOOL_123 또는 UNIV_456)
+  school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
   student_number?: string | null;
   enrolled_at?: string | null;
   status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
@@ -30,7 +31,7 @@ export async function getStudentById(
   // name 필드도 포함하여 조회
   const { data, error } = await supabase
     .from("students")
-    .select("id,tenant_id,name,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+    .select("id,tenant_id,name,grade,class,birth_date,school_id,school_type,student_number,enrolled_at,status,created_at,updated_at")
     .eq("id", studentId)
     .maybeSingle<Student>();
 
@@ -66,7 +67,7 @@ export async function listStudentsByTenant(
     () =>
       supabase
         .from("students")
-        .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+        .select("id,tenant_id,grade,class,birth_date,school_id,school_type,student_number,enrolled_at,status,created_at,updated_at")
         .order("created_at", { ascending: false }),
     {
       context: "[data/students]",
@@ -80,6 +81,23 @@ export async function listStudentsByTenant(
 /**
  * 학생 기본 정보 생성/업데이트
  */
+/**
+ * school_id에서 school_type 추출
+ */
+function extractSchoolType(schoolId: string | null | undefined): "MIDDLE" | "HIGH" | "UNIVERSITY" | null {
+  if (!schoolId) return null;
+  
+  if (schoolId.startsWith("SCHOOL_")) {
+    // school_info 테이블의 경우, 실제 조회해서 school_level 확인 필요
+    // 하지만 여기서는 일단 null 반환 (나중에 조회해서 설정)
+    return null;
+  } else if (schoolId.startsWith("UNIV_")) {
+    return "UNIVERSITY";
+  }
+  
+  return null;
+}
+
 export async function upsertStudent(
   student: {
     id: string;
@@ -89,6 +107,7 @@ export async function upsertStudent(
     class: string;
     birth_date: string;
     school_id?: string | null;
+    school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
     student_number?: string | null;
     enrolled_at?: string | null;
     status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
@@ -139,6 +158,25 @@ export async function upsertStudent(
     }
   }
 
+  // school_type 자동 추출 (school_id에서)
+  let schoolType = student.school_type;
+  if (!schoolType && student.school_id) {
+    schoolType = extractSchoolType(student.school_id);
+    
+    // SCHOOL_로 시작하는 경우 실제 조회해서 school_level 확인
+    if (!schoolType && student.school_id.startsWith("SCHOOL_")) {
+      try {
+        const { getSchoolByUnifiedId } = await import("@/lib/data/schools");
+        const school = await getSchoolByUnifiedId(student.school_id);
+        if (school) {
+          schoolType = school.school_type;
+        }
+      } catch (error) {
+        console.error("[data/students] school_type 조회 실패:", error);
+      }
+    }
+  }
+
   const payload: {
     id: string;
     tenant_id: string;
@@ -147,6 +185,7 @@ export async function upsertStudent(
     class: string;
     birth_date: string;
     school_id: string | null;
+    school_type: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
     student_number: string | null;
     enrolled_at: string | null;
     status: string;
@@ -157,6 +196,7 @@ export async function upsertStudent(
     class: student.class,
     birth_date: student.birth_date,
     school_id: student.school_id ?? null,
+    school_type: schoolType ?? null,
     student_number: student.student_number ?? null,
     enrolled_at: student.enrolled_at ?? null,
     status: student.status ?? "enrolled",

@@ -5,7 +5,6 @@ import { cn } from "@/lib/cn";
 import {
   getSchoolById,
   searchSchools,
-  autoRegisterSchool,
   type School,
 } from "@/app/(student)/actions/schoolActions";
 
@@ -144,32 +143,8 @@ export default function SchoolMultiSelect({
     setIsOpen(false);
     setIsSearchMode(false);
 
-    // 학교가 DB에 없으면 자동 등록
-    if (!school.id && school.name && type) {
-      try {
-        const registeredSchool = await autoRegisterSchool(
-          school.name,
-          type,
-          school.region || null
-        );
-        if (registeredSchool) {
-          // 등록된 학교로 업데이트
-          const updatedSchools = newSelectedSchools.map((s) =>
-            s.name === school.name ? registeredSchool : s
-          );
-          setSelectedSchools(updatedSchools);
-          const updatedIds = updatedSchools
-            .map((s) => s.id)
-            .filter((id): id is string => !!id);
-          onChange(updatedIds);
-          if (onSchoolSelect) {
-            onSchoolSelect(registeredSchool);
-          }
-        }
-      } catch (error) {
-        console.error("학교 자동 등록 실패:", error);
-      }
-    } else if (onSchoolSelect) {
+    // 학교 선택 콜백 호출
+    if (onSchoolSelect) {
       onSchoolSelect(school);
     }
   }
