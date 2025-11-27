@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
-  updateCampPlanGroupSubjectAllocations,
   getCampPlanGroupForReview,
 } from "@/app/(admin)/actions/campTemplateActions";
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
@@ -15,13 +14,6 @@ import { Step1DetailView } from "@/app/(student)/plan/group/[id]/_components/Ste
 import { Step2DetailView } from "@/app/(student)/plan/group/[id]/_components/Step2DetailView";
 import { Step3DetailView } from "@/app/(student)/plan/group/[id]/_components/Step3DetailView";
 import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
-
-type SubjectAllocation = {
-  subject_id: string;
-  subject_name: string;
-  subject_type: "strategy" | "weakness";
-  weekly_days?: number;
-};
 
 type CampPlanGroupReviewFormProps = {
   templateId: string;
@@ -67,9 +59,6 @@ export function CampPlanGroupReviewForm({
       subject_category?: string | null;
     }>
   >([]);
-  const [subjectAllocations, setSubjectAllocations] = useState<SubjectAllocation[]>(
-    ((group.scheduler_options as any)?.subject_allocations as SubjectAllocation[]) || []
-  );
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState<"overview" | "step1" | "step2" | "step3" | "step4">("overview");
 
@@ -193,14 +182,6 @@ export function CampPlanGroupReviewForm({
     }
   }, [contents, toast]);
 
-  // 선택된 콘텐츠에서 과목 목록 추출
-  const subjects = Array.from(
-    new Set(
-      contentInfos
-        .map((info) => info.subject_category)
-        .filter((cat): cat is string => !!cat)
-    )
-  ).sort();
 
   // 학생 콘텐츠와 추천 콘텐츠 분리
   const studentContents = useMemo(() => {
@@ -223,78 +204,9 @@ export function CampPlanGroupReviewForm({
     });
   }, [studentContents, contentInfos]);
 
-  const handleSubjectAllocationChange = (
-    subject: string,
-    allocation: SubjectAllocation
-  ) => {
-    setSubjectAllocations((prev) => {
-      const filtered = prev.filter((a) => a.subject_name !== subject);
-      return [...filtered, allocation];
-    });
-  };
-
-  const handleSave = async () => {
-    // 모든 과목에 대한 설정이 있는지 확인
-    const missingSubjects = subjects.filter(
-      (subject) => !subjectAllocations.some((a) => a.subject_name === subject)
-    );
-
-    if (missingSubjects.length > 0) {
-      toast.showError(
-        `다음 과목의 전략과목/취약과목 설정이 필요합니다: ${missingSubjects.join(", ")}`
-      );
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        // subject_allocations 업데이트
-        const result = await updateCampPlanGroupSubjectAllocations(
-          groupId,
-          subjectAllocations
-        );
-
-        if (!result.success) {
-          throw new Error("전략과목/취약과목 설정 저장에 실패했습니다.");
-        }
-
-        toast.showSuccess("전략과목/취약과목 설정이 저장되었습니다.");
-      } catch (error) {
-        console.error("저장 실패:", error);
-        toast.showError(
-          error instanceof Error
-            ? error.message
-            : "전략과목/취약과목 설정 저장에 실패했습니다."
-        );
-      }
-    });
-  };
-
   const handleGeneratePlans = async () => {
-    // 모든 과목에 대한 설정이 있는지 확인
-    const missingSubjects = subjects.filter(
-      (subject) => !subjectAllocations.some((a) => a.subject_name === subject)
-    );
-
-    if (missingSubjects.length > 0) {
-      toast.showError(
-        `다음 과목의 전략과목/취약과목 설정이 필요합니다: ${missingSubjects.join(", ")}`
-      );
-      return;
-    }
-
     startTransition(async () => {
       try {
-        // 먼저 subject_allocations 저장
-        const updateResult = await updateCampPlanGroupSubjectAllocations(
-          groupId,
-          subjectAllocations
-        );
-
-        if (!updateResult.success) {
-          throw new Error("전략과목/취약과목 설정 저장에 실패했습니다.");
-        }
-
         // 플랜 생성
         const generateResult = await generatePlansFromGroupAction(groupId);
 
@@ -504,153 +416,13 @@ export function CampPlanGroupReviewForm({
           </div>
         )}
 
-        {/* 전략과목/취약과목 정보 설정 (개요 탭에서만 표시) */}
-        {currentTab === "overview" && group.scheduler_type === "1730_timetable" && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
-              전략과목/취약과목 정보 <span className="text-red-500">*</span>
-            </h2>
-            <p className="mb-6 text-sm text-gray-600">
-              각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
-            </p>
-
-            {subjects.length === 0 ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                선택된 콘텐츠에 과목 정보가 없습니다.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {subjects.map((subject) => {
-                  const existingAllocation = subjectAllocations.find(
-                    (a) => a.subject_name === subject
-                  );
-                  const subjectType = existingAllocation?.subject_type || "weakness";
-                  const weeklyDays = existingAllocation?.weekly_days || 3;
-
-                  return (
-                    <div
-                      key={subject}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4"
-                    >
-                      <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-gray-900">{subject}</h3>
-                        <span className="text-xs text-gray-500">
-                          {
-                            contentInfos.filter((c) => c.subject_category === subject)
-                              .length
-                          }
-                          개 콘텐츠
-                        </span>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-700">
-                            과목 유형
-                          </label>
-                          <div className="flex gap-3">
-                            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                              <input
-                                type="radio"
-                                name={`subject_type_${subject}`}
-                                value="weakness"
-                                checked={subjectType === "weakness"}
-                                onChange={() => {
-                                  handleSubjectAllocationChange(subject, {
-                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                    subject_name: subject,
-                                    subject_type: "weakness",
-                                  });
-                                }}
-                                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">
-                                  취약과목
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  전체 학습일에 플랜 배정 (더 많은 시간 필요)
-                                </div>
-                              </div>
-                            </label>
-                            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                              <input
-                                type="radio"
-                                name={`subject_type_${subject}`}
-                                value="strategy"
-                                checked={subjectType === "strategy"}
-                                onChange={() => {
-                                  handleSubjectAllocationChange(subject, {
-                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                    subject_name: subject,
-                                    subject_type: "strategy",
-                                    weekly_days: 3,
-                                  });
-                                }}
-                                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">
-                                  전략과목
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  주당 배정 일수에 따라 배정
-                                </div>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-
-                        {subjectType === "strategy" && (
-                          <div>
-                            <label className="mb-2 block text-xs font-medium text-gray-700">
-                              주당 배정 일수
-                            </label>
-                            <select
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-                              value={weeklyDays}
-                              onChange={(e) => {
-                                handleSubjectAllocationChange(subject, {
-                                  subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                  subject_name: subject,
-                                  subject_type: "strategy",
-                                  weekly_days: Number(e.target.value),
-                                });
-                              }}
-                            >
-                              <option value="2">주 2일</option>
-                              <option value="3">주 3일</option>
-                              <option value="4">주 4일</option>
-                            </select>
-                            <p className="mt-1 text-xs text-gray-500">
-                              선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* 액션 버튼 (개요 탭에서만 표시) */}
         {currentTab === "overview" && group.scheduler_type === "1730_timetable" && (
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={handleSave}
-              disabled={isPending || subjects.length === 0}
-              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPending ? "저장 중..." : "설정 저장"}
-            </button>
-            <button
-              type="button"
               onClick={handleGeneratePlans}
-              disabled={isPending || subjects.length === 0}
+              disabled={isPending}
               className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isPending ? "생성 중..." : "플랜 생성하기"}
