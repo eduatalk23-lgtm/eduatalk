@@ -99,102 +99,61 @@ export async function findRegionById(regionId: string): Promise<Region | null> {
 // ============================================
 
 /**
- * 통합 학교 목록 조회
+ * 통합 학교 목록 조회 (각 테이블 직접 조회)
  */
 export async function findAllSchools(options?: GetSchoolsOptions): Promise<AllSchoolsView[]> {
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase.from("all_schools_view").select("*");
-
-  if (options?.schoolType) {
-    query = query.eq("school_type", options.schoolType);
-  }
-
-  if (options?.region) {
-    query = query.ilike("region", `%${options.region}%`);
-  }
-
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  }
-
-  if (options?.offset) {
-    query = query.range(options.offset, options.offset + (options.limit || 100) - 1);
-  }
-
-  const { data, error } = await query.order("name", { ascending: true });
-
-  if (error) throw error;
-  return (data as AllSchoolsView[]) ?? [];
+  // lib/data/schools.ts의 getAllSchools를 사용
+  const { getAllSchools } = await import("@/lib/data/schools");
+  return getAllSchools(options);
 }
 
 /**
- * 통합 학교 검색
+ * 통합 학교 검색 (각 테이블 직접 조회)
  */
 export async function searchSchools(options: SearchSchoolsOptions): Promise<AllSchoolsView[]> {
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase.from("all_schools_view").select("*");
-
-  if (options.schoolType) {
-    query = query.eq("school_type", options.schoolType);
+  // lib/data/schools.ts의 searchAllSchools를 사용하고 AllSchoolsView로 변환
+  const { searchAllSchools, getSchoolByUnifiedId } = await import("@/lib/data/schools");
+  const simpleResults = await searchAllSchools(options);
+  
+  // SchoolSimple을 AllSchoolsView로 변환
+  const results: AllSchoolsView[] = [];
+  for (const simple of simpleResults) {
+    const full = await getSchoolByUnifiedId(simple.id);
+    if (full) {
+      results.push(full);
+    }
   }
-
-  if (options.query && options.query.trim()) {
-    query = query.ilike("name", `%${options.query.trim()}%`);
-  }
-
-  if (options.region) {
-    query = query.ilike("region", `%${options.region}%`);
-  }
-
-  const limit = options.limit || 50;
-  query = query.limit(limit);
-
-  const { data, error } = await query.order("name", { ascending: true });
-
-  if (error) throw error;
-  return (data as AllSchoolsView[]) ?? [];
+  
+  return results;
 }
 
 /**
- * 통합 학교 ID로 조회
+ * 통합 학교 ID로 조회 (각 테이블 직접 조회)
  */
 export async function findSchoolByUnifiedId(unifiedId: string): Promise<AllSchoolsView | null> {
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("all_schools_view")
-    .select("*")
-    .eq("id", unifiedId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data as AllSchoolsView | null;
+  // lib/data/schools.ts의 getSchoolByUnifiedId를 사용
+  const { getSchoolByUnifiedId } = await import("@/lib/data/schools");
+  return getSchoolByUnifiedId(unifiedId);
 }
 
 /**
- * 학교명으로 조회
+ * 학교명으로 조회 (각 테이블 직접 조회)
  */
 export async function findSchoolByName(
   name: string,
   schoolType?: SchoolType
 ): Promise<AllSchoolsView | null> {
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase
-    .from("all_schools_view")
-    .select("*")
-    .eq("name", name);
-
-  if (schoolType) {
-    query = query.eq("school_type", schoolType);
-  }
-
-  const { data, error } = await query.maybeSingle();
-
-  if (error) throw error;
-  return data as AllSchoolsView | null;
+  // lib/data/schools.ts의 searchAllSchools를 사용
+  const { searchAllSchools, getSchoolByUnifiedId } = await import("@/lib/data/schools");
+  const results = await searchAllSchools({
+    query: name,
+    schoolType,
+    limit: 1,
+  });
+  
+  if (results.length === 0) return null;
+  
+  return getSchoolByUnifiedId(results[0].id);
 }
 
 // ============================================

@@ -138,41 +138,127 @@ export async function getRegionsByLevel(level: 1 | 2 | 3): Promise<Region[]> {
 }
 
 // ============================================
-// 통합 학교 조회 (all_schools_view)
+// 통합 학교 조회 (각 테이블 직접 조회)
 // ============================================
 
 /**
- * 통합 학교 목록 조회 (all_schools_view)
+ * 통합 학교 목록 조회 (각 테이블 직접 조회 후 합치기)
  */
 export async function getAllSchools(options?: GetSchoolsOptions): Promise<AllSchoolsView[]> {
   const supabase = await createSupabaseServerClient();
+  const results: AllSchoolsView[] = [];
 
-  let query = supabase.from("all_schools_view").select("*");
+  try {
+    // 중학교/고등학교 조회
+    if (!options?.schoolType || options.schoolType === "MIDDLE" || options.schoolType === "HIGH") {
+      let schoolInfoQuery = supabase
+        .from("school_info")
+        .select("*")
+        .eq("closed_flag", "N");
 
-  if (options?.schoolType) {
-    query = query.eq("school_type", options.schoolType);
-  }
+      if (options?.schoolType === "MIDDLE") {
+        schoolInfoQuery = schoolInfoQuery.eq("school_level", "중");
+      } else if (options?.schoolType === "HIGH") {
+        schoolInfoQuery = schoolInfoQuery.eq("school_level", "고");
+      }
 
-  if (options?.region) {
-    query = query.ilike("region", `%${options.region}%`);
-  }
+      if (options?.region) {
+        schoolInfoQuery = schoolInfoQuery.ilike("region", `%${options.region}%`);
+      }
 
-  if (options?.limit) {
-    query = query.limit(options.limit);
-  }
+      const limit = options?.limit ? Math.floor(options.limit / 2) : 500;
+      const { data: schoolInfoData, error: schoolInfoError } = await schoolInfoQuery
+        .limit(limit)
+        .order("school_name", { ascending: true });
 
-  if (options?.offset) {
-    query = query.range(options.offset, options.offset + (options.limit || 100) - 1);
-  }
+      if (!schoolInfoError && schoolInfoData) {
+        for (const si of schoolInfoData) {
+          results.push({
+            id: `SCHOOL_${si.id}`,
+            school_type: si.school_level === "중" ? "MIDDLE" : "HIGH",
+            name: si.school_name,
+            code: si.school_code,
+            region: si.region,
+            address: si.address_full,
+            postal_code: si.postal_code,
+            phone: si.phone_number,
+            website: si.homepage_url,
+            establishment_type: si.establishment_type,
+            campus_name: null,
+            university_type: null,
+            source_table: "school_info",
+            source_id: si.id,
+            latitude: si.latitude,
+            longitude: si.longitude,
+            created_at: si.created_at,
+          });
+        }
+      }
+    }
 
-  const { data, error } = await query.order("name", { ascending: true });
+    // 대학교 조회
+    if (!options?.schoolType || options.schoolType === "UNIVERSITY") {
+      let campusQuery = supabase
+        .from("university_campuses")
+        .select(`
+          *,
+          university:universities(*)
+        `)
+        .eq("campus_status", "기존");
 
-  if (error) {
+      if (options?.region) {
+        campusQuery = campusQuery.ilike("region", `%${options.region}%`);
+      }
+
+      const limit = options?.limit ? Math.floor(options.limit / 2) : 500;
+      const { data: campusData, error: campusError } = await campusQuery
+        .limit(limit)
+        .order("campus_name", { ascending: true });
+
+      if (!campusError && campusData) {
+        for (const uc of campusData) {
+          const university = uc.university as any;
+          const campusName = uc.campus_name;
+          const universityName = university?.name_kor || campusName;
+          
+          results.push({
+            id: `UNIV_${uc.id}`,
+            school_type: "UNIVERSITY",
+            name: campusName === universityName 
+              ? universityName 
+              : `${universityName} (${uc.campus_type || ""})`,
+            code: university?.university_code || null,
+            region: uc.region,
+            address: uc.address_kor,
+            postal_code: uc.postal_code,
+            phone: uc.phone_number,
+            website: university?.homepage_url || null,
+            establishment_type: university?.establishment_type || null,
+            campus_name: campusName,
+            university_type: university?.university_type || null,
+            source_table: "university_campuses",
+            source_id: uc.id,
+            latitude: null,
+            longitude: null,
+            created_at: uc.created_at,
+          });
+        }
+      }
+    }
+
+    // 이름순 정렬
+    results.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+
+    // limit 적용
+    if (options?.limit) {
+      return results.slice(0, options.limit);
+    }
+
+    return results;
+  } catch (error) {
     console.error("[data/schools] 통합 학교 조회 실패", error);
     return [];
   }
-
-  return (data as AllSchoolsView[]) ?? [];
 }
 
 /**
@@ -180,39 +266,104 @@ export async function getAllSchools(options?: GetSchoolsOptions): Promise<AllSch
  */
 export async function searchAllSchools(options: SearchSchoolsOptions): Promise<SchoolSimple[]> {
   const supabase = await createSupabaseServerClient();
+  const results: SchoolSimple[] = [];
 
-  let query = supabase.from("all_schools_view").select("id, school_type, name, region, source_table, source_id");
+  try {
+    const query = options.query?.trim() || "";
 
-  if (options.schoolType) {
-    query = query.eq("school_type", options.schoolType);
-  }
+    // 중학교/고등학교 검색
+    if (!options.schoolType || options.schoolType === "MIDDLE" || options.schoolType === "HIGH") {
+      let schoolInfoQuery = supabase
+        .from("school_info")
+        .select("id, school_name, school_level, region, school_code")
+        .eq("closed_flag", "N");
 
-  if (options.query && options.query.trim()) {
-    query = query.ilike("name", `%${options.query.trim()}%`);
-  }
+      if (options.schoolType === "MIDDLE") {
+        schoolInfoQuery = schoolInfoQuery.eq("school_level", "중");
+      } else if (options.schoolType === "HIGH") {
+        schoolInfoQuery = schoolInfoQuery.eq("school_level", "고");
+      }
 
-  if (options.region) {
-    query = query.ilike("region", `%${options.region}%`);
-  }
+      if (query) {
+        schoolInfoQuery = schoolInfoQuery.ilike("school_name", `%${query}%`);
+      }
 
-  const limit = options.limit || 50;
-  query = query.limit(limit);
+      if (options.region) {
+        schoolInfoQuery = schoolInfoQuery.ilike("region", `%${options.region}%`);
+      }
 
-  const { data, error } = await query.order("name", { ascending: true });
+      const limit = options.limit ? Math.floor(options.limit / 2) : 25;
+      const { data: schoolInfoData, error: schoolInfoError } = await schoolInfoQuery
+        .limit(limit)
+        .order("school_name", { ascending: true });
 
-  if (error) {
+      if (!schoolInfoError && schoolInfoData) {
+        for (const si of schoolInfoData) {
+          results.push({
+            id: `SCHOOL_${si.id}`,
+            name: si.school_name,
+            schoolType: si.school_level === "중" ? "MIDDLE" : "HIGH",
+            region: si.region,
+            sourceTable: "school_info",
+            sourceId: si.id,
+          });
+        }
+      }
+    }
+
+    // 대학교 검색
+    if (!options.schoolType || options.schoolType === "UNIVERSITY") {
+      let campusQuery = supabase
+        .from("university_campuses")
+        .select(`
+          id,
+          campus_name,
+          region,
+          university:universities!inner(university_code, name_kor)
+        `)
+        .eq("campus_status", "기존");
+
+      if (query) {
+        campusQuery = campusQuery.or(`campus_name.ilike.%${query}%,university.name_kor.ilike.%${query}%`);
+      }
+
+      if (options.region) {
+        campusQuery = campusQuery.ilike("region", `%${options.region}%`);
+      }
+
+      const limit = options.limit ? Math.floor(options.limit / 2) : 25;
+      const { data: campusData, error: campusError } = await campusQuery
+        .limit(limit)
+        .order("campus_name", { ascending: true });
+
+      if (!campusError && campusData) {
+        for (const uc of campusData) {
+          const university = uc.university as any;
+          results.push({
+            id: `UNIV_${uc.id}`,
+            name: uc.campus_name,
+            schoolType: "UNIVERSITY",
+            region: uc.region,
+            sourceTable: "university_campuses",
+            sourceId: uc.id,
+          });
+        }
+      }
+    }
+
+    // 이름순 정렬
+    results.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+
+    // limit 적용
+    if (options.limit) {
+      return results.slice(0, options.limit);
+    }
+
+    return results;
+  } catch (error) {
     console.error("[data/schools] 학교 검색 실패", error);
     return [];
   }
-
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    name: row.name,
-    schoolType: row.school_type,
-    region: row.region,
-    sourceTable: row.source_table,
-    sourceId: row.source_id,
-  }));
 }
 
 /**
@@ -221,18 +372,86 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
 export async function getSchoolByUnifiedId(unifiedId: string): Promise<AllSchoolsView | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("all_schools_view")
-    .select("*")
-    .eq("id", unifiedId)
-    .maybeSingle();
+  try {
+    // ID 형식 파싱
+    if (unifiedId.startsWith("SCHOOL_")) {
+      const sourceId = parseInt(unifiedId.replace("SCHOOL_", ""), 10);
+      if (isNaN(sourceId)) return null;
 
-  if (error) {
+      const { data, error } = await supabase
+        .from("school_info")
+        .select("*")
+        .eq("id", sourceId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      return {
+        id: `SCHOOL_${data.id}`,
+        school_type: data.school_level === "중" ? "MIDDLE" : "HIGH",
+        name: data.school_name,
+        code: data.school_code,
+        region: data.region,
+        address: data.address_full,
+        postal_code: data.postal_code,
+        phone: data.phone_number,
+        website: data.homepage_url,
+        establishment_type: data.establishment_type,
+        campus_name: null,
+        university_type: null,
+        source_table: "school_info",
+        source_id: data.id,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        created_at: data.created_at,
+      };
+    } else if (unifiedId.startsWith("UNIV_")) {
+      const sourceId = parseInt(unifiedId.replace("UNIV_", ""), 10);
+      if (isNaN(sourceId)) return null;
+
+      const { data, error } = await supabase
+        .from("university_campuses")
+        .select(`
+          *,
+          university:universities(*)
+        `)
+        .eq("id", sourceId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      const university = data.university as any;
+      const campusName = data.campus_name;
+      const universityName = university?.name_kor || campusName;
+
+      return {
+        id: `UNIV_${data.id}`,
+        school_type: "UNIVERSITY",
+        name: campusName === universityName
+          ? universityName
+          : `${universityName} (${data.campus_type || ""})`,
+        code: university?.university_code || null,
+        region: data.region,
+        address: data.address_kor,
+        postal_code: data.postal_code,
+        phone: data.phone_number,
+        website: university?.homepage_url || null,
+        establishment_type: university?.establishment_type || null,
+        campus_name: campusName,
+        university_type: university?.university_type || null,
+        source_table: "university_campuses",
+        source_id: data.id,
+        latitude: null,
+        longitude: null,
+        created_at: data.created_at,
+      };
+    }
+
+    return null;
+  } catch (error) {
     console.error("[data/schools] 통합 학교 조회 실패", error);
     return null;
   }
-
-  return data as AllSchoolsView | null;
 }
 
 // ============================================
