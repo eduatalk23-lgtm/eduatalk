@@ -4,6 +4,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterLectures } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
+import ExcelActions from "./_components/ExcelActions";
 
 export default async function MasterLecturesPage({
   searchParams,
@@ -79,14 +80,19 @@ export default async function MasterLecturesPage({
               서비스에서 제공하는 강의를 검색하고 확인하세요.
             </p>
           </div>
-          {(role === "admin" || role === "consultant") && (
-            <Link
-              href="/admin/master-lectures/new"
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              + 강의 등록
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            {(role === "admin" || role === "consultant") && (
+              <>
+                <ExcelActions />
+                <Link
+                  href="/admin/master-lectures/new"
+                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  + 강의 등록
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {/* 검색 필터 */}
