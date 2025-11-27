@@ -1,23 +1,46 @@
 /**
  * School 도메인 Service
  *
- * 이 파일은 비즈니스 로직을 담당합니다.
- * - 데이터 변환 및 가공
- * - 비즈니스 규칙 적용
- * - 중복 확인 등 검증 로직
- * - Repository 호출 및 에러 처리
+ * 새 테이블 구조:
+ * - school_info: 중·고등학교 (읽기 전용)
+ * - universities: 대학교 (읽기 전용)
+ * - university_campuses: 대학교 캠퍼스 (읽기 전용)
+ * - all_schools_view: 통합 조회 VIEW
+ *
+ * 주의: 새 테이블들은 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.
+ * CRUD 작업이 필요한 경우 별도 관리 테이블을 사용해야 합니다.
  */
 
 import * as repository from "./repository";
 import type {
-  School,
-  Region,
   SchoolType,
+  SchoolTypeKor,
+  Region,
+  AllSchoolsView,
   SchoolSimple,
-  CreateSchoolInput,
-  UpdateSchoolInput,
+  SchoolInfo,
+  University,
+  UniversityWithCampus,
+  GetSchoolsOptions,
+  SearchSchoolsOptions,
   SchoolActionResult,
+  SCHOOL_TYPE_MAP,
+  toSchoolSimple,
+  parseSchoolId,
 } from "./types";
+
+// 상수
+const SCHOOL_TYPE_MAP_INTERNAL: Record<SchoolType, SchoolTypeKor> = {
+  MIDDLE: "중학교",
+  HIGH: "고등학교",
+  UNIVERSITY: "대학교",
+};
+
+const SCHOOL_TYPE_REVERSE_MAP_INTERNAL: Record<SchoolTypeKor, SchoolType> = {
+  "중학교": "MIDDLE",
+  "고등학교": "HIGH",
+  "대학교": "UNIVERSITY",
+};
 
 // ============================================
 // Region Service
@@ -75,9 +98,7 @@ export async function isValidRegionId(regionId: string): Promise<boolean> {
 /**
  * 지역명으로 지역 ID 찾기
  */
-export async function findRegionIdByName(
-  regionName: string
-): Promise<string | null> {
+export async function findRegionIdByName(regionName: string): Promise<string | null> {
   try {
     const regions = await repository.findAllRegions();
     const matchedRegion = regions.find((r) => r.name === regionName);
@@ -89,37 +110,47 @@ export async function findRegionIdByName(
 }
 
 // ============================================
-// School Service
+// 통합 학교 Service
 // ============================================
 
 /**
- * 학교 목록 조회 (fallback 포함)
+ * 통합 학교 목록 조회
  */
-export async function getAllSchools(options?: {
-  regionId?: string;
-  type?: SchoolType;
-}): Promise<School[]> {
+export async function getAllSchools(options?: GetSchoolsOptions): Promise<AllSchoolsView[]> {
   try {
     return await repository.findAllSchools(options);
   } catch (error) {
-    console.error("[school/service] 학교 조회 실패, fallback 시도:", error);
-
-    // JOIN 실패 시 fallback
-    try {
-      return await repository.findAllSchoolsSimple(options);
-    } catch (fallbackError) {
-      console.error("[school/service] fallback 조회도 실패:", fallbackError);
-      return [];
-    }
+    console.error("[school/service] 학교 조회 실패:", error);
+    return [];
   }
 }
 
 /**
- * 학교 ID로 조회
+ * 통합 학교 검색
  */
-export async function getSchoolById(schoolId: string): Promise<School | null> {
+export async function searchSchools(options: SearchSchoolsOptions): Promise<SchoolSimple[]> {
   try {
-    return await repository.findSchoolById(schoolId);
+    const schools = await repository.searchSchools(options);
+    return schools.map((s) => ({
+      id: s.id,
+      name: s.name,
+      schoolType: s.school_type,
+      region: s.region,
+      sourceTable: s.source_table,
+      sourceId: s.source_id,
+    }));
+  } catch (error) {
+    console.error("[school/service] 학교 검색 실패:", error);
+    return [];
+  }
+}
+
+/**
+ * 통합 학교 ID로 조회
+ */
+export async function getSchoolByUnifiedId(unifiedId: string): Promise<AllSchoolsView | null> {
+  try {
+    return await repository.findSchoolByUnifiedId(unifiedId);
   } catch (error) {
     console.error("[school/service] 학교 조회 실패:", error);
     return null;
@@ -131,208 +162,179 @@ export async function getSchoolById(schoolId: string): Promise<School | null> {
  */
 export async function getSchoolByName(
   name: string,
-  type?: SchoolType
-): Promise<School | null> {
+  schoolType?: SchoolType
+): Promise<AllSchoolsView | null> {
   try {
-    return await repository.findSchoolByName(name, type);
+    return await repository.findSchoolByName(name, schoolType);
   } catch (error) {
     console.error("[school/service] 학교명 조회 실패:", error);
     return null;
   }
 }
 
-/**
- * 학교 검색 (간소화된 응답)
- */
-export async function searchSchools(
-  query: string,
-  type?: SchoolType
-): Promise<SchoolSimple[]> {
-  const schools = await getAllSchools({ type });
-
-  const filtered = query.trim()
-    ? schools.filter((school) =>
-        school.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : schools;
-
-  return filtered.map(toSchoolSimple);
-}
+// ============================================
+// 중·고등학교 Service
+// ============================================
 
 /**
- * 학교 중복 확인
+ * 중·고등학교 목록 조회
  */
-export async function checkDuplicateSchool(
-  name: string,
-  type: SchoolType,
-  regionId?: string | null,
-  campusName?: string | null,
-  excludeId?: string
-): Promise<boolean> {
+export async function getSchoolInfoList(options?: {
+  schoolLevel?: "중" | "고";
+  region?: string;
+  limit?: number;
+}): Promise<SchoolInfo[]> {
   try {
-    const existing = await repository.findSchoolByConditions(
-      name,
-      type,
-      regionId,
-      campusName,
-      excludeId
-    );
-    return existing !== null;
+    return await repository.findSchoolInfoList(options);
   } catch (error) {
-    console.error("[school/service] 중복 확인 실패:", error);
-    return false;
+    console.error("[school/service] 중·고등학교 조회 실패:", error);
+    return [];
   }
 }
 
 /**
- * 학교 생성
+ * 중·고등학교 ID로 조회
  */
-export async function createSchool(
-  input: CreateSchoolInput
-): Promise<SchoolActionResult> {
+export async function getSchoolInfoById(id: number): Promise<SchoolInfo | null> {
   try {
-    // 지역 ID 검증
-    if (input.region_id) {
-      const isValid = await isValidRegionId(input.region_id);
-      if (!isValid) {
-        return { success: false, error: "유효하지 않은 지역입니다." };
-      }
-    }
-
-    // 중복 확인
-    const isDuplicate = await checkDuplicateSchool(
-      input.name,
-      input.type,
-      input.region_id,
-      input.type === "대학교" ? input.campus_name : null
-    );
-
-    if (isDuplicate) {
-      return { success: false, error: "이미 등록된 학교입니다." };
-    }
-
-    // 생성
-    const school = await repository.insertSchool(input);
-    return { success: true, data: school };
+    return await repository.findSchoolInfoById(id);
   } catch (error) {
-    console.error("[school/service] 학교 생성 실패:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "학교 생성에 실패했습니다.",
-    };
-  }
-}
-
-/**
- * 학교 수정
- */
-export async function updateSchool(
-  input: UpdateSchoolInput
-): Promise<SchoolActionResult> {
-  try {
-    // 지역 ID 검증
-    if (input.region_id) {
-      const isValid = await isValidRegionId(input.region_id);
-      if (!isValid) {
-        return { success: false, error: "유효하지 않은 지역입니다." };
-      }
-    }
-
-    // 중복 확인 (자기 자신 제외)
-    const isDuplicate = await checkDuplicateSchool(
-      input.name,
-      input.type,
-      input.region_id,
-      input.type === "대학교" ? input.campus_name : null,
-      input.id
-    );
-
-    if (isDuplicate) {
-      return { success: false, error: "이미 등록된 학교입니다." };
-    }
-
-    // 수정
-    const school = await repository.updateSchoolById(input);
-    return { success: true, data: school };
-  } catch (error) {
-    console.error("[school/service] 학교 수정 실패:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "학교 수정에 실패했습니다.",
-    };
-  }
-}
-
-/**
- * 학교 삭제
- */
-export async function deleteSchool(schoolId: string): Promise<SchoolActionResult> {
-  try {
-    await repository.deleteSchoolById(schoolId);
-    return { success: true };
-  } catch (error) {
-    console.error("[school/service] 학교 삭제 실패:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "학교 삭제에 실패했습니다.",
-    };
-  }
-}
-
-/**
- * 학교 자동 등록 (학생용)
- * DB에 없는 학교를 자동으로 등록합니다.
- */
-export async function autoRegisterSchool(
-  name: string,
-  type: SchoolType,
-  regionName?: string | null
-): Promise<SchoolSimple | null> {
-  try {
-    // 기존 학교 확인
-    const existing = await getSchoolByName(name, type);
-    if (existing) {
-      return toSchoolSimple(existing);
-    }
-
-    // 지역명으로 ID 찾기
-    let regionId: string | null = null;
-    if (regionName) {
-      regionId = await findRegionIdByName(regionName);
-    }
-
-    // 새로 등록
-    const result = await createSchool({
-      name,
-      type,
-      region_id: regionId,
-    });
-
-    if (!result.success || !result.data) {
-      console.error("[school/service] 자동 등록 실패:", result.error);
-      return null;
-    }
-
-    return toSchoolSimple(result.data);
-  } catch (error) {
-    console.error("[school/service] 자동 등록 오류:", error);
+    console.error("[school/service] 중·고등학교 조회 실패:", error);
     return null;
   }
 }
 
+/**
+ * 중·고등학교 검색
+ */
+export async function searchSchoolInfo(
+  query: string,
+  schoolLevel?: "중" | "고",
+  limit = 50
+): Promise<SchoolInfo[]> {
+  try {
+    return await repository.searchSchoolInfo(query, schoolLevel, limit);
+  } catch (error) {
+    console.error("[school/service] 중·고등학교 검색 실패:", error);
+    return [];
+  }
+}
+
 // ============================================
-// 헬퍼 함수
+// 대학교 Service
 // ============================================
 
 /**
- * School을 SchoolSimple로 변환
+ * 대학교 목록 조회
  */
-function toSchoolSimple(school: School): SchoolSimple {
+export async function getUniversities(options?: {
+  establishmentType?: string;
+  universityType?: string;
+  limit?: number;
+}): Promise<University[]> {
+  try {
+    return await repository.findUniversities(options);
+  } catch (error) {
+    console.error("[school/service] 대학교 조회 실패:", error);
+    return [];
+  }
+}
+
+/**
+ * 대학교 캠퍼스 목록 조회
+ */
+export async function getUniversityCampuses(options?: {
+  universityId?: number;
+  region?: string;
+  limit?: number;
+}): Promise<UniversityWithCampus[]> {
+  try {
+    return await repository.findUniversityCampuses(options);
+  } catch (error) {
+    console.error("[school/service] 대학교 캠퍼스 조회 실패:", error);
+    return [];
+  }
+}
+
+/**
+ * 대학교 캠퍼스 ID로 조회
+ */
+export async function getUniversityCampusById(id: number): Promise<UniversityWithCampus | null> {
+  try {
+    return await repository.findUniversityCampusById(id);
+  } catch (error) {
+    console.error("[school/service] 대학교 캠퍼스 조회 실패:", error);
+    return null;
+  }
+}
+
+/**
+ * 대학교/캠퍼스 검색
+ */
+export async function searchUniversityCampuses(
+  query: string,
+  limit = 50
+): Promise<UniversityWithCampus[]> {
+  try {
+    return await repository.searchUniversityCampuses(query, limit);
+  } catch (error) {
+    console.error("[school/service] 대학교 검색 실패:", error);
+    return [];
+  }
+}
+
+// ============================================
+// 하위 호환성 함수 (Deprecated)
+// ============================================
+
+/**
+ * @deprecated 새 테이블은 읽기 전용입니다.
+ * 학교 CRUD 작업은 더 이상 지원되지 않습니다.
+ */
+export async function createSchool(): Promise<SchoolActionResult> {
+  console.warn("[school/service] createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return {
-    id: school.id,
-    name: school.name,
-    type: school.type,
-    region: school.region ?? null,
+    success: false,
+    error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
   };
 }
 
+/**
+ * @deprecated 새 테이블은 읽기 전용입니다.
+ * 학교 CRUD 작업은 더 이상 지원되지 않습니다.
+ */
+export async function updateSchool(): Promise<SchoolActionResult> {
+  console.warn("[school/service] updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  return {
+    success: false,
+    error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
+  };
+}
+
+/**
+ * @deprecated 새 테이블은 읽기 전용입니다.
+ * 학교 CRUD 작업은 더 이상 지원되지 않습니다.
+ */
+export async function deleteSchool(): Promise<SchoolActionResult> {
+  console.warn("[school/service] deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  return {
+    success: false,
+    error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
+  };
+}
+
+/**
+ * @deprecated 새 테이블은 읽기 전용입니다.
+ */
+export async function autoRegisterSchool(): Promise<SchoolSimple | null> {
+  console.warn("[school/service] autoRegisterSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  return null;
+}
+
+/**
+ * @deprecated checkDuplicateSchool은 더 이상 필요 없습니다.
+ */
+export async function checkDuplicateSchool(): Promise<boolean> {
+  console.warn("[school/service] checkDuplicateSchool은 더 이상 지원되지 않습니다.");
+  return false;
+}

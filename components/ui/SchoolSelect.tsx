@@ -1,12 +1,19 @@
 "use client";
 
+/**
+ * 학교 검색/선택 컴포넌트
+ *
+ * 새 테이블 구조 기반:
+ * - all_schools_view를 통한 통합 검색
+ * - 읽기 전용 (자동 등록 비활성화)
+ */
+
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import {
   getSchoolById,
   getSchoolByName,
   searchSchools,
-  autoRegisterSchool,
   type School,
 } from "@/app/(student)/actions/schoolActions";
 
@@ -17,7 +24,7 @@ type SchoolSelectProps = {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
-  onSchoolSelect?: (school: School) => void; // 학교 선택 시 추가 처리
+  onSchoolSelect?: (school: School) => void;
 };
 
 export default function SchoolSelect({
@@ -29,8 +36,6 @@ export default function SchoolSelect({
   disabled = false,
   onSchoolSelect,
 }: SchoolSelectProps) {
-  // type이 명시적으로 지정되면 해당 타입만 검색
-  const allowedTypes = type ? [type] : ["중학교", "고등학교", "대학교"];
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,7 +79,7 @@ export default function SchoolSelect({
     if (searchQuery.trim().length >= 1) {
       const timeoutId = setTimeout(() => {
         handleSearchSchools(searchQuery);
-      }, 300); // 디바운스
+      }, 300);
 
       return () => clearTimeout(timeoutId);
     } else {
@@ -82,7 +87,7 @@ export default function SchoolSelect({
     }
   }, [searchQuery, isSearchMode, disabled]);
 
-  // value가 변경되면 학교 정보 조회 (불필요한 재조회 방지)
+  // value가 변경되면 학교 정보 조회
   useEffect(() => {
     if (value && value.trim()) {
       // 이미 선택된 학교와 동일하면 조회하지 않음
@@ -90,12 +95,12 @@ export default function SchoolSelect({
         return;
       }
       
-      // UUID 형식인지 확인 (ID로 조회)
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-      if (isUUID) {
+      // 통합 ID 형식인지 확인 (SCHOOL_123 또는 UNIV_456)
+      const isUnifiedId = /^(SCHOOL_|UNIV_)\d+$/.test(value);
+      if (isUnifiedId) {
         fetchSchoolById(value);
       } else {
-        // 학교명으로 조회 (단, 이미 선택된 학교가 아니고 검색 중이 아닐 때만)
+        // 학교명으로 조회
         if (!selectedSchool || selectedSchool.name !== value.trim()) {
           fetchSchoolByName(value);
         }
@@ -118,7 +123,7 @@ export default function SchoolSelect({
 
   async function fetchSchoolByName(schoolName: string) {
     try {
-      const school = await getSchoolByName(schoolName);
+      const school = await getSchoolByName(schoolName, type);
       if (school) {
         setSelectedSchool(school);
       } else {
@@ -148,31 +153,14 @@ export default function SchoolSelect({
     }
   }
 
-  async function handleSelect(school: School) {
+  function handleSelect(school: School) {
     setSelectedSchool(school);
-    onChange(school.name);
+    onChange(school.id || school.name); // ID가 있으면 ID, 없으면 이름
     setSearchQuery("");
     setIsOpen(false);
     setIsSearchMode(false);
 
-    // 학교가 DB에 없으면 자동 등록
-    if (!school.id && school.name && type) {
-      try {
-        const registeredSchool = await autoRegisterSchool(
-          school.name,
-          type,
-          school.region || null
-        );
-        if (registeredSchool) {
-          setSelectedSchool(registeredSchool);
-          if (onSchoolSelect) {
-            onSchoolSelect(registeredSchool);
-          }
-        }
-      } catch (error) {
-        console.error("학교 자동 등록 실패:", error);
-      }
-    } else if (onSchoolSelect) {
+    if (onSchoolSelect) {
       onSchoolSelect(school);
     }
   }
@@ -191,21 +179,14 @@ export default function SchoolSelect({
     setIsSearchMode(true);
     setSearchQuery("");
     setSchools([]);
-    // 검색 입력 필드에 포커스
     setTimeout(() => {
       searchInputRef.current?.focus();
     }, 0);
   }
 
-  function handleSearchSubmit() {
-    if (!searchQuery.trim() || loading) return;
-    handleSearchSchools(searchQuery);
-  }
-
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleSearchSubmit();
     } else if (e.key === "Escape") {
       setIsOpen(false);
       setIsSearchMode(false);
@@ -217,7 +198,7 @@ export default function SchoolSelect({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="flex gap-2">
-        {/* 선택된 학교명 표시 (항상 읽기 전용) */}
+        {/* 선택된 학교명 표시 */}
         <div className="relative flex-1">
           <input
             ref={inputRef}
@@ -277,24 +258,21 @@ export default function SchoolSelect({
         </button>
       </div>
 
-      {/* 검색 드롭다운 메뉴 */}
+      {/* 검색 드롭다운 */}
       {isOpen && !disabled && isSearchMode && (
         <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
-          {/* 검색 입력 필드 */}
+          {/* 검색 입력 */}
           <div className="border-b border-gray-200 p-3">
             <div className="flex gap-2">
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => {
-                  if (disabled) return;
-                  setSearchQuery(e.target.value);
-                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="학교명을 입력하세요"
                 disabled={disabled}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:text-gray-500"
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
               {loading && (
                 <div className="flex items-center justify-center px-3">
@@ -327,7 +305,7 @@ export default function SchoolSelect({
                   setSearchQuery("");
                   setSchools([]);
                 }}
-                className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <svg
                   className="h-4 w-4"
@@ -369,47 +347,47 @@ export default function SchoolSelect({
                 <span className="ml-2 text-sm text-gray-500">검색 중...</span>
               </div>
             ) : schools.length > 0 ? (
-            <ul className="py-1">
-              {schools.map((school) => (
-                <li
-                  key={school.id || school.name}
-                  onClick={() => handleSelect(school)}
-                  className={cn(
-                    "cursor-pointer px-4 py-2 text-sm hover:bg-indigo-50",
-                    selectedSchool?.id === school.id && "bg-indigo-100"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{school.name}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
+              <ul className="py-1">
+                {schools.map((school) => (
+                  <li
+                    key={school.id || school.name}
+                    onClick={() => handleSelect(school)}
+                    className={cn(
+                      "cursor-pointer px-4 py-2 text-sm hover:bg-indigo-50",
+                      selectedSchool?.id === school.id && "bg-indigo-100"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{school.name}</div>
                         {school.region && (
-                          <span className="text-xs text-gray-500">{school.region}</span>
-                        )}
-                        {/* 캠퍼스 정보 표시 (안성캠퍼스, 원주캠퍼스 등) */}
-                        {school.name.includes("캠퍼스") && (
-                          <span className="text-xs text-blue-600 font-medium">
-                            {school.name.match(/(.+캠퍼스)/)?.[0] || ""}
-                          </span>
+                          <div className="mt-0.5 text-xs text-gray-500">
+                            {school.region}
+                          </div>
                         )}
                       </div>
+                      {school.type && (
+                        <span className="ml-2 whitespace-nowrap text-xs font-medium text-indigo-600">
+                          {school.type === "중학교"
+                            ? "중등"
+                            : school.type === "고등학교"
+                            ? "고등"
+                            : school.type === "대학교"
+                            ? "대학"
+                            : ""}
+                        </span>
+                      )}
                     </div>
-                    {school.type && (
-                      <span className="ml-2 text-xs font-medium text-indigo-600 whitespace-nowrap">
-                        {school.type === "중학교" ? "중등" : school.type === "고등학교" ? "고등" : school.type === "대학교" ? "대학" : ""}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
             ) : searchQuery.trim().length > 0 ? (
               <div className="px-4 py-3 text-center text-sm text-gray-500">
-                검색 결과가 없습니다. 다른 검색어를 시도해보세요.
+                검색 결과가 없습니다.
               </div>
             ) : (
               <div className="px-4 py-3 text-center text-sm text-gray-500">
-                학교명을 입력하고 검색 버튼을 클릭하세요.
+                학교명을 입력하세요.
               </div>
             )}
           </div>
@@ -418,4 +396,3 @@ export default function SchoolSelect({
     </div>
   );
 }
-

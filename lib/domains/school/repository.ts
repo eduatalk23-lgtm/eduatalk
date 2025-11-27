@@ -1,19 +1,24 @@
 /**
  * School 도메인 Repository
  *
- * 이 파일은 순수한 데이터 접근만을 담당합니다.
- * - Supabase 쿼리만 수행
- * - 비즈니스 로직 없음
- * - 에러 처리는 최소화 (상위 레이어에서 처리)
+ * 새 테이블 구조:
+ * - school_info: 중·고등학교
+ * - universities: 대학교
+ * - university_campuses: 대학교 캠퍼스
+ * - all_schools_view: 통합 조회 VIEW
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
-  School,
-  Region,
   SchoolType,
-  CreateSchoolInput,
-  UpdateSchoolInput,
+  SchoolInfo,
+  University,
+  UniversityCampus,
+  UniversityWithCampus,
+  AllSchoolsView,
+  Region,
+  GetSchoolsOptions,
+  SearchSchoolsOptions,
 } from "./types";
 
 // ============================================
@@ -90,103 +95,82 @@ export async function findRegionById(regionId: string): Promise<Region | null> {
 }
 
 // ============================================
-// School Repository
+// 통합 학교 Repository (all_schools_view)
 // ============================================
 
 /**
- * 학교 목록 조회 (JOIN 포함)
+ * 통합 학교 목록 조회
  */
-export async function findAllSchools(options?: {
-  regionId?: string;
-  type?: SchoolType;
-}): Promise<School[]> {
+export async function findAllSchools(options?: GetSchoolsOptions): Promise<AllSchoolsView[]> {
   const supabase = await createSupabaseServerClient();
 
-  let query = supabase.from("schools").select(`
-    *,
-    regions:region_id (
-      id,
-      name
-    )
-  `);
+  let query = supabase.from("all_schools_view").select("*");
 
-  if (options?.regionId) {
-    query = query.eq("region_id", options.regionId);
+  if (options?.schoolType) {
+    query = query.eq("school_type", options.schoolType);
   }
 
-  if (options?.type) {
-    query = query.eq("type", options.type);
+  if (options?.region) {
+    query = query.ilike("region", `%${options.region}%`);
   }
 
-  const { data, error } = await query
-    .order("display_order", { ascending: true })
-    .order("name", { ascending: true });
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  if (options?.offset) {
+    query = query.range(options.offset, options.offset + (options.limit || 100) - 1);
+  }
+
+  const { data, error } = await query.order("name", { ascending: true });
 
   if (error) throw error;
-
-  return ((data ?? []) as any[]).map((school) => ({
-    ...school,
-    region: school.regions?.name || null,
-  })) as School[];
+  return (data as AllSchoolsView[]) ?? [];
 }
 
 /**
- * 학교 목록 조회 (JOIN 없이 - fallback용)
+ * 통합 학교 검색
  */
-export async function findAllSchoolsSimple(options?: {
-  regionId?: string;
-  type?: SchoolType;
-}): Promise<School[]> {
+export async function searchSchools(options: SearchSchoolsOptions): Promise<AllSchoolsView[]> {
   const supabase = await createSupabaseServerClient();
 
-  let query = supabase.from("schools").select("*");
+  let query = supabase.from("all_schools_view").select("*");
 
-  if (options?.regionId) {
-    query = query.eq("region_id", options.regionId);
+  if (options.schoolType) {
+    query = query.eq("school_type", options.schoolType);
   }
 
-  if (options?.type) {
-    query = query.eq("type", options.type);
+  if (options.query && options.query.trim()) {
+    query = query.ilike("name", `%${options.query.trim()}%`);
   }
 
-  const { data, error } = await query
-    .order("display_order", { ascending: true })
-    .order("name", { ascending: true });
+  if (options.region) {
+    query = query.ilike("region", `%${options.region}%`);
+  }
+
+  const limit = options.limit || 50;
+  query = query.limit(limit);
+
+  const { data, error } = await query.order("name", { ascending: true });
 
   if (error) throw error;
-
-  return ((data ?? []) as School[]).map((school) => ({
-    ...school,
-    region: null,
-  }));
+  return (data as AllSchoolsView[]) ?? [];
 }
 
 /**
- * 학교 ID로 조회
+ * 통합 학교 ID로 조회
  */
-export async function findSchoolById(schoolId: string): Promise<School | null> {
+export async function findSchoolByUnifiedId(unifiedId: string): Promise<AllSchoolsView | null> {
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
-    .from("schools")
-    .select(`
-      *,
-      regions:region_id (
-        id,
-        name
-      )
-    `)
-    .eq("id", schoolId)
+    .from("all_schools_view")
+    .select("*")
+    .eq("id", unifiedId)
     .maybeSingle();
 
   if (error) throw error;
-
-  if (!data) return null;
-
-  return {
-    ...data,
-    region: (data as any).regions?.name || null,
-  } as School;
+  return data as AllSchoolsView | null;
 }
 
 /**
@@ -194,153 +178,232 @@ export async function findSchoolById(schoolId: string): Promise<School | null> {
  */
 export async function findSchoolByName(
   name: string,
-  type?: SchoolType
-): Promise<School | null> {
+  schoolType?: SchoolType
+): Promise<AllSchoolsView | null> {
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
-    .from("schools")
-    .select(`
-      *,
-      regions:region_id (
-        id,
-        name
-      )
-    `)
+    .from("all_schools_view")
+    .select("*")
     .eq("name", name);
 
-  if (type) {
-    query = query.eq("type", type);
+  if (schoolType) {
+    query = query.eq("school_type", schoolType);
   }
 
   const { data, error } = await query.maybeSingle();
 
   if (error) throw error;
-
-  if (!data) return null;
-
-  return {
-    ...data,
-    region: (data as any).regions?.name || null,
-  } as School;
+  return data as AllSchoolsView | null;
 }
 
+// ============================================
+// 중·고등학교 Repository (school_info)
+// ============================================
+
 /**
- * 학교 중복 확인용 조회
+ * 중·고등학교 목록 조회
  */
-export async function findSchoolByConditions(
-  name: string,
-  type: SchoolType,
-  regionId?: string | null,
-  campusName?: string | null,
-  excludeId?: string
-): Promise<School | null> {
+export async function findSchoolInfoList(options?: {
+  schoolLevel?: "중" | "고";
+  region?: string;
+  limit?: number;
+}): Promise<SchoolInfo[]> {
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
-    .from("schools")
+    .from("school_info")
     .select("*")
-    .eq("name", name)
-    .eq("type", type);
+    .eq("closed_flag", "N");
 
-  if (regionId) {
-    query = query.eq("region_id", regionId);
-  } else {
-    query = query.is("region_id", null);
+  if (options?.schoolLevel) {
+    query = query.eq("school_level", options.schoolLevel);
   }
 
-  if (type === "대학교" && campusName) {
-    query = query.eq("campus_name", campusName);
-  } else if (type === "대학교" && !campusName) {
-    query = query.is("campus_name", null);
+  if (options?.region) {
+    query = query.ilike("region", `%${options.region}%`);
   }
 
-  if (excludeId) {
-    query = query.neq("id", excludeId);
+  if (options?.limit) {
+    query = query.limit(options.limit);
   }
 
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await query.order("school_name", { ascending: true });
 
   if (error) throw error;
-  return data as School | null;
+  return (data as SchoolInfo[]) ?? [];
 }
 
 /**
- * 학교 생성
+ * 중·고등학교 ID로 조회
  */
-export async function insertSchool(input: CreateSchoolInput): Promise<School> {
+export async function findSchoolInfoById(id: number): Promise<SchoolInfo | null> {
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
-    .from("schools")
-    .insert({
-      name: input.name,
-      type: input.type,
-      region_id: input.region_id ?? null,
-      address: input.address ?? null,
-      postal_code: input.postal_code ?? null,
-      address_detail: input.address_detail ?? null,
-      city: input.city ?? null,
-      district: input.district ?? null,
-      phone: input.phone ?? null,
-      category: input.type === "고등학교" ? input.category : null,
-      university_type: input.type === "대학교" ? input.university_type : null,
-      university_ownership:
-        input.type === "대학교" ? input.university_ownership : null,
-      campus_name: input.type === "대학교" ? input.campus_name : null,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as School;
-}
-
-/**
- * 학교 수정
- */
-export async function updateSchoolById(
-  input: UpdateSchoolInput
-): Promise<School> {
-  const supabase = await createSupabaseServerClient();
-  const { id, ...updateData } = input;
-
-  const { data, error } = await supabase
-    .from("schools")
-    .update({
-      name: updateData.name,
-      type: updateData.type,
-      region_id: updateData.region_id ?? null,
-      address: updateData.address ?? null,
-      postal_code: updateData.postal_code ?? null,
-      address_detail: updateData.address_detail ?? null,
-      city: updateData.city ?? null,
-      district: updateData.district ?? null,
-      phone: updateData.phone ?? null,
-      category: updateData.type === "고등학교" ? updateData.category : null,
-      university_type:
-        updateData.type === "대학교" ? updateData.university_type : null,
-      university_ownership:
-        updateData.type === "대학교" ? updateData.university_ownership : null,
-      campus_name:
-        updateData.type === "대학교" ? updateData.campus_name : null,
-    })
+    .from("school_info")
+    .select("*")
     .eq("id", id)
-    .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
-  return data as School;
+  return data as SchoolInfo | null;
 }
 
 /**
- * 학교 삭제
+ * 중·고등학교 검색
  */
-export async function deleteSchoolById(schoolId: string): Promise<void> {
+export async function searchSchoolInfo(
+  query: string,
+  schoolLevel?: "중" | "고",
+  limit = 50
+): Promise<SchoolInfo[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase.from("schools").delete().eq("id", schoolId);
+  let dbQuery = supabase
+    .from("school_info")
+    .select("*")
+    .eq("closed_flag", "N")
+    .ilike("school_name", `%${query}%`);
+
+  if (schoolLevel) {
+    dbQuery = dbQuery.eq("school_level", schoolLevel);
+  }
+
+  const { data, error } = await dbQuery
+    .limit(limit)
+    .order("school_name", { ascending: true });
 
   if (error) throw error;
+  return (data as SchoolInfo[]) ?? [];
 }
 
+// ============================================
+// 대학교 Repository (universities, university_campuses)
+// ============================================
+
+/**
+ * 대학교 목록 조회
+ */
+export async function findUniversities(options?: {
+  establishmentType?: string;
+  universityType?: string;
+  limit?: number;
+}): Promise<University[]> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase.from("universities").select("*");
+
+  if (options?.establishmentType) {
+    query = query.eq("establishment_type", options.establishmentType);
+  }
+
+  if (options?.universityType) {
+    query = query.eq("university_type", options.universityType);
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query.order("name_kor", { ascending: true });
+
+  if (error) throw error;
+  return (data as University[]) ?? [];
+}
+
+/**
+ * 대학교 ID로 조회
+ */
+export async function findUniversityById(id: number): Promise<University | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("universities")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as University | null;
+}
+
+/**
+ * 대학교 캠퍼스 목록 조회
+ */
+export async function findUniversityCampuses(options?: {
+  universityId?: number;
+  region?: string;
+  limit?: number;
+}): Promise<UniversityWithCampus[]> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("university_campuses")
+    .select(`
+      *,
+      university:universities(*)
+    `)
+    .eq("campus_status", "기존");
+
+  if (options?.universityId) {
+    query = query.eq("university_id", options.universityId);
+  }
+
+  if (options?.region) {
+    query = query.ilike("region", `%${options.region}%`);
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query.order("campus_name", { ascending: true });
+
+  if (error) throw error;
+  return (data as UniversityWithCampus[]) ?? [];
+}
+
+/**
+ * 대학교 캠퍼스 ID로 조회
+ */
+export async function findUniversityCampusById(id: number): Promise<UniversityWithCampus | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("university_campuses")
+    .select(`
+      *,
+      university:universities(*)
+    `)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as UniversityWithCampus | null;
+}
+
+/**
+ * 대학교/캠퍼스 검색
+ */
+export async function searchUniversityCampuses(
+  query: string,
+  limit = 50
+): Promise<UniversityWithCampus[]> {
+  const supabase = await createSupabaseServerClient();
+
+  // 캠퍼스명 또는 대학명으로 검색
+  const { data, error } = await supabase
+    .from("university_campuses")
+    .select(`
+      *,
+      university:universities(*)
+    `)
+    .eq("campus_status", "기존")
+    .ilike("campus_name", `%${query}%`)
+    .limit(limit)
+    .order("campus_name", { ascending: true });
+
+  if (error) throw error;
+  return (data as UniversityWithCampus[]) ?? [];
+}

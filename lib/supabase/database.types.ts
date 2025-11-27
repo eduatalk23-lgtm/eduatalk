@@ -59,73 +59,191 @@ export type Database = {
       };
 
       // ============================================
-      // 학교 테이블
+      // 중·고등학교 테이블 (school_info)
       // ============================================
-      schools: {
+      school_info: {
         Row: {
-          id: string;
-          name: string;
-          type: "중학교" | "고등학교" | "대학교" | null;
-          region_id: string | null;
-          region: string | null; // deprecated - region_id 사용 권장
-          address: string | null;
+          id: number;
+          district_id: number | null;
+          region: string | null;
+          school_code: string;
+          school_name: string;
+          school_level: "중" | "고";
+          establishment_type: string | null;
+          school_property: string | null;
+          branch_flag: string | null;
+          establishment_form: string | null;
           postal_code: string | null;
-          address_detail: string | null;
-          city: string | null;
-          district: string | null;
-          phone: string | null;
-          // 고등학교 속성
-          category: "일반고" | "특목고" | "자사고" | "특성화고" | null;
-          // 대학교 속성
-          university_type: "4년제" | "2년제" | null;
-          university_ownership: "국립" | "사립" | null;
-          campus_name: string | null;
-          display_order: number;
-          is_active: boolean;
+          addr_road: string | null;
+          addr_detail: string | null;
+          address_full: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          phone_number: string | null;
+          fax_number: string | null;
+          homepage_url: string | null;
+          coeducation_type: string | null;
+          closed_flag: string | null;
+          closed_date: string | null;
+          temporary_close_flag: string | null;
           created_at: string;
-          updated_at: string;
         };
         Insert: {
-          id?: string;
-          name: string;
-          type?: "중학교" | "고등학교" | "대학교" | null;
-          region_id?: string | null;
+          id?: number;
+          district_id?: number | null;
           region?: string | null;
-          address?: string | null;
+          school_code: string;
+          school_name: string;
+          school_level: "중" | "고";
+          establishment_type?: string | null;
+          school_property?: string | null;
+          branch_flag?: string | null;
+          establishment_form?: string | null;
           postal_code?: string | null;
-          address_detail?: string | null;
-          city?: string | null;
-          district?: string | null;
-          phone?: string | null;
-          category?: "일반고" | "특목고" | "자사고" | "특성화고" | null;
-          university_type?: "4년제" | "2년제" | null;
-          university_ownership?: "국립" | "사립" | null;
-          campus_name?: string | null;
-          display_order?: number;
-          is_active?: boolean;
+          addr_road?: string | null;
+          addr_detail?: string | null;
+          address_full?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          homepage_url?: string | null;
+          coeducation_type?: string | null;
+          closed_flag?: string | null;
+          closed_date?: string | null;
+          temporary_close_flag?: string | null;
           created_at?: string;
-          updated_at?: string;
         };
         Update: {
-          id?: string;
-          name?: string;
-          type?: "중학교" | "고등학교" | "대학교" | null;
-          region_id?: string | null;
+          id?: number;
+          district_id?: number | null;
           region?: string | null;
-          address?: string | null;
+          school_code?: string;
+          school_name?: string;
+          school_level?: "중" | "고";
+          establishment_type?: string | null;
+          school_property?: string | null;
+          branch_flag?: string | null;
+          establishment_form?: string | null;
           postal_code?: string | null;
-          address_detail?: string | null;
-          city?: string | null;
-          district?: string | null;
-          phone?: string | null;
-          category?: "일반고" | "특목고" | "자사고" | "특성화고" | null;
-          university_type?: "4년제" | "2년제" | null;
-          university_ownership?: "국립" | "사립" | null;
-          campus_name?: string | null;
-          display_order?: number;
-          is_active?: boolean;
+          addr_road?: string | null;
+          addr_detail?: string | null;
+          address_full?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          homepage_url?: string | null;
+          coeducation_type?: string | null;
+          closed_flag?: string | null;
+          closed_date?: string | null;
+          temporary_close_flag?: string | null;
           created_at?: string;
-          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 대학교 테이블 (universities)
+      // ============================================
+      universities: {
+        Row: {
+          id: number;
+          university_code: string;
+          name_kor: string;
+          name_eng: string | null;
+          name_chi: string | null;
+          establishment_type: string | null;
+          corporation_name: string | null;
+          legal_basis: string | null;
+          university_type: string | null;
+          status: string | null;
+          homepage_url: string | null;
+          president_name: string | null;
+          founded_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          university_code: string;
+          name_kor: string;
+          name_eng?: string | null;
+          name_chi?: string | null;
+          establishment_type?: string | null;
+          corporation_name?: string | null;
+          legal_basis?: string | null;
+          university_type?: string | null;
+          status?: string | null;
+          homepage_url?: string | null;
+          president_name?: string | null;
+          founded_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          university_code?: string;
+          name_kor?: string;
+          name_eng?: string | null;
+          name_chi?: string | null;
+          establishment_type?: string | null;
+          corporation_name?: string | null;
+          legal_basis?: string | null;
+          university_type?: string | null;
+          status?: string | null;
+          homepage_url?: string | null;
+          president_name?: string | null;
+          founded_date?: string | null;
+          created_at?: string;
+        };
+      };
+
+      // ============================================
+      // 대학교 캠퍼스 테이블 (university_campuses)
+      // ============================================
+      university_campuses: {
+        Row: {
+          id: number;
+          university_id: number;
+          campus_type: string | null;
+          campus_name: string;
+          region: string | null;
+          address_kor: string | null;
+          address_eng: string | null;
+          address_chi: string | null;
+          postal_code: string | null;
+          phone_number: string | null;
+          fax_number: string | null;
+          campus_status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          university_id: number;
+          campus_type?: string | null;
+          campus_name: string;
+          region?: string | null;
+          address_kor?: string | null;
+          address_eng?: string | null;
+          address_chi?: string | null;
+          postal_code?: string | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          campus_status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          university_id?: number;
+          campus_type?: string | null;
+          campus_name?: string;
+          region?: string | null;
+          address_kor?: string | null;
+          address_eng?: string | null;
+          address_chi?: string | null;
+          postal_code?: string | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          campus_status?: string | null;
+          created_at?: string;
         };
       };
 
@@ -162,7 +280,8 @@ export type Database = {
           tenant_id: string;
           user_id: string;
           name: string;
-          school_id: string | null;
+          school_id: string | null; // 통합 ID (SCHOOL_123 또는 UNIV_456)
+          school_type: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
           grade: number | null;
           created_at: string;
           updated_at: string;
@@ -173,6 +292,7 @@ export type Database = {
           user_id: string;
           name: string;
           school_id?: string | null;
+          school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
           grade?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -183,6 +303,7 @@ export type Database = {
           user_id?: string;
           name?: string;
           school_id?: string | null;
+          school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
           grade?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -979,10 +1100,10 @@ export type Database = {
     };
 
     Enums: {
-      school_type: "중학교" | "고등학교" | "대학교";
-      school_category: "일반고" | "특목고" | "자사고" | "특성화고";
-      university_type: "4년제" | "2년제";
-      university_ownership: "국립" | "사립";
+      // 학교 유형 (통합)
+      school_type_unified: "MIDDLE" | "HIGH" | "UNIVERSITY";
+      // 중·고등학교 레벨
+      school_level: "중" | "고";
       content_type: "book" | "lecture" | "custom";
       plan_type: "individual" | "integrated" | "camp";
       camp_program_type: "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타";

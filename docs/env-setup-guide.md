@@ -94,3 +94,4 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 NEXT_PUBLIC_SUPABASE_URL="https://abcdefghijklmnop.supabase.co"
 ```
 
+
