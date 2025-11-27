@@ -78,13 +78,20 @@ async function _generatePlansFromGroup(
   const studentId = (role === "admin" || role === "consultant") ? group.student_id : user.userId;
 
   // 2. 상태 확인
-  if (group.status !== "saved" && group.status !== "active") {
-    throw new AppError(
-      "플랜 그룹이 저장되거나 활성화된 상태에서만 플랜을 생성할 수 있습니다.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
+  // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 생성 가능)
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isCampMode = group.plan_type === "camp";
+  
+  if (!isAdminOrConsultant && !isCampMode) {
+    // 일반 학생 모드에서만 상태 체크
+    if (group.status !== "saved" && group.status !== "active") {
+      throw new AppError(
+        "플랜 그룹이 저장되거나 활성화된 상태에서만 플랜을 생성할 수 있습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
   }
 
   // 3. Step 2.5에서 계산된 스케줄 결과 사용 (블록 세트 대신)
@@ -2091,13 +2098,19 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     }
 
     // 2. 상태 확인
-    if (group.status !== "saved" && group.status !== "active") {
-      throw new AppError(
-        "플랜 그룹이 저장되거나 활성화된 상태에서만 플랜을 미리볼 수 있습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
+    // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 미리보기 가능)
+    const isCampMode = group.plan_type === "camp";
+    
+    if (!isAdminOrConsultant && !isCampMode) {
+      // 일반 학생 모드에서만 상태 체크
+      if (group.status !== "saved" && group.status !== "active") {
+        throw new AppError(
+          "플랜 그룹이 저장되거나 활성화된 상태에서만 플랜을 미리볼 수 있습니다.",
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
+      }
     }
 
     // exclusions와 academySchedules가 배열인지 확인 (이중 체크)
