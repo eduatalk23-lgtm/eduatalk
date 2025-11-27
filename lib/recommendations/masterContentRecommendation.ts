@@ -745,7 +745,7 @@ export async function getRecommendedMasterContents(
             subject_category: subject,
             tenantId,
             limit: 1,
-          }),
+          }, supabase),
         ]);
 
         if (booksResult.data.length > 0) {
