@@ -339,9 +339,17 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
       if (!campusError && campusData) {
         for (const uc of campusData) {
           const university = uc.university as any;
+          const campusName = uc.campus_name;
+          const universityName = university?.name_kor || campusName;
+          
+          // 캠퍼스명이 대학명과 같으면 대학명만, 다르면 "대학명 (캠퍼스명)" 형식
+          const displayName = campusName === universityName
+            ? universityName
+            : `${universityName} (${uc.campus_type || ""})`;
+          
           results.push({
             id: `UNIV_${uc.id}`,
-            name: uc.campus_name,
+            name: displayName,
             schoolType: "UNIVERSITY",
             region: uc.region,
             sourceTable: "university_campuses",
