@@ -158,7 +158,9 @@ export default async function PlanGroupDetailPage({
           errorInfo.hint = (templateError as { hint?: unknown }).hint;
         }
         if ("statusCode" in templateError) {
-          errorInfo.statusCode = (templateError as { statusCode?: unknown }).statusCode;
+          errorInfo.statusCode = (
+            templateError as { statusCode?: unknown }
+          ).statusCode;
         }
         console.error("[PlanGroupDetailPage] 템플릿 조회 에러:", errorInfo, {
           camp_template_id: group.camp_template_id,
@@ -240,13 +242,17 @@ export default async function PlanGroupDetailPage({
               code: blockSetError.code || "UNKNOWN",
             };
             if ("details" in blockSetError) {
-              errorInfo.details = (blockSetError as { details?: unknown }).details;
+              errorInfo.details = (
+                blockSetError as { details?: unknown }
+              ).details;
             }
             if ("hint" in blockSetError) {
               errorInfo.hint = (blockSetError as { hint?: unknown }).hint;
             }
             if ("statusCode" in blockSetError) {
-              errorInfo.statusCode = (blockSetError as { statusCode?: unknown }).statusCode;
+              errorInfo.statusCode = (
+                blockSetError as { statusCode?: unknown }
+              ).statusCode;
             }
             console.error(
               "[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
@@ -286,13 +292,17 @@ export default async function PlanGroupDetailPage({
                   code: blocksError.code || "UNKNOWN",
                 };
                 if ("details" in blocksError) {
-                  errorInfo.details = (blocksError as { details?: unknown }).details;
+                  errorInfo.details = (
+                    blocksError as { details?: unknown }
+                  ).details;
                 }
                 if ("hint" in blocksError) {
                   errorInfo.hint = (blocksError as { hint?: unknown }).hint;
                 }
                 if ("statusCode" in blocksError) {
-                  errorInfo.statusCode = (blocksError as { statusCode?: unknown }).statusCode;
+                  errorInfo.statusCode = (
+                    blocksError as { statusCode?: unknown }
+                  ).statusCode;
                 }
                 console.error(
                   "[PlanGroupDetailPage] 템플릿 블록 조회 에러:",

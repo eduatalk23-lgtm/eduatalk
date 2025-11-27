@@ -66,10 +66,36 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
     return { success: false, error: "로그인이 필요합니다." };
   }
 
-  // 기존 학생 정보 조회
-  const existingStudent = await getStudentById(user.id);
+  // 기존 학생 정보 조회 (없으면 새로 생성)
+  let existingStudent = await getStudentById(user.id);
   if (!existingStudent) {
-    return { success: false, error: "학생 정보를 찾을 수 없습니다." };
+    // 학생 정보가 없으면 기본 정보로 생성
+    const name = String(formData.get("name") ?? "").trim() || (user.user_metadata?.display_name as string | undefined) || "";
+    const grade = String(formData.get("grade") ?? "").trim() || "";
+    const birthDate = String(formData.get("birth_date") ?? "").trim() || "";
+    
+    if (!name || !grade || !birthDate) {
+      return { success: false, error: "필수 정보(이름, 학년, 생년월일)를 입력해주세요." };
+    }
+    
+    const createResult = await upsertStudent({
+      id: user.id,
+      tenant_id: null, // null이면 upsertStudent에서 기본 tenant 자동 할당
+      name,
+      grade,
+      class: "",
+      birth_date: birthDate,
+    });
+    
+    if (!createResult.success) {
+      return createResult;
+    }
+    
+    // 생성된 학생 정보 다시 조회
+    existingStudent = await getStudentById(user.id);
+    if (!existingStudent) {
+      return { success: false, error: "학생 정보 생성 후 조회에 실패했습니다." };
+    }
   }
 
   // 0. 이름 업데이트 (user_metadata의 display_name)
@@ -87,6 +113,7 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
   // 1. 기본 정보 업데이트
   const grade = String(formData.get("grade") ?? "").trim() || existingStudent.grade || "";
   const schoolId = String(formData.get("school_id") ?? "").trim() || null;
+  const birthDate = String(formData.get("birth_date") ?? "").trim() || existingStudent.birth_date || "";
 
   // name이 없으면 기존 값 또는 user_metadata의 display_name 사용
   let nameValue = name || null;
@@ -100,7 +127,7 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
     name: nameValue,
     grade,
     class: existingStudent.class || "",
-    birth_date: existingStudent.birth_date || "",
+    birth_date: birthDate,
     school_id: schoolId,
   });
 

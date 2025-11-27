@@ -197,25 +197,32 @@ export default function SettingsPage() {
         }
 
         const studentData = await getCurrentStudent();
-        if (!studentData) {
-          // 학생 정보가 없으면 학생 설정 페이지로 이동
-          router.push("/student-setup");
-          return;
+        
+        // 학생 정보가 없어도 마이페이지를 표시 (빈 폼으로 시작)
+        if (studentData) {
+          setStudent(studentData);
+        } else {
+          // 학생 정보가 없으면 빈 상태로 시작
+          setStudent(null);
         }
-
-        setStudent(studentData);
 
         // Student 데이터를 FormData로 변환
-        const initialFormData = await transformStudentToFormData(studentData);
-        setFormData(initialFormData);
-        initialFormDataRef.current = initialFormData;
+        if (studentData) {
+          const initialFormData = await transformStudentToFormData(studentData);
+          setFormData(initialFormData);
+          initialFormDataRef.current = initialFormData;
 
-        // 자동 계산 값이 없으면 자동 계산 활성화
-        if (!studentData.exam_year) {
-          setAutoCalculateExamYear(true);
-        }
-        if (!studentData.curriculum_revision) {
-          setAutoCalculateCurriculum(true);
+          // 자동 계산 값이 없으면 자동 계산 활성화
+          if (!studentData.exam_year) {
+            setAutoCalculateExamYear(true);
+          }
+          if (!studentData.curriculum_revision) {
+            setAutoCalculateCurriculum(true);
+          }
+        } else {
+          // 학생 정보가 없으면 빈 폼으로 시작
+          // 기본값은 이미 useState에서 설정되어 있음
+          initialFormDataRef.current = formData;
         }
       } catch (err) {
         console.error("학생 정보 로드 실패:", err);
