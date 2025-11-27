@@ -551,18 +551,7 @@ export default function SettingsPage() {
     [formData, autoCalculateExamYear, autoCalculateCurriculum, schoolType, isInitialSetup, router]
   );
 
-  if (loading) {
-    return (
-      <div className="p-6 md:p-8">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-6 h-8 w-48 bg-gray-200 rounded animate-pulse" />
-          <SkeletonForm />
-        </div>
-      </div>
-    );
-  }
-
-  // 단계별 진행 상태 계산
+  // 단계별 진행 상태 계산 (Hooks 규칙 준수를 위해 early return 전에 호출)
   const setupProgress = useMemo(() => {
     if (!isInitialSetup) return null;
     
@@ -582,6 +571,17 @@ export default function SettingsPage() {
       currentStep: currentStep === -1 ? steps.length : currentStep + 1,
     };
   }, [isInitialSetup, formData]);
+
+  if (loading) {
+    return (
+      <div className="p-6 md:p-8">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-6 h-8 w-48 bg-gray-200 rounded animate-pulse" />
+          <SkeletonForm />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-8">
