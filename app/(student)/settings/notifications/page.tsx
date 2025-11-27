@@ -39,16 +39,16 @@ export default async function NotificationSettingsPage() {
   const settings = notificationSettings || defaultSettings;
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-6 md:py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-gray-900">알림 설정</h1>
-        <p className="mt-2 text-sm text-gray-600">
+    <div className="p-6 md:p-8">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="mb-6 text-3xl font-semibold">알림 설정</h1>
+        <p className="mb-6 text-sm text-gray-600">
           학습 관련 알림을 받을 항목과 시간을 설정하세요
         </p>
-      </div>
 
-      <NotificationSettingsView initialSettings={settings} />
-    </section>
+        <NotificationSettingsView initialSettings={settings} />
+      </div>
+    </div>
   );
 }
 

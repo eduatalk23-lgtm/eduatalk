@@ -170,7 +170,7 @@ const studentCategories: NavigationCategory[] = [
     items: [
       {
         id: "settings-profile",
-        label: "마이페이지",
+        label: "프로필",
         href: "/settings",
         icon: "👤",
       },

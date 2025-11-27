@@ -3,18 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePassword } from "@/app/(student)/actions/accountActions";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function AccountSettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(false);
 
     const formData = new FormData(e.currentTarget);
     const currentPassword = String(formData.get("current_password") ?? "").trim();
@@ -22,19 +20,19 @@ export default function AccountSettingsPage() {
     const confirmPassword = String(formData.get("confirm_password") ?? "").trim();
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("모든 필드를 입력해주세요.");
+      showError("모든 필드를 입력해주세요.");
       setLoading(false);
       return;
     }
 
     if (newPassword.length < 6) {
-      setError("새 비밀번호는 최소 6자 이상이어야 합니다.");
+      showError("새 비밀번호는 최소 6자 이상이어야 합니다.");
       setLoading(false);
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
+      showError("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
       setLoading(false);
       return;
     }
@@ -43,16 +41,15 @@ export default function AccountSettingsPage() {
       const result = await updatePassword(currentPassword, newPassword);
 
       if (result.success) {
-        setSuccess(true);
+        showSuccess("비밀번호가 변경되었습니다.");
         setTimeout(() => {
-          setSuccess(false);
           router.push("/settings");
         }, 2000);
       } else {
-        setError(result.error || "비밀번호 변경에 실패했습니다.");
+        showError(result.error || "비밀번호 변경에 실패했습니다.");
       }
     } catch (err: any) {
-      setError(err.message || "비밀번호 변경 중 오류가 발생했습니다.");
+      showError(err.message || "비밀번호 변경 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
@@ -62,18 +59,6 @@ export default function AccountSettingsPage() {
     <div className="p-6 md:p-8">
       <div className="mx-auto max-w-2xl">
         <h1 className="mb-6 text-3xl font-semibold">계정 관리</h1>
-
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
-            비밀번호가 변경되었습니다.
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <section className="flex flex-col gap-4 rounded-lg border bg-white p-6 shadow-sm">

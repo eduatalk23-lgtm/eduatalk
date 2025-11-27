@@ -76,3 +76,7 @@ export { SchoolMultiSelect } from "./SchoolMultiSelect";
 export { TimeRangeInput } from "./TimeRangeInput";
 export { SkeletonForm } from "./SkeletonForm";
 
+// 설정 페이지 컴포넌트
+export { SectionCard } from "./SectionCard";
+export { StickySaveButton } from "./StickySaveButton";
+

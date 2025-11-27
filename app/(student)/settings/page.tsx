@@ -32,8 +32,10 @@ import {
 } from "./types";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import SchoolMultiSelect from "@/components/ui/SchoolMultiSelect";
-import { SettingsTabs } from "./_components/SettingsTabs";
 import { SkeletonForm } from "@/components/ui/SkeletonForm";
+import { SectionCard } from "@/components/ui/SectionCard";
+import { StickySaveButton } from "@/components/ui/StickySaveButton";
+import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
 
@@ -41,15 +43,9 @@ export default function SettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [student, setStudent] = useState<Student | null>(null);
   const [errors, setErrors] = useState<ValidationErrors>({});
-
-  // 탭 상태
-  const [activeTab, setActiveTab] = useState<"basic" | "exam" | "career">(
-    "basic"
-  );
+  const { showSuccess, showError } = useToast();
 
   // 학교 타입 상태 (school_id로부터 조회)
   const [schoolType, setSchoolType] = useState<
@@ -133,31 +129,6 @@ export default function SettingsPage() {
     );
   }, [formData]);
 
-  // 탭 변경 핸들러 (변경사항 확인)
-  const handleTabChange = useCallback(
-    (tab: "basic" | "exam" | "career") => {
-      // 같은 탭을 클릭한 경우 아무것도 하지 않음
-      if (activeTab === tab) {
-        return;
-      }
-
-      // 변경사항이 있는 경우 확인 다이얼로그 표시
-      if (hasChanges) {
-        if (
-          !confirm(
-            "변경사항이 있습니다. 탭을 이동하면 저장하지 않은 변경사항이 사라집니다. 계속하시겠습니까?"
-          )
-        ) {
-          return;
-        }
-      }
-
-      // 탭 변경
-      setActiveTab(tab);
-    },
-    [activeTab, hasChanges]
-  );
-
   // 학년 표시 형식 메모이제이션
   const gradeDisplay = useMemo(
     () => formatGradeDisplay(formData.grade, schoolType),
@@ -237,7 +208,7 @@ export default function SettingsPage() {
         }
       } catch (err) {
         console.error("학생 정보 로드 실패:", err);
-        setError("학생 정보를 불러오는데 실패했습니다.");
+        showError("학생 정보를 불러오는데 실패했습니다.");
       } finally {
         setLoading(false);
       }
@@ -411,9 +382,7 @@ export default function SettingsPage() {
 
 
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+  const handleSave = useCallback(async () => {
 
       // 유효성 검증
       const newErrors: ValidationErrors = {};
@@ -448,8 +417,6 @@ export default function SettingsPage() {
 
       setErrors({});
       setSaving(true);
-      setError(null);
-      setSuccess(false);
       isSavingRef.current = true; // 저장 시작
 
       try {
@@ -529,26 +496,27 @@ export default function SettingsPage() {
           }
 
           // 성공 메시지 표시
-          setSuccess(true);
-          setError(null);
-          // 3초 후 성공 메시지 자동 숨김
-          setTimeout(() => {
-            setSuccess(false);
-          }, 3000);
+          showSuccess("저장되었습니다.");
         } else {
-          setError(result.error || "저장에 실패했습니다.");
-          setSuccess(false);
+          showError(result.error || "저장에 실패했습니다.");
           isSavingRef.current = false;
         }
       } catch (err: any) {
-        setError(err.message || "저장 중 오류가 발생했습니다.");
-        setSuccess(false);
+        showError(err.message || "저장 중 오류가 발생했습니다.");
         isSavingRef.current = false;
       } finally {
         setSaving(false);
       }
     },
-    [formData, autoCalculateExamYear, autoCalculateCurriculum, schoolType, isInitialSetup, router]
+    [formData, autoCalculateExamYear, autoCalculateCurriculum, schoolType, isInitialSetup, router, showSuccess, showError]
+  );
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      await handleSave();
+    },
+    [handleSave]
   );
 
   // 단계별 진행 상태 계산 (Hooks 규칙 준수를 위해 early return 전에 호출)
@@ -584,9 +552,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8">
+    <div className="p-6 md:p-8 pb-24">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6 text-3xl font-semibold">마이페이지</h1>
+        <h1 className="mb-6 text-3xl font-semibold">프로필</h1>
 
         {/* 초기 설정 모드: 환영 메시지 및 단계별 가이드 */}
         {isInitialSetup && setupProgress && (
@@ -655,88 +623,11 @@ export default function SettingsPage() {
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {/* 성공/에러 메시지 */}
-          {success && (
-            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg
-                  className="h-5 w-5 text-green-600"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm font-medium text-green-800">
-                  저장되었습니다.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSuccess(false)}
-                className="text-green-600 hover:text-green-800"
-                aria-label="닫기"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          )}
-          {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg
-                  className="h-5 w-5 text-red-600"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm font-medium text-red-800">{error}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setError(null)}
-                className="text-red-600 hover:text-red-800"
-                aria-label="닫기"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          )}
-
-          {/* 탭 네비게이션 */}
-          <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
-
-          {/* 기본 정보 탭 */}
-          {activeTab === "basic" && (
-            <section className="flex flex-col gap-4">
+          {/* 기본 정보 섹션 */}
+          <SectionCard
+            title="기본 정보"
+            description="학생의 기본 정보를 입력하세요"
+          >
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   이름 <span className="text-red-500">*</span>
@@ -873,63 +764,70 @@ export default function SettingsPage() {
                   ))}
                 </select>
               </div>
+          </SectionCard>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  연락처 (본인)
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => {
-                    handlePhoneChange("phone")(e);
-                    if (errors.phone) {
-                      setErrors((prev) => ({ ...prev, phone: undefined }));
-                    }
-                  }}
-                  className={`rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
-                    errors.phone
-                      ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-                      : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
-                  }`}
-                  placeholder="010-1234-5678"
-                />
-                {errors.phone && (
-                  <p className="text-sm text-red-500">{errors.phone}</p>
-                )}
-              </div>
+          {/* 연락처 정보 섹션 */}
+          <SectionCard
+            title="연락처 정보"
+            description="비상 연락을 위한 연락처 정보입니다"
+          >
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">
+                본인 연락처
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => {
+                  handlePhoneChange("phone")(e);
+                  if (errors.phone) {
+                    setErrors((prev) => ({ ...prev, phone: undefined }));
+                  }
+                }}
+                className={`rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 ${
+                  errors.phone
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                    : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
+                }`}
+                placeholder="010-1234-5678"
+              />
+              {errors.phone && (
+                <p className="text-sm text-red-500">{errors.phone}</p>
+              )}
+            </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  모 연락처
-                </label>
-                <input
-                  type="tel"
-                  value={formData.mother_phone}
-                  onChange={handlePhoneChange("mother_phone")}
-                  className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="010-1234-5678"
-                />
-              </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">
+                모 연락처
+              </label>
+              <input
+                type="tel"
+                value={formData.mother_phone}
+                onChange={handlePhoneChange("mother_phone")}
+                className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                placeholder="010-1234-5678"
+              />
+            </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  부 연락처
-                </label>
-                <input
-                  type="tel"
-                  value={formData.father_phone}
-                  onChange={handlePhoneChange("father_phone")}
-                  className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="010-1234-5678"
-                />
-              </div>
-            </section>
-          )}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">
+                부 연락처
+              </label>
+              <input
+                type="tel"
+                value={formData.father_phone}
+                onChange={handlePhoneChange("father_phone")}
+                className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                placeholder="010-1234-5678"
+              />
+            </div>
+          </SectionCard>
 
-          {/* 입시 정보 탭 */}
-          {activeTab === "exam" && (
-            <section className="flex flex-col gap-4">
+          {/* 입시 정보 섹션 */}
+          <SectionCard
+            title="입시 정보"
+            description="입시 정보는 학습 계획 수립에 활용됩니다"
+          >
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-gray-700">
@@ -1015,12 +913,13 @@ export default function SettingsPage() {
                     </p>
                   )}
               </div>
-            </section>
-          )}
+          </SectionCard>
 
-          {/* 진로 정보 탭 */}
-          {activeTab === "career" && (
-            <section className="flex flex-col gap-4">
+          {/* 진로 정보 섹션 */}
+          <SectionCard
+            title="진로 정보"
+            description="진로 정보는 맞춤형 학습 추천에 활용됩니다"
+          >
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
                   진학 희망 대학교 (1순위, 2순위, 3순위)
@@ -1061,72 +960,52 @@ export default function SettingsPage() {
                   ))}
                 </select>
               </div>
-            </section>
-          )}
+          </SectionCard>
 
           {/* 저장 버튼 */}
-          <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-            {hasChanges && (
-              <p className="text-sm text-gray-500">
-                변경사항이 있습니다. 저장하지 않으면 변경사항이 사라집니다.
-              </p>
-            )}
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={async () => {
-                  if (hasChanges) {
-                    if (
-                      !confirm("변경사항이 있습니다. 정말 취소하시겠습니까?")
-                    ) {
-                      return;
-                    }
-                  }
+          <StickySaveButton
+            hasChanges={hasChanges || isInitialSetup}
+            isSaving={saving}
+            onSubmit={handleSave}
+            onCancel={async () => {
+              if (hasChanges) {
+                if (
+                  !confirm("변경사항이 있습니다. 정말 취소하시겠습니까?")
+                ) {
+                  return;
+                }
+              }
 
-                  // 변경사항 취소: 초기 데이터 다시 로드
-                  try {
-                    setLoading(true);
-                    const studentData = await getCurrentStudent();
-                    if (studentData) {
-                      const supabase = (await import("@/lib/supabase/client"))
-                        .supabase;
-                      const {
-                        data: { user },
-                      } = await supabase.auth.getUser();
+              // 변경사항 취소: 초기 데이터 다시 로드
+              try {
+                setLoading(true);
+                const studentData = await getCurrentStudent();
+                if (studentData) {
+                  const supabase = (await import("@/lib/supabase/client"))
+                    .supabase;
+                  const {
+                    data: { user },
+                  } = await supabase.auth.getUser();
 
-                      setStudent(studentData);
+                  setStudent(studentData);
 
-                      // Student 데이터를 FormData로 변환하여 초기값으로 리셋
-                      const resetFormData = await transformStudentToFormData(
-                        studentData
-                      );
-                      setFormData(resetFormData);
-                      initialFormDataRef.current = resetFormData;
-                    }
-                  } catch (err) {
-                    console.error("데이터 다시 로드 실패:", err);
-                    setError("데이터를 다시 불러오는데 실패했습니다.");
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={saving || (!hasChanges && !isInitialSetup)}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-              >
-                {saving 
-                  ? "저장 중..." 
-                  : isInitialSetup 
-                  ? "시작하기" 
-                  : "저장하기"}
-              </button>
-            </div>
-          </div>
+                  // Student 데이터를 FormData로 변환하여 초기값으로 리셋
+                  const resetFormData = await transformStudentToFormData(
+                    studentData
+                  );
+                  setFormData(resetFormData);
+                  initialFormDataRef.current = resetFormData;
+                }
+              } catch (err) {
+                console.error("데이터 다시 로드 실패:", err);
+                showError("데이터를 다시 불러오는데 실패했습니다.");
+              } finally {
+                setLoading(false);
+              }
+            }}
+            submitLabel={isInitialSetup ? "시작하기" : "저장하기"}
+            disabled={!hasChanges && !isInitialSetup}
+          />
         </form>
       </div>
     </div>
