@@ -191,9 +191,15 @@ export default function SettingsPage() {
           data: { user },
         } = await supabase.auth.getUser();
 
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
         const studentData = await getCurrentStudent();
         if (!studentData) {
-          router.push("/login");
+          // 학생 정보가 없으면 학생 설정 페이지로 이동
+          router.push("/student-setup");
           return;
         }
 
