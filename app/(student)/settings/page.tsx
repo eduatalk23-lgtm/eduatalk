@@ -20,6 +20,7 @@ import {
   formatGradeDisplay,
   formatPhoneNumber,
   validateFormField,
+  validatePhoneNumber,
   type ValidationErrors,
 } from "@/lib/utils/studentFormUtils";
 import type { Student } from "@/lib/data/students";
@@ -341,12 +342,45 @@ export default function SettingsPage() {
     []
   );
 
-  // 연락처 필드 변경 핸들러 (자동 포맷팅)
+  // 연락처 필드 변경 핸들러 (자동 포맷팅 및 실시간 검증)
   const handlePhoneChange = useCallback(
     (field: "phone" | "mother_phone" | "father_phone") =>
       (e: React.ChangeEvent<HTMLInputElement>) => {
         const formatted = formatPhoneNumber(e.target.value);
         setFormData((prev) => ({ ...prev, [field]: formatted }));
+        
+        // 실시간 검증 (입력 중일 때는 에러 표시하지 않음)
+        if (formatted) {
+          const validation = validatePhoneNumber(formatted);
+          if (!validation.valid) {
+            // 입력 중이 아닐 때만 에러 표시 (11자리 이상이거나 010으로 시작하지 않을 때)
+            const digits = formatted.replace(/\D/g, "");
+            if (digits.length >= 10 || !digits.startsWith("010")) {
+              setErrors((prev) => ({ ...prev, [field]: validation.error }));
+            } else {
+              // 입력 중이면 에러 제거
+              setErrors((prev) => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+              });
+            }
+          } else {
+            // 유효하면 에러 제거
+            setErrors((prev) => {
+              const newErrors = { ...prev };
+              delete newErrors[field];
+              return newErrors;
+            });
+          }
+        } else {
+          // 빈 값이면 에러 제거
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors[field];
+            return newErrors;
+          });
+        }
       },
     []
   );

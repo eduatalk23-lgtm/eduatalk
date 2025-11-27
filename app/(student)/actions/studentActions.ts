@@ -6,6 +6,7 @@ import { upsertStudent, getStudentById, type Student } from "@/lib/data/students
 import { upsertStudentProfile, getStudentProfileById, type StudentProfile } from "@/lib/data/studentProfiles";
 import { upsertStudentCareerGoal, getStudentCareerGoalById, type StudentCareerGoal } from "@/lib/data/studentCareerGoals";
 import type { CareerField } from "@/lib/data/studentCareerFieldPreferences";
+import { normalizePhoneNumber, validatePhoneNumber } from "@/lib/utils/studentFormUtils";
 
 export async function saveStudentInfo(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
@@ -137,9 +138,49 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
 
   // 2. 프로필 정보 업데이트
   const gender = (formData.get("gender") as "남" | "여" | null) || null;
-  const phone = String(formData.get("phone") ?? "").trim() || null;
-  const motherPhone = String(formData.get("mother_phone") ?? "").trim() || null;
-  const fatherPhone = String(formData.get("father_phone") ?? "").trim() || null;
+  
+  // 전화번호 정규화 및 검증
+  const phoneRaw = String(formData.get("phone") ?? "").trim();
+  const motherPhoneRaw = String(formData.get("mother_phone") ?? "").trim();
+  const fatherPhoneRaw = String(formData.get("father_phone") ?? "").trim();
+  
+  // 전화번호 검증
+  if (phoneRaw) {
+    const phoneValidation = validatePhoneNumber(phoneRaw);
+    if (!phoneValidation.valid) {
+      return { success: false, error: `본인 연락처: ${phoneValidation.error}` };
+    }
+  }
+  
+  if (motherPhoneRaw) {
+    const motherPhoneValidation = validatePhoneNumber(motherPhoneRaw);
+    if (!motherPhoneValidation.valid) {
+      return { success: false, error: `모 연락처: ${motherPhoneValidation.error}` };
+    }
+  }
+  
+  if (fatherPhoneRaw) {
+    const fatherPhoneValidation = validatePhoneNumber(fatherPhoneRaw);
+    if (!fatherPhoneValidation.valid) {
+      return { success: false, error: `부 연락처: ${fatherPhoneValidation.error}` };
+    }
+  }
+  
+  // 전화번호 정규화 (010-1234-5678 형식으로 통일)
+  const phone = phoneRaw ? normalizePhoneNumber(phoneRaw) : null;
+  const motherPhone = motherPhoneRaw ? normalizePhoneNumber(motherPhoneRaw) : null;
+  const fatherPhone = fatherPhoneRaw ? normalizePhoneNumber(fatherPhoneRaw) : null;
+  
+  // 정규화 실패 시 에러 반환
+  if (phoneRaw && !phone) {
+    return { success: false, error: "본인 연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+  }
+  if (motherPhoneRaw && !motherPhone) {
+    return { success: false, error: "모 연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+  }
+  if (fatherPhoneRaw && !fatherPhone) {
+    return { success: false, error: "부 연락처 형식이 올바르지 않습니다 (010-1234-5678)" };
+  }
 
   const profileResult = await upsertStudentProfile({
     id: user.id,
