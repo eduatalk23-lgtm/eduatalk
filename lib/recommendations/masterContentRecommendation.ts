@@ -224,12 +224,12 @@ export async function getRecommendedMasterContents(
           subject_category: subject,
           tenantId,
           limit: 10, // 더 많이 가져와서 필터링
-        }),
+        }, supabase),
         searchMasterLectures({
           subject_category: subject,
           tenantId,
           limit: 10,
-        }),
+        }, supabase),
       ]);
       
       console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 검색 결과:`, {
@@ -377,12 +377,12 @@ export async function getRecommendedMasterContents(
           subject_category: subject,
           tenantId,
           limit: 10,
-        }),
+        }, supabase),
         searchMasterLectures({
           subject_category: subject,
           tenantId,
           limit: 10,
-        }),
+        }, supabase),
       ]);
 
       // 최신 개정판 우선 정렬

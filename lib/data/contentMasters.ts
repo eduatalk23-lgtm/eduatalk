@@ -56,13 +56,16 @@ export type ContentMasterFilters = {
 
 /**
  * 교재 검색
+ * @param filters 검색 필터
+ * @param supabase Supabase 클라이언트 (선택적, 전달하지 않으면 일반 서버 클라이언트 사용)
  */
 export async function searchMasterBooks(
-  filters: MasterBookFilters
+  filters: MasterBookFilters,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ): Promise<{ data: MasterBook[]; total: number }> {
-  const supabase = await createSupabaseServerClient();
+  const queryClient = supabase || await createSupabaseServerClient();
 
-  let query = supabase
+  let query = queryClient
     .from("master_books")
     .select("*", { count: "exact" });
 
@@ -175,13 +178,16 @@ export async function getMasterBookById(
 
 /**
  * 강의 검색
+ * @param filters 검색 필터
+ * @param supabase Supabase 클라이언트 (선택적, 전달하지 않으면 일반 서버 클라이언트 사용)
  */
 export async function searchMasterLectures(
-  filters: MasterLectureFilters
+  filters: MasterLectureFilters,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ): Promise<{ data: MasterLecture[]; total: number }> {
-  const supabase = await createSupabaseServerClient();
+  const queryClient = supabase || await createSupabaseServerClient();
 
-  let query = supabase
+  let query = queryClient
     .from("master_lectures")
     .select("*", { count: "exact" });
 
