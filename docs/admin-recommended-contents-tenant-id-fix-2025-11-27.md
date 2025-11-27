@@ -183,6 +183,18 @@ GET /api/recommended-master-contents?subjects=국어&subjects=수학
 GET /api/recommended-master-contents?subjects=국어&subjects=수학&student_id=xxx
 ```
 
+### RLS 우회 로직
+
+관리자/컨설턴트가 다른 학생의 추천 콘텐츠를 조회할 때:
+
+1. **API에서 Admin 클라이언트 사용**
+   - 마스터 콘텐츠 조회 시 RLS 문제가 있을 수 있으므로 Admin 클라이언트 사용
+   - `getRecommendedMasterContents`에 Admin 클라이언트 전달
+
+2. **마스터 콘텐츠 조회 함수 수정**
+   - `searchMasterBooks`와 `searchMasterLectures`에 supabase 클라이언트를 옵셔널 파라미터로 추가
+   - 전달받은 클라이언트(Admin 클라이언트)를 사용하여 RLS 우회
+
 ### tenantId 조회 로직
 
 `searchMasterBooks`와 `searchMasterLectures` 함수는 다음과 같이 동작합니다:
@@ -198,5 +210,5 @@ if (filters.tenantId) {
 - `tenantId`가 있으면: 공개 콘텐츠 + 해당 tenant 콘텐츠 조회
 - `tenantId`가 없으면: 공개 콘텐츠만 조회
 
-이제 관리자가 학생의 `tenantId`를 사용하므로 해당 학생의 기관 콘텐츠도 조회할 수 있습니다.
+이제 관리자가 학생의 `tenantId`를 사용하고 Admin 클라이언트로 조회하므로, 해당 학생의 기관 콘텐츠뿐만 아니라 다른 테넌트의 마스터 콘텐츠도 조회할 수 있습니다.
 
