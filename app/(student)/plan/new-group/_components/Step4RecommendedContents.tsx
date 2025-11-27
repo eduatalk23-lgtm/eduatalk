@@ -1047,6 +1047,7 @@ export function Step4RecommendedContents({
           contentsToAdd.push({
             content_type: content.contentType,
             content_id: content.id, // 마스터 콘텐츠 ID
+            master_content_id: content.id, // 추천 콘텐츠는 content_id와 동일 (마스터 콘텐츠 ID)
             start_range: 1,
             end_range: defaultEndRange,
             title: content.title, // 제목 정보 저장
@@ -1057,6 +1058,7 @@ export function Step4RecommendedContents({
           contentsToAdd.push({
             content_type: content.contentType,
             content_id: content.id,
+            master_content_id: content.id, // 추천 콘텐츠는 content_id와 동일 (마스터 콘텐츠 ID)
             start_range: 1,
             end_range: content.contentType === "book" ? 100 : 10,
             title: content.title, // 제목 정보 저장
@@ -1072,6 +1074,7 @@ export function Step4RecommendedContents({
         contentsToAdd.push({
           content_type: content.contentType,
           content_id: content.id,
+          master_content_id: content.id, // 추천 콘텐츠는 content_id와 동일 (마스터 콘텐츠 ID)
           start_range: 1,
           end_range: content.contentType === "book" ? 100 : 10,
           title: content.title, // 제목 정보 저장

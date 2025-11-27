@@ -92,15 +92,48 @@ export function syncWizardDataToCreationData(
       period_end: wizardData.period_end,
       target_date: wizardData.target_date || null,
       block_set_id: wizardData.block_set_id || null,
-      contents: allContents.map((c, idx) => ({
-        content_type: c.content_type,
-        content_id: c.content_id,
-        start_range: c.start_range,
-        end_range: c.end_range,
-        start_detail_id: (c as any).start_detail_id ?? null,
-        end_detail_id: (c as any).end_detail_id ?? null,
-        display_order: idx,
-      })),
+      contents: allContents.map((c, idx) => {
+        const contentItem: any = {
+          content_type: c.content_type,
+          content_id: c.content_id,
+          start_range: c.start_range,
+          end_range: c.end_range,
+          start_detail_id: (c as any).start_detail_id ?? null,
+          end_detail_id: (c as any).end_detail_id ?? null,
+          display_order: idx,
+        };
+        
+        // master_content_id 설정
+        // 1. WizardData에서 명시적으로 설정된 경우 우선 사용
+        if ((c as any).master_content_id) {
+          contentItem.master_content_id = (c as any).master_content_id;
+        } else {
+          // 2. 추천 콘텐츠인 경우: content_id 자체가 마스터 콘텐츠 ID
+          // 추천 콘텐츠는 recommended_contents에 포함되어 있고, is_auto_recommended 또는 recommendation_source가 있음
+          const isRecommended = wizardData.recommended_contents.some(
+            (rc) => rc.content_id === c.content_id && rc.content_type === c.content_type
+          );
+          if (isRecommended) {
+            contentItem.master_content_id = c.content_id; // 추천 콘텐츠는 content_id가 마스터 콘텐츠 ID
+          }
+        }
+        
+        // 자동 추천 관련 필드 추가
+        if ((c as any).is_auto_recommended !== undefined) {
+          contentItem.is_auto_recommended = (c as any).is_auto_recommended;
+        }
+        if ((c as any).recommendation_source) {
+          contentItem.recommendation_source = (c as any).recommendation_source;
+        }
+        if ((c as any).recommendation_reason) {
+          contentItem.recommendation_reason = (c as any).recommendation_reason;
+        }
+        if ((c as any).recommendation_metadata) {
+          contentItem.recommendation_metadata = (c as any).recommendation_metadata;
+        }
+        
+        return contentItem;
+      }),
       exclusions: wizardData.exclusions.map((e) => ({
         exclusion_date: e.exclusion_date,
         exclusion_type: e.exclusion_type,
