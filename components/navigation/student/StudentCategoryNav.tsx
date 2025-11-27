@@ -1,15 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { studentCategories } from "./studentCategories";
 
 function StudentCategoryNavContent() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // 캠프 모드 감지: /plan/group/[id] 경로이고 camp=true 쿼리 파라미터가 있는 경우
+  const isCampMode = pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true";
 
   // pathname이 /dashboard, /today, /plan, /contents, /analysis 중 하나와 매칭되는지 확인
   const isActive = (href: string) => {
+    // 캠프 모드인 경우 "캠프 참여"만 활성화
+    if (isCampMode) {
+      return href === "/camp";
+    }
+    
+    // /plan 경로인 경우, 캠프 모드가 아닐 때만 활성화
+    if (href === "/plan" && isCampMode) {
+      return false;
+    }
+    
     if (pathname === href) return true;
     // prefix 매칭: /plan/new는 /plan과 매칭
     if (pathname.startsWith(href + "/")) return true;

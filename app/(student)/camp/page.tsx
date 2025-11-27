@@ -81,9 +81,9 @@ export default async function CampPage() {
               
               // accepted 상태인 경우
               if (invitation.status === "accepted") {
-                // 플랜 그룹이 있고 플랜이 생성된 경우 플랜 그룹 상세로
+                // 플랜 그룹이 있고 플랜이 생성된 경우 플랜 그룹 상세로 (캠프 모드 표시)
                 if (invitation.planGroupId && invitation.hasPlans) {
-                  return `/plan/group/${invitation.planGroupId}`;
+                  return `/plan/group/${invitation.planGroupId}?camp=true`;
                 }
                 // 플랜 그룹이 있지만 플랜이 아직 생성되지 않은 경우 제출 완료 상세로
                 // (제출 완료 페이지는 플랜 그룹이 필수이므로 planGroupId가 있을 때만)

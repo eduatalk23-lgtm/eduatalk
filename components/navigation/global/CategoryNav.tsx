@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { getCategoriesForRole, type NavigationRole, type NavigationCategory, type NavigationItem } from "./categoryConfig";
@@ -14,10 +14,28 @@ type CategoryNavProps = {
 
 export function CategoryNav({ role, className }: CategoryNavProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const categories = getCategoriesForRole(role);
+  
+  // 캠프 모드 감지: /plan/group/[id] 경로이고 camp=true 쿼리 파라미터가 있는 경우
+  const isCampMode = pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true";
+  
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
     // 현재 활성 카테고리 초기 확장
-    const active = resolveActiveCategory(pathname || "", role);
+    let active = resolveActiveCategory(pathname || "", role);
+    
+    // 캠프 모드인 경우 "캠프 참여" 카테고리 활성화
+    if (isCampMode && role === "student") {
+      const campCategory = categories.find((cat) => cat.id === "camp");
+      if (campCategory) {
+        active = {
+          category: campCategory,
+          activeItem: campCategory.items[0] || null,
+          isCategoryActive: true,
+        };
+      }
+    }
+    
     return new Set(active ? [active.category.id] : [categories[0]?.id].filter(Boolean));
   });
 
@@ -75,10 +93,26 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
   };
 
   const isCategoryActive = (category: NavigationCategory): boolean => {
+    // 캠프 모드인 경우 "캠프 참여" 카테고리만 활성화
+    if (isCampMode && role === "student") {
+      return category.id === "camp";
+    }
     return isCategoryPath(pathname || "", category);
   };
 
-  const activeInfo = resolveActiveCategory(pathname || "", role);
+  let activeInfo = resolveActiveCategory(pathname || "", role);
+  
+  // 캠프 모드인 경우 "캠프 참여" 카테고리 활성화
+  if (isCampMode && role === "student") {
+    const campCategory = categories.find((cat) => cat.id === "camp");
+    if (campCategory) {
+      activeInfo = {
+        category: campCategory,
+        activeItem: campCategory.items[0] || null,
+        isCategoryActive: true,
+      };
+    }
+  }
 
   return (
     <nav className={cn("flex flex-col gap-1", className)}>

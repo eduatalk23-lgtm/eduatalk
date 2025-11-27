@@ -50,6 +50,14 @@ const studentCategories: NavigationCategory[] = [
         label: "캠프 참여",
         href: "/camp",
         icon: "🏕️",
+        children: [
+          {
+            id: "camp-list",
+            label: "캠프 목록",
+            href: "/camp",
+            icon: "📋",
+          },
+        ],
       },
     ],
   },
