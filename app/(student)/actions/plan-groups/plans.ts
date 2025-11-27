@@ -2119,10 +2119,14 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     // Admin/Consultant가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용
     const isAdminOrConsultant = role === "admin" || role === "consultant";
     const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
-    const queryClientRaw = isOtherStudent ? createSupabaseAdminClient() : supabase;
-    
+    const queryClientRaw = isOtherStudent
+      ? createSupabaseAdminClient()
+      : supabase;
+
     // 마스터 콘텐츠 조회용 클라이언트 (관리자가 조회할 때도 Admin 클라이언트 사용)
-    const masterQueryClientRaw = isAdminOrConsultant ? createSupabaseAdminClient() : supabase;
+    const masterQueryClientRaw = isAdminOrConsultant
+      ? createSupabaseAdminClient()
+      : supabase;
 
     if (isOtherStudent && !queryClientRaw) {
       throw new AppError(
@@ -2132,7 +2136,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         false
       );
     }
-    
+
     if (isAdminOrConsultant && !masterQueryClientRaw) {
       throw new AppError(
         "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
@@ -2141,7 +2145,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         false
       );
     }
-    
+
     // null 체크 후 타입 단언 (위에서 이미 체크했으므로 null이 아님)
     const queryClient = queryClientRaw!;
     const masterQueryClient = masterQueryClientRaw!;
@@ -2573,13 +2577,30 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       }
     >();
 
+    console.log("[_previewPlansFromGroup] 콘텐츠 메타데이터 조회 시작", {
+      contentsCount: contents.length,
+      studentId,
+      isAdminOrConsultant,
+      isOtherStudent,
+    });
+
     for (const content of contents) {
       const finalContentId =
         contentIdMap.get(content.content_id) || content.content_id;
 
+      console.log("[_previewPlansFromGroup] 콘텐츠 처리 시작", {
+        content_id: content.content_id,
+        finalContentId,
+        content_type: content.content_type,
+      });
+
       if (content.content_type === "book") {
         // 학생 교재 조회 (master_content_id도 함께 조회)
-        const { data: book } = await queryClient
+        console.log("[_previewPlansFromGroup] 학생 교재 조회 시도", {
+          finalContentId,
+          studentId,
+        });
+        const { data: book, error: bookError } = await queryClient
           .from("books")
           .select(
             "title, subject, subject_category, content_category, master_content_id"
@@ -2588,17 +2609,38 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           .eq("student_id", studentId)
           .maybeSingle();
 
+        console.log("[_previewPlansFromGroup] 학생 교재 조회 결과", {
+          found: !!book,
+          book: book ? {
+            title: book.title,
+            subject: book.subject,
+            subject_category: book.subject_category,
+            content_category: book.content_category,
+            master_content_id: book.master_content_id,
+          } : null,
+          error: bookError,
+        });
+
         if (book) {
-          contentMetadataMap.set(content.content_id, {
+          const metadata = {
             title: book.title || null,
             subject: book.subject || null,
             subject_category: book.subject_category || null,
             category: book.content_category || null,
+          };
+          contentMetadataMap.set(content.content_id, metadata);
+          console.log("[_previewPlansFromGroup] 학생 교재 메타데이터 저장", {
+            content_id: content.content_id,
+            metadata,
           });
         } else {
           // 학생 교재가 없으면 마스터 콘텐츠 ID로 학생 교재 찾기
           const masterContentId = content.content_id;
-          const { data: bookByMaster } = await queryClient
+          console.log("[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 교재 찾기", {
+            masterContentId,
+            studentId,
+          });
+          const { data: bookByMaster, error: bookByMasterError } = await queryClient
             .from("books")
             .select(
               "title, subject, subject_category, content_category, master_content_id"
@@ -2607,34 +2649,80 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             .eq("master_content_id", masterContentId)
             .maybeSingle();
 
+          console.log("[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 교재 찾기 결과", {
+            found: !!bookByMaster,
+            bookByMaster: bookByMaster ? {
+              title: bookByMaster.title,
+              subject: bookByMaster.subject,
+              subject_category: bookByMaster.subject_category,
+              content_category: bookByMaster.content_category,
+            } : null,
+            error: bookByMasterError,
+          });
+
           if (bookByMaster) {
-            contentMetadataMap.set(content.content_id, {
+            const metadata = {
               title: bookByMaster.title || null,
               subject: bookByMaster.subject || null,
               subject_category: bookByMaster.subject_category || null,
               category: bookByMaster.content_category || null,
+            };
+            contentMetadataMap.set(content.content_id, metadata);
+            console.log("[_previewPlansFromGroup] 마스터 콘텐츠 ID로 찾은 학생 교재 메타데이터 저장", {
+              content_id: content.content_id,
+              metadata,
             });
           } else {
             // 마스터 교재 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
-            const { data: masterBook } = await masterQueryClient
+            console.log("[_previewPlansFromGroup] 마스터 교재 조회 시도", {
+              masterContentId,
+              usingAdminClient: isAdminOrConsultant,
+            });
+            const { data: masterBook, error: masterBookError } = await masterQueryClient
               .from("master_books")
               .select("title, subject, subject_category, content_category")
               .eq("id", masterContentId)
               .maybeSingle();
 
+            console.log("[_previewPlansFromGroup] 마스터 교재 조회 결과", {
+              found: !!masterBook,
+              masterBook: masterBook ? {
+                title: masterBook.title,
+                subject: masterBook.subject,
+                subject_category: masterBook.subject_category,
+                content_category: masterBook.content_category,
+              } : null,
+              error: masterBookError,
+            });
+
             if (masterBook) {
-              contentMetadataMap.set(content.content_id, {
+              const metadata = {
                 title: masterBook.title || null,
                 subject: masterBook.subject || null,
                 subject_category: masterBook.subject_category || null,
                 category: masterBook.content_category || null,
+              };
+              contentMetadataMap.set(content.content_id, metadata);
+              console.log("[_previewPlansFromGroup] 마스터 교재 메타데이터 저장", {
+                content_id: content.content_id,
+                metadata,
+              });
+            } else {
+              console.warn("[_previewPlansFromGroup] 교재 정보를 찾을 수 없음", {
+                content_id: content.content_id,
+                finalContentId,
+                masterContentId,
               });
             }
           }
         }
       } else if (content.content_type === "lecture") {
         // 학생 강의 조회 (master_content_id도 함께 조회)
-        const { data: lecture } = await queryClient
+        console.log("[_previewPlansFromGroup] 학생 강의 조회 시도", {
+          finalContentId,
+          studentId,
+        });
+        const { data: lecture, error: lectureError } = await queryClient
           .from("lectures")
           .select(
             "title, subject, subject_category, content_category, master_content_id"
@@ -2643,17 +2731,38 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           .eq("student_id", studentId)
           .maybeSingle();
 
+        console.log("[_previewPlansFromGroup] 학생 강의 조회 결과", {
+          found: !!lecture,
+          lecture: lecture ? {
+            title: lecture.title,
+            subject: lecture.subject,
+            subject_category: lecture.subject_category,
+            content_category: lecture.content_category,
+            master_content_id: lecture.master_content_id,
+          } : null,
+          error: lectureError,
+        });
+
         if (lecture) {
-          contentMetadataMap.set(content.content_id, {
+          const metadata = {
             title: lecture.title || null,
             subject: lecture.subject || null,
             subject_category: lecture.subject_category || null,
             category: lecture.content_category || null,
+          };
+          contentMetadataMap.set(content.content_id, metadata);
+          console.log("[_previewPlansFromGroup] 학생 강의 메타데이터 저장", {
+            content_id: content.content_id,
+            metadata,
           });
         } else {
           // 학생 강의가 없으면 마스터 콘텐츠 ID로 학생 강의 찾기
           const masterContentId = content.content_id;
-          const { data: lectureByMaster } = await queryClient
+          console.log("[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 강의 찾기", {
+            masterContentId,
+            studentId,
+          });
+          const { data: lectureByMaster, error: lectureByMasterError } = await queryClient
             .from("lectures")
             .select(
               "title, subject, subject_category, content_category, master_content_id"
@@ -2662,27 +2771,69 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             .eq("master_content_id", masterContentId)
             .maybeSingle();
 
+          console.log("[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 강의 찾기 결과", {
+            found: !!lectureByMaster,
+            lectureByMaster: lectureByMaster ? {
+              title: lectureByMaster.title,
+              subject: lectureByMaster.subject,
+              subject_category: lectureByMaster.subject_category,
+              content_category: lectureByMaster.content_category,
+            } : null,
+            error: lectureByMasterError,
+          });
+
           if (lectureByMaster) {
-            contentMetadataMap.set(content.content_id, {
+            const metadata = {
               title: lectureByMaster.title || null,
               subject: lectureByMaster.subject || null,
               subject_category: lectureByMaster.subject_category || null,
               category: lectureByMaster.content_category || null,
+            };
+            contentMetadataMap.set(content.content_id, metadata);
+            console.log("[_previewPlansFromGroup] 마스터 콘텐츠 ID로 찾은 학생 강의 메타데이터 저장", {
+              content_id: content.content_id,
+              metadata,
             });
           } else {
             // 마스터 강의 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
-            const { data: masterLecture } = await masterQueryClient
+            console.log("[_previewPlansFromGroup] 마스터 강의 조회 시도", {
+              masterContentId,
+              usingAdminClient: isAdminOrConsultant,
+            });
+            const { data: masterLecture, error: masterLectureError } = await masterQueryClient
               .from("master_lectures")
               .select("title, subject, subject_category, content_category")
               .eq("id", masterContentId)
               .maybeSingle();
 
+            console.log("[_previewPlansFromGroup] 마스터 강의 조회 결과", {
+              found: !!masterLecture,
+              masterLecture: masterLecture ? {
+                title: masterLecture.title,
+                subject: masterLecture.subject,
+                subject_category: masterLecture.subject_category,
+                content_category: masterLecture.content_category,
+              } : null,
+              error: masterLectureError,
+            });
+
             if (masterLecture) {
-              contentMetadataMap.set(content.content_id, {
+              const metadata = {
                 title: masterLecture.title || null,
                 subject: masterLecture.subject || null,
                 subject_category: masterLecture.subject_category || null,
                 category: masterLecture.content_category || null,
+              };
+              contentMetadataMap.set(content.content_id, metadata);
+              console.log("[_previewPlansFromGroup] 마스터 강의 메타데이터 저장", {
+                content_id: content.content_id,
+                metadata,
+              });
+            } else {
+              console.warn("[_previewPlansFromGroup] 강의 정보를 찾을 수 없음", {
+                content_id: content.content_id,
+                finalContentId,
+                masterContentId,
               });
             }
           }
@@ -2806,6 +2957,16 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
               contentIdMap.get(p.content_id) === segment.plan.content_id
           )?.content_id || segment.plan.content_id;
         const metadata = contentMetadataMap.get(originalContentId) || {};
+        
+        if (!metadata.title && !metadata.subject) {
+          console.warn("[_previewPlansFromGroup] 메타데이터가 없는 플랜 발견", {
+            originalContentId,
+            segmentContentId: segment.plan.content_id,
+            content_type: segment.plan.content_type,
+            date,
+            availableContentIds: Array.from(contentMetadataMap.keys()),
+          });
+        }
 
         // 주차별 일차(day) 계산
         let weekDay: number | null = null;
@@ -3006,6 +3167,29 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         }
       }
     }
+
+    console.log("[_previewPlansFromGroup] 플랜 미리보기 결과", {
+      totalPlans: previewPlans.length,
+      contentMetadataMapSize: contentMetadataMap.size,
+      contentMetadataMapEntries: Array.from(contentMetadataMap.entries()).map(([id, meta]) => ({
+        content_id: id,
+        title: meta.title,
+        subject: meta.subject,
+        subject_category: meta.subject_category,
+      })),
+      samplePlans: previewPlans.slice(0, 5).map(p => ({
+        content_id: p.content_id,
+        content_title: p.content_title,
+        content_subject: p.content_subject,
+        content_subject_category: p.content_subject_category,
+        content_type: p.content_type,
+      })),
+      plansWithoutMetadata: previewPlans.filter(p => !p.content_title && !p.content_subject).slice(0, 10).map(p => ({
+        content_id: p.content_id,
+        content_type: p.content_type,
+        plan_date: p.plan_date,
+      })),
+    });
 
     return { plans: previewPlans };
   } catch (error) {
