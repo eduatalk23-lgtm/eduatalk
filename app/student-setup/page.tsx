@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { saveStudentInfo } from "@/app/actions/student";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import FormInput from "@/components/ui/FormInput";
+import FormSubmitButton from "@/components/ui/FormSubmitButton";
 
 export default async function StudentSetupPage() {
   const supabase = await createSupabaseServerClient();
