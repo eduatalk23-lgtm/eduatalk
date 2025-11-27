@@ -2309,7 +2309,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       try {
         // 마스터 콘텐츠인지 확인하고 기존 복사본이 있는지 확인
         if (content.content_type === "book") {
-          const { data: masterBook } = await supabase
+          const { data: masterBook } = await queryClient
             .from("master_books")
             .select("id")
             .eq("id", content.content_id)
@@ -2333,7 +2333,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             contentIdMap.set(content.content_id, content.content_id);
           }
         } else if (content.content_type === "lecture") {
-          const { data: masterLecture } = await supabase
+          const { data: masterLecture } = await queryClient
             .from("master_lectures")
             .select("id")
             .eq("id", content.content_id)
@@ -2419,7 +2419,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           });
         } else if (studentBook?.master_content_id) {
           // 마스터 교재 조회
-          const { data: masterBook } = await supabase
+          const { data: masterBook } = await queryClient
             .from("master_books")
             .select("id, total_pages")
             .eq("id", studentBook.master_content_id)
@@ -2450,7 +2450,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           });
         } else if (studentLecture?.master_content_id) {
           // 마스터 강의 조회
-          const { data: masterLecture } = await supabase
+          const { data: masterLecture } = await queryClient
             .from("master_lectures")
             .select("id, total_duration")
             .eq("id", studentLecture.master_content_id)
@@ -2565,7 +2565,9 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         // 학생 교재 조회 (master_content_id도 함께 조회)
         const { data: book } = await queryClient
           .from("books")
-          .select("title, subject, subject_category, content_category, master_content_id")
+          .select(
+            "title, subject, subject_category, content_category, master_content_id"
+          )
           .eq("id", finalContentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -2582,7 +2584,9 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           const masterContentId = content.content_id;
           const { data: bookByMaster } = await queryClient
             .from("books")
-            .select("title, subject, subject_category, content_category, master_content_id")
+            .select(
+              "title, subject, subject_category, content_category, master_content_id"
+            )
             .eq("student_id", studentId)
             .eq("master_content_id", masterContentId)
             .maybeSingle();
@@ -2596,7 +2600,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             });
           } else {
             // 마스터 교재 조회
-            const { data: masterBook } = await supabase
+            const { data: masterBook } = await queryClient
               .from("master_books")
               .select("title, subject, subject_category, content_category")
               .eq("id", masterContentId)
@@ -2616,7 +2620,9 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         // 학생 강의 조회 (master_content_id도 함께 조회)
         const { data: lecture } = await queryClient
           .from("lectures")
-          .select("title, subject, subject_category, content_category, master_content_id")
+          .select(
+            "title, subject, subject_category, content_category, master_content_id"
+          )
           .eq("id", finalContentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -2633,7 +2639,9 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           const masterContentId = content.content_id;
           const { data: lectureByMaster } = await queryClient
             .from("lectures")
-            .select("title, subject, subject_category, content_category, master_content_id")
+            .select(
+              "title, subject, subject_category, content_category, master_content_id"
+            )
             .eq("student_id", studentId)
             .eq("master_content_id", masterContentId)
             .maybeSingle();
@@ -2647,7 +2655,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             });
           } else {
             // 마스터 강의 조회
-            const { data: masterLecture } = await supabase
+            const { data: masterLecture } = await queryClient
               .from("master_lectures")
               .select("title, subject, subject_category, content_category")
               .eq("id", masterContentId)
