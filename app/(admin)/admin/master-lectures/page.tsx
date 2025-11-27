@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterLectures } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 
@@ -11,8 +12,13 @@ export default async function MasterLecturesPage({
 }) {
   const params = await searchParams;
   const { role } = await getCurrentUserRole();
+  const tenantContext = await getTenantContext();
 
   const supabase = await createSupabaseServerClient();
+
+  // 관리자/컨설턴트의 경우 자신의 테넌트 강의도 조회할 수 있도록 tenantId 전달
+  // Super Admin의 경우 tenantId가 null이므로 모든 강의 조회 가능
+  const tenantId = tenantContext?.tenantId || undefined;
 
   // 검색 필터 구성
   const filters: MasterLectureFilters = {
@@ -21,44 +27,45 @@ export default async function MasterLecturesPage({
     semester: params.semester,
     revision: params.revision,
     search: params.search,
+    tenantId, // 테넌트 ID 추가
     limit: 50,
   };
 
   const { data: lectures, total } = await searchMasterLectures(filters);
 
-  // 필터 옵션 조회 (드롭다운용)
-  const [subjects, semesters, revisions] = await Promise.all([
-    supabase
+  // 필터 옵션 조회 (드롭다운용) - tenantId 고려
+  const buildFilterQuery = (column: string) => {
+    let query = supabase
       .from("master_lectures")
-      .select("subject")
-      .not("subject", "is", null)
-      .then((res) => {
-        const unique = new Set(
-          (res.data || []).map((item) => item.subject).filter(Boolean)
-        );
-        return Array.from(unique).sort();
-      }),
-    supabase
-      .from("master_lectures")
-      .select("semester")
-      .not("semester", "is", null)
-      .then((res) => {
-        const unique = new Set(
-          (res.data || []).map((item) => item.semester).filter(Boolean)
-        );
-        return Array.from(unique).sort();
-      }),
-    supabase
-      .from("master_lectures")
-      .select("revision")
-      .not("revision", "is", null)
-      .then((res) => {
-        const unique = new Set(
-          (res.data || []).map((item) => item.revision).filter(Boolean)
-        );
-        return Array.from(unique).sort();
-      }),
+      .select(column)
+      .not(column, "is", null);
+    
+    if (tenantId) {
+      query = query.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+    } else {
+      query = query.is("tenant_id", null);
+    }
+    
+    return query;
+  };
+
+  const [subjectsRes, semestersRes, revisionsRes] = await Promise.all([
+    buildFilterQuery("subject"),
+    buildFilterQuery("semester"),
+    buildFilterQuery("revision"),
   ]);
+
+  const subjects = Array.from(
+    new Set((subjectsRes.data || []).map((item) => item.subject).filter(Boolean))
+  ).sort();
+  
+  const semesters = Array.from(
+    new Set((semestersRes.data || []).map((item) => item.semester).filter(Boolean))
+  ).sort();
+  
+  const revisions = Array.from(
+    new Set((revisionsRes.data || []).map((item) => item.revision).filter(Boolean))
+  ).sort();
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
