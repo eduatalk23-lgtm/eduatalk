@@ -1,11 +1,8 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
-import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanStatus } from "@/lib/types/plan";
 import {
@@ -15,58 +12,31 @@ import {
 import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
 import { updatePlanGroupStatus } from "./status";
 import { timeToMinutes } from "./utils";
+import {
+  getPlanGroupWithDetailsByRole,
+  getStudentIdForPlanGroup,
+  getSupabaseClientForStudent,
+  shouldBypassStatusCheck,
+  verifyPlanGroupAccess,
+} from "@/lib/auth/planGroupAuth";
+import { ensureAdminClient } from "@/lib/supabase/clientSelector";
 
 async function _generatePlansFromGroup(
   groupId: string
 ): Promise<{ count: number }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  // 관리자 또는 컨설턴트 권한도 허용 (캠프 모드에서 관리자가 플랜 생성 시 사용)
-  const { role } = await getCurrentUserRole();
-  if (user.role !== "student" && role !== "admin" && role !== "consultant") {
-    throw new AppError(
-      "학생 권한이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      403,
-      true
-    );
-  }
-
+  const access = await verifyPlanGroupAccess();
   const tenantContext = await requireTenantContext();
 
   const supabase = await createSupabaseServerClient();
 
   // 1. 플랜 그룹 및 관련 데이터 조회
-  // 관리자/컨설턴트의 경우 플랜 그룹의 student_id를 직접 조회
-  let group, contents, exclusions, academySchedules;
-  if (role === "admin" || role === "consultant") {
-    const { getPlanGroupWithDetailsForAdmin } = await import(
-      "@/lib/data/planGroups"
-    );
-    const tenantContext = await requireTenantContext();
-    const result = await getPlanGroupWithDetailsForAdmin(
+  const { group, contents, exclusions, academySchedules } =
+    await getPlanGroupWithDetailsByRole(
       groupId,
+      access.user.userId,
+      access.role,
       tenantContext.tenantId
     );
-    group = result.group;
-    contents = result.contents;
-    exclusions = result.exclusions;
-    academySchedules = result.academySchedules;
-  } else {
-    const result = await getPlanGroupWithDetails(groupId, user.userId);
-    group = result.group;
-    contents = result.contents;
-    exclusions = result.exclusions;
-    academySchedules = result.academySchedules;
-  }
 
   if (!group) {
     throw new AppError(
@@ -77,16 +47,18 @@ async function _generatePlansFromGroup(
     );
   }
 
-  // 관리자/컨설턴트의 경우 플랜 그룹의 student_id 사용
-  const studentId =
-    role === "admin" || role === "consultant" ? group.student_id : user.userId;
+  const studentId = getStudentIdForPlanGroup(
+    group,
+    access.user.userId,
+    access.role
+  );
 
-  // 2. 상태 확인
-  // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 생성 가능)
-  const isAdminOrConsultant = role === "admin" || role === "consultant";
-  const isCampMode = group.plan_type === "camp";
+  const bypassStatusCheck = shouldBypassStatusCheck(
+    access.role,
+    group.plan_type
+  );
 
-  if (!isAdminOrConsultant && !isCampMode) {
+  if (!bypassStatusCheck) {
     // 일반 학생 모드에서만 상태 체크
     if (group.status !== "saved" && group.status !== "active") {
       throw new AppError(
@@ -491,7 +463,7 @@ async function _generatePlansFromGroup(
         .from("books")
         .select("title, subject, subject_category, content_category")
         .eq("id", finalContentId)
-        .eq("student_id", user.userId)
+        .eq("student_id", studentId)
         .maybeSingle();
 
       if (book) {
@@ -523,7 +495,7 @@ async function _generatePlansFromGroup(
         .from("lectures")
         .select("title, subject, subject_category, content_category")
         .eq("id", finalContentId)
-        .eq("student_id", user.userId)
+        .eq("student_id", studentId)
         .maybeSingle();
 
       if (lecture) {
@@ -556,7 +528,7 @@ async function _generatePlansFromGroup(
         .from("student_custom_contents")
         .select("title, subject, subject_category, content_category")
         .eq("id", finalContentId)
-        .eq("student_id", user.userId)
+        .eq("student_id", studentId)
         .maybeSingle();
 
       if (customContent) {
@@ -670,7 +642,7 @@ async function _generatePlansFromGroup(
       const { getRiskIndexBySubject } = await import(
         "@/lib/scheduler/scoreLoader"
       );
-      const riskMap = await getRiskIndexBySubject(user.userId);
+      const riskMap = await getRiskIndexBySubject(studentId);
 
       // Map<string, RiskIndex> -> Map<string, { riskScore: number }> 변환
       riskIndexMap = new Map();
@@ -713,21 +685,11 @@ async function _generatePlansFromGroup(
     total_page_or_time: 0,
   });
 
-  // Admin/Consultant가 다른 학생의 교재를 조회할 때는 Admin 클라이언트 사용
-  // isAdminOrConsultant는 위에서 이미 선언되었으므로 재사용
-  const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
-  const bookQueryClient = isOtherStudent
-    ? createSupabaseAdminClient()
-    : supabase;
-
-  if (isOtherStudent && !bookQueryClient) {
-    throw new AppError(
-      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
-      ErrorCode.INTERNAL_ERROR,
-      500,
-      false
-    );
-  }
+  const studentContentClient = await getSupabaseClientForStudent(
+    studentId,
+    access.user.userId,
+    access.role
+  );
 
   for (const content of contents) {
     const finalContentId =
@@ -736,7 +698,7 @@ async function _generatePlansFromGroup(
     if (content.content_type === "book") {
       // 학생 교재 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
       // Admin/Consultant가 다른 학생의 교재를 조회할 때는 Admin 클라이언트 사용
-      let studentBook = await bookQueryClient
+      let studentBook = await studentContentClient
         .from("books")
         .select("id, total_pages, master_content_id")
         .eq("id", finalContentId)
@@ -754,7 +716,7 @@ async function _generatePlansFromGroup(
 
         if (masterBook) {
           // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
-          const { data: studentBookByMaster } = await bookQueryClient
+          const { data: studentBookByMaster } = await studentContentClient
             .from("books")
             .select("id, total_pages, master_content_id")
             .eq("student_id", studentId)
@@ -776,7 +738,7 @@ async function _generatePlansFromGroup(
               );
 
               // 복사된 교재 조회 (Admin 클라이언트 사용)
-              const { data: copiedBook } = await bookQueryClient
+              const { data: copiedBook } = await studentContentClient
                 .from("books")
                 .select("id, total_pages, master_content_id")
                 .eq("id", bookId)
@@ -869,7 +831,7 @@ async function _generatePlansFromGroup(
     } else if (content.content_type === "lecture") {
       // 학생 강의 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
       // Admin/Consultant가 다른 학생의 강의를 조회할 때는 Admin 클라이언트 사용
-      let studentLecture = await bookQueryClient
+      let studentLecture = await studentContentClient
         .from("lectures")
         .select("id, duration, master_content_id")
         .eq("id", finalContentId)
@@ -887,7 +849,7 @@ async function _generatePlansFromGroup(
 
         if (masterLecture) {
           // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
-          const { data: studentLectureByMaster } = await bookQueryClient
+          const { data: studentLectureByMaster } = await studentContentClient
             .from("lectures")
             .select("id, duration, master_content_id")
             .eq("student_id", studentId)
@@ -909,7 +871,7 @@ async function _generatePlansFromGroup(
               );
 
               // 복사된 강의 조회 (Admin 클라이언트 사용)
-              const { data: copiedLecture } = await bookQueryClient
+              const { data: copiedLecture } = await studentContentClient
                 .from("lectures")
                 .select("id, duration, master_content_id")
                 .eq("id", lectureId)
@@ -1103,7 +1065,7 @@ async function _generatePlansFromGroup(
     .from("student_plan")
     .select("id, plan_date, block_index")
     .eq("plan_group_id", groupId)
-    .eq("student_id", user.userId);
+    .eq("student_id", studentId);
 
   if (checkError) {
     console.error("[planGroupActions] 기존 플랜 조회 실패", checkError);
@@ -1114,7 +1076,7 @@ async function _generatePlansFromGroup(
     .from("student_plan")
     .delete()
     .eq("plan_group_id", groupId)
-    .eq("student_id", user.userId);
+    .eq("student_id", studentId);
 
   if (deleteError) {
     throw new AppError(
@@ -1133,7 +1095,7 @@ async function _generatePlansFromGroup(
       .from("student_plan")
       .select("id")
       .eq("plan_group_id", groupId)
-      .eq("student_id", user.userId)
+      .eq("student_id", studentId)
       .limit(1);
 
     if (verifyError) {
@@ -1147,7 +1109,7 @@ async function _generatePlansFromGroup(
         .from("student_plan")
         .delete()
         .eq("plan_group_id", groupId)
-        .eq("student_id", user.userId);
+        .eq("student_id", studentId);
     }
   }
 
@@ -1191,7 +1153,7 @@ async function _generatePlansFromGroup(
           .from("books")
           .select("master_content_id")
           .eq("id", contentId)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (book?.master_content_id) {
@@ -1233,7 +1195,7 @@ async function _generatePlansFromGroup(
     await supabase
       .from("student_plan")
       .select("plan_date, block_index")
-      .eq("student_id", user.userId)
+      .eq("student_id", studentId)
       .in("plan_date", planDates);
 
   if (existingPlansError) {
@@ -1493,7 +1455,7 @@ async function _generatePlansFromGroup(
           .from("student_custom_contents")
           .select("id")
           .eq("id", DUMMY_NON_LEARNING_CONTENT_ID)
-          .eq("student_id", user.userId)
+          .eq("student_id", studentId)
           .maybeSingle();
 
         if (!existingDummyContent) {
@@ -1504,7 +1466,7 @@ async function _generatePlansFromGroup(
             .insert({
               id: DUMMY_NON_LEARNING_CONTENT_ID,
               tenant_id: tenantContext.tenantId,
-              student_id: user.userId,
+              student_id: studentId,
               title: "비학습 항목",
               total_page_or_time: 0,
               content_type: "custom",
@@ -1625,7 +1587,7 @@ async function _generatePlansFromGroup(
         .from("student_custom_contents")
         .select("id")
         .eq("id", DUMMY_SELF_STUDY_CONTENT_ID)
-        .eq("student_id", user.userId)
+        .eq("student_id", studentId)
         .maybeSingle();
 
       if (!existingSelfStudyContent) {
@@ -1636,7 +1598,7 @@ async function _generatePlansFromGroup(
           .insert({
             id: DUMMY_SELF_STUDY_CONTENT_ID,
             tenant_id: tenantContext.tenantId,
-            student_id: user.userId,
+            student_id: studentId,
             title: "자율학습",
             total_page_or_time: 0,
             content_type: "custom",
@@ -1797,22 +1759,8 @@ async function _generatePlansFromGroup(
   );
 
   // 일반 플랜 먼저 저장
-  // Admin/Consultant가 다른 학생의 플랜을 생성할 때는 Admin 클라이언트 사용
-  const planInsertClient = isOtherStudent
-    ? createSupabaseAdminClient()
-    : supabase;
-
-  if (isOtherStudent && !planInsertClient) {
-    throw new AppError(
-      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
-      ErrorCode.INTERNAL_ERROR,
-      500,
-      false
-    );
-  }
-
   if (regularPlans.length > 0) {
-    const { error: insertError } = await planInsertClient
+    const { error: insertError } = await studentContentClient
       .from("student_plan")
       .insert(regularPlans);
 
@@ -1826,7 +1774,7 @@ async function _generatePlansFromGroup(
         console.error("[planGroupActions] 중복 키:", duplicateKey);
 
         // 중복된 플랜 조회 (Admin 클라이언트 사용)
-        const { data: duplicatePlanData } = await planInsertClient
+        const { data: duplicatePlanData } = await studentContentClient
           .from("student_plan")
           .select("id, plan_date, block_index, plan_group_id")
           .eq("student_id", studentId)
@@ -1864,7 +1812,7 @@ async function _generatePlansFromGroup(
 
   // 더미 UUID를 사용하는 플랜 저장 (에러 발생해도 무시)
   if (dummyPlans.length > 0) {
-    const { error: dummyInsertError } = await planInsertClient
+    const { error: dummyInsertError } = await studentContentClient
       .from("student_plan")
       .insert(dummyPlans);
 
@@ -1996,7 +1944,7 @@ async function _generatePlansFromGroup(
               .from("student_plan")
               .update({ sequence: update.sequence })
               .eq("id", update.id)
-              .eq("student_id", user.userId)
+              .eq("student_id", studentId)
           )
         );
       }
@@ -2053,53 +2001,18 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
   }>;
 }> {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      throw new AppError(
-        "로그인이 필요합니다.",
-        ErrorCode.UNAUTHORIZED,
-        401,
-        true
-      );
-    }
-
-    // 관리자 또는 컨설턴트 권한도 허용 (캠프 모드에서 관리자가 플랜 미리보기 시 사용)
-    const { role } = await getCurrentUserRole();
-    if (user.role !== "student" && role !== "admin" && role !== "consultant") {
-      throw new AppError(
-        "학생 권한이 필요합니다.",
-        ErrorCode.UNAUTHORIZED,
-        403,
-        true
-      );
-    }
-
+    const access = await verifyPlanGroupAccess();
     const tenantContext = await requireTenantContext();
 
     const supabase = await createSupabaseServerClient();
 
-    // 1. 플랜 그룹 및 관련 데이터 조회
-    // 관리자/컨설턴트의 경우 플랜 그룹의 student_id를 직접 조회
-    let group, contents, exclusions, academySchedules;
-    if (role === "admin" || role === "consultant") {
-      const { getPlanGroupWithDetailsForAdmin } = await import(
-        "@/lib/data/planGroups"
-      );
-      const result = await getPlanGroupWithDetailsForAdmin(
+    const { group, contents, exclusions, academySchedules } =
+      await getPlanGroupWithDetailsByRole(
         groupId,
+        access.user.userId,
+        access.role,
         tenantContext.tenantId
       );
-      group = result.group;
-      contents = result.contents;
-      exclusions = result.exclusions;
-      academySchedules = result.academySchedules;
-    } else {
-      const result = await getPlanGroupWithDetails(groupId, user.userId);
-      group = result.group;
-      contents = result.contents;
-      exclusions = result.exclusions;
-      academySchedules = result.academySchedules;
-    }
 
     if (!group) {
       throw new AppError(
@@ -2110,51 +2023,30 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       );
     }
 
-    // 관리자/컨설턴트의 경우 플랜 그룹의 student_id 사용
-    const studentId =
-      role === "admin" || role === "consultant"
-        ? group.student_id
-        : user.userId;
+    const studentId = getStudentIdForPlanGroup(
+      group,
+      access.user.userId,
+      access.role
+    );
 
-    // Admin/Consultant가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용
-    const isAdminOrConsultant = role === "admin" || role === "consultant";
-    const isOtherStudent = isAdminOrConsultant && studentId !== user.userId;
-    const queryClientRaw = isOtherStudent
-      ? createSupabaseAdminClient()
+    const viewingOtherStudent = studentId !== access.user.userId;
+    const isAdminOrConsultant =
+      access.role === "admin" || access.role === "consultant";
+    const queryClient = await getSupabaseClientForStudent(
+      studentId,
+      access.user.userId,
+      access.role
+    );
+    const masterQueryClient = isAdminOrConsultant
+      ? ensureAdminClient()
       : supabase;
 
-    // 마스터 콘텐츠 조회용 클라이언트 (관리자가 조회할 때도 Admin 클라이언트 사용)
-    const masterQueryClientRaw = isAdminOrConsultant
-      ? createSupabaseAdminClient()
-      : supabase;
+    const bypassStatusCheck = shouldBypassStatusCheck(
+      access.role,
+      group.plan_type
+    );
 
-    if (isOtherStudent && !queryClientRaw) {
-      throw new AppError(
-        "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
-        ErrorCode.INTERNAL_ERROR,
-        500,
-        false
-      );
-    }
-
-    if (isAdminOrConsultant && !masterQueryClientRaw) {
-      throw new AppError(
-        "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
-        ErrorCode.INTERNAL_ERROR,
-        500,
-        false
-      );
-    }
-
-    // null 체크 후 타입 단언 (위에서 이미 체크했으므로 null이 아님)
-    const queryClient = queryClientRaw!;
-    const masterQueryClient = masterQueryClientRaw!;
-
-    // 2. 상태 확인
-    // 관리자/컨설턴트 권한이거나 캠프 모드일 때는 상태 체크 우회 (draft 상태에서도 플랜 미리보기 가능)
-    const isCampMode = group.plan_type === "camp";
-
-    if (!isAdminOrConsultant && !isCampMode) {
+    if (!bypassStatusCheck) {
       // 일반 학생 모드에서만 상태 체크
       if (group.status !== "saved" && group.status !== "active") {
         throw new AppError(
@@ -2581,7 +2473,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       contentsCount: contents.length,
       studentId,
       isAdminOrConsultant,
-      isOtherStudent,
+      viewingOtherStudent,
     });
 
     for (const content of contents) {
@@ -2750,9 +2642,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         });
         const { data: lecture, error: lectureError } = await queryClient
           .from("lectures")
-          .select(
-            "title, subject, subject_category, master_content_id"
-          )
+          .select("title, subject, subject_category, master_content_id")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -2785,7 +2675,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         } else {
           // 학생 강의가 없으면 마스터 콘텐츠 ID로 학생 강의 찾기
           // content.master_content_id를 사용 (content.content_id는 학생 강의 ID)
-          const masterContentId = content.master_content_id || content.content_id;
+          const masterContentId =
+            content.master_content_id || content.content_id;
           console.log(
             "[_previewPlansFromGroup] 마스터 콘텐츠 ID로 학생 강의 찾기",
             {
@@ -2798,9 +2689,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           const { data: lectureByMaster, error: lectureByMasterError } =
             await queryClient
               .from("lectures")
-              .select(
-                "title, subject, subject_category, master_content_id"
-              )
+              .select("title, subject, subject_category, master_content_id")
               .eq("student_id", studentId)
               .eq("master_content_id", masterContentId)
               .maybeSingle();
@@ -2838,7 +2727,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           } else {
             // 마스터 강의 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
             // content.master_content_id를 사용 (content.content_id는 학생 강의 ID)
-            const actualMasterContentId = content.master_content_id || content.content_id;
+            const actualMasterContentId =
+              content.master_content_id || content.content_id;
             console.log("[_previewPlansFromGroup] 마스터 강의 조회 시도", {
               masterContentId: actualMasterContentId,
               usingAdminClient: isAdminOrConsultant,
