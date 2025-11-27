@@ -23,7 +23,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         ref={ref}
         className={cn(
           "w-full rounded-lg border bg-white transition-colors",
-          "placeholder:text-gray-400",
+          "text-gray-900 placeholder:text-gray-600",
           "focus:outline-none focus:ring-2 focus:ring-offset-0",
           "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
           hasError

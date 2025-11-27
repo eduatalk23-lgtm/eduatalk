@@ -15,9 +15,13 @@ export default function AccountSettingsPage() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const currentPassword = String(formData.get("current_password") ?? "").trim();
+    const currentPassword = String(
+      formData.get("current_password") ?? ""
+    ).trim();
     const newPassword = String(formData.get("new_password") ?? "").trim();
-    const confirmPassword = String(formData.get("confirm_password") ?? "").trim();
+    const confirmPassword = String(
+      formData.get("confirm_password") ?? ""
+    ).trim();
 
     if (!currentPassword || !newPassword || !confirmPassword) {
       showError("모든 필드를 입력해주세요.");
@@ -72,7 +76,7 @@ export default function AccountSettingsPage() {
                 type="password"
                 name="current_password"
                 required
-                className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 placeholder="현재 비밀번호를 입력하세요"
               />
             </div>
@@ -86,7 +90,7 @@ export default function AccountSettingsPage() {
                 name="new_password"
                 required
                 minLength={6}
-                className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 placeholder="새 비밀번호를 입력하세요 (최소 6자)"
               />
               <p className="text-xs text-gray-500">
@@ -103,7 +107,7 @@ export default function AccountSettingsPage() {
                 name="confirm_password"
                 required
                 minLength={6}
-                className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 placeholder="새 비밀번호를 다시 입력하세요"
               />
             </div>
@@ -131,4 +135,3 @@ export default function AccountSettingsPage() {
     </div>
   );
 }
-

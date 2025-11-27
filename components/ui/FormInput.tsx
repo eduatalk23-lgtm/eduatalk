@@ -23,6 +23,7 @@ const FormInput = memo(function FormInput({
         id={inputId}
         className={cn(
           "rounded border px-3 py-2",
+          "text-gray-900 placeholder:text-gray-600",
           error && "border-red-500",
           className
         )}
