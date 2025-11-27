@@ -375,7 +375,13 @@ export function Step4RecommendedContents({
   const fetchRecommendations = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/recommended-master-contents");
+      // 관리자 모드에서 다른 학생의 추천 콘텐츠를 조회할 때는 student_id 파라미터 추가
+      const params = new URLSearchParams();
+      if (propStudentId) {
+        params.append("student_id", propStudentId);
+      }
+      const url = `/api/recommended-master-contents${params.toString() ? `?${params.toString()}` : ""}`;
+      const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
         const recommendations = result.recommendations || [];

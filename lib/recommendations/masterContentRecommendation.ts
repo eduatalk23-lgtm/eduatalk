@@ -685,6 +685,17 @@ export async function getRecommendedMasterContents(
         }
       }
       
+      // 필터링 후 결과가 없으면 전체 추천에서 최소한 기본 추천 제공
+      // 서비스 마스터에 등록된 콘텐츠가 있으면 최소한 추천이 나와야 함
+      if (filtered.length === 0 && finalRecommendations.length > 0) {
+        // 전체 추천 중 우선순위가 높은 것들을 선택 (최대 3개)
+        const fallbackCount = Math.min(3, finalRecommendations.length);
+        for (let i = 0; i < fallbackCount; i++) {
+          filtered.push(finalRecommendations[i]);
+        }
+        console.warn(`[recommendations/masterContent] 요청한 교과의 추천이 없어 전체 추천 중 ${fallbackCount}개 제공`);
+      }
+      
       finalRecommendations = filtered;
     }
     
