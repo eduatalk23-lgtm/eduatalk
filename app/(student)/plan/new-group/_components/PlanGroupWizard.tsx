@@ -1588,6 +1588,7 @@ export function PlanGroupWizard({
             onUpdate={updateWizardData}
             isEditMode={isEditMode}
             isCampMode={isCampMode}
+            studentId={(initialData as any)?.student_id}
           />
         )}
         {currentStep === 6 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (

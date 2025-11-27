@@ -2,15 +2,17 @@ import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiUnauthorized,
+  apiBadRequest,
   handleApiError,
 } from "@/lib/api";
 
 /**
  * 추천 마스터 콘텐츠 조회 API
- * GET /api/recommended-master-contents?subjects=국어&subjects=수학&count_국어=2
+ * GET /api/recommended-master-contents?subjects=국어&subjects=수학&count_국어=2&student_id=xxx
  *
  * @returns
  * 성공: { success: true, data: { recommendations: [...] } }
@@ -23,21 +25,39 @@ export async function GET(request: NextRequest) {
       return apiUnauthorized();
     }
 
+    const { role } = await getCurrentUserRole();
     const supabase = await createSupabaseServerClient();
 
-    // 학생의 tenant_id 조회
+    // 쿼리 파라미터에서 교과와 개수 정보 추출
+    const { searchParams } = new URL(request.url);
+    const studentIdParam = searchParams.get("student_id");
+    
+    // 학생 ID 결정: 관리자/컨설턴트인 경우 student_id 파라미터 사용, 학생인 경우 자신의 ID 사용
+    let targetStudentId: string;
+    if (role === "admin" || role === "consultant") {
+      if (!studentIdParam) {
+        return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
+      }
+      targetStudentId = studentIdParam;
+    } else {
+      targetStudentId = user.userId;
+    }
+
+    // 대상 학생의 tenant_id 조회
     const { data: student, error: studentError } = await supabase
       .from("students")
       .select("tenant_id")
-      .eq("id", user.userId)
+      .eq("id", targetStudentId)
       .maybeSingle();
 
     if (studentError) {
       return handleApiError(studentError, "[api/recommended-master-contents] 학생 조회 실패");
     }
 
-    // 쿼리 파라미터에서 교과와 개수 정보 추출
-    const { searchParams } = new URL(request.url);
+    if (!student) {
+      return apiBadRequest("학생을 찾을 수 없습니다.");
+    }
+
     const subjectsParam = searchParams.getAll("subjects");
     const subjectCounts = new Map<string, number>();
 
@@ -53,8 +73,8 @@ export async function GET(request: NextRequest) {
 
     const recommendations = await getRecommendedMasterContents(
       supabase,
-      user.userId,
-      student?.tenant_id || null,
+      targetStudentId,
+      student.tenant_id || null,
       subjectCounts.size > 0 ? subjectCounts : undefined
     );
 

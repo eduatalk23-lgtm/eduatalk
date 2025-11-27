@@ -24,6 +24,7 @@ type Step4RecommendedContentsProps = {
   onUpdate: (updates: Partial<WizardData>) => void;
   isEditMode?: boolean;
   isCampMode?: boolean;
+  studentId?: string; // 관리자 모드에서 다른 학생의 추천 콘텐츠 조회 시 사용
 };
 
 type RecommendedContent = {
@@ -53,6 +54,7 @@ export function Step4RecommendedContents({
   onUpdate,
   isEditMode = false,
   isCampMode = false,
+  studentId: propStudentId,
 }: Step4RecommendedContentsProps) {
   const [recommendedContents, setRecommendedContents] = useState<
     RecommendedContent[]
@@ -121,6 +123,11 @@ export function Step4RecommendedContents({
         params.append("subjects", subject);
         params.append(`count_${subject}`, String(count));
       });
+      
+      // 관리자 모드에서 다른 학생의 추천 콘텐츠를 조회할 때는 student_id 파라미터 추가
+      if (propStudentId) {
+        params.append("student_id", propStudentId);
+      }
       
       const response = await fetch(`/api/recommended-master-contents?${params.toString()}`);
       if (response.ok) {
