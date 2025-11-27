@@ -72,7 +72,10 @@ DROP INDEX IF EXISTS idx_schools_display_order;
 -- schools 테이블 삭제
 DROP TABLE IF EXISTS schools CASCADE;
 
-RAISE NOTICE 'schools 테이블 삭제 완료';
+DO $$
+BEGIN
+  RAISE NOTICE 'schools 테이블 삭제 완료';
+END $$;
 
 -- ============================================
 -- 5. 통합 조회용 VIEW 생성: all_schools_view
