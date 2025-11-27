@@ -132,7 +132,8 @@ export function Step4RecommendedContents({
       const response = await fetch(`/api/recommended-master-contents?${params.toString()}`);
       if (response.ok) {
         const result = await response.json();
-        const recommendations = result.recommendations || [];
+        // API 응답 구조: { success: true, data: { recommendations } }
+        const recommendations = result.data?.recommendations || [];
         
         console.log("[Step4RecommendedContents] 추천 결과:", {
           totalRecommendations: recommendations.length,
