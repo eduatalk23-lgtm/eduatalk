@@ -62,6 +62,11 @@ export function CampTemplateDetail({
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   const loadInvitations = useCallback(async () => {
+    // 삭제 중이면 실행하지 않음
+    if (isDeleting) {
+      return;
+    }
+
     try {
       setLoadingInvitations(true);
       const result = await getCampInvitationsForTemplate(template.id);
@@ -87,12 +92,14 @@ export function CampTemplateDetail({
     } finally {
       setLoadingInvitations(false);
     }
-  }, [template.id, toast]);
+  }, [template.id, toast, isDeleting]);
 
-  // 초기 로드
+  // 초기 로드 (삭제 중이 아닐 때만 실행)
   useEffect(() => {
-    loadInvitations();
-  }, [loadInvitations]);
+    if (!isDeleting) {
+      loadInvitations();
+    }
+  }, [loadInvitations, isDeleting]);
 
   // 초대 발송 후 목록 새로고침 (useCallback으로 메모이제이션)
   const handleInvitationSent = useCallback(() => {
@@ -142,8 +149,8 @@ export function CampTemplateDetail({
       if (result.success) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
         setShowDeleteDialog(false); // 다이얼로그 닫기
-        // 삭제 후 목록 페이지로 리다이렉트
-        router.push("/admin/camp-templates");
+        // 삭제 후 목록 페이지로 리다이렉트 (replace 사용하여 히스토리 교체)
+        router.replace("/admin/camp-templates");
       } else {
         toast.showError(result.error || "템플릿 삭제에 실패했습니다.");
         setIsDeleting(false);
