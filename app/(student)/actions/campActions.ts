@@ -298,29 +298,65 @@ export const submitCampParticipation = withErrorHandling(
       .filter((c: any) => c.content_type === "lecture")
       .map((c: any) => c.content_id);
 
+    console.log("[campActions] 학생 콘텐츠 master_content_id 조회 시작:", {
+      invitationId,
+      studentId: user.userId,
+      bookIdsCount: bookIds.length,
+      lectureIdsCount: lectureIds.length,
+      bookIds,
+      lectureIds,
+    });
+
     if (bookIds.length > 0) {
-      const { data: books } = await supabase
+      const { data: books, error: booksError } = await supabase
         .from("books")
         .select("id, master_content_id")
         .in("id", bookIds)
         .eq("student_id", user.userId);
-      books?.forEach((book) => {
-        masterContentIdMap.set(book.id, book.master_content_id || null);
-      });
+      
+      if (booksError) {
+        console.error("[campActions] 교재 master_content_id 조회 실패:", {
+          error: booksError.message,
+          code: booksError.code,
+          bookIds,
+        });
+      } else {
+        books?.forEach((book) => {
+          masterContentIdMap.set(book.id, book.master_content_id || null);
+        });
+        console.log("[campActions] 교재 master_content_id 조회 완료:", {
+          foundCount: books?.length || 0,
+          masterContentIds: books?.map((b) => ({ id: b.id, master_content_id: b.master_content_id })) || [],
+        });
+      }
     }
 
     if (lectureIds.length > 0) {
-      const { data: lectures } = await supabase
+      const { data: lectures, error: lecturesError } = await supabase
         .from("lectures")
         .select("id, master_content_id")
         .in("id", lectureIds)
         .eq("student_id", user.userId);
-      lectures?.forEach((lecture) => {
-        masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
-      });
+      
+      if (lecturesError) {
+        console.error("[campActions] 강의 master_content_id 조회 실패:", {
+          error: lecturesError.message,
+          code: lecturesError.code,
+          lectureIds,
+        });
+      } else {
+        lectures?.forEach((lecture) => {
+          masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
+        });
+        console.log("[campActions] 강의 master_content_id 조회 완료:", {
+          foundCount: lectures?.length || 0,
+          masterContentIds: lectures?.map((l) => ({ id: l.id, master_content_id: l.master_content_id })) || [],
+        });
+      }
     }
 
     // creationData.contents에 master_content_id 추가
+    const contentsBeforeMapping = creationData.contents.length;
     creationData.contents = creationData.contents.map((c) => {
       const masterContentId = masterContentIdMap.get(c.content_id) || null;
       
@@ -341,6 +377,13 @@ export const submitCampParticipation = withErrorHandling(
         ...c,
         master_content_id: masterContentId,
       };
+    });
+
+    console.log("[campActions] 콘텐츠 master_content_id 매핑 완료:", {
+      contentsBeforeMapping,
+      contentsAfterMapping: creationData.contents.length,
+      contentsWithMasterId: creationData.contents.filter((c) => c.master_content_id).length,
+      contentsWithoutMasterId: creationData.contents.filter((c) => !c.master_content_id).length,
     });
 
     // 캠프 모드에서는 block_set_id를 null로 설정

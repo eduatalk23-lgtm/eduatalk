@@ -198,13 +198,26 @@ export async function classifyPlanContents(
   const isOtherStudent = isAdminOrConsultant && options?.currentUserId && studentId !== options.currentUserId;
   
   let supabase: SupabaseServerClient;
+  let isUsingAdminClient = false;
   if (isOtherStudent) {
     const adminClient = createSupabaseAdminClient();
     if (!adminClient) {
-      console.warn("[classifyPlanContents] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      console.warn("[classifyPlanContents] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용", {
+        studentId,
+        currentUserId: options?.currentUserId,
+        currentUserRole: options?.currentUserRole,
+      });
       supabase = await createSupabaseServerClient();
     } else {
       supabase = adminClient as any; // Admin 클라이언트를 SupabaseServerClient 타입으로 사용
+      isUsingAdminClient = true;
+      if (process.env.NODE_ENV === "development") {
+        console.log("[classifyPlanContents] Admin 클라이언트 사용 (RLS 우회)", {
+          studentId,
+          currentUserId: options?.currentUserId,
+          currentUserRole: options?.currentUserRole,
+        });
+      }
     }
   } else {
     supabase = await createSupabaseServerClient();
@@ -320,6 +333,9 @@ export async function classifyPlanContents(
   // 디버깅: 조회 결과 로그
   if (process.env.NODE_ENV === "development") {
     console.log("[classifyPlanContents] 조회 결과:", {
+      isUsingAdminClient,
+      isAdminOrConsultant,
+      isOtherStudent,
       masterBooks: {
         count: masterBooksResult.data?.length || 0,
         ids: masterBooksResult.data?.map((b) => b.id) || [],
@@ -353,6 +369,65 @@ export async function classifyPlanContents(
         error: customContentsResult.error?.message || null,
       },
     });
+  }
+
+  // 관리자 모드에서 조회 실패 시 경고 로그
+  if (isAdminOrConsultant && isOtherStudent) {
+    const hasErrors = 
+      studentBooksResult.error || 
+      studentLecturesResult.error || 
+      customContentsResult.error;
+    
+    if (hasErrors) {
+      console.warn("[classifyPlanContents] 관리자 모드에서 콘텐츠 조회 중 에러 발생:", {
+        studentId,
+        currentUserId: options?.currentUserId,
+        currentUserRole: options?.currentUserRole,
+        isUsingAdminClient,
+        errors: {
+          studentBooks: studentBooksResult.error ? {
+            message: studentBooksResult.error.message,
+            code: studentBooksResult.error.code,
+          } : null,
+          studentLectures: studentLecturesResult.error ? {
+            message: studentLecturesResult.error.message,
+            code: studentLecturesResult.error.code,
+          } : null,
+          customContents: customContentsResult.error ? {
+            message: customContentsResult.error.message,
+            code: customContentsResult.error.code,
+          } : null,
+        },
+      });
+    }
+
+    // 조회된 콘텐츠 개수가 예상보다 적을 때 경고
+    const expectedBookCount = bookContentIds.length;
+    const actualBookCount = studentBooksResult.data?.length || 0;
+    const expectedLectureCount = lectureContentIds.length;
+    const actualLectureCount = studentLecturesResult.data?.length || 0;
+    const expectedCustomCount = customContentIds.length;
+    const actualCustomCount = customContentsResult.data?.length || 0;
+
+    if (
+      (expectedBookCount > 0 && actualBookCount < expectedBookCount) ||
+      (expectedLectureCount > 0 && actualLectureCount < expectedLectureCount) ||
+      (expectedCustomCount > 0 && actualCustomCount < expectedCustomCount)
+    ) {
+      console.warn("[classifyPlanContents] 관리자 모드에서 일부 콘텐츠를 찾을 수 없음:", {
+        studentId,
+        isUsingAdminClient,
+        books: { expected: expectedBookCount, actual: actualBookCount },
+        lectures: { expected: expectedLectureCount, actual: actualLectureCount },
+        custom: { expected: expectedCustomCount, actual: actualCustomCount },
+        searchedBookIds: bookContentIds,
+        foundBookIds: studentBooksResult.data?.map((b) => b.id) || [],
+        searchedLectureIds: lectureContentIds,
+        foundLectureIds: studentLecturesResult.data?.map((l) => l.id) || [],
+        searchedCustomIds: customContentIds,
+        foundCustomIds: customContentsResult.data?.map((c) => c.id) || [],
+      });
+    }
   }
 
   // 3. Map으로 변환 (빠른 조회)

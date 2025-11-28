@@ -25,6 +25,9 @@ type Step2BlocksAndExclusionsProps = {
     reason?: string;
   }>;
   editable?: boolean; // 편집 가능 여부 (기본값: true)
+  studentId?: string; // 관리자 모드일 때 학생 ID (선택적)
+  isAdminMode?: boolean; // 관리자 모드 여부
+  isAdminContinueMode?: boolean; // 관리자 남은 단계 진행 모드 여부
 };
 
 const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
@@ -49,6 +52,9 @@ export function Step2BlocksAndExclusions({
   isTemplateMode = false,
   templateExclusions,
   editable = true,
+  studentId,
+  isAdminMode = false,
+  isAdminContinueMode = false,
 }: Step2BlocksAndExclusionsProps) {
   const toast = useToast();
   // 템플릿 고정 필드 확인
@@ -733,7 +739,9 @@ export function Step2BlocksAndExclusions({
             type="button"
             onClick={async () => {
               try {
-                const result = await syncTimeManagementAcademySchedulesAction(groupId || null);
+                // 관리자 모드일 때는 studentId 전달
+                const targetStudentId = (isAdminMode || isAdminContinueMode) ? studentId : undefined;
+                const result = await syncTimeManagementAcademySchedulesAction(groupId || null, targetStudentId);
                 
                 if (result.academySchedules && result.academySchedules.length > 0) {
                   // 기존 학원 일정과 병합 (중복 제거 - 요일+시간 기준)

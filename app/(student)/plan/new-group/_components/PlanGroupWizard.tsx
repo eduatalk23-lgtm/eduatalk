@@ -1558,6 +1558,9 @@ export function PlanGroupWizard({
             isTemplateMode={isTemplateMode}
             templateExclusions={isCampMode ? wizardData.exclusions : undefined}
             editable={!isAdminContinueMode}
+            studentId={(initialData as any)?.student_id}
+            isAdminMode={isAdminMode}
+            isAdminContinueMode={isAdminContinueMode}
           />
         )}
         {currentStep === 3 && (

@@ -1512,6 +1512,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
           contents: result.contents.map((c) => ({
             content_type: c.content_type,
             content_id: c.content_id,
+            master_content_id: c.master_content_id,
             start_range: c.start_range,
             end_range: c.end_range,
           })),
@@ -1527,6 +1528,22 @@ export const getCampPlanGroupForReview = withErrorHandling(
             currentUserRole: role,
             currentUserId: userId || undefined,
           });
+
+        // 조회된 콘텐츠 개수 검증
+        const totalClassifiedContents = studentContents.length + recommendedContents.length;
+        const totalOriginalContents = result.contents.length;
+        
+        if (totalClassifiedContents !== totalOriginalContents) {
+          console.warn("[getCampPlanGroupForReview] 콘텐츠 개수 불일치:", {
+            groupId: result.group.id,
+            studentId: result.group.student_id,
+            originalCount: totalOriginalContents,
+            classifiedCount: totalClassifiedContents,
+            studentContentsCount: studentContents.length,
+            recommendedContentsCount: recommendedContents.length,
+            missingCount: totalOriginalContents - totalClassifiedContents,
+          });
+        }
 
         // 상세 페이지 형식으로 변환
         const allContents = [...studentContents, ...recommendedContents];
@@ -1586,9 +1603,13 @@ export const getCampPlanGroupForReview = withErrorHandling(
 
         console.log("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 완료:", {
           groupId: result.group.id,
+          studentId: result.group.student_id,
+          originalContentsCount: result.contents.length,
           studentContentsCount: studentContents.length,
           recommendedContentsCount: recommendedContents.length,
+          totalClassifiedCount: studentContents.length + recommendedContents.length,
           missingCount: totalMissing,
+          missingByType,
         });
       } catch (error) {
         console.error(

@@ -146,6 +146,16 @@ export default async function CampContinuePage({
   // 콘텐츠 조회
   const { books, lectures, custom } = await fetchAllStudentContents(studentId);
 
+  console.log("[CampContinuePage] 콘텐츠 조회 결과:", {
+    groupId,
+    studentId,
+    booksCount: books.length,
+    lecturesCount: lectures.length,
+    customCount: custom.length,
+    planContentsCount: contents.length,
+    originalContentsCount: originalContents?.length || 0,
+  });
+
   // 콘텐츠 정보 조회 및 학생/추천 구분 (제목, 과목 등 메타데이터 포함)
   // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 조회
   // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
@@ -156,6 +166,16 @@ export default async function CampContinuePage({
       currentUserRole: role,
       currentUserId: userId || undefined,
     });
+
+  console.log("[CampContinuePage] 콘텐츠 분류 결과:", {
+    groupId,
+    studentId,
+    inputContentsCount: contentsForClassification.length,
+    classifiedStudentContentsCount: classifiedStudentContents.length,
+    classifiedRecommendedContentsCount: classifiedRecommendedContents.length,
+    totalClassifiedCount: classifiedStudentContents.length + classifiedRecommendedContents.length,
+    missingCount: contentsForClassification.length - (classifiedStudentContents.length + classifiedRecommendedContents.length),
+  });
 
   // 콘텐츠 정보를 Map으로 변환하여 빠른 조회 (content_id를 키로 사용)
   const contentsMap = new Map(
