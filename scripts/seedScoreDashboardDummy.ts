@@ -310,28 +310,80 @@ async function fetchMetadata() {
       .eq("name", subjectName)
       .maybeSingle();
 
-    // 정확한 이름으로 찾지 못하면 해당 교과 그룹의 첫 번째 과목 사용
-    if (subError || !subjects) {
-      console.log(`   '${subjectName}'을 찾을 수 없습니다. ${sgName} 그룹의 첫 번째 과목을 사용합니다...`);
-      const { data: firstSubject, error: firstError } = await supabase
-        .from("subjects")
-        .select("id, name")
-        .eq("subject_group_id", sgId)
-        .limit(1)
-        .maybeSingle();
+      // 정확한 이름으로 찾지 못하면 해당 교과 그룹의 첫 번째 과목 사용
+      if (subError || !subjects) {
+        console.log(`   '${subjectName}'을 찾을 수 없습니다. ${sgName} 그룹의 첫 번째 과목을 사용합니다...`);
+        const { data: firstSubject, error: firstError } = await supabase
+          .from("subjects")
+          .select("id, name")
+          .eq("subject_group_id", sgId)
+          .limit(1)
+          .maybeSingle();
 
-      if (firstError || !firstSubject) {
-        throw new Error(`교과 그룹 '${sgName}'의 과목을 찾을 수 없습니다.`);
+        if (firstError || !firstSubject) {
+          // 과목이 없으면 기본 과목 생성
+          console.log(`   ${sgName} 그룹에 과목이 없습니다. 기본 과목을 생성합니다...`);
+          
+          // 과목 구분 ID 조회 (공통)
+          const { data: commonType } = await supabase
+            .from("subject_types")
+            .select("id")
+            .eq("curriculum_revision_id", curriculumRevisionId)
+            .eq("name", "공통")
+            .limit(1)
+            .maybeSingle();
+
+          const defaultSubjectName = subjectNameMap[sgName]; // 원래 찾으려던 과목 이름
+          const { data: newSubject, error: createSubError } = await supabase
+            .from("subjects")
+            .insert({
+              subject_group_id: sgId,
+              name: defaultSubjectName,
+              subject_type_id: commonType?.id || null,
+            })
+            .select("id, name")
+            .single();
+
+          if (createSubError) {
+            // 중복 키 오류인 경우 다시 조회
+            if (createSubError.code === "23505") {
+              const { data: existingSubject } = await supabase
+                .from("subjects")
+                .select("id, name")
+                .eq("subject_group_id", sgId)
+                .eq("name", defaultSubjectName)
+                .limit(1)
+                .maybeSingle();
+
+              if (existingSubject) {
+                subjects = existingSubject;
+                console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
+              } else {
+                throw new Error(
+                  `교과 그룹 '${sgName}'의 과목을 생성/조회할 수 없습니다: ${createSubError.message}`
+                );
+              }
+            } else {
+              throw new Error(
+                `교과 그룹 '${sgName}'의 과목 생성 실패: ${createSubError.message}`
+              );
+            }
+          } else if (newSubject) {
+            subjects = newSubject;
+            console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id}) - 생성됨`);
+          } else {
+            throw new Error(`교과 그룹 '${sgName}'의 과목을 생성할 수 없습니다.`);
+          }
+        } else {
+          subjects = firstSubject;
+          console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
+        }
+      } else {
+        console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
       }
 
-      subjects = firstSubject;
-      console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
-    } else {
-      console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
+      subjectMap[sgName] = subjects.id;
     }
-
-    subjectMap[sgName] = subjects.id;
-  }
 
   if (Object.keys(subjectMap).length < 5) {
     throw new Error("필요한 과목을 모두 찾을 수 없습니다.");
