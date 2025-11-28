@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "analyze": "ANALYZE=true next build"
+    "analyze": "ANALYZE=true next build",
+    "seed:score-dashboard-dummy": "tsx scripts/seedScoreDashboardDummy.ts",
+    "cleanup:score-dashboard-dummy": "tsx scripts/cleanupScoreDashboardDummy.ts",
+    "test:score-dashboard": "tsx scripts/testScoreDashboard.ts"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
