@@ -312,7 +312,7 @@ async function _savePlanGroupDraft(
 
   // 제외일은 플랜 그룹별 관리
   if (data.exclusions && data.exclusions.length > 0) {
-    await createPlanExclusions(
+    const exclusionsResult = await createPlanExclusions(
       groupId,
       tenantContext.tenantId,
       data.exclusions.map((e) => ({
@@ -321,6 +321,17 @@ async function _savePlanGroupDraft(
         reason: e.reason || null,
       }))
     );
+
+    if (!exclusionsResult.success) {
+      // 중복 에러인 경우 VALIDATION_ERROR로 처리
+      const isDuplicateError = exclusionsResult.error?.includes("이미 등록된 제외일");
+      throw new AppError(
+        exclusionsResult.error || "제외일 저장에 실패했습니다.",
+        isDuplicateError ? ErrorCode.VALIDATION_ERROR : ErrorCode.DATABASE_ERROR,
+        isDuplicateError ? 400 : 500,
+        true
+      );
+    }
   }
 
   if (data.academy_schedules && data.academy_schedules.length > 0) {

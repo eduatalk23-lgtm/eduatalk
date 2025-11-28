@@ -48,6 +48,9 @@ export const PlanGroupErrorCodes = {
   SCHEDULE_INVALID: 'SCHEDULE_INVALID',
   BLOCK_SET_NOT_FOUND: 'BLOCK_SET_NOT_FOUND',
   
+  // 제외일 관련
+  EXCLUSION_DUPLICATE: 'EXCLUSION_DUPLICATE',
+  
   // 데이터 일관성 관련
   DATA_INCONSISTENCY: 'DATA_INCONSISTENCY',
   DATA_TRANSFORMATION_FAILED: 'DATA_TRANSFORMATION_FAILED',
@@ -86,6 +89,8 @@ export const ErrorUserMessages: Record<PlanGroupErrorCode, string> = {
   [PlanGroupErrorCodes.SCHEDULE_INVALID]: '스케줄 정보가 유효하지 않습니다.',
   [PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND]: '선택한 블록 세트를 찾을 수 없습니다.',
   
+  [PlanGroupErrorCodes.EXCLUSION_DUPLICATE]: '이미 등록된 제외일이 있습니다.',
+  
   [PlanGroupErrorCodes.DATA_INCONSISTENCY]: '데이터가 일치하지 않습니다. 페이지를 새로고침해주세요.',
   [PlanGroupErrorCodes.DATA_TRANSFORMATION_FAILED]: '데이터 변환에 실패했습니다.',
   
@@ -108,10 +113,25 @@ export function toPlanGroupError(
   }
 
   if (error instanceof Error) {
+    // 에러 메시지를 분석하여 적절한 에러 코드로 매핑
+    let errorCode = defaultCode;
+    let userMessage = ErrorUserMessages[defaultCode];
+
+    const errorMessage = error.message.toLowerCase();
+    
+    // 제외일 중복 에러 감지
+    if (errorMessage.includes('이미 등록된 제외일') || errorMessage.includes('exclusion') && errorMessage.includes('duplicate')) {
+      errorCode = PlanGroupErrorCodes.EXCLUSION_DUPLICATE;
+      // 원본 에러 메시지에 중복된 날짜 정보가 있으면 그대로 사용, 없으면 기본 메시지 사용
+      userMessage = error.message.includes('이미 등록된 제외일') 
+        ? error.message 
+        : ErrorUserMessages[PlanGroupErrorCodes.EXCLUSION_DUPLICATE];
+    }
+
     return new PlanGroupError(
       error.message,
-      defaultCode,
-      ErrorUserMessages[defaultCode],
+      errorCode,
+      userMessage,
       false,
       { ...context, originalError: error.message }
     );
