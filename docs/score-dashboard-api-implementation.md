@@ -6,6 +6,9 @@
 ## 개요
 내신/모의고사 분석 서비스와 수시/정시 유불리 판단 로직, 대시보드 API를 구현했습니다.
 
+## 최신 업데이트
+- **2025-01-XX**: `exam_round` 컬럼 제거 및 `student_mock_scores` 스키마 정리 완료. `seedScoreDashboardDummy.ts`는 최신 스키마 기준으로 작동 (exam_type + created_at 기반).
+
 ---
 
 ## 완료된 작업

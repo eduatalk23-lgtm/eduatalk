@@ -113,10 +113,10 @@ export async function getMockAnalysis(
 ): Promise<MockAnalysis> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 가장 최근 시험 조회 (exam_type, exam_round 기준)
+  // 1. 가장 최근 시험 조회 (exam_type, created_at 기준)
   const { data: latestExam, error: latestError } = await supabase
     .from("student_mock_scores")
-    .select("exam_type, exam_round, created_at")
+    .select("exam_type, created_at")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .order("created_at", { ascending: false })
@@ -127,7 +127,7 @@ export async function getMockAnalysis(
     console.error("[scores/mockAnalysis] 최근 시험 조회 실패", latestError);
   }
 
-  if (!latestExam || !latestExam.exam_type || !latestExam.exam_round) {
+  if (!latestExam || !latestExam.exam_type) {
     return {
       recentExam: null,
       avgPercentile: null,
@@ -137,21 +137,32 @@ export async function getMockAnalysis(
   }
 
   const examType = String(latestExam.exam_type);
-  const examRound = String(latestExam.exam_round);
   const examDate = latestExam.created_at ? new Date(latestExam.created_at).toISOString().split('T')[0] : "";
-  const examTitle = `${examType} ${examRound}`;
+  const examTitle = examType;
 
   // 2. 해당 시험의 과목별 성적 조회
+  // 같은 exam_type과 같은 날짜(created_at 기준)의 시험을 그룹화
   // student_mock_scores → subjects → subject_groups 순으로 조인
   // Supabase의 중첩 조인이 제대로 작동하지 않을 수 있으므로, 두 단계로 나누어 조회
-  const { data: mockScores, error: mockScoresError } = await supabase
+  const examDateStart = latestExam.created_at ? new Date(latestExam.created_at).toISOString().split('T')[0] + 'T00:00:00.000Z' : null;
+  const examDateEnd = latestExam.created_at ? new Date(latestExam.created_at).toISOString().split('T')[0] + 'T23:59:59.999Z' : null;
+
+  let query = supabase
     .from("student_mock_scores")
     .select("percentile, standard_score, grade_score, subject_id")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .eq("exam_type", examType)
-    .eq("exam_round", examRound)
     .not("subject_id", "is", null);
+
+  // 같은 날짜의 시험만 조회 (created_at 기준)
+  if (examDateStart && examDateEnd) {
+    query = query
+      .gte("created_at", examDateStart)
+      .lte("created_at", examDateEnd);
+  }
+
+  const { data: mockScores, error: mockScoresError } = await query;
 
   if (mockScoresError) {
     console.error(

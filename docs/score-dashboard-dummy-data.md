@@ -4,6 +4,9 @@
 
 이 문서는 성적 분석 + 수시/정시 전략 대시보드 API (`GET /api/students/:id/score-dashboard`)를 검증하기 위한 더미 데이터 생성 및 테스트 방법을 설명합니다.
 
+## 최신 업데이트
+- **2025-01-XX**: `exam_round` 컬럼 제거 완료. 모의고사 회차는 `exam_type` + `created_at` 조합으로 관리됩니다. `seedScoreDashboardDummy.ts`는 최신 스키마 기준으로 동작합니다.
+
 ---
 
 ## 🎯 생성되는 더미 데이터 패턴

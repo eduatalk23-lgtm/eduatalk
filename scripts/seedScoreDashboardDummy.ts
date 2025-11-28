@@ -290,106 +290,125 @@ async function fetchMetadata() {
     }
   }
 
-  // 5. 과목 조회 (이름 기반: 각 교과 그룹에서 특정 과목 이름으로 조회)
-  const subjectNameMap: Record<string, string> = {
-    국어: "국어",
-    수학: "수학",
-    영어: "영어",
-    사회: "통합사회",
-    과학: "통합과학",
+  // 5. 과목 조회 (subject_groups 기반 명시적 조회)
+  // 각 교과 그룹에서 해당하는 과목을 명시적으로 찾습니다
+  const subjectNameMap: Record<string, string[]> = {
+    국어: ["국어"],
+    수학: ["수학"],
+    영어: ["영어"],
+    사회: ["통합사회", "사회"],
+    과학: ["통합과학", "과학"],
   };
 
   const subjectMap: Record<string, string> = {};
 
-  for (const [sgName, subjectName] of Object.entries(subjectNameMap)) {
+  for (const [sgName, possibleNames] of Object.entries(subjectNameMap)) {
     const sgId = subjectGroupMap[sgName];
     if (!sgId) {
       console.warn(`⚠️  교과 그룹 '${sgName}'을 찾을 수 없습니다.`);
       continue;
     }
 
-    // 먼저 정확한 이름으로 조회
-    let { data: subjects, error: subError } = await supabase
-      .from("subjects")
-      .select("id, name")
-      .eq("subject_group_id", sgId)
-      .eq("name", subjectName)
-      .maybeSingle();
+    // 여러 가능한 과목 이름 패턴을 시도
+    let subjects: { id: string; name: string } | null = null;
+    let foundName: string | null = null;
 
-      // 정확한 이름으로 찾지 못하면 해당 교과 그룹의 첫 번째 과목 사용
-      if (subError || !subjects) {
-        console.log(`   '${subjectName}'을 찾을 수 없습니다. ${sgName} 그룹의 첫 번째 과목을 사용합니다...`);
-        const { data: firstSubject, error: firstError } = await supabase
-          .from("subjects")
-          .select("id, name")
-          .eq("subject_group_id", sgId)
+    for (const subjectName of possibleNames) {
+      const { data: subject, error: subError } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .eq("subject_group_id", sgId)
+        .eq("name", subjectName)
+        .maybeSingle();
+
+      if (!subError && subject) {
+        subjects = subject;
+        foundName = subjectName;
+        break;
+      }
+    }
+
+    // 명시적인 과목 이름으로 찾지 못한 경우
+    if (!subjects) {
+      console.log(`   ⚠️  ${sgName} 그룹에서 '${possibleNames.join("', '")}' 과목을 찾을 수 없습니다.`);
+      console.log(`   ${sgName} 그룹의 첫 번째 과목을 사용합니다...`);
+      
+      const { data: firstSubject, error: firstError } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .eq("subject_group_id", sgId)
+        .limit(1)
+        .maybeSingle();
+
+      if (firstError || !firstSubject) {
+        // 과목이 없으면 기본 과목 생성
+        console.log(`   ${sgName} 그룹에 과목이 없습니다. 기본 과목을 생성합니다...`);
+        
+        // 과목 구분 ID 조회 (공통)
+        const { data: commonType } = await supabase
+          .from("subject_types")
+          .select("id")
+          .eq("curriculum_revision_id", curriculumRevisionId)
+          .eq("name", "공통")
           .limit(1)
           .maybeSingle();
 
-        if (firstError || !firstSubject) {
-          // 과목이 없으면 기본 과목 생성
-          console.log(`   ${sgName} 그룹에 과목이 없습니다. 기본 과목을 생성합니다...`);
-          
-          // 과목 구분 ID 조회 (공통)
-          const { data: commonType } = await supabase
-            .from("subject_types")
-            .select("id")
-            .eq("curriculum_revision_id", curriculumRevisionId)
-            .eq("name", "공통")
-            .limit(1)
-            .maybeSingle();
+        const defaultSubjectName = possibleNames[0]; // 첫 번째 가능한 이름 사용
+        const { data: newSubject, error: createSubError } = await supabase
+          .from("subjects")
+          .insert({
+            subject_group_id: sgId,
+            name: defaultSubjectName,
+            subject_type_id: commonType?.id || null,
+          })
+          .select("id, name")
+          .single();
 
-          const defaultSubjectName = subjectNameMap[sgName]; // 원래 찾으려던 과목 이름
-          const { data: newSubject, error: createSubError } = await supabase
-            .from("subjects")
-            .insert({
-              subject_group_id: sgId,
-              name: defaultSubjectName,
-              subject_type_id: commonType?.id || null,
-            })
-            .select("id, name")
-            .single();
+        if (createSubError) {
+          // 중복 키 오류인 경우 다시 조회
+          if (createSubError.code === "23505") {
+            const { data: existingSubject } = await supabase
+              .from("subjects")
+              .select("id, name")
+              .eq("subject_group_id", sgId)
+              .eq("name", defaultSubjectName)
+              .limit(1)
+              .maybeSingle();
 
-          if (createSubError) {
-            // 중복 키 오류인 경우 다시 조회
-            if (createSubError.code === "23505") {
-              const { data: existingSubject } = await supabase
-                .from("subjects")
-                .select("id, name")
-                .eq("subject_group_id", sgId)
-                .eq("name", defaultSubjectName)
-                .limit(1)
-                .maybeSingle();
-
-              if (existingSubject) {
-                subjects = existingSubject;
-                console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
-              } else {
-                throw new Error(
-                  `교과 그룹 '${sgName}'의 과목을 생성/조회할 수 없습니다: ${createSubError.message}`
-                );
-              }
+            if (existingSubject) {
+              subjects = existingSubject;
+              foundName = defaultSubjectName;
+              console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
             } else {
               throw new Error(
-                `교과 그룹 '${sgName}'의 과목 생성 실패: ${createSubError.message}`
+                `교과 그룹 '${sgName}'의 과목을 생성/조회할 수 없습니다: ${createSubError.message}`
               );
             }
-          } else if (newSubject) {
-            subjects = newSubject;
-            console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id}) - 생성됨`);
           } else {
-            throw new Error(`교과 그룹 '${sgName}'의 과목을 생성할 수 없습니다.`);
+            throw new Error(
+              `교과 그룹 '${sgName}'의 과목 생성 실패: ${createSubError.message}`
+            );
           }
+        } else if (newSubject) {
+          subjects = newSubject;
+          foundName = defaultSubjectName;
+          console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id}) - 생성됨`);
         } else {
-          subjects = firstSubject;
-          console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
+          throw new Error(`교과 그룹 '${sgName}'의 과목을 생성할 수 없습니다.`);
         }
       } else {
-        console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
+        subjects = firstSubject;
+        foundName = firstSubject.name;
+        console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id}) - 대체 과목 사용`);
       }
+    } else {
+      console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id}) - '${foundName}' 매칭`);
+    }
 
+    if (subjects) {
       subjectMap[sgName] = subjects.id;
     }
+  }
 
   if (Object.keys(subjectMap).length < 5) {
     throw new Error("필요한 과목을 모두 찾을 수 없습니다.");
@@ -597,7 +616,6 @@ async function createMockScore(
   subjectId: string,
   grade: number,
   examType: string,
-  examRound: string,
   percentile: number,
   standardScore: number,
   gradeScore: number,
@@ -615,7 +633,6 @@ async function createMockScore(
       subject_group: subjectGroupName,
       subject_name: subjectName,
       exam_type: examType,
-      exam_round: examRound,
       percentile,
       standard_score: standardScore,
       grade_score: gradeScore,
@@ -733,7 +750,6 @@ async function createStudentA(
 
   // 모의고사 성적 생성 (평백 85 - 내신 환산 백분위 75보다 +10 높음)
   const examType = "모의고사";
-  const examRound = "2025-06";
 
   const mockScores = [
     {
@@ -792,7 +808,6 @@ async function createStudentA(
       subjectId,
       termInfo.grade,
       examType,
-      examRound,
       score.percentile,
       score.standardScore,
       score.gradeScore,
@@ -913,7 +928,6 @@ async function createStudentB(
 
   // 모의고사 성적 생성 (평백 65 - 내신 환산 백분위 89보다 -24 낮음)
   const examType = "모의고사";
-  const examRound = "2025-06";
 
   const mockScores = [
     {
@@ -972,7 +986,6 @@ async function createStudentB(
       subjectId,
       termInfo.grade,
       examType,
-      examRound,
       score.percentile,
       score.standardScore,
       score.gradeScore,
@@ -1093,7 +1106,6 @@ async function createStudentC(
 
   // 모의고사 성적 생성 (평백 80 - 내신 환산 백분위 82와 차이 -2)
   const examType = "모의고사";
-  const examRound = "2025-06";
 
   const mockScores = [
     {
@@ -1152,7 +1164,6 @@ async function createStudentC(
       subjectId,
       termInfo.grade,
       examType,
-      examRound,
       score.percentile,
       score.standardScore,
       score.gradeScore,
