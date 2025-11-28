@@ -26,8 +26,11 @@ type ScoreDashboardResponse = {
     id: string;
     name: string;
     grade: number | null;
-    semester?: number | null;
-    schoolType?: string | null;
+    class: number | null;
+    schoolType: string | null;
+    schoolYear: number | null;
+    termGrade: number | null;
+    semester: number | null;
   };
   internalAnalysis: {
     totalGpa: number | null;
@@ -58,11 +61,11 @@ export async function GET(
   try {
     const { id: studentId } = await params;
     const tenantId = req.nextUrl.searchParams.get("tenantId");
-    const studentTermId = req.nextUrl.searchParams.get("termId") || undefined;
+    const termId = req.nextUrl.searchParams.get("termId");
 
-    if (!tenantId) {
+    if (!tenantId || !termId) {
       return NextResponse.json(
-        { error: "tenantId required" },
+        { error: "tenantId and termId are required" },
         { status: 400 }
       );
     }
@@ -70,206 +73,115 @@ export async function GET(
     // 인증 확인
     const currentUser = await getCurrentUser();
     const { role: currentRole } = await getCurrentUserRole();
-    
-    console.log("[api/score-dashboard] 현재 사용자:", {
-      userId: currentUser?.userId,
-      role: currentUser?.role,
-      currentRole,
-      email: currentUser?.email,
-      tenantId: currentUser?.tenantId,
-      requestedStudentId: studentId,
-      userIdMatches: currentUser?.userId === studentId,
-    });
 
     // Supabase 클라이언트 선택
     // 관리자/부모 역할이거나 개발 환경에서는 Admin Client 사용 (RLS 우회)
     // 학생은 자신의 데이터만 조회 가능하도록 Server Client 사용
-    const useAdminClient = 
-      currentRole === "admin" || 
-      currentRole === "parent" || 
+    const useAdminClient =
+      currentRole === "admin" ||
+      currentRole === "parent" ||
       process.env.NODE_ENV === "development";
-    
-    const supabase = useAdminClient 
-      ? createSupabaseAdminClient() || await createSupabaseServerClient()
+
+    const supabase = useAdminClient
+      ? createSupabaseAdminClient() || (await createSupabaseServerClient())
       : await createSupabaseServerClient();
 
-    if (useAdminClient) {
-      console.log("[api/score-dashboard] Admin Client 사용 (RLS 우회)");
-    }
-
-    // 인증되지 않은 경우 (선택적 - RLS가 처리할 수도 있음)
-    // 하지만 더 명확한 에러 메시지를 위해 확인
-    if (!currentUser && !useAdminClient) {
-      console.warn("[api/score-dashboard] 인증되지 않은 사용자");
-      // RLS가 처리하므로 여기서는 경고만
-    }
-
-    // 학생인 경우 자신의 데이터만 조회 가능한지 확인
-    if (currentUser?.role === "student" && currentUser?.userId !== studentId && !useAdminClient) {
-      console.warn("[api/score-dashboard] 학생이 다른 학생의 데이터를 조회하려고 시도:", {
-        currentUserId: currentUser.userId,
-        requestedStudentId: studentId,
-      });
-      // RLS 정책이 이를 차단할 것이지만, 명확한 에러 메시지를 위해 여기서도 확인
-    }
-
-    // 1) 학생 기본 정보 조회 (디버깅: tenant_id 조건 없이 먼저 확인)
-    console.log("[api/score-dashboard] 학생 조회 시작:", {
-      studentId,
-      tenantId,
-    });
-
-    // 디버깅: tenant_id 조건 없이 조회
-    const { data: studentWithoutTenant, error: checkError } = await supabase
-      .from("students")
-      .select("id, name, grade, school_type, tenant_id")
-      .eq("id", studentId)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error("[api/score-dashboard] 학생 조회 실패 (tenant_id 조건 없음)", {
-        error: checkError,
-        code: checkError.code,
-        message: checkError.message,
-        details: checkError.details,
-        hint: checkError.hint,
-      });
-      
-      // RLS 정책 에러인 경우 명확한 메시지 제공
-      if (checkError.code === "42501" || checkError.message?.includes("permission") || checkError.message?.includes("policy")) {
-        console.error("[api/score-dashboard] RLS 정책으로 인한 조회 실패 가능성");
-      }
-    } else if (studentWithoutTenant) {
-      console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음):", {
-        found: true,
-        studentId: studentWithoutTenant.id,
-        name: studentWithoutTenant.name,
-        actualTenantId: studentWithoutTenant.tenant_id,
-        requestedTenantId: tenantId,
-        tenantIdMatch: studentWithoutTenant.tenant_id === tenantId,
-      });
-    } else {
-      console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음): 학생을 찾을 수 없음");
-      console.log("[api/score-dashboard] 가능한 원인:");
-      console.log("  1. RLS 정책이 조회를 차단하고 있음");
-      console.log("  2. 인증 쿠키가 없어 익명 사용자로 처리됨");
-      console.log("  3. 현재 사용자가 해당 학생의 데이터를 조회할 권한이 없음");
-    }
-
-    // 실제 쿼리: tenant_id 조건 포함
-    const { data: student, error: studentError } = await supabase
-      .from("students")
-      .select("id, name, grade, school_type, tenant_id")
-      .eq("id", studentId)
+    // 1) 학생 + term 조인으로 존재 여부 및 기본 프로필 조회
+    // students와 student_terms를 JOIN해서 한 번에 조회
+    // Supabase에서는 student_terms를 기준으로 조회하는 것이 더 안전함
+    const { data: termRow, error: termError } = await supabase
+      .from("student_terms")
+      .select(
+        `
+        id,
+        school_year,
+        grade,
+        semester,
+        curriculum_revision_id,
+        students!inner(
+          id,
+          name,
+          grade,
+          class,
+          school_type
+        )
+        `
+      )
+      .eq("id", termId)
       .eq("tenant_id", tenantId)
+      .eq("students.id", studentId)
+      .eq("students.tenant_id", tenantId)
       .maybeSingle();
 
-    if (studentError) {
-      console.error("[api/score-dashboard] 학생 조회 실패", {
-        error: studentError,
-        code: studentError.code,
-        message: studentError.message,
-        details: studentError.details,
-        hint: studentError.hint,
+    if (termError) {
+      console.error("[api/score-dashboard] 학생/학기 조회 실패", {
+        error: termError,
+        code: termError.code,
+        message: termError.message,
       });
-      
-      // RLS 정책 에러인 경우 명확한 메시지 제공
-      if (studentError.code === "42501" || studentError.message?.includes("permission") || studentError.message?.includes("policy")) {
+
+      // RLS 정책 에러인 경우
+      if (
+        termError.code === "42501" ||
+        termError.message?.includes("permission") ||
+        termError.message?.includes("policy")
+      ) {
         return NextResponse.json(
-          { 
+          {
             error: "Permission denied",
-            details: "RLS policy may be blocking the query. Check authentication and RLS policies.",
-            code: studentError.code,
+            details: "RLS policy may be blocking the query.",
+            code: termError.code,
           },
           { status: 403 }
         );
       }
-      
+
       return NextResponse.json(
-        { error: "Failed to fetch student", details: studentError.message },
+        { error: "Failed to fetch student/term", details: termError.message },
         { status: 500 }
       );
     }
 
-    if (!student) {
-      // 더 자세한 에러 메시지 제공
-      const errorMessage = studentWithoutTenant
-        ? `Student found but tenant_id mismatch. Student tenant_id: ${studentWithoutTenant.tenant_id}, Requested tenant_id: ${tenantId}`
-        : "Student not found";
-      
-      console.error("[api/score-dashboard] 학생 조회 실패:", {
-        studentId,
-        tenantId,
-        errorMessage,
-        studentExists: !!studentWithoutTenant,
-        actualTenantId: studentWithoutTenant?.tenant_id,
-      });
-
+    if (!termRow) {
       return NextResponse.json(
-        { 
-          error: "Student not found",
-          details: studentWithoutTenant
-            ? `Student exists but tenant_id mismatch. Expected: ${tenantId}, Actual: ${studentWithoutTenant.tenant_id}`
-            : "Student does not exist",
-        },
+        { error: "Student not found" },
         { status: 404 }
       );
     }
 
-    console.log("[api/score-dashboard] 학생 조회 성공:", {
-      studentId: student.id,
-      name: student.name,
-      tenantId: student.tenant_id,
-    });
+    // students는 배열로 반환될 수 있으므로 첫 번째 항목 사용
+    const student =
+      Array.isArray(termRow.students) && termRow.students.length > 0
+        ? termRow.students[0]
+        : termRow.students;
 
-    // 2) 내신 분석
+    if (!student) {
+      return NextResponse.json(
+        { error: "Student not found" },
+        { status: 404 }
+      );
+    }
+
+    const curriculumRevisionId =
+      (termRow.curriculum_revision_id as string | null) ?? null;
+
+    // 2) 내신 분석 (특정 term 기준)
     const internal = await getInternalAnalysis(
       tenantId,
       studentId,
-      studentTermId
+      termId // studentTermId로 사용
     );
 
-    // 2-1) student_terms에서 curriculum_revision_id 조회 (내신 환산용)
-    let curriculumRevisionId: string | null = null;
-    if (studentTermId) {
-      const { data: termRow, error: termError } = await supabase
-        .from("student_terms")
-        .select("curriculum_revision_id")
-        .eq("id", studentTermId)
-        .eq("tenant_id", tenantId)
-        .maybeSingle();
-
-      if (!termError && termRow) {
-        curriculumRevisionId = termRow.curriculum_revision_id;
-      }
-    } else {
-      // studentTermId가 없으면 가장 최근 학기의 curriculum_revision_id 조회
-      const { data: latestTerm, error: latestTermError } = await supabase
-        .from("student_terms")
-        .select("curriculum_revision_id")
-        .eq("tenant_id", tenantId)
-        .eq("student_id", studentId)
-        .order("school_year", { ascending: false })
-        .order("grade", { ascending: false })
-        .order("semester", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!latestTermError && latestTerm) {
-        curriculumRevisionId = latestTerm.curriculum_revision_id;
-      }
-    }
-
-    // 내신 백분위 환산
+    // 2-1) 내신 백분위 환산
     const internalPct =
       internal.totalGpa != null && curriculumRevisionId
         ? await getInternalPercentile(curriculumRevisionId, internal.totalGpa)
         : null;
 
-    // 3) 모의고사 분석
+    // 3) 모의고사 분석 (최근 모의 기준)
     const mock = await getMockAnalysis(tenantId, studentId);
 
-    // 4) 유불리 전략 분석
+    // 4) 전략 분석
     const strategy = analyzeAdmissionStrategy(
       internalPct,
       mock.avgPercentile,
@@ -282,7 +194,11 @@ export async function GET(
         id: student.id,
         name: student.name,
         grade: student.grade,
-        schoolType: student.school_type || null,
+        class: student.class,
+        schoolType: student.school_type,
+        schoolYear: termRow.school_year,
+        termGrade: termRow.grade,
+        semester: termRow.semester,
       },
       internalAnalysis: {
         totalGpa: internal.totalGpa,
