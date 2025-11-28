@@ -42,23 +42,49 @@ type DummyDataResult = {
 };
 
 /**
+ * 테넌트 조회 또는 생성
+ */
+async function getOrCreateTenant(): Promise<string> {
+  // 1. 기존 테넌트 조회
+  const { data: tenants, error: tenantError } = await supabase
+    .from("tenants")
+    .select("id, name")
+    .limit(1);
+
+  if (!tenantError && tenants && tenants.length > 0) {
+    console.log(`✅ 기존 테넌트 사용: ${tenants[0].name} (${tenants[0].id})`);
+    return tenants[0].id;
+  }
+
+  // 2. 테넌트가 없으면 생성
+  console.log("⚠️  테넌트가 없습니다. 더미 테넌트를 생성합니다...");
+  const { data: newTenant, error: createError } = await supabase
+    .from("tenants")
+    .insert({
+      name: "더미 테스트 테넌트",
+      type: "academy",
+    })
+    .select("id, name")
+    .single();
+
+  if (createError || !newTenant) {
+    throw new Error(
+      `테넌트 생성 실패: ${createError?.message || "알 수 없는 오류"}`
+    );
+  }
+
+  console.log(`✅ 테넌트 생성 완료: ${newTenant.name} (${newTenant.id})`);
+  return newTenant.id;
+}
+
+/**
  * 필요한 메타데이터 조회
  */
 async function fetchMetadata() {
   console.log("📋 메타데이터 조회 중...\n");
 
-  // 1. 테넌트 조회 (첫 번째 테넌트 사용)
-  const { data: tenants, error: tenantError } = await supabase
-    .from("tenants")
-    .select("id")
-    .limit(1);
-
-  if (tenantError || !tenants || tenants.length === 0) {
-    throw new Error("테넌트를 찾을 수 없습니다.");
-  }
-
-  const tenantId = tenants[0].id;
-  console.log(`✅ 테넌트 ID: ${tenantId}`);
+  // 1. 테넌트 조회 또는 생성
+  const tenantId = await getOrCreateTenant();
 
   // 2. 교육과정 개정 조회 (2022개정 우선, 없으면 2015개정)
   const { data: revisions, error: revisionError } = await supabase
