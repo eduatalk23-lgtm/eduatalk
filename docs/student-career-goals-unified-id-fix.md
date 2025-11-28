@@ -36,7 +36,7 @@ invalid input syntax for type uuid: "UNIV_14"
 
 ### 1. 데이터베이스 마이그레이션
 
-**마이그레이션 파일**: `supabase/migrations/20251129000000_change_desired_university_ids_to_text_array.sql`
+**마이그레이션 파일**: `supabase/migrations/20251128225817_change_desired_university_ids_to_text_array.sql`
 
 ```sql
 -- 기존 uuid[] 데이터를 text[]로 변환
