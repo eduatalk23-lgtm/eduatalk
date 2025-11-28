@@ -14,7 +14,6 @@ import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import path from "path";
-import { getOrCreateStudentTerm, calculateSchoolYear } from "@/lib/data/studentTerms";
 
 // .env.local 파일 로드
 config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -433,6 +432,86 @@ async function createStudent(
   }
 
   return data.id;
+}
+
+/**
+ * 학년도 계산 헬퍼 함수
+ * 
+ * 현재 날짜를 기준으로 학년도를 계산합니다.
+ * 한국의 학년도는 3월부터 시작하므로, 3월~12월은 해당 연도, 1월~2월은 전년도입니다.
+ */
+function calculateSchoolYear(date: Date = new Date()): number {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1; // 1~12
+
+  // 3월~12월: 해당 연도, 1월~2월: 전년도
+  if (month >= 3) {
+    return year;
+  } else {
+    return year - 1;
+  }
+}
+
+/**
+ * student_terms 조회 또는 생성
+ */
+async function getOrCreateStudentTerm(params: {
+  tenant_id: string;
+  student_id: string;
+  school_year: number;
+  grade: number;
+  semester: number;
+  curriculum_revision_id: string;
+  class_name?: string | null;
+  homeroom_teacher?: string | null;
+  notes?: string | null;
+}): Promise<string> {
+  // 기존 student_term 조회
+  const { data: existing, error: selectError } = await supabase
+    .from("student_terms")
+    .select("id")
+    .eq("tenant_id", params.tenant_id)
+    .eq("student_id", params.student_id)
+    .eq("school_year", params.school_year)
+    .eq("grade", params.grade)
+    .eq("semester", params.semester)
+    .maybeSingle();
+
+  if (selectError) {
+    console.error("[seedScoreDashboardDummy] student_term 조회 실패", selectError);
+    throw selectError;
+  }
+
+  // 기존 student_term이 있으면 반환
+  if (existing) {
+    return existing.id;
+  }
+
+  // 없으면 새로 생성
+  const insertPayload = {
+    tenant_id: params.tenant_id,
+    student_id: params.student_id,
+    school_year: params.school_year,
+    grade: params.grade,
+    semester: params.semester,
+    curriculum_revision_id: params.curriculum_revision_id,
+    class_name: params.class_name ?? null,
+    homeroom_teacher: params.homeroom_teacher ?? null,
+    notes: params.notes ?? null,
+  };
+
+  const { data: created, error: insertError } = await supabase
+    .from("student_terms")
+    .insert(insertPayload)
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error("[seedScoreDashboardDummy] student_term 생성 실패", insertError);
+    throw insertError;
+  }
+
+  return created.id;
 }
 
 /**
