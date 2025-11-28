@@ -842,13 +842,19 @@ function TimeSlotsWithPlans({
                     />
                   </div>
                 )}
-                {/* 남은 학습 시간 영역 표시 */}
+                {/* 남은 학습 시간 영역 표시 (플랜이 일부만 배치된 경우만) */}
                 {(() => {
+                  // 플랜이 하나도 없으면 남은 시간 영역을 표시하지 않음 (중복 방지)
+                  if (plansInStudySlot.length === 0) {
+                    return null;
+                  }
+                  
                   const studySlotIdx = studySlotIndexMap.get(idx);
                   const remainingRanges = studySlotIdx !== undefined 
                     ? remainingTimeSlotsMap.get(studySlotIdx) || []
                     : [];
                   
+                  // 플랜이 일부만 배치되어 남은 영역이 있을 때만 표시
                   return remainingRanges.length > 0 ? (
                     <div className="ml-4 space-y-1.5">
                       {remainingRanges.map((range, rangeIdx) => (
