@@ -1136,6 +1136,7 @@ export async function createAcademySchedules(
 
 /**
  * 학생별 학원 일정 일괄 생성 (전역 관리)
+ * @param useAdminClient 관리자 모드일 때 true로 설정 (RLS 우회)
  */
 export async function createStudentAcademySchedules(
   studentId: string,
@@ -1146,9 +1147,23 @@ export async function createStudentAcademySchedules(
     end_time: string;
     academy_name?: string | null;
     subject?: string | null;
-  }>
+  }>,
+  useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 모드일 때 Admin 클라이언트 사용 (RLS 우회)
+  let supabase;
+  if (useAdminClient) {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      console.warn("[createStudentAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      supabase = await createSupabaseServerClient();
+    } else {
+      supabase = adminClient;
+    }
+  } else {
+    supabase = await createSupabaseServerClient();
+  }
 
   if (schedules.length === 0) {
     console.log("[createStudentAcademySchedules] 학원 일정이 없습니다.");
@@ -1224,7 +1239,13 @@ export async function createStudentAcademySchedules(
           .single();
 
         if (academyError || !newAcademy) {
-          console.error("[data/planGroups] 학원 생성 실패", academyError);
+          console.error("[data/planGroups] 학원 생성 실패", {
+            error: academyError,
+            studentId,
+            tenantId,
+            academyName,
+            useAdminClient,
+          });
           return { success: false, error: academyError?.message || "학원 생성에 실패했습니다." };
         }
 

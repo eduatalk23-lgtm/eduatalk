@@ -2062,7 +2062,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           );
         }
 
-        // 새로운 학원 일정 추가
+        // 새로운 학원 일정 추가 (관리자 모드: Admin 클라이언트 사용)
         if (creationData.academy_schedules.length > 0) {
           const schedulesResult = await createStudentAcademySchedules(
             studentId,
@@ -2073,7 +2073,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
               end_time: s.end_time,
               academy_name: s.academy_name || null,
               subject: s.subject || null,
-            }))
+            })),
+            true // 관리자 모드: Admin 클라이언트 사용 (RLS 우회)
           );
 
           if (!schedulesResult.success) {

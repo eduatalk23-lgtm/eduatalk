@@ -23,7 +23,10 @@
 ```typescript
 // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
 // (학원 일정은 학생별 전역 관리이므로, 캠프 모드 제출 시 템플릿 일정으로 교체)
-if (creationData.academy_schedules && creationData.academy_schedules.length > 0) {
+if (
+  creationData.academy_schedules &&
+  creationData.academy_schedules.length > 0
+) {
   const deleteQuery = supabase
     .from("academy_schedules")
     .delete()
@@ -36,7 +39,10 @@ if (creationData.academy_schedules && creationData.academy_schedules.length > 0)
   const { error: deleteError } = await deleteQuery;
 
   if (deleteError) {
-    console.warn("[campActions] 기존 학원 일정 삭제 실패 (무시하고 계속 진행):", deleteError);
+    console.warn(
+      "[campActions] 기존 학원 일정 삭제 실패 (무시하고 계속 진행):",
+      deleteError
+    );
     // 삭제 실패해도 계속 진행 (새 일정 저장 시도)
   } else {
     console.log("[campActions] 기존 학원 일정 삭제 완료");
@@ -97,7 +103,7 @@ if (creationData.academy_schedules && creationData.academy_schedules.length > 0)
 
 ## 추가 개선 사항 (관리자 페이지)
 
-### 관리자 "남은 단계 진행하기"에서 학원 일정 표시 문제 해결
+### 1. 관리자 "남은 단계 진행하기"에서 학원 일정 표시 문제 해결
 
 **문제**: 학생이 캠프 템플릿에 작성해서 제출한 학원 일정이 관리자의 "남은 단계 진행하기" 페이지에서 보이지 않았습니다.
 
@@ -123,6 +129,60 @@ const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
 };
 ```
 
+### 2. 관리자 "남은 단계 진행하기"에서 학원 일정 저장 시 RLS 정책 위반 문제 해결
+
+**문제**: 관리자가 "남은 단계 진행하기"에서 학원 일정을 저장할 때 `new row violates row-level security policy for table "academies"` 에러가 발생했습니다.
+
+**원인**: `createStudentAcademySchedules` 함수가 일반 서버 클라이언트를 사용하여 `academies` 테이블에 새 학원을 생성하려고 할 때, RLS 정책 때문에 관리자가 다른 학생의 학원을 생성할 수 없었습니다.
+
+**해결**: `createStudentAcademySchedules` 함수에 `useAdminClient` 파라미터를 추가하고, 관리자 모드일 때 Admin 클라이언트를 사용하도록 수정했습니다.
+
+**변경 파일**: `lib/data/planGroups.ts`
+
+```typescript
+/**
+ * 학생별 학원 일정 일괄 생성 (전역 관리)
+ * @param useAdminClient 관리자 모드일 때 true로 설정 (RLS 우회)
+ */
+export async function createStudentAcademySchedules(
+  studentId: string,
+  tenantId: string,
+  schedules: Array<{...}>,
+  useAdminClient: boolean = false
+): Promise<{ success: boolean; error?: string }> {
+  // 관리자 모드일 때 Admin 클라이언트 사용 (RLS 우회)
+  let supabase;
+  if (useAdminClient) {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      console.warn("[createStudentAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      supabase = await createSupabaseServerClient();
+    } else {
+      supabase = adminClient;
+    }
+  } else {
+    supabase = await createSupabaseServerClient();
+  }
+  // ...
+}
+```
+
+**변경 파일**: `app/(admin)/actions/campTemplateActions.ts`
+
+```typescript
+// 새로운 학원 일정 추가 (관리자 모드: Admin 클라이언트 사용)
+if (creationData.academy_schedules.length > 0) {
+  const schedulesResult = await createStudentAcademySchedules(
+    studentId,
+    tenantContext.tenantId,
+    creationData.academy_schedules.map((s) => ({...})),
+    true // 관리자 모드: Admin 클라이언트 사용 (RLS 우회)
+  );
+  // ...
+}
+```
+
 ## 향후 개선 사항
 
 1. 캠프 모드에서만 기존 학원 일정을 삭제하도록 플래그 추가
@@ -136,4 +196,3 @@ const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
 - `lib/data/planGroups.ts`
 - `lib/utils/planGroupDataSync.ts`
 - `app/(student)/actions/plan-groups/create.ts`
-
