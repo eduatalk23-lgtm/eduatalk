@@ -1,9 +1,9 @@
 /**
  * 성적 대시보드 API 테스트용 더미 데이터 생성 스크립트
- * 
+ *
  * 실행 방법:
  * npx tsx scripts/seedScoreDashboardDummy.ts
- * 
+ *
  * 생성되는 데이터:
  * - 학생 A: 정시 우위 (MOCK_ADVANTAGE) - 내신 중간, 모의고사 높음
  * - 학생 B: 수시 우위 (INTERNAL_ADVANTAGE) - 내신 상위, 모의고사 낮음
@@ -23,7 +23,9 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
   console.error("❌ 환경 변수가 설정되지 않았습니다.");
-  console.error("   NEXT_PUBLIC_SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 필요합니다.");
+  console.error(
+    "   NEXT_PUBLIC_SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 필요합니다."
+  );
   console.error("   .env.local 파일에 SUPABASE_SERVICE_ROLE_KEY를 추가하세요.");
   console.error("   Supabase Dashboard → Settings → API → service_role key");
   process.exit(1);
@@ -51,39 +53,27 @@ type DummyDataResult = {
 };
 
 /**
- * 테넌트 조회 또는 생성
+ * 테넌트 조회 (이름 기반)
  */
-async function getOrCreateTenant(): Promise<string> {
-  // 1. 기존 테넌트 조회
-  const { data: tenants, error: tenantError } = await supabase
+async function getTenantByName(name: string = "Default Tenant"): Promise<string> {
+  const { data: tenant, error: tenantError } = await supabase
     .from("tenants")
     .select("id, name")
-    .limit(1);
+    .eq("name", name)
+    .maybeSingle();
 
-  if (!tenantError && tenants && tenants.length > 0) {
-    console.log(`✅ 기존 테넌트 사용: ${tenants[0].name} (${tenants[0].id})`);
-    return tenants[0].id;
+  if (tenantError) {
+    throw new Error(`테넌트 조회 실패: ${tenantError.message}`);
   }
 
-  // 2. 테넌트가 없으면 생성
-  console.log("⚠️  테넌트가 없습니다. 더미 테넌트를 생성합니다...");
-  const { data: newTenant, error: createError } = await supabase
-    .from("tenants")
-    .insert({
-      name: "더미 테스트 테넌트",
-      type: "academy",
-    })
-    .select("id, name")
-    .single();
-
-  if (createError || !newTenant) {
+  if (!tenant) {
     throw new Error(
-      `테넌트 생성 실패: ${createError?.message || "알 수 없는 오류"}`
+      `테넌트를 찾을 수 없습니다: ${name}\n   먼저 테넌트를 생성하거나 다른 이름을 사용하세요.`
     );
   }
 
-  console.log(`✅ 테넌트 생성 완료: ${newTenant.name} (${newTenant.id})`);
-  return newTenant.id;
+  console.log(`✅ 테넌트 조회 완료: ${tenant.name} (${tenant.id})`);
+  return tenant.id;
 }
 
 /**
@@ -92,22 +82,44 @@ async function getOrCreateTenant(): Promise<string> {
 async function fetchMetadata() {
   console.log("📋 메타데이터 조회 중...\n");
 
-  // 1. 테넌트 조회 또는 생성
-  const tenantId = await getOrCreateTenant();
+  // 1. 테넌트 조회 (이름 기반)
+  const tenantId = await getTenantByName("Default Tenant");
 
-  // 2. 교육과정 개정 조회 (2022개정 우선, 없으면 2015개정)
-  const { data: revisions, error: revisionError } = await supabase
+  // 2. 교육과정 개정 조회 (이름 기반: '2022개정' 우선, 없으면 첫 번째 활성화된 것)
+  const revisionName = "2022개정";
+  const { data: revision, error: revisionError } = await supabase
     .from("curriculum_revisions")
     .select("id, name")
-    .order("year", { ascending: false })
-    .limit(1);
+    .eq("name", revisionName)
+    .maybeSingle();
 
-  if (revisionError || !revisions || revisions.length === 0) {
-    throw new Error("교육과정 개정을 찾을 수 없습니다.");
+  let curriculumRevisionId: string;
+
+  if (revisionError || !revision) {
+    // 이름으로 찾지 못하면 활성화된 첫 번째 것 사용
+    console.log(`⚠️  '${revisionName}'을 찾을 수 없습니다. 활성화된 교육과정을 조회합니다...`);
+    const { data: activeRevision, error: activeError } = await supabase
+      .from("curriculum_revisions")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("year", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeError || !activeRevision) {
+      throw new Error("활성화된 교육과정 개정을 찾을 수 없습니다.");
+    }
+
+    curriculumRevisionId = activeRevision.id;
+    console.log(
+      `✅ 교육과정 개정 조회 완료: ${activeRevision.name} (${curriculumRevisionId})`
+    );
+  } else {
+    curriculumRevisionId = revision.id;
+    console.log(
+      `✅ 교육과정 개정 조회 완료: ${revision.name} (${curriculumRevisionId})`
+    );
   }
-
-  const curriculumRevisionId = revisions[0].id;
-  console.log(`✅ 교육과정 개정: ${revisions[0].name} (${curriculumRevisionId})`);
 
   // 3. 교과 그룹 조회 (국어, 수학, 영어, 사회, 과학)
   const { data: subjectGroups, error: sgError } = await supabase
@@ -141,8 +153,7 @@ async function fetchMetadata() {
   if (subjectTypes && subjectTypes.length > 0) {
     // 기존 과목 구분 사용
     commonSubjectTypeId =
-      subjectTypes.find((st) => st.name === "공통")?.id ||
-      subjectTypes[0].id;
+      subjectTypes.find((st) => st.name === "공통")?.id || subjectTypes[0].id;
     console.log(`✅ 과목 구분 조회 완료: ${subjectTypes.length}개`);
   } else {
     // 과목 구분이 없으면 생성 시도 (중복 시 무시)
@@ -179,9 +190,7 @@ async function fetchMetadata() {
         commonSubjectTypeId = existingTypes[0].id;
         console.log(`✅ 과목 구분 조회 완료: 공통 (${commonSubjectTypeId})`);
       } else {
-        throw new Error(
-          `과목 구분 생성 실패: ${commonError.message}`
-        );
+        throw new Error(`과목 구분 생성 실패: ${commonError.message}`);
       }
     } else if (commonType) {
       commonSubjectTypeId = commonType.id;
@@ -191,26 +200,57 @@ async function fetchMetadata() {
     }
   }
 
-  // 5. 과목 조회 (각 교과 그룹의 첫 번째 과목 사용)
-  const subjectIds: string[] = [];
-  for (const sgName of ["국어", "수학", "영어", "사회", "과학"]) {
-    const sgId = subjectGroupMap[sgName];
-    if (!sgId) continue;
+  // 5. 과목 조회 (이름 기반: 각 교과 그룹에서 특정 과목 이름으로 조회)
+  const subjectNameMap: Record<string, string> = {
+    국어: "국어",
+    수학: "수학",
+    영어: "영어",
+    사회: "통합사회",
+    과학: "통합과학",
+  };
 
-    const { data: subjects, error: subError } = await supabase
+  const subjectMap: Record<string, string> = {};
+
+  for (const [sgName, subjectName] of Object.entries(subjectNameMap)) {
+    const sgId = subjectGroupMap[sgName];
+    if (!sgId) {
+      console.warn(`⚠️  교과 그룹 '${sgName}'을 찾을 수 없습니다.`);
+      continue;
+    }
+
+    // 먼저 정확한 이름으로 조회
+    let { data: subjects, error: subError } = await supabase
       .from("subjects")
       .select("id, name")
       .eq("subject_group_id", sgId)
-      .limit(1);
+      .eq("name", subjectName)
+      .maybeSingle();
 
-    if (!subError && subjects && subjects.length > 0) {
-      subjectIds.push(subjects[0].id);
-      console.log(`  - ${sgName}: ${subjects[0].name} (${subjects[0].id})`);
+    // 정확한 이름으로 찾지 못하면 해당 교과 그룹의 첫 번째 과목 사용
+    if (subError || !subjects) {
+      console.log(`   '${subjectName}'을 찾을 수 없습니다. ${sgName} 그룹의 첫 번째 과목을 사용합니다...`);
+      const { data: firstSubject, error: firstError } = await supabase
+        .from("subjects")
+        .select("id, name")
+        .eq("subject_group_id", sgId)
+        .limit(1)
+        .maybeSingle();
+
+      if (firstError || !firstSubject) {
+        throw new Error(`교과 그룹 '${sgName}'의 과목을 찾을 수 없습니다.`);
+      }
+
+      subjects = firstSubject;
+      console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
+    } else {
+      console.log(`   ✅ ${sgName}: ${subjects.name} (${subjects.id})`);
     }
+
+    subjectMap[sgName] = subjects.id;
   }
 
-  if (subjectIds.length < 5) {
-    throw new Error("필요한 과목을 찾을 수 없습니다.");
+  if (Object.keys(subjectMap).length < 5) {
+    throw new Error("필요한 과목을 모두 찾을 수 없습니다.");
   }
 
   return {
@@ -218,13 +258,7 @@ async function fetchMetadata() {
     curriculumRevisionId,
     subjectGroupMap,
     commonSubjectTypeId,
-    subjectIds: {
-      korean: subjectIds[0],
-      math: subjectIds[1],
-      english: subjectIds[2],
-      social: subjectIds[3],
-      science: subjectIds[4],
-    },
+    subjectMap, // 이름 기반 Map으로 변경
   };
 }
 
@@ -443,16 +477,11 @@ async function createStudentA(
 
   for (const score of internalScores) {
     const sgId = metadata.subjectGroupMap[score.subjectGroup];
-    const subjectId =
-      score.subjectGroup === "국어"
-        ? metadata.subjectIds.korean
-        : score.subjectGroup === "수학"
-        ? metadata.subjectIds.math
-        : score.subjectGroup === "영어"
-        ? metadata.subjectIds.english
-        : score.subjectGroup === "사회"
-        ? metadata.subjectIds.social
-        : metadata.subjectIds.science;
+    const subjectId = metadata.subjectMap[score.subjectGroup];
+
+    if (!sgId || !subjectId) {
+      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
 
     await createInternalScore(
       metadata.tenantId,
@@ -511,16 +540,11 @@ async function createStudentA(
 
   for (const score of mockScores) {
     const sgId = metadata.subjectGroupMap[score.subjectGroup];
-    const subjectId =
-      score.subjectGroup === "국어"
-        ? metadata.subjectIds.korean
-        : score.subjectGroup === "수학"
-        ? metadata.subjectIds.math
-        : score.subjectGroup === "영어"
-        ? metadata.subjectIds.english
-        : score.subjectGroup === "사회"
-        ? metadata.subjectIds.social
-        : metadata.subjectIds.science;
+    const subjectId = metadata.subjectMap[score.subjectGroup];
+
+    if (!sgId || !subjectId) {
+      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
 
     await createMockScore(
       metadata.tenantId,
@@ -620,16 +644,11 @@ async function createStudentB(
 
   for (const score of internalScores) {
     const sgId = metadata.subjectGroupMap[score.subjectGroup];
-    const subjectId =
-      score.subjectGroup === "국어"
-        ? metadata.subjectIds.korean
-        : score.subjectGroup === "수학"
-        ? metadata.subjectIds.math
-        : score.subjectGroup === "영어"
-        ? metadata.subjectIds.english
-        : score.subjectGroup === "사회"
-        ? metadata.subjectIds.social
-        : metadata.subjectIds.science;
+    const subjectId = metadata.subjectMap[score.subjectGroup];
+
+    if (!sgId || !subjectId) {
+      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
 
     await createInternalScore(
       metadata.tenantId,
@@ -688,16 +707,11 @@ async function createStudentB(
 
   for (const score of mockScores) {
     const sgId = metadata.subjectGroupMap[score.subjectGroup];
-    const subjectId =
-      score.subjectGroup === "국어"
-        ? metadata.subjectIds.korean
-        : score.subjectGroup === "수학"
-        ? metadata.subjectIds.math
-        : score.subjectGroup === "영어"
-        ? metadata.subjectIds.english
-        : score.subjectGroup === "사회"
-        ? metadata.subjectIds.social
-        : metadata.subjectIds.science;
+    const subjectId = metadata.subjectMap[score.subjectGroup];
+
+    if (!sgId || !subjectId) {
+      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
 
     await createMockScore(
       metadata.tenantId,
@@ -797,16 +811,11 @@ async function createStudentC(
 
   for (const score of internalScores) {
     const sgId = metadata.subjectGroupMap[score.subjectGroup];
-    const subjectId =
-      score.subjectGroup === "국어"
-        ? metadata.subjectIds.korean
-        : score.subjectGroup === "수학"
-        ? metadata.subjectIds.math
-        : score.subjectGroup === "영어"
-        ? metadata.subjectIds.english
-        : score.subjectGroup === "사회"
-        ? metadata.subjectIds.social
-        : metadata.subjectIds.science;
+    const subjectId = metadata.subjectMap[score.subjectGroup];
+
+    if (!sgId || !subjectId) {
+      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
 
     await createInternalScore(
       metadata.tenantId,
@@ -865,16 +874,11 @@ async function createStudentC(
 
   for (const score of mockScores) {
     const sgId = metadata.subjectGroupMap[score.subjectGroup];
-    const subjectId =
-      score.subjectGroup === "국어"
-        ? metadata.subjectIds.korean
-        : score.subjectGroup === "수학"
-        ? metadata.subjectIds.math
-        : score.subjectGroup === "영어"
-        ? metadata.subjectIds.english
-        : score.subjectGroup === "사회"
-        ? metadata.subjectIds.social
-        : metadata.subjectIds.science;
+    const subjectId = metadata.subjectMap[score.subjectGroup];
+
+    if (!sgId || !subjectId) {
+      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
 
     await createMockScore(
       metadata.tenantId,
@@ -944,7 +948,9 @@ async function main() {
     console.log("=".repeat(80));
     console.log("📝 다음 단계:");
     console.log("   1. API 테스트: npm run test:score-dashboard");
-    console.log("   2. 더미 데이터 삭제: npm run cleanup:score-dashboard-dummy");
+    console.log(
+      "   2. 더미 데이터 삭제: npm run cleanup:score-dashboard-dummy"
+    );
     console.log("=".repeat(80) + "\n");
   } catch (error: any) {
     console.error("❌ 오류 발생:", error.message);
@@ -958,4 +964,3 @@ main().catch((error) => {
   console.error("❌ 스크립트 실행 중 오류:", error);
   process.exit(1);
 });
-

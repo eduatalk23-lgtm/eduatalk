@@ -5,10 +5,12 @@
  * npx tsx scripts/cleanupScoreDashboardDummy.ts
  * 
  * 삭제 순서:
- * 1. student_internal_scores (notes = 'DUMMY_SCORE_TEST')
- * 2. student_mock_scores (notes = 'DUMMY_SCORE_TEST')
- * 3. student_terms (notes = 'DUMMY_SCORE_TEST')
- * 4. students (memo = 'DUMMY_SCORE_TEST')
+ * 1. student_internal_scores (더미학생% 이름의 학생들)
+ * 2. student_mock_scores (더미학생% 이름의 학생들)
+ * 3. student_terms (더미학생% 이름의 학생들)
+ * 4. students (이름이 '더미학생%'인 학생들)
+ * 
+ * 주의: 마스터 테이블(curriculum_revisions, subject_groups, subjects 등)은 삭제하지 않습니다.
  */
 
 import { config } from "dotenv";
@@ -19,30 +21,59 @@ import path from "path";
 config({ path: path.resolve(process.cwd(), ".env.local") });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseServiceRoleKey) {
   console.error("❌ 환경 변수가 설정되지 않았습니다.");
+  console.error("   NEXT_PUBLIC_SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 필요합니다.");
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// RLS를 우회하기 위해 Service Role Key 사용
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
-const DUMMY_TAG = "DUMMY_SCORE_TEST";
+const DUMMY_NAME_PATTERN = "더미학생%";
 
 /**
  * 메인 함수
  */
 async function main() {
   console.log("🗑️  성적 대시보드 API 테스트용 더미 데이터 삭제 시작\n");
+  console.log(`   삭제 대상: 이름이 '${DUMMY_NAME_PATTERN}'인 학생들의 모든 관련 데이터\n`);
 
   try {
+    // 먼저 더미 학생 ID 목록 조회
+    const { data: dummyStudents, error: studentsError } = await supabase
+      .from("students")
+      .select("id, name")
+      .like("name", DUMMY_NAME_PATTERN);
+
+    if (studentsError) {
+      console.error("❌ 더미 학생 조회 실패:", studentsError.message);
+      process.exit(1);
+    }
+
+    if (!dummyStudents || dummyStudents.length === 0) {
+      console.log("ℹ️  삭제할 더미 학생이 없습니다.");
+      console.log("=".repeat(80) + "\n");
+      return;
+    }
+
+    const studentIds = dummyStudents.map((s) => s.id);
+    console.log(`📋 발견된 더미 학생: ${dummyStudents.length}명`);
+    console.log(`   ${dummyStudents.map((s) => s.name).join(", ")}\n`);
+
     // 1. student_internal_scores 삭제
     console.log("1️⃣ student_internal_scores 삭제 중...");
     const { data: internalScores, error: internalError } = await supabase
       .from("student_internal_scores")
       .select("id")
-      .eq("notes", DUMMY_TAG);
+      .in("student_id", studentIds);
 
     if (internalError) {
       console.error("❌ 내신 성적 조회 실패:", internalError.message);
@@ -52,7 +83,7 @@ async function main() {
         const { error: deleteError } = await supabase
           .from("student_internal_scores")
           .delete()
-          .eq("notes", DUMMY_TAG);
+          .in("student_id", studentIds);
 
         if (deleteError) {
           console.error("❌ 내신 성적 삭제 실패:", deleteError.message);
@@ -69,7 +100,7 @@ async function main() {
     const { data: mockScores, error: mockError } = await supabase
       .from("student_mock_scores")
       .select("id")
-      .eq("notes", DUMMY_TAG);
+      .in("student_id", studentIds);
 
     if (mockError) {
       console.error("❌ 모의고사 성적 조회 실패:", mockError.message);
@@ -79,7 +110,7 @@ async function main() {
         const { error: deleteError } = await supabase
           .from("student_mock_scores")
           .delete()
-          .eq("notes", DUMMY_TAG);
+          .in("student_id", studentIds);
 
         if (deleteError) {
           console.error("❌ 모의고사 성적 삭제 실패:", deleteError.message);
@@ -96,7 +127,7 @@ async function main() {
     const { data: terms, error: termsError } = await supabase
       .from("student_terms")
       .select("id")
-      .eq("notes", DUMMY_TAG);
+      .in("student_id", studentIds);
 
     if (termsError) {
       console.error("❌ 학생 학기 조회 실패:", termsError.message);
@@ -106,7 +137,7 @@ async function main() {
         const { error: deleteError } = await supabase
           .from("student_terms")
           .delete()
-          .eq("notes", DUMMY_TAG);
+          .in("student_id", studentIds);
 
         if (deleteError) {
           console.error("❌ 학생 학기 삭제 실패:", deleteError.message);
@@ -120,31 +151,15 @@ async function main() {
 
     // 4. students 삭제
     console.log("\n4️⃣ students 삭제 중...");
-    const { data: students, error: studentsError } = await supabase
+    const { error: deleteError } = await supabase
       .from("students")
-      .select("id, name")
-      .eq("memo", DUMMY_TAG);
+      .delete()
+      .in("id", studentIds);
 
-    if (studentsError) {
-      console.error("❌ 학생 조회 실패:", studentsError.message);
+    if (deleteError) {
+      console.error("❌ 학생 삭제 실패:", deleteError.message);
     } else {
-      const count = students?.length || 0;
-      if (count > 0) {
-        console.log(`   삭제할 학생: ${students.map((s) => s.name).join(", ")}`);
-
-        const { error: deleteError } = await supabase
-          .from("students")
-          .delete()
-          .eq("memo", DUMMY_TAG);
-
-        if (deleteError) {
-          console.error("❌ 학생 삭제 실패:", deleteError.message);
-        } else {
-          console.log(`✅ 학생 ${count}명 삭제 완료`);
-        }
-      } else {
-        console.log("ℹ️  삭제할 학생이 없습니다.");
-      }
+      console.log(`✅ 학생 ${dummyStudents.length}명 삭제 완료`);
     }
 
     console.log("\n" + "=".repeat(80));
