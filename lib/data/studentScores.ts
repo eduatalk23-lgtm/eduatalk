@@ -638,8 +638,8 @@ export async function createMockScore(
   // 학기 계산 (없으면 exam_date 기준으로 추정: 3~8월 = 1학기, 9~2월 = 2학기)
   const semester = score.semester ?? (examDate.getMonth() + 1 >= 3 && examDate.getMonth() + 1 <= 8 ? 1 : 2);
 
-  // student_term 조회 또는 생성
-  let student_term_id: string;
+  // student_term 조회 또는 생성 (실패 시 NULL 허용)
+  let student_term_id: string | null = null;
   try {
     student_term_id = await getOrCreateStudentTerm({
       tenant_id: score.tenant_id,
@@ -650,14 +650,15 @@ export async function createMockScore(
       curriculum_revision_id: score.curriculum_revision_id,
     });
   } catch (error) {
-    console.error("[data/studentScores] student_term 조회/생성 실패", error);
-    return { success: false, error: error instanceof Error ? error.message : "student_term 조회/생성 실패" };
+    // 모의고사 성적의 경우 student_term_id가 없어도 저장 가능
+    console.warn("[data/studentScores] student_term 조회/생성 실패 (NULL로 저장)", error);
+    // student_term_id는 null로 유지
   }
 
   const payload = {
     tenant_id: score.tenant_id,
     student_id: score.student_id,
-    student_term_id, // student_term_id 추가
+    student_term_id: student_term_id ?? null, // student_term_id (nullable)
     exam_date: score.exam_date,
     exam_title: score.exam_title,
     grade: score.grade,

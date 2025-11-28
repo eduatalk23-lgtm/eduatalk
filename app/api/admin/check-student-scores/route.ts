@@ -70,6 +70,9 @@ export async function GET(request: NextRequest) {
       return apiNotFound("사용자 ID를 찾을 수 없습니다.");
     }
 
+    // ⚠️ DEPRECATED: student_school_scores 테이블 사용
+    // 새 구조: student_internal_scores 테이블 사용 권장
+    
     // 1. 내신 성적 조회
     const selectSchoolScores = () =>
       supabase

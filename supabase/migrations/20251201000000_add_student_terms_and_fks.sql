@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS public.student_terms (
     curriculum_revision_id uuid NOT NULL
         REFERENCES public.curriculum_revisions(id) ON DELETE RESTRICT,
     
+    class_name text, -- 반 이름 (예: "1반", "A반")
+    homeroom_teacher text, -- 담임교사 이름
+    notes text, -- 비고
+    
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     
@@ -51,6 +55,9 @@ COMMENT ON COLUMN public.student_terms.school_year IS '학년도 (예: 2024)';
 COMMENT ON COLUMN public.student_terms.grade IS '학년 (1~3)';
 COMMENT ON COLUMN public.student_terms.semester IS '학기 (1~2)';
 COMMENT ON COLUMN public.student_terms.curriculum_revision_id IS '교육과정 개정 ID (FK → curriculum_revisions)';
+COMMENT ON COLUMN public.student_terms.class_name IS '반 이름 (예: "1반", "A반")';
+COMMENT ON COLUMN public.student_terms.homeroom_teacher IS '담임교사 이름';
+COMMENT ON COLUMN public.student_terms.notes IS '비고';
 
 -- ============================================
 -- 2. student_internal_scores에 student_term_id FK 추가

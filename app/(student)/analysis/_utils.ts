@@ -46,7 +46,20 @@ export type SubjectRiskAnalysis = {
   improvementRate: number; // 학습 시간 대비 성취도 개선율
 };
 
-// 모든 성적 조회
+/**
+ * ⚠️ DEPRECATED: 이 파일은 레거시 student_scores 테이블을 사용합니다.
+ * 
+ * 새 구조로 마이그레이션 필요:
+ * - 내신 성적: student_internal_scores 테이블 사용
+ * - 모의고사 성적: student_mock_scores 테이블 사용
+ * 
+ * @see lib/data/scoreQueries.ts - getTermScores, getAllTermScores
+ */
+
+/**
+ * 모든 성적 조회
+ * @deprecated student_scores 테이블 사용. getInternalScores, getMockScores 사용 권장
+ */
 export async function fetchAllScores(
   supabase: SupabaseServerClient,
   studentId: string

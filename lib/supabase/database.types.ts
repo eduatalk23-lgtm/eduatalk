@@ -418,6 +418,9 @@ export type Database = {
           grade: number; // 학년 (1~3)
           semester: number; // 학기 (1~2)
           curriculum_revision_id: string; // FK → curriculum_revisions
+          class_name: string | null; // 반 이름 (예: "1반", "A반")
+          homeroom_teacher: string | null; // 담임교사 이름
+          notes: string | null; // 비고
           created_at: string;
           updated_at: string;
         };
@@ -429,6 +432,9 @@ export type Database = {
           grade: number;
           semester: number;
           curriculum_revision_id: string;
+          class_name?: string | null;
+          homeroom_teacher?: string | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -440,6 +446,9 @@ export type Database = {
           grade?: number;
           semester?: number;
           curriculum_revision_id?: string;
+          class_name?: string | null;
+          homeroom_teacher?: string | null;
+          notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -595,7 +604,7 @@ export type Database = {
           id: string;
           tenant_id: string;
           student_id: string;
-          student_term_id: string; // FK → student_terms.id
+          student_term_id: string | null; // FK → student_terms.id (nullable - 학기 정보를 찾지 못한 경우)
           exam_date: string; // date 타입
           exam_title: string;
           grade: number;
@@ -612,7 +621,7 @@ export type Database = {
           id?: string;
           tenant_id: string;
           student_id: string;
-          student_term_id: string; // FK → student_terms.id
+          student_term_id?: string | null; // FK → student_terms.id (nullable - 학기 정보를 찾지 못한 경우)
           exam_date: string; // date 타입
           exam_title: string;
           grade: number;
@@ -629,7 +638,7 @@ export type Database = {
           id?: string;
           tenant_id?: string;
           student_id?: string;
-          student_term_id?: string;
+          student_term_id?: string | null;
           exam_date?: string;
           exam_title?: string;
           grade?: number;

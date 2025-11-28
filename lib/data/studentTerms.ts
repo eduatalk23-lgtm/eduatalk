@@ -36,6 +36,9 @@ export async function getOrCreateStudentTerm(params: {
   grade: number; // 학년 (1~3)
   semester: number; // 학기 (1~2)
   curriculum_revision_id: string;
+  class_name?: string | null; // 반 이름 (선택사항)
+  homeroom_teacher?: string | null; // 담임교사 이름 (선택사항)
+  notes?: string | null; // 비고 (선택사항)
 }): Promise<string> {
   const supabase = await createSupabaseServerClient();
 
@@ -68,6 +71,9 @@ export async function getOrCreateStudentTerm(params: {
     grade: params.grade,
     semester: params.semester,
     curriculum_revision_id: params.curriculum_revision_id,
+    class_name: params.class_name ?? null,
+    homeroom_teacher: params.homeroom_teacher ?? null,
+    notes: params.notes ?? null,
   };
 
   const { data: created, error: insertError } = await supabase

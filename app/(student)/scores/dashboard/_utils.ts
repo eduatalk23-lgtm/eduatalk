@@ -1,7 +1,22 @@
+/**
+ * ⚠️ DEPRECATED: 이 파일은 레거시 student_scores 테이블을 사용합니다.
+ * 
+ * 새 구조로 마이그레이션 필요:
+ * - 내신 성적: student_internal_scores 테이블 사용
+ * - 모의고사 성적: student_mock_scores 테이블 사용
+ * 
+ * 새 구조는 student_terms를 통해 학기 정보를 관리하며,
+ * student_term_id FK를 통해 연결됩니다.
+ * 
+ * @see lib/data/scoreQueries.ts - getTermScores, getAllTermScores
+ * @see lib/data/studentScores.ts - getInternalScores, getMockScores
+ */
+
 type SupabaseServerClient = Awaited<
   ReturnType<typeof import("@/lib/supabase/server").createSupabaseServerClient>
 >;
 
+/** @deprecated student_scores 테이블 사용. 새 구조로 마이그레이션 필요 */
 export type ScoreRow = {
   id: string;
   subject_type: string | null;
@@ -15,7 +30,10 @@ export type ScoreRow = {
   created_at: string | null;
 };
 
-// 모든 성적 조회
+/**
+ * 모든 성적 조회
+ * @deprecated student_scores 테이블 사용. getInternalScores, getMockScores 사용 권장
+ */
 export async function fetchAllScores(
   supabase: SupabaseServerClient,
   studentId: string
