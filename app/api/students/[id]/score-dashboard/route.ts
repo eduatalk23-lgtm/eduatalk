@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getInternalAnalysis } from "@/lib/scores/internalAnalysis";
 import { getMockAnalysis } from "@/lib/scores/mockAnalysis";
 import {
@@ -65,6 +66,22 @@ export async function GET(
     }
 
     const supabase = await createSupabaseServerClient();
+
+    // 인증 확인
+    const currentUser = await getCurrentUser();
+    console.log("[api/score-dashboard] 현재 사용자:", {
+      userId: currentUser?.userId,
+      role: currentUser?.role,
+      email: currentUser?.email,
+      tenantId: currentUser?.tenantId,
+    });
+
+    // 인증되지 않은 경우 (선택적 - RLS가 처리할 수도 있음)
+    // 하지만 더 명확한 에러 메시지를 위해 확인
+    if (!currentUser) {
+      console.warn("[api/score-dashboard] 인증되지 않은 사용자");
+      // RLS가 처리하므로 여기서는 경고만
+    }
 
     // 1) 학생 기본 정보 조회 (디버깅: tenant_id 조건 없이 먼저 확인)
     console.log("[api/score-dashboard] 학생 조회 시작:", {

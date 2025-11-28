@@ -168,9 +168,44 @@ Supabase SQL에서 확인한 결과, 해당 학생과 학기 데이터는 실제
    - 404 응답 시 `details` 필드에서 상세 정보 확인
    - `tenant_id` 불일치인지, 학생이 존재하지 않는지 구분 가능
 
+## 추가 조사 필요 사항
+
+### RLS (Row Level Security) 정책 확인
+
+터미널 로그를 보면:
+- `testScoreDashboard.ts` 스크립트는 `SERVICE_ROLE_KEY`를 사용하여 RLS를 우회하고 학생을 조회할 수 있음
+- 하지만 API는 `ANON_KEY`를 사용하므로 RLS 정책이 적용됨
+- 응답: `"details": "Student does not exist"` - `tenant_id` 조건 없이 조회해도 학생을 찾을 수 없음
+
+**가능한 원인**:
+1. **RLS 정책이 활성화되어 있음**: `students` 테이블에 RLS가 활성화되어 있고, 현재 인증된 사용자가 해당 학생을 조회할 수 없도록 설정되어 있을 수 있음
+2. **인증 쿠키 없음**: API 호출 시 인증 쿠키가 없어서 익명 사용자로 처리되고, RLS 정책에 의해 조회가 차단될 수 있음
+
+**확인 방법**:
+1. **서버 로그 확인**: 개발 서버 콘솔에서 `[api/score-dashboard]`로 시작하는 로그 확인
+   - 현재 사용자 정보
+   - 학생 조회 결과 (tenant_id 조건 없음)
+   - 실제 tenant_id 값
+2. **Supabase에서 RLS 정책 확인**:
+   ```sql
+   -- students 테이블의 RLS 정책 확인
+   SELECT * FROM pg_policies WHERE tablename = 'students';
+   
+   -- RLS 활성화 여부 확인
+   SELECT tablename, rowsecurity 
+   FROM pg_tables 
+   WHERE schemaname = 'public' AND tablename = 'students';
+   ```
+
+**해결 방법**:
+1. **RLS 정책 수정**: `students` 테이블의 RLS 정책을 확인하고, 필요시 수정
+2. **인증 추가**: API 호출 시 인증 쿠키를 포함하도록 수정
+3. **서비스 역할 키 사용**: 관리자 API의 경우 `SERVICE_ROLE_KEY`를 사용하여 RLS 우회 (보안 주의)
+
 ## 참고 사항
 
 - `tenant_id` 검증은 보안상 중요하므로 제거하지 않음
 - 디버깅 로그는 개발 환경에서만 출력되도록 권장 (프로덕션에서는 제거 또는 조건부 출력)
 - 향후 RLS 정책 개선 시 `tenant_id` 검증 로직 재검토 필요
+- API는 인증된 사용자만 접근할 수 있도록 해야 함 (현재 인증 확인 로그 추가됨)
 
