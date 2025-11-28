@@ -127,7 +127,9 @@ async function fetchMetadata() {
 
   console.log(`✅ 교과 그룹 조회 완료: ${subjectGroups.length}개`);
 
-  // 4. 과목 구분 조회 (공통 우선)
+  // 4. 과목 구분 조회 또는 생성 (공통 우선)
+  let commonSubjectTypeId: string;
+
   const { data: subjectTypes, error: stError } = await supabase
     .from("subject_types")
     .select("id, name")
@@ -136,11 +138,35 @@ async function fetchMetadata() {
     .order("display_order", { ascending: true });
 
   if (stError || !subjectTypes || subjectTypes.length === 0) {
-    throw new Error("과목 구분을 찾을 수 없습니다.");
-  }
+    // 과목 구분이 없으면 생성
+    console.log("⚠️  과목 구분이 없습니다. 기본 과목 구분을 생성합니다...");
 
-  const commonSubjectTypeId = subjectTypes.find((st) => st.name === "공통")?.id || subjectTypes[0].id;
-  console.log(`✅ 과목 구분 조회 완료: ${subjectTypes.length}개`);
+    // 공통 생성
+    const { data: commonType, error: commonError } = await supabase
+      .from("subject_types")
+      .insert({
+        curriculum_revision_id: curriculumRevisionId,
+        name: "공통",
+        display_order: 1,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+
+    if (commonError || !commonType) {
+      throw new Error(
+        `과목 구분 생성 실패: ${commonError?.message || "알 수 없는 오류"}`
+      );
+    }
+
+    commonSubjectTypeId = commonType.id;
+    console.log(`✅ 과목 구분 생성 완료: 공통 (${commonSubjectTypeId})`);
+  } else {
+    commonSubjectTypeId =
+      subjectTypes.find((st) => st.name === "공통")?.id ||
+      subjectTypes[0].id;
+    console.log(`✅ 과목 구분 조회 완료: ${subjectTypes.length}개`);
+  }
 
   // 5. 과목 조회 (각 교과 그룹의 첫 번째 과목 사용)
   const subjectIds: string[] = [];
