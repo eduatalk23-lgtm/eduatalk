@@ -53,9 +53,8 @@ export default async function UnifiedScoreDashboardPage() {
   const { data: student } = await supabase
     .from("students")
     .select("id, grade")
-    .eq("user_id", user.id)
-    .eq("tenant_id", tenantId)
-    .single();
+    .eq("id", user.id)
+    .maybeSingle();
 
   if (!student) {
     return (
@@ -69,7 +68,7 @@ export default async function UnifiedScoreDashboardPage() {
               학생 설정을 완료해주세요.
             </p>
             <Link
-              href="/student-setup"
+              href="/settings"
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
               학생 설정하기
