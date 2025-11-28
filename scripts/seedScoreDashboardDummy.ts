@@ -373,8 +373,8 @@ async function createMockScore(
 
 /**
  * 학생 A 생성 (정시 우위 - MOCK_ADVANTAGE)
- * - 내신: GPA 3.0 근처 (중간)
- * - 모의고사: 평백 85 (내신 환산 백분위 70보다 +15 높음)
+ * - 내신: GPA 3.2 근처 (환산 백분위 약 75)
+ * - 모의고사: 평백 85 (내신 환산 백분위보다 +10 높음)
  */
 async function createStudentA(
   metadata: Awaited<ReturnType<typeof fetchMetadata>>
@@ -396,47 +396,47 @@ async function createStudentA(
     1
   );
 
-  // 내신 성적 생성 (GPA 3.0 근처)
-  // rank_grade: 3등급 (GPA 3.0)
+  // 내신 성적 생성 (GPA 3.2 근처 - 환산 백분위 약 75)
+  // rank_grade: 평균 3.2 (3등급과 4등급 혼합)
   const internalScores = [
     {
       subjectGroup: "국어",
       rankGrade: 3,
       creditHours: 5,
-      rawScore: 75,
-      avgScore: 70,
+      rawScore: 73,
+      avgScore: 68,
       stdDev: 10,
     },
     {
       subjectGroup: "수학",
       rankGrade: 3,
       creditHours: 5,
-      rawScore: 73,
-      avgScore: 68,
+      rawScore: 71,
+      avgScore: 66,
       stdDev: 12,
     },
     {
       subjectGroup: "영어",
       rankGrade: 3,
       creditHours: 5,
-      rawScore: 77,
-      avgScore: 72,
+      rawScore: 75,
+      avgScore: 70,
       stdDev: 11,
     },
     {
       subjectGroup: "사회",
       rankGrade: 4,
       creditHours: 4,
-      rawScore: 68,
-      avgScore: 65,
+      rawScore: 66,
+      avgScore: 63,
       stdDev: 9,
     },
     {
       subjectGroup: "과학",
       rankGrade: 3,
       creditHours: 4,
-      rawScore: 76,
-      avgScore: 71,
+      rawScore: 74,
+      avgScore: 69,
       stdDev: 10,
     },
   ];
@@ -472,7 +472,7 @@ async function createStudentA(
     );
   }
 
-  // 모의고사 성적 생성 (평백 85 - 내신 환산 백분위 70보다 +15 높음)
+  // 모의고사 성적 생성 (평백 85 - 내신 환산 백분위 75보다 +10 높음)
   const examDate = "2025-06-01";
   const examTitle = "2025-06 모평";
 
@@ -550,8 +550,8 @@ async function createStudentA(
 
 /**
  * 학생 B 생성 (수시 우위 - INTERNAL_ADVANTAGE)
- * - 내신: GPA 1.8 근처 (상위권)
- * - 모의고사: 평백 65 (내신 환산 백분위 85보다 -20 낮음)
+ * - 내신: GPA 2.0 근처 (환산 백분위 약 89)
+ * - 모의고사: 평백 65 (내신 환산 백분위보다 -24 낮음)
  */
 async function createStudentB(
   metadata: Awaited<ReturnType<typeof fetchMetadata>>
@@ -573,8 +573,8 @@ async function createStudentB(
     1
   );
 
-  // 내신 성적 생성 (GPA 1.8 근처)
-  // rank_grade: 2등급 (GPA 2.0)
+  // 내신 성적 생성 (GPA 2.0 근처 - 환산 백분위 약 89)
+  // rank_grade: 평균 2.0 (1등급과 2등급 혼합)
   const internalScores = [
     {
       subjectGroup: "국어",
@@ -649,7 +649,7 @@ async function createStudentB(
     );
   }
 
-  // 모의고사 성적 생성 (평백 65 - 내신 환산 백분위 85보다 -20 낮음)
+  // 모의고사 성적 생성 (평백 65 - 내신 환산 백분위 89보다 -24 낮음)
   const examDate = "2025-06-01";
   const examTitle = "2025-06 모평";
 
@@ -727,8 +727,8 @@ async function createStudentB(
 
 /**
  * 학생 C 생성 (BALANCED)
- * - 내신: GPA 2.5 근처
- * - 모의고사: 평백 78 (내신 환산 백분위 80과 비슷, 차이 -2)
+ * - 내신: GPA 2.5 근처 (환산 백분위 약 82)
+ * - 모의고사: 평백 80 (내신 환산 백분위와 차이 -2, -3~+3 범위 내)
  */
 async function createStudentC(
   metadata: Awaited<ReturnType<typeof fetchMetadata>>
@@ -750,7 +750,8 @@ async function createStudentC(
     1
   );
 
-  // 내신 성적 생성 (GPA 2.5 근처)
+  // 내신 성적 생성 (GPA 2.5 근처 - 환산 백분위 약 82)
+  // rank_grade: 평균 2.5 (2등급과 3등급 혼합)
   const internalScores = [
     {
       subjectGroup: "국어",
@@ -825,39 +826,39 @@ async function createStudentC(
     );
   }
 
-  // 모의고사 성적 생성 (평백 78 - 내신 환산 백분위 80과 비슷)
+  // 모의고사 성적 생성 (평백 80 - 내신 환산 백분위 82와 차이 -2)
   const examDate = "2025-06-01";
   const examTitle = "2025-06 모평";
 
   const mockScores = [
     {
       subjectGroup: "국어",
+      percentile: 80,
+      standardScore: 128,
+      gradeScore: 3,
+    },
+    {
+      subjectGroup: "수학",
+      percentile: 79,
+      standardScore: 127,
+      gradeScore: 3,
+    },
+    {
+      subjectGroup: "영어",
+      percentile: 81,
+      standardScore: 129,
+      gradeScore: 3,
+    },
+    {
+      subjectGroup: "사회",
       percentile: 78,
       standardScore: 125,
       gradeScore: 3,
     },
     {
-      subjectGroup: "수학",
-      percentile: 77,
-      standardScore: 124,
-      gradeScore: 3,
-    },
-    {
-      subjectGroup: "영어",
-      percentile: 79,
-      standardScore: 126,
-      gradeScore: 3,
-    },
-    {
-      subjectGroup: "사회",
-      percentile: 76,
-      standardScore: 123,
-      gradeScore: 3,
-    },
-    {
       subjectGroup: "과학",
-      percentile: 80,
-      standardScore: 127,
+      percentile: 82,
+      standardScore: 130,
       gradeScore: 2,
     },
   ];
@@ -929,7 +930,8 @@ async function main() {
     console.log("=".repeat(80) + "\n");
 
     for (const result of results) {
-      console.log(`📌 ${result.name} (${result.type})`);
+      console.log(`📌 ${result.name}`);
+      console.log(`   예상 전략 타입: ${result.type}`);
       console.log(`   Student ID: ${result.studentId}`);
       console.log(`   Tenant ID: ${result.tenantId}`);
       console.log(`   Term ID: ${result.studentTermId}`);
