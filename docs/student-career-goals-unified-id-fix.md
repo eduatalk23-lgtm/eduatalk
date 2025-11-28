@@ -9,6 +9,7 @@
 ## 문제 상황
 
 ### 에러 메시지
+
 ```
 invalid input syntax for type uuid: "UNIV_14"
 ```
@@ -69,11 +70,13 @@ EXECUTE FUNCTION check_desired_university_ids_length();
 #### 변경 사항
 
 1. **타입 정의 업데이트**
+
    ```typescript
    desired_university_ids?: string[] | null; // 희망 대학교 통합 ID 배열 (최대 3개, 형식: UNIV_14, SCHOOL_123 등)
    ```
 
 2. **유효성 검증 로직 추가**
+
    ```typescript
    // 통합 ID 형식인지 확인 (UNIV_14, SCHOOL_123 등)
    const unifiedIdRegex = /^(UNIV_|SCHOOL_)\d+$/;
@@ -90,7 +93,8 @@ EXECUTE FUNCTION check_desired_university_ids_length();
      );
      return {
        success: false,
-       error: "학교 ID 형식이 올바르지 않습니다. 통합 ID 형식 (UNIV_*, SCHOOL_*)을 사용해주세요.",
+       error:
+         "학교 ID 형식이 올바르지 않습니다. 통합 ID 형식 (UNIV_*, SCHOOL_*)을 사용해주세요.",
      };
    }
    ```
@@ -100,6 +104,7 @@ EXECUTE FUNCTION check_desired_university_ids_length();
 ## 변경 전후 비교
 
 ### Before
+
 ```typescript
 // 데이터베이스
 desired_university_ids uuid[] DEFAULT '{}'
@@ -110,6 +115,7 @@ desired_university_ids: ["UNIV_14", "UNIV_23"]
 ```
 
 ### After
+
 ```typescript
 // 데이터베이스
 desired_university_ids text[] DEFAULT '{}'
@@ -124,15 +130,18 @@ desired_university_ids: ["UNIV_14", "UNIV_23"]
 ## 영향 범위
 
 ### 수정된 파일
+
 1. `lib/data/studentCareerGoals.ts` - 데이터 레이어 로직
 2. `supabase/migrations/20251129000000_change_desired_university_ids_to_text_array.sql` - 마이그레이션
 
 ### 영향받는 기능
+
 - ✅ 학생 설정 페이지 (`app/(student)/settings/page.tsx`)
 - ✅ 학생 프로필 업데이트 (`app/(student)/actions/studentActions.ts`)
 - ✅ 진로 목표 조회 및 수정
 
 ### 호환성
+
 - **SchoolMultiSelect 컴포넌트**: 이미 통합 ID 형식(`UNIV_*`, `SCHOOL_*`)을 반환하므로 수정 불필요
 - **기존 데이터**: 마이그레이션 시 자동으로 `text[]`로 변환됨
 
@@ -151,6 +160,7 @@ desired_university_ids: ["UNIV_14", "UNIV_23"]
 ## 향후 개선 사항
 
 ### 1. 통합 ID 검증 강화
+
 현재는 정규식 패턴만 검증하고 있음. 향후 실제 학교 존재 여부도 확인하는 로직 추가 고려.
 
 ```typescript
@@ -162,6 +172,7 @@ if (!schoolExists) {
 ```
 
 ### 2. 타입 안전성 개선
+
 통합 ID 타입을 명시적으로 정의하여 타입 안전성 향상.
 
 ```typescript
@@ -187,4 +198,3 @@ export type StudentCareerGoal = {
 ## 결론
 
 `student_career_goals.desired_university_ids` 컬럼을 `uuid[]`에서 `text[]`로 변경하여, 프로젝트의 통합 ID 시스템과 일관성을 맞췄습니다. 이를 통해 `"UNIV_14"` 형식의 ID를 정상적으로 저장할 수 있게 되었으며, 기존 애플리케이션 코드와의 호환성을 유지했습니다.
-
