@@ -32,10 +32,14 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 }
 
 // RLS를 우회하기 위해 Service Role Key 사용
+// PostgREST 스키마 캐시 문제 해결을 위해 명시적 스키마 지정
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
+  },
+  db: {
+    schema: 'public',
   },
 });
 
@@ -481,7 +485,15 @@ async function createInternalScore(
   });
 
   if (error) {
-    throw new Error(`내신 성적 생성 실패: ${error.message}`);
+    // PGRST205 에러인 경우 상세 정보 출력
+    if (error.code === 'PGRST205') {
+      console.error('\n⚠️  PGRST205 스키마 캐시 에러 발생');
+      console.error('   해결 방법:');
+      console.error('   1. Supabase Dashboard → Settings → API → Reload Schema');
+      console.error('   2. 또는 몇 분 후 다시 시도');
+      console.error(`   에러 상세: ${error.message}`);
+    }
+    throw new Error(`내신 성적 생성 실패: ${error.message}${error.code ? ` (코드: ${error.code})` : ''}`);
   }
 }
 
@@ -502,23 +514,33 @@ async function createMockScore(
   subjectGroupName: string,
   subjectName: string
 ) {
-  const { error } = await supabase.from("student_mock_scores").insert({
-    tenant_id: tenantId,
-    student_id: studentId,
-    subject_group_id: subjectGroupId,
-    subject_id: subjectId,
-    grade,
-    subject_group: subjectGroupName,
-    subject_name: subjectName,
-    exam_type: examType,
-    exam_round: examRound,
-    percentile,
-    standard_score: standardScore,
-    grade_score: gradeScore,
-  });
+  const { error } = await supabase
+    .from("student_mock_scores")
+    .insert({
+      tenant_id: tenantId,
+      student_id: studentId,
+      subject_group_id: subjectGroupId,
+      subject_id: subjectId,
+      grade,
+      subject_group: subjectGroupName,
+      subject_name: subjectName,
+      exam_type: examType,
+      exam_round: examRound,
+      percentile,
+      standard_score: standardScore,
+      grade_score: gradeScore,
+    });
 
   if (error) {
-    throw new Error(`모의고사 성적 생성 실패: ${error.message}`);
+    // PGRST205 에러인 경우 상세 정보 출력
+    if (error.code === 'PGRST205') {
+      console.error('\n⚠️  PGRST205 스키마 캐시 에러 발생');
+      console.error('   해결 방법:');
+      console.error('   1. Supabase Dashboard → Settings → API → Reload Schema');
+      console.error('   2. 또는 몇 분 후 다시 시도');
+      console.error(`   에러 상세: ${error.message}`);
+    }
+    throw new Error(`모의고사 성적 생성 실패: ${error.message}${error.code ? ` (코드: ${error.code})` : ''}`);
   }
 }
 
