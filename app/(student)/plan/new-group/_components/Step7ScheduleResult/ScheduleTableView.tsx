@@ -487,6 +487,11 @@ function TimeSlotsWithPlans({
     (slot) => slot.type === "학습시간" || slot.type === "자율학습"
   );
 
+  // 이동시간과 학원일정 슬롯 필터링
+  const travelAndAcademySlots = timeSlots.filter(
+    (slot) => slot.type === "이동시간" || slot.type === "학원일정"
+  );
+
   // 플랜 정보 준비
   const plansWithInfo = datePlans.map((plan) => {
     const startTime = getPlanStartTime(plan, date, blocks);
@@ -614,6 +619,78 @@ function TimeSlotsWithPlans({
     }
   });
 
+  // 이동시간/학원일정 슬롯에 커스텀 플랜 배치
+  const travelAndAcademyPlansMap = new Map<number, Array<{
+    plan: Plan;
+    start: string;
+    end: string;
+    isPartial: boolean;
+    isContinued: boolean;
+    originalEstimatedTime: number;
+  }>>();
+
+  // 커스텀 플랜만 별도로 처리 (이동시간/학원일정 슬롯에 배치)
+  const customPlansWithInfo = plansWithInfo.filter(
+    (p) => p.plan.content_type === "custom"
+  );
+
+  travelAndAcademySlots.forEach((slot, slotIdx) => {
+    const slotStart = timeToMinutes(slot.start);
+    const slotEnd = timeToMinutes(slot.end);
+    const plansInSlot: Array<{
+      plan: Plan;
+      start: string;
+      end: string;
+      isPartial: boolean;
+      isContinued: boolean;
+      originalEstimatedTime: number;
+    }> = [];
+
+    // 커스텀 플랜 중에서 이 슬롯과 시간이 일치하는 플랜 찾기
+    for (const planInfo of customPlansWithInfo) {
+      // 시작 시간이 있는 경우: 슬롯과 시간이 겹치는지 확인
+      if (planInfo.originalStartTime !== null) {
+        const planStart = planInfo.originalStartTime;
+        const planEnd = planStart + planInfo.originalEstimatedTime;
+
+        // 플랜이 이 슬롯과 겹치는지 확인
+        if (planStart < slotEnd && planEnd > slotStart) {
+          const slotAvailableStart = Math.max(planStart, slotStart);
+          const slotAvailableEnd = Math.min(planEnd, slotEnd);
+
+          if (slotAvailableStart < slotAvailableEnd) {
+            plansInSlot.push({
+              plan: planInfo.plan,
+              start: minutesToTime(slotAvailableStart),
+              end: minutesToTime(slotAvailableEnd),
+              isPartial: false,
+              isContinued: false,
+              originalEstimatedTime: planInfo.originalEstimatedTime,
+            });
+          }
+        }
+      } else {
+        // 시작 시간이 없는 경우: 슬롯 시간에 맞춰 배치
+        // (이동시간/학원일정은 일반적으로 시간이 고정되어 있으므로)
+        const timeToUse = Math.min(planInfo.estimatedTime, slotEnd - slotStart);
+        if (timeToUse > 0) {
+          plansInSlot.push({
+            plan: planInfo.plan,
+            start: slot.start,
+            end: minutesToTime(slotStart + timeToUse),
+            isPartial: planInfo.estimatedTime > timeToUse,
+            isContinued: false,
+            originalEstimatedTime: planInfo.originalEstimatedTime,
+          });
+        }
+      }
+    }
+
+    if (plansInSlot.length > 0) {
+      travelAndAcademyPlansMap.set(slotIdx, plansInSlot);
+    }
+  });
+
   // 학습시간 및 자율학습 블록 인덱스 매핑 (timeSlots 전체 인덱스 -> 학습시간/자율학습 블록 인덱스)
   const studySlotIndexMap = new Map<number, number>();
   let studySlotIdx = 0;
@@ -621,6 +698,16 @@ function TimeSlotsWithPlans({
     if (slot.type === "학습시간" || slot.type === "자율학습") {
       studySlotIndexMap.set(idx, studySlotIdx);
       studySlotIdx++;
+    }
+  });
+
+  // 이동시간/학원일정 슬롯 인덱스 매핑 (timeSlots 전체 인덱스 -> 이동시간/학원일정 블록 인덱스)
+  const travelAndAcademySlotIndexMap = new Map<number, number>();
+  let travelAndAcademySlotIdx = 0;
+  timeSlots.forEach((slot, idx) => {
+    if (slot.type === "이동시간" || slot.type === "학원일정") {
+      travelAndAcademySlotIndexMap.set(idx, travelAndAcademySlotIdx);
+      travelAndAcademySlotIdx++;
     }
   });
 
@@ -646,9 +733,21 @@ function TimeSlotsWithPlans({
 
         // 학습시간 블록인 경우 해당 인덱스로 플랜 찾기
         const studySlotIdx = studySlotIndexMap.get(idx);
-        const plansInSlot = slot.type === "학습시간" && studySlotIdx !== undefined 
+        const plansInStudySlot = slot.type === "학습시간" && studySlotIdx !== undefined 
           ? slotPlansMap.get(studySlotIdx) || [] 
           : [];
+
+        // 이동시간/학원일정 슬롯인 경우 커스텀 플랜 찾기
+        const travelAndAcademySlotIdx = travelAndAcademySlotIndexMap.get(idx);
+        const plansInTravelAndAcademySlot = 
+          (slot.type === "이동시간" || slot.type === "학원일정") && travelAndAcademySlotIdx !== undefined
+            ? travelAndAcademyPlansMap.get(travelAndAcademySlotIdx) || []
+            : [];
+
+        // 학습시간 슬롯에는 커스텀이 아닌 플랜만 표시
+        const nonCustomPlans = datePlans.filter(p => p.content_type !== "custom");
+        // 이동시간/학원일정 슬롯에는 커스텀 플랜만 표시
+        const customPlans = datePlans.filter(p => p.content_type === "custom");
 
         return (
           <div key={idx} className="space-y-1.5">
@@ -663,20 +762,40 @@ function TimeSlotsWithPlans({
                 </span>
               </div>
             </div>
+            {/* 학습시간 슬롯 */}
             {slot.type === "학습시간" && (
               <>
-                {plansInSlot.length > 0 ? (
+                {plansInStudySlot.length > 0 ? (
                   <div className="ml-4 overflow-x-auto">
                     <PlanTable
-                      plans={plansInSlot}
+                      plans={plansInStudySlot}
                       contents={contents}
                       dayType={dayType}
                       sequenceMap={sequenceMap}
                     />
                   </div>
-                ) : datePlans.length > 0 ? (
+                ) : nonCustomPlans.length > 0 ? (
                   <div className="ml-4 text-xs text-gray-500 italic">
-                    (플랜 {datePlans.length}개 - 시간 정보 없음)
+                    (플랜 {nonCustomPlans.length}개 - 시간 정보 없음)
+                  </div>
+                ) : null}
+              </>
+            )}
+            {/* 이동시간/학원일정 슬롯 */}
+            {(slot.type === "이동시간" || slot.type === "학원일정") && (
+              <>
+                {plansInTravelAndAcademySlot.length > 0 ? (
+                  <div className="ml-4 overflow-x-auto">
+                    <PlanTable
+                      plans={plansInTravelAndAcademySlot}
+                      contents={contents}
+                      dayType={dayType}
+                      sequenceMap={sequenceMap}
+                    />
+                  </div>
+                ) : customPlans.length > 0 ? (
+                  <div className="ml-4 text-xs text-gray-500 italic">
+                    (커스텀 플랜 {customPlans.length}개 - 시간 정보 없음)
                   </div>
                 ) : null}
               </>

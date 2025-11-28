@@ -118,7 +118,7 @@ if (
 const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminClient = createSupabaseAdminClient();
-  
+
   if (!adminClient) {
     // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
     return getStudentAcademySchedules(group.student_id, tenantId);
