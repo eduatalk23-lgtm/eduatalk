@@ -9,6 +9,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -198,7 +199,12 @@ export async function getMockAnalysis(
   }
 
   // subjects 조회 (subject_group_id 포함)
-  const { data: subjectsData, error: subjectsError } = await supabase
+  // 주의: subjects 테이블은 전역 관리이므로 tenant_id 컬럼이 없음
+  // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
+  const adminClient = createSupabaseAdminClient();
+  const subjectsClient = adminClient || supabase;
+  
+  const { data: subjectsData, error: subjectsError } = await subjectsClient
     .from("subjects")
     .select("id, subject_group_id")
     .in("id", subjectIds);
@@ -250,7 +256,9 @@ export async function getMockAnalysis(
   }
 
   // subject_groups 조회
-  const { data: subjectGroupsData, error: sgError } = await supabase
+  // 주의: subject_groups 테이블은 전역 관리이므로 tenant_id 컬럼이 없음
+  // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
+  const { data: subjectGroupsData, error: sgError } = await subjectsClient
     .from("subject_groups")
     .select("id, name")
     .in("id", subjectGroupIds);
