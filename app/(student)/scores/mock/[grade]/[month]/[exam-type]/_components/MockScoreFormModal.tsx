@@ -1,3 +1,12 @@
+/**
+ * @deprecated 이 컴포넌트는 레거시 스키마를 사용합니다.
+ * 새 스키마(student_mock_scores)에 맞춰 재구축이 필요합니다.
+ * 
+ * 향후 개선 사항:
+ * - subject_id, subject_group_id FK 필드 사용
+ * - exam_year, exam_month 필드 추가
+ * - createMockScore (app/actions/scores-internal.ts) 사용
+ */
 "use client";
 
 import { useTransition, useEffect, useState } from "react";

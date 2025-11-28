@@ -384,7 +384,8 @@ export async function getSchoolScores(
 
   if (error && error.code === "42703") {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const fallbackQuery = supabase.from("student_school_scores").select("*");
+    // ⚠️ student_school_scores는 student_internal_scores로 변경되었습니다.
+    const fallbackQuery = supabase.from("student_internal_scores").select("*");
 
     if (filters?.grade) {
       fallbackQuery.eq("grade", filters.grade);

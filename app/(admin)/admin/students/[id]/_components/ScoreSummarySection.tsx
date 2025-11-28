@@ -1,4 +1,11 @@
+/**
+ * 성적 요약 섹션 (관리자 영역)
+ * 
+ * 새로운 통합 대시보드 API(/api/students/[id]/score-dashboard)를 사용합니다.
+ */
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -6,92 +13,124 @@ type SupabaseServerClient = Awaited<
 
 export async function ScoreSummarySection({ studentId }: { studentId: string }) {
   const supabase = await createSupabaseServerClient();
+  const tenantContext = await getTenantContext();
 
-  // 최근 내신 성적 조회
-  const { data: schoolScores } = await supabase
-    .from("student_school_scores")
-    .select("subject_group,grade_score,test_date")
-    .eq("student_id", studentId)
-    .order("test_date", { ascending: false })
-    .limit(10);
+  if (!tenantContext?.tenantId) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-gray-500">기관 정보를 찾을 수 없습니다.</p>
+      </div>
+    );
+  }
 
-  // 최근 모의고사 성적 조회
-  const { data: mockScores } = await supabase
-    .from("student_mock_scores")
-    .select("subject_group,grade_score,test_date,exam_type")
-    .eq("student_id", studentId)
-    .order("test_date", { ascending: false })
-    .limit(10);
+  try {
+    // 새로운 통합 대시보드 API 사용
+    const dashboardData = await fetchScoreDashboard({
+      studentId,
+      tenantId: tenantContext.tenantId,
+    });
 
-  const schoolScoreRows = (schoolScores ?? []) as Array<{
-    subject_group?: string | null;
-    grade_score?: number | null;
-    test_date?: string | null;
-  }>;
+    const { internalAnalysis, mockAnalysis } = dashboardData;
 
-  const mockScoreRows = (mockScores ?? []) as Array<{
-    subject_group?: string | null;
-    grade_score?: number | null;
-    test_date?: string | null;
-    exam_type?: string | null;
-  }>;
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900">성적 요약</h2>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="mb-3 text-sm font-medium text-gray-700">최근 내신</h3>
-          {schoolScoreRows.length === 0 ? (
-            <p className="text-sm text-gray-500">내신 성적이 없습니다.</p>
-          ) : (
-            <div className="space-y-2">
-              {schoolScoreRows.slice(0, 5).map((score, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">{score.subject_group ?? "-"}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">
-                      {score.grade_score ?? "-"}등급
-                    </span>
-                    {score.test_date && (
-                      <span className="text-xs text-gray-500">
-                        {new Date(score.test_date).toLocaleDateString("ko-KR")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div>
-          <h3 className="mb-3 text-sm font-medium text-gray-700">최근 모의고사</h3>
-          {mockScoreRows.length === 0 ? (
-            <p className="text-sm text-gray-500">모의고사 성적이 없습니다.</p>
-          ) : (
-            <div className="space-y-2">
-              {mockScoreRows.slice(0, 5).map((score, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700">
-                    {score.subject_group ?? "-"} ({score.exam_type ?? "-"})
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-xl font-semibold text-gray-900">성적 요약</h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* 내신 분석 */}
+          <div>
+            <h3 className="mb-3 text-sm font-medium text-gray-700">내신 분석</h3>
+            {internalAnalysis.totalGpa === null ? (
+              <p className="text-sm text-gray-500">내신 성적이 없습니다.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700">전체 GPA</span>
+                  <span className="font-semibold text-gray-900">
+                    {internalAnalysis.totalGpa.toFixed(2)}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">
-                      {score.grade_score ?? "-"}등급
-                    </span>
-                    {score.test_date && (
-                      <span className="text-xs text-gray-500">
-                        {new Date(score.test_date).toLocaleDateString("ko-KR")}
-                      </span>
-                    )}
-                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+                {internalAnalysis.zIndex !== null && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">Z-Index</span>
+                    <span className="font-semibold text-gray-900">
+                      {internalAnalysis.zIndex.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {Object.keys(internalAnalysis.subjectStrength).length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <p className="text-xs font-medium text-gray-600">교과군별 평점</p>
+                    {Object.entries(internalAnalysis.subjectStrength).map(([subject, gpa]) => (
+                      <div key={subject} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600">{subject}</span>
+                        <span className="font-medium text-gray-900">{gpa.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 모의고사 분석 */}
+          <div>
+            <h3 className="mb-3 text-sm font-medium text-gray-700">모의고사 분석</h3>
+            {mockAnalysis.recentExam === null && mockAnalysis.avgPercentile === null ? (
+              <p className="text-sm text-gray-500">모의고사 성적이 없습니다.</p>
+            ) : (
+              <div className="space-y-2">
+                {mockAnalysis.recentExam && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">최근 시험</span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="font-semibold text-gray-900">
+                        {mockAnalysis.recentExam.examTitle}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(mockAnalysis.recentExam.examDate).toLocaleDateString("ko-KR")}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {mockAnalysis.avgPercentile !== null && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">평균 백분위</span>
+                    <span className="font-semibold text-gray-900">
+                      {mockAnalysis.avgPercentile.toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+                {mockAnalysis.totalStdScore !== null && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">표준점수 합</span>
+                    <span className="font-semibold text-gray-900">
+                      {mockAnalysis.totalStdScore}
+                    </span>
+                  </div>
+                )}
+                {mockAnalysis.best3GradeSum !== null && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">상위 3개 등급 합</span>
+                    <span className="font-semibold text-gray-900">
+                      {mockAnalysis.best3GradeSum}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  } catch (error) {
+    console.error("[ScoreSummarySection] 성적 대시보드 API 호출 실패", error);
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-gray-500">
+          성적 정보를 불러오는 중 오류가 발생했습니다.
+        </p>
+      </div>
+    );
+  }
 }
 

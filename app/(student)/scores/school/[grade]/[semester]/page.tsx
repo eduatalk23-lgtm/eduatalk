@@ -42,6 +42,7 @@ export default async function SchoolScoresPage({
   }
 
   // 모든 성적 데이터 조회 (필터는 클라이언트에서 처리)
+  // ⚠️ getSchoolScores는 deprecated입니다. getInternalScores를 사용하거나 통합 대시보드 API를 사용하세요.
   const scores = await getSchoolScores(user.id, tenantContext.tenantId);
 
   // 활성화된 개정교육과정 조회

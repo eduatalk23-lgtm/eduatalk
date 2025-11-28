@@ -1,3 +1,8 @@
+/**
+ * @deprecated 이 컴포넌트는 레거시 성적 대시보드에서 사용됩니다.
+ * 새로운 통합 대시보드(/scores/dashboard/unified)에서는 사용되지 않습니다.
+ * 새로운 대시보드는 /api/students/[id]/score-dashboard API를 사용합니다.
+ */
 "use client";
 
 import React from "react";

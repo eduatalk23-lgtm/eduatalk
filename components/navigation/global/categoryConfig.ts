@@ -124,7 +124,7 @@ const studentCategories: NavigationCategory[] = [
       {
         id: "scores-dashboard",
         label: "성적 대시보드",
-        href: "/scores/dashboard",
+        href: "/scores/dashboard/unified",
         icon: "📝",
       },
     ],

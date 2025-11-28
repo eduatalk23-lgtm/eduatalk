@@ -1,3 +1,12 @@
+/**
+ * @deprecated 이 컴포넌트는 레거시 스키마를 사용합니다.
+ * 새 스키마(student_internal_scores)에 맞춰 재구축이 필요합니다.
+ * 
+ * 향후 개선 사항:
+ * - subject_id, subject_group_id, subject_type_id FK 필드 사용
+ * - createInternalScore (app/actions/scores-internal.ts) 사용
+ * - term_id 자동 생성 로직 추가
+ */
 "use client";
 
 import React, { useTransition } from "react";

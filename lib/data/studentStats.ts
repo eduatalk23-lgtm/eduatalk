@@ -168,7 +168,7 @@ export async function getStudentsHasScore(
 
   const [schoolScores, mockScores] = await Promise.all([
     supabase
-      .from("student_school_scores")
+      .from("student_internal_scores") // student_school_scores → student_internal_scores
       .select("student_id")
       .in("student_id", studentIds)
       .limit(10000), // 충분히 큰 제한

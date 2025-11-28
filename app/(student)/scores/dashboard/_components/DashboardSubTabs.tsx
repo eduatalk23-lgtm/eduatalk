@@ -3,8 +3,14 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef } from "react";
 
+/**
+ * @deprecated 이 컴포넌트는 레거시 성적 대시보드에서 사용됩니다.
+ * 새로운 통합 대시보드(/scores/dashboard/unified)에서는 사용되지 않습니다.
+ */
+"use client";
+
 const dashboardTabs = [
-  { value: "integrated", label: "통합", href: "/scores/dashboard" },
+  { value: "integrated", label: "통합", href: "/scores/dashboard/unified" },
   { value: "school", label: "내신", href: "/scores/dashboard/school" },
   { value: "mock", label: "모의고사", href: "/scores/dashboard/mock" },
 ];

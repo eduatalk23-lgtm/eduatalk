@@ -1,129 +1,98 @@
-import { getStudentScoreTrendForAdmin } from "@/lib/data/admin/studentData";
+/**
+ * 성적 변화 조회 섹션 (관리자 영역)
+ * 
+ * 새로운 통합 대시보드 API(/api/students/[id]/score-dashboard)를 사용합니다.
+ */
+import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 export async function ScoreTrendSection({ studentId }: { studentId: string }) {
+  const tenantContext = await getTenantContext();
+
+  if (!tenantContext?.tenantId) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
+        <p className="text-sm text-gray-500">기관 정보를 찾을 수 없습니다.</p>
+      </div>
+    );
+  }
+
   try {
-    const scoreTrend = await getStudentScoreTrendForAdmin(studentId);
-
-    // 과목별로 그룹화하여 최신 성적 추이 표시
-    const subjectMap = new Map<
-      string,
-      Array<{
-        date: string;
-        grade: number;
-        type: "school" | "mock";
-        examType?: string;
-      }>
-    >();
-
-    scoreTrend.schoolScores.forEach((score: any) => {
-      const subject = score.subject_name ?? "미분류";
-      if (!subjectMap.has(subject)) {
-        subjectMap.set(subject, []);
-      }
-      subjectMap.get(subject)!.push({
-        date: score.test_date ?? "",
-        grade: score.grade_score ?? 0,
-        type: "school",
-      });
+    // 새로운 통합 대시보드 API 사용
+    const dashboardData = await fetchScoreDashboard({
+      studentId,
+      tenantId: tenantContext.tenantId,
     });
 
-    scoreTrend.mockScores.forEach((score: any) => {
-      const subject = score.subject_name ?? "미분류";
-      if (!subjectMap.has(subject)) {
-        subjectMap.set(subject, []);
-      }
-      subjectMap.get(subject)!.push({
-        date: score.test_date ?? "",
-        grade: score.grade_score ?? 0,
-        type: "mock",
-        examType: score.exam_type ?? undefined,
-      });
-    });
-
-    // 최근 성적이 있는 과목만 표시 (최대 5개)
-    const topSubjects = Array.from(subjectMap.entries())
-      .map(([subject, scores]) => ({
-        subject,
-        scores: scores.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-        latestScore: scores[0],
-      }))
-      .filter((item) => item.latestScore.date)
-      .sort((a, b) => new Date(b.latestScore.date).getTime() - new Date(a.latestScore.date).getTime())
-      .slice(0, 5);
+    const { internalAnalysis, mockAnalysis, strategyResult } = dashboardData;
 
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">성적 변화 조회</h2>
+        <h2 className="mb-4 text-xl font-semibold text-gray-900">성적 분석</h2>
 
         {/* 통계 */}
         <div className="mb-6 grid grid-cols-2 gap-4">
           <div className="rounded-lg bg-indigo-50 p-4">
-            <div className="text-sm text-indigo-600">내신 성적</div>
+            <div className="text-sm text-indigo-600">내신 GPA</div>
             <div className="mt-1 text-2xl font-bold text-indigo-700">
-              {scoreTrend.schoolScores.length}건
+              {internalAnalysis.totalGpa !== null ? internalAnalysis.totalGpa.toFixed(2) : "-"}
             </div>
+            {internalAnalysis.zIndex !== null && (
+              <div className="mt-1 text-xs text-indigo-500">
+                Z-Index: {internalAnalysis.zIndex.toFixed(2)}
+              </div>
+            )}
           </div>
           <div className="rounded-lg bg-purple-50 p-4">
-            <div className="text-sm text-purple-600">모의고사 성적</div>
+            <div className="text-sm text-purple-600">모의고사 평균 백분위</div>
             <div className="mt-1 text-2xl font-bold text-purple-700">
-              {scoreTrend.mockScores.length}건
+              {mockAnalysis.avgPercentile !== null ? `${mockAnalysis.avgPercentile.toFixed(1)}%` : "-"}
             </div>
+            {mockAnalysis.best3GradeSum !== null && (
+              <div className="mt-1 text-xs text-purple-500">
+                상위 3개 등급 합: {mockAnalysis.best3GradeSum}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 과목별 최신 성적 */}
-        {topSubjects.length === 0 ? (
-          <p className="text-sm text-gray-500">등록된 성적이 없습니다.</p>
-        ) : (
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-gray-700">과목별 최신 성적</h3>
-            {topSubjects.map((item) => {
-              const trend = item.scores.length >= 2
-                ? item.scores[0].grade - item.scores[1].grade
-                : 0;
-              const trendColor =
-                trend < 0 ? "text-green-600" : trend > 0 ? "text-red-600" : "text-gray-600";
-              const trendIcon = trend < 0 ? "↑" : trend > 0 ? "↓" : "→";
+        {/* 전략 분석 */}
+        {strategyResult && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="mb-2 text-sm font-medium text-gray-700">입시 전략</h3>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                strategyResult.type === "BALANCED" ? "bg-blue-100 text-blue-800" :
+                strategyResult.type === "MOCK_ADVANTAGE" ? "bg-purple-100 text-purple-800" :
+                "bg-indigo-100 text-indigo-800"
+              }`}>
+                {strategyResult.type === "BALANCED" ? "균형형" :
+                 strategyResult.type === "MOCK_ADVANTAGE" ? "모의고사 우위" :
+                 "내신 우위"}
+              </span>
+              <p className="text-sm text-gray-700">{strategyResult.message}</p>
+            </div>
+            {strategyResult.data.diff !== null && (
+              <div className="mt-2 text-xs text-gray-600">
+                내신 {strategyResult.data.internalPct?.toFixed(1) ?? "-"}% vs 모의고사 {strategyResult.data.mockPct?.toFixed(1) ?? "-"}%
+                (차이: {Math.abs(strategyResult.data.diff).toFixed(1)}%)
+              </div>
+            )}
+          </div>
+        )}
 
-              return (
-                <div
-                  key={item.subject}
-                  className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{item.subject}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-gray-900">
-                        {item.latestScore.grade}등급
-                      </span>
-                      {trend !== 0 && (
-                        <span className={`text-sm font-semibold ${trendColor}`}>
-                          {trendIcon} {Math.abs(trend)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>
-                      {new Date(item.latestScore.date).toLocaleDateString("ko-KR")}
-                    </span>
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5">
-                      {item.latestScore.type === "school" ? "내신" : "모의고사"}
-                      {item.latestScore.examType && ` (${item.latestScore.examType})`}
-                    </span>
-                  </div>
-                  {item.scores.length > 1 && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      최근 {item.scores.length}회 평균:{" "}
-                      {(
-                        item.scores.slice(0, 3).reduce((sum, s) => sum + s.grade, 0) /
-                        Math.min(3, item.scores.length)
-                      ).toFixed(1)}등급
-                    </div>
-                  )}
+        {/* 교과군별 평점 */}
+        {Object.keys(internalAnalysis.subjectStrength).length > 0 && (
+          <div className="mt-4">
+            <h3 className="mb-2 text-sm font-medium text-gray-700">교과군별 평점</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(internalAnalysis.subjectStrength).map(([subject, gpa]) => (
+                <div key={subject} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-2">
+                  <span className="text-sm text-gray-700">{subject}</span>
+                  <span className="text-sm font-semibold text-gray-900">{gpa.toFixed(2)}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         )}
       </div>

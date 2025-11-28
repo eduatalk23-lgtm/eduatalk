@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef } from "react";
 
 const scoreTypes = [
-  { value: "dashboard", label: "대시보드", href: "/scores/dashboard" },
+  { value: "dashboard", label: "대시보드", href: "/scores/dashboard/unified" },
   { value: "school", label: "내신", href: "/scores/school/1/1" },
   { value: "mock", label: "모의고사", href: "/scores/mock/1/3/" + encodeURIComponent("평가원") },
 ];

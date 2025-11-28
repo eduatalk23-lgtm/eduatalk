@@ -112,7 +112,7 @@ export async function getStudentScoreTrendForAdmin(studentId: string) {
 
     // 내신 성적 조회
     const { data: schoolScores, error: schoolError } = await supabase
-      .from("student_school_scores")
+      .from("student_internal_scores") // student_school_scores → student_internal_scores
       .select("id,grade,semester,subject_name,grade_score,test_date")
       .eq("student_id", studentId)
       .order("test_date", { ascending: true });

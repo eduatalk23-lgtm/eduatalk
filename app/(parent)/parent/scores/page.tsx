@@ -1,10 +1,15 @@
 export const dynamic = 'force-dynamic';
 
+/**
+ * 학부모 영역 성적 페이지
+ * 
+ * 새로운 통합 대시보드 API(/api/students/[id]/score-dashboard)를 사용합니다.
+ */
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents, canAccessStudent } from "../../_utils";
-import { fetchAllScores, calculateSubjectGradeHistory } from "@/app/(student)/scores/dashboard/_utils";
+import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
 import { StudentSelector } from "../_components/StudentSelector";
 import Link from "next/link";
 
@@ -66,23 +71,34 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
   // 학생 정보 조회
   const { data: student } = await supabase
     .from("students")
-    .select("id, name, grade, class")
+    .select("id, name, grade, class, tenant_id")
     .eq("id", selectedStudentId)
     .maybeSingle();
 
-  // 성적 조회
-  const allScores = await fetchAllScores(supabase, selectedStudentId);
-  const subjectHistories = calculateSubjectGradeHistory(allScores);
+  if (!student) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900 mb-2">
+            학생 정보를 찾을 수 없습니다
+          </h2>
+        </div>
+      </section>
+    );
+  }
 
-  // 최근 성적 (최근 10개)
-  const recentScores = allScores
-    .filter((s) => s.grade !== null)
-    .sort((a, b) => {
-      const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-      const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
-      return dateB - dateA;
-    })
-    .slice(0, 10);
+  // 새로운 통합 대시보드 API 사용
+  let dashboardData = null;
+  try {
+    if (student.tenant_id) {
+      dashboardData = await fetchScoreDashboard({
+        studentId: selectedStudentId,
+        tenantId: student.tenant_id,
+      });
+    }
+  } catch (error) {
+    console.error("[parent/scores] 성적 대시보드 API 호출 실패", error);
+  }
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -109,134 +125,108 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
         />
       </div>
 
-      {allScores.length === 0 ? (
+      {!dashboardData ? (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
           <p className="text-sm text-gray-500">등록된 성적이 없습니다.</p>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* 최근 성적 변화 */}
-          {recentScores.length > 0 && (
+          {/* 내신 분석 */}
+          {dashboardData.internalAnalysis.totalGpa !== null && (
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                최근 성적 변화
-              </h2>
-              <div className="space-y-3">
-                {recentScores.map((score, index) => {
-                  const prevScore =
-                    index < recentScores.length - 1
-                      ? recentScores[index + 1]
-                      : null;
-                  const gradeChange =
-                    prevScore &&
-                    score.grade !== null &&
-                    prevScore.grade !== null
-                      ? score.grade - prevScore.grade
-                      : null;
-
-                  return (
-                    <div
-                      key={score.id}
-                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-4"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-base font-semibold text-gray-900">
-                            {score.course_detail || score.course || "과목"}
-                          </span>
-                          {score.test_date && (
-                            <span className="text-xs text-gray-500">
-                              ({new Date(score.test_date).toLocaleDateString("ko-KR")})
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          {score.semester && <span>{score.semester}</span>}
-                          {score.score_type_detail && (
-                            <span>• {score.score_type_detail}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {score.grade !== null && (
-                          <span className="text-xl font-bold text-indigo-600">
-                            {score.grade}등급
-                          </span>
-                        )}
-                        {gradeChange !== null && gradeChange !== 0 && (
-                          <span
-                            className={`text-sm font-semibold ${
-                              gradeChange < 0
-                                ? "text-green-600"
-                                : gradeChange > 0
-                                ? "text-red-600"
-                                : "text-gray-600"
-                            }`}
-                          >
-                            {gradeChange < 0 ? "↑" : "↓"} {Math.abs(gradeChange)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 과목별 등급 변화 그래프 */}
-          {subjectHistories.length > 0 && (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                과목별 등급 변화
-              </h2>
-              <div className="space-y-4">
-                {subjectHistories.map((history) => (
-                  <div key={`${history.course}:${history.course_detail}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-base font-semibold text-gray-900">
-                        {history.course_detail} ({history.course})
-                      </span>
-                      {history.history.length > 0 && (
-                        <span className="text-sm text-gray-600">
-                          최신: {history.history[history.history.length - 1].grade}등급
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {history.history.map((h, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col items-center rounded border border-gray-200 bg-gray-50 px-3 py-2"
-                        >
-                          <span className="text-xs text-gray-500 mb-1">
-                            {new Date(h.test_date).toLocaleDateString("ko-KR", {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </span>
-                          <span className="text-lg font-bold text-indigo-600">
-                            {h.grade}
-                          </span>
-                        </div>
-                      ))}
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">내신 분석</h2>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-lg bg-indigo-50 p-4">
+                  <div className="text-sm text-indigo-600">전체 GPA</div>
+                  <div className="mt-1 text-2xl font-bold text-indigo-700">
+                    {dashboardData.internalAnalysis.totalGpa.toFixed(2)}
+                  </div>
+                </div>
+                {dashboardData.internalAnalysis.zIndex !== null && (
+                  <div className="rounded-lg bg-blue-50 p-4">
+                    <div className="text-sm text-blue-600">Z-Index</div>
+                    <div className="mt-1 text-2xl font-bold text-blue-700">
+                      {dashboardData.internalAnalysis.zIndex.toFixed(2)}
                     </div>
                   </div>
-                ))}
+                )}
+                {Object.keys(dashboardData.internalAnalysis.subjectStrength).length > 0 && (
+                  <div className="rounded-lg bg-purple-50 p-4">
+                    <div className="text-sm text-purple-600">교과군 수</div>
+                    <div className="mt-1 text-2xl font-bold text-purple-700">
+                      {Object.keys(dashboardData.internalAnalysis.subjectStrength).length}개
+                    </div>
+                  </div>
+                )}
               </div>
+              {Object.keys(dashboardData.internalAnalysis.subjectStrength).length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">교과군별 평점</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(dashboardData.internalAnalysis.subjectStrength).map(([subject, gpa]) => (
+                      <div key={subject} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-2">
+                        <span className="text-sm text-gray-700">{subject}</span>
+                        <span className="text-sm font-semibold text-gray-900">{gpa.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* 성적 요약 텍스트 */}
-          {allScores.length > 0 && (
+          {/* 모의고사 분석 */}
+          {dashboardData.mockAnalysis.recentExam !== null && (
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">모의고사 분석</h2>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {dashboardData.mockAnalysis.recentExam && (
+                  <div className="rounded-lg bg-purple-50 p-4">
+                    <div className="text-sm text-purple-600">최근 시험</div>
+                    <div className="mt-1 text-lg font-bold text-purple-700">
+                      {dashboardData.mockAnalysis.recentExam.examTitle}
+                    </div>
+                    <div className="mt-1 text-xs text-purple-500">
+                      {new Date(dashboardData.mockAnalysis.recentExam.examDate).toLocaleDateString("ko-KR")}
+                    </div>
+                  </div>
+                )}
+                {dashboardData.mockAnalysis.avgPercentile !== null && (
+                  <div className="rounded-lg bg-indigo-50 p-4">
+                    <div className="text-sm text-indigo-600">평균 백분위</div>
+                    <div className="mt-1 text-2xl font-bold text-indigo-700">
+                      {dashboardData.mockAnalysis.avgPercentile.toFixed(1)}%
+                    </div>
+                  </div>
+                )}
+              </div>
+              {dashboardData.mockAnalysis.best3GradeSum !== null && (
+                <div className="mt-4 rounded-lg bg-gray-50 p-3">
+                  <div className="text-sm text-gray-600">상위 3개 등급 합</div>
+                  <div className="mt-1 text-xl font-bold text-gray-900">
+                    {dashboardData.mockAnalysis.best3GradeSum}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 입시 전략 */}
+          {dashboardData.strategyResult && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
-              <h3 className="text-base font-semibold text-blue-900 mb-2">
-                성적 요약
-              </h3>
-              <p className="text-sm text-blue-700">
-                총 {allScores.length}개의 성적이 등록되어 있습니다. 최근 성적 변화를
-                확인하여 학습 계획을 조정하시기 바랍니다.
-              </p>
+              <h3 className="text-base font-semibold text-blue-900 mb-2">입시 전략</h3>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`rounded-full px-3 py-1 text-sm font-medium ${
+                  dashboardData.strategyResult.type === "BALANCED" ? "bg-blue-100 text-blue-800" :
+                  dashboardData.strategyResult.type === "MOCK_ADVANTAGE" ? "bg-purple-100 text-purple-800" :
+                  "bg-indigo-100 text-indigo-800"
+                }`}>
+                  {dashboardData.strategyResult.type === "BALANCED" ? "균형형" :
+                   dashboardData.strategyResult.type === "MOCK_ADVANTAGE" ? "모의고사 우위" :
+                   "내신 우위"}
+                </span>
+              </div>
+              <p className="text-sm text-blue-700">{dashboardData.strategyResult.message}</p>
             </div>
           )}
         </div>

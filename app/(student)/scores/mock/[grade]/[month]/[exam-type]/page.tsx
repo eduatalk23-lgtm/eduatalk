@@ -49,6 +49,7 @@ export default async function MockScoresPage({
   }
 
   // 모든 성적 데이터 조회 (필터는 클라이언트에서 처리)
+  // ✅ getMockScores는 이미 student_mock_scores 테이블을 사용합니다.
   const scores = await getMockScores(user.id, tenantContext.tenantId);
 
   // 활성화된 개정교육과정 조회
