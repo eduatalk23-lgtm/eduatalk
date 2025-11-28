@@ -20,6 +20,10 @@ import {
   verifyPlanGroupAccess,
 } from "@/lib/auth/planGroupAuth";
 import { ensureAdminClient } from "@/lib/supabase/clientSelector";
+import {
+  getBlockSetForPlanGroup,
+  getBlockSetErrorMessage,
+} from "@/lib/plan/blocks";
 
 async function _generatePlansFromGroup(
   groupId: string
@@ -77,114 +81,16 @@ async function _generatePlansFromGroup(
   );
 
   // 블록 세트에서 기본 블록 정보 가져오기 (calculateAvailableDates에 전달하기 위해)
-  let baseBlocks: Array<{
-    day_of_week: number;
-    start_time: string;
-    end_time: string;
-  }> = [];
-
-  // 캠프 모드: 템플릿 블록 조회
-  if (group.plan_type === "camp" && group.camp_template_id) {
-    // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
-    const { data: templateBlockSetLink } = await supabase
-      .from("camp_template_block_sets")
-      .select("tenant_block_set_id")
-      .eq("camp_template_id", group.camp_template_id)
-      .maybeSingle();
-
-    let templateBlockSetId: string | null = null;
-    if (templateBlockSetLink) {
-      templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
-    } else {
-      // 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
-      const { getCampTemplate } = await import("@/lib/data/campTemplates");
-      const template = await getCampTemplate(group.camp_template_id);
-      if (template && template.template_data) {
-        const templateData = template.template_data as any;
-        templateBlockSetId = templateData.block_set_id || null;
-      }
-    }
-
-    if (templateBlockSetId) {
-      const { data: blockRows, error: blocksError } = await supabase
-        .from("tenant_blocks")
-        .select("day_of_week, start_time, end_time")
-        .eq("tenant_block_set_id", templateBlockSetId)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
-      if (blocksError) {
-        console.error("[planGroupActions] 테넌트 블록 조회 실패:", blocksError);
-      } else if (blockRows && blockRows.length > 0) {
-        baseBlocks = blockRows.map((b) => ({
-          day_of_week: b.day_of_week || 0,
-          start_time: b.start_time || "00:00",
-          end_time: b.end_time || "00:00",
-        }));
-      }
-    }
-  }
-
-  // 일반 모드: 학생 블록 세트 조회
-  if (baseBlocks.length === 0 && group.block_set_id) {
-    const { data: blockSet } = await supabase
-      .from("student_block_sets")
-      .select("id, name, student_id")
-      .eq("id", group.block_set_id)
-      .maybeSingle();
-
-    if (blockSet) {
-      const blockSetOwnerId = blockSet.student_id;
-      const { data: blockRows } = await supabase
-        .from("student_block_schedule")
-        .select("day_of_week, start_time, end_time")
-        .eq("block_set_id", group.block_set_id)
-        .eq("student_id", blockSetOwnerId)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
-      if (blockRows && blockRows.length > 0) {
-        baseBlocks = blockRows.map((b) => ({
-          day_of_week: b.day_of_week || 0,
-          start_time: b.start_time || "00:00",
-          end_time: b.end_time || "00:00",
-        }));
-      }
-    }
-  }
-
-  // 기본 블록 세트 사용 (캠프 모드가 아닐 때만)
-  if (baseBlocks.length === 0 && group.plan_type !== "camp") {
-    const { data: student } = await supabase
-      .from("students")
-      .select("active_block_set_id")
-      .eq("id", studentId)
-      .maybeSingle();
-
-    if (student?.active_block_set_id) {
-      const { data: blockRows } = await supabase
-        .from("student_block_schedule")
-        .select("day_of_week, start_time, end_time")
-        .eq("block_set_id", student.active_block_set_id)
-        .eq("student_id", studentId)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
-      if (blockRows) {
-        baseBlocks = blockRows.map((b) => ({
-          day_of_week: b.day_of_week || 0,
-          start_time: b.start_time || "00:00",
-          end_time: b.end_time || "00:00",
-        }));
-      }
-    }
-  }
+  const baseBlocks = await getBlockSetForPlanGroup(
+    group,
+    studentId,
+    access.user.userId,
+    access.role,
+    tenantContext.tenantId
+  );
 
   if (baseBlocks.length === 0) {
-    const errorMessage =
-      group.plan_type === "camp"
-        ? "템플릿 블록 세트가 설정되지 않았거나, 템플릿 블록이 없습니다. 관리자에게 문의해주세요."
-        : "블록 세트가 설정되지 않았거나, 활성 블록 세트에 등록된 블록이 없습니다. 블록 세트를 설정하고 블록을 추가해주세요.";
+    const errorMessage = getBlockSetErrorMessage(group, false);
     throw new AppError(errorMessage, ErrorCode.VALIDATION_ERROR, 400, true);
   }
 

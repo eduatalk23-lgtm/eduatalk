@@ -589,6 +589,55 @@ export type PlanExclusionInput = {
 };
 
 /**
+ * 템플릿 잠금 필드 설정
+ * 템플릿 모드에서 특정 필드를 고정하거나 학생 입력을 제한하는 설정
+ */
+export type TemplateLockedFields = {
+  // Step 1 고정 필드
+  step1?: {
+    name?: boolean;
+    plan_purpose?: boolean;
+    scheduler_type?: boolean;
+    period_start?: boolean;
+    period_end?: boolean;
+    block_set_id?: boolean;
+    student_level?: boolean;
+    subject_allocations?: boolean;
+    study_review_cycle?: boolean;
+    // 학생 입력 허용 필드
+    allow_student_name?: boolean;
+    allow_student_plan_purpose?: boolean;
+    allow_student_scheduler_type?: boolean;
+    allow_student_period?: boolean; // period_start, period_end 통합
+    allow_student_block_set_id?: boolean;
+    allow_student_student_level?: boolean;
+    allow_student_subject_allocations?: boolean;
+    allow_student_study_review_cycle?: boolean;
+    allow_student_additional_period_reallocation?: boolean;
+  };
+  // Step 2 고정 필드
+  step2?: {
+    exclusions?: boolean; // 전체 제외일 고정
+    exclusion_items?: string[]; // 특정 제외일 ID 배열 (exclusion_date 기준)
+    academy_schedules?: boolean; // 전체 학원 일정 고정
+    academy_schedule_items?: string[]; // 특정 학원 일정 ID 배열
+    time_settings?: boolean; // 전체 시간 설정 고정
+    time_settings_fields?: string[]; // 특정 시간 설정 필드 배열
+    // 신규 필드
+    non_study_time_blocks?: boolean; // 학습 시간 제외 항목 사용/미사용
+    allow_student_exclusions?: boolean; // 학생이 제외일 입력 가능 여부
+    allow_student_academy_schedules?: boolean; // 학생이 학원 일정 입력 가능 여부
+    allow_student_time_settings?: boolean; // 학생이 시간 설정 입력 가능 여부
+    allow_student_non_study_time_blocks?: boolean; // 학생이 학습 시간 제외 항목 입력 가능 여부
+  };
+  // Step 3 고정 필드
+  step3?: {
+    student_contents?: boolean; // 전체 학생 콘텐츠 고정
+    student_content_items?: string[]; // 특정 콘텐츠 ID 배열 (content_id 기준)
+  };
+};
+
+/**
  * 학원 입력
  */
 export type AcademyInput = {

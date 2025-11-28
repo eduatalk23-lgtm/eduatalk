@@ -46,3 +46,60 @@ export async function selectClientForStudentQuery(
   return createSupabaseServerClient();
 }
 
+/**
+ * 플랜 생성 작업에 필요한 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생의 플랜을 생성할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForPlanGeneration(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 콘텐츠(교재/강의) 조회 시 사용할 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForContentQuery(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 블록 세트 조회 시 사용할 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생의 블록 세트를 조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForBlockSetQuery(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+

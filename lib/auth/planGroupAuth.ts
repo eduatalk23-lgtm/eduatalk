@@ -11,7 +11,12 @@ import type {
   PlanExclusion,
   AcademySchedule,
 } from "@/lib/types/plan";
-import { selectClientForStudentQuery } from "@/lib/supabase/clientSelector";
+import {
+  selectClientForStudentQuery,
+  ensureAdminClient,
+  type SupabaseClientForStudentQuery,
+} from "@/lib/supabase/clientSelector";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type PlanGroupAllowedRole = "student" | "admin" | "consultant";
 
@@ -126,5 +131,50 @@ export async function getSupabaseClientForStudent(
     currentUserId,
     isAdminOrConsultant
   );
+}
+
+/**
+ * 플랜 생성/조회 작업에 필요한 클라이언트를 반환합니다.
+ * - 관리자/컨설턴트가 다른 학생의 플랜을 생성/조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function getClientForPlanOperation(
+  studentId: string,
+  currentUserId: string,
+  role: PlanGroupAllowedRole
+): Promise<SupabaseClientForStudentQuery> {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 상태 체크를 우회해야 하는지 여부를 반환합니다.
+ * 캠프 모드이거나 관리자/컨설턴트 권한인 경우 상태 체크를 우회합니다.
+ */
+export function canBypassStatusCheck(
+  role: PlanGroupAllowedRole,
+  planType: string | null | undefined
+): boolean {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isCampMode = planType === "camp";
+  return isAdminOrConsultant || isCampMode;
+}
+
+/**
+ * 다른 학생의 데이터를 조회하는지 여부를 반환합니다.
+ */
+export function isOtherStudent(
+  studentId: string,
+  currentUserId: string,
+  role: PlanGroupAllowedRole
+): boolean {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  return isAdminOrConsultant && studentId !== currentUserId;
 }
 
