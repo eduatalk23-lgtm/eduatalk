@@ -2,21 +2,17 @@
 
 import { useState } from "react";
 import { CurriculumHierarchyManager } from "./CurriculumHierarchyManager";
-import { GradesManager } from "./GradesManager";
-import { SemestersManager } from "./SemestersManager";
 import { PlatformsManager } from "./PlatformsManager";
 import { PublishersManager } from "./PublishersManager";
 import { CareerFieldsManager } from "./CareerFieldsManager";
 
-type TabKey = "hierarchy" | "grades" | "semesters" | "platforms" | "publishers" | "career-fields";
+type TabKey = "hierarchy" | "platforms" | "publishers" | "career-fields";
 
 export function ContentMetadataTabs() {
   const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
 
   const tabs = [
     { key: "hierarchy" as TabKey, label: "교육과정 계층" },
-    { key: "grades" as TabKey, label: "학년" },
-    { key: "semesters" as TabKey, label: "학기" },
     { key: "platforms" as TabKey, label: "플랫폼" },
     { key: "publishers" as TabKey, label: "출판사" },
     { key: "career-fields" as TabKey, label: "진로 계열" },
@@ -46,8 +42,6 @@ export function ContentMetadataTabs() {
       {/* 탭 컨텐츠 */}
       <div className="mt-6">
         {activeTab === "hierarchy" && <CurriculumHierarchyManager />}
-        {activeTab === "grades" && <GradesManager />}
-        {activeTab === "semesters" && <SemestersManager />}
         {activeTab === "platforms" && <PlatformsManager />}
         {activeTab === "publishers" && <PublishersManager />}
         {activeTab === "career-fields" && <CareerFieldsManager />}

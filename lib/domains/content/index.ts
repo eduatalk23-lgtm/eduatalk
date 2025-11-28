@@ -40,8 +40,6 @@ export {
 export {
   getPublishers,
   getPlatforms,
-  getGrades,
-  getSemesters,
   getCurriculumRevisions,
   getSubjectCategories,
 } from "@/lib/data/contentMetadata";

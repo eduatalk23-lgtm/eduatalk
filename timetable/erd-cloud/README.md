@@ -19,8 +19,6 @@ PRD 문서를 기반으로 테이블을 논리적 그룹으로 나누어 여러 
 
 2. **02_education_metadata.sql** - 교육 메타데이터
    - curriculum_revisions
-   - grades
-   - semesters
    - subject_categories
    - subjects
    - schools

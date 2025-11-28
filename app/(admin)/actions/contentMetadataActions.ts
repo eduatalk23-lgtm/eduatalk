@@ -6,14 +6,6 @@ import {
   createCurriculumRevision,
   updateCurriculumRevision,
   deleteCurriculumRevision,
-  getGrades,
-  createGrade,
-  updateGrade,
-  deleteGrade,
-  getSemesters,
-  createSemester,
-  updateSemester,
-  deleteSemester,
   getSubjectCategories,
   createSubjectCategory,
   updateSubjectCategory,
@@ -76,78 +68,6 @@ export const deleteCurriculumRevisionAction = withErrorHandling(async (id: strin
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
   return await deleteCurriculumRevision(id);
-});
-
-// 학년
-export const getGradesAction = withErrorHandling(async () => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await getGrades();
-});
-
-export const createGradeAction = withErrorHandling(async (name: string, display_order: number) => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await createGrade(name, display_order);
-});
-
-export const updateGradeAction = withErrorHandling(
-  async (id: string, updates: Partial<{ name: string; display_order: number; is_active: boolean }>) => {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-    }
-    return await updateGrade(id, updates);
-  }
-);
-
-export const deleteGradeAction = withErrorHandling(async (id: string) => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await deleteGrade(id);
-});
-
-// 학기
-export const getSemestersAction = withErrorHandling(async () => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await getSemesters();
-});
-
-export const createSemesterAction = withErrorHandling(
-  async (name: string, display_order: number) => {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-    }
-    return await createSemester(name, display_order);
-  }
-);
-
-export const updateSemesterAction = withErrorHandling(
-  async (id: string, updates: Partial<{ name: string; display_order: number; is_active: boolean }>) => {
-    const user = await getCurrentUser();
-    if (!user || user.role !== "admin") {
-      throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-    }
-    return await updateSemester(id, updates);
-  }
-);
-
-export const deleteSemesterAction = withErrorHandling(async (id: string) => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  return await deleteSemester(id);
 });
 
 // 교과 (Deprecated: getSubjectGroupsAction 사용 권장)

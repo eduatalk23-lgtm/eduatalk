@@ -8,8 +8,6 @@ import { addBook } from "@/app/(student)/actions/contentActions";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import {
   getCurriculumRevisionsAction,
-  getGradesAction,
-  getSemestersAction,
   getPublishersAction,
 } from "@/app/(student)/actions/contentMetadataActions";
 import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(admin)/actions/subjectActions";
@@ -20,15 +18,11 @@ export default function NewBookPage() {
   const router = useRouter();
 
   const [revisions, setRevisions] = useState<Array<{ id: string; name: string }>>([]);
-  const [grades, setGrades] = useState<Array<{ id: string; name: string }>>([]);
-  const [semesters, setSemesters] = useState<Array<{ id: string; name: string }>>([]);
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [publishers, setPublishers] = useState<Array<{ id: string; name: string }>>([]);
 
   const [selectedRevisionId, setSelectedRevisionId] = useState<string>("");
-  const [selectedGradeId, setSelectedGradeId] = useState<string>("");
-  const [selectedSemesterId, setSelectedSemesterId] = useState<string>("");
   const [selectedSubjectGroupId, setSelectedSubjectGroupId] = useState<string>("");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [selectedPublisherId, setSelectedPublisherId] = useState<string>("");
@@ -56,15 +50,11 @@ export default function NewBookPage() {
 
   async function loadMetadata() {
     try {
-      const [revs, grds, sems, pubs] = await Promise.all([
+      const [revs, pubs] = await Promise.all([
         getCurriculumRevisionsAction(),
-        getGradesAction(),
-        getSemestersAction(),
         getPublishersAction(),
       ]);
       setRevisions(revs.filter((r) => r.is_active));
-      setGrades(grds.filter((g) => g.is_active));
-      setSemesters(sems.filter((s) => s.is_active));
       setPublishers(pubs.filter((p) => p.is_active));
     } catch (error) {
       console.error("메타데이터 로드 실패:", error);
@@ -101,15 +91,6 @@ export default function NewBookPage() {
       const revision = revisions.find((r) => r.id === selectedRevisionId);
       if (revision) {
         formData.set("revision", revision.name);
-      }
-    }
-
-    // 학년-학기 조합
-    if (selectedGradeId && selectedSemesterId) {
-      const grade = grades.find((g) => g.id === selectedGradeId);
-      const semester = semesters.find((s) => s.id === selectedSemesterId);
-      if (grade && semester) {
-        formData.set("semester", `${grade.name}-${semester.name}`);
       }
     }
 
@@ -189,40 +170,6 @@ export default function NewBookPage() {
               {revisions.map((rev) => (
                 <option key={rev.id} value={rev.id}>
                   {rev.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 학년 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">학년</label>
-            <select
-              value={selectedGradeId}
-              onChange={(e) => setSelectedGradeId(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">선택하세요</option>
-              {grades.map((grade) => (
-                <option key={grade.id} value={grade.id}>
-                  {grade.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 학기 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">학기</label>
-            <select
-              value={selectedSemesterId}
-              onChange={(e) => setSelectedSemesterId(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">선택하세요</option>
-              {semesters.map((semester) => (
-                <option key={semester.id} value={semester.id}>
-                  {semester.name}
                 </option>
               ))}
             </select>

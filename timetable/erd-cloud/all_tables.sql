@@ -114,24 +114,6 @@ CREATE TABLE curriculum_revisions (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE grades (
-  id uuid PRIMARY KEY,
-  name varchar(20) NOT NULL UNIQUE,
-  display_order integer NOT NULL DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
-CREATE TABLE semesters (
-  id uuid PRIMARY KEY,
-  name varchar(20) NOT NULL UNIQUE,
-  display_order integer NOT NULL DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
 CREATE TABLE subject_categories (
   id uuid PRIMARY KEY,
   name varchar(50) NOT NULL UNIQUE,

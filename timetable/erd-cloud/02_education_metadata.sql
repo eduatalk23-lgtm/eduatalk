@@ -15,31 +15,7 @@ CREATE TABLE curriculum_revisions (
 
 COMMENT ON TABLE curriculum_revisions IS '개정교육과정 테이블 (예: 2015개정, 2022개정)';
 
--- 2. grades (학년)
-CREATE TABLE grades (
-  id uuid PRIMARY KEY,
-  name varchar(20) NOT NULL UNIQUE,
-  display_order integer NOT NULL DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
-COMMENT ON TABLE grades IS '학년 테이블 (예: 고1, 고2, 고3)';
-
--- 3. semesters (학기)
-CREATE TABLE semesters (
-  id uuid PRIMARY KEY,
-  name varchar(20) NOT NULL UNIQUE,
-  display_order integer NOT NULL DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-
-COMMENT ON TABLE semesters IS '학기 테이블 (예: 1학기, 2학기, 여름방학, 겨울방학)';
-
--- 4. subject_categories (교과)
+-- 2. subject_categories (교과)
 CREATE TABLE subject_categories (
   id uuid PRIMARY KEY,
   name varchar(50) NOT NULL UNIQUE,

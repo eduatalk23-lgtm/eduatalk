@@ -3,8 +3,6 @@
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import {
   getCurriculumRevisions,
-  getGrades,
-  getSemesters,
   getSubjectCategories,
   getSubjects,
   getPlatforms,
@@ -25,34 +23,6 @@ async function _getCurriculumRevisions() {
 }
 
 export const getCurriculumRevisionsAction = withErrorHandling(_getCurriculumRevisions);
-
-/**
- * 학년 목록 조회
- */
-async function _getGrades() {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-
-  return await getGrades();
-}
-
-export const getGradesAction = withErrorHandling(_getGrades);
-
-/**
- * 학기 목록 조회
- */
-async function _getSemesters() {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-
-  return await getSemesters();
-}
-
-export const getSemestersAction = withErrorHandling(_getSemesters);
 
 /**
  * 교과 목록 조회 (Deprecated: getSubjectGroupsAction 사용 권장)
