@@ -19,14 +19,23 @@ import path from "path";
 config({ path: path.resolve(process.cwd(), ".env.local") });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseServiceRoleKey) {
   console.error("❌ 환경 변수가 설정되지 않았습니다.");
+  console.error("   NEXT_PUBLIC_SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY가 필요합니다.");
+  console.error("   .env.local 파일에 SUPABASE_SERVICE_ROLE_KEY를 추가하세요.");
+  console.error("   Supabase Dashboard → Settings → API → service_role key");
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// RLS를 우회하기 위해 Service Role Key 사용
+const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 const DUMMY_TAG = "DUMMY_SCORE_TEST";
 
