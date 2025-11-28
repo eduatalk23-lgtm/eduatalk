@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrCreateStudentTerm, calculateSchoolYear } from "@/lib/data/studentTerms";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -455,6 +456,8 @@ export async function getMockScores(
 
 /**
  * 내신 성적 생성 (정규화 버전)
+ * 
+ * student_terms를 조회/생성하여 student_term_id를 세팅합니다.
  */
 export async function createInternalScore(
   score: {
@@ -472,13 +475,34 @@ export async function createInternalScore(
     std_dev?: number | null;
     rank_grade?: number | null;
     total_students?: number | null;
+    school_year?: number; // 학년도 (선택사항, 없으면 현재 날짜 기준 계산)
   }
 ): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
+  // school_year 계산 (없으면 현재 날짜 기준)
+  const school_year = score.school_year ?? calculateSchoolYear();
+
+  // student_term 조회 또는 생성
+  let student_term_id: string;
+  try {
+    student_term_id = await getOrCreateStudentTerm({
+      tenant_id: score.tenant_id,
+      student_id: score.student_id,
+      school_year,
+      grade: score.grade,
+      semester: score.semester,
+      curriculum_revision_id: score.curriculum_revision_id,
+    });
+  } catch (error) {
+    console.error("[data/studentScores] student_term 조회/생성 실패", error);
+    return { success: false, error: error instanceof Error ? error.message : "student_term 조회/생성 실패" };
+  }
+
   const payload = {
     tenant_id: score.tenant_id,
     student_id: score.student_id,
+    student_term_id, // student_term_id 추가
     curriculum_revision_id: score.curriculum_revision_id,
     subject_group_id: score.subject_group_id,
     subject_type_id: score.subject_type_id,
@@ -584,6 +608,9 @@ export async function createSchoolScore(
 
 /**
  * 모의고사 성적 생성 (정규화 버전)
+ * 
+ * student_terms를 조회/생성하여 student_term_id를 세팅합니다.
+ * exam_date를 기준으로 학년도와 학기를 계산합니다.
  */
 export async function createMockScore(
   score: {
@@ -594,17 +621,43 @@ export async function createMockScore(
     grade: number;
     subject_id: string;
     subject_group_id: string;
+    curriculum_revision_id: string; // student_term 생성에 필요
     raw_score?: number | null;
     standard_score?: number | null;
     percentile?: number | null;
     grade_score?: number | null;
+    semester?: number; // 학기 (선택사항, 없으면 exam_date 기준으로 추정)
   }
 ): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
+  // exam_date를 기준으로 학년도 계산
+  const examDate = new Date(score.exam_date);
+  const school_year = calculateSchoolYear(examDate);
+
+  // 학기 계산 (없으면 exam_date 기준으로 추정: 3~8월 = 1학기, 9~2월 = 2학기)
+  const semester = score.semester ?? (examDate.getMonth() + 1 >= 3 && examDate.getMonth() + 1 <= 8 ? 1 : 2);
+
+  // student_term 조회 또는 생성
+  let student_term_id: string;
+  try {
+    student_term_id = await getOrCreateStudentTerm({
+      tenant_id: score.tenant_id,
+      student_id: score.student_id,
+      school_year,
+      grade: score.grade,
+      semester,
+      curriculum_revision_id: score.curriculum_revision_id,
+    });
+  } catch (error) {
+    console.error("[data/studentScores] student_term 조회/생성 실패", error);
+    return { success: false, error: error instanceof Error ? error.message : "student_term 조회/생성 실패" };
+  }
+
   const payload = {
     tenant_id: score.tenant_id,
     student_id: score.student_id,
+    student_term_id, // student_term_id 추가
     exam_date: score.exam_date,
     exam_title: score.exam_title,
     grade: score.grade,

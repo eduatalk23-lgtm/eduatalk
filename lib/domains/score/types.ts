@@ -184,10 +184,12 @@ export type CreateMockScoreInput = {
   grade: number;
   subject_id: string;
   subject_group_id: string;
+  curriculum_revision_id: string; // student_term 생성에 필요
   raw_score?: number | null;
   standard_score?: number | null;
   percentile?: number | null;
   grade_score?: number | null;
+  semester?: number; // 학기 (선택사항, 없으면 exam_date 기준으로 추정)
 };
 
 /**

@@ -407,6 +407,45 @@ export type Database = {
       };
 
       // ============================================
+      // 학생-학기 테이블 (student_terms)
+      // ============================================
+      student_terms: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          school_year: number; // 학년도 (예: 2024)
+          grade: number; // 학년 (1~3)
+          semester: number; // 학기 (1~2)
+          curriculum_revision_id: string; // FK → curriculum_revisions
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          school_year: number;
+          grade: number;
+          semester: number;
+          curriculum_revision_id: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          school_year?: number;
+          grade?: number;
+          semester?: number;
+          curriculum_revision_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
       // 내신 성적 테이블 (정규화 버전)
       // ============================================
       student_internal_scores: {
@@ -414,6 +453,7 @@ export type Database = {
           id: string;
           tenant_id: string;
           student_id: string;
+          student_term_id: string; // FK → student_terms.id
           curriculum_revision_id: string;
           subject_group_id: string;
           subject_type_id: string;
@@ -433,6 +473,7 @@ export type Database = {
           id?: string;
           tenant_id: string;
           student_id: string;
+          student_term_id: string; // FK → student_terms.id
           curriculum_revision_id: string;
           subject_group_id: string;
           subject_type_id: string;
@@ -452,6 +493,7 @@ export type Database = {
           id?: string;
           tenant_id?: string;
           student_id?: string;
+          student_term_id?: string;
           curriculum_revision_id?: string;
           subject_group_id?: string;
           subject_type_id?: string;
@@ -553,6 +595,7 @@ export type Database = {
           id: string;
           tenant_id: string;
           student_id: string;
+          student_term_id: string; // FK → student_terms.id
           exam_date: string; // date 타입
           exam_title: string;
           grade: number;
@@ -569,6 +612,7 @@ export type Database = {
           id?: string;
           tenant_id: string;
           student_id: string;
+          student_term_id: string; // FK → student_terms.id
           exam_date: string; // date 타입
           exam_title: string;
           grade: number;
@@ -585,6 +629,7 @@ export type Database = {
           id?: string;
           tenant_id?: string;
           student_id?: string;
+          student_term_id?: string;
           exam_date?: string;
           exam_title?: string;
           grade?: number;

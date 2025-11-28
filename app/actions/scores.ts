@@ -1,5 +1,19 @@
 "use server";
 
+/**
+ * ⚠️ DEPRECATED: 이 파일은 레거시 student_scores 테이블을 사용합니다.
+ * 
+ * 새 구조로 마이그레이션 필요:
+ * - 내신 성적: student_internal_scores 테이블 사용
+ * - 모의고사 성적: student_mock_scores 테이블 사용
+ * 
+ * 새 구조는 student_terms를 통해 학기 정보를 관리하며,
+ * student_term_id FK를 통해 연결됩니다.
+ * 
+ * @see lib/data/studentScores.ts - createInternalScore, createMockScore
+ * @see lib/domains/score/repository.ts - insertInternalScore, insertMockScore
+ */
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
