@@ -159,14 +159,14 @@ export default async function UnifiedScoreDashboardPage() {
       {/* 추가 액션 */}
       <div className="mt-8 flex flex-wrap gap-4">
         <Link
-          href="/scores"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          href="/scores/input"
+          className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           성적 입력하기
         </Link>
         <Link
-          href="/scores/dashboard"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          href="/scores/analysis"
+          className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
           상세 분석 보기
         </Link>
