@@ -238,6 +238,44 @@ const unplacedCustomPlans = customPlans.filter(
 ) : null}
 ```
 
+## 추가 개선 사항 (학습시간 슬롯 남은 시간 영역 표시)
+
+### 문제
+플랜 배정 후 남은 학습 시간이 있는 경우, "시간 정보 없음"으로 표시되어 정보의 정확성이 떨어졌습니다.
+
+### 해결
+1. **남은 시간 영역 계산**: 각 학습시간 슬롯에서 플랜이 배치된 시간 구간을 추적하고, 슬롯 전체 시간에서 배치된 구간을 제외한 남은 구간을 계산
+2. **명시적 표시**: 남은 구간을 "학습 시간" 또는 "자율 학습 시간"으로 명시적으로 표시
+3. **정확한 정보 제공**: "시간 정보 없음" 대신 정확한 시간 정보 제공
+
+```typescript
+// 각 학습시간 슬롯에서 남은 시간 영역 계산
+const remainingTimeSlotsMap = new Map<number, Array<{
+  start: string;
+  end: string;
+  type: "학습시간" | "자율학습";
+}>>();
+
+studyTimeSlots.forEach((slot, slotIdx) => {
+  // 플랜이 배치된 시간 구간들 수집
+  const usedRanges = plansInSlot.map(plan => ({
+    start: timeToMinutes(plan.start),
+    end: timeToMinutes(plan.end),
+  }));
+  
+  // 남은 시간 구간 계산
+  // ...
+});
+
+// UI 표시
+{remainingRanges.map((range) => (
+  <div className="학습 시간 영역">
+    <span>학습 시간</span>
+    <span>{range.start} ~ {range.end}</span>
+  </div>
+))}
+```
+
 ## 주의사항
 
 - 커스텀 플랜은 이동시간/학원일정 슬롯에만 배치됩니다.
@@ -246,6 +284,8 @@ const unplacedCustomPlans = customPlans.filter(
 - 시간 정보가 있는 커스텀 플랜은 슬롯과 시간이 겹치는 경우에만 배치됩니다.
 - 배치된 플랜이 있으면 "시간 정보 없음" 메시지가 표시되지 않습니다.
 - 배치되지 않은 커스텀 플랜만 "시간 정보 없음"으로 표시됩니다.
+- 플랜 배정 후 남은 학습 시간 영역은 "학습 시간" 또는 "자율 학습 시간"으로 명시적으로 표시됩니다.
+- 여러 개의 남은 구간이 있으면 각각 표시됩니다.
 
 ## 관련 파일
 

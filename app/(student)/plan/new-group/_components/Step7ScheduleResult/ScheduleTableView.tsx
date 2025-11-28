@@ -619,6 +619,61 @@ function TimeSlotsWithPlans({
     }
   });
 
+  // 각 학습시간 슬롯에서 남은 시간 영역 계산
+  const remainingTimeSlotsMap = new Map<number, Array<{
+    start: string;
+    end: string;
+    type: "학습시간" | "자율학습";
+  }>>();
+
+  studyTimeSlots.forEach((slot, slotIdx) => {
+    const slotStart = timeToMinutes(slot.start);
+    const slotEnd = timeToMinutes(slot.end);
+    const plansInSlot = slotPlansMap.get(slotIdx) || [];
+
+    // 플랜이 배치된 시간 구간들
+    const usedRanges: Array<{ start: number; end: number }> = [];
+    plansInSlot.forEach((plan) => {
+      usedRanges.push({
+        start: timeToMinutes(plan.start),
+        end: timeToMinutes(plan.end),
+      });
+    });
+
+    // 시간 순으로 정렬
+    usedRanges.sort((a, b) => a.start - b.start);
+
+    // 남은 시간 구간 계산
+    const remainingRanges: Array<{ start: string; end: string }> = [];
+    let currentTime = slotStart;
+
+    usedRanges.forEach((range) => {
+      if (currentTime < range.start) {
+        // 플랜 배치 전 남은 시간
+        remainingRanges.push({
+          start: minutesToTime(currentTime),
+          end: minutesToTime(range.start),
+        });
+      }
+      currentTime = Math.max(currentTime, range.end);
+    });
+
+    // 마지막 플랜 이후 남은 시간
+    if (currentTime < slotEnd) {
+      remainingRanges.push({
+        start: minutesToTime(currentTime),
+        end: minutesToTime(slotEnd),
+      });
+    }
+
+    if (remainingRanges.length > 0) {
+      remainingTimeSlotsMap.set(slotIdx, remainingRanges.map(range => ({
+        ...range,
+        type: slot.type as "학습시간" | "자율학습",
+      })));
+    }
+  });
+
   // 이동시간/학원일정 슬롯에 커스텀 플랜 배치
   const travelAndAcademyPlansMap = new Map<number, Array<{
     plan: Plan;
@@ -775,9 +830,9 @@ function TimeSlotsWithPlans({
               </div>
             </div>
             {/* 학습시간 슬롯 */}
-            {slot.type === "학습시간" && (
+            {(slot.type === "학습시간" || slot.type === "자율학습") && (
               <>
-                {plansInStudySlot.length > 0 ? (
+                {plansInStudySlot.length > 0 && (
                   <div className="ml-4 overflow-x-auto">
                     <PlanTable
                       plans={plansInStudySlot}
@@ -786,11 +841,46 @@ function TimeSlotsWithPlans({
                       sequenceMap={sequenceMap}
                     />
                   </div>
-                ) : nonCustomPlans.length > 0 ? (
-                  <div className="ml-4 text-xs text-gray-500 italic">
-                    (플랜 {nonCustomPlans.length}개 - 시간 정보 없음)
-                  </div>
-                ) : null}
+                )}
+                {/* 남은 학습 시간 영역 표시 */}
+                {(() => {
+                  const studySlotIdx = studySlotIndexMap.get(idx);
+                  const remainingRanges = studySlotIdx !== undefined 
+                    ? remainingTimeSlotsMap.get(studySlotIdx) || []
+                    : [];
+                  
+                  return remainingRanges.length > 0 ? (
+                    <div className="ml-4 space-y-1.5">
+                      {remainingRanges.map((range, rangeIdx) => (
+                        <div
+                          key={rangeIdx}
+                          className={`rounded border px-3 py-2 text-xs ${
+                            range.type === "학습시간"
+                              ? "border-blue-200 bg-blue-50"
+                              : "border-green-200 bg-green-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`font-medium ${
+                              range.type === "학습시간"
+                                ? "text-blue-800"
+                                : "text-green-800"
+                            }`}>
+                              {range.type === "학습시간" ? "학습 시간" : "자율 학습 시간"}
+                            </span>
+                            <span className={`${
+                              range.type === "학습시간"
+                                ? "text-blue-600"
+                                : "text-green-600"
+                            }`}>
+                              {range.start} ~ {range.end}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
               </>
             )}
             {/* 이동시간/학원일정 슬롯 */}
