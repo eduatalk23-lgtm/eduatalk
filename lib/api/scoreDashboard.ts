@@ -27,8 +27,8 @@ export async function fetchScoreDashboard(
     typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"
   );
 
-  // Query 파라미터 추가
-  url.searchParams.set("tenantId", tenantId);
+  // Query 파라미터 추가 (tenantId가 null이면 "null" 문자열로 전달)
+  url.searchParams.set("tenantId", tenantId ?? "null");
 
   if (termId) {
     url.searchParams.set("termId", termId);

@@ -47,7 +47,7 @@ export default async function UnifiedScoreDashboardPage() {
     );
   }
 
-  const tenantId = tenantContext.id;
+  const tenantId = tenantContext.tenantId;
 
   // 학생 ID 조회
   const { data: student } = await supabase

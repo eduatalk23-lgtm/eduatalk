@@ -71,17 +71,13 @@ export async function GET(
   try {
     const { id: studentId } = await params;
     const searchParams = req.nextUrl.searchParams;
-    const tenantId = searchParams.get("tenantId");
+    const tenantIdParam = searchParams.get("tenantId");
     const termIdParam = searchParams.get("termId");
     const gradeParam = searchParams.get("grade");
     const semesterParam = searchParams.get("semester");
 
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: "tenantId is required" },
-        { status: 400 }
-      );
-    }
+    // tenantId는 "null" 문자열일 수 있으므로 처리
+    const tenantId = tenantIdParam === "null" || tenantIdParam === "undefined" ? null : tenantIdParam;
 
     // 인증 확인
     const currentUser = await getCurrentUser();
@@ -100,12 +96,17 @@ export async function GET(
       : await createSupabaseServerClient();
 
     // 1) 학생 조회 (school_id, school_type 포함)
-    const { data: student, error: studentError } = await supabase
+    let studentQuery = supabase
       .from("students")
-      .select("id, name, grade, class, school_id, school_type")
-      .eq("id", studentId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+      .select("id, name, grade, class, school_id, school_type, tenant_id")
+      .eq("id", studentId);
+    
+    // tenantId가 있으면 조건에 추가
+    if (tenantId) {
+      studentQuery = studentQuery.eq("tenant_id", tenantId);
+    }
+    
+    const { data: student, error: studentError } = await studentQuery.maybeSingle();
 
     if (studentError) {
       console.error("[api/score-dashboard] 학생 조회 실패", {
@@ -127,6 +128,16 @@ export async function GET(
       );
     }
 
+    // tenantId가 없으면 학생의 tenant_id 사용
+    const effectiveTenantId = tenantId || student.tenant_id;
+    
+    if (!effectiveTenantId) {
+      return NextResponse.json(
+        { error: "Tenant ID not found for student" },
+        { status: 400 }
+      );
+    }
+
     // 2) termId 결정 로직
     // 우선순위: termId 파라미터 > grade+semester 조합 > 최근 학기
     let effectiveTermId: string | null = termIdParam || null;
@@ -138,16 +149,21 @@ export async function GET(
       grade = parseInt(gradeParam);
       semester = parseInt(semesterParam);
 
-      const { data: termData, error: termError } = await supabase
+      let termQuery = supabase
         .from("student_terms")
         .select("id, grade, semester, school_year")
-        .eq("tenant_id", tenantId)
         .eq("student_id", studentId)
         .eq("grade", grade)
         .eq("semester", semester)
         .order("school_year", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+      
+      // tenantId가 있으면 조건에 추가
+      if (tenantId) {
+        termQuery = termQuery.eq("tenant_id", tenantId);
+      }
+      
+      const { data: termData, error: termError } = await termQuery.maybeSingle();
 
       if (termError) {
         console.error("[api/score-dashboard] student_terms 조회 실패", termError);
@@ -160,16 +176,21 @@ export async function GET(
 
     // termId를 찾지 못했고 grade, semester도 없으면 최근 학기 조회
     if (!effectiveTermId && (!grade || !semester)) {
-      const { data: recentTerm } = await supabase
+      let recentTermQuery = supabase
         .from("student_terms")
         .select("id, grade, semester, school_year")
-        .eq("tenant_id", tenantId)
         .eq("student_id", studentId)
         .order("school_year", { ascending: false })
         .order("grade", { ascending: false })
         .order("semester", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+      
+      // tenantId가 있으면 조건에 추가
+      if (tenantId) {
+        recentTermQuery = recentTermQuery.eq("tenant_id", tenantId);
+      }
+      
+      const { data: recentTerm } = await recentTermQuery.maybeSingle();
 
       if (recentTerm) {
         effectiveTermId = recentTerm.id;
@@ -205,7 +226,7 @@ export async function GET(
 
     // 3) 내신 분석 (effectiveTermId 기준)
     const internal = await getInternalAnalysis(
-      tenantId,
+      effectiveTenantId,
       studentId,
       effectiveTermId || undefined
     );
@@ -214,7 +235,7 @@ export async function GET(
     let internalCountQuery = supabase
       .from("student_internal_scores")
       .select("*", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
+      .eq("tenant_id", effectiveTenantId)
       .eq("student_id", studentId);
     
     if (effectiveTermId) {
@@ -231,13 +252,13 @@ export async function GET(
         : null;
 
     // 4) 모의고사 분석 (최근 모의 기준, termId와 무관)
-    const mock = await getMockAnalysis(tenantId, studentId);
+    const mock = await getMockAnalysis(effectiveTenantId, studentId);
     
     // 모의고사 데이터 개수 확인
     const { count: mockCount } = await supabase
       .from("student_mock_scores")
       .select("*", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
+      .eq("tenant_id", effectiveTenantId)
       .eq("student_id", studentId);
 
     console.log("[api/score-dashboard] 모의고사 데이터 개수:", mockCount);
