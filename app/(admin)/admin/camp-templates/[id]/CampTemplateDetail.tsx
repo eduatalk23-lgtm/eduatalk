@@ -232,7 +232,7 @@ export function CampTemplateDetail({
               목록으로
             </Link>
             <Link
-              href={`/admin/time-management/${template.id}`}
+              href={`/admin/camp-templates/${template.id}/time-management`}
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               시간 관리

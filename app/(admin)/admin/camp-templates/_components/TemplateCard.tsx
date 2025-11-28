@@ -33,8 +33,9 @@ export function TemplateCard({ template }: TemplateCardProps) {
       const result = await deleteCampTemplateAction(template.id);
       if (result.success) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
-        router.refresh();
-        setShowDeleteDialog(false);
+        setShowDeleteDialog(false); // 다이얼로그 먼저 닫기
+        setIsDeleting(false); // 상태 리셋
+        router.push("/admin/camp-templates"); // 목록 페이지로 이동
       } else {
         toast.showError(result.error || "템플릿 삭제에 실패했습니다.");
         setIsDeleting(false);

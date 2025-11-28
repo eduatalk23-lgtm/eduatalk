@@ -141,14 +141,17 @@ export default async function CampCalendarPage({
     const unmatchedGroupIds = planGroupIdsInPlans.filter((id): id is string => id != null && !activeGroupIds.includes(id));
     const hasUnmatchedPlans = unmatchedGroupIds.length > 0 || filteredPlans.some((p) => !p.plan_group_id);
 
-    // 교과 정보가 없는 플랜의 콘텐츠 ID 수집
+    // 교과 정보 또는 제목이 없는 플랜의 콘텐츠 ID 수집
     const missingContentIds = new Map<"book" | "lecture" | "custom", Set<string>>();
     missingContentIds.set("book", new Set());
     missingContentIds.set("lecture", new Set());
     missingContentIds.set("custom", new Set());
     
     filteredPlans.forEach((plan) => {
-      if (!plan.content_subject_category && !plan.content_subject && plan.content_id) {
+      const needsFetch = 
+        (!plan.content_subject_category && !plan.content_subject) || 
+        !plan.content_title;
+      if (needsFetch && plan.content_id) {
         const contentType = plan.content_type;
         if (contentType && missingContentIds.has(contentType)) {
           missingContentIds.get(contentType)!.add(plan.content_id);
@@ -156,15 +159,15 @@ export default async function CampCalendarPage({
       }
     });
     
-    // 콘텐츠 테이블에서 교과 정보 조회
-    const contentSubjectMap = new Map<string, { subjectCategory: string | null; subject: string | null }>();
+    // 콘텐츠 테이블에서 교과 정보 및 제목 조회
+    const contentSubjectMap = new Map<string, { subjectCategory: string | null; subject: string | null; title: string | null }>();
     
     for (const [contentType, contentIds] of missingContentIds.entries()) {
       if (contentIds.size === 0) continue;
       
       try {
         const tableName = contentType === "book" ? "books" : contentType === "lecture" ? "lectures" : "student_custom_contents";
-        const selectField = contentType === "book" ? "id,subject_category,subject" : contentType === "lecture" ? "id,subject_category,subject" : "id,subject_category,subject";
+        const selectField = contentType === "book" ? "id,subject_category,subject,title" : contentType === "lecture" ? "id,subject_category,subject,title" : "id,subject_category,subject,title";
         
         const { data, error } = await supabase
           .from(tableName)
@@ -176,6 +179,7 @@ export default async function CampCalendarPage({
             contentSubjectMap.set(content.id, {
               subjectCategory: content.subject_category || null,
               subject: content.subject || null,
+              title: content.title || null,
             });
           });
         }
@@ -199,7 +203,7 @@ export default async function CampCalendarPage({
       
       return {
         ...plan,
-        contentTitle: plan.content_title || "제목 없음",
+        contentTitle: plan.content_title || contentSubjectInfo?.title || "제목 없음",
         contentSubject,
         contentSubjectCategory, // 교과 (항상 일관되게 표시)
         contentCategory: plan.content_category || null, // 유형
