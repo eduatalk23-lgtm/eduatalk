@@ -236,15 +236,15 @@ async function createStudent(
   name: string,
   grade: number
 ): Promise<string> {
-  // user_id는 임시로 생성 (실제로는 auth.users에 있어야 함)
+  // students.id는 users.id를 참조하므로, id를 직접 지정
   // 더미 데이터이므로 임시 UUID 사용
-  const userId = randomUUID();
+  const studentId = randomUUID();
 
   const { data, error } = await supabase
     .from("students")
     .insert({
+      id: studentId,
       tenant_id: tenantId,
-      user_id: userId,
       name,
       grade,
       school_type: "HIGH",
