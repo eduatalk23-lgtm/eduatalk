@@ -108,7 +108,18 @@ export async function GET(
       .maybeSingle();
 
     if (checkError) {
-      console.error("[api/score-dashboard] 학생 조회 실패 (tenant_id 조건 없음)", checkError);
+      console.error("[api/score-dashboard] 학생 조회 실패 (tenant_id 조건 없음)", {
+        error: checkError,
+        code: checkError.code,
+        message: checkError.message,
+        details: checkError.details,
+        hint: checkError.hint,
+      });
+      
+      // RLS 정책 에러인 경우 명확한 메시지 제공
+      if (checkError.code === "42501" || checkError.message?.includes("permission") || checkError.message?.includes("policy")) {
+        console.error("[api/score-dashboard] RLS 정책으로 인한 조회 실패 가능성");
+      }
     } else if (studentWithoutTenant) {
       console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음):", {
         found: true,
@@ -120,6 +131,10 @@ export async function GET(
       });
     } else {
       console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음): 학생을 찾을 수 없음");
+      console.log("[api/score-dashboard] 가능한 원인:");
+      console.log("  1. RLS 정책이 조회를 차단하고 있음");
+      console.log("  2. 인증 쿠키가 없어 익명 사용자로 처리됨");
+      console.log("  3. 현재 사용자가 해당 학생의 데이터를 조회할 권한이 없음");
     }
 
     // 실제 쿼리: tenant_id 조건 포함
@@ -131,9 +146,28 @@ export async function GET(
       .maybeSingle();
 
     if (studentError) {
-      console.error("[api/score-dashboard] 학생 조회 실패", studentError);
+      console.error("[api/score-dashboard] 학생 조회 실패", {
+        error: studentError,
+        code: studentError.code,
+        message: studentError.message,
+        details: studentError.details,
+        hint: studentError.hint,
+      });
+      
+      // RLS 정책 에러인 경우 명확한 메시지 제공
+      if (studentError.code === "42501" || studentError.message?.includes("permission") || studentError.message?.includes("policy")) {
+        return NextResponse.json(
+          { 
+            error: "Permission denied",
+            details: "RLS policy may be blocking the query. Check authentication and RLS policies.",
+            code: studentError.code,
+          },
+          { status: 403 }
+        );
+      }
+      
       return NextResponse.json(
-        { error: "Failed to fetch student" },
+        { error: "Failed to fetch student", details: studentError.message },
         { status: 500 }
       );
     }
