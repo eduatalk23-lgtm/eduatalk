@@ -616,6 +616,7 @@ type CreateMockScoreParams = {
   examDate: string;
   examTitle: string;
   subjectId: string;
+  subjectGroupId: string; // 교과 그룹 ID (NOT NULL)
   percentile: number;
   standardScore: number;
   gradeScore: number;
@@ -633,6 +634,7 @@ async function createMockScore(
       exam_date: params.examDate,
       exam_title: params.examTitle,
       subject_id: params.subjectId,
+      subject_group_id: params.subjectGroupId, // 교과 그룹 ID (NOT NULL)
       percentile: params.percentile,
       standard_score: params.standardScore,
       grade_score: params.gradeScore,
@@ -787,9 +789,14 @@ async function createStudentA(
 
   for (const score of mockScores) {
     const subjectId = metadata.subjectMap[score.subjectGroup];
+    const subjectGroupId = metadata.subjectGroupMap[score.subjectGroup];
 
     if (!subjectId) {
       throw new Error(`과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
+
+    if (!subjectGroupId) {
+      throw new Error(`교과 그룹을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
     await createMockScore({
@@ -799,6 +806,7 @@ async function createStudentA(
       examDate,
       examTitle,
       subjectId,
+      subjectGroupId,
       percentile: score.percentile,
       standardScore: score.standardScore,
       gradeScore: score.gradeScore,
@@ -954,9 +962,14 @@ async function createStudentB(
 
   for (const score of mockScores) {
     const subjectId = metadata.subjectMap[score.subjectGroup];
+    const subjectGroupId = metadata.subjectGroupMap[score.subjectGroup];
 
     if (!subjectId) {
       throw new Error(`과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
+
+    if (!subjectGroupId) {
+      throw new Error(`교과 그룹을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
     await createMockScore({
@@ -966,6 +979,7 @@ async function createStudentB(
       examDate,
       examTitle,
       subjectId,
+      subjectGroupId,
       percentile: score.percentile,
       standardScore: score.standardScore,
       gradeScore: score.gradeScore,
@@ -1121,9 +1135,14 @@ async function createStudentC(
 
   for (const score of mockScores) {
     const subjectId = metadata.subjectMap[score.subjectGroup];
+    const subjectGroupId = metadata.subjectGroupMap[score.subjectGroup];
 
     if (!subjectId) {
       throw new Error(`과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    }
+
+    if (!subjectGroupId) {
+      throw new Error(`교과 그룹을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
     await createMockScore({
@@ -1133,6 +1152,7 @@ async function createStudentC(
       examDate,
       examTitle,
       subjectId,
+      subjectGroupId,
       percentile: score.percentile,
       standardScore: score.standardScore,
       gradeScore: score.gradeScore,
