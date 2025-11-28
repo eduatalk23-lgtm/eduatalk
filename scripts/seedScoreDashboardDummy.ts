@@ -609,46 +609,44 @@ async function createInternalScore(
 /**
  * 모의고사 성적 생성
  */
+type CreateMockScoreParams = {
+  tenantId: string;
+  studentId: string;
+  examDate: string;
+  examTitle: string;
+  subjectId: string;
+  percentile: number;
+  standardScore: number;
+  gradeScore: number;
+};
+
 async function createMockScore(
-  tenantId: string,
-  studentId: string,
-  subjectGroupId: string,
-  subjectId: string,
-  grade: number,
-  examType: string,
-  percentile: number,
-  standardScore: number,
-  gradeScore: number,
-  subjectGroupName: string,
-  subjectName: string
+  params: CreateMockScoreParams
 ) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("student_mock_scores")
     .insert({
-      tenant_id: tenantId,
-      student_id: studentId,
-      subject_group_id: subjectGroupId,
-      subject_id: subjectId,
-      grade,
-      subject_group: subjectGroupName,
-      subject_name: subjectName,
-      exam_type: examType,
-      percentile,
-      standard_score: standardScore,
-      grade_score: gradeScore,
-    });
+      tenant_id: params.tenantId,
+      student_id: params.studentId,
+      exam_date: params.examDate,
+      exam_title: params.examTitle,
+      subject_id: params.subjectId,
+      percentile: params.percentile,
+      standard_score: params.standardScore,
+      grade_score: params.gradeScore,
+    })
+    .select("id")
+    .single();
 
   if (error) {
-    // PGRST205 에러인 경우 상세 정보 출력
-    if (error.code === 'PGRST205') {
-      console.error('\n⚠️  PGRST205 스키마 캐시 에러 발생');
-      console.error('   해결 방법:');
-      console.error('   1. Supabase Dashboard → Settings → API → Reload Schema');
-      console.error('   2. 또는 몇 분 후 다시 시도');
-      console.error(`   에러 상세: ${error.message}`);
-    }
-    throw new Error(`모의고사 성적 생성 실패: ${error.message}${error.code ? ` (코드: ${error.code})` : ''}`);
+    throw new Error(
+      `모의고사 성적 생성 실패: ${error.message}${
+        (error as any).code ? ` (코드: ${(error as any).code})` : ""
+      }`
+    );
   }
+
+  return data;
 }
 
 /**
@@ -749,8 +747,6 @@ async function createStudentA(
   }
 
   // 모의고사 성적 생성 (평백 85 - 내신 환산 백분위 75보다 +10 높음)
-  const examType = "모의고사";
-
   const mockScores = [
     {
       subjectGroup: "국어",
@@ -784,36 +780,26 @@ async function createStudentA(
     },
   ];
 
+  const examDate = "2025-03-15";
+  const examTitle = "2025학년도 3월 모의고사";
+
   for (const score of mockScores) {
-    const sgId = metadata.subjectGroupMap[score.subjectGroup];
     const subjectId = metadata.subjectMap[score.subjectGroup];
 
-    if (!sgId || !subjectId) {
-      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    if (!subjectId) {
+      throw new Error(`과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    // 과목 이름 매핑
-    const subjectNameMap: Record<string, string> = {
-      국어: "국어",
-      수학: "수학",
-      영어: "영어",
-      사회: "통합사회",
-      과학: "통합과학",
-    };
-
-    await createMockScore(
-      metadata.tenantId,
+    await createMockScore({
+      tenantId: metadata.tenantId,
       studentId,
-      sgId,
+      examDate,
+      examTitle,
       subjectId,
-      termInfo.grade,
-      examType,
-      score.percentile,
-      score.standardScore,
-      score.gradeScore,
-      score.subjectGroup,
-      subjectNameMap[score.subjectGroup] || score.subjectGroup
-    );
+      percentile: score.percentile,
+      standardScore: score.standardScore,
+      gradeScore: score.gradeScore,
+    });
   }
 
   console.log(`✅ 학생 A 생성 완료: ${studentId}`);
@@ -927,8 +913,6 @@ async function createStudentB(
   }
 
   // 모의고사 성적 생성 (평백 65 - 내신 환산 백분위 89보다 -24 낮음)
-  const examType = "모의고사";
-
   const mockScores = [
     {
       subjectGroup: "국어",
@@ -962,36 +946,26 @@ async function createStudentB(
     },
   ];
 
+  const examDate = "2025-03-15";
+  const examTitle = "2025학년도 3월 모의고사";
+
   for (const score of mockScores) {
-    const sgId = metadata.subjectGroupMap[score.subjectGroup];
     const subjectId = metadata.subjectMap[score.subjectGroup];
 
-    if (!sgId || !subjectId) {
-      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    if (!subjectId) {
+      throw new Error(`과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    // 과목 이름 매핑
-    const subjectNameMap: Record<string, string> = {
-      국어: "국어",
-      수학: "수학",
-      영어: "영어",
-      사회: "통합사회",
-      과학: "통합과학",
-    };
-
-    await createMockScore(
-      metadata.tenantId,
+    await createMockScore({
+      tenantId: metadata.tenantId,
       studentId,
-      sgId,
+      examDate,
+      examTitle,
       subjectId,
-      termInfo.grade,
-      examType,
-      score.percentile,
-      score.standardScore,
-      score.gradeScore,
-      score.subjectGroup,
-      subjectNameMap[score.subjectGroup] || score.subjectGroup
-    );
+      percentile: score.percentile,
+      standardScore: score.standardScore,
+      gradeScore: score.gradeScore,
+    });
   }
 
   console.log(`✅ 학생 B 생성 완료: ${studentId}`);
@@ -1105,8 +1079,6 @@ async function createStudentC(
   }
 
   // 모의고사 성적 생성 (평백 80 - 내신 환산 백분위 82와 차이 -2)
-  const examType = "모의고사";
-
   const mockScores = [
     {
       subjectGroup: "국어",
@@ -1140,36 +1112,26 @@ async function createStudentC(
     },
   ];
 
+  const examDate = "2025-03-15";
+  const examTitle = "2025학년도 3월 모의고사";
+
   for (const score of mockScores) {
-    const sgId = metadata.subjectGroupMap[score.subjectGroup];
     const subjectId = metadata.subjectMap[score.subjectGroup];
 
-    if (!sgId || !subjectId) {
-      throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
+    if (!subjectId) {
+      throw new Error(`과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    // 과목 이름 매핑
-    const subjectNameMap: Record<string, string> = {
-      국어: "국어",
-      수학: "수학",
-      영어: "영어",
-      사회: "통합사회",
-      과학: "통합과학",
-    };
-
-    await createMockScore(
-      metadata.tenantId,
+    await createMockScore({
+      tenantId: metadata.tenantId,
       studentId,
-      sgId,
+      examDate,
+      examTitle,
       subjectId,
-      termInfo.grade,
-      examType,
-      score.percentile,
-      score.standardScore,
-      score.gradeScore,
-      score.subjectGroup,
-      subjectNameMap[score.subjectGroup] || score.subjectGroup
-    );
+      percentile: score.percentile,
+      standardScore: score.standardScore,
+      gradeScore: score.gradeScore,
+    });
   }
 
   console.log(`✅ 학생 C 생성 완료: ${studentId}`);
