@@ -74,6 +74,8 @@ export async function GET(
       role: currentUser?.role,
       email: currentUser?.email,
       tenantId: currentUser?.tenantId,
+      requestedStudentId: studentId,
+      userIdMatches: currentUser?.userId === studentId,
     });
 
     // 인증되지 않은 경우 (선택적 - RLS가 처리할 수도 있음)
@@ -81,6 +83,15 @@ export async function GET(
     if (!currentUser) {
       console.warn("[api/score-dashboard] 인증되지 않은 사용자");
       // RLS가 처리하므로 여기서는 경고만
+    }
+
+    // 학생인 경우 자신의 데이터만 조회 가능한지 확인
+    if (currentUser?.role === "student" && currentUser?.userId !== studentId) {
+      console.warn("[api/score-dashboard] 학생이 다른 학생의 데이터를 조회하려고 시도:", {
+        currentUserId: currentUser.userId,
+        requestedStudentId: studentId,
+      });
+      // RLS 정책이 이를 차단할 것이지만, 명확한 에러 메시지를 위해 여기서도 확인
     }
 
     // 1) 학생 기본 정보 조회 (디버깅: tenant_id 조건 없이 먼저 확인)
