@@ -557,39 +557,63 @@ async function getStudentTermInfo(
 }
 
 /**
+ * 내신 성적 생성 파라미터 타입
+ */
+type CreateInternalScoreParams = {
+  tenantId: string;
+  studentId: string;
+  studentTermId: string;
+  curriculumRevisionId: string;
+  subjectGroupId: string;
+  subjectTypeId: string;
+  subjectId: string;
+  grade: number;
+  semester: number;
+  rankGrade: number;
+  creditHours: number;
+  rawScore: number;
+  avgScore: number;
+  stdDev: number;
+};
+
+/**
  * 내신 성적 생성 (student_internal_scores 테이블 사용)
+ * 
+ * 실제 스키마 기준:
+ * - tenant_id (NOT NULL)
+ * - student_id (NOT NULL)
+ * - student_term_id (NOT NULL)
+ * - curriculum_revision_id (NOT NULL)
+ * - subject_group_id (NOT NULL)
+ * - subject_type_id (NOT NULL)
+ * - subject_id (NOT NULL)
+ * - grade (NOT NULL)
+ * - semester (NOT NULL)
+ * - rank_grade (nullable)
+ * - credit_hours (nullable)
+ * - raw_score (nullable)
+ * - avg_score (nullable)
+ * - std_dev (nullable)
+ * - total_students (nullable)
  */
 async function createInternalScore(
-  tenantId: string,
-  studentId: string,
-  studentTermId: string,
-  curriculumRevisionId: string,
-  subjectGroupId: string,
-  subjectTypeId: string,
-  subjectId: string,
-  grade: number,
-  semester: number,
-  rankGrade: number,
-  creditHours: number,
-  rawScore: number,
-  avgScore: number,
-  stdDev: number
+  params: CreateInternalScoreParams
 ) {
   const { error } = await supabase.from("student_internal_scores").insert({
-    tenant_id: tenantId,
-    student_id: studentId,
-    student_term_id: studentTermId,
-    curriculum_revision_id: curriculumRevisionId,
-    subject_group_id: subjectGroupId,
-    subject_type_id: subjectTypeId,
-    subject_id: subjectId,
-    grade,
-    semester,
-    rank_grade: rankGrade,
-    credit_hours: creditHours,
-    raw_score: rawScore,
-    avg_score: avgScore,
-    std_dev: stdDev,
+    tenant_id: params.tenantId,
+    student_id: params.studentId,
+    student_term_id: params.studentTermId,
+    curriculum_revision_id: params.curriculumRevisionId,
+    subject_group_id: params.subjectGroupId,
+    subject_type_id: params.subjectTypeId,
+    subject_id: params.subjectId,
+    grade: params.grade,
+    semester: params.semester,
+    rank_grade: params.rankGrade,
+    credit_hours: params.creditHours,
+    raw_score: params.rawScore,
+    avg_score: params.avgScore,
+    std_dev: params.stdDev,
     total_students: 100,
   });
 
@@ -607,21 +631,40 @@ async function createInternalScore(
 }
 
 /**
- * 모의고사 성적 생성
+ * 모의고사 성적 생성 파라미터 타입
+ * 
+ * 실제 스키마 기준:
+ * - tenant_id (NOT NULL)
+ * - student_id (NOT NULL)
+ * - grade (NOT NULL, 1~3)
+ * - exam_date (NOT NULL)
+ * - exam_title (NOT NULL)
+ * - subject_id (NOT NULL)
+ * - subject_group_id (NOT NULL)
+ * - percentile (nullable)
+ * - standard_score (nullable)
+ * - grade_score (nullable)
  */
 type CreateMockScoreParams = {
   tenantId: string;
   studentId: string;
-  grade: number; // 학년 (NOT NULL)
-  examDate: string;
+  grade: number; // 학년 (NOT NULL, 1~3)
+  examDate: string; // YYYY-MM-DD 형식
   examTitle: string;
   subjectId: string;
   subjectGroupId: string; // 교과 그룹 ID (NOT NULL)
-  percentile: number;
-  standardScore: number;
-  gradeScore: number;
+  percentile: number | null;
+  standardScore: number | null;
+  gradeScore: number | null;
 };
 
+/**
+ * 모의고사 성적 생성 (student_mock_scores 테이블 사용)
+ * 
+ * 실제 스키마 기준으로 필수 필드만 사용:
+ * - exam_round, exam_type, subject_group (텍스트) 등은 제거
+ * - exam_date, exam_title, subject_group_id (UUID) 사용
+ */
 async function createMockScore(
   params: CreateMockScoreParams
 ) {
@@ -732,22 +775,22 @@ async function createStudentA(
       throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    await createInternalScore(
-      metadata.tenantId,
+    await createInternalScore({
+      tenantId: metadata.tenantId,
       studentId,
-      termInfo.studentTermId,
-      metadata.curriculumRevisionId,
-      sgId,
-      metadata.commonSubjectTypeId,
+      studentTermId: termInfo.studentTermId,
+      curriculumRevisionId: metadata.curriculumRevisionId,
+      subjectGroupId: sgId,
+      subjectTypeId: metadata.commonSubjectTypeId,
       subjectId,
-      termInfo.grade,
-      termInfo.semester,
-      score.rankGrade,
-      score.creditHours,
-      score.rawScore,
-      score.avgScore,
-      score.stdDev
-    );
+      grade: termInfo.grade,
+      semester: termInfo.semester,
+      rankGrade: score.rankGrade,
+      creditHours: score.creditHours,
+      rawScore: score.rawScore,
+      avgScore: score.avgScore,
+      stdDev: score.stdDev,
+    });
   }
 
   // 모의고사 성적 생성 (평백 85 - 내신 환산 백분위 75보다 +10 높음)
@@ -802,11 +845,11 @@ async function createStudentA(
     await createMockScore({
       tenantId: metadata.tenantId,
       studentId,
-      grade: 2, // 2학년
+      grade: 2, // 2학년 (NOT NULL)
       examDate,
       examTitle,
       subjectId,
-      subjectGroupId,
+      subjectGroupId, // NOT NULL
       percentile: score.percentile,
       standardScore: score.standardScore,
       gradeScore: score.gradeScore,
@@ -905,22 +948,22 @@ async function createStudentB(
       throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    await createInternalScore(
-      metadata.tenantId,
+    await createInternalScore({
+      tenantId: metadata.tenantId,
       studentId,
-      termInfo.studentTermId,
-      metadata.curriculumRevisionId,
-      sgId,
-      metadata.commonSubjectTypeId,
+      studentTermId: termInfo.studentTermId,
+      curriculumRevisionId: metadata.curriculumRevisionId,
+      subjectGroupId: sgId,
+      subjectTypeId: metadata.commonSubjectTypeId,
       subjectId,
-      termInfo.grade,
-      termInfo.semester,
-      score.rankGrade,
-      score.creditHours,
-      score.rawScore,
-      score.avgScore,
-      score.stdDev
-    );
+      grade: termInfo.grade,
+      semester: termInfo.semester,
+      rankGrade: score.rankGrade,
+      creditHours: score.creditHours,
+      rawScore: score.rawScore,
+      avgScore: score.avgScore,
+      stdDev: score.stdDev,
+    });
   }
 
   // 모의고사 성적 생성 (평백 65 - 내신 환산 백분위 89보다 -24 낮음)
@@ -975,11 +1018,11 @@ async function createStudentB(
     await createMockScore({
       tenantId: metadata.tenantId,
       studentId,
-      grade: 2, // 2학년
+      grade: 2, // 2학년 (NOT NULL)
       examDate,
       examTitle,
       subjectId,
-      subjectGroupId,
+      subjectGroupId, // NOT NULL
       percentile: score.percentile,
       standardScore: score.standardScore,
       gradeScore: score.gradeScore,
@@ -1078,22 +1121,22 @@ async function createStudentC(
       throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    await createInternalScore(
-      metadata.tenantId,
+    await createInternalScore({
+      tenantId: metadata.tenantId,
       studentId,
-      termInfo.studentTermId,
-      metadata.curriculumRevisionId,
-      sgId,
-      metadata.commonSubjectTypeId,
+      studentTermId: termInfo.studentTermId,
+      curriculumRevisionId: metadata.curriculumRevisionId,
+      subjectGroupId: sgId,
+      subjectTypeId: metadata.commonSubjectTypeId,
       subjectId,
-      termInfo.grade,
-      termInfo.semester,
-      score.rankGrade,
-      score.creditHours,
-      score.rawScore,
-      score.avgScore,
-      score.stdDev
-    );
+      grade: termInfo.grade,
+      semester: termInfo.semester,
+      rankGrade: score.rankGrade,
+      creditHours: score.creditHours,
+      rawScore: score.rawScore,
+      avgScore: score.avgScore,
+      stdDev: score.stdDev,
+    });
   }
 
   // 모의고사 성적 생성 (평백 80 - 내신 환산 백분위 82와 차이 -2)
@@ -1148,11 +1191,11 @@ async function createStudentC(
     await createMockScore({
       tenantId: metadata.tenantId,
       studentId,
-      grade: 2, // 2학년
+      grade: 2, // 2학년 (NOT NULL)
       examDate,
       examTitle,
       subjectId,
-      subjectGroupId,
+      subjectGroupId, // NOT NULL
       percentile: score.percentile,
       standardScore: score.standardScore,
       gradeScore: score.gradeScore,
@@ -1205,7 +1248,7 @@ async function main() {
       console.log(`   Student ID: ${result.studentId}`);
       console.log(`   Tenant ID: ${result.tenantId}`);
       console.log(`   학년: ${result.grade}, 학기: ${result.semester}, 학년도: ${result.schoolYear}`);
-      console.log(
+        console.log(
         `   API URL: http://localhost:3000/api/students/${result.studentId}/score-dashboard?tenantId=${result.tenantId}&grade=${result.grade}&semester=${result.semester}`
       );
       console.log("");
@@ -1213,10 +1256,13 @@ async function main() {
 
     console.log("=".repeat(80));
     console.log("📝 다음 단계:");
-    console.log("   1. API 테스트: npm run test:score-dashboard");
-    console.log(
-      "   2. 더미 데이터 삭제: npm run cleanup:score-dashboard-dummy"
-    );
+    console.log("   1. 더미 데이터 생성 완료!");
+    console.log("   2. API 테스트:");
+    console.log("      npx tsx scripts/testScoreDashboard.ts");
+    console.log("   3. 또는 브라우저에서 직접 확인:");
+    console.log("      위에 출력된 API URL을 브라우저에서 열어보세요.");
+    console.log("   4. 더미 데이터 삭제:");
+    console.log("      npm run cleanup:score-dashboard-dummy");
     console.log("=".repeat(80) + "\n");
   } catch (error: any) {
     console.error("❌ 오류 발생:", error.message);
