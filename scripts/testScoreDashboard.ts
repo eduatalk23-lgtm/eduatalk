@@ -31,10 +31,11 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 async function testScoreDashboard(
   studentId: string,
   tenantId: string,
-  termId?: string
+  grade?: string,
+  semester?: string
 ) {
   const url = `${BASE_URL}/api/students/${studentId}/score-dashboard?tenantId=${tenantId}${
-    termId ? `&termId=${termId}` : ""
+    grade && semester ? `&grade=${grade}&semester=${semester}` : ""
   }`;
 
   console.log(`\n🔍 API 호출: ${url}\n`);
@@ -163,28 +164,28 @@ async function listAvailableStudents() {
     console.log("📋 사용 가능한 학생 목록 (최근 10명):\n");
     
     for (const student of students) {
-      // 학생의 학기 정보 조회
-      const { data: terms } = await supabase
-        .from("student_terms")
-        .select("id, school_year, grade, semester")
+      // 학생의 최근 성적 정보 조회 (grade, semester)
+      const { data: scores } = await supabase
+        .from("student_school_scores")
+        .select("grade, semester")
         .eq("student_id", student.id)
-        .order("school_year", { ascending: false })
+        .order("grade", { ascending: false })
         .order("semester", { ascending: false })
         .limit(1);
 
-      const termId = terms && terms.length > 0 ? terms[0].id : null;
-      const termInfo = terms && terms.length > 0 
-        ? `${terms[0].school_year}년 ${terms[0].grade}학년 ${terms[0].semester}학기`
+      const grade = scores && scores.length > 0 ? scores[0].grade : student.grade || null;
+      const semester = scores && scores.length > 0 ? scores[0].semester : null;
+      const termInfo = grade && semester 
+        ? `${grade}학년 ${semester}학기`
         : "학기 정보 없음";
 
       console.log(`  👤 ${student.name || "이름 없음"} (ID: ${student.id})`);
       console.log(`     - Tenant ID: ${student.tenant_id || "없음"}`);
       console.log(`     - 학년: ${student.grade || "미설정"}`);
       console.log(`     - 학기: ${termInfo}`);
-      if (termId) {
-        console.log(`     - Term ID: ${termId}`);
+      if (grade && semester) {
         console.log(`     - 테스트 명령어:`);
-        console.log(`       npx tsx scripts/testScoreDashboard.ts ${student.id} ${student.tenant_id || ""} ${termId}`);
+        console.log(`       npx tsx scripts/testScoreDashboard.ts ${student.id} ${student.tenant_id || ""} ${grade} ${semester}`);
       }
       console.log("");
     }
@@ -205,9 +206,9 @@ async function main() {
   if (args.length < 2) {
     console.log("📝 성적 대시보드 API 테스트 스크립트\n");
     console.log("사용법:");
-    console.log("  npx tsx scripts/testScoreDashboard.ts <studentId> <tenantId> [termId]\n");
+    console.log("  npx tsx scripts/testScoreDashboard.ts <studentId> <tenantId> [grade] [semester]\n");
     console.log("예시:");
-    console.log("  npx tsx scripts/testScoreDashboard.ts <studentId> <tenantId> <termId>\n");
+    console.log("  npx tsx scripts/testScoreDashboard.ts <studentId> <tenantId> 2 1\n");
     console.log("=".repeat(80) + "\n");
     
     await listAvailableStudents();
@@ -216,14 +217,14 @@ async function main() {
     process.exit(1);
   }
 
-  const [studentId, tenantId, termId] = args;
+  const [studentId, tenantId, grade, semester] = args;
 
   if (!studentId || !tenantId) {
     console.error("❌ studentId와 tenantId는 필수입니다.");
     process.exit(1);
   }
 
-  await testScoreDashboard(studentId, tenantId, termId);
+  await testScoreDashboard(studentId, tenantId, grade, semester);
 }
 
 // 스크립트 실행

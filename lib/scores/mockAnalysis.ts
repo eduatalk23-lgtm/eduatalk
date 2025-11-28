@@ -113,13 +113,13 @@ export async function getMockAnalysis(
 ): Promise<MockAnalysis> {
   const supabase = await createSupabaseServerClient();
 
-  // 1. 가장 최근 시험 조회
+  // 1. 가장 최근 시험 조회 (exam_type, exam_round 기준)
   const { data: latestExam, error: latestError } = await supabase
     .from("student_mock_scores")
-    .select("exam_date, exam_title")
+    .select("exam_type, exam_round, created_at")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
-    .order("exam_date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -127,7 +127,7 @@ export async function getMockAnalysis(
     console.error("[scores/mockAnalysis] 최근 시험 조회 실패", latestError);
   }
 
-  if (!latestExam || !latestExam.exam_date || !latestExam.exam_title) {
+  if (!latestExam || !latestExam.exam_type || !latestExam.exam_round) {
     return {
       recentExam: null,
       avgPercentile: null,
@@ -136,8 +136,10 @@ export async function getMockAnalysis(
     };
   }
 
-  const examDate = String(latestExam.exam_date);
-  const examTitle = String(latestExam.exam_title);
+  const examType = String(latestExam.exam_type);
+  const examRound = String(latestExam.exam_round);
+  const examDate = latestExam.created_at ? new Date(latestExam.created_at).toISOString().split('T')[0] : "";
+  const examTitle = `${examType} ${examRound}`;
 
   // 2. 해당 시험의 과목별 성적 조회
   // student_mock_scores → subjects → subject_groups 순으로 조인
@@ -147,8 +149,8 @@ export async function getMockAnalysis(
     .select("percentile, standard_score, grade_score, subject_id")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
-    .eq("exam_date", examDate)
-    .eq("exam_title", examTitle)
+    .eq("exam_type", examType)
+    .eq("exam_round", examRound)
     .not("subject_id", "is", null);
 
   if (mockScoresError) {
@@ -158,7 +160,7 @@ export async function getMockAnalysis(
     );
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,
@@ -171,7 +173,7 @@ export async function getMockAnalysis(
     console.warn("[scores/mockAnalysis] 모의고사 성적 데이터가 없습니다");
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,
@@ -196,7 +198,7 @@ export async function getMockAnalysis(
     console.warn("[scores/mockAnalysis] subject_id가 없습니다");
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,
@@ -225,7 +227,7 @@ export async function getMockAnalysis(
     console.error("[scores/mockAnalysis] 과목 정보 조회 실패", subjectsError);
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,
@@ -238,7 +240,7 @@ export async function getMockAnalysis(
     console.warn("[scores/mockAnalysis] subjects 데이터가 없습니다");
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,
@@ -256,7 +258,7 @@ export async function getMockAnalysis(
     console.warn("[scores/mockAnalysis] subject_group_id가 없습니다");
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,
@@ -277,7 +279,7 @@ export async function getMockAnalysis(
     console.error("[scores/mockAnalysis] 교과 그룹 정보 조회 실패", sgError);
     return {
       recentExam: {
-        examDate,
+        examDate: examDate || "",
         examTitle,
       },
       avgPercentile: null,

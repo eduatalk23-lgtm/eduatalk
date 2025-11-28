@@ -41,37 +41,17 @@ export async function getInternalPercentile(
   curriculumRevisionId: string,
   totalGpa: number
 ): Promise<number | null> {
-  const supabase = await createSupabaseServerClient();
-
-  // grade_conversion_rules에서 가장 가까운 등급 조회
-  const { data, error } = await supabase
-    .from("grade_conversion_rules")
-    .select("converted_percentile, grade_level")
-    .eq("curriculum_revision_id", curriculumRevisionId)
-    .order("grade_level", { ascending: true });
-
-  if (error) {
-    console.error("[scores/admissionStrategy] 등급 환산 규칙 조회 실패", error);
-    return null;
-  }
-
-  if (!data || data.length === 0) {
-    return null;
-  }
-
-  // 가장 가까운 등급 찾기
-  let closest = data[0];
-  let minDiff = Math.abs(Number(data[0].grade_level) - totalGpa);
-
-  for (const row of data) {
-    const diff = Math.abs(Number(row.grade_level) - totalGpa);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = row;
-    }
-  }
-
-  return Number(closest.converted_percentile);
+  // grade_conversion_rules 테이블이 없으므로 간단한 환산 공식 사용
+  // GPA 1.0 = 100%, GPA 9.0 = 0% (선형 환산)
+  // 실제로는 더 정교한 환산 공식이 필요할 수 있음
+  
+  // 기본 환산 공식: percentile = 100 - (totalGpa - 1) * 12.5
+  // GPA 1.0 → 100%, GPA 2.0 → 87.5%, GPA 3.0 → 75%, ..., GPA 9.0 → 0%
+  const percentile = Math.max(0, Math.min(100, 100 - (totalGpa - 1) * 12.5));
+  
+  console.log(`[scores/admissionStrategy] GPA ${totalGpa} → 백분위 ${percentile.toFixed(2)}%`);
+  
+  return percentile;
 }
 
 /**

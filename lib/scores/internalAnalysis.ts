@@ -37,15 +37,21 @@ export async function getInternalAnalysis(
 
   // 1. 전체 GPA 계산
   let gpaQuery = supabase
-    .from("student_internal_scores")
-    .select("rank_grade, credit_hours")
+    .from("student_school_scores")
+    .select("rank_grade, credit_hours, grade, semester")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("rank_grade", "is", null)
     .not("credit_hours", "is", null);
 
+  // studentTermId가 없으면 grade, semester로 필터링
+  // studentTermId 형식: "grade:semester" 또는 직접 grade, semester 파라미터 사용
   if (studentTermId) {
-    gpaQuery = gpaQuery.eq("student_term_id", studentTermId);
+    // studentTermId가 "grade:semester" 형식인 경우 파싱
+    const parts = studentTermId.split(":");
+    if (parts.length === 2) {
+      gpaQuery = gpaQuery.eq("grade", parseInt(parts[0])).eq("semester", parseInt(parts[1]));
+    }
   }
 
   const { data: gpaData, error: gpaError } = await gpaQuery;
@@ -73,18 +79,21 @@ export async function getInternalAnalysis(
 
   // 2. Z-Index 계산
   let zIndexQuery = supabase
-    .from("student_internal_scores")
-    .select("raw_score, avg_score, std_dev, credit_hours")
+    .from("student_school_scores")
+    .select("raw_score, subject_average, standard_deviation, credit_hours, grade, semester")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("raw_score", "is", null)
-    .not("avg_score", "is", null)
-    .not("std_dev", "is", null)
+    .not("subject_average", "is", null)
+    .not("standard_deviation", "is", null)
     .not("credit_hours", "is", null)
-    .gt("std_dev", 0); // 표준편차가 0보다 큰 경우만
+    .gt("standard_deviation", 0); // 표준편차가 0보다 큰 경우만
 
   if (studentTermId) {
-    zIndexQuery = zIndexQuery.eq("student_term_id", studentTermId);
+    const parts = studentTermId.split(":");
+    if (parts.length === 2) {
+      zIndexQuery = zIndexQuery.eq("grade", parseInt(parts[0])).eq("semester", parseInt(parts[1]));
+    }
   }
 
   const { data: zIndexData, error: zIndexError } = await zIndexQuery;
@@ -98,8 +107,8 @@ export async function getInternalAnalysis(
   if (zIndexData && zIndexData.length > 0) {
     const totalZCredit = zIndexData.reduce((sum, row) => {
       const rawScore = Number(row.raw_score) || 0;
-      const avgScore = Number(row.avg_score) || 0;
-      const stdDev = Number(row.std_dev) || 1;
+      const avgScore = Number(row.subject_average) || 0;
+      const stdDev = Number(row.standard_deviation) || 1;
       const creditHours = Number(row.credit_hours) || 0;
 
       if (stdDev > 0) {
@@ -121,21 +130,18 @@ export async function getInternalAnalysis(
 
   // 3. 교과군별 GPA 계산
   let subjectQuery = supabase
-    .from("student_internal_scores")
-    .select(
-      `
-      rank_grade,
-      credit_hours,
-      subject_groups!inner(name)
-      `
-    )
+    .from("student_school_scores")
+    .select("rank_grade, credit_hours, subject_group")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("rank_grade", "is", null)
     .not("credit_hours", "is", null);
 
   if (studentTermId) {
-    subjectQuery = subjectQuery.eq("student_term_id", studentTermId);
+    const parts = studentTermId.split(":");
+    if (parts.length === 2) {
+      subjectQuery = subjectQuery.eq("grade", parseInt(parts[0])).eq("semester", parseInt(parts[1]));
+    }
   }
 
   const { data: subjectData, error: subjectError } = await subjectQuery;
@@ -151,7 +157,7 @@ export async function getInternalAnalysis(
     const subjectGroups: Record<string, { totalGradeCredit: number; totalCredit: number }> = {};
 
     for (const row of subjectData) {
-      const subjectGroupName = (row.subject_groups as any)?.name;
+      const subjectGroupName = row.subject_group;
       if (!subjectGroupName) continue;
 
       const rankGrade = Number(row.rank_grade) || 0;

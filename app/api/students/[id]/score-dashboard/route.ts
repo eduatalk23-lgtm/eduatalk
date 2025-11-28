@@ -1,7 +1,7 @@
 /**
  * 학생 성적 대시보드 API
  * 
- * GET /api/students/:id/score-dashboard?tenantId=...&termId=...
+ * GET /api/students/:id/score-dashboard?tenantId=...&grade=...&semester=...
  * 
  * 내신 분석 + 모의고사 분석 + 수시/정시 전략 분석 결과를 반환합니다.
  */
@@ -61,13 +61,23 @@ export async function GET(
   try {
     const { id: studentId } = await params;
     const tenantId = req.nextUrl.searchParams.get("tenantId");
-    const termId = req.nextUrl.searchParams.get("termId");
+    const gradeParam = req.nextUrl.searchParams.get("grade");
+    const semesterParam = req.nextUrl.searchParams.get("semester");
 
-    if (!tenantId || !termId) {
+    if (!tenantId) {
       return NextResponse.json(
-        { error: "tenantId and termId are required" },
+        { error: "tenantId is required" },
         { status: 400 }
       );
+    }
+
+    // grade와 semester가 없으면 최근 성적에서 가져오기
+    let grade: number | null = null;
+    let semester: number | null = null;
+
+    if (gradeParam && semesterParam) {
+      grade = parseInt(gradeParam);
+      semester = parseInt(semesterParam);
     }
 
     // 인증 확인
@@ -86,74 +96,26 @@ export async function GET(
       ? createSupabaseAdminClient() || (await createSupabaseServerClient())
       : await createSupabaseServerClient();
 
-    // 1) 학생 + term 조인으로 존재 여부 및 기본 프로필 조회
-    // students와 student_terms를 JOIN해서 한 번에 조회
-    // Supabase에서는 student_terms를 기준으로 조회하는 것이 더 안전함
-    const { data: termRow, error: termError } = await supabase
-      .from("student_terms")
-      .select(
-        `
-        id,
-        school_year,
-        grade,
-        semester,
-        curriculum_revision_id,
-        students!inner(
-          id,
-          name,
-          grade,
-          class,
-          school_type
-        )
-        `
-      )
-      .eq("id", termId)
+    // 1) 학생 조회
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id, name, grade, class")
+      .eq("id", studentId)
       .eq("tenant_id", tenantId)
-      .eq("students.id", studentId)
-      .eq("students.tenant_id", tenantId)
       .maybeSingle();
 
-    if (termError) {
-      console.error("[api/score-dashboard] 학생/학기 조회 실패", {
-        error: termError,
-        code: termError.code,
-        message: termError.message,
+    if (studentError) {
+      console.error("[api/score-dashboard] 학생 조회 실패", {
+        error: studentError,
+        code: studentError.code,
+        message: studentError.message,
       });
 
-      // RLS 정책 에러인 경우
-      if (
-        termError.code === "42501" ||
-        termError.message?.includes("permission") ||
-        termError.message?.includes("policy")
-      ) {
-        return NextResponse.json(
-          {
-            error: "Permission denied",
-            details: "RLS policy may be blocking the query.",
-            code: termError.code,
-          },
-          { status: 403 }
-        );
-      }
-
       return NextResponse.json(
-        { error: "Failed to fetch student/term", details: termError.message },
+        { error: "Failed to fetch student", details: studentError.message },
         { status: 500 }
       );
     }
-
-    if (!termRow) {
-      return NextResponse.json(
-        { error: "Student not found" },
-        { status: 404 }
-      );
-    }
-
-    // students는 배열로 반환될 수 있으므로 첫 번째 항목 사용
-    const student =
-      Array.isArray(termRow.students) && termRow.students.length > 0
-        ? termRow.students[0]
-        : termRow.students;
 
     if (!student) {
       return NextResponse.json(
@@ -162,14 +124,45 @@ export async function GET(
       );
     }
 
-    const curriculumRevisionId =
-      (termRow.curriculum_revision_id as string | null) ?? null;
+    // grade와 semester가 없으면 최근 성적에서 가져오기
+    if (!grade || !semester) {
+      const { data: recentScore } = await supabase
+        .from("student_school_scores")
+        .select("grade, semester")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .order("grade", { ascending: false })
+        .order("semester", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    // 2) 내신 분석 (특정 term 기준)
+      if (recentScore) {
+        grade = recentScore.grade;
+        semester = recentScore.semester;
+      } else {
+        // 기본값: 학생의 현재 학년, 1학기
+        grade = student.grade || 2;
+        semester = 1;
+      }
+    }
+
+    // curriculum_revision_id는 활성화된 최신 교육과정 사용
+    const { data: activeRevision } = await supabase
+      .from("curriculum_revisions")
+      .select("id")
+      .eq("is_active", true)
+      .order("year", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const curriculumRevisionId = activeRevision?.id || null;
+
+    // 2) 내신 분석 (특정 grade, semester 기준)
+    const studentTermId = `${grade}:${semester}`;
     const internal = await getInternalAnalysis(
       tenantId,
       studentId,
-      termId // studentTermId로 사용
+      studentTermId
     );
 
     // 2-1) 내신 백분위 환산
@@ -201,11 +194,11 @@ export async function GET(
         id: student.id,
         name: student.name,
         grade: student.grade,
-        class: student.class,
-        schoolType: student.school_type,
-        schoolYear: termRow.school_year,
-        termGrade: termRow.grade,
-        semester: termRow.semester,
+        class: student.class ? parseInt(student.class) : null,
+        schoolType: null, // students 테이블에 school_type 컬럼이 없음
+        schoolYear: new Date().getFullYear(), // 현재 연도 사용
+        termGrade: grade,
+        semester: semester,
       },
       internalAnalysis: {
         totalGpa: internal.totalGpa,
