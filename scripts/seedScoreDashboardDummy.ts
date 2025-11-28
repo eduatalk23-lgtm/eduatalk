@@ -14,6 +14,7 @@ import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
 import path from "path";
+import { getOrCreateStudentTerm, calculateSchoolYear } from "@/lib/data/studentTerms";
 
 // .env.local 파일 로드
 config({ path: path.resolve(process.cwd(), ".env.local") });
@@ -435,22 +436,36 @@ async function createStudent(
 }
 
 /**
- * 학생 학기 정보 반환 (student_terms 테이블이 없으므로 grade, semester만 반환)
+ * 학생 학기 정보 반환 (student_terms 테이블 조회/생성)
  */
-function getStudentTermInfo(
+async function getStudentTermInfo(
+  tenantId: string,
+  studentId: string,
+  curriculumRevisionId: string,
   schoolYear: number,
   grade: number,
   semester: number
-): { grade: number; semester: number; schoolYear: number } {
-  return { grade, semester, schoolYear };
+): Promise<{ grade: number; semester: number; schoolYear: number; studentTermId: string }> {
+  const studentTermId = await getOrCreateStudentTerm({
+    tenant_id: tenantId,
+    student_id: studentId,
+    school_year: schoolYear,
+    grade,
+    semester,
+    curriculum_revision_id: curriculumRevisionId,
+  });
+  
+  return { grade, semester, schoolYear, studentTermId };
 }
 
 /**
- * 내신 성적 생성
+ * 내신 성적 생성 (student_internal_scores 테이블 사용)
  */
 async function createInternalScore(
   tenantId: string,
   studentId: string,
+  studentTermId: string,
+  curriculumRevisionId: string,
   subjectGroupId: string,
   subjectTypeId: string,
   subjectId: string,
@@ -460,27 +475,23 @@ async function createInternalScore(
   creditHours: number,
   rawScore: number,
   avgScore: number,
-  stdDev: number,
-  subjectGroupName: string,
-  subjectTypeName: string,
-  subjectName: string
+  stdDev: number
 ) {
-  const { error } = await supabase.from("student_school_scores").insert({
+  const { error } = await supabase.from("student_internal_scores").insert({
     tenant_id: tenantId,
     student_id: studentId,
+    student_term_id: studentTermId,
+    curriculum_revision_id: curriculumRevisionId,
     subject_group_id: subjectGroupId,
     subject_type_id: subjectTypeId,
     subject_id: subjectId,
     grade,
     semester,
-    subject_group: subjectGroupName,
-    subject_type: subjectTypeName,
-    subject_name: subjectName,
     rank_grade: rankGrade,
     credit_hours: creditHours,
     raw_score: rawScore,
-    subject_average: avgScore,
-    standard_deviation: stdDev,
+    avg_score: avgScore,
+    std_dev: stdDev,
     total_students: 100,
   });
 
@@ -560,7 +571,15 @@ async function createStudentA(
     2
   );
 
-  const termInfo = getStudentTermInfo(2025, 2, 1);
+  const schoolYear = 2025;
+  const termInfo = await getStudentTermInfo(
+    metadata.tenantId,
+    studentId,
+    metadata.curriculumRevisionId,
+    schoolYear,
+    2,
+    1
+  );
 
   // 내신 성적 생성 (GPA 3.2 근처 - 환산 백분위 약 75)
   // rank_grade: 평균 3.2 (3등급과 4등급 혼합)
@@ -615,18 +634,11 @@ async function createStudentA(
       throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    // 과목 이름 매핑
-    const subjectNameMap: Record<string, string> = {
-      국어: "국어",
-      수학: "수학",
-      영어: "영어",
-      사회: "통합사회",
-      과학: "통합과학",
-    };
-
     await createInternalScore(
       metadata.tenantId,
       studentId,
+      termInfo.studentTermId,
+      metadata.curriculumRevisionId,
       sgId,
       metadata.commonSubjectTypeId,
       subjectId,
@@ -636,10 +648,7 @@ async function createStudentA(
       score.creditHours,
       score.rawScore,
       score.avgScore,
-      score.stdDev,
-      score.subjectGroup,
-      "공통",
-      subjectNameMap[score.subjectGroup] || score.subjectGroup
+      score.stdDev
     );
   }
 
@@ -742,7 +751,15 @@ async function createStudentB(
     2
   );
 
-  const termInfo = getStudentTermInfo(2025, 2, 1);
+  const schoolYear = 2025;
+  const termInfo = await getStudentTermInfo(
+    metadata.tenantId,
+    studentId,
+    metadata.curriculumRevisionId,
+    schoolYear,
+    2,
+    1
+  );
 
   // 내신 성적 생성 (GPA 2.0 근처 - 환산 백분위 약 89)
   // rank_grade: 평균 2.0 (1등급과 2등급 혼합)
@@ -797,18 +814,11 @@ async function createStudentB(
       throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    // 과목 이름 매핑
-    const subjectNameMap: Record<string, string> = {
-      국어: "국어",
-      수학: "수학",
-      영어: "영어",
-      사회: "통합사회",
-      과학: "통합과학",
-    };
-
     await createInternalScore(
       metadata.tenantId,
       studentId,
+      termInfo.studentTermId,
+      metadata.curriculumRevisionId,
       sgId,
       metadata.commonSubjectTypeId,
       subjectId,
@@ -818,16 +828,13 @@ async function createStudentB(
       score.creditHours,
       score.rawScore,
       score.avgScore,
-      score.stdDev,
-      score.subjectGroup,
-      "공통",
-      subjectNameMap[score.subjectGroup] || score.subjectGroup
+      score.stdDev
     );
   }
 
   // 모의고사 성적 생성 (평백 65 - 내신 환산 백분위 89보다 -24 낮음)
-  const examDate = "2025-06-01";
-  const examTitle = "2025-06 모평";
+  const examType = "모의고사";
+  const examRound = "2025-06";
 
   const mockScores = [
     {
@@ -924,7 +931,15 @@ async function createStudentC(
     2
   );
 
-  const termInfo = getStudentTermInfo(2025, 2, 1);
+  const schoolYear = 2025;
+  const termInfo = await getStudentTermInfo(
+    metadata.tenantId,
+    studentId,
+    metadata.curriculumRevisionId,
+    schoolYear,
+    2,
+    1
+  );
 
   // 내신 성적 생성 (GPA 2.5 근처 - 환산 백분위 약 82)
   // rank_grade: 평균 2.5 (2등급과 3등급 혼합)
@@ -979,18 +994,11 @@ async function createStudentC(
       throw new Error(`교과 그룹 또는 과목을 찾을 수 없습니다: ${score.subjectGroup}`);
     }
 
-    // 과목 이름 매핑
-    const subjectNameMap: Record<string, string> = {
-      국어: "국어",
-      수학: "수학",
-      영어: "영어",
-      사회: "통합사회",
-      과학: "통합과학",
-    };
-
     await createInternalScore(
       metadata.tenantId,
       studentId,
+      termInfo.studentTermId,
+      metadata.curriculumRevisionId,
       sgId,
       metadata.commonSubjectTypeId,
       subjectId,
@@ -1000,16 +1008,13 @@ async function createStudentC(
       score.creditHours,
       score.rawScore,
       score.avgScore,
-      score.stdDev,
-      score.subjectGroup,
-      "공통",
-      subjectNameMap[score.subjectGroup] || score.subjectGroup
+      score.stdDev
     );
   }
 
   // 모의고사 성적 생성 (평백 80 - 내신 환산 백분위 82와 차이 -2)
-  const examDate = "2025-06-01";
-  const examTitle = "2025-06 모평";
+  const examType = "모의고사";
+  const examRound = "2025-06";
 
   const mockScores = [
     {
