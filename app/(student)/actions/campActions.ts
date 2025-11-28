@@ -220,6 +220,15 @@ export const submitCampParticipation = withErrorHandling(
       is_locked: true,
     }));
 
+    // 디버깅: 템플릿 학원 일정 확인
+    console.log("[campActions] 템플릿 학원 일정:", {
+      templateId: invitation.camp_template_id,
+      templateAcademySchedulesCount: templateAcademySchedules.length,
+      templateAcademySchedules: templateAcademySchedules,
+      wizardDataAcademySchedulesCount: wizardData.academy_schedules?.length || 0,
+      wizardDataAcademySchedules: wizardData.academy_schedules,
+    });
+
     // 템플릿 기본값 + 학생 입력값 병합
     const mergedData: Partial<WizardData> = {
       ...templateData,
@@ -264,6 +273,18 @@ export const submitCampParticipation = withErrorHandling(
       "@/lib/utils/planGroupDataSync"
     );
     const creationData = syncWizardDataToCreationData(mergedData as WizardData);
+
+    // 디버깅: 병합된 학원 일정 확인
+    console.log("[campActions] 병합된 학원 일정:", {
+      mergedAcademySchedulesCount: mergedData.academy_schedules?.length || 0,
+      mergedAcademySchedules: mergedData.academy_schedules,
+    });
+
+    // 디버깅: 변환된 학원 일정 확인
+    console.log("[campActions] 변환된 학원 일정 (creationData):", {
+      creationDataAcademySchedulesCount: creationData.academy_schedules?.length || 0,
+      creationDataAcademySchedules: creationData.academy_schedules,
+    });
 
     // 학생 콘텐츠의 master_content_id 조회 (배치 조회)
     const masterContentIdMap = new Map<string, string | null>();
@@ -336,6 +357,28 @@ export const submitCampParticipation = withErrorHandling(
         creationData.scheduler_options = {};
       }
       (creationData.scheduler_options as any).template_block_set_id = blockSetId;
+    }
+
+    // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
+    // (학원 일정은 학생별 전역 관리이므로, 캠프 모드 제출 시 템플릿 일정으로 교체)
+    if (creationData.academy_schedules && creationData.academy_schedules.length > 0) {
+      const deleteQuery = supabase
+        .from("academy_schedules")
+        .delete()
+        .eq("student_id", user.userId);
+
+      if (tenantContext.tenantId) {
+        deleteQuery.eq("tenant_id", tenantContext.tenantId);
+      }
+
+      const { error: deleteError } = await deleteQuery;
+
+      if (deleteError) {
+        console.warn("[campActions] 기존 학원 일정 삭제 실패 (무시하고 계속 진행):", deleteError);
+        // 삭제 실패해도 계속 진행 (새 일정 저장 시도)
+      } else {
+        console.log("[campActions] 기존 학원 일정 삭제 완료");
+      }
     }
 
     let groupId: string;

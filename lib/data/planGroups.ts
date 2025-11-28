@@ -1151,8 +1151,17 @@ export async function createStudentAcademySchedules(
   const supabase = await createSupabaseServerClient();
 
   if (schedules.length === 0) {
+    console.log("[createStudentAcademySchedules] 학원 일정이 없습니다.");
     return { success: true };
   }
+
+  // 디버깅: 입력된 학원 일정 확인
+  console.log("[createStudentAcademySchedules] 입력된 학원 일정:", {
+    studentId,
+    tenantId,
+    schedulesCount: schedules.length,
+    schedules: schedules,
+  });
 
   // 중복 체크: 같은 요일, 시간대의 학원 일정이 이미 있으면 스킵
   const existingSchedules = await getStudentAcademySchedules(studentId, tenantId);
@@ -1160,11 +1169,25 @@ export async function createStudentAcademySchedules(
     existingSchedules.map((s) => `${s.day_of_week}:${s.start_time}:${s.end_time}`)
   );
 
+  // 디버깅: 기존 학원 일정 확인
+  console.log("[createStudentAcademySchedules] 기존 학원 일정:", {
+    existingSchedulesCount: existingSchedules.length,
+    existingKeys: Array.from(existingKeys),
+  });
+
   const newSchedules = schedules.filter(
     (s) => !existingKeys.has(`${s.day_of_week}:${s.start_time}:${s.end_time}`)
   );
 
+  // 디버깅: 필터링된 새 학원 일정 확인
+  console.log("[createStudentAcademySchedules] 필터링된 새 학원 일정:", {
+    newSchedulesCount: newSchedules.length,
+    newSchedules: newSchedules,
+    skippedCount: schedules.length - newSchedules.length,
+  });
+
   if (newSchedules.length === 0) {
+    console.log("[createStudentAcademySchedules] 모든 학원 일정이 이미 존재합니다.");
     return { success: true }; // 모든 학원 일정이 이미 존재
   }
 
@@ -1245,6 +1268,11 @@ export async function createStudentAcademySchedules(
     console.error("[data/planGroups] 학생 학원 일정 생성 실패", error);
     return { success: false, error: error.message };
   }
+
+  console.log("[createStudentAcademySchedules] 학원 일정 저장 완료:", {
+    savedCount: payload.length,
+    savedSchedules: payload,
+  });
 
   return { success: true };
 }
