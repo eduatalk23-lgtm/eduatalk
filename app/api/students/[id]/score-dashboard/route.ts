@@ -66,10 +66,38 @@ export async function GET(
 
     const supabase = await createSupabaseServerClient();
 
-    // 1) 학생 기본 정보 조회
+    // 1) 학생 기본 정보 조회 (디버깅: tenant_id 조건 없이 먼저 확인)
+    console.log("[api/score-dashboard] 학생 조회 시작:", {
+      studentId,
+      tenantId,
+    });
+
+    // 디버깅: tenant_id 조건 없이 조회
+    const { data: studentWithoutTenant, error: checkError } = await supabase
+      .from("students")
+      .select("id, name, grade, school_type, tenant_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("[api/score-dashboard] 학생 조회 실패 (tenant_id 조건 없음)", checkError);
+    } else if (studentWithoutTenant) {
+      console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음):", {
+        found: true,
+        studentId: studentWithoutTenant.id,
+        name: studentWithoutTenant.name,
+        actualTenantId: studentWithoutTenant.tenant_id,
+        requestedTenantId: tenantId,
+        tenantIdMatch: studentWithoutTenant.tenant_id === tenantId,
+      });
+    } else {
+      console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음): 학생을 찾을 수 없음");
+    }
+
+    // 실제 쿼리: tenant_id 조건 포함
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, name, grade, school_type")
+      .select("id, name, grade, school_type, tenant_id")
       .eq("id", studentId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -83,8 +111,35 @@ export async function GET(
     }
 
     if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+      // 더 자세한 에러 메시지 제공
+      const errorMessage = studentWithoutTenant
+        ? `Student found but tenant_id mismatch. Student tenant_id: ${studentWithoutTenant.tenant_id}, Requested tenant_id: ${tenantId}`
+        : "Student not found";
+      
+      console.error("[api/score-dashboard] 학생 조회 실패:", {
+        studentId,
+        tenantId,
+        errorMessage,
+        studentExists: !!studentWithoutTenant,
+        actualTenantId: studentWithoutTenant?.tenant_id,
+      });
+
+      return NextResponse.json(
+        { 
+          error: "Student not found",
+          details: studentWithoutTenant
+            ? `Student exists but tenant_id mismatch. Expected: ${tenantId}, Actual: ${studentWithoutTenant.tenant_id}`
+            : "Student does not exist",
+        },
+        { status: 404 }
+      );
     }
+
+    console.log("[api/score-dashboard] 학생 조회 성공:", {
+      studentId: student.id,
+      name: student.name,
+      tenantId: student.tenant_id,
+    });
 
     // 2) 내신 분석
     const internal = await getInternalAnalysis(
