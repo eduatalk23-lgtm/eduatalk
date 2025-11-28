@@ -177,7 +177,6 @@ async function fetchMetadata() {
         .insert({
           curriculum_revision_id: curriculumRevisionId,
           name: missingName,
-          display_order: 0,
         })
         .select("id, name")
         .single();
