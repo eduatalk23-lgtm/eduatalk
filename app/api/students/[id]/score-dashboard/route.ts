@@ -1,0 +1,172 @@
+/**
+ * 학생 성적 대시보드 API
+ * 
+ * GET /api/students/:id/score-dashboard?tenantId=...&termId=...
+ * 
+ * 내신 분석 + 모의고사 분석 + 수시/정시 전략 분석 결과를 반환합니다.
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getInternalAnalysis } from "@/lib/scores/internalAnalysis";
+import { getMockAnalysis } from "@/lib/scores/mockAnalysis";
+import {
+  getInternalPercentile,
+  analyzeAdmissionStrategy,
+} from "@/lib/scores/admissionStrategy";
+
+/**
+ * 학생 성적 대시보드 응답 타입
+ */
+type ScoreDashboardResponse = {
+  studentProfile: {
+    id: string;
+    name: string;
+    grade: number | null;
+    semester?: number | null;
+    schoolType?: string | null;
+  };
+  internalAnalysis: {
+    totalGpa: number | null;
+    zIndex: number | null;
+    subjectStrength: Record<string, number>;
+  };
+  mockAnalysis: {
+    recentExam: { examDate: string; examTitle: string } | null;
+    avgPercentile: number | null;
+    totalStdScore: number | null;
+    best3GradeSum: number | null;
+  };
+  strategyResult: {
+    type: string;
+    message: string;
+    data: {
+      internalPct: number | null;
+      mockPct: number | null;
+      diff: number | null;
+    };
+  };
+};
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: studentId } = await params;
+    const tenantId = req.nextUrl.searchParams.get("tenantId");
+    const studentTermId = req.nextUrl.searchParams.get("termId") || undefined;
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: "tenantId required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 1) 학생 기본 정보 조회
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id, name, grade, school_type")
+      .eq("id", studentId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+
+    if (studentError) {
+      console.error("[api/score-dashboard] 학생 조회 실패", studentError);
+      return NextResponse.json(
+        { error: "Failed to fetch student" },
+        { status: 500 }
+      );
+    }
+
+    if (!student) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+
+    // 2) 내신 분석
+    const internal = await getInternalAnalysis(
+      tenantId,
+      studentId,
+      studentTermId
+    );
+
+    // 2-1) student_terms에서 curriculum_revision_id 조회 (내신 환산용)
+    let curriculumRevisionId: string | null = null;
+    if (studentTermId) {
+      const { data: termRow, error: termError } = await supabase
+        .from("student_terms")
+        .select("curriculum_revision_id")
+        .eq("id", studentTermId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (!termError && termRow) {
+        curriculumRevisionId = termRow.curriculum_revision_id;
+      }
+    } else {
+      // studentTermId가 없으면 가장 최근 학기의 curriculum_revision_id 조회
+      const { data: latestTerm, error: latestTermError } = await supabase
+        .from("student_terms")
+        .select("curriculum_revision_id")
+        .eq("tenant_id", tenantId)
+        .eq("student_id", studentId)
+        .order("school_year", { ascending: false })
+        .order("grade", { ascending: false })
+        .order("semester", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!latestTermError && latestTerm) {
+        curriculumRevisionId = latestTerm.curriculum_revision_id;
+      }
+    }
+
+    // 내신 백분위 환산
+    const internalPct =
+      internal.totalGpa != null && curriculumRevisionId
+        ? await getInternalPercentile(curriculumRevisionId, internal.totalGpa)
+        : null;
+
+    // 3) 모의고사 분석
+    const mock = await getMockAnalysis(tenantId, studentId);
+
+    // 4) 유불리 전략 분석
+    const strategy = analyzeAdmissionStrategy(
+      internalPct,
+      mock.avgPercentile,
+      internal.zIndex
+    );
+
+    // 5) 응답 조립
+    const response: ScoreDashboardResponse = {
+      studentProfile: {
+        id: student.id,
+        name: student.name,
+        grade: student.grade,
+        schoolType: student.school_type || null,
+      },
+      internalAnalysis: {
+        totalGpa: internal.totalGpa,
+        zIndex: internal.zIndex,
+        subjectStrength: internal.subjectStrength,
+      },
+      mockAnalysis: mock,
+      strategyResult: strategy,
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error("[api/score-dashboard] 에러 발생", error);
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}
+
