@@ -612,6 +612,7 @@ async function createInternalScore(
 type CreateMockScoreParams = {
   tenantId: string;
   studentId: string;
+  grade: number; // 학년 (NOT NULL)
   examDate: string;
   examTitle: string;
   subjectId: string;
@@ -628,6 +629,7 @@ async function createMockScore(
     .insert({
       tenant_id: params.tenantId,
       student_id: params.studentId,
+      grade: params.grade, // 학년 (NOT NULL)
       exam_date: params.examDate,
       exam_title: params.examTitle,
       subject_id: params.subjectId,
@@ -793,6 +795,7 @@ async function createStudentA(
     await createMockScore({
       tenantId: metadata.tenantId,
       studentId,
+      grade: 2, // 2학년
       examDate,
       examTitle,
       subjectId,
@@ -959,6 +962,7 @@ async function createStudentB(
     await createMockScore({
       tenantId: metadata.tenantId,
       studentId,
+      grade: 2, // 2학년
       examDate,
       examTitle,
       subjectId,
@@ -1125,6 +1129,7 @@ async function createStudentC(
     await createMockScore({
       tenantId: metadata.tenantId,
       studentId,
+      grade: 2, // 2학년
       examDate,
       examTitle,
       subjectId,
