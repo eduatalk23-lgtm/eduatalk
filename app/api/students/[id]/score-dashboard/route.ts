@@ -180,6 +180,13 @@ export async function GET(
 
     // 3) 모의고사 분석 (최근 모의 기준)
     const mock = await getMockAnalysis(tenantId, studentId);
+    console.log("[api/score-dashboard] 모의고사 분석 결과:", JSON.stringify(mock, null, 2));
+    
+    // 디버깅: 계산된 값 확인
+    console.log("[api/score-dashboard] 모의고사 분석 상세:");
+    console.log(`  - avgPercentile: ${mock.avgPercentile}`);
+    console.log(`  - totalStdScore: ${mock.totalStdScore}`);
+    console.log(`  - best3GradeSum: ${mock.best3GradeSum}`);
 
     // 4) 전략 분석
     const strategy = analyzeAdmissionStrategy(

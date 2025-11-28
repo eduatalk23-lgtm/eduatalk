@@ -50,7 +50,7 @@ function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
   const inquiryRows = rows
     .filter(
       (r) =>
-        ["사회(역사/도덕 포함)", "과학"].includes(r.subject_group_name) &&
+        ["사회", "과학"].includes(r.subject_group_name) &&
         r.percentile != null
     )
     .sort((a, b) => (b.percentile ?? 0) - (a.percentile ?? 0))
@@ -78,7 +78,7 @@ function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
   // 국·수·영·탐 중 상위 3개 등급 합
   const gradeCandidates = rows.filter(
     (r) =>
-      ["국어", "수학", "영어", "사회(역사/도덕 포함)", "과학"].includes(
+      ["국어", "수학", "영어", "사회", "과학"].includes(
         r.subject_group_name
       ) && r.grade_score != null
   );
@@ -138,23 +138,19 @@ export async function getMockAnalysis(
   const examTitle = String(latestExam.exam_title);
 
   // 2. 해당 시험의 과목별 성적 조회
-  const { data: subjectData, error: subjectError } = await supabase
+  // student_mock_scores → subjects → subject_groups 순으로 조인
+  // Supabase의 중첩 조인이 제대로 작동하지 않을 수 있으므로, 두 단계로 나누어 조회
+  const { data: mockScores, error: mockScoresError } = await supabase
     .from("student_mock_scores")
-    .select(
-      `
-      percentile,
-      standard_score,
-      grade_score,
-      subject_groups!inner(name)
-      `
-    )
+    .select("percentile, standard_score, grade_score, subject_id")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .eq("exam_date", examDate)
-    .eq("exam_title", examTitle);
+    .eq("exam_title", examTitle)
+    .not("subject_id", "is", null);
 
-  if (subjectError) {
-    console.error("[scores/mockAnalysis] 과목별 성적 조회 실패", subjectError);
+  if (mockScoresError) {
+    console.error("[scores/mockAnalysis] 모의고사 성적 조회 실패", mockScoresError);
     return {
       recentExam: {
         examDate,
@@ -166,16 +162,152 @@ export async function getMockAnalysis(
     };
   }
 
+  if (!mockScores || mockScores.length === 0) {
+    console.warn("[scores/mockAnalysis] 모의고사 성적 데이터가 없습니다");
+    return {
+      recentExam: {
+        examDate,
+        examTitle,
+      },
+      avgPercentile: null,
+      totalStdScore: null,
+      best3GradeSum: null,
+    };
+  }
+
+  console.log("[scores/mockAnalysis] 조회된 모의고사 성적:", JSON.stringify(mockScores, null, 2));
+
+  // subject_id 목록 추출
+  const subjectIds = mockScores
+    .map((score) => score.subject_id)
+    .filter((id): id is string => id != null);
+
+  console.log("[scores/mockAnalysis] 추출된 subject_ids:", subjectIds);
+
+  if (subjectIds.length === 0) {
+    console.warn("[scores/mockAnalysis] subject_id가 없습니다");
+    return {
+      recentExam: {
+        examDate,
+        examTitle,
+      },
+      avgPercentile: null,
+      totalStdScore: null,
+      best3GradeSum: null,
+    };
+  }
+
+  // subjects 조회 (subject_group_id 포함)
+  const { data: subjectsData, error: subjectsError } = await supabase
+    .from("subjects")
+    .select("id, subject_group_id")
+    .in("id", subjectIds);
+
+  console.log("[scores/mockAnalysis] 조회된 subjects 데이터:", JSON.stringify(subjectsData, null, 2));
+
+  if (subjectsError) {
+    console.error("[scores/mockAnalysis] 과목 정보 조회 실패", subjectsError);
+    return {
+      recentExam: {
+        examDate,
+        examTitle,
+      },
+      avgPercentile: null,
+      totalStdScore: null,
+      best3GradeSum: null,
+    };
+  }
+
+  if (!subjectsData || subjectsData.length === 0) {
+    console.warn("[scores/mockAnalysis] subjects 데이터가 없습니다");
+    return {
+      recentExam: {
+        examDate,
+        examTitle,
+      },
+      avgPercentile: null,
+      totalStdScore: null,
+      best3GradeSum: null,
+    };
+  }
+
+  // subject_group_id 목록 추출
+  const subjectGroupIds = subjectsData
+    .map((subject) => subject.subject_group_id)
+    .filter((id): id is string => id != null);
+
+  if (subjectGroupIds.length === 0) {
+    console.warn("[scores/mockAnalysis] subject_group_id가 없습니다");
+    return {
+      recentExam: {
+        examDate,
+        examTitle,
+      },
+      avgPercentile: null,
+      totalStdScore: null,
+      best3GradeSum: null,
+    };
+  }
+
+  // subject_groups 조회
+  const { data: subjectGroupsData, error: sgError } = await supabase
+    .from("subject_groups")
+    .select("id, name")
+    .in("id", subjectGroupIds);
+
+  if (sgError) {
+    console.error("[scores/mockAnalysis] 교과 그룹 정보 조회 실패", sgError);
+    return {
+      recentExam: {
+        examDate,
+        examTitle,
+      },
+      avgPercentile: null,
+      totalStdScore: null,
+      best3GradeSum: null,
+    };
+  }
+
+  // subject_id → subject_group_id → subject_group_name 매핑 생성
+  const subjectGroupMap = new Map(
+    (subjectGroupsData || []).map((sg) => [sg.id, sg.name])
+  );
+  const subjectToGroupMap = new Map(
+    subjectsData.map((s) => [s.id, s.subject_group_id])
+  );
+
+  const subjectMap = new Map<string, string>();
+  for (const [subjectId, subjectGroupId] of subjectToGroupMap.entries()) {
+    const subjectGroupName = subjectGroupId
+      ? subjectGroupMap.get(subjectGroupId)
+      : null;
+    if (subjectGroupName) {
+      subjectMap.set(subjectId, subjectGroupName);
+    }
+  }
+
+  console.log("[scores/mockAnalysis] 생성된 subjectMap:", Array.from(subjectMap.entries()));
+
   // 데이터 변환
-  const rows: MockRow[] = (subjectData || []).map((row: any) => ({
-    subject_group_name: row.subject_groups?.name || "",
-    percentile: row.percentile != null ? Number(row.percentile) : null,
-    standard_score: row.standard_score != null ? Number(row.standard_score) : null,
-    grade_score: row.grade_score != null ? Number(row.grade_score) : null,
-  }));
+  const rows: MockRow[] = mockScores
+    .map((score) => {
+      const subjectGroupName = subjectMap.get(score.subject_id) || "";
+      return {
+        subject_group_name: subjectGroupName,
+        percentile: score.percentile != null ? Number(score.percentile) : null,
+        standard_score:
+          score.standard_score != null ? Number(score.standard_score) : null,
+        grade_score: score.grade_score != null ? Number(score.grade_score) : null,
+      };
+    })
+    .filter((row) => row.subject_group_name !== ""); // subject_group_name이 없는 경우 제외
+
+  console.log("[scores/mockAnalysis] 변환된 rows:", JSON.stringify(rows, null, 2));
 
   // 통계 계산
   const stats = calculateMockStats(rows);
+
+  console.log("[scores/mockAnalysis] 계산된 통계:", JSON.stringify(stats, null, 2));
 
   return {
     recentExam: {
