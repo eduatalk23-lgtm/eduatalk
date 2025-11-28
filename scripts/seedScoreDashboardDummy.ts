@@ -161,17 +161,57 @@ async function fetchMetadata() {
     );
   }
 
-  if (subjectGroups.length < 5) {
-    const foundNames = subjectGroups.map((sg) => sg.name);
-    const missingNames = requiredSubjectGroups.filter(
-      (name) => !foundNames.includes(name)
-    );
-    throw new Error(
-      `일부 교과 그룹을 찾을 수 없습니다.\n` +
-      `  찾은 교과: ${foundNames.join(", ")}\n` +
-      `  누락된 교과: ${missingNames.join(", ")}\n` +
-      `  먼저 누락된 교과 그룹을 생성하세요.`
-    );
+  // 누락된 교과 그룹이 있으면 자동 생성
+  const foundNames = subjectGroups.map((sg) => sg.name);
+  const missingNames = requiredSubjectGroups.filter(
+    (name) => !foundNames.includes(name)
+  );
+
+  if (missingNames.length > 0) {
+    console.log(`⚠️  누락된 교과 그룹 발견: ${missingNames.join(", ")}`);
+    console.log(`   자동으로 생성합니다...`);
+
+    for (const missingName of missingNames) {
+      const { data: newGroup, error: createError } = await supabase
+        .from("subject_groups")
+        .insert({
+          curriculum_revision_id: curriculumRevisionId,
+          name: missingName,
+          display_order: 0,
+        })
+        .select("id, name")
+        .single();
+
+      if (createError) {
+        // 중복 키 오류인 경우 다시 조회
+        if (createError.code === "23505") {
+          console.log(`   '${missingName}'이 이미 존재합니다. 다시 조회합니다...`);
+          const { data: existingGroup, error: retryError } = await supabase
+            .from("subject_groups")
+            .select("id, name")
+            .eq("curriculum_revision_id", curriculumRevisionId)
+            .eq("name", missingName)
+            .limit(1)
+            .maybeSingle();
+
+          if (retryError || !existingGroup) {
+            throw new Error(
+              `교과 그룹 '${missingName}' 조회 실패: ${retryError?.message || "알 수 없는 오류"}`
+            );
+          }
+
+          subjectGroups.push(existingGroup);
+          console.log(`   ✅ 교과 그룹 조회 완료: ${existingGroup.name} (${existingGroup.id})`);
+        } else {
+          throw new Error(
+            `교과 그룹 '${missingName}' 생성 실패: ${createError.message}`
+          );
+        }
+      } else if (newGroup) {
+        subjectGroups.push(newGroup);
+        console.log(`   ✅ 교과 그룹 생성 완료: ${newGroup.name} (${newGroup.id})`);
+      }
+    }
   }
 
   const subjectGroupMap: Record<string, string> = {};
