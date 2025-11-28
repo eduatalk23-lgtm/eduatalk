@@ -785,6 +785,28 @@ export const deleteCampTemplateAction = withErrorHandling(
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
     }
 
+    // 템플릿 삭제 전에 관련된 플랜 그룹 삭제
+    const { deletePlanGroupsByTemplateId } = await import(
+      "@/lib/data/planGroups"
+    );
+    const planGroupResult = await deletePlanGroupsByTemplateId(templateId);
+
+    if (!planGroupResult.success) {
+      console.error(
+        "[campTemplateActions] 플랜 그룹 삭제 실패",
+        planGroupResult.error
+      );
+      // 플랜 그룹 삭제 실패해도 템플릿 삭제는 계속 진행
+      // (데이터 정합성 문제가 있을 수 있지만, 템플릿 삭제 자체는 완료)
+      console.warn(
+        "[campTemplateActions] 플랜 그룹 삭제 실패했지만 템플릿 삭제는 계속 진행합니다."
+      );
+    } else if (planGroupResult.deletedGroupIds && planGroupResult.deletedGroupIds.length > 0) {
+      console.log(
+        `[campTemplateActions] 템플릿 삭제 전 ${planGroupResult.deletedGroupIds.length}개의 플랜 그룹 삭제 완료`
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase
       .from("camp_templates")

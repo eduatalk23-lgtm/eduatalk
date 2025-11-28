@@ -7,11 +7,13 @@
 ## 🔍 문제 분석
 
 ### 원인
+
 1. **삭제 후 리다이렉트 방해**: `router.push`가 실행되는 동안 `useEffect`의 `loadInvitations`가 다시 실행되어 리다이렉트가 방해됨
 2. **초대 명단 조회 로직**: 삭제 중일 때도 초대 목록 조회가 계속 실행되어 불필요한 API 호출 발생
 3. **비동기 타이밍 이슈**: 삭제 성공 후 `router.push`와 `useEffect`의 실행 순서 문제
 
 ### 문제가 발생한 코드
+
 ```typescript
 // 삭제 전 코드
 const handleDelete = async () => {
@@ -27,12 +29,15 @@ useEffect(() => {
 ## ✅ 해결 방법
 
 ### 1. `router.push` → `router.replace` 변경
+
 - 히스토리를 교체하여 뒤로가기 시 삭제된 페이지로 돌아가지 않도록 개선
 
 ### 2. `useEffect`에 `isDeleting` 체크 추가
+
 - 삭제 중일 때는 초대 목록을 로드하지 않도록 조건 추가
 
 ### 3. `loadInvitations` 함수에 `isDeleting` 체크 추가
+
 - 함수 내부에서도 삭제 중일 때는 실행하지 않도록 이중 체크
 
 ## 📝 변경 사항
@@ -40,6 +45,7 @@ useEffect(() => {
 ### 파일: `app/(admin)/admin/camp-templates/[id]/CampTemplateDetail.tsx`
 
 #### 1. `loadInvitations` 함수 개선
+
 ```typescript
 const loadInvitations = useCallback(async () => {
   // 삭제 중이면 실행하지 않음
@@ -51,6 +57,7 @@ const loadInvitations = useCallback(async () => {
 ```
 
 #### 2. `useEffect`에 조건 추가
+
 ```typescript
 // 초기 로드 (삭제 중이 아닐 때만 실행)
 useEffect(() => {
@@ -61,6 +68,7 @@ useEffect(() => {
 ```
 
 #### 3. `handleDelete` 함수 개선
+
 ```typescript
 const handleDelete = async () => {
   setIsDeleting(true);
@@ -101,4 +109,3 @@ const handleDelete = async () => {
 
 - 이전 개선 작업: `docs/camp-template-delete-redirect-fix.md`
 - 캠프 초대 명단 조회 로직: `app/(admin)/actions/campTemplateActions.ts`의 `getCampInvitationsForTemplate`
-

@@ -10,6 +10,7 @@ import {
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { PlanCalendarView } from "@/app/(student)/plan/calendar/_components/PlanCalendarView";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import { getCampTemplate } from "@/lib/data/campTemplates";
 
 type CampCalendarPageProps = {
   searchParams: Promise<{ view?: string }>;
@@ -39,12 +40,26 @@ export default async function CampCalendarPage({
     });
 
     // 캠프 모드 플랜 그룹만 필터링
-    const activePlanGroups = allActivePlanGroups.filter(
+    const campModePlanGroups = allActivePlanGroups.filter(
       (group) =>
         group.plan_type === "camp" ||
         group.camp_template_id !== null ||
         group.camp_invitation_id !== null
     );
+
+    // 템플릿 존재 여부 확인 (삭제된 템플릿의 플랜 그룹 제외)
+    const activePlanGroups = await Promise.all(
+      campModePlanGroups.map(async (group) => {
+        // camp_template_id가 있는 경우 템플릿 존재 여부 확인
+        if (group.camp_template_id) {
+          const template = await getCampTemplate(group.camp_template_id);
+          // 템플릿이 존재하지 않으면 null 반환 (필터링됨)
+          return template ? group : null;
+        }
+        // camp_template_id가 없으면 그대로 반환
+        return group;
+      })
+    ).then((groups) => groups.filter((group): group is NonNullable<typeof group> => group !== null));
 
     if (activePlanGroups.length === 0) {
       return (

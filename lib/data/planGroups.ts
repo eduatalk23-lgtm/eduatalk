@@ -561,6 +561,100 @@ export async function deletePlanGroupByInvitationId(
 }
 
 /**
+ * 캠프 템플릿 ID로 플랜 그룹 삭제 (관리자용, Hard Delete)
+ * 템플릿 삭제 시 관련된 플랜 그룹도 함께 삭제하기 위한 함수
+ * 여러 플랜 그룹이 있을 수 있으므로 모두 삭제
+ */
+export async function deletePlanGroupsByTemplateId(
+  templateId: string
+): Promise<{ success: boolean; error?: string; deletedGroupIds?: string[] }> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. camp_template_id로 플랜 그룹 조회 (여러 개일 수 있음)
+  const { data: planGroups, error: fetchError } = await supabase
+    .from("plan_groups")
+    .select("id, student_id")
+    .eq("camp_template_id", templateId)
+    .is("deleted_at", null);
+
+  if (fetchError) {
+    console.error("[data/planGroups] 플랜 그룹 조회 실패", fetchError);
+    return { success: false, error: fetchError.message };
+  }
+
+  // 플랜 그룹이 없으면 성공으로 처리 (삭제할 것이 없음)
+  if (!planGroups || planGroups.length === 0) {
+    return { success: true, deletedGroupIds: [] };
+  }
+
+  const groupIds = planGroups.map((g) => g.id);
+  const deletedGroupIds: string[] = [];
+
+  // 2. 각 플랜 그룹에 대해 관련 데이터 삭제
+  for (const groupId of groupIds) {
+    // 2-1. 관련 student_plan 삭제 (hard delete)
+    const { error: deletePlansError } = await supabase
+      .from("student_plan")
+      .delete()
+      .eq("plan_group_id", groupId);
+
+    if (deletePlansError) {
+      console.error(
+        `[data/planGroups] 플랜 삭제 실패 (groupId: ${groupId})`,
+        deletePlansError
+      );
+      // 개별 플랜 삭제 실패해도 계속 진행
+    }
+
+    // 2-2. plan_contents 삭제 (안전을 위해 명시적으로 삭제)
+    const { error: deleteContentsError } = await supabase
+      .from("plan_contents")
+      .delete()
+      .eq("plan_group_id", groupId);
+
+    if (deleteContentsError) {
+      console.error(
+        `[data/planGroups] 플랜 콘텐츠 삭제 실패 (groupId: ${groupId})`,
+        deleteContentsError
+      );
+      // 콘텐츠 삭제 실패해도 계속 진행
+    }
+
+    // 2-3. plan_exclusions 삭제 (안전을 위해 명시적으로 삭제)
+    const { error: deleteExclusionsError } = await supabase
+      .from("plan_exclusions")
+      .delete()
+      .eq("plan_group_id", groupId);
+
+    if (deleteExclusionsError) {
+      console.error(
+        `[data/planGroups] 플랜 제외일 삭제 실패 (groupId: ${groupId})`,
+        deleteExclusionsError
+      );
+      // 제외일 삭제 실패해도 계속 진행
+    }
+
+    // 2-4. plan_groups 삭제 (hard delete)
+    const { error: deleteGroupError } = await supabase
+      .from("plan_groups")
+      .delete()
+      .eq("id", groupId);
+
+    if (deleteGroupError) {
+      console.error(
+        `[data/planGroups] 플랜 그룹 삭제 실패 (groupId: ${groupId})`,
+        deleteGroupError
+      );
+      // 개별 플랜 그룹 삭제 실패는 기록만 하고 계속 진행
+    } else {
+      deletedGroupIds.push(groupId);
+    }
+  }
+
+  return { success: true, deletedGroupIds };
+}
+
+/**
  * 플랜 그룹 콘텐츠 조회
  */
 export async function getPlanContents(
