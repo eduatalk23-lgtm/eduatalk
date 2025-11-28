@@ -99,10 +99,10 @@ export async function GET(
       ? createSupabaseAdminClient() || (await createSupabaseServerClient())
       : await createSupabaseServerClient();
 
-    // 1) 학생 조회
+    // 1) 학생 조회 (school_id, school_type 포함)
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, name, grade, class")
+      .select("id, name, grade, class, school_id, school_type")
       .eq("id", studentId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -248,6 +248,37 @@ export async function GET(
       best3GradeSum: mock.best3GradeSum,
     });
 
+    // 4-1) 학교 유형 조회 (school_property)
+    let schoolProperty: string | null = null;
+    if (student.school_id && (student.school_type === "MIDDLE" || student.school_type === "HIGH")) {
+      // school_id는 text 타입이지만, school_info.id는 integer이므로 변환 필요
+      // "SCHOOL_" 접두사가 있을 수 있으므로 파싱
+      let schoolInfoId: number | null = null;
+      
+      if (student.school_id.startsWith("SCHOOL_")) {
+        // 통합 ID 형식: "SCHOOL_123"
+        const idStr = student.school_id.replace("SCHOOL_", "");
+        schoolInfoId = parseInt(idStr, 10);
+      } else {
+        // 직접 ID 형식: "123"
+        schoolInfoId = parseInt(student.school_id, 10);
+      }
+      
+      if (schoolInfoId && !isNaN(schoolInfoId)) {
+        const { data: schoolInfo, error: schoolInfoError } = await supabase
+          .from("school_info")
+          .select("school_property")
+          .eq("id", schoolInfoId)
+          .maybeSingle();
+
+        if (schoolInfoError) {
+          console.error("[api/score-dashboard] school_info 조회 실패", schoolInfoError);
+        } else if (schoolInfo) {
+          schoolProperty = schoolInfo.school_property;
+        }
+      }
+    }
+
     // 5) 전략 분석
     const strategy = analyzeAdmissionStrategy(
       internalPct,
@@ -255,14 +286,14 @@ export async function GET(
       internal.zIndex
     );
 
-    // 5) 응답 조립
+    // 6) 응답 조립
     const response: ScoreDashboardResponse = {
       studentProfile: {
         id: student.id,
         name: student.name,
         grade: student.grade,
         class: student.class ? parseInt(student.class) : null,
-        schoolType: null, // students 테이블에 school_type 컬럼이 없음
+        schoolType: schoolProperty, // school_info.school_property 값
         schoolYear: new Date().getFullYear(), // 현재 연도 사용
         termGrade: grade,
         semester: semester,
