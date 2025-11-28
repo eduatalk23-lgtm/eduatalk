@@ -202,12 +202,50 @@ const customPlans = datePlans.filter(p => p.content_type === "custom");
    - 학원일정 슬롯에 커스텀 플랜이 표시되는지 확인
    - 학습시간 슬롯에는 커스텀 플랜이 표시되지 않는지 확인
 
+## 추가 개선 사항 (시간 정보 없음 메시지 개선)
+
+### 문제
+이동시간/학원일정 슬롯에 커스텀 플랜이 배치되어도 "시간 정보 없음" 메시지가 함께 표시되는 문제가 발생했습니다.
+
+### 원인
+- `customPlans.length > 0` 조건이 해당 날짜의 모든 커스텀 플랜을 체크
+- 일부 플랜이 배치되어도 배치되지 않은 다른 플랜이 있으면 메시지가 표시됨
+
+### 해결
+1. **배치된 플랜 ID 추적**: 모든 이동시간/학원일정 슬롯에서 배치된 플랜 ID를 수집
+2. **배치되지 않은 플랜 필터링**: 배치된 플랜 ID를 제외하여 `unplacedCustomPlans` 생성
+3. **UI 표시 로직 개선**: 배치된 플랜이 있으면 PlanTable만 표시, 없으면 배치되지 않은 커스텀 플랜만 "시간 정보 없음" 표시
+
+```typescript
+// 모든 이동시간/학원일정 슬롯에서 배치된 플랜 ID 수집
+const placedPlanIds = new Set<string>();
+travelAndAcademyPlansMap.forEach((plans) => {
+  plans.forEach((p) => {
+    placedPlanIds.add(p.plan.id);
+  });
+});
+
+// 배치되지 않은 커스텀 플랜만 필터링
+const unplacedCustomPlans = customPlans.filter(
+  (p) => !placedPlanIds.has(p.id)
+);
+
+// UI 표시
+{plansInTravelAndAcademySlot.length > 0 ? (
+  <PlanTable ... />
+) : unplacedCustomPlans.length > 0 ? (
+  <div>(커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보 없음)</div>
+) : null}
+```
+
 ## 주의사항
 
 - 커스텀 플랜은 이동시간/학원일정 슬롯에만 배치됩니다.
 - 학습시간 슬롯에는 일반 플랜(book, lecture)만 배치됩니다.
 - 시간 정보가 없는 커스텀 플랜은 슬롯 시간에 맞춰 자동 배치됩니다.
 - 시간 정보가 있는 커스텀 플랜은 슬롯과 시간이 겹치는 경우에만 배치됩니다.
+- 배치된 플랜이 있으면 "시간 정보 없음" 메시지가 표시되지 않습니다.
+- 배치되지 않은 커스텀 플랜만 "시간 정보 없음"으로 표시됩니다.
 
 ## 관련 파일
 

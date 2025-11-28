@@ -691,6 +691,14 @@ function TimeSlotsWithPlans({
     }
   });
 
+  // 모든 이동시간/학원일정 슬롯에서 배치된 플랜 ID 수집
+  const placedPlanIds = new Set<string>();
+  travelAndAcademyPlansMap.forEach((plans) => {
+    plans.forEach((p) => {
+      placedPlanIds.add(p.plan.id);
+    });
+  });
+
   // 학습시간 및 자율학습 블록 인덱스 매핑 (timeSlots 전체 인덱스 -> 학습시간/자율학습 블록 인덱스)
   const studySlotIndexMap = new Map<number, number>();
   let studySlotIdx = 0;
@@ -748,6 +756,10 @@ function TimeSlotsWithPlans({
         const nonCustomPlans = datePlans.filter(p => p.content_type !== "custom");
         // 이동시간/학원일정 슬롯에는 커스텀 플랜만 표시
         const customPlans = datePlans.filter(p => p.content_type === "custom");
+        // 배치되지 않은 커스텀 플랜만 필터링
+        const unplacedCustomPlans = customPlans.filter(
+          (p) => !placedPlanIds.has(p.id)
+        );
 
         return (
           <div key={idx} className="space-y-1.5">
@@ -793,9 +805,9 @@ function TimeSlotsWithPlans({
                       sequenceMap={sequenceMap}
                     />
                   </div>
-                ) : customPlans.length > 0 ? (
+                ) : unplacedCustomPlans.length > 0 ? (
                   <div className="ml-4 text-xs text-gray-500 italic">
-                    (커스텀 플랜 {customPlans.length}개 - 시간 정보 없음)
+                    (커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보 없음)
                   </div>
                 ) : null}
               </>
