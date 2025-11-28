@@ -61,6 +61,7 @@ pnpm dev
 1. **NEXT_PUBLIC_ 접두사**: 클라이언트에서 접근 가능한 환경 변수는 `NEXT_PUBLIC_` 접두사가 필요합니다.
 2. **서버 전용 변수**: `SUPABASE_SERVICE_ROLE_KEY`는 `NEXT_PUBLIC_` 접두사가 없습니다. 이는 서버에서만 사용되며 클라이언트에 노출되면 안 됩니다.
 3. **.gitignore**: `.env.local` 파일은 `.gitignore`에 포함되어 있어 Git에 커밋되지 않습니다.
+4. **Connection Pooler**: 이 프로젝트는 Supabase JS 클라이언트를 사용하므로 Connection Pooler는 자동으로 관리됩니다. Prisma나 직접 PostgreSQL 연결을 사용하는 경우에만 별도 설정이 필요합니다. 자세한 내용은 [Connection Pooler 가이드](./supabase-connection-pooler-guide.md)를 참고하세요.
 4. **환경 변수 검증**: `lib/env.ts`에서 앱 시작 시 자동으로 검증됩니다.
 
 ## 문제 해결
