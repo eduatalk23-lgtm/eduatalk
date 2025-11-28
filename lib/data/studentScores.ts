@@ -18,7 +18,29 @@ export type StudentScore = {
   created_at?: string | null;
 };
 
-// 내신 성적 타입
+// 내신 성적 타입 (정규화 버전)
+export type InternalScore = {
+  id: string;
+  tenant_id: string;
+  student_id: string;
+  curriculum_revision_id: string;
+  subject_group_id: string;
+  subject_type_id: string;
+  subject_id: string;
+  grade: number;
+  semester: number;
+  credit_hours: number;
+  raw_score: number | null;
+  avg_score: number | null;
+  std_dev: number | null;
+  rank_grade: number | null;
+  total_students: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// 내신 성적 타입 (레거시 - 하위 호환성)
+/** @deprecated InternalScore를 사용하세요 */
 export type SchoolScore = {
   id: string;
   tenant_id?: string | null;
@@ -46,28 +68,22 @@ export type SchoolScore = {
   created_at?: string | null;
 };
 
-// 모의고사 성적 타입
+// 모의고사 성적 타입 (정규화 버전)
 export type MockScore = {
   id: string;
-  tenant_id?: string | null;
+  tenant_id: string;
   student_id: string;
+  exam_date: string; // date 형식: YYYY-MM-DD
+  exam_title: string;
   grade: number;
-  exam_type: string;
-  // FK 필드 (새로운 방식)
-  subject_group_id?: string | null;
-  subject_id?: string | null;
-  subject_type_id?: string | null;
-  // Deprecated: 텍스트 필드 (하위 호환성 유지)
-  /** @deprecated subject_group_id를 사용하세요 */
-  subject_group?: string | null;
-  /** @deprecated subject_id를 사용하세요 */
-  subject_name?: string | null;
-  raw_score?: number | null;
-  standard_score?: number | null;
-  percentile?: number | null;
-  grade_score?: number | null;
-  exam_round?: string | null;
-  created_at?: string | null;
+  subject_id: string;
+  subject_group_id: string;
+  standard_score: number | null;
+  percentile: number | null;
+  grade_score: number | null;
+  raw_score: number | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -268,7 +284,53 @@ export async function deleteStudentScore(
 }
 
 /**
- * 내신 성적 목록 조회
+ * 내신 성적 목록 조회 (정규화 버전)
+ */
+export async function getInternalScores(
+  studentId: string,
+  tenantId: string,
+  filters?: {
+    grade?: number;
+    semester?: number;
+    subjectGroupId?: string;
+  }
+): Promise<InternalScore[]> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("student_internal_scores")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (filters?.grade) {
+    query = query.eq("grade", filters.grade);
+  }
+
+  if (filters?.semester) {
+    query = query.eq("semester", filters.semester);
+  }
+
+  if (filters?.subjectGroupId) {
+    query = query.eq("subject_group_id", filters.subjectGroupId);
+  }
+
+  const { data, error } = await query
+    .order("grade", { ascending: true })
+    .order("semester", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 조회 실패", error);
+    return [];
+  }
+
+  return (data as InternalScore[] | null) ?? [];
+}
+
+/**
+ * 내신 성적 목록 조회 (레거시)
+ * @deprecated getInternalScores를 사용하세요
  */
 export async function getSchoolScores(
   studentId: string,
@@ -343,71 +405,45 @@ export async function getSchoolScores(
 }
 
 /**
- * 모의고사 성적 목록 조회
+ * 모의고사 성적 목록 조회 (정규화 버전)
  */
 export async function getMockScores(
   studentId: string,
-  tenantId?: string | null,
+  tenantId: string,
   filters?: {
     grade?: number;
-    examType?: string;
-    subjectGroup?: string;
+    examTitle?: string;
+    examDate?: string;
+    subjectGroupId?: string;
   }
 ): Promise<MockScore[]> {
   const supabase = await createSupabaseServerClient();
 
-  const selectScores = () =>
-    supabase
-      .from("student_mock_scores")
-      .select("*")
-      .eq("student_id", studentId);
-
-  let query = selectScores();
-
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
+  let query = supabase
+    .from("student_mock_scores")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
 
   if (filters?.grade) {
     query = query.eq("grade", filters.grade);
   }
 
-  if (filters?.examType) {
-    query = query.eq("exam_type", filters.examType);
+  if (filters?.examTitle) {
+    query = query.eq("exam_title", filters.examTitle);
   }
 
-  if (filters?.subjectGroup) {
-    query = query.eq("subject_group", filters.subjectGroup);
+  if (filters?.examDate) {
+    query = query.eq("exam_date", filters.examDate);
   }
 
-  query = query
-    .order("grade", { ascending: true })
-    .order("exam_round", { ascending: true })
+  if (filters?.subjectGroupId) {
+    query = query.eq("subject_group_id", filters.subjectGroupId);
+  }
+
+  const { data, error } = await query
+    .order("exam_date", { ascending: false })
     .order("created_at", { ascending: false });
-
-  let { data, error } = await query;
-
-  if (error && error.code === "42703") {
-    // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const fallbackQuery = supabase.from("student_mock_scores").select("*");
-
-    if (filters?.grade) {
-      fallbackQuery.eq("grade", filters.grade);
-    }
-
-    if (filters?.examType) {
-      fallbackQuery.eq("exam_type", filters.examType);
-    }
-
-    if (filters?.subjectGroup) {
-      fallbackQuery.eq("subject_group", filters.subjectGroup);
-    }
-
-    ({ data, error } = await fallbackQuery
-      .order("grade", { ascending: true })
-      .order("exam_round", { ascending: true })
-      .order("created_at", { ascending: false }));
-  }
 
   if (error) {
     console.error("[data/studentScores] 모의고사 성적 조회 실패", error);
@@ -418,7 +454,62 @@ export async function getMockScores(
 }
 
 /**
- * 내신 성적 생성
+ * 내신 성적 생성 (정규화 버전)
+ */
+export async function createInternalScore(
+  score: {
+    tenant_id: string;
+    student_id: string;
+    curriculum_revision_id: string;
+    subject_group_id: string;
+    subject_type_id: string;
+    subject_id: string;
+    grade: number;
+    semester: number;
+    credit_hours: number;
+    raw_score?: number | null;
+    avg_score?: number | null;
+    std_dev?: number | null;
+    rank_grade?: number | null;
+    total_students?: number | null;
+  }
+): Promise<{ success: boolean; scoreId?: string; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload = {
+    tenant_id: score.tenant_id,
+    student_id: score.student_id,
+    curriculum_revision_id: score.curriculum_revision_id,
+    subject_group_id: score.subject_group_id,
+    subject_type_id: score.subject_type_id,
+    subject_id: score.subject_id,
+    grade: score.grade,
+    semester: score.semester,
+    credit_hours: score.credit_hours,
+    raw_score: score.raw_score ?? null,
+    avg_score: score.avg_score ?? null,
+    std_dev: score.std_dev ?? null,
+    rank_grade: score.rank_grade ?? null,
+    total_students: score.total_students ?? null,
+  };
+
+  const { data, error } = await supabase
+    .from("student_internal_scores")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 생성 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, scoreId: data?.id };
+}
+
+/**
+ * 내신 성적 생성 (레거시)
+ * @deprecated createInternalScore를 사용하세요
  */
 export async function createSchoolScore(
   score: {
@@ -492,64 +583,44 @@ export async function createSchoolScore(
 }
 
 /**
- * 모의고사 성적 생성
+ * 모의고사 성적 생성 (정규화 버전)
  */
 export async function createMockScore(
   score: {
-    tenant_id?: string | null;
+    tenant_id: string;
     student_id: string;
+    exam_date: string; // date 형식: YYYY-MM-DD
+    exam_title: string;
     grade: number;
-    exam_type: string;
-    // FK 필드 (우선 사용)
-    subject_group_id?: string | null;
-    subject_id?: string | null;
-    subject_type_id?: string | null;
-    // 하위 호환성을 위한 텍스트 필드 (deprecated)
-    subject_group?: string | null;
-    subject_name?: string | null;
+    subject_id: string;
+    subject_group_id: string;
     raw_score?: number | null;
     standard_score?: number | null;
     percentile?: number | null;
     grade_score?: number | null;
-    exam_round?: string | null;
   }
 ): Promise<{ success: boolean; scoreId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {
-    tenant_id: score.tenant_id || null,
+  const payload = {
+    tenant_id: score.tenant_id,
     student_id: score.student_id,
+    exam_date: score.exam_date,
+    exam_title: score.exam_title,
     grade: score.grade,
-    exam_type: score.exam_type,
-    // FK 필드 (우선 사용)
-    subject_group_id: score.subject_group_id || null,
-    subject_id: score.subject_id || null,
-    subject_type_id: score.subject_type_id || null,
-    // 하위 호환성을 위한 텍스트 필드 (deprecated)
-    subject_group: score.subject_group || null,
-    subject_name: score.subject_name || null,
-    raw_score: score.raw_score || null,
-    standard_score: score.standard_score || null,
-    percentile: score.percentile || null,
-    grade_score: score.grade_score || null,
-    exam_round: score.exam_round || null,
+    subject_id: score.subject_id,
+    subject_group_id: score.subject_group_id,
+    raw_score: score.raw_score ?? null,
+    standard_score: score.standard_score ?? null,
+    percentile: score.percentile ?? null,
+    grade_score: score.grade_score ?? null,
   };
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from("student_mock_scores")
     .insert(payload)
     .select("id")
     .single();
-
-  if (error && error.code === "42703") {
-    // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-    ({ data, error } = await supabase
-      .from("student_mock_scores")
-      .insert(fallbackPayload)
-      .select("id")
-      .single());
-  }
 
   if (error) {
     console.error("[data/studentScores] 모의고사 성적 생성 실패", error);

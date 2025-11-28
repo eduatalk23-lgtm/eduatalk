@@ -2,6 +2,10 @@
 -- Description: student_school_scores와 student_mock_scores 테이블에서 test_date 컬럼 제거
 -- Date: 2025-11-25
 --
+-- ⚠️ DEPRECATED: 이 마이그레이션은 레거시 테이블(student_school_scores)을 대상으로 합니다.
+-- 2025-11-30 이후: student_school_scores는 student_internal_scores로 대체되었습니다.
+-- 새 프로젝트에서는 이 마이그레이션을 사용하지 마세요.
+--
 -- 이 마이그레이션은 성적 테이블에서 시험일(test_date) 필드를 제거합니다.
 -- 기존 데이터의 test_date 값도 함께 삭제됩니다.
 

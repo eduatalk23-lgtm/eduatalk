@@ -407,7 +407,71 @@ export type Database = {
       };
 
       // ============================================
-      // 내신 성적 테이블
+      // 내신 성적 테이블 (정규화 버전)
+      // ============================================
+      student_internal_scores: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          curriculum_revision_id: string;
+          subject_group_id: string;
+          subject_type_id: string;
+          subject_id: string;
+          grade: number;
+          semester: number;
+          credit_hours: number;
+          raw_score: number | null;
+          avg_score: number | null;
+          std_dev: number | null;
+          rank_grade: number | null;
+          total_students: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          curriculum_revision_id: string;
+          subject_group_id: string;
+          subject_type_id: string;
+          subject_id: string;
+          grade: number;
+          semester: number;
+          credit_hours: number;
+          raw_score?: number | null;
+          avg_score?: number | null;
+          std_dev?: number | null;
+          rank_grade?: number | null;
+          total_students?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          curriculum_revision_id?: string;
+          subject_group_id?: string;
+          subject_type_id?: string;
+          subject_id?: string;
+          grade?: number;
+          semester?: number;
+          credit_hours?: number;
+          raw_score?: number | null;
+          avg_score?: number | null;
+          std_dev?: number | null;
+          rank_grade?: number | null;
+          total_students?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 내신 성적 테이블 (레거시 - deprecated)
+      // @deprecated student_internal_scores를 사용하세요
       // ============================================
       student_school_scores: {
         Row: {
@@ -482,66 +546,54 @@ export type Database = {
       };
 
       // ============================================
-      // 모의고사 성적 테이블
+      // 모의고사 성적 테이블 (정규화 버전)
       // ============================================
       student_mock_scores: {
         Row: {
           id: string;
-          tenant_id: string | null;
+          tenant_id: string;
           student_id: string;
+          exam_date: string; // date 타입
+          exam_title: string;
           grade: number;
-          exam_type: string;
-          // FK 필드
-          subject_group_id: string | null;
-          subject_id: string | null;
-          subject_type_id: string | null;
-          // deprecated 텍스트 필드
-          subject_group: string | null;
-          subject_name: string | null;
-          // 성적 정보
-          raw_score: number | null;
+          subject_id: string;
+          subject_group_id: string;
           standard_score: number | null;
           percentile: number | null;
           grade_score: number | null; // 등급 (1-9)
-          exam_round: string | null;
+          raw_score: number | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          tenant_id?: string | null;
+          tenant_id: string;
           student_id: string;
+          exam_date: string; // date 타입
+          exam_title: string;
           grade: number;
-          exam_type: string;
-          subject_group_id?: string | null;
-          subject_id?: string | null;
-          subject_type_id?: string | null;
-          subject_group?: string | null;
-          subject_name?: string | null;
-          raw_score?: number | null;
+          subject_id: string;
+          subject_group_id: string;
           standard_score?: number | null;
           percentile?: number | null;
           grade_score?: number | null;
-          exam_round?: string | null;
+          raw_score?: number | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          tenant_id?: string | null;
+          tenant_id?: string;
           student_id?: string;
+          exam_date?: string;
+          exam_title?: string;
           grade?: number;
-          exam_type?: string;
-          subject_group_id?: string | null;
-          subject_id?: string | null;
-          subject_type_id?: string | null;
-          subject_group?: string | null;
-          subject_name?: string | null;
-          raw_score?: number | null;
+          subject_id?: string;
+          subject_group_id?: string;
           standard_score?: number | null;
           percentile?: number | null;
           grade_score?: number | null;
-          exam_round?: string | null;
+          raw_score?: number | null;
           created_at?: string;
           updated_at?: string;
         };

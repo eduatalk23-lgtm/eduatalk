@@ -2,6 +2,10 @@
 -- Description: 기존 텍스트 필드(subject_group, subject_type, subject_name)를 FK로 변환
 -- Date: 2025-02-11
 --
+-- ⚠️ DEPRECATED: 이 마이그레이션은 레거시 테이블(student_school_scores)을 대상으로 합니다.
+-- 2025-11-30 이후: student_school_scores는 student_internal_scores로 대체되었습니다.
+-- 새 프로젝트에서는 이 마이그레이션을 사용하지 마세요.
+--
 -- 주의: 이 마이그레이션은 기존 텍스트 데이터를 FK로 변환합니다.
 -- 데이터 매칭이 실패하는 경우 NULL로 설정되며, 수동 보정이 필요할 수 있습니다.
 -- 마이그레이션 후 데이터 검증을 반드시 수행하세요.

@@ -12,17 +12,35 @@ import type { Tables, TablesInsert, TablesUpdate } from "@/lib/supabase/database
 // ============================================
 
 /**
- * 내신 성적 타입
+ * 내신 성적 타입 (정규화 버전)
  */
-export type SchoolScore = Tables<"student_school_scores">;
+export type InternalScore = Tables<"student_internal_scores">;
 
 /**
  * 내신 성적 생성 입력 타입
  */
-export type SchoolScoreInsert = TablesInsert<"student_school_scores">;
+export type InternalScoreInsert = TablesInsert<"student_internal_scores">;
 
 /**
  * 내신 성적 수정 입력 타입
+ */
+export type InternalScoreUpdate = TablesUpdate<"student_internal_scores">;
+
+/**
+ * 내신 성적 타입 (레거시 - 하위 호환성)
+ * @deprecated InternalScore를 사용하세요
+ */
+export type SchoolScore = Tables<"student_school_scores">;
+
+/**
+ * 내신 성적 생성 입력 타입 (레거시)
+ * @deprecated InternalScoreInsert를 사용하세요
+ */
+export type SchoolScoreInsert = TablesInsert<"student_school_scores">;
+
+/**
+ * 내신 성적 수정 입력 타입 (레거시)
+ * @deprecated InternalScoreUpdate를 사용하세요
  */
 export type SchoolScoreUpdate = TablesUpdate<"student_school_scores">;
 
@@ -83,10 +101,10 @@ export type GetSchoolScoresFilter = {
  */
 export type GetMockScoresFilter = {
   grade?: number;
-  examType?: string;
+  examTitle?: string;
+  examDate?: string;
   subjectGroup?: string;
   subjectGroupId?: string;
-  examRound?: string;
 };
 
 // ============================================
@@ -94,7 +112,28 @@ export type GetMockScoresFilter = {
 // ============================================
 
 /**
- * 내신 성적 생성 입력 (서비스용)
+ * 내신 성적 생성 입력 (서비스용 - 정규화 버전)
+ */
+export type CreateInternalScoreInput = {
+  tenant_id: string;
+  student_id: string;
+  curriculum_revision_id: string;
+  subject_group_id: string;
+  subject_type_id: string;
+  subject_id: string;
+  grade: number;
+  semester: number;
+  credit_hours: number;
+  raw_score?: number | null;
+  avg_score?: number | null;
+  std_dev?: number | null;
+  rank_grade?: number | null;
+  total_students?: number | null;
+};
+
+/**
+ * 내신 성적 생성 입력 (서비스용 - 레거시)
+ * @deprecated CreateInternalScoreInput을 사용하세요
  */
 export type CreateSchoolScoreInput = {
   tenant_id?: string | null;
@@ -120,33 +159,35 @@ export type CreateSchoolScoreInput = {
 };
 
 /**
- * 내신 성적 수정 입력 (서비스용)
+ * 내신 성적 수정 입력 (서비스용 - 정규화 버전)
+ */
+export type UpdateInternalScoreInput = Partial<
+  Omit<InternalScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">
+>;
+
+/**
+ * 내신 성적 수정 입력 (서비스용 - 레거시)
+ * @deprecated UpdateInternalScoreInput을 사용하세요
  */
 export type UpdateSchoolScoreInput = Partial<
   Omit<SchoolScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">
 >;
 
 /**
- * 모의고사 성적 생성 입력 (서비스용)
+ * 모의고사 성적 생성 입력 (서비스용 - 정규화 버전)
  */
 export type CreateMockScoreInput = {
-  tenant_id?: string | null;
+  tenant_id: string;
   student_id: string;
+  exam_date: string; // date 형식: YYYY-MM-DD
+  exam_title: string;
   grade: number;
-  exam_type: string;
-  // FK 필드
-  subject_group_id?: string | null;
-  subject_id?: string | null;
-  subject_type_id?: string | null;
-  // deprecated 텍스트 필드
-  subject_group?: string | null;
-  subject_name?: string | null;
-  // 성적 정보
+  subject_id: string;
+  subject_group_id: string;
   raw_score?: number | null;
   standard_score?: number | null;
   percentile?: number | null;
   grade_score?: number | null;
-  exam_round?: string | null;
 };
 
 /**

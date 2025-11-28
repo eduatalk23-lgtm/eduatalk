@@ -46,26 +46,26 @@ export async function fetchSchoolScores(
       return [];
     }
 
-    const selectScores = () =>
-      supabase
-        .from("student_school_scores")
-        .select("*")
-        .eq("student_id", studentId)
-        .order("grade", { ascending: true })
-        .order("semester", { ascending: true })
-        .order("created_at", { ascending: false });
+    // tenant_id 조회 (RLS 정책 준수)
+    const { data: student } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .single();
 
-    let { data: scores, error } = await selectScores();
-
-    // fallback: student_id 컬럼이 없는 경우
-    if (error && error.code === "42703") {
-      ({ data: scores, error } = await supabase
-        .from("student_school_scores")
-        .select("*")
-        .order("grade", { ascending: true })
-        .order("semester", { ascending: true })
-        .order("created_at", { ascending: false }));
+    if (!student?.tenant_id) {
+      console.warn("[dashboard] 학생의 tenant_id를 찾을 수 없음");
+      return [];
     }
+
+    const { data: scores, error } = await supabase
+      .from("student_internal_scores")
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("tenant_id", student.tenant_id)
+      .order("grade", { ascending: true })
+      .order("semester", { ascending: true })
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("[dashboard] 내신 성적 조회 실패", {
@@ -99,24 +99,25 @@ export async function fetchMockScores(
       return [];
     }
 
-    const selectScores = () =>
-      supabase
-        .from("student_mock_scores")
-        .select("*")
-        .eq("student_id", studentId)
-        .order("grade", { ascending: true })
-        .order("created_at", { ascending: false });
+    // tenant_id 조회 (RLS 정책 준수)
+    const { data: student } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .single();
 
-    let { data: scores, error } = await selectScores();
-
-    // fallback: student_id 컬럼이 없는 경우
-    if (error && error.code === "42703") {
-      ({ data: scores, error } = await supabase
-        .from("student_mock_scores")
-        .select("*")
-        .order("grade", { ascending: true })
-        .order("created_at", { ascending: false }));
+    if (!student?.tenant_id) {
+      console.warn("[dashboard] 학생의 tenant_id를 찾을 수 없음");
+      return [];
     }
+
+    const { data: scores, error } = await supabase
+      .from("student_mock_scores")
+      .select("*")
+      .eq("student_id", studentId)
+      .eq("tenant_id", student.tenant_id)
+      .order("exam_date", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("[dashboard] 모의고사 성적 조회 실패", {

@@ -2,6 +2,11 @@
 -- Description: student_school_scores와 student_mock_scores 테이블에 교과 위계 테이블과의 FK 추가
 -- Date: 2025-02-11
 --
+-- ⚠️ DEPRECATED: 이 마이그레이션은 레거시 테이블(student_school_scores)을 대상으로 합니다.
+-- 2025-11-30 이후: student_school_scores는 student_internal_scores로 대체되었습니다.
+-- 새 프로젝트에서는 이 마이그레이션을 사용하지 마세요.
+-- 참고: 20251130000000_create_normalized_score_tables.sql을 사용하세요.
+--
 -- 이 마이그레이션은 성적 테이블을 교과 위계 테이블과 정규화된 관계로 연결합니다.
 -- 기존 텍스트 필드(subject_group, subject_type, subject_name)는 deprecated 처리되며,
 -- 향후 마이그레이션에서 제거될 예정입니다.

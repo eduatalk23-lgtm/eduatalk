@@ -9,14 +9,18 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
-  SchoolScore,
+  InternalScore,
   MockScore,
   GetSchoolScoresFilter,
   GetMockScoresFilter,
-  CreateSchoolScoreInput,
-  UpdateSchoolScoreInput,
+  CreateInternalScoreInput,
+  UpdateInternalScoreInput,
   CreateMockScoreInput,
   UpdateMockScoreInput,
+  // 레거시 타입 (하위 호환성)
+  SchoolScore,
+  CreateSchoolScoreInput,
+  UpdateSchoolScoreInput,
 } from "./types";
 
 // ============================================
@@ -24,7 +28,45 @@ import type {
 // ============================================
 
 /**
- * 내신 성적 목록 조회
+ * 내신 성적 목록 조회 (정규화 버전)
+ */
+export async function findInternalScores(
+  studentId: string,
+  tenantId: string,
+  filters?: GetSchoolScoresFilter
+): Promise<InternalScore[]> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("student_internal_scores")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (filters?.grade) {
+    query = query.eq("grade", filters.grade);
+  }
+
+  if (filters?.semester) {
+    query = query.eq("semester", filters.semester);
+  }
+
+  if (filters?.subjectGroupId) {
+    query = query.eq("subject_group_id", filters.subjectGroupId);
+  }
+
+  const { data, error } = await query
+    .order("grade", { ascending: true })
+    .order("semester", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as InternalScore[]) ?? [];
+}
+
+/**
+ * 내신 성적 목록 조회 (레거시)
+ * @deprecated findInternalScores를 사용하세요
  */
 export async function findSchoolScores(
   studentId: string,
@@ -86,7 +128,43 @@ export async function findSchoolScoreById(
 }
 
 /**
- * 내신 성적 생성
+ * 내신 성적 생성 (정규화 버전)
+ */
+export async function insertInternalScore(
+  input: CreateInternalScoreInput
+): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload = {
+    tenant_id: input.tenant_id,
+    student_id: input.student_id,
+    curriculum_revision_id: input.curriculum_revision_id,
+    subject_group_id: input.subject_group_id,
+    subject_type_id: input.subject_type_id,
+    subject_id: input.subject_id,
+    grade: input.grade,
+    semester: input.semester,
+    credit_hours: input.credit_hours,
+    raw_score: input.raw_score ?? null,
+    avg_score: input.avg_score ?? null,
+    std_dev: input.std_dev ?? null,
+    rank_grade: input.rank_grade ?? null,
+    total_students: input.total_students ?? null,
+  };
+
+  const { data, error } = await supabase
+    .from("student_internal_scores")
+    .insert(payload)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+/**
+ * 내신 성적 생성 (레거시)
+ * @deprecated insertInternalScore를 사용하세요
  */
 export async function insertSchoolScore(
   input: CreateSchoolScoreInput
@@ -195,11 +273,11 @@ export async function deleteSchoolScoreById(
 // ============================================
 
 /**
- * 모의고사 성적 목록 조회
+ * 모의고사 성적 목록 조회 (정규화 버전)
  */
 export async function findMockScores(
   studentId: string,
-  tenantId?: string | null,
+  tenantId: string,
   filters?: GetMockScoresFilter
 ): Promise<MockScore[]> {
   const supabase = await createSupabaseServerClient();
@@ -207,33 +285,27 @@ export async function findMockScores(
   let query = supabase
     .from("student_mock_scores")
     .select("*")
-    .eq("student_id", studentId);
-
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
 
   if (filters?.grade) {
     query = query.eq("grade", filters.grade);
   }
 
-  if (filters?.examType) {
-    query = query.eq("exam_type", filters.examType);
+  if (filters?.examTitle) {
+    query = query.eq("exam_title", filters.examTitle);
   }
 
-  if (filters?.examRound) {
-    query = query.eq("exam_round", filters.examRound);
+  if (filters?.examDate) {
+    query = query.eq("exam_date", filters.examDate);
   }
 
   if (filters?.subjectGroupId) {
     query = query.eq("subject_group_id", filters.subjectGroupId);
-  } else if (filters?.subjectGroup) {
-    query = query.eq("subject_group", filters.subjectGroup);
   }
 
   const { data, error } = await query
-    .order("grade", { ascending: true })
-    .order("exam_round", { ascending: true })
+    .order("exam_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -261,7 +333,7 @@ export async function findMockScoreById(
 }
 
 /**
- * 모의고사 성적 생성
+ * 모의고사 성적 생성 (정규화 버전)
  */
 export async function insertMockScore(
   input: CreateMockScoreInput
@@ -269,20 +341,17 @@ export async function insertMockScore(
   const supabase = await createSupabaseServerClient();
 
   const payload = {
-    tenant_id: input.tenant_id ?? null,
+    tenant_id: input.tenant_id,
     student_id: input.student_id,
+    exam_date: input.exam_date,
+    exam_title: input.exam_title,
     grade: input.grade,
-    exam_type: input.exam_type,
-    subject_group_id: input.subject_group_id ?? null,
-    subject_id: input.subject_id ?? null,
-    subject_type_id: input.subject_type_id ?? null,
-    subject_group: input.subject_group ?? null,
-    subject_name: input.subject_name ?? null,
+    subject_id: input.subject_id,
+    subject_group_id: input.subject_group_id,
     raw_score: input.raw_score ?? null,
     standard_score: input.standard_score ?? null,
     percentile: input.percentile ?? null,
     grade_score: input.grade_score ?? null,
-    exam_round: input.exam_round ?? null,
   };
 
   const { data, error } = await supabase
