@@ -8,7 +8,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getInternalAnalysis } from "@/lib/scores/internalAnalysis";
 import { getMockAnalysis } from "@/lib/scores/mockAnalysis";
 import {
@@ -65,28 +67,45 @@ export async function GET(
       );
     }
 
-    const supabase = await createSupabaseServerClient();
-
     // 인증 확인
     const currentUser = await getCurrentUser();
+    const { role: currentRole } = await getCurrentUserRole();
+    
     console.log("[api/score-dashboard] 현재 사용자:", {
       userId: currentUser?.userId,
       role: currentUser?.role,
+      currentRole,
       email: currentUser?.email,
       tenantId: currentUser?.tenantId,
       requestedStudentId: studentId,
       userIdMatches: currentUser?.userId === studentId,
     });
 
+    // Supabase 클라이언트 선택
+    // 관리자/부모 역할이거나 개발 환경에서는 Admin Client 사용 (RLS 우회)
+    // 학생은 자신의 데이터만 조회 가능하도록 Server Client 사용
+    const useAdminClient = 
+      currentRole === "admin" || 
+      currentRole === "parent" || 
+      process.env.NODE_ENV === "development";
+    
+    const supabase = useAdminClient 
+      ? createSupabaseAdminClient() || await createSupabaseServerClient()
+      : await createSupabaseServerClient();
+
+    if (useAdminClient) {
+      console.log("[api/score-dashboard] Admin Client 사용 (RLS 우회)");
+    }
+
     // 인증되지 않은 경우 (선택적 - RLS가 처리할 수도 있음)
     // 하지만 더 명확한 에러 메시지를 위해 확인
-    if (!currentUser) {
+    if (!currentUser && !useAdminClient) {
       console.warn("[api/score-dashboard] 인증되지 않은 사용자");
       // RLS가 처리하므로 여기서는 경고만
     }
 
     // 학생인 경우 자신의 데이터만 조회 가능한지 확인
-    if (currentUser?.role === "student" && currentUser?.userId !== studentId) {
+    if (currentUser?.role === "student" && currentUser?.userId !== studentId && !useAdminClient) {
       console.warn("[api/score-dashboard] 학생이 다른 학생의 데이터를 조회하려고 시도:", {
         currentUserId: currentUser.userId,
         requestedStudentId: studentId,
