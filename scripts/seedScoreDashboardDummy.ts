@@ -85,22 +85,32 @@ async function fetchMetadata() {
   // 1. 테넌트 조회 (이름 기반)
   const tenantId = await getTenantByName("Default Tenant");
 
-  // 2. 교육과정 개정 조회 (이름 기반: '2022개정' 우선, 없으면 첫 번째 활성화된 것)
-  const revisionName = "2022개정";
-  const { data: revision, error: revisionError } = await supabase
-    .from("curriculum_revisions")
-    .select("id, name")
-    .eq("name", revisionName)
-    .maybeSingle();
+  // 2. 교육과정 개정 조회 (이름 기반: '2022개정' 또는 '2022 개정' 우선, 없으면 첫 번째 활성화된 것)
+  const revisionNames = ["2022개정", "2022 개정"];
+  let curriculumRevisionId: string | null = null;
+  let foundRevisionName: string | null = null;
 
-  let curriculumRevisionId: string;
-
-  if (revisionError || !revision) {
-    // 이름으로 찾지 못하면 활성화된 첫 번째 것 사용
-    console.log(`⚠️  '${revisionName}'을 찾을 수 없습니다. 활성화된 교육과정을 조회합니다...`);
-    const { data: activeRevision, error: activeError } = await supabase
+  // 여러 이름 패턴 시도
+  for (const revisionName of revisionNames) {
+    const { data: revision, error: revisionError } = await supabase
       .from("curriculum_revisions")
       .select("id, name")
+      .eq("name", revisionName)
+      .maybeSingle();
+
+    if (!revisionError && revision) {
+      curriculumRevisionId = revision.id;
+      foundRevisionName = revision.name;
+      break;
+    }
+  }
+
+  // 찾지 못하면 활성화된 첫 번째 것 사용
+  if (!curriculumRevisionId) {
+    console.log(`⚠️  '2022개정' 또는 '2022 개정'을 찾을 수 없습니다. 활성화된 교육과정을 조회합니다...`);
+    const { data: activeRevision, error: activeError } = await supabase
+      .from("curriculum_revisions")
+      .select("id, name, year")
       .eq("is_active", true)
       .order("year", { ascending: false })
       .limit(1)
@@ -111,25 +121,57 @@ async function fetchMetadata() {
     }
 
     curriculumRevisionId = activeRevision.id;
+    foundRevisionName = activeRevision.name;
     console.log(
       `✅ 교육과정 개정 조회 완료: ${activeRevision.name} (${curriculumRevisionId})`
     );
   } else {
-    curriculumRevisionId = revision.id;
     console.log(
-      `✅ 교육과정 개정 조회 완료: ${revision.name} (${curriculumRevisionId})`
+      `✅ 교육과정 개정 조회 완료: ${foundRevisionName} (${curriculumRevisionId})`
     );
   }
 
   // 3. 교과 그룹 조회 (국어, 수학, 영어, 사회, 과학)
+  const requiredSubjectGroups = ["국어", "수학", "영어", "사회", "과학"];
   const { data: subjectGroups, error: sgError } = await supabase
     .from("subject_groups")
     .select("id, name")
     .eq("curriculum_revision_id", curriculumRevisionId)
-    .in("name", ["국어", "수학", "영어", "사회", "과학"]);
+    .in("name", requiredSubjectGroups);
 
-  if (sgError || !subjectGroups || subjectGroups.length < 5) {
-    throw new Error("필요한 교과 그룹을 찾을 수 없습니다.");
+  if (sgError) {
+    console.error("❌ 교과 그룹 조회 오류:", sgError.message);
+    throw new Error(`교과 그룹 조회 실패: ${sgError.message}`);
+  }
+
+  if (!subjectGroups || subjectGroups.length === 0) {
+    // 해당 교육과정의 모든 교과 그룹 조회하여 디버깅 정보 제공
+    const { data: allGroups } = await supabase
+      .from("subject_groups")
+      .select("id, name")
+      .eq("curriculum_revision_id", curriculumRevisionId);
+
+    const availableNames = allGroups?.map((g) => g.name).join(", ") || "없음";
+    throw new Error(
+      `필요한 교과 그룹을 찾을 수 없습니다.\n` +
+      `  교육과정: ${foundRevisionName}\n` +
+      `  필요한 교과: ${requiredSubjectGroups.join(", ")}\n` +
+      `  사용 가능한 교과: ${availableNames}\n` +
+      `  먼저 교과 그룹 데이터를 생성하세요.`
+    );
+  }
+
+  if (subjectGroups.length < 5) {
+    const foundNames = subjectGroups.map((sg) => sg.name);
+    const missingNames = requiredSubjectGroups.filter(
+      (name) => !foundNames.includes(name)
+    );
+    throw new Error(
+      `일부 교과 그룹을 찾을 수 없습니다.\n` +
+      `  찾은 교과: ${foundNames.join(", ")}\n` +
+      `  누락된 교과: ${missingNames.join(", ")}\n` +
+      `  먼저 누락된 교과 그룹을 생성하세요.`
+    );
   }
 
   const subjectGroupMap: Record<string, string> = {};
@@ -138,6 +180,9 @@ async function fetchMetadata() {
   }
 
   console.log(`✅ 교과 그룹 조회 완료: ${subjectGroups.length}개`);
+  for (const sg of subjectGroups) {
+    console.log(`   - ${sg.name} (${sg.id})`);
+  }
 
   // 4. 과목 구분 조회 또는 생성 (공통 우선)
   let commonSubjectTypeId: string;
