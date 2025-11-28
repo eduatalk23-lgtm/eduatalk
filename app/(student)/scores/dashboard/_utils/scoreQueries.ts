@@ -1,9 +1,22 @@
+/**
+ * 성적 대시보드 쿼리 유틸리티
+ * 
+ * ⚠️ 주의: 이 파일은 레거시 대시보드(/scores/dashboard)에서만 사용됩니다.
+ * 새로운 통합 대시보드(/scores/dashboard/unified)는 API 기반으로 구현되어 있습니다.
+ * 
+ * 새 기능 구현 시 /api/students/[id]/score-dashboard 를 사용하세요.
+ */
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
+/**
+ * ⚠️ 레거시 타입: student_internal_scores 테이블 기반
+ * 새로운 코드에서는 lib/types/scoreDashboard.ts 의 타입을 사용하세요.
+ */
 export type SchoolScoreRow = {
   id: string;
   student_id: string;
@@ -18,6 +31,10 @@ export type SchoolScoreRow = {
   created_at: string | null;
 };
 
+/**
+ * ⚠️ 레거시 타입: student_mock_scores 테이블 기반
+ * 새로운 코드에서는 lib/types/scoreDashboard.ts 의 타입을 사용하세요.
+ */
 export type MockScoreRow = {
   id: string;
   student_id: string;
@@ -32,7 +49,14 @@ export type MockScoreRow = {
   created_at: string | null;
 };
 
-// 내신 성적 조회
+/**
+ * 내신 성적 조회 (레거시)
+ * 
+ * ⚠️ 이 함수는 student_internal_scores 테이블을 직접 조회합니다.
+ * 새로운 코드에서는 fetchScoreDashboard() API를 사용하세요.
+ * 
+ * @deprecated 새로운 코드에서는 lib/api/scoreDashboard.ts 의 fetchScoreDashboard 사용
+ */
 export async function fetchSchoolScores(
   studentId: string
 ): Promise<SchoolScoreRow[]> {
@@ -85,7 +109,14 @@ export async function fetchSchoolScores(
   }
 }
 
-// 모의고사 성적 조회
+/**
+ * 모의고사 성적 조회 (레거시)
+ * 
+ * ⚠️ 이 함수는 student_mock_scores 테이블을 직접 조회합니다.
+ * 새로운 코드에서는 fetchScoreDashboard() API를 사용하세요.
+ * 
+ * @deprecated 새로운 코드에서는 lib/api/scoreDashboard.ts 의 fetchScoreDashboard 사용
+ */
 export async function fetchMockScores(
   studentId: string
 ): Promise<MockScoreRow[]> {

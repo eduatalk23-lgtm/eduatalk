@@ -331,7 +331,10 @@ export async function getInternalScores(
 
 /**
  * 내신 성적 목록 조회 (레거시)
- * @deprecated getInternalScores를 사용하세요
+ * 
+ * ⚠️ 이 함수는 더 이상 존재하지 않는 student_school_scores 테이블을 참조합니다.
+ * 
+ * @deprecated getInternalScores를 사용하거나, 통합 대시보드의 경우 fetchScoreDashboard API를 사용하세요.
  */
 export async function getSchoolScores(
   studentId: string,
@@ -342,11 +345,15 @@ export async function getSchoolScores(
     subjectGroup?: string;
   }
 ): Promise<SchoolScore[]> {
+  console.warn(
+    "[DEPRECATED] getSchoolScores는 더 이상 사용되지 않습니다. getInternalScores 또는 fetchScoreDashboard API를 사용하세요."
+  );
+  
   const supabase = await createSupabaseServerClient();
 
   const selectScores = () =>
     supabase
-      .from("student_school_scores")
+      .from("student_internal_scores") // student_school_scores -> student_internal_scores
       .select("*")
       .eq("student_id", studentId);
 
