@@ -130,18 +130,25 @@ async function fetchMetadata() {
   // 4. 과목 구분 조회 또는 생성 (공통 우선)
   let commonSubjectTypeId: string;
 
+  // 먼저 조회 시도
   const { data: subjectTypes, error: stError } = await supabase
     .from("subject_types")
     .select("id, name")
     .eq("curriculum_revision_id", curriculumRevisionId)
-    .in("name", ["공통", "일반선택"])
-    .order("display_order", { ascending: true });
+    .in("name", ["공통", "일반선택"]);
 
-  if (stError || !subjectTypes || subjectTypes.length === 0) {
-    // 과목 구분이 없으면 생성
+  // 조회 결과 확인
+  if (subjectTypes && subjectTypes.length > 0) {
+    // 기존 과목 구분 사용
+    commonSubjectTypeId =
+      subjectTypes.find((st) => st.name === "공통")?.id ||
+      subjectTypes[0].id;
+    console.log(`✅ 과목 구분 조회 완료: ${subjectTypes.length}개`);
+  } else {
+    // 과목 구분이 없으면 생성 시도 (중복 시 무시)
     console.log("⚠️  과목 구분이 없습니다. 기본 과목 구분을 생성합니다...");
 
-    // 공통 생성
+    // 공통 생성 (중복 시 무시하고 조회)
     const { data: commonType, error: commonError } = await supabase
       .from("subject_types")
       .insert({
@@ -152,19 +159,36 @@ async function fetchMetadata() {
       .select("id")
       .single();
 
-    if (commonError || !commonType) {
-      throw new Error(
-        `과목 구분 생성 실패: ${commonError?.message || "알 수 없는 오류"}`
-      );
-    }
+    if (commonError) {
+      // 중복 키 오류인 경우 다시 조회
+      if (commonError.code === "23505") {
+        console.log("   과목 구분이 이미 존재합니다. 다시 조회합니다...");
+        const { data: existingTypes, error: retryError } = await supabase
+          .from("subject_types")
+          .select("id, name")
+          .eq("curriculum_revision_id", curriculumRevisionId)
+          .eq("name", "공통")
+          .limit(1);
 
-    commonSubjectTypeId = commonType.id;
-    console.log(`✅ 과목 구분 생성 완료: 공통 (${commonSubjectTypeId})`);
-  } else {
-    commonSubjectTypeId =
-      subjectTypes.find((st) => st.name === "공통")?.id ||
-      subjectTypes[0].id;
-    console.log(`✅ 과목 구분 조회 완료: ${subjectTypes.length}개`);
+        if (retryError || !existingTypes || existingTypes.length === 0) {
+          throw new Error(
+            `과목 구분 조회 실패: ${retryError?.message || "알 수 없는 오류"}`
+          );
+        }
+
+        commonSubjectTypeId = existingTypes[0].id;
+        console.log(`✅ 과목 구분 조회 완료: 공통 (${commonSubjectTypeId})`);
+      } else {
+        throw new Error(
+          `과목 구분 생성 실패: ${commonError.message}`
+        );
+      }
+    } else if (commonType) {
+      commonSubjectTypeId = commonType.id;
+      console.log(`✅ 과목 구분 생성 완료: 공통 (${commonSubjectTypeId})`);
+    } else {
+      throw new Error("과목 구분 생성 실패: 알 수 없는 오류");
+    }
   }
 
   // 5. 과목 조회 (각 교과 그룹의 첫 번째 과목 사용)
