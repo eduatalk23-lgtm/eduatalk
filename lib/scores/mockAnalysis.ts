@@ -1,6 +1,6 @@
 /**
  * 모의고사 분석 서비스
- * 
+ *
  * student_mock_scores 테이블을 기반으로 모의고사 분석을 수행합니다.
  * - 최근 시험 정보 조회
  * - 국/수/탐(상위2) 평균 백분위 계산
@@ -11,7 +11,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;
 
 /**
  * 모의고사 과목 데이터 타입
@@ -35,7 +37,7 @@ export type MockAnalysis = {
 
 /**
  * 모의고사 통계 계산
- * 
+ *
  * @param rows - 모의고사 과목 데이터 배열
  * @returns 모의고사 통계 (recentExam 제외)
  */
@@ -51,15 +53,15 @@ function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
   const inquiryRows = rows
     .filter(
       (r) =>
-        ["사회", "과학"].includes(r.subject_group_name) &&
-        r.percentile != null
+        ["사회", "과학"].includes(r.subject_group_name) && r.percentile != null
     )
     .sort((a, b) => (b.percentile ?? 0) - (a.percentile ?? 0))
     .slice(0, 2);
 
   const inquiryAvgPct =
     inquiryRows.length > 0
-      ? inquiryRows.reduce((s, r) => s + (r.percentile ?? 0), 0) / inquiryRows.length
+      ? inquiryRows.reduce((s, r) => s + (r.percentile ?? 0), 0) /
+        inquiryRows.length
       : null;
 
   // 국/수/탐(상위2) 평균 백분위
@@ -79,9 +81,8 @@ function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
   // 국·수·영·탐 중 상위 3개 등급 합
   const gradeCandidates = rows.filter(
     (r) =>
-      ["국어", "수학", "영어", "사회", "과학"].includes(
-        r.subject_group_name
-      ) && r.grade_score != null
+      ["국어", "수학", "영어", "사회", "과학"].includes(r.subject_group_name) &&
+      r.grade_score != null
   );
 
   const best3GradeSum =
@@ -101,7 +102,7 @@ function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
 
 /**
  * 모의고사 분석 수행
- * 
+ *
  * @param tenantId - 테넌트 ID
  * @param studentId - 학생 ID
  * @returns 모의고사 분석 결과
@@ -151,7 +152,10 @@ export async function getMockAnalysis(
     .not("subject_id", "is", null);
 
   if (mockScoresError) {
-    console.error("[scores/mockAnalysis] 모의고사 성적 조회 실패", mockScoresError);
+    console.error(
+      "[scores/mockAnalysis] 모의고사 성적 조회 실패",
+      mockScoresError
+    );
     return {
       recentExam: {
         examDate,
@@ -176,7 +180,10 @@ export async function getMockAnalysis(
     };
   }
 
-  console.log("[scores/mockAnalysis] 조회된 모의고사 성적:", JSON.stringify(mockScores, null, 2));
+  console.log(
+    "[scores/mockAnalysis] 조회된 모의고사 성적:",
+    JSON.stringify(mockScores, null, 2)
+  );
 
   // subject_id 목록 추출
   const subjectIds = mockScores
@@ -203,13 +210,16 @@ export async function getMockAnalysis(
   // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
   const adminClient = createSupabaseAdminClient();
   const subjectsClient = adminClient || supabase;
-  
+
   const { data: subjectsData, error: subjectsError } = await subjectsClient
     .from("subjects")
     .select("id, subject_group_id")
     .in("id", subjectIds);
 
-  console.log("[scores/mockAnalysis] 조회된 subjects 데이터:", JSON.stringify(subjectsData, null, 2));
+  console.log(
+    "[scores/mockAnalysis] 조회된 subjects 데이터:",
+    JSON.stringify(subjectsData, null, 2)
+  );
 
   if (subjectsError) {
     console.error("[scores/mockAnalysis] 과목 정보 조회 실패", subjectsError);
@@ -294,7 +304,10 @@ export async function getMockAnalysis(
     }
   }
 
-  console.log("[scores/mockAnalysis] 생성된 subjectMap:", Array.from(subjectMap.entries()));
+  console.log(
+    "[scores/mockAnalysis] 생성된 subjectMap:",
+    Array.from(subjectMap.entries())
+  );
 
   // 데이터 변환
   const rows: MockRow[] = mockScores
@@ -305,17 +318,24 @@ export async function getMockAnalysis(
         percentile: score.percentile != null ? Number(score.percentile) : null,
         standard_score:
           score.standard_score != null ? Number(score.standard_score) : null,
-        grade_score: score.grade_score != null ? Number(score.grade_score) : null,
+        grade_score:
+          score.grade_score != null ? Number(score.grade_score) : null,
       };
     })
     .filter((row) => row.subject_group_name !== ""); // subject_group_name이 없는 경우 제외
 
-  console.log("[scores/mockAnalysis] 변환된 rows:", JSON.stringify(rows, null, 2));
+  console.log(
+    "[scores/mockAnalysis] 변환된 rows:",
+    JSON.stringify(rows, null, 2)
+  );
 
   // 통계 계산
   const stats = calculateMockStats(rows);
 
-  console.log("[scores/mockAnalysis] 계산된 통계:", JSON.stringify(stats, null, 2));
+  console.log(
+    "[scores/mockAnalysis] 계산된 통계:",
+    JSON.stringify(stats, null, 2)
+  );
 
   return {
     recentExam: {
@@ -325,4 +345,3 @@ export async function getMockAnalysis(
     ...stats,
   };
 }
-

@@ -115,3 +115,5 @@ CLI를 사용하고 싶다면:
    ```bash
    npx supabase login
    ```
+
+

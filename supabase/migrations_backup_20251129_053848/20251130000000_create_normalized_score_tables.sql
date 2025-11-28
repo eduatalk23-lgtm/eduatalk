@@ -51,9 +51,18 @@ CREATE TABLE IF NOT EXISTS public.student_internal_scores (
 );
 
 -- UNIQUE 제약 조건
-ALTER TABLE public.student_internal_scores
-ADD CONSTRAINT IF NOT EXISTS student_internal_scores_unique_term_subject
-UNIQUE (tenant_id, student_id, grade, semester, subject_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'student_internal_scores_unique_term_subject'
+        AND conrelid = 'public.student_internal_scores'::regclass
+    ) THEN
+        ALTER TABLE public.student_internal_scores
+        ADD CONSTRAINT student_internal_scores_unique_term_subject
+        UNIQUE (tenant_id, student_id, grade, semester, subject_id);
+    END IF;
+END $$;
 
 -- 인덱스 생성
 CREATE INDEX IF NOT EXISTS idx_student_internal_scores_student_term
