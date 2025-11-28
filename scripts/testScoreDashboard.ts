@@ -164,26 +164,38 @@ async function listAvailableStudents() {
     console.log("📋 사용 가능한 학생 목록 (최근 10명):\n");
     
     for (const student of students) {
-      // 학생의 최근 성적 정보 조회 (grade, semester)
-      const { data: scores } = await supabase
-        .from("student_school_scores")
-        .select("grade, semester")
+      // 학생의 최근 학기 정보 조회 (student_terms 테이블 사용)
+      const { data: termData, error: termError } = await supabase
+        .from("student_terms")
+        .select("id, school_year, grade, semester")
+        .eq("tenant_id", student.tenant_id)
         .eq("student_id", student.id)
-        .order("grade", { ascending: false })
+        .order("school_year", { ascending: false })
         .order("semester", { ascending: false })
         .limit(1);
 
-      const grade = scores && scores.length > 0 ? scores[0].grade : student.grade || null;
-      const semester = scores && scores.length > 0 ? scores[0].semester : null;
-      const termInfo = grade && semester 
-        ? `${grade}학년 ${semester}학기`
-        : "학기 정보 없음";
+      let termInfo: string;
+      let termId: string | null = null;
+      let grade: number | null = null;
+      let semester: number | null = null;
+
+      if (termError) {
+        console.log(`     ⚠️  학기 정보 조회 오류: ${termError.message}`);
+        termInfo = "학기 정보 없음";
+      } else if (termData && termData.length > 0) {
+        const term = termData[0];
+        termId = term.id;
+        grade = term.grade;
+        semester = term.semester;
+        termInfo = `${term.school_year}년 ${term.grade}학년 ${term.semester}학기 (Term ID: ${term.id})`;
+      } else {
+        termInfo = "학기 정보 없음";
+      }
 
       console.log(`  👤 ${student.name || "이름 없음"} (ID: ${student.id})`);
       console.log(`     - Tenant ID: ${student.tenant_id || "없음"}`);
-      console.log(`     - 학년: ${student.grade || "미설정"}`);
       console.log(`     - 학기: ${termInfo}`);
-      if (grade && semester) {
+      if (termId && grade !== null && semester !== null) {
         console.log(`     - 테스트 명령어:`);
         console.log(`       npx tsx scripts/testScoreDashboard.ts ${student.id} ${student.tenant_id || ""} ${grade} ${semester}`);
       }
@@ -194,6 +206,48 @@ async function listAvailableStudents() {
     console.log("   npx tsx scripts/seedScoreDashboardDummy.ts\n");
   } catch (error: any) {
     console.log("⚠️  학생 목록 조회 중 오류:", error.message);
+  }
+}
+
+/**
+ * 특정 학생의 학기 정보 조회
+ */
+async function getStudentTermInfo(studentId: string, tenantId: string) {
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    console.log("⚠️  환경 변수가 설정되지 않아 학기 정보를 조회할 수 없습니다.");
+    return null;
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { data: termData, error: termError } = await supabase
+      .from("student_terms")
+      .select("id, school_year, grade, semester")
+      .eq("tenant_id", tenantId)
+      .eq("student_id", studentId)
+      .order("school_year", { ascending: false })
+      .order("semester", { ascending: false })
+      .limit(1);
+
+    if (termError) {
+      console.log(`⚠️  학기 정보 조회 오류: ${termError.message}`);
+      return null;
+    }
+
+    if (!termData || termData.length === 0) {
+      return null;
+    }
+
+    return termData[0];
+  } catch (error: any) {
+    console.log(`⚠️  학기 정보 조회 중 오류: ${error.message}`);
+    return null;
   }
 }
 
@@ -209,6 +263,8 @@ async function main() {
     console.log("  npx tsx scripts/testScoreDashboard.ts <studentId> <tenantId> [grade] [semester]\n");
     console.log("예시:");
     console.log("  npx tsx scripts/testScoreDashboard.ts <studentId> <tenantId> 2 1\n");
+    console.log("테스트 데이터 예시:");
+    console.log("  npx tsx scripts/testScoreDashboard.ts fd0854f1-1f6a-45bb-9743-5c389e754caf 84b71a5d-5681-4da3-88d2-91e75ef89015\n");
     console.log("=".repeat(80) + "\n");
     
     await listAvailableStudents();
@@ -224,7 +280,26 @@ async function main() {
     process.exit(1);
   }
 
-  await testScoreDashboard(studentId, tenantId, grade, semester);
+  // 학기 정보 조회 및 표시
+  console.log("=".repeat(80));
+  console.log("📚 학생 학기 정보 조회");
+  console.log("=".repeat(80) + "\n");
+
+  const termInfo = await getStudentTermInfo(studentId, tenantId);
+  
+  if (termInfo) {
+    console.log(`✅ 학기 정보: ${termInfo.school_year}년 ${termInfo.grade}학년 ${termInfo.semester}학기 (Term ID: ${termInfo.id})\n`);
+  } else {
+    console.log("⚠️  학기 정보 없음\n");
+  }
+
+  console.log("=".repeat(80) + "\n");
+
+  // grade와 semester가 제공되지 않았고, termInfo가 있으면 자동으로 사용
+  const finalGrade = grade || (termInfo ? termInfo.grade.toString() : undefined);
+  const finalSemester = semester || (termInfo ? termInfo.semester.toString() : undefined);
+
+  await testScoreDashboard(studentId, tenantId, finalGrade, finalSemester);
 }
 
 // 스크립트 실행
