@@ -147,7 +147,6 @@ async function fetchMetadata() {
       .insert({
         curriculum_revision_id: curriculumRevisionId,
         name: "공통",
-        display_order: 1,
         is_active: true,
       })
       .select("id")
