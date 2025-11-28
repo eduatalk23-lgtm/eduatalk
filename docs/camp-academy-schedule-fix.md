@@ -95,6 +95,34 @@ if (creationData.academy_schedules && creationData.academy_schedules.length > 0)
 - 학원 일정은 학생별 전역 관리이므로, 다른 플랜 그룹의 학원 일정도 영향을 받을 수 있습니다.
 - 삭제 실패 시에도 새 일정 저장을 시도하므로, 중복 체크 로직에 의해 일부 일정이 저장되지 않을 수 있습니다.
 
+## 추가 개선 사항 (관리자 페이지)
+
+### 관리자 "남은 단계 진행하기"에서 학원 일정 표시 문제 해결
+
+**문제**: 학생이 캠프 템플릿에 작성해서 제출한 학원 일정이 관리자의 "남은 단계 진행하기" 페이지에서 보이지 않았습니다.
+
+**원인**: `getPlanGroupWithDetailsForAdmin` 함수에서 `getStudentAcademySchedules`를 사용할 때, RLS(Row Level Security) 정책 때문에 관리자가 다른 학생의 학원 일정을 조회하지 못했습니다.
+
+**해결**: `getPlanGroupWithDetailsForAdmin` 함수 내에서 Admin 클라이언트를 사용하여 학원 일정을 직접 조회하도록 수정했습니다.
+
+**변경 파일**: `lib/data/planGroups.ts`
+
+```typescript
+// 관리자용 학원 일정 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
+const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
+  
+  if (!adminClient) {
+    // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
+    return getStudentAcademySchedules(group.student_id, tenantId);
+  }
+
+  // Admin 클라이언트로 학원 일정 조회 (RLS 우회)
+  // ...
+};
+```
+
 ## 향후 개선 사항
 
 1. 캠프 모드에서만 기존 학원 일정을 삭제하도록 플래그 추가

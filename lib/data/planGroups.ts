@@ -1411,11 +1411,82 @@ export async function getPlanGroupWithDetailsForAdmin(
     };
   }
 
+  // 관리자용 학원 일정 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
+  const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+    
+    if (!adminClient) {
+      // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
+      console.warn("[getPlanGroupWithDetailsForAdmin] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      return getStudentAcademySchedules(group.student_id, tenantId);
+    }
+
+    // academies와 조인하여 travel_time 가져오기
+    const selectSchedules = () =>
+      adminClient
+        .from("academy_schedules")
+        .select(
+          "id,tenant_id,student_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
+        )
+        .eq("student_id", group.student_id)
+        .eq("tenant_id", tenantId)
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
+
+    let { data, error } = await selectSchedules();
+
+    if (error && error.code === "42703") {
+      // academy_id가 없는 경우를 대비한 fallback
+      const fallbackSelect = () =>
+        adminClient
+          .from("academy_schedules")
+          .select(
+            "id,tenant_id,student_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at"
+          )
+          .eq("student_id", group.student_id)
+          .eq("tenant_id", tenantId)
+          .order("day_of_week", { ascending: true })
+          .order("start_time", { ascending: true });
+
+      ({ data, error } = await fallbackSelect());
+    }
+
+    if (error) {
+      console.error("[getPlanGroupWithDetailsForAdmin] 관리자용 학원 일정 조회 실패:", {
+        groupId,
+        studentId: group.student_id,
+        tenantId,
+        error,
+      });
+      // 에러 발생 시 빈 배열 반환
+      return [];
+    }
+
+    // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
+    const schedules = (data as any[] | null) ?? [];
+    const academySchedules = schedules.map((schedule) => ({
+      ...schedule,
+      travel_time: schedule.academies?.travel_time ?? 60, // 기본값 60분
+      academies: undefined, // 관계 데이터 제거
+    })) as AcademySchedule[];
+
+    console.log("[getPlanGroupWithDetailsForAdmin] 관리자용 학원 일정 조회 성공:", {
+      groupId,
+      studentId: group.student_id,
+      tenantId,
+      academySchedulesCount: academySchedules.length,
+      academySchedules: academySchedules,
+    });
+
+    return academySchedules;
+  };
+
   // 플랜 그룹별 제외일과 학원 일정 조회
   const [contents, exclusions, academySchedules] = await Promise.all([
     getPlanContents(groupId, tenantId),
     getPlanExclusions(groupId, tenantId),
-    getStudentAcademySchedules(group.student_id, tenantId),
+    getAcademySchedulesForAdmin(),
   ]);
 
   return {
