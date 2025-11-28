@@ -8,7 +8,7 @@ export type StudentCareerGoal = {
   tenant_id?: string | null;
   exam_year?: number | null;
   curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
-  desired_university_ids?: string[] | null; // 희망 대학교 ID 배열 (최대 3개)
+  desired_university_ids?: string[] | null; // 희망 대학교 통합 ID 배열 (최대 3개, 형식: UNIV_14, SCHOOL_123 등)
   desired_career_field?: string | null;
   target_major?: string | null;
   target_major_2?: string | null;
@@ -50,7 +50,7 @@ export async function upsertStudentCareerGoal(
     tenant_id?: string | null;
     exam_year?: number | null;
     curriculum_revision?: "2009 개정" | "2015 개정" | "2022 개정" | null;
-    desired_university_ids?: string[] | null; // 희망 대학교 ID 배열 (최대 3개)
+    desired_university_ids?: string[] | null; // 희망 대학교 통합 ID 배열 (최대 3개, 형식: UNIV_14, SCHOOL_123 등)
     desired_career_field?: string | null;
     target_major?: string | null;
     target_major_2?: string | null;
@@ -82,12 +82,48 @@ export async function upsertStudentCareerGoal(
     universityIds = [];
   }
 
+  // desired_university_ids는 통합 ID 형식 (UNIV_14, SCHOOL_123 등)을 그대로 저장
+  // 통합 ID 형식이 아닌 경우에만 변환 시도
+  let resolvedUniversityIds: string[] = [];
+  if (universityIds.length > 0) {
+    // 통합 ID 형식인지 확인 (UNIV_14, SCHOOL_123 등)
+    const unifiedIdRegex = /^(UNIV_|SCHOOL_)\d+$/;
+    const isAllUnifiedIds = universityIds.every((id) => unifiedIdRegex.test(id));
+
+    if (isAllUnifiedIds) {
+      // 이미 통합 ID 형식이면 그대로 사용
+      resolvedUniversityIds = universityIds;
+    } else {
+      // UUID 형식인지 확인 (8-4-4-4-12 형식)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isAllUuids = universityIds.every((id) => uuidRegex.test(id));
+
+      if (isAllUuids) {
+        // UUID가 전달된 경우, 경고 로그 출력 (향후 통합 ID로 마이그레이션 필요)
+        console.warn(
+          "[data/studentCareerGoals] UUID 형식의 desired_university_ids가 전달되었습니다. 통합 ID 형식 (UNIV_*, SCHOOL_*)을 사용해주세요."
+        );
+        resolvedUniversityIds = universityIds;
+      } else {
+        // 알 수 없는 형식
+        console.error(
+          "[data/studentCareerGoals] 알 수 없는 desired_university_ids 형식:",
+          universityIds
+        );
+        return {
+          success: false,
+          error: "학교 ID 형식이 올바르지 않습니다. 통합 ID 형식 (UNIV_*, SCHOOL_*)을 사용해주세요.",
+        };
+      }
+    }
+  }
+
   const payload = {
     student_id: goal.student_id,
     tenant_id: goal.tenant_id ?? null,
     exam_year: goal.exam_year ?? null,
     curriculum_revision: goal.curriculum_revision ?? null,
-    desired_university_ids: universityIds,
+    desired_university_ids: resolvedUniversityIds,
     desired_career_field: goal.desired_career_field ?? null,
     target_major: goal.target_major ?? null,
     target_major_2: goal.target_major_2 ?? null,
