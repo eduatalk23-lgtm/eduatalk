@@ -5,9 +5,15 @@
  * - 전체 GPA 계산
  * - Z-Index (학업역량 지수) 계산
  * - 교과군별 GPA 계산
+ * 
+ * 변경사항 (2025-01-XX):
+ * - student_school_scores → student_internal_scores 테이블 사용
+ * - studentTermId는 UUID 형식의 student_term_id 사용
+ * - subject_group_id를 통해 subject_groups 조인하여 교과군명 조회
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -25,7 +31,7 @@ export type InternalAnalysis = {
  * 
  * @param tenantId - 테넌트 ID
  * @param studentId - 학생 ID
- * @param studentTermId - 학생 학기 ID (선택사항, 없으면 전체 학기 대상)
+ * @param studentTermId - 학생 학기 ID (UUID 형식, 선택사항, 없으면 전체 학기 대상)
  * @returns 내신 분석 결과
  */
 export async function getInternalAnalysis(
@@ -37,21 +43,16 @@ export async function getInternalAnalysis(
 
   // 1. 전체 GPA 계산
   let gpaQuery = supabase
-    .from("student_school_scores")
-    .select("rank_grade, credit_hours, grade, semester")
+    .from("student_internal_scores")
+    .select("rank_grade, credit_hours")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("rank_grade", "is", null)
     .not("credit_hours", "is", null);
 
-  // studentTermId가 없으면 grade, semester로 필터링
-  // studentTermId 형식: "grade:semester" 또는 직접 grade, semester 파라미터 사용
+  // studentTermId가 있으면 student_term_id로 필터링
   if (studentTermId) {
-    // studentTermId가 "grade:semester" 형식인 경우 파싱
-    const parts = studentTermId.split(":");
-    if (parts.length === 2) {
-      gpaQuery = gpaQuery.eq("grade", parseInt(parts[0])).eq("semester", parseInt(parts[1]));
-    }
+    gpaQuery = gpaQuery.eq("student_term_id", studentTermId);
   }
 
   const { data: gpaData, error: gpaError } = await gpaQuery;
@@ -79,21 +80,18 @@ export async function getInternalAnalysis(
 
   // 2. Z-Index 계산
   let zIndexQuery = supabase
-    .from("student_school_scores")
-    .select("raw_score, subject_average, standard_deviation, credit_hours, grade, semester")
+    .from("student_internal_scores")
+    .select("raw_score, avg_score, std_dev, credit_hours")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("raw_score", "is", null)
-    .not("subject_average", "is", null)
-    .not("standard_deviation", "is", null)
+    .not("avg_score", "is", null)
+    .not("std_dev", "is", null)
     .not("credit_hours", "is", null)
-    .gt("standard_deviation", 0); // 표준편차가 0보다 큰 경우만
+    .gt("std_dev", 0); // 표준편차가 0보다 큰 경우만
 
   if (studentTermId) {
-    const parts = studentTermId.split(":");
-    if (parts.length === 2) {
-      zIndexQuery = zIndexQuery.eq("grade", parseInt(parts[0])).eq("semester", parseInt(parts[1]));
-    }
+    zIndexQuery = zIndexQuery.eq("student_term_id", studentTermId);
   }
 
   const { data: zIndexData, error: zIndexError } = await zIndexQuery;
@@ -107,8 +105,8 @@ export async function getInternalAnalysis(
   if (zIndexData && zIndexData.length > 0) {
     const totalZCredit = zIndexData.reduce((sum, row) => {
       const rawScore = Number(row.raw_score) || 0;
-      const avgScore = Number(row.subject_average) || 0;
-      const stdDev = Number(row.standard_deviation) || 1;
+      const avgScore = Number(row.avg_score) || 0;
+      const stdDev = Number(row.std_dev) || 1;
       const creditHours = Number(row.credit_hours) || 0;
 
       if (stdDev > 0) {
@@ -129,19 +127,17 @@ export async function getInternalAnalysis(
   }
 
   // 3. 교과군별 GPA 계산
+  // subject_group_id를 통해 subject_groups 조인 필요
   let subjectQuery = supabase
-    .from("student_school_scores")
-    .select("rank_grade, credit_hours, subject_group")
+    .from("student_internal_scores")
+    .select("rank_grade, credit_hours, subject_group_id")
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("rank_grade", "is", null)
     .not("credit_hours", "is", null);
 
   if (studentTermId) {
-    const parts = studentTermId.split(":");
-    if (parts.length === 2) {
-      subjectQuery = subjectQuery.eq("grade", parseInt(parts[0])).eq("semester", parseInt(parts[1]));
-    }
+    subjectQuery = subjectQuery.eq("student_term_id", studentTermId);
   }
 
   const { data: subjectData, error: subjectError } = await subjectQuery;
@@ -153,28 +149,56 @@ export async function getInternalAnalysis(
   // 교과군별 GPA 계산
   const subjectStrength: Record<string, number> = {};
   if (subjectData && subjectData.length > 0) {
-    // 교과군별로 그룹화
-    const subjectGroups: Record<string, { totalGradeCredit: number; totalCredit: number }> = {};
+    // subject_group_id 목록 추출
+    const subjectGroupIds = subjectData
+      .map((row) => row.subject_group_id)
+      .filter((id): id is string => id != null);
 
-    for (const row of subjectData) {
-      const subjectGroupName = row.subject_group;
-      if (!subjectGroupName) continue;
+    if (subjectGroupIds.length > 0) {
+      // subject_groups 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
+      const adminClient = createSupabaseAdminClient();
+      const groupsClient = adminClient || supabase;
 
-      const rankGrade = Number(row.rank_grade) || 0;
-      const creditHours = Number(row.credit_hours) || 0;
+      const { data: subjectGroupsData, error: sgError } = await groupsClient
+        .from("subject_groups")
+        .select("id, name")
+        .in("id", subjectGroupIds);
 
-      if (!subjectGroups[subjectGroupName]) {
-        subjectGroups[subjectGroupName] = { totalGradeCredit: 0, totalCredit: 0 };
-      }
+      if (sgError) {
+        console.error("[scores/internalAnalysis] 교과 그룹 정보 조회 실패", sgError);
+      } else if (subjectGroupsData) {
+        // subject_group_id → 교과군명 매핑 생성
+        const subjectGroupMap = new Map(
+          subjectGroupsData.map((sg) => [sg.id, sg.name])
+        );
 
-      subjectGroups[subjectGroupName].totalGradeCredit += rankGrade * creditHours;
-      subjectGroups[subjectGroupName].totalCredit += creditHours;
-    }
+        // 교과군별로 그룹화
+        const subjectGroups: Record<string, { totalGradeCredit: number; totalCredit: number }> = {};
 
-    // 교과군별 GPA 계산
-    for (const [name, { totalGradeCredit, totalCredit }] of Object.entries(subjectGroups)) {
-      if (totalCredit > 0) {
-        subjectStrength[name] = totalGradeCredit / totalCredit;
+        for (const row of subjectData) {
+          const subjectGroupId = row.subject_group_id;
+          if (!subjectGroupId) continue;
+
+          const subjectGroupName = subjectGroupMap.get(subjectGroupId);
+          if (!subjectGroupName) continue;
+
+          const rankGrade = Number(row.rank_grade) || 0;
+          const creditHours = Number(row.credit_hours) || 0;
+
+          if (!subjectGroups[subjectGroupName]) {
+            subjectGroups[subjectGroupName] = { totalGradeCredit: 0, totalCredit: 0 };
+          }
+
+          subjectGroups[subjectGroupName].totalGradeCredit += rankGrade * creditHours;
+          subjectGroups[subjectGroupName].totalCredit += creditHours;
+        }
+
+        // 교과군별 GPA 계산
+        for (const [name, { totalGradeCredit, totalCredit }] of Object.entries(subjectGroups)) {
+          if (totalCredit > 0) {
+            subjectStrength[name] = totalGradeCredit / totalCredit;
+          }
+        }
       }
     }
   }
