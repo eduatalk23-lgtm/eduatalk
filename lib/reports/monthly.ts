@@ -579,7 +579,27 @@ export async function getMonthlyScoreTrend(
       trend,
     };
   } catch (error) {
-    console.error("[reports/monthly] 성적 변화 조회 실패", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
+    
+    console.error("[reports/monthly] 성적 변화 조회 실패", {
+      message: errorMessage,
+      code: errorCode,
+      details: errorDetails,
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : error,
+      context: {
+        studentId,
+        monthStart: monthStart.toISOString().slice(0, 10),
+        monthEnd: monthEnd.toISOString().slice(0, 10),
+        lastMonthStart: lastMonthStart.toISOString().slice(0, 10),
+        lastMonthEnd: lastMonthEnd.toISOString().slice(0, 10),
+      },
+    });
     return {
       thisMonth: [],
       lastMonth: [],
