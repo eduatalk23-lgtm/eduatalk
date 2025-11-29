@@ -483,6 +483,12 @@ export default function AcademyScheduleManagement({
         ) : (
           <p className="text-sm text-gray-500">등록된 학원이 없습니다. 위에서 학원을 추가해주세요.</p>
         )}
+
+        {!selectedAcademy && academies.length > 0 && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 text-center">
+            <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
+          </div>
+        )}
         </div>
       )}
 
@@ -669,13 +675,6 @@ export default function AcademyScheduleManagement({
             <p className="text-sm text-gray-500">등록된 일정이 없습니다. 위에서 일정을 추가해주세요.</p>
           )}
         </div>
-        )}
-
-        {!selectedAcademy && academies.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
-            <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
-          </div>
-        )}
       )}
     </div>
   );
