@@ -9,8 +9,9 @@ import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
-import { Badge } from "@/components/ui/Badge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { PlanGroupCard } from "../_shared/PlanCard";
+import { StatusBadge } from "../_shared/StatusBadge";
+import { ProgressIndicator } from "../_shared/ProgressIndicator";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
 
@@ -38,19 +39,6 @@ const schedulerTypeLabels: Record<string, string> = {
   커스텀: "커스텀",
 };
 
-const statusLabels: Record<string, string> = {
-  active: "활성",
-  paused: "일시정지",
-  completed: "완료",
-  cancelled: "중단", // 기존 데이터 호환성을 위해 유지 (새로는 paused 사용)
-};
-
-const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  paused: "bg-yellow-100 text-yellow-800",
-  completed: "bg-purple-100 text-purple-800",
-  cancelled: "bg-red-100 text-red-800",
-};
 
 export function PlanGroupListItem({ 
   group, 
@@ -139,23 +127,12 @@ export function PlanGroupListItem({
     });
   };
 
-  // 표시할 상태 뱃지 결정 (저장됨, 초안 제외)
-  const getDisplayStatus = () => {
-    // 완료 상태는 우선 표시 (page.tsx에서 계산된 상태)
-    if (group.status === "completed") {
-      return { label: "완료", color: statusColors.completed };
-    }
-    
-    // 활성/일시정지/중단 상태만 표시 (저장됨, 초안 제외)
-    if (statusLabels[group.status]) {
-      return { label: statusLabels[group.status], color: statusColors[group.status] };
-    }
-    
-    // 저장됨(draft, saved) 상태는 뱃지 표시 안 함
-    return null;
-  };
-
-  const displayStatus = getDisplayStatus();
+  // 표시할 상태 결정 (저장됨, 초안 제외)
+  const shouldShowStatus = 
+    group.status === "active" || 
+    group.status === "paused" || 
+    group.status === "completed" ||
+    group.status === "cancelled";
 
   return (
     <li className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 ${
