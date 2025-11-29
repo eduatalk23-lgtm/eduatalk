@@ -200,7 +200,8 @@ export class WizardValidator {
       // 학생 콘텐츠 카운트
       wizardData.student_contents.forEach((sc) => {
         if (sc.subject_category) {
-          const key = sc.subject ? `${sc.subject_category}:${sc.subject}` : sc.subject_category;
+          // subject 필드는 레거시이므로 subject_category만 사용
+          const key = sc.subject_category;
           contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
         }
       });
@@ -208,7 +209,8 @@ export class WizardValidator {
       // 추천 콘텐츠 카운트
       wizardData.recommended_contents.forEach((rc) => {
         if (rc.subject_category) {
-          const key = rc.subject ? `${rc.subject_category}:${rc.subject}` : rc.subject_category;
+          // subject 필드는 레거시이므로 subject_category만 사용
+          const key = rc.subject_category;
           contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
         }
       });
