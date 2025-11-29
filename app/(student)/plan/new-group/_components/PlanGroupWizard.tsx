@@ -25,7 +25,7 @@ import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCod
 import { Step1BasicInfo } from "./Step1BasicInfo";
 import { Step2TimeSettingsWithPreview } from "./Step2TimeSettingsWithPreview";
 import { Step3ContentSelection } from "./Step3ContentSelection";
-import { Step6FinalReview } from "./Step6FinalReview";
+import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./Step7ScheduleResult";
 import { TemplateWizardChecklist } from "@/app/(admin)/admin/camp-templates/_components/TemplateWizardChecklist";
 
@@ -1554,12 +1554,10 @@ export function PlanGroupWizard({
           />
         )}
         {currentStep === 4 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
-          <Step6FinalReview
+          <Step6Simplified
             data={wizardData}
-            onUpdate={updateWizardData}
-            contents={initialContents}
+            onEditStep={(step) => setCurrentStep(step)}
             isCampMode={isCampMode}
-            studentId={(initialData as any)?.student_id}
           />
         )}
         {currentStep === 5 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
