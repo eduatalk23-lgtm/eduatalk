@@ -23,8 +23,7 @@ import { PlanValidator } from "@/lib/validation/planValidator";
 import { syncWizardDataToCreationData, validateDataConsistency } from "@/lib/utils/planGroupDataSync";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { Step1BasicInfo } from "./Step1BasicInfo";
-import { Step2BlocksAndExclusions } from "./Step2BlocksAndExclusions";
-import { Step2_5SchedulePreview } from "./Step2_5SchedulePreview";
+import { Step2TimeSettingsWithPreview } from "./Step2TimeSettingsWithPreview";
 import { Step3Contents } from "./Step3Contents";
 import { Step4RecommendedContents } from "./Step4RecommendedContents";
 import { Step6FinalReview } from "./Step6FinalReview";
@@ -1547,7 +1546,7 @@ export function PlanGroupWizard({
           />
         )}
         {currentStep === 2 && (
-          <Step2BlocksAndExclusions
+          <Step2TimeSettingsWithPreview
             data={wizardData}
             onUpdate={updateWizardData}
             periodStart={wizardData.period_start}
@@ -1561,18 +1560,12 @@ export function PlanGroupWizard({
             studentId={(initialData as any)?.student_id}
             isAdminMode={isAdminMode}
             isAdminContinueMode={isAdminContinueMode}
+            blockSets={blockSets}
+            campTemplateId={isCampMode ? initialData?.templateId : undefined}
           />
         )}
         {currentStep === 3 && (
-          <Step2_5SchedulePreview
-            data={wizardData}
-            onUpdate={updateWizardData}
-            blockSets={blockSets}
-            isTemplateMode={isTemplateMode}
-            isCampMode={isCampMode}
-            campTemplateId={isCampMode ? initialData?.templateId : undefined}
-            editable={!isAdminContinueMode}
-          />
+          null // Step 3은 Step 2에 통합됨 - 실시간 미리보기로 대체
         )}
         {currentStep === 4 && !isTemplateMode && (
           <Step3Contents
