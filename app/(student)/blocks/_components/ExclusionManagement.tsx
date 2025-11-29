@@ -165,7 +165,7 @@ export default function ExclusionManagement({
         </div>
 
         {/* 제외일 추가 폼 */}
-        {isAdding ? (
+        {isAdding && (
           <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div className="mb-3 grid gap-4 md:grid-cols-3">
               <div>
