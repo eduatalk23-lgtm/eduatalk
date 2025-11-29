@@ -9,12 +9,11 @@
 
 // 마스터 콘텐츠 re-export
 export {
-  getMasterBooks,
-  getMasterLectures,
+  searchMasterBooks,  // 변경: getMasterBooks → searchMasterBooks
+  searchMasterLectures,  // 변경: getMasterLectures → searchMasterLectures
   getMasterBookById,
   getMasterLectureById,
-  getMasterContentsBySubject,
-  searchMasterContents,
+  searchContentMasters,  // 변경: searchMasterContents → searchContentMasters
 } from "@/lib/data/contentMasters";
 
 // 학생 콘텐츠 re-export
