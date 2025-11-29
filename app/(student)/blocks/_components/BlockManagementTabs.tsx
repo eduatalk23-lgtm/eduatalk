@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import BlockSetManagement from "./BlockSetManagement";
 import ExclusionManagement from "./ExclusionManagement";
 import AcademyScheduleManagement from "./AcademyScheduleManagement";
@@ -14,6 +13,7 @@ type BlockManagementTabsProps = {
   initialActiveSetId?: string | null;
   initialBlocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string; block_set_id: string | null }>;
   initialPlanGroups?: PlanGroup[];
+  activeTab: ManagementTab;
   onTabChange?: (tab: ManagementTab) => void;
   onBlockSetCreateRequest?: () => void;
   onExclusionAddRequest?: () => void;
@@ -29,6 +29,7 @@ export default function BlockManagementTabs({
   initialActiveSetId = null,
   initialBlocks = [],
   initialPlanGroups = [],
+  activeTab,
   onTabChange,
   onBlockSetCreateRequest,
   onExclusionAddRequest,
@@ -37,10 +38,7 @@ export default function BlockManagementTabs({
   isAddingExclusion = false,
   isAddingAcademy = false,
 }: BlockManagementTabsProps) {
-  const [activeTab, setActiveTab] = useState<ManagementTab>("blocks");
-
   const handleTabChange = (tab: ManagementTab) => {
-    setActiveTab(tab);
     onTabChange?.(tab);
   };
 

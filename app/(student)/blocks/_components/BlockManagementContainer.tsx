@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import BlockManagementTabs, { type ManagementTab } from "./BlockManagementTabs";
 import type { PlanGroup } from "@/lib/types/plan";
@@ -21,6 +21,7 @@ export default function BlockManagementContainer({
   initialBlocks = [],
   initialPlanGroups = [],
 }: BlockManagementContainerProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
   
@@ -39,6 +40,14 @@ export default function BlockManagementContainer({
     else if (tabParam === "academy") setActiveTab("academy");
     else if (tabParam === "blocks") setActiveTab("blocks");
   }, [tabParam]);
+
+  // 탭 변경 시 URL 업데이트
+  const handleTabChange = (tab: ManagementTab) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams?.toString() || "");
+    params.set("tab", tab);
+    router.push(`/blocks?${params.toString()}`);
+  };
 
   const handleBlockSetCreateRequest = () => {
     setIsCreatingBlockSet(!isCreatingBlockSet);
@@ -114,7 +123,8 @@ export default function BlockManagementContainer({
         initialActiveSetId={initialActiveSetId}
         initialBlocks={initialBlocks}
         initialPlanGroups={initialPlanGroups}
-        onTabChange={setActiveTab}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
         onBlockSetCreateRequest={handleBlockSetCreateRequest}
         onExclusionAddRequest={handleExclusionAddRequest}
         onAcademyAddRequest={handleAcademyAddRequest}
