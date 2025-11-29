@@ -239,7 +239,7 @@ export async function addMasterLecture(formData: FormData) {
       subject_category: formData.get("subject_category")?.toString() || null,
       subject: formData.get("subject")?.toString() || null,
       title: formData.get("title")?.toString() || "",
-      platform: formData.get("platform")?.toString() || null,
+      platform_name: formData.get("platform")?.toString() || null,  // 변경: platform → platform_name
       total_episodes: parseInt(formData.get("total_episodes")?.toString() || "0"),
       total_duration: formData.get("total_duration")
         ? parseInt(formData.get("total_duration")!.toString())
@@ -326,7 +326,7 @@ export async function addMasterLecture(formData: FormData) {
     try {
       const episodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        episode_title?: string | null;
+        title?: string | null;  // 변경: episode_title → title
         duration?: number | null;
         display_order: number;
       }>;
@@ -335,7 +335,7 @@ export async function addMasterLecture(formData: FormData) {
         await createLectureEpisode({
           lecture_id: lecture.id,
           episode_number: episode.episode_number,
-          episode_title: episode.episode_title || null,
+          title: episode.title || null,  // 변경: episode_title → title
           duration: episode.duration || null,
           display_order: episode.display_order,
         });
@@ -374,7 +374,7 @@ export async function updateMasterLectureAction(
     subject_category: formData.get("subject_category")?.toString() || null,
     subject: formData.get("subject")?.toString() || null,
     title: formData.get("title")?.toString(),
-    platform: formData.get("platform")?.toString() || null,
+    platform_name: formData.get("platform")?.toString() || null,  // 변경: platform → platform_name
     total_episodes: formData.get("total_episodes")
       ? parseInt(formData.get("total_episodes")!.toString())
       : undefined,
@@ -394,7 +394,7 @@ export async function updateMasterLectureAction(
     try {
       const newEpisodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        episode_title?: string | null;
+        title?: string | null;  // 변경: episode_title → title
         duration?: number | null;
         display_order: number;
       }>;
@@ -407,7 +407,7 @@ export async function updateMasterLectureAction(
         await createLectureEpisode({
           lecture_id: lectureId,
           episode_number: episode.episode_number,
-          episode_title: episode.episode_title || null,
+          title: episode.title || null,  // 변경: episode_title → title
           duration: episode.duration || null,
           display_order: episode.display_order,
         });

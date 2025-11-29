@@ -377,7 +377,8 @@ export type MasterBook = CommonContentFields & {
  * 서비스 마스터 강의
  */
 export type MasterLecture = CommonContentFields & {
-  platform: string | null; // 플랫폼 (메가스터디, EBSi 등)
+  platform_name: string | null; // 플랫폼명 (레거시, platform → platform_name 변경)
+  platform_id?: string | null; // 플랫폼 ID (우선 사용, FK to platforms)
   total_episodes: number; // 총 회차 (필수)
   total_duration: number | null; // 총 강의시간 (분 단위)
   linked_book_id: string | null; // 연결된 교재 ID (선택사항)
@@ -431,7 +432,7 @@ export type LectureEpisode = {
   id: string;
   lecture_id: string; // master_lectures.id 참조
   episode_number: number; // 회차 번호
-  episode_title: string | null; // 회차 제목
+  title: string | null; // 회차 제목 (변경: episode_title → title)
   duration: number | null; // 회차 시간 (분 단위)
   display_order: number;
   created_at: string;
