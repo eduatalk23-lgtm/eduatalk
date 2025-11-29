@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import BlockManagementTabs, { type ManagementTab } from "./BlockManagementTabs";
 import type { PlanGroup } from "@/lib/types/plan";
@@ -20,10 +21,24 @@ export default function BlockManagementContainer({
   initialBlocks = [],
   initialPlanGroups = [],
 }: BlockManagementContainerProps) {
-  const [activeTab, setActiveTab] = useState<ManagementTab>("blocks");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+  
+  const [activeTab, setActiveTab] = useState<ManagementTab>(() => {
+    if (tabParam === "exclusions") return "exclusions";
+    if (tabParam === "academy") return "academy";
+    return "blocks";
+  });
   const [isCreatingBlockSet, setIsCreatingBlockSet] = useState(false);
   const [isAddingExclusion, setIsAddingExclusion] = useState(false);
   const [isAddingAcademy, setIsAddingAcademy] = useState(false);
+
+  // 쿼리 파라미터 변경 시 탭 전환
+  useEffect(() => {
+    if (tabParam === "exclusions") setActiveTab("exclusions");
+    else if (tabParam === "academy") setActiveTab("academy");
+    else if (tabParam === "blocks") setActiveTab("blocks");
+  }, [tabParam]);
 
   const handleBlockSetCreateRequest = () => {
     setIsCreatingBlockSet(!isCreatingBlockSet);

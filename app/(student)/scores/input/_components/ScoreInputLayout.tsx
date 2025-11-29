@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import type { SubjectGroup, SubjectType } from "@/lib/data/subjects";
 import InternalScoreInput from "./InternalScoreInput";
 import MockScoreInput from "./MockScoreInput";
@@ -34,7 +35,18 @@ export default function ScoreInputLayout({
   subjectGroups,
   subjectTypes,
 }: ScoreInputLayoutProps) {
-  const [scoreType, setScoreType] = useState<ScoreType>("internal");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+  
+  const [scoreType, setScoreType] = useState<ScoreType>(() => {
+    return tabParam === "mock" ? "mock" : "internal";
+  });
+
+  // 쿼리 파라미터 변경 시 탭 전환
+  useEffect(() => {
+    if (tabParam === "internal") setScoreType("internal");
+    else if (tabParam === "mock") setScoreType("mock");
+  }, [tabParam]);
 
   return (
     <div className="flex flex-col gap-6">
