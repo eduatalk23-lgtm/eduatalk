@@ -184,7 +184,7 @@ export async function transformPlanGroupToWizardData(
       start_detail_id: (c as any).start_detail_id ?? null,
       end_detail_id: (c as any).end_detail_id ?? null,
       title: c.title,
-      subject_category: c.subject_category,
+      subject_category: c.subject_category || undefined,  // 변경: null → undefined
     })),
     recommended_contents: recommendedContents.map((c) => ({
       content_type: c.content_type as "book" | "lecture" | "custom",
@@ -194,7 +194,7 @@ export async function transformPlanGroupToWizardData(
       start_detail_id: (c as any).start_detail_id ?? null,
       end_detail_id: (c as any).end_detail_id ?? null,
       title: c.title,
-      subject_category: c.subject_category,
+      subject_category: c.subject_category || undefined,  // 변경: null → undefined
       // 자동 추천 정보 포함
       is_auto_recommended: (c as any).is_auto_recommended ?? false,
       recommendation_source: (c as any).recommendation_source ?? null,
