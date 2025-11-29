@@ -9,9 +9,11 @@
 ## 📋 작업 개요
 
 ### 목표
+
 PlanGroupDetailView를 수정하여 DetailView 컴포넌트를 Step 컴포넌트로 완전히 교체
 
 ### 작업 범위
+
 - PlanGroupDetailView.tsx 전면 수정
 - DetailView 7개 파일 제거
 - Adapter 함수 적용
@@ -24,6 +26,7 @@ PlanGroupDetailView를 수정하여 DetailView 컴포넌트를 Step 컴포넌트
 ### 1. Import 변경
 
 #### Before
+
 ```typescript
 const Step1DetailView = lazy(() => import("./Step1DetailView"));
 const Step2DetailView = lazy(() => import("./Step2DetailView"));
@@ -35,26 +38,37 @@ const Step7DetailView = lazy(() => import("./Step7DetailView"));
 ```
 
 #### After
-```typescript
-import { planGroupToWizardData, contentsToWizardFormat } from "@/lib/utils/planGroupAdapters";
 
-const Step1BasicInfo = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step1BasicInfo")
+```typescript
+import {
+  planGroupToWizardData,
+  contentsToWizardFormat,
+} from "@/lib/utils/planGroupAdapters";
+
+const Step1BasicInfo = lazy(
+  () => import("@/app/(student)/plan/new-group/_components/Step1BasicInfo")
 );
-const Step2TimeSettingsWithPreview = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview")
+const Step2TimeSettingsWithPreview = lazy(
+  () =>
+    import(
+      "@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview"
+    )
 );
-const SchedulePreviewPanel = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/_panels/SchedulePreviewPanel")
+const SchedulePreviewPanel = lazy(
+  () =>
+    import(
+      "@/app/(student)/plan/new-group/_components/_panels/SchedulePreviewPanel"
+    )
 );
-const Step3ContentSelection = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step3ContentSelection")
+const Step3ContentSelection = lazy(
+  () =>
+    import("@/app/(student)/plan/new-group/_components/Step3ContentSelection")
 );
-const Step6Simplified = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step6Simplified")
+const Step6Simplified = lazy(
+  () => import("@/app/(student)/plan/new-group/_components/Step6Simplified")
 );
-const Step7ScheduleResult = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step7ScheduleResult")
+const Step7ScheduleResult = lazy(
+  () => import("@/app/(student)/plan/new-group/_components/Step7ScheduleResult")
 );
 ```
 
@@ -66,9 +80,11 @@ const Step7ScheduleResult = lazy(() =>
 // WizardData로 변환 (읽기 전용 모드용)
 const wizardData = useMemo(() => {
   const baseData = planGroupToWizardData(group, exclusions, academySchedules);
-  const { studentContents: studentContentsFormatted, recommendedContents: recommendedContentsFormatted } = 
-    contentsToWizardFormat(contentsWithDetails);
-  
+  const {
+    studentContents: studentContentsFormatted,
+    recommendedContents: recommendedContentsFormatted,
+  } = contentsToWizardFormat(contentsWithDetails);
+
   return {
     ...baseData,
     student_contents: studentContentsFormatted,
@@ -82,6 +98,7 @@ const wizardData = useMemo(() => {
 ### 3. 탭 구조 재편성
 
 #### Before (7개 탭)
+
 ```typescript
 const allTabs = [
   { id: 1, label: "기본 정보" },
@@ -95,6 +112,7 @@ const allTabs = [
 ```
 
 #### After (6개 탭)
+
 ```typescript
 const allTabs = [
   { id: 1, label: "기본 정보" },
@@ -107,6 +125,7 @@ const allTabs = [
 ```
 
 **변경 사항**:
+
 - Step 4와 5 통합 → "콘텐츠 선택"
 - Step3ContentSelection이 내부적으로 탭 UI 제공
 
@@ -115,11 +134,12 @@ const allTabs = [
 ### 4. renderTabContent 수정
 
 #### Case 1: 기본 정보
+
 ```typescript
 case 1:
   return (
     <Suspense fallback={<TabLoadingSkeleton />}>
-      <Step1BasicInfo 
+      <Step1BasicInfo
         data={wizardData}
         onUpdate={() => {}} // 읽기 전용
         editable={false}
@@ -131,11 +151,12 @@ case 1:
 ```
 
 #### Case 2: 블록 및 제외일
+
 ```typescript
 case 2:
   return (
     <Suspense fallback={<TabLoadingSkeleton />}>
-      <Step2TimeSettingsWithPreview 
+      <Step2TimeSettingsWithPreview
         data={wizardData}
         onUpdate={() => {}} // 읽기 전용
         editable={false}
@@ -147,11 +168,12 @@ case 2:
 ```
 
 #### Case 3: 스케줄 미리보기
+
 ```typescript
 case 3:
   return (
     <Suspense fallback={<TabLoadingSkeleton />}>
-      <SchedulePreviewPanel 
+      <SchedulePreviewPanel
         data={wizardData}
         onUpdate={() => {}} // 읽기 전용
         editable={false}
@@ -162,11 +184,12 @@ case 3:
 ```
 
 #### Case 4: 콘텐츠 선택 (통합)
+
 ```typescript
 case 4:
   return (
     <Suspense fallback={<TabLoadingSkeleton />}>
-      <Step3ContentSelection 
+      <Step3ContentSelection
         data={wizardData}
         onUpdate={() => {}} // 읽기 전용
         isCampMode={campSubmissionMode}
@@ -179,11 +202,12 @@ case 4:
 ```
 
 #### Case 6: 최종 검토
+
 ```typescript
 case 6:
   return (
     <Suspense fallback={<TabLoadingSkeleton />}>
-      <Step6Simplified 
+      <Step6Simplified
         data={wizardData}
         onBack={() => {}}
         onNext={() => {}}
@@ -197,6 +221,7 @@ case 6:
 ```
 
 #### Case 7: 스케줄 결과
+
 ```typescript
 case 7:
   return (
@@ -214,6 +239,7 @@ case 7:
 ### 5. 파일 제거
 
 #### 제거된 파일 (7개, 915 라인)
+
 ```
 ✅ Step1DetailView.tsx (81 라인)
 ✅ Step2DetailView.tsx (133 라인)
@@ -231,6 +257,7 @@ case 7:
 ## 📊 변경 사항 요약
 
 ### 수정된 파일
+
 ```
 PlanGroupDetailView.tsx
 - Import 7개 → 6개 교체
@@ -240,11 +267,13 @@ PlanGroupDetailView.tsx
 ```
 
 ### 제거된 파일
+
 ```
 7개 DetailView (915 라인)
 ```
 
 ### 신규 의존성
+
 ```
 - planGroupToWizardData (adapter)
 - contentsToWizardFormat (adapter)
@@ -256,21 +285,25 @@ PlanGroupDetailView.tsx
 ## ✅ 주요 특징
 
 ### 1. 완전한 재사용
+
 - ✅ 새로운 코드 작성 없음
 - ✅ Phase 2, 3, 4 컴포넌트 100% 재사용
 - ✅ Adapter 함수로 데이터 변환
 
 ### 2. 읽기 전용 모드
+
 - ✅ editable={false} prop 전달
 - ✅ onUpdate={() => {}} 빈 함수
 - ✅ 모든 입력 필드 비활성화
 
 ### 3. 일관된 UI/UX
+
 - ✅ Wizard와 DetailView 동일한 UI
 - ✅ 유지보수성 향상
 - ✅ 코드 중복 완전 제거
 
 ### 4. 성능 최적화
+
 - ✅ Lazy loading 유지
 - ✅ useMemo로 wizardData 캐싱
 - ✅ Suspense로 로딩 상태 관리
@@ -280,6 +313,7 @@ PlanGroupDetailView.tsx
 ## 🎯 효과
 
 ### 코드 감소
+
 ```
 제거: 915 라인 (DetailView 7개)
 추가: 20 라인 (adapter 호출)
@@ -287,6 +321,7 @@ PlanGroupDetailView.tsx
 ```
 
 ### 유지보수성
+
 ```
 Before: Step + DetailView 2벌 관리
 After: Step만 1벌 관리
@@ -294,6 +329,7 @@ After: Step만 1벌 관리
 ```
 
 ### 일관성
+
 ```
 Before: 미묘한 UI 차이 존재
 After: 100% 동일한 UI
@@ -305,6 +341,7 @@ After: 100% 동일한 UI
 ## 🧪 테스트 포인트
 
 ### 1. 탭 전환
+
 - [ ] 1: 기본 정보 표시
 - [ ] 2: 블록 및 제외일 표시
 - [ ] 3: 스케줄 미리보기 표시
@@ -313,20 +350,24 @@ After: 100% 동일한 UI
 - [ ] 7: 스케줄 결과 표시
 
 ### 2. 읽기 전용 모드
+
 - [ ] 모든 입력 필드 비활성화
 - [ ] 편집 버튼 비활성화
 - [ ] 데이터 정확히 표시
 
 ### 3. 캠프 제출 모드
+
 - [ ] 탭 1, 2, 4만 표시
 - [ ] 다른 탭 접근 불가
 
 ### 4. Lazy Loading
+
 - [ ] 탭 전환 시 로딩 스켈레톤
 - [ ] 컴포넌트 동적 로딩
 - [ ] 성능 영향 없음
 
 ### 5. Adapter 함수
+
 - [ ] WizardData 올바르게 생성
 - [ ] 콘텐츠 분리 정확
 - [ ] 타입 에러 없음
@@ -336,6 +377,7 @@ After: 100% 동일한 UI
 ## 🚀 다음 단계
 
 ### Phase 5.8: 테스트 및 버그 수정
+
 1. 수동 테스트 실행
 2. 모든 탭 기능 확인
 3. 버그 수정
@@ -346,15 +388,19 @@ After: 100% 동일한 UI
 ## 💡 교훈
 
 ### 1. Adapter 패턴의 힘
+
 PlanGroup → WizardData 변환으로 기존 컴포넌트 완벽 재사용
 
 ### 2. 읽기/편집 모드 통합
+
 단일 컴포넌트로 두 가지 모드 지원 = 유지보수 50% 감소
 
 ### 3. Phase 2, 3, 4의 가치
+
 이전 Phase에서 만든 컴포넌트들이 Phase 5에서 빛을 발함
 
 ### 4. 코드 제거의 즐거움
+
 915 라인 제거 = 버그 가능성 감소 + 유지보수 시간 단축
 
 ---
@@ -362,12 +408,14 @@ PlanGroup → WizardData 변환으로 기존 컴포넌트 완벽 재사용
 ## 📦 최종 파일
 
 ### 수정된 파일 (1개)
+
 ```
 app/(student)/plan/group/[id]/_components/
 └── PlanGroupDetailView.tsx (약 260 라인)
 ```
 
 ### 제거된 파일 (7개)
+
 ```
 app/(student)/plan/group/[id]/_components/
 ├── Step1DetailView.tsx ❌
@@ -386,17 +434,20 @@ app/(student)/plan/group/[id]/_components/
 ### Phase 5.7 완료!
 
 #### 성과
+
 - ✅ PlanGroupDetailView 전면 개선
 - ✅ DetailView 7개 완전 제거 (915 라인)
 - ✅ Step 컴포넌트 100% 재사용
 - ✅ 일관된 UI/UX 확보
 
 #### 효과
+
 - 97.8% 코드 감소
 - 50% 유지보수 비용 감소
 - 100% UI 일관성
 
 #### 작업 시간
+
 - 예상: 2-3시간
 - 실제: 1시간
 - 단축: 50-67%
@@ -408,4 +459,3 @@ app/(student)/plan/group/[id]/_components/
 **상태**: ✅ 완료  
 **Linter 에러**: 0개  
 **다음**: Phase 5.8 테스트
-

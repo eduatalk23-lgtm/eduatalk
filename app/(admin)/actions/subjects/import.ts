@@ -204,9 +204,11 @@ export async function importSubjectsFromExcel(
           }
         }
         
-        revisionMap.set(validated.name, revisionId);
-        if (validated.id) {
-          revisionIdMap.set(validated.id, revisionId);
+        if (revisionId) {
+          revisionMap.set(validated.name, revisionId);
+          if (validated.id) {
+            revisionIdMap.set(validated.id, revisionId);
+          }
         }
       } catch (error) {
         errors.push(`개정교육과정 처리 실패 (${JSON.stringify(row)}): ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
@@ -292,8 +294,10 @@ export async function importSubjectsFromExcel(
           }
         }
         
-        const key = `${validated.curriculum_revision_name || revisionId}:${validated.name}`;
-        subjectTypeMap.set(key, typeId);
+        if (typeId) {
+          const key = `${validated.curriculum_revision_name || revisionId}:${validated.name}`;
+          subjectTypeMap.set(key, typeId);
+        }
       } catch (error) {
         errors.push(`과목구분 처리 실패 (${JSON.stringify(row)}): ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
       }
@@ -375,8 +379,10 @@ export async function importSubjectsFromExcel(
           }
         }
         
-        const key = `${validated.curriculum_revision_name || revisionId}:${validated.name}`;
-        subjectGroupMap.set(key, groupId);
+        if (groupId) {
+          const key = `${validated.curriculum_revision_name || revisionId}:${validated.name}`;
+          subjectGroupMap.set(key, groupId);
+        }
       } catch (error) {
         errors.push(`교과 그룹 처리 실패 (${JSON.stringify(row)}): ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
       }

@@ -35,17 +35,20 @@ export const getCurriculumRevisionsAction = withErrorHandling(async () => {
 });
 
 export const createCurriculumRevisionAction = withErrorHandling(
-  async (name: string) => {
+  async (name: string, displayOrder?: number) => {
     const user = await getCurrentUser();
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
-    // display_order 자동 계산을 위해 기존 항목 조회
-    const existingRevisions = await getCurriculumRevisions();
-    const displayOrder = existingRevisions.length > 0
-      ? Math.max(...existingRevisions.map(r => r.display_order ?? 0)) + 1
-      : 0;
-    return await createCurriculumRevision(name, displayOrder);
+    // display_order가 제공되지 않으면 자동 계산
+    let finalDisplayOrder = displayOrder;
+    if (finalDisplayOrder === undefined) {
+      const existingRevisions = await getCurriculumRevisions();
+      finalDisplayOrder = existingRevisions.length > 0
+        ? Math.max(...existingRevisions.map(r => r.display_order ?? 0)) + 1
+        : 0;
+    }
+    return await createCurriculumRevision(name, finalDisplayOrder);
   }
 );
 
@@ -88,7 +91,7 @@ export const getSubjectCategoriesAction = withErrorHandling(async (revisionId?: 
   return groups.map((group) => ({
     id: group.id,
     name: group.name,
-    display_order: group.display_order,
+    display_order: (group as any).display_order ?? 0,
     is_active: true,
   }));
 });
@@ -147,7 +150,7 @@ export const getSubjectsAction = withErrorHandling(async (subjectCategoryId?: st
     id: subject.id,
     name: subject.name,
     subject_category_id: subject.subject_group_id,
-    display_order: subject.display_order,
+    display_order: (subject as any).display_order ?? 0,
     is_active: true,
   }));
 });

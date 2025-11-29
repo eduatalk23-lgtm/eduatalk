@@ -8,9 +8,10 @@ import {
 } from "@/app/(admin)/actions/campTemplateActions";
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Step1DetailView } from "@/app/(student)/plan/group/[id]/_components/Step1DetailView";
-import { Step2DetailView } from "@/app/(student)/plan/group/[id]/_components/Step2DetailView";
-import { Step3DetailView } from "@/app/(student)/plan/group/[id]/_components/Step3DetailView";
+// TODO Phase 5: DetailView를 Step 컴포넌트로 교체 필요
+// import { Step1DetailView } from "@/app/(student)/plan/group/[id]/_components/Step1DetailView";
+// import { Step2DetailView } from "@/app/(student)/plan/group/[id]/_components/Step2DetailView";
+// import { Step3DetailView } from "@/app/(student)/plan/group/[id]/_components/Step3DetailView";
 import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
 
 type CampPlanGroupReviewFormProps = {
@@ -352,19 +353,15 @@ export function CampPlanGroupReviewForm({
 
         {currentTab === "step1" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <Step1DetailView group={group} />
+            {/* TODO Phase 5: Step1BasicInfo로 교체 */}
+            <div className="text-gray-500">기본 정보 표시 (Phase 5 TODO)</div>
           </div>
         )}
 
         {currentTab === "step2" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <Step2DetailView 
-              group={group} 
-              exclusions={exclusions} 
-              academySchedules={academySchedules}
-              templateBlocks={templateBlocks}
-              templateBlockSetName={templateBlockSetName}
-            />
+            {/* TODO Phase 5: Step2TimeSettingsWithPreview로 교체 */}
+            <div className="text-gray-500">시간 설정 표시 (Phase 5 TODO)</div>
           </div>
         )}
 
@@ -388,7 +385,8 @@ export function CampPlanGroupReviewForm({
 
         {currentTab === "step4" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <Step3DetailView contents={studentContentsWithDetails} />
+            {/* TODO Phase 5: Step3ContentSelection으로 교체 */}
+            <div className="text-gray-500">콘텐츠 표시 (Phase 5 TODO)</div>
           </div>
         )}
 

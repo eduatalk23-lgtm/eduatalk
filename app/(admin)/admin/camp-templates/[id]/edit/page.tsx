@@ -97,7 +97,7 @@ export default async function EditCampTemplatePage({
       // 연결된 블록 세트가 initialBlockSets에 없으면 추가
       const hasBlockSet = initialBlockSets.some(set => set.id === linkedBlockSet.id);
       if (!hasBlockSet) {
-        initialBlockSets = [linkedBlockSet, ...initialBlockSets];
+        initialBlockSets = [{ ...linkedBlockSet, blocks: linkedBlockSet.blocks || [] }, ...initialBlockSets];
       }
       
       console.log("[EditCampTemplatePage] 템플릿에 연결된 블록 세트:", {

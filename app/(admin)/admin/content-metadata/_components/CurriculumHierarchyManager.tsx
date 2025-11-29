@@ -396,7 +396,7 @@ export function CurriculumHierarchyManager() {
   // 편집 시작 함수들
   function startEditRevision(revision: CurriculumRevision) {
     setEditingRevisionId(revision.id);
-    setRevisionFormData({ name: revision.name, display_order: revision.display_order });
+    setRevisionFormData({ name: revision.name, display_order: revision.display_order ?? 0 });
     setIsCreatingRevision(false);
   }
 

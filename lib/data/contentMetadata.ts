@@ -283,6 +283,7 @@ export type CurriculumRevision = {
   id: string;
   name: string;
   year?: number | null; // 개정교육과정 연도 (예: 2015, 2022)
+  display_order?: number; // 표시 순서
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -305,6 +306,7 @@ export type Subject = {
   name: string;
   code?: string | null;
   subject_type?: "common" | "elective" | "research" | "social" | null;
+  display_order?: number;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -351,7 +353,8 @@ export async function getCurriculumRevisions(): Promise<CurriculumRevision[]> {
 }
 
 export async function createCurriculumRevision(
-  name: string
+  name: string,
+  displayOrder?: number
 ): Promise<CurriculumRevision> {
   // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
   const supabaseAdmin = createSupabaseAdminClient();
@@ -360,7 +363,7 @@ export async function createCurriculumRevision(
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
       .from("curriculum_revisions")
-      .insert({ name })
+      .insert({ name, display_order: displayOrder })
       .select()
       .single();
 
@@ -383,7 +386,7 @@ export async function createCurriculumRevision(
 
   const { data, error } = await supabaseAdmin
     .from("curriculum_revisions")
-    .insert({ name })
+    .insert({ name, display_order: displayOrder })
     .select()
     .single();
 
@@ -603,12 +606,13 @@ export async function getSubjects(
 
 export async function createSubject(
   subject_category_id: string,
-  name: string
+  name: string,
+  display_order?: number
 ): Promise<Subject> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("subjects")
-    .insert({ subject_category_id, name })
+    .insert({ subject_category_id, name, display_order })
     .select()
     .single();
 

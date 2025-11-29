@@ -264,7 +264,7 @@ export const createCampTemplateDraftAction = withErrorHandling(
     const result = await createCampTemplate({
       tenant_id: tenantContext.tenantId,
       name,
-      description: null,
+      description: undefined,
       program_type: programType,
       template_data: emptyTemplateData,
       created_by: userId,
@@ -1565,8 +1565,8 @@ export const getCampPlanGroupForReview = withErrorHandling(
               {
                 content_type: content.content_type,
                 content_id: content.content_id,
-                studentId: result.group.student_id,
-                groupId: result.group.id,
+                studentId: result.group?.student_id,
+                groupId: result.group?.id,
               }
             );
             return {
