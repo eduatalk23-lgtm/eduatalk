@@ -86,7 +86,7 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject, master_content_id")
+      .select("id, title, subject, master_lecture_id")  // 변경: master_content_id → master_lecture_id
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -97,7 +97,7 @@ export async function fetchStudentLectures(
         id: lecture.id,
         title: lecture.title || "제목 없음",
         subtitle: lecture.subject || null,
-        master_content_id: lecture.master_content_id || null,
+        master_content_id: lecture.master_lecture_id || null,  // 변경: 강의는 master_lecture_id 사용
       })) || []
     );
   } catch (err) {
