@@ -22,7 +22,7 @@ export {
   getLectures,
   getCustomContents,
   getBookById,
-  getLectureById,
+  // getLectureById,  // 제거: studentContents.ts에 존재하지 않음
   getCustomContentById,
   createBook,
   createLecture,
