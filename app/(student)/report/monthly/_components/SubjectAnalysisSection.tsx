@@ -1,17 +1,13 @@
 "use client";
 
-import type { MonthlyScoreTrend } from "@/lib/reports/monthly";
-
 type SubjectAnalysisSectionProps = {
   strongSubjects: string[];
   weakSubjects: string[];
-  weakSubjectDetails: MonthlyScoreTrend;
 };
 
 export function SubjectAnalysisSection({
   strongSubjects,
   weakSubjects,
-  weakSubjectDetails,
 }: SubjectAnalysisSectionProps) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

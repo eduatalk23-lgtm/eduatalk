@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import type { MonthlyReport } from "@/lib/reports/monthly";
 
 type MonthlyChartsProps = {
@@ -19,20 +19,6 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
     weekNumber: week.weekNumber,
     completionRate: week.completionRate,
   }));
-
-  // 성적 변화 데이터
-  const scoreData = [
-    ...reportData.scores.lastMonth.map((s) => ({
-      month: "지난달",
-      subject: s.subject,
-      grade: s.grade,
-    })),
-    ...reportData.scores.thisMonth.map((s) => ({
-      month: "이번달",
-      subject: s.subject,
-      grade: s.grade,
-    })),
-  ];
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -92,22 +78,6 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
               <Tooltip />
               <Line type="monotone" dataKey="completionRate" stroke="#8b5cf6" strokeWidth={2} />
             </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* 성적 변화 */}
-      {scoreData.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">성적 변화</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={scoreData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="subject" />
-              <YAxis reversed domain={[1, 9]} label={{ value: "등급", angle: -90, position: "insideLeft" }} />
-              <Tooltip />
-              <Area type="monotone" dataKey="grade" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-            </AreaChart>
           </ResponsiveContainer>
         </div>
       )}

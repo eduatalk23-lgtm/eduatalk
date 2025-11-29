@@ -172,7 +172,6 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
                 <SubjectAnalysisSection
                   strongSubjects={reportData.subjects.strong}
                   weakSubjects={reportData.subjects.weak}
-                  weakSubjectDetails={reportData.scores}
                 />
               </div>
             )}

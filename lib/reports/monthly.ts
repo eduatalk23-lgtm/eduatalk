@@ -55,23 +55,6 @@ export type MonthlyGoalSummary = {
   }>;
 };
 
-// 월간 성적 변화
-export type MonthlyScoreTrend = {
-  thisMonth: Array<{
-    subject: string;
-    grade: number;
-    rawScore: number;
-    testDate: string;
-  }>;
-  lastMonth: Array<{
-    subject: string;
-    grade: number;
-    rawScore: number;
-    testDate: string;
-  }>;
-  trend: "improving" | "declining" | "stable";
-};
-
 // 취약 과목 트렌드
 export type MonthlyWeakSubjectTrend = {
   subjects: Array<{
@@ -120,7 +103,6 @@ export type MonthlyReport = {
     strong: string[];
     weak: string[];
   };
-  scores: MonthlyScoreTrend;
   goals: MonthlyGoalSummary;
   content: MonthlyContentProgress;
   history: MonthlyHistory;
@@ -499,134 +481,6 @@ export async function getMonthlyGoalSummary(
 }
 
 /**
- * 월간 성적 변화 조회
- */
-export async function getMonthlyScoreTrend(
-  supabase: SupabaseServerClient,
-  studentId: string,
-  monthStart: Date,
-  monthEnd: Date,
-  lastMonthStart: Date,
-  lastMonthEnd: Date
-): Promise<MonthlyScoreTrend> {
-  try {
-    const monthStartStr = monthStart.toISOString().slice(0, 10);
-    const monthEndStr = monthEnd.toISOString().slice(0, 10);
-    const lastMonthStartStr = lastMonthStart.toISOString().slice(0, 10);
-    const lastMonthEndStr = lastMonthEnd.toISOString().slice(0, 10);
-
-    const selectScores = () =>
-      supabase
-        .from("student_scores")
-        .select("subject_type,grade,raw_score,test_date")
-        .order("test_date", { ascending: false });
-
-    let { data: allScores, error } = await selectScores()
-      .eq("student_id", studentId)
-      .gte("test_date", lastMonthStartStr)
-      .lte("test_date", monthEndStr);
-
-    if (error && error.code === "42703") {
-      ({ data: allScores, error } = await selectScores()
-        .gte("test_date", lastMonthStartStr)
-        .lte("test_date", monthEndStr));
-    }
-
-    if (error) throw error;
-
-    const scoreRows = (allScores as Array<{
-      subject_type?: string | null;
-      grade?: number | null;
-      raw_score?: number | null;
-      test_date?: string | null;
-    }> | null) ?? [];
-
-    const thisMonth = scoreRows
-      .filter((s) => s.test_date && s.test_date >= monthStartStr && s.test_date <= monthEndStr)
-      .map((s) => ({
-        subject: s.subject_type ?? "미지정",
-        grade: s.grade ?? 9,
-        rawScore: s.raw_score ?? 0,
-        testDate: s.test_date ?? "",
-      }));
-
-    const lastMonth = scoreRows
-      .filter(
-        (s) => s.test_date && s.test_date >= lastMonthStartStr && s.test_date <= lastMonthEndStr
-      )
-      .map((s) => ({
-        subject: s.subject_type ?? "미지정",
-        grade: s.grade ?? 9,
-        rawScore: s.raw_score ?? 0,
-        testDate: s.test_date ?? "",
-      }));
-
-    // 트렌드 계산 (등급이 낮을수록 좋음)
-    let trend: "improving" | "declining" | "stable" = "stable";
-    if (thisMonth.length > 0 && lastMonth.length > 0) {
-      const thisMonthAvg = thisMonth.reduce((sum, s) => sum + s.grade, 0) / thisMonth.length;
-      const lastMonthAvg = lastMonth.reduce((sum, s) => sum + s.grade, 0) / lastMonth.length;
-      if (thisMonthAvg < lastMonthAvg) {
-        trend = "improving";
-      } else if (thisMonthAvg > lastMonthAvg) {
-        trend = "declining";
-      }
-    }
-
-    return {
-      thisMonth,
-      lastMonth,
-      trend,
-    };
-  } catch (error) {
-    // 에러 객체의 모든 속성을 안전하게 추출
-    let errorMessage: string | undefined;
-    let errorCode: string | undefined;
-    let errorDetails: any;
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    } else if (typeof error === "object" && error !== null) {
-      // Supabase PostgREST 에러 객체 처리
-      errorMessage = "message" in error ? String(error.message) : undefined;
-      errorCode = "code" in error ? String(error.code) : undefined;
-      errorDetails = "details" in error ? error.details : undefined;
-    } else {
-      errorMessage = String(error);
-    }
-    
-    // 에러 객체 전체를 JSON으로 직렬화 시도
-    let errorStringified: string | undefined;
-    try {
-      errorStringified = JSON.stringify(error, null, 2);
-    } catch {
-      errorStringified = String(error);
-    }
-    
-    console.error("[reports/monthly] 성적 변화 조회 실패", {
-      message: errorMessage || "에러 메시지 없음",
-      code: errorCode,
-      details: errorDetails,
-      errorType: error instanceof Error ? "Error" : typeof error,
-      errorStringified,
-      errorRaw: error,
-      context: {
-        studentId,
-        monthStart: monthStart.toISOString().slice(0, 10),
-        monthEnd: monthEnd.toISOString().slice(0, 10),
-        lastMonthStart: lastMonthStart.toISOString().slice(0, 10),
-        lastMonthEnd: lastMonthEnd.toISOString().slice(0, 10),
-      },
-    });
-    return {
-      thisMonth: [],
-      lastMonth: [],
-      trend: "stable",
-    };
-  }
-}
-
-/**
  * 월간 취약 과목 트렌드 조회
  */
 export async function getMonthlyWeakSubjectTrend(
@@ -911,7 +765,6 @@ export async function getMonthlyReportData(
       studyTime,
       planSummary,
       goalSummary,
-      scoreTrend,
       weakSubjects,
       contentProgress,
       history,
@@ -922,7 +775,6 @@ export async function getMonthlyReportData(
       getMonthlyStudyTime(supabase, studentId, monthStart, monthEnd),
       getMonthlyPlanSummary(supabase, studentId, monthStart, monthEnd),
       getMonthlyGoalSummary(supabase, studentId, monthStart, monthEnd),
-      getMonthlyScoreTrend(supabase, studentId, monthStart, monthEnd, lastMonthStart, lastMonthEnd),
       getMonthlyWeakSubjectTrend(supabase, studentId, monthStart, monthEnd),
       getMonthlyContentProgress(supabase, studentId, monthStart, monthEnd),
       getMonthlyHistory(supabase, studentId, monthStart, monthEnd),
@@ -960,7 +812,6 @@ export async function getMonthlyReportData(
         strong: strongSubjects,
         weak: weakSubjectNames,
       },
-      scores: scoreTrend,
       goals: goalSummary,
       content: contentProgress,
       history,
