@@ -394,7 +394,7 @@ export async function copyMasterBookToStudent(
     .from("books")
     .select("id")
     .eq("student_id", studentId)
-    .eq("master_content_id", bookId)
+    .eq("master_content_id", bookId)  // books 테이블은 아직 master_content_id 사용 (교재용)
     .maybeSingle();
 
   if (existingBook) {
@@ -416,7 +416,7 @@ export async function copyMasterBookToStudent(
       difficulty_level: book.difficulty_level,
       total_pages: book.total_pages,
       notes: book.notes,
-      master_content_id: bookId,
+      master_content_id: bookId,  // books 테이블은 아직 master_content_id 사용 (교재용)
     })
     .select("id")
     .single();
@@ -488,12 +488,12 @@ export async function copyMasterLectureToStudent(
     throw new Error("강의를 찾을 수 없습니다.");
   }
 
-  // 중복 체크: 같은 master_content_id를 가진 학생 강의가 이미 있는지 확인
+  // 중복 체크: 같은 master_lecture_id를 가진 학생 강의가 이미 있는지 확인
   const { data: existingLecture } = await supabase
     .from("lectures")
     .select("id")
     .eq("student_id", studentId)
-    .eq("master_content_id", lectureId)
+    .eq("master_lecture_id", lectureId)  // 변경: master_content_id → master_lecture_id
     .maybeSingle();
 
   if (existingLecture) {
@@ -511,11 +511,11 @@ export async function copyMasterLectureToStudent(
       semester: lecture.semester,
       subject_category: lecture.subject_category,
       subject: lecture.subject,
-      platform: lecture.platform,
+      platform: lecture.platform_name,  // 변경: platform → platform_name
       difficulty_level: lecture.difficulty_level,
-      duration: lecture.total_duration, // 총 시간을 duration으로
+      total_episodes: lecture.total_episodes,  // 추가: 총 회차
       notes: lecture.notes,
-      master_content_id: lectureId,
+      master_lecture_id: lectureId,  // 변경: master_content_id → master_lecture_id
     })
     .select("id")
     .single();
@@ -985,7 +985,7 @@ export async function createLectureEpisode(
     .insert({
       lecture_id: data.lecture_id,
       episode_number: data.episode_number,
-      episode_title: data.episode_title || null,
+      title: data.title || null,  // 변경: episode_title → title
       duration: data.duration || null,
       display_order: data.display_order,
     })
