@@ -33,6 +33,8 @@ type BlockSetManagementProps = {
   }>;
   initialActiveSetId?: string | null;
   initialBlocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string; block_set_id: string | null }>;
+  onCreateSetRequest?: () => void;
+  creating?: boolean;
 };
 
 export default function BlockSetManagement({
@@ -40,6 +42,8 @@ export default function BlockSetManagement({
   initialBlockSets = [],
   initialActiveSetId = null,
   initialBlocks = [],
+  onCreateSetRequest,
+  creating = false,
 }: BlockSetManagementProps) {
   const router = useRouter();
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
@@ -331,6 +335,8 @@ export default function BlockSetManagement({
         }}
         onBlockChange={updateSetBlocks}
         existingSetCount={blockSets.length}
+        onCreateSetRequest={onCreateSetRequest}
+        creating={creating}
       />
     </div>
   );

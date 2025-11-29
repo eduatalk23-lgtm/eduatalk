@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
-import BlockManagementTabs from "./_components/BlockManagementTabs";
+import BlockManagementContainer from "./_components/BlockManagementContainer";
 
 export default async function BlocksPage() {
   const supabase = await createSupabaseServerClient();
@@ -105,14 +105,7 @@ export default async function BlocksPage() {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 md:py-10">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">시간 블록 관리</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          블록 세트, 학습 제외 일정, 학원 일정을 관리할 수 있습니다.
-        </p>
-      </div>
-
-      <BlockManagementTabs
+      <BlockManagementContainer
         studentId={user.id}
         initialBlockSets={blockSets}
         initialActiveSetId={activeSetId}

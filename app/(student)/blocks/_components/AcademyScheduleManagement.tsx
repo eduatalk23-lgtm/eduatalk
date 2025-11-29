@@ -11,10 +11,13 @@ import {
   deleteAcademySchedule 
 } from "@/app/(student)/actions/planGroupActions";
 import type { AcademySchedule, Academy } from "@/lib/types/plan";
-import { Trash2, Plus, Pencil, X } from "lucide-react";
+import { Trash2, Pencil, X } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type AcademyScheduleManagementProps = {
   studentId: string;
+  onAddRequest?: () => void;
+  isAddingAcademy?: boolean;
 };
 
 const weekdayLabels = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
@@ -25,12 +28,13 @@ type AcademyWithSchedules = Academy & {
 
 export default function AcademyScheduleManagement({
   studentId,
+  onAddRequest,
+  isAddingAcademy = false,
 }: AcademyScheduleManagementProps) {
   const [academies, setAcademies] = useState<AcademyWithSchedules[]>([]);
   const [loading, setLoading] = useState(true);
   
   // 학원 관리 상태
-  const [isAddingAcademy, setIsAddingAcademy] = useState(false);
   const [editingAcademyId, setEditingAcademyId] = useState<string | null>(null);
   const [newAcademyName, setNewAcademyName] = useState("");
   const [newAcademyTravelTime, setNewAcademyTravelTime] = useState("60");
@@ -122,7 +126,7 @@ export default function AcademyScheduleManagement({
 
         setNewAcademyName("");
         setNewAcademyTravelTime("60");
-        setIsAddingAcademy(false);
+        onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
 
         await loadData();
       } catch (error: any) {
@@ -136,7 +140,7 @@ export default function AcademyScheduleManagement({
     setEditingAcademyId(academy.id);
     setNewAcademyName(academy.name);
     setNewAcademyTravelTime(String(academy.travel_time));
-    setIsAddingAcademy(false);
+    onAddRequest?.(); // isAddingAcademy가 false로 변경되도록 요청
   };
 
   // 학원 수정
@@ -347,26 +351,23 @@ export default function AcademyScheduleManagement({
         </p>
       </div>
 
+      {/* 빈 상태 */}
+      {academies.length === 0 && !isAddingAcademy && (
+        <EmptyState
+          title="등록된 학원이 없습니다"
+          description="다니는 학원을 추가하고 일정을 관리하세요."
+          icon="🏫"
+        />
+      )}
+
       {/* 학원 목록 및 관리 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">학원 목록</h3>
-          {!isAddingAcademy && !editingAcademyId && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingAcademy(true);
-                setEditingAcademyId(null);
-                setNewAcademyName("");
-                setNewAcademyTravelTime("60");
-              }}
-              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Plus className="h-4 w-4" />
-              학원 추가
-            </button>
+      {(academies.length > 0 || isAddingAcademy || editingAcademyId) && (
+        <div className="rounded-lg border border-gray-200 bg-white p-6">
+          {academies.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">학원 목록</h3>
+            </div>
           )}
-        </div>
 
         {/* 학원 추가/수정 폼 */}
         {(isAddingAcademy || editingAcademyId) && (
@@ -413,7 +414,7 @@ export default function AcademyScheduleManagement({
               <button
                 type="button"
                 onClick={() => {
-                  setIsAddingAcademy(false);
+                  onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
                   setEditingAcademyId(null);
                   setNewAcademyName("");
                   setNewAcademyTravelTime("60");
@@ -667,12 +668,13 @@ export default function AcademyScheduleManagement({
             <p className="text-sm text-gray-500">등록된 일정이 없습니다. 위에서 일정을 추가해주세요.</p>
           )}
         </div>
-      )}
+        )}
 
-      {!selectedAcademy && academies.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
-          <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
-        </div>
+        {!selectedAcademy && academies.length > 0 && (
+          <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
+            <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
+          </div>
+        )}
       )}
     </div>
   );

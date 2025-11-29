@@ -6,6 +6,7 @@ import Link from "next/link";
 import BlockForm from "./BlockForm";
 import { createBlockSet } from "@/app/actions/blockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type Block = {
   id: string;
@@ -31,6 +32,8 @@ type BlocksViewerProps = {
   onCreateSetSuccess?: () => void;
   onBlockChange?: (setId: string) => Promise<void>;
   existingSetCount?: number;
+  onCreateSetRequest?: () => void;
+  creating?: boolean;
 };
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -43,9 +46,10 @@ export default function BlocksViewer({
   onCreateSetSuccess,
   onBlockChange,
   existingSetCount = 0,
+  onCreateSetRequest,
+  creating = false,
 }: BlocksViewerProps) {
   const router = useRouter();
-  const [creating, setCreating] = useState(false);
   
   // 각 블록 세트별 총 시간 계산
   const blockSetsWithStats = useMemo(() => {
@@ -101,7 +105,7 @@ export default function BlocksViewer({
       {creating && (
         <BlockSetCreateForm
           onSuccess={async (newSetId?: string) => {
-            setCreating(false);
+            onCreateSetRequest?.(); // 상위 컴포넌트에 creating 상태 해제 요청
             // 새 세트가 생성되고 블록이 추가된 경우, 해당 세트만 업데이트
             if (newSetId && onBlockChange) {
               await onBlockChange(newSetId);
@@ -113,7 +117,7 @@ export default function BlocksViewer({
             // loadData 완료 후 서버 컴포넌트 새로고침
             router.refresh();
           }}
-          onCancel={() => setCreating(false)}
+          onCancel={() => onCreateSetRequest?.()} // 상위 컴포넌트에 creating 상태 해제 요청
           existingCount={existingSetCount}
         />
       )}
@@ -121,19 +125,6 @@ export default function BlocksViewer({
       {/* 블록 세트 목록 */}
       {blockSetsWithStats.length > 0 ? (
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-medium text-gray-900">등록된 시간 블록</h2>
-            {existingSetCount < 5 && (
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
-                disabled={creating}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                + 새 세트 추가하기
-              </button>
-            )}
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {blockSetsWithStats.map((set) => (
               <div
@@ -242,20 +233,11 @@ export default function BlocksViewer({
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <div className="mx-auto max-w-md">
-            <div className="mb-4 text-6xl">⏰</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">
-              등록된 시간 블록이 없습니다
-            </h3>
-            <p className="mb-6 text-sm text-gray-500">
-              위의 폼을 사용하여 시간 블록을 추가하세요.
-            </p>
-            <p className="text-xs text-gray-400">
-              새 세트 추가하기 버튼을 통해 블록 세트를 먼저 생성할 수 있습니다.
-            </p>
-          </div>
-        </div>
+        <EmptyState
+          title="등록된 블록 세트가 없습니다"
+          description="새 블록 세트를 추가하여 학습 시간을 관리하세요."
+          icon="📅"
+        />
       )}
     </>
   );

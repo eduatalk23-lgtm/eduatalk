@@ -6,7 +6,7 @@ import ExclusionManagement from "./ExclusionManagement";
 import AcademyScheduleManagement from "./AcademyScheduleManagement";
 import type { PlanGroup } from "@/lib/types/plan";
 
-type ManagementTab = "blocks" | "exclusions" | "academy";
+export type ManagementTab = "blocks" | "exclusions" | "academy";
 
 type BlockManagementTabsProps = {
   studentId: string;
@@ -14,6 +14,13 @@ type BlockManagementTabsProps = {
   initialActiveSetId?: string | null;
   initialBlocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string; block_set_id: string | null }>;
   initialPlanGroups?: PlanGroup[];
+  onTabChange?: (tab: ManagementTab) => void;
+  onBlockSetCreateRequest?: () => void;
+  onExclusionAddRequest?: () => void;
+  onAcademyAddRequest?: () => void;
+  isCreatingBlockSet?: boolean;
+  isAddingExclusion?: boolean;
+  isAddingAcademy?: boolean;
 };
 
 export default function BlockManagementTabs({
@@ -22,8 +29,20 @@ export default function BlockManagementTabs({
   initialActiveSetId = null,
   initialBlocks = [],
   initialPlanGroups = [],
+  onTabChange,
+  onBlockSetCreateRequest,
+  onExclusionAddRequest,
+  onAcademyAddRequest,
+  isCreatingBlockSet = false,
+  isAddingExclusion = false,
+  isAddingAcademy = false,
 }: BlockManagementTabsProps) {
   const [activeTab, setActiveTab] = useState<ManagementTab>("blocks");
+
+  const handleTabChange = (tab: ManagementTab) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   return (
     <>
@@ -32,7 +51,7 @@ export default function BlockManagementTabs({
         <nav className="-mb-px flex gap-4">
           <button
             type="button"
-            onClick={() => setActiveTab("blocks")}
+            onClick={() => handleTabChange("blocks")}
             className={`border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
               activeTab === "blocks"
                 ? "border-gray-900 text-gray-900"
@@ -43,7 +62,7 @@ export default function BlockManagementTabs({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("exclusions")}
+            onClick={() => handleTabChange("exclusions")}
             className={`border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
               activeTab === "exclusions"
                 ? "border-gray-900 text-gray-900"
@@ -54,7 +73,7 @@ export default function BlockManagementTabs({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("academy")}
+            onClick={() => handleTabChange("academy")}
             className={`border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
               activeTab === "academy"
                 ? "border-gray-900 text-gray-900"
@@ -74,10 +93,24 @@ export default function BlockManagementTabs({
             initialBlockSets={initialBlockSets}
             initialActiveSetId={initialActiveSetId}
             initialBlocks={initialBlocks}
+            onCreateSetRequest={onBlockSetCreateRequest}
+            creating={isCreatingBlockSet}
           />
         )}
-        {activeTab === "exclusions" && <ExclusionManagement studentId={studentId} />}
-        {activeTab === "academy" && <AcademyScheduleManagement studentId={studentId} />}
+        {activeTab === "exclusions" && (
+          <ExclusionManagement
+            studentId={studentId}
+            onAddRequest={onExclusionAddRequest}
+            isAdding={isAddingExclusion}
+          />
+        )}
+        {activeTab === "academy" && (
+          <AcademyScheduleManagement
+            studentId={studentId}
+            onAddRequest={onAcademyAddRequest}
+            isAddingAcademy={isAddingAcademy}
+          />
+        )}
       </div>
     </>
   );

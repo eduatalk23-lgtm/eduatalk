@@ -4,10 +4,13 @@ import { useEffect, useState, useTransition } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { addPlanExclusion, deletePlanExclusion } from "@/app/(student)/actions/planGroupActions";
 import type { PlanExclusion } from "@/lib/types/plan";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 type ExclusionManagementProps = {
   studentId: string;
+  onAddRequest?: () => void;
+  isAdding?: boolean;
 };
 
 const exclusionTypes = [
@@ -19,10 +22,11 @@ const exclusionTypes = [
 
 export default function ExclusionManagement({
   studentId,
+  onAddRequest,
+  isAdding = false,
 }: ExclusionManagementProps) {
   const [planExclusions, setPlanExclusions] = useState<PlanExclusion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
   const [newExclusionDate, setNewExclusionDate] = useState("");
   const [newExclusionType, setNewExclusionType] = useState<"휴가" | "개인사정" | "휴일지정" | "기타">("휴가");
   const [newExclusionReason, setNewExclusionReason] = useState("");
@@ -218,7 +222,7 @@ export default function ExclusionManagement({
               <button
                 type="button"
                 onClick={() => {
-                  setIsAdding(false);
+                  onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
                   setNewExclusionDate("");
                   setNewExclusionReason("");
                 }}
@@ -229,19 +233,19 @@ export default function ExclusionManagement({
               </button>
             </div>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsAdding(true)}
-            className="mb-4 flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Plus className="h-4 w-4" />
-            제외일 추가
-          </button>
+        )}
+
+        {/* 빈 상태 */}
+        {planExclusions.length === 0 && !isAdding && (
+          <EmptyState
+            title="등록된 학습 제외 일정이 없습니다"
+            description="휴가나 개인 사정으로 학습하지 않는 날을 등록하세요."
+            icon="🗓️"
+          />
         )}
 
         {/* 제외일 목록 (유형별 그룹화) */}
-        {planExclusions.length > 0 ? (
+        {planExclusions.length > 0 && (
           <div className="space-y-4">
             {typeKeys.map((type) => {
               const typeLabel = exclusionTypes.find((t) => t.value === type)?.label || type;
@@ -286,8 +290,6 @@ export default function ExclusionManagement({
               );
             })}
           </div>
-        ) : (
-          <p className="text-sm text-gray-500">등록된 학습 제외일이 없습니다.</p>
         )}
       </div>
     </div>
