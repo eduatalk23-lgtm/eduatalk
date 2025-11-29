@@ -57,15 +57,15 @@ export default async function MasterLecturesPage({
   ]);
 
   const subjects = Array.from(
-    new Set((subjectsRes.data || []).map((item) => item.subject).filter(Boolean))
+    new Set((subjectsRes.data || []).map((item: any) => item.subject).filter(Boolean))
   ).sort();
   
   const semesters = Array.from(
-    new Set((semestersRes.data || []).map((item) => item.semester).filter(Boolean))
+    new Set((semestersRes.data || []).map((item: any) => item.semester).filter(Boolean))
   ).sort();
   
   const revisions = Array.from(
-    new Set((revisionsRes.data || []).map((item) => item.revision).filter(Boolean))
+    new Set((revisionsRes.data || []).map((item: any) => item.revision).filter(Boolean))
   ).sort();
 
   return (
