@@ -2,6 +2,7 @@
 
 **작성일**: 2024년 11월 29일  
 **마이그레이션 파일**:
+
 - `supabase/migrations/YYYYMMDDHHMMSS_refactor_master_lectures_and_episodes.sql`
 - `supabase/migrations/YYYYMMDDHHMMSS_refactor_lectures_and_student_episodes.sql`
 
@@ -21,9 +22,11 @@
 ## 개요
 
 ### 목적
+
 강의 관련 테이블(`master_lectures`, `lecture_episodes`, `lectures`, `student_lecture_episodes`)을 최종 요구사항에 맞춰 리팩토링하여, 교육과정 연계, 플랫폼 관리, 진도 추적 등을 체계적으로 관리할 수 있도록 개선합니다.
 
 ### 전제 조건
+
 - **서비스 운영 전**: 강의 관련 데이터는 모두 삭제해도 무방
 - **데이터 초기화**: 마이그레이션 과정에서 모든 강의 데이터 TRUNCATE
 - **코드 리팩토링 필요**: 컬럼명 변경 및 새 컬럼 활용을 위한 코드 수정 필요
@@ -34,48 +37,48 @@
 
 ### 1. master_lectures (마스터 강의)
 
-| 변경 유형 | 컬럼명 | 변경 내용 |
-|---------|--------|----------|
-| **추가** | `is_active` | 활성화 상태 (boolean) |
-| **추가** | `curriculum_revision_id` | 교육과정 개정 ID (FK) |
-| **추가** | `subject_id` | 과목 ID (FK) |
-| **추가** | `grade_min`, `grade_max` | 학년 범위 (1-3) |
-| **추가** | `school_type` | 학교 유형 (MIDDLE/HIGH/OTHER) |
-| **변경** | `platform` → `platform_name` | 컬럼명 변경 |
-| **추가** | `platform_id` | 플랫폼 ID (FK) |
-| **추가** | `subtitle`, `series_name`, `instructor` | 강의 상세 정보 |
-| **추가** | `description`, `toc`, `tags` | 설명, 목차, 태그 |
-| **추가** | `target_exam_type` | 대상 시험 유형 (배열) |
-| **추가** | `source`, `source_product_code`, `source_url`, `cover_image_url` | 외부 소스 메타데이터 |
+| 변경 유형 | 컬럼명                                                           | 변경 내용                     |
+| --------- | ---------------------------------------------------------------- | ----------------------------- |
+| **추가**  | `is_active`                                                      | 활성화 상태 (boolean)         |
+| **추가**  | `curriculum_revision_id`                                         | 교육과정 개정 ID (FK)         |
+| **추가**  | `subject_id`                                                     | 과목 ID (FK)                  |
+| **추가**  | `grade_min`, `grade_max`                                         | 학년 범위 (1-3)               |
+| **추가**  | `school_type`                                                    | 학교 유형 (MIDDLE/HIGH/OTHER) |
+| **변경**  | `platform` → `platform_name`                                     | 컬럼명 변경                   |
+| **추가**  | `platform_id`                                                    | 플랫폼 ID (FK)                |
+| **추가**  | `subtitle`, `series_name`, `instructor`                          | 강의 상세 정보                |
+| **추가**  | `description`, `toc`, `tags`                                     | 설명, 목차, 태그              |
+| **추가**  | `target_exam_type`                                               | 대상 시험 유형 (배열)         |
+| **추가**  | `source`, `source_product_code`, `source_url`, `cover_image_url` | 외부 소스 메타데이터          |
 
 ### 2. lecture_episodes (마스터 강의 회차)
 
-| 변경 유형 | 컬럼명 | 변경 내용 |
-|---------|--------|----------|
-| **변경** | `episode_title` → `title` | 컬럼명 변경 |
-| **추가** | `difficulty_level`, `difficulty_score`, `tags` | 회차별 난이도/태그 |
-| **제약** | `UNIQUE (lecture_id, display_order)` | 중복 방지 |
-| **제약** | `ON DELETE CASCADE` | 마스터 강의 삭제 시 회차도 삭제 |
+| 변경 유형 | 컬럼명                                         | 변경 내용                       |
+| --------- | ---------------------------------------------- | ------------------------------- |
+| **변경**  | `episode_title` → `title`                      | 컬럼명 변경                     |
+| **추가**  | `difficulty_level`, `difficulty_score`, `tags` | 회차별 난이도/태그              |
+| **제약**  | `UNIQUE (lecture_id, display_order)`           | 중복 방지                       |
+| **제약**  | `ON DELETE CASCADE`                            | 마스터 강의 삭제 시 회차도 삭제 |
 
 ### 3. lectures (강의 인스턴스)
 
-| 변경 유형 | 컬럼명 | 변경 내용 |
-|---------|--------|----------|
-| **변경** | `master_content_id` → `master_lecture_id` | 컬럼명 변경 |
-| **추가** | `nickname` | 사용자 정의 강의 별명 |
-| **추가** | `completed_episodes`, `progress` | 진도 관리 |
-| **삭제** | `duration` | 혼란 방지 (master_lectures 사용) |
-| **레거시** | `platform`, `subject`, `chapter_info` 등 | 호환성 유지, 향후 제거 예정 |
+| 변경 유형  | 컬럼명                                    | 변경 내용                        |
+| ---------- | ----------------------------------------- | -------------------------------- |
+| **변경**   | `master_content_id` → `master_lecture_id` | 컬럼명 변경                      |
+| **추가**   | `nickname`                                | 사용자 정의 강의 별명            |
+| **추가**   | `completed_episodes`, `progress`          | 진도 관리                        |
+| **삭제**   | `duration`                                | 혼란 방지 (master_lectures 사용) |
+| **레거시** | `platform`, `subject`, `chapter_info` 등  | 호환성 유지, 향후 제거 예정      |
 
 ### 4. student_lecture_episodes (학생 회차 진도)
 
-| 변경 유형 | 컬럼명 | 변경 내용 |
-|---------|--------|----------|
-| **변경** | `episode_title` → `title` | 컬럼명 변경 |
-| **추가** | `master_episode_id` | 마스터 회차 참조 (FK) |
-| **추가** | `is_completed`, `watched_seconds`, `last_watched_at`, `note` | 진도 상세 추적 |
-| **제약** | `UNIQUE (lecture_id, display_order)` | 중복 방지 |
-| **제약** | `ON DELETE CASCADE` | 강의 인스턴스 삭제 시 회차도 삭제 |
+| 변경 유형 | 컬럼명                                                       | 변경 내용                         |
+| --------- | ------------------------------------------------------------ | --------------------------------- |
+| **변경**  | `episode_title` → `title`                                    | 컬럼명 변경                       |
+| **추가**  | `master_episode_id`                                          | 마스터 회차 참조 (FK)             |
+| **추가**  | `is_completed`, `watched_seconds`, `last_watched_at`, `note` | 진도 상세 추적                    |
+| **제약**  | `UNIQUE (lecture_id, display_order)`                         | 중복 방지                         |
+| **제약**  | `ON DELETE CASCADE`                                          | 강의 인스턴스 삭제 시 회차도 삭제 |
 
 ---
 
@@ -143,16 +146,19 @@ CREATE TABLE public.master_lectures (
 #### 주요 변경 사항
 
 1. **교육과정 연계 강화**
+
    - `curriculum_revision_id`: 2009/2015/2022 개정 구분
    - `subject_id`: 과목 정규화 (subjects 테이블 참조)
    - `grade_min`, `grade_max`: 대상 학년 범위
    - `school_type`: 중학교/고등학교 구분
 
 2. **플랫폼 관리 개선**
+
    - `platform_id`: platforms 테이블 참조 (정규화)
    - `platform_name`: 레거시 호환용 (기존 `platform` 컬럼)
 
 3. **메타데이터 확장**
+
    - `subtitle`, `series_name`, `instructor`: 강의 상세 정보
    - `description`, `toc`: 설명, 목차
    - `tags`: 태그 배열 (검색 최적화)
@@ -193,12 +199,15 @@ CREATE TABLE public.lecture_episodes (
 #### 주요 변경 사항
 
 1. **컬럼명 정리**
+
    - `episode_title` → `title`: 간결한 네이밍
 
 2. **CASCADE 삭제**
+
    - `ON DELETE CASCADE`: 마스터 강의 삭제 시 회차도 자동 삭제
 
 3. **회차별 메타데이터**
+
    - `difficulty_level`, `difficulty_score`: 회차별 난이도
    - `tags`: 회차별 태그 (예: "핵심개념", "문제풀이")
 
@@ -249,17 +258,21 @@ CREATE TABLE public.lectures (
 #### 주요 변경 사항
 
 1. **컬럼명 변경**
+
    - `master_content_id` → `master_lecture_id`: 명확한 네이밍
 
 2. **인스턴스 메타데이터 추가**
+
    - `nickname`: 사용자 정의 별명 (예: "6평 대비 패키지")
    - `title`: 인스턴스별 커스텀 제목 (마스터와 다를 수 있음)
 
 3. **진도 관리 강화**
+
    - `completed_episodes`: 완료한 회차 수
    - `progress`: 전체 진도율 (0-100)
 
 4. **컬럼 삭제**
+
    - `duration`: 혼란 방지 (master_lectures의 total_duration 사용)
 
 5. **레거시 컬럼 유지**
@@ -300,19 +313,23 @@ CREATE TABLE public.student_lecture_episodes (
 #### 주요 변경 사항
 
 1. **컬럼명 변경**
+
    - `episode_title` → `title`: 간결한 네이밍
 
 2. **마스터 회차 연동**
+
    - `master_episode_id`: lecture_episodes 참조
    - 마스터 회차 정보 동기화 가능
 
 3. **진도 추적 강화**
+
    - `is_completed`: 완료 여부
    - `watched_seconds`: 시청 시간(초)
    - `last_watched_at`: 마지막 시청 시간
    - `note`: 회차별 메모
 
 4. **CASCADE 삭제**
+
    - `ON DELETE CASCADE`: 강의 인스턴스 삭제 시 회차도 자동 삭제
 
 5. **UNIQUE 제약**
@@ -325,16 +342,18 @@ CREATE TABLE public.student_lecture_episodes (
 ### 1. 컬럼명 변경 대응
 
 #### master_lectures
+
 ```typescript
 // ❌ Before
 const platform = lecture.platform;
 
 // ✅ After
-const platformId = lecture.platform_id;      // 우선 사용
-const platformName = lecture.platform_name;  // 레거시 호환
+const platformId = lecture.platform_id; // 우선 사용
+const platformName = lecture.platform_name; // 레거시 호환
 ```
 
 #### lecture_episodes
+
 ```typescript
 // ❌ Before
 const episodeTitle = episode.episode_title;
@@ -344,6 +363,7 @@ const title = episode.title;
 ```
 
 #### lectures
+
 ```typescript
 // ❌ Before
 const masterContentId = lecture.master_content_id;
@@ -357,6 +377,7 @@ const duration = masterLecture?.total_duration;
 ```
 
 #### student_lecture_episodes
+
 ```typescript
 // ❌ Before
 const episodeTitle = studentEpisode.episode_title;
@@ -376,32 +397,34 @@ const watchedSeconds = studentEpisode.watched_seconds;
 ```typescript
 interface MasterLecture {
   id: string;
-  curriculum_revision_id?: string;  // 교육과정 개정
-  subject_id?: string;               // 과목 ID
-  grade_min?: number;                // 최소 학년
-  grade_max?: number;                // 최대 학년
-  school_type?: 'MIDDLE' | 'HIGH' | 'OTHER';
-  platform_id?: string;              // 플랫폼 ID (우선)
-  platform_name?: string;            // 플랫폼명 (레거시)
-  target_exam_type?: string[];       // 대상 시험 유형
-  tags?: string[];                   // 태그
+  curriculum_revision_id?: string; // 교육과정 개정
+  subject_id?: string; // 과목 ID
+  grade_min?: number; // 최소 학년
+  grade_max?: number; // 최대 학년
+  school_type?: "MIDDLE" | "HIGH" | "OTHER";
+  platform_id?: string; // 플랫폼 ID (우선)
+  platform_name?: string; // 플랫폼명 (레거시)
+  target_exam_type?: string[]; // 대상 시험 유형
+  tags?: string[]; // 태그
 }
 
 // 검색 예시
 const lectures = await supabase
-  .from('master_lectures')
-  .select(`
+  .from("master_lectures")
+  .select(
+    `
     *,
     curriculum_revision:curriculum_revisions(*),
     subject:subjects(*),
     platform:platforms(*)
-  `)
-  .eq('curriculum_revision_id', '2022개정')
-  .gte('grade_min', 1)
-  .lte('grade_max', 3)
-  .eq('school_type', 'HIGH')
-  .contains('target_exam_type', ['수능'])
-  .eq('is_active', true);
+  `
+  )
+  .eq("curriculum_revision_id", "2022개정")
+  .gte("grade_min", 1)
+  .lte("grade_max", 3)
+  .eq("school_type", "HIGH")
+  .contains("target_exam_type", ["수능"])
+  .eq("is_active", true);
 ```
 
 #### lectures - 진도 관리
@@ -410,10 +433,10 @@ const lectures = await supabase
 interface Lecture {
   id: string;
   master_lecture_id?: string;
-  nickname?: string;                 // 사용자 정의 별명
+  nickname?: string; // 사용자 정의 별명
   total_episodes?: number;
   completed_episodes?: number;
-  progress?: number;                 // 0-100
+  progress?: number; // 0-100
 }
 
 // 진도 업데이트
@@ -425,12 +448,12 @@ const updateLectureProgress = async (
   const progress = (completedEpisodes / totalEpisodes) * 100;
 
   await supabase
-    .from('lectures')
+    .from("lectures")
     .update({
       completed_episodes: completedEpisodes,
       progress: progress,
     })
-    .eq('id', lectureId);
+    .eq("id", lectureId);
 };
 ```
 
@@ -456,13 +479,13 @@ const updateWatchProgress = async (
   isCompleted: boolean
 ) => {
   await supabase
-    .from('student_lecture_episodes')
+    .from("student_lecture_episodes")
     .update({
       watched_seconds: watchedSeconds,
       is_completed: isCompleted,
       last_watched_at: new Date().toISOString(),
     })
-    .eq('id', episodeId);
+    .eq("id", episodeId);
 };
 ```
 
@@ -471,18 +494,22 @@ const updateWatchProgress = async (
 ### 3. 수정이 필요한 파일 목록
 
 #### Server Actions
+
 - `app/actions/lectures.ts` (생성 필요 또는 기존 파일)
 - `app/(student)/actions/masterContentActions.ts`
 
 #### Data Fetching
+
 - `lib/data/lectures.ts` (생성 필요)
 - `lib/data/masterLectures.ts` (생성 필요)
 
 #### Components
+
 - `app/(admin)/admin/master-lectures/**/*.tsx` (관리자 UI)
 - `app/(student)/contents/**/*.tsx` (학생 강의 목록/상세)
 
 #### Types
+
 - `lib/types/lecture.ts` (생성 필요)
 
 ---
@@ -492,12 +519,14 @@ const updateWatchProgress = async (
 ### 1. 컬럼명 변경으로 인한 영향
 
 **영향받는 컬럼**:
+
 - `master_lectures.platform` → `master_lectures.platform_name`
 - `lecture_episodes.episode_title` → `lecture_episodes.title`
 - `lectures.master_content_id` → `lectures.master_lecture_id`
 - `student_lecture_episodes.episode_title` → `student_lecture_episodes.title`
 
 **대응 방법**:
+
 1. 코드에서 해당 컬럼을 사용하는 모든 곳 검색
 2. 점진적으로 새 컬럼명으로 변경
 3. TypeScript 타입 정의 업데이트
@@ -505,18 +534,21 @@ const updateWatchProgress = async (
 ### 2. 삭제된 컬럼
 
 **lectures.duration**:
+
 - 삭제 이유: master_lectures.total_duration과 혼란 방지
 - 대체 방법: master_lectures JOIN하여 total_duration 사용
 
 ```typescript
 // ✅ 올바른 방법
 const { data } = await supabase
-  .from('lectures')
-  .select(`
+  .from("lectures")
+  .select(
+    `
     *,
     master_lecture:master_lectures(total_duration)
-  `)
-  .eq('id', lectureId)
+  `
+  )
+  .eq("id", lectureId)
   .single();
 
 const duration = data.master_lecture?.total_duration;
@@ -525,9 +557,11 @@ const duration = data.master_lecture?.total_duration;
 ### 3. 레거시 컬럼
 
 **유지되는 레거시 컬럼** (lectures 테이블):
+
 - `platform`, `subject`, `subject_category`, `revision`, `semester`, `chapter_info`, `difficulty_level`, `latest_version`
 
 **권장 사항**:
+
 - 새로운 코드에서는 사용하지 않기
 - 기존 코드는 점진적으로 마이그레이션
 - 향후 충분한 마이그레이션 후 컬럼 제거 고려
@@ -537,18 +571,21 @@ const duration = data.master_lecture?.total_duration;
 ## 후속 작업
 
 ### Phase 1: 즉시 (마이그레이션 직후)
+
 - [ ] TypeScript 타입 정의 업데이트
 - [ ] 컬럼명 변경된 부분 코드 수정
 - [ ] Server Actions 수정 (master_content_id → master_lecture_id)
 - [ ] 빌드 에러 확인 및 수정
 
 ### Phase 2: 단기 (1-2주)
+
 - [ ] 새 컬럼(curriculum_revision_id, subject_id, platform_id) 활용 UI 개발
 - [ ] 진도 관리 기능 구현 (completed_episodes, progress)
 - [ ] 시청 기록 기능 구현 (watched_seconds, is_completed)
 - [ ] 관리자 UI에서 새 필드 입력/표시
 
 ### Phase 3: 중기 (1개월)
+
 - [ ] 레거시 컬럼 사용 코드 전면 리팩토링
   - lectures.platform → master_lectures.platform_id
   - lectures.subject → master_lectures.subject_id
@@ -557,6 +594,7 @@ const duration = data.master_lecture?.total_duration;
 - [ ] 태그 기반 검색/필터링 구현
 
 ### Phase 4: 장기 (2-3개월)
+
 - [ ] 레거시 컬럼 제거
 - [ ] 교육과정 기반 강의 추천 시스템
 - [ ] 학습 분석 대시보드 (진도, 시청 패턴 분석)
@@ -567,18 +605,21 @@ const duration = data.master_lecture?.total_duration;
 ## 검증 체크리스트
 
 ### 데이터베이스
+
 - [ ] 마이그레이션 성공 확인
 - [ ] FK 제약 정상 작동 확인
 - [ ] UNIQUE 제약 정상 작동 확인
 - [ ] CASCADE 삭제 정상 작동 확인
 
 ### 코드
+
 - [ ] TypeScript 빌드 에러 없음
 - [ ] ESLint 에러 없음
 - [ ] 기존 기능 정상 작동 (강의 목록, 상세, 등록)
 - [ ] 새 컬럼 활용 기능 테스트
 
 ### UI
+
 - [ ] 관리자: 강의 등록/수정 정상 작동
 - [ ] 학생: 강의 목록 조회 정상 작동
 - [ ] 학생: 강의 상세 조회 정상 작동
@@ -595,4 +636,3 @@ const duration = data.master_lecture?.total_duration;
 ---
 
 **마지막 업데이트**: 2024년 11월 29일
-
