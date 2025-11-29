@@ -1056,6 +1056,7 @@ export function Step4RecommendedContents({
     const contentsToAdd: Array<{
       content_type: "book" | "lecture";
       content_id: string;
+      master_content_id?: string; // 마스터 콘텐츠 ID 저장
       start_range: number;
       end_range: number;
       title?: string; // 제목 정보 저장

@@ -313,8 +313,11 @@ export function Step3Contents({
     const contentsToAdd: Array<{
       content_type: "book" | "lecture";
       content_id: string;
+      master_content_id?: string | null; // 마스터 콘텐츠 ID 저장
       start_range: number;
       end_range: number;
+      start_detail_id?: string | null; // 시작 범위 상세 정보 ID
+      end_detail_id?: string | null; // 종료 범위 상세 정보 ID
       title?: string; // 제목 정보 저장
       subject_category?: string; // 과목 카테고리 저장 (필수 과목 검증용)
     }> = [];
