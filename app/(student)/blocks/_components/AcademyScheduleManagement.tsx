@@ -483,7 +483,8 @@ export default function AcademyScheduleManagement({
         ) : (
           <p className="text-sm text-gray-500">등록된 학원이 없습니다. 위에서 학원을 추가해주세요.</p>
         )}
-      </div>
+        </div>
+      )}
 
       {/* 선택된 학원의 일정 관리 */}
       {selectedAcademy && (
