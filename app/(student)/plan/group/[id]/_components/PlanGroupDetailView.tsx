@@ -7,28 +7,26 @@ import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 import { ErrorBoundary } from "./ErrorBoundary";
 import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
+import { planGroupToWizardData, contentsToWizardFormat } from "@/lib/utils/planGroupAdapters";
 
-// 동적 임포트로 레이지 로딩 (named export를 default로 변환)
-const Step1DetailView = lazy(() => 
-  import("./Step1DetailView").then(module => ({ default: module.Step1DetailView }))
+// 동적 임포트로 레이지 로딩 - 새로운 Step 컴포넌트 사용
+const Step1BasicInfo = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/Step1BasicInfo").then(module => ({ default: module.Step1BasicInfo }))
 );
-const Step2DetailView = lazy(() => 
-  import("./Step2DetailView").then(module => ({ default: module.Step2DetailView }))
+const Step2TimeSettingsWithPreview = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview").then(module => ({ default: module.Step2TimeSettingsWithPreview }))
 );
-const Step2_5DetailView = lazy(() => 
-  import("./Step2_5DetailView").then(module => ({ default: module.Step2_5DetailView }))
+const SchedulePreviewPanel = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/_panels/SchedulePreviewPanel").then(module => ({ default: module.SchedulePreviewPanel }))
 );
-const Step3DetailView = lazy(() => 
-  import("./Step3DetailView").then(module => ({ default: module.Step3DetailView }))
+const Step3ContentSelection = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/Step3ContentSelection").then(module => ({ default: module.Step3ContentSelection }))
 );
-const Step4DetailView = lazy(() => 
-  import("./Step4DetailView").then(module => ({ default: module.Step4DetailView }))
+const Step6Simplified = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/Step6Simplified").then(module => ({ default: module.Step6Simplified }))
 );
-const Step6DetailView = lazy(() => 
-  import("./Step6DetailView").then(module => ({ default: module.Step6DetailView }))
-);
-const Step7DetailView = lazy(() => 
-  import("./Step7DetailView").then(module => ({ default: module.Step7DetailView }))
+const Step7ScheduleResult = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/Step7ScheduleResult").then(module => ({ default: module.Step7ScheduleResult }))
 );
 
 type PlanGroupDetailViewProps = {
@@ -74,11 +72,10 @@ export function PlanGroupDetailView({
     { id: 1, label: "기본 정보", completed: !!group.name && !!group.plan_purpose && !!group.scheduler_type },
     { id: 2, label: "블록 및 제외일", completed: !!group.block_set_id },
     { id: 3, label: "스케줄 미리보기", completed: true },
-    { id: 4, label: "학생 콘텐츠", completed: contents.length > 0 },
-    { id: 5, label: "추천 콘텐츠", completed: contentsWithDetails.some(c => c.isRecommended) },
+    { id: 4, label: "콘텐츠 선택", completed: contents.length > 0 }, // 학생 + 추천 통합
     { id: 6, label: "최종 검토", completed: true },
     { id: 7, label: "스케줄 결과", completed: hasPlans },
-  ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, contentsWithDetails, hasPlans]);
+  ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, hasPlans]);
 
   // 캠프 제출 모드일 때 탭 필터링 (1, 2, 4만 표시, 추천 콘텐츠 제외)
   const tabs = useMemo(() => {
@@ -93,7 +90,7 @@ export function PlanGroupDetailView({
     if (campSubmissionMode) {
       return [1, 2, 4];
     }
-    return [1, 2, 3, 4, 5, 6, 7];
+    return [1, 2, 3, 4, 6, 7]; // Step 5 제거 (Step 4에 통합)
   }, [campSubmissionMode]);
 
   // 초기 탭 설정 (허용된 탭 중 첫 번째)
@@ -113,6 +110,19 @@ export function PlanGroupDetailView({
     contentsWithDetails.filter(c => c.isRecommended),
     [contentsWithDetails]
   );
+
+  // WizardData로 변환 (읽기 전용 모드용)
+  const wizardData = useMemo(() => {
+    const baseData = planGroupToWizardData(group, exclusions, academySchedules);
+    const { studentContents: studentContentsFormatted, recommendedContents: recommendedContentsFormatted } = 
+      contentsToWizardFormat(contentsWithDetails);
+    
+    return {
+      ...baseData,
+      student_contents: studentContentsFormatted,
+      recommended_contents: recommendedContentsFormatted,
+    };
+  }, [group, exclusions, academySchedules, contentsWithDetails]);
 
   // 탭 변경 핸들러 메모이제이션
   const handleTabChange = useCallback((tab: number) => {
@@ -144,58 +154,85 @@ export function PlanGroupDetailView({
       case 1:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step1DetailView group={group} />
+            <Step1BasicInfo 
+              data={wizardData}
+              onUpdate={() => {}} // 읽기 전용
+              editable={false}
+              isCampMode={campSubmissionMode}
+              lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
+            />
           </Suspense>
         );
       case 2:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step2DetailView 
-              group={group} 
-              exclusions={exclusions} 
-              academySchedules={academySchedules}
-              templateBlocks={templateBlocks}
-              templateBlockSetName={templateBlockSetName}
+            <Step2TimeSettingsWithPreview 
+              data={wizardData}
+              onUpdate={() => {}} // 읽기 전용
+              editable={false}
+              isCampMode={campSubmissionMode}
+              studentId={group.student_id}
             />
           </Suspense>
         );
       case 3:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step2_5DetailView group={group} exclusions={exclusions} academySchedules={academySchedules} />
+            <SchedulePreviewPanel 
+              data={wizardData}
+              onUpdate={() => {}} // 읽기 전용
+              editable={false}
+              studentId={group.student_id}
+            />
           </Suspense>
         );
       case 4:
+        // 콘텐츠 선택 (학생 + 추천 통합)
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step3DetailView contents={studentContents} />
-          </Suspense>
-        );
-      case 5:
-        return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step4DetailView contents={recommendedContents} />
+            <Step3ContentSelection 
+              data={wizardData}
+              onUpdate={() => {}} // 읽기 전용
+              isCampMode={campSubmissionMode}
+              isEditMode={false}
+              studentId={group.student_id}
+              editable={false}
+            />
           </Suspense>
         );
       case 6:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step6DetailView group={group} contents={contentsWithDetails} exclusions={exclusions} academySchedules={academySchedules} />
+            <Step6Simplified 
+              data={wizardData}
+              onBack={() => {}}
+              onNext={() => {}}
+              editable={false}
+              isCampMode={campSubmissionMode}
+              isTemplateMode={false}
+              studentId={group.student_id}
+            />
           </Suspense>
         );
       case 7:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step7DetailView
+            <Step7ScheduleResult
               groupId={groupId}
-              onScheduleViewReady={handleScheduleViewReady}
+              onComplete={() => {}}
             />
           </Suspense>
         );
       default:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step1DetailView group={group} />
+            <Step1BasicInfo 
+              data={wizardData}
+              onUpdate={() => {}} // 읽기 전용
+              editable={false}
+              isCampMode={campSubmissionMode}
+              lockedFields={[]}
+            />
           </Suspense>
         );
     }
