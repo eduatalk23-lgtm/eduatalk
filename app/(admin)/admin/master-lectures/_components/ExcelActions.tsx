@@ -16,7 +16,7 @@ export default function ExcelActions() {
     setIsExporting(true);
     try {
       const buffer = await exportMasterLecturesToExcel();
-      const blob = new Blob([buffer], {
+      const blob = new Blob([new Uint8Array(buffer)], {  // 변경: Buffer → Uint8Array
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
@@ -42,7 +42,7 @@ export default function ExcelActions() {
     setIsExporting(true);
     try {
       const buffer = await downloadMasterLecturesTemplate();
-      const blob = new Blob([buffer], {
+      const blob = new Blob([new Uint8Array(buffer)], {  // 변경: Buffer → Uint8Array
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
