@@ -64,12 +64,20 @@ export default async function LectureDetailPage({
     .order("title", { ascending: true });
 
   // 강의 episode 정보 조회 (학생 강의 episode 우선, 없으면 마스터 참조)
-  let lectureEpisodes: Array<{ id: string; episode_number: number; episode_title: string | null; duration: number | null; display_order: number }> = [];
+  let lectureEpisodes: Array<{ 
+    id: string; 
+    lecture_id: string; 
+    episode_number: number; 
+    title: string | null;  // 변경: episode_title → title
+    duration: number | null; 
+    display_order: number;
+    created_at: string;
+  }> = [];
   
   // 먼저 학생 강의 episode 조회
   const { data: studentEpisodes } = await supabase
     .from("student_lecture_episodes")
-    .select("id,episode_number,episode_title,duration,display_order")
+    .select("id,episode_number,title,duration,display_order,created_at")  // 변경: episode_title → title, created_at 추가
     .eq("lecture_id", id)
     .order("display_order", { ascending: true })
     .order("episode_number", { ascending: true });
@@ -136,12 +144,12 @@ export default async function LectureDetailPage({
             studentBooks={studentBooks || []}
             initialEpisodes={lectureEpisodes.map((e) => ({
               id: e.id,
-              lecture_id: lecture.id,
+              lecture_id: e.lecture_id,  // 변경: lecture.id → e.lecture_id (이미 포함됨)
               episode_number: e.episode_number,
-              episode_title: e.episode_title,
+              title: e.title,  // 변경: episode_title → title
               duration: e.duration,
               display_order: e.display_order,
-              created_at: "",
+              created_at: e.created_at,  // 변경: "" → e.created_at (이미 포함됨)
             }))}
             isFromMaster={!!lecture.master_content_id}
           />
