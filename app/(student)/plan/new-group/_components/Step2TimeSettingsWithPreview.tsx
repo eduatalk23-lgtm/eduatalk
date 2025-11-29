@@ -23,6 +23,17 @@ type Step2TimeSettingsWithPreviewProps = {
   studentId?: string;
   isAdminMode?: boolean;
   isAdminContinueMode?: boolean;
+  blockSets?: Array<{ 
+    id: string; 
+    name: string; 
+    blocks?: Array<{ 
+      id: string; 
+      day_of_week: number; 
+      start_time: string; 
+      end_time: string;
+    }>;
+  }>;
+  campTemplateId?: string;
 };
 
 /**
@@ -48,6 +59,8 @@ export function Step2TimeSettingsWithPreview({
   studentId,
   isAdminMode = false,
   isAdminContinueMode = false,
+  blockSets,
+  campTemplateId,
 }: Step2TimeSettingsWithPreviewProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -88,6 +101,10 @@ export function Step2TimeSettingsWithPreview({
             <SchedulePreviewPanel
               data={data}
               onUpdate={onUpdate}
+              blockSets={blockSets}
+              isTemplateMode={isTemplateMode}
+              isCampMode={campMode}
+              campTemplateId={campTemplateId}
             />
           </div>
         </div>

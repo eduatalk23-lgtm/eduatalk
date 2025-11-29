@@ -1,78 +1,225 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { Calendar, Clock, AlertCircle, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Calendar, Clock, AlertCircle, Loader2, ChevronDown, ChevronUp, XCircle } from "lucide-react";
 import { WizardData } from "../PlanGroupWizard";
+import { calculateScheduleAvailability } from "@/app/(student)/actions/calculateScheduleAvailability";
+import { scheduleCache, type ScheduleCalculationParams } from "@/lib/utils/scheduleCache";
+import type {
+  ScheduleAvailabilityResult,
+  DailySchedule,
+} from "@/lib/scheduler/calculateAvailableDates";
+import { getDefaultBlocks } from "@/lib/utils/defaultBlockSet";
+import { formatNumber } from "@/lib/utils/formatNumber";
 
 type SchedulePreviewPanelProps = {
   data: WizardData;
   onUpdate: (updates: Partial<WizardData>) => void;
+  blockSets?: Array<{ 
+    id: string; 
+    name: string; 
+    blocks?: Array<{ 
+      id: string; 
+      day_of_week: number; 
+      start_time: string; 
+      end_time: string;
+    }>;
+  }>;
+  isTemplateMode?: boolean;
+  isCampMode?: boolean;
+  campTemplateId?: string;
+};
+
+const dayTypeLabels: Record<string, string> = {
+  학습일: "학습일",
+  복습일: "복습일",
+  지정휴일: "지정휴일",
+  휴가: "휴가",
+  개인일정: "개인일정",
+};
+
+const dayTypeColors: Record<string, string> = {
+  학습일: "bg-blue-100 text-blue-800 border-blue-200",
+  복습일: "bg-green-100 text-green-800 border-green-200",
+  지정휴일: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  휴가: "bg-gray-100 text-gray-800 border-gray-200",
+  개인일정: "bg-purple-100 text-purple-800 border-purple-200",
 };
 
 /**
- * 스케줄 미리보기 패널 (프로토타입)
- * - 실시간 스케줄 계산 결과 표시
- * - 요약 통계 (총 학습일, 블록 시간 등)
+ * 스케줄 미리보기 패널 (실시간 버전)
+ * - 실시간 스케줄 계산
+ * - 요약 통계
  * - 주차별 스케줄 미리보기
- * 
- * 참고: 전체 구현은 기존 Step2_5SchedulePreview.tsx (1,135 라인) 참고
+ * - 일별 상세 정보
  */
 export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
   data,
   onUpdate,
+  blockSets = [],
+  isTemplateMode = false,
+  isCampMode = false,
+  campTemplateId,
 }: SchedulePreviewPanelProps) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<ScheduleAvailabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([0]));
+
+  // 선택된 블록 세트의 블록 데이터 추출
+  const selectedBlockSetBlocks = useMemo(() => {
+    if (isTemplateMode && !data.block_set_id) {
+      const defaultBlocks = getDefaultBlocks();
+      return defaultBlocks.map((b) => ({
+        day_of_week: b.day_of_week,
+        start_time: b.start_time,
+        end_time: b.end_time,
+      }));
+    }
+    
+    if (!data.block_set_id || !blockSets.length) {
+      return undefined;
+    }
+    
+    const selectedSet = blockSets.find((set) => set.id === data.block_set_id);
+    if (!selectedSet || !selectedSet.blocks) {
+      return undefined;
+    }
+    
+    return selectedSet.blocks.map((b) => ({
+      day_of_week: b.day_of_week,
+      start_time: b.start_time,
+      end_time: b.end_time,
+    }));
+  }, [data.block_set_id, blockSets, isTemplateMode]);
 
   // 스케줄 계산 파라미터 메모이제이션
-  const scheduleParams = useMemo(() => ({
-    periodStart: data.period_start,
-    periodEnd: data.period_end,
-    blockSetId: data.block_set_id,
-    exclusions: data.exclusions,
-    academySchedules: data.academy_schedules,
-    timeSettings: data.time_settings,
-    nonStudyTimeBlocks: data.non_study_time_blocks,
-    schedulerType: data.scheduler_type,
-  }), [
+  const scheduleParams = useMemo<ScheduleCalculationParams | null>(() => {
+    if (
+      !data.period_start ||
+      !data.period_end ||
+      !data.scheduler_type ||
+      (!isTemplateMode && !data.block_set_id)
+    ) {
+      return null;
+    }
+
+    if (isCampMode && !campTemplateId) {
+      return null;
+    }
+
+    return {
+      period_start: data.period_start,
+      period_end: data.period_end,
+      scheduler_type: data.scheduler_type,
+      block_set_id: data.block_set_id || "default",
+      exclusions: data.exclusions || [],
+      academy_schedules: data.academy_schedules || [],
+      time_settings: data.time_settings,
+      non_study_time_blocks: data.non_study_time_blocks,
+      camp_template_id: isCampMode ? campTemplateId : undefined,
+      blocks: selectedBlockSetBlocks,
+    };
+  }, [
     data.period_start,
     data.period_end,
+    data.scheduler_type,
     data.block_set_id,
     data.exclusions,
     data.academy_schedules,
     data.time_settings,
     data.non_study_time_blocks,
-    data.scheduler_type,
+    isTemplateMode,
+    isCampMode,
+    campTemplateId,
+    selectedBlockSetBlocks,
   ]);
 
-  // TODO: 실제 스케줄 계산 로직 연동
-  // 현재는 프로토타입이므로 기본 통계만 표시
-  useEffect(() => {
-    // 실시간 계산 로직은 기존 Step2_5SchedulePreview.tsx의
-    // calculateScheduleAvailability 함수를 재사용하면 됩니다
-    setLoading(false);
+  // 스케줄 계산 (debounced)
+  const calculateSchedule = useCallback(async (params: ScheduleCalculationParams) => {
+    setLoading(true);
     setError(null);
-  }, [scheduleParams]);
 
-  // 요약 통계 계산
-  const summary = useMemo(() => {
-    if (!data.period_start || !data.period_end) {
-      return null;
+    try {
+      // 캐시 확인
+      const cached = scheduleCache.get(params);
+      if (cached) {
+        setResult(cached);
+        onUpdate({
+          schedule_summary: cached.summary,
+          daily_schedule: cached.daily_schedule,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 서버 계산
+      const calculatedResult = await calculateScheduleAvailability(params);
+      
+      // 캐시 저장
+      scheduleCache.set(params, calculatedResult);
+      
+      setResult(calculatedResult);
+      onUpdate({
+        schedule_summary: calculatedResult.summary,
+        daily_schedule: calculatedResult.daily_schedule,
+      });
+    } catch (err) {
+      console.error("[SchedulePreviewPanel] 스케줄 계산 실패:", err);
+      setError(err instanceof Error ? err.message : "스케줄 계산에 실패했습니다.");
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [onUpdate]);
+
+  // 파라미터 변경 시 재계산 (debounce 500ms)
+  useEffect(() => {
+    if (!scheduleParams) {
+      setLoading(false);
+      setResult(null);
+      setError(null);
+      return;
     }
 
-    const start = new Date(data.period_start);
-    const end = new Date(data.period_end);
-    const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const excludedDays = data.exclusions?.length || 0;
-    const studyDays = totalDays - excludedDays;
+    const timer = setTimeout(() => {
+      calculateSchedule(scheduleParams);
+    }, 500);
 
-    return {
-      totalDays,
-      excludedDays,
-      studyDays,
-      blockCount: data.academy_schedules?.length || 0,
-    };
-  }, [data.period_start, data.period_end, data.exclusions, data.academy_schedules]);
+    return () => clearTimeout(timer);
+  }, [scheduleParams, calculateSchedule]);
+
+  // 주차별 그룹화
+  const weeklySchedules = useMemo(() => {
+    if (!result?.daily_schedule) return [];
+
+    const weeks: DailySchedule[][] = [];
+    let currentWeek: DailySchedule[] = [];
+
+    result.daily_schedule.forEach((day, index) => {
+      currentWeek.push(day);
+      
+      // 7일마다 또는 마지막 날에 주차 완성
+      if (currentWeek.length === 7 || index === result.daily_schedule.length - 1) {
+        weeks.push([...currentWeek]);
+        currentWeek = [];
+      }
+    });
+
+    return weeks;
+  }, [result?.daily_schedule]);
+
+  const toggleWeek = (weekIndex: number) => {
+    setExpandedWeeks((prev) => {
+      const next = new Set(prev);
+      if (next.has(weekIndex)) {
+        next.delete(weekIndex);
+      } else {
+        next.add(weekIndex);
+      }
+      return next;
+    });
+  };
 
   if (loading) {
     return (
@@ -99,6 +246,22 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     );
   }
 
+  if (!result) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
+        <div className="text-center py-8">
+          <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="mt-3 text-sm font-medium text-gray-700">
+            스케줄 미리보기
+          </p>
+          <p className="mt-1 text-xs text-gray-500">
+            기본 정보와 시간 설정을 완료하면 스케줄이 표시됩니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
@@ -110,93 +273,122 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       </div>
 
       {/* 요약 통계 */}
-      {summary && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <span className="text-xs font-medium text-gray-500">총 기간</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-gray-900">{summary.totalDays}</p>
-            <p className="text-xs text-gray-500">일</p>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-gray-400" />
+            <span className="text-xs font-medium text-gray-500">총 기간</span>
           </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-red-400" />
-              <span className="text-xs font-medium text-gray-500">제외일</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-gray-900">{summary.excludedDays}</p>
-            <p className="text-xs text-gray-500">일</p>
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-green-400" />
-              <span className="text-xs font-medium text-gray-500">학습일</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-gray-900">{summary.studyDays}</p>
-            <p className="text-xs text-gray-500">일</p>
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-400" />
-              <span className="text-xs font-medium text-gray-500">학원 일정</span>
-            </div>
-            <p className="mt-2 text-2xl font-bold text-gray-900">{summary.blockCount}</p>
-            <p className="text-xs text-gray-500">개</p>
-          </div>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {result.summary.total_days}
+          </p>
+          <p className="text-xs text-gray-500">일</p>
         </div>
-      )}
 
-      {/* 상세 미리보기 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="text-sm font-semibold text-gray-900">상세 스케줄</h3>
-        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <Clock className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-3 text-sm font-medium text-gray-700">
-            스케줄 미리보기 프로토타입
-          </p>
-          <p className="mt-1 text-xs text-gray-500">
-            전체 구현은 Step2_5SchedulePreview.tsx (1,135 라인) 참고
-          </p>
-          <div className="mt-4 text-left space-y-2">
-            <p className="text-xs text-gray-600">
-              <strong>구현 필요 기능:</strong>
-            </p>
-            <ul className="ml-4 list-disc space-y-1 text-xs text-gray-600">
-              <li>calculateScheduleAvailability API 연동</li>
-              <li>Debounce (500ms) 적용</li>
-              <li>스케줄 캐싱</li>
-              <li>주차별 스케줄 표시</li>
-              <li>일별 상세 정보</li>
-              <li>블록 시간대 시각화</li>
-            </ul>
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-5 w-5 text-red-400" />
+            <span className="text-xs font-medium text-gray-500">제외일</span>
           </div>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {result.summary.excluded_days}
+          </p>
+          <p className="text-xs text-gray-500">일</p>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-green-400" />
+            <span className="text-xs font-medium text-gray-500">학습일</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {result.summary.study_days}
+          </p>
+          <p className="text-xs text-gray-500">일</p>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-blue-400" />
+            <span className="text-xs font-medium text-gray-500">총 학습 시간</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-gray-900">
+            {formatNumber(Math.round(result.summary.total_available_minutes / 60))}
+          </p>
+          <p className="text-xs text-gray-500">시간</p>
         </div>
       </div>
 
-      {/* 안내 메시지 */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 text-blue-600" />
-          <div className="text-sm text-blue-800">
-            <p className="font-semibold">프로토타입 안내</p>
-            <p className="mt-1">
-              현재는 기본 통계만 표시됩니다. 전체 스케줄 미리보기 기능은 기존{" "}
-              <code className="rounded bg-blue-100 px-1 py-0.5">
-                Step2_5SchedulePreview.tsx
-              </code>{" "}
-              컴포넌트의 로직을 이식하여 구현하면 됩니다.
-            </p>
-            <p className="mt-2 font-medium">
-              ⏱️ 예상 작업 시간: 4-5시간 (1,135 라인 리팩토링)
-            </p>
-          </div>
+      {/* 주차별 스케줄 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">주차별 스케줄</h3>
+        <div className="space-y-3">
+          {weeklySchedules.map((week, weekIndex) => {
+            const isExpanded = expandedWeeks.has(weekIndex);
+            const weekStart = week[0].date;
+            const weekEnd = week[week.length - 1].date;
+            
+            return (
+              <div key={weekIndex} className="border border-gray-200 rounded-lg overflow-hidden">
+                {/* 주차 헤더 */}
+                <button
+                  type="button"
+                  onClick={() => toggleWeek(weekIndex)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-900">
+                      {weekIndex + 1}주차
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {weekStart} ~ {weekEnd}
+                    </span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+
+                {/* 주차 상세 */}
+                {isExpanded && (
+                  <div className="p-4 space-y-2">
+                    {week.map((day) => (
+                      <div
+                        key={day.date}
+                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="text-sm font-medium text-gray-900">
+                            {day.date}
+                          </div>
+                          <div
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium border ${
+                              dayTypeColors[day.day_type] || "bg-gray-100 text-gray-800 border-gray-200"
+                            }`}
+                          >
+                            {dayTypeLabels[day.day_type] || day.day_type}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {day.available_minutes > 0
+                              ? `${Math.round(day.available_minutes / 60)}시간`
+                              : "학습 없음"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 });
-
