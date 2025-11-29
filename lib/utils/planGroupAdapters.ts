@@ -94,3 +94,47 @@ export function wizardDataToPlanGroupCreationData(data: WizardData) {
   };
 }
 
+/**
+ * PlanContent 배열을 학생/추천 콘텐츠로 분리하여 WizardData 형식으로 변환
+ * 
+ * @param contents - PlanContent 배열
+ * @returns 학생 콘텐츠와 추천 콘텐츠
+ */
+export function contentsToWizardFormat(
+  contents: Array<{
+    id: string;
+    content_id: string;
+    content_type: "book" | "lecture" | "custom";
+    start_range: number;
+    end_range: number;
+    contentTitle: string;
+    contentSubtitle: string | null;
+    isRecommended: boolean;
+  }>
+) {
+  const studentContents = contents
+    .filter((c) => !c.isRecommended)
+    .map((c) => ({
+      content_id: c.content_id,
+      content_type: c.content_type,
+      start_range: c.start_range,
+      end_range: c.end_range,
+      subject_category: c.contentSubtitle || undefined,
+      title: c.contentTitle,
+    }));
+
+  const recommendedContents = contents
+    .filter((c) => c.isRecommended)
+    .map((c) => ({
+      content_id: c.content_id,
+      content_type: c.content_type,
+      start_range: c.start_range,
+      end_range: c.end_range,
+      subject_category: c.contentSubtitle || undefined,
+      title: c.contentTitle,
+      is_auto_recommended: false,
+    }));
+
+  return { studentContents, recommendedContents };
+}
+
