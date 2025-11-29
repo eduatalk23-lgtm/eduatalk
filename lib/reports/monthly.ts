@@ -579,19 +579,37 @@ export async function getMonthlyScoreTrend(
       trend,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
-    const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
+    // 에러 객체의 모든 속성을 안전하게 추출
+    let errorMessage: string | undefined;
+    let errorCode: string | undefined;
+    let errorDetails: any;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === "object" && error !== null) {
+      // Supabase PostgREST 에러 객체 처리
+      errorMessage = "message" in error ? String(error.message) : undefined;
+      errorCode = "code" in error ? String(error.code) : undefined;
+      errorDetails = "details" in error ? error.details : undefined;
+    } else {
+      errorMessage = String(error);
+    }
+    
+    // 에러 객체 전체를 JSON으로 직렬화 시도
+    let errorStringified: string | undefined;
+    try {
+      errorStringified = JSON.stringify(error, null, 2);
+    } catch {
+      errorStringified = String(error);
+    }
     
     console.error("[reports/monthly] 성적 변화 조회 실패", {
-      message: errorMessage,
+      message: errorMessage || "에러 메시지 없음",
       code: errorCode,
       details: errorDetails,
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      } : error,
+      errorType: error instanceof Error ? "Error" : typeof error,
+      errorStringified,
+      errorRaw: error,
       context: {
         studentId,
         monthStart: monthStart.toISOString().slice(0, 10),

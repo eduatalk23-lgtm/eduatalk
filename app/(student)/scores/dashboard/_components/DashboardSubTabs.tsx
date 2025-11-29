@@ -1,13 +1,12 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
-
 /**
  * @deprecated 이 컴포넌트는 레거시 성적 대시보드에서 사용됩니다.
  * 새로운 통합 대시보드(/scores/dashboard/unified)에서는 사용되지 않습니다.
  */
-"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useRef } from "react";
 
 const dashboardTabs = [
   { value: "integrated", label: "통합", href: "/scores/dashboard/unified" },
@@ -27,20 +26,23 @@ export function DashboardSubTabs() {
     return pathname.startsWith(href);
   };
 
-  const handleTabClick = useCallback((href: string) => {
-    // 현재 활성화된 탭이면 무시
-    if (isActive(href)) return;
+  const handleTabClick = useCallback(
+    (href: string) => {
+      // 현재 활성화된 탭이면 무시
+      if (isActive(href)) return;
 
-    // 이전 timeout 취소
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+      // 이전 timeout 취소
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
 
-    // 150ms debounce (연속 클릭 방지)
-    timeoutRef.current = setTimeout(() => {
-      router.push(href);
-    }, 150);
-  }, [pathname, router]);
+      // 150ms debounce (연속 클릭 방지)
+      timeoutRef.current = setTimeout(() => {
+        router.push(href);
+      }, 150);
+    },
+    [pathname, router]
+  );
 
   return (
     <div className="flex gap-2 border-b border-gray-200">
@@ -63,4 +65,3 @@ export function DashboardSubTabs() {
     </div>
   );
 }
-

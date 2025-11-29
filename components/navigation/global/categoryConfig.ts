@@ -130,45 +130,6 @@ const studentCategories: NavigationCategory[] = [
     ],
   },
   {
-    id: "analysis",
-    label: "분석 & 리포트",
-    icon: "📈",
-    items: [
-      {
-        id: "analysis-main",
-        label: "학습 분석",
-        href: "/analysis",
-        icon: "📈",
-        children: [
-          {
-            id: "analysis-weak",
-            label: "취약 과목 분석",
-            href: "/analysis/weak-subjects",
-            icon: "⚠️",
-          },
-          {
-            id: "analysis-pattern",
-            label: "학습 패턴 분석",
-            href: "/analysis/patterns",
-            icon: "📊",
-          },
-          {
-            id: "analysis-time",
-            label: "시간 분석",
-            href: "/analysis/time",
-            icon: "⏰",
-          },
-        ],
-      },
-      {
-        id: "reports-list",
-        label: "리포트",
-        href: "/reports",
-        icon: "📄",
-      },
-    ],
-  },
-  {
     id: "settings",
     label: "설정",
     icon: "⚙️",

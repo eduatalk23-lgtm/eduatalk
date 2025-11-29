@@ -3,7 +3,6 @@ import {
   Clock,
   CalendarCheck,
   BookOpen,
-  LineChart,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -34,11 +33,6 @@ export const studentCategories: StudentCategory[] = [
     label: "학습 콘텐츠",
     href: "/contents",
     icon: BookOpen,
-  },
-  {
-    label: "학습 분석",
-    href: "/analysis",
-    icon: LineChart,
   },
   {
     label: "캠프 참여",
