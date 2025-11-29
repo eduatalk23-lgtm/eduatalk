@@ -18,7 +18,7 @@ export function LectureEpisodesManager({
     initialEpisodes.map((e) => ({
       lecture_id: e.lecture_id,
       episode_number: e.episode_number,
-      episode_title: e.episode_title || "",
+      title: e.title || "",  // 변경: episode_title → title
       duration: e.duration || 0,
       display_order: e.display_order || 0,
       tempId: e.id,
@@ -38,7 +38,7 @@ export function LectureEpisodesManager({
       updated.map((e) => ({
         lecture_id: e.lecture_id,
         episode_number: e.episode_number,
-        episode_title: e.episode_title || null,
+        title: e.title || null,  // 변경: episode_title → title
         duration: e.duration || null,
         display_order: e.display_order || 0,
       }))
@@ -55,7 +55,7 @@ export function LectureEpisodesManager({
     const newEpisode: EpisodeItem = {
       lecture_id: episodes[0]?.lecture_id || "",
       episode_number: maxEpisodeNumber + 1,
-      episode_title: "",
+      title: "",  // 변경: episode_title → title
       duration: 0,
       display_order: episodes.length,
       tempId: `temp-${Date.now()}`,
@@ -139,9 +139,9 @@ export function LectureEpisodesManager({
                 </label>
                 <input
                   type="text"
-                  value={episode.episode_title || ""}
+                  value={episode.title || ""}
                   onChange={(e) =>
-                    updateEpisode(episode.tempId!, "episode_title", e.target.value)
+                    updateEpisode(episode.tempId!, "title", e.target.value)
                   }
                   placeholder="예: 1강. 함수의 극한"
                   className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -195,7 +195,7 @@ export function LectureEpisodesManager({
             .filter((e) => e.episode_number > 0)
             .map((e) => ({
               episode_number: e.episode_number || 0,
-              episode_title: e.episode_title || null,
+              title: e.title || null,  // 변경: episode_title → title
               duration: e.duration || null,
               display_order: e.display_order || 0,
             }))

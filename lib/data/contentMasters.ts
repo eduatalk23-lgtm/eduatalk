@@ -31,6 +31,10 @@ export type MasterLectureFilters = {
   tenantId?: string | null;
   limit?: number;
   offset?: number;
+  
+  // 레거시 필드 (호환성)
+  subject?: string; // @deprecated subject_id 사용 권장
+  subject_category?: string; // @deprecated 사용 안 함
 };
 
 /**

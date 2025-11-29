@@ -382,6 +382,12 @@ export type MasterLecture = CommonContentFields & {
   total_episodes: number; // 총 회차 (필수)
   total_duration: number | null; // 총 강의시간 (분 단위)
   linked_book_id: string | null; // 연결된 교재 ID (선택사항)
+  
+  // 레거시 필드 (기존 코드 호환성 유지)
+  platform?: string | null; // @deprecated platform_name 사용 권장
+  subject?: string | null; // @deprecated CommonContentFields.subject 또는 subject_id 사용
+  subject_category?: string | null; // @deprecated CommonContentFields.subject_category 사용
+  
   // AI 분석 필드 (향후 확장용)
   video_url?: string | null;
   transcript?: string | null;
