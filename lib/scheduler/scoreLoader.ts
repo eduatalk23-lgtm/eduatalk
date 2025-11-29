@@ -41,8 +41,8 @@ export async function getSchoolScoreSummary(
   try {
     const selectScores = () =>
       supabase
-        .from("student_school_scores")
-        .select("*")
+        .from("student_internal_scores")
+        .select("*, subject_groups(name)")
         .eq("student_id", studentId)
         .order("created_at", { ascending: false });
 
@@ -50,27 +50,46 @@ export async function getSchoolScoreSummary(
 
     if (error && error.code === "42703") {
       ({ data: scores, error } = await supabase
-        .from("student_school_scores")
-        .select("*")
+        .from("student_internal_scores")
+        .select("*, subject_groups(name)")
         .order("created_at", { ascending: false }));
     }
 
     if (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
-      const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
-      const errorHint = error && typeof error === "object" && "hint" in error ? error.hint : undefined;
+      // 에러 객체의 모든 속성을 안전하게 추출
+      let errorMessage: string | undefined;
+      let errorCode: string | undefined;
+      let errorDetails: any;
+      let errorHint: string | undefined;
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        // Supabase PostgREST 에러 객체 처리
+        errorMessage = "message" in error ? String(error.message) : undefined;
+        errorCode = "code" in error ? String(error.code) : undefined;
+        errorDetails = "details" in error ? error.details : undefined;
+        errorHint = "hint" in error ? String(error.hint) : undefined;
+      } else {
+        errorMessage = String(error);
+      }
+      
+      // 에러 객체 전체를 JSON으로 직렬화 시도
+      let errorStringified: string | undefined;
+      try {
+        errorStringified = JSON.stringify(error, null, 2);
+      } catch {
+        errorStringified = String(error);
+      }
       
       console.error("[scoreLoader] 내신 성적 조회 실패", {
-        message: errorMessage,
+        message: errorMessage || "에러 메시지 없음",
         code: errorCode,
         details: errorDetails,
         hint: errorHint,
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-        } : error,
+        errorType: error instanceof Error ? "Error" : typeof error,
+        errorStringified,
+        errorRaw: error,
         context: {
           studentId,
         },
@@ -86,14 +105,14 @@ export async function getSchoolScoreSummary(
     const subjectMap = new Map<string, typeof scores>();
 
     (scores as Array<{
-      subject_group: string | null;
-      grade_score: number | null;
+      subject_groups: { name: string } | null;
+      rank_grade: number | null;
       raw_score: number | null;
       semester: number | null;
       grade: number | null;
     }>).forEach((score) => {
-      if (!score.subject_group) return;
-      const subject = score.subject_group.toLowerCase().trim();
+      if (!score.subject_groups?.name) return;
+      const subject = score.subject_groups.name.toLowerCase().trim();
       if (!subjectMap.has(subject)) {
         subjectMap.set(subject, []);
       }
@@ -103,7 +122,7 @@ export async function getSchoolScoreSummary(
     // 각 과목별 요약 계산
     subjectMap.forEach((subjectScores, subject) => {
       const validGrades = subjectScores
-        .map((s) => s.grade_score)
+        .map((s) => s.rank_grade)
         .filter((g): g is number => g !== null && g !== undefined);
       const validRawScores = subjectScores
         .map((s) => s.raw_score)
@@ -206,7 +225,7 @@ export async function getMockScoreSummary(
     const selectScores = () =>
       supabase
         .from("student_mock_scores")
-        .select("*")
+        .select("*, subject_groups(name)")
         .eq("student_id", studentId)
         .order("created_at", { ascending: false });
 
@@ -215,7 +234,7 @@ export async function getMockScoreSummary(
     if (error && error.code === "42703") {
       ({ data: scores, error } = await supabase
         .from("student_mock_scores")
-        .select("*")
+        .select("*, subject_groups(name)")
         .order("created_at", { ascending: false }));
     }
 
@@ -238,12 +257,12 @@ export async function getMockScoreSummary(
     const subjectMap = new Map<string, typeof scores>();
 
     (scores as Array<{
-      subject_group: string | null;
+      subject_groups: { name: string } | null;
       percentile: number | null;
       grade_score: number | null;
     }>).forEach((score) => {
-      if (!score.subject_group) return;
-      const subject = score.subject_group.toLowerCase().trim();
+      if (!score.subject_groups?.name) return;
+      const subject = score.subject_groups.name.toLowerCase().trim();
       if (!subjectMap.has(subject)) {
         subjectMap.set(subject, []);
       }
