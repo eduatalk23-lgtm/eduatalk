@@ -76,60 +76,61 @@ export function MasterBookEditForm({
           />
         </div>
 
-        {/* 교과 */}
+        {/* 과목 ID (subjects 테이블 참조) */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            교과
-          </label>
-          <select
-            name="subject_category"
-            defaultValue={book.subject_category || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="국어">국어</option>
-            <option value="수학">수학</option>
-            <option value="영어">영어</option>
-            <option value="사회">사회</option>
-            <option value="과학">과학</option>
-          </select>
-        </div>
-
-        {/* 과목 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            과목
+            과목 ID
           </label>
           <input
-            name="subject"
-            defaultValue={book.subject || ""}
+            name="subject_id"
+            defaultValue={book.subject_id || ""}
+            placeholder="과목 UUID를 입력하세요"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            subjects 테이블의 과목 ID를 입력하세요
+          </p>
+        </div>
+
+        {/* 출판사명 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            출판사명
+          </label>
+          <input
+            name="publisher_name"
+            defaultValue={book.publisher_name || ""}
+            placeholder="출판사명을 입력하세요"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
-        {/* 출판사 */}
+        {/* 출판사 ID (publishers 테이블 참조) */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            출판사
+            출판사 ID
           </label>
           <input
-            name="publisher"
-            defaultValue={book.publisher || ""}
+            name="publisher_id"
+            defaultValue={book.publisher_id || ""}
+            placeholder="출판사 UUID를 입력하세요"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            publishers 테이블의 출판사 ID를 입력하세요 (선택)
+          </p>
         </div>
 
         {/* 총 페이지 */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            총 페이지 <span className="text-red-500">*</span>
+            총 페이지
           </label>
           <input
             name="total_pages"
             type="number"
-            required
             min="1"
-            defaultValue={book.total_pages}
+            defaultValue={book.total_pages || ""}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>

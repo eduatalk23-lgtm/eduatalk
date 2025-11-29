@@ -11,8 +11,7 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient
  * 교재 검색 필터
  */
 export type MasterBookFilters = {
-  subject?: string;
-  subject_category?: string;
+  subject_id?: string; // 과목 ID로 필터링
   semester?: string;
   revision?: string;
   search?: string; // 제목 검색
@@ -25,8 +24,7 @@ export type MasterBookFilters = {
  * 강의 검색 필터
  */
 export type MasterLectureFilters = {
-  subject?: string;
-  subject_category?: string;
+  subject_id?: string; // 과목 ID로 필터링
   semester?: string;
   revision?: string;
   search?: string; // 제목 검색
@@ -37,11 +35,11 @@ export type MasterLectureFilters = {
 
 /**
  * 통합 검색 필터 (하위 호환성)
+ * @deprecated master_books, master_lectures로 분리됨. MasterBookFilters 또는 MasterLectureFilters 사용 권장
  */
 export type ContentMasterFilters = {
   content_type?: "book" | "lecture";
-  subject?: string;
-  subject_category?: string;
+  subject_id?: string;
   semester?: string;
   revision?: string;
   search?: string;
@@ -70,11 +68,8 @@ export async function searchMasterBooks(
     .select("*", { count: "exact" });
 
   // 필터 적용
-  if (filters.subject) {
-    query = query.eq("subject", filters.subject);
-  }
-  if (filters.subject_category) {
-    query = query.eq("subject_category", filters.subject_category);
+  if (filters.subject_id) {
+    query = query.eq("subject_id", filters.subject_id);
   }
   if (filters.semester) {
     query = query.eq("semester", filters.semester);
@@ -210,11 +205,8 @@ export async function searchMasterLectures(
     .select("*", { count: "exact" });
 
   // 필터 적용
-  if (filters.subject) {
-    query = query.eq("subject", filters.subject);
-  }
-  if (filters.subject_category) {
-    query = query.eq("subject_category", filters.subject_category);
+  if (filters.subject_id) {
+    query = query.eq("subject_id", filters.subject_id);
   }
   if (filters.semester) {
     query = query.eq("semester", filters.semester);

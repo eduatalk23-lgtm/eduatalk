@@ -23,8 +23,7 @@ export default async function MasterBooksPage({
 
   // 검색 필터 구성
   const filters: MasterBookFilters = {
-    subject: params.subject,
-    subject_category: params.subject_category,
+    subject_id: params.subject_id,
     semester: params.semester,
     revision: params.revision,
     search: params.search,
@@ -50,15 +49,10 @@ export default async function MasterBooksPage({
     return query;
   };
 
-  const [subjectsRes, semestersRes, revisionsRes] = await Promise.all([
-    buildFilterQuery("subject"),
+  const [semestersRes, revisionsRes] = await Promise.all([
     buildFilterQuery("semester"),
     buildFilterQuery("revision"),
   ]);
-
-  const subjects = Array.from(
-    new Set((subjectsRes.data || []).map((item) => item.subject).filter(Boolean))
-  ).sort();
   
   const semesters = Array.from(
     new Set((semestersRes.data || []).map((item) => item.semester).filter(Boolean))
@@ -140,38 +134,16 @@ export default async function MasterBooksPage({
               </select>
             </div>
 
-            {/* 교과 */}
+            {/* 과목 ID */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">교과</label>
-              <select
-                name="subject_category"
-                defaultValue={params.subject_category || ""}
+              <label className="text-xs font-medium text-gray-700">과목 ID</label>
+              <input
+                name="subject_id"
+                type="text"
+                defaultValue={params.subject_id || ""}
+                placeholder="과목 UUID"
                 className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                <option value="국어">국어</option>
-                <option value="수학">수학</option>
-                <option value="영어">영어</option>
-                <option value="사회">사회</option>
-                <option value="과학">과학</option>
-              </select>
-            </div>
-
-            {/* 과목 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">과목</label>
-              <select
-                name="subject"
-                defaultValue={params.subject || ""}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                {subjects.map((subj) => (
-                  <option key={subj} value={subj}>
-                    {subj}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* 제목 검색 */}
@@ -241,7 +213,7 @@ export default async function MasterBooksPage({
                         {book.title}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        {book.publisher || "출판사 정보 없음"}
+                        {book.publisher_name || "출판사 정보 없음"}
                       </p>
                     </div>
 
@@ -255,16 +227,12 @@ export default async function MasterBooksPage({
                         <dd>{book.semester || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">교과</dt>
-                        <dd>{book.subject_category || "—"}</dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">과목</dt>
-                        <dd>{book.subject || "—"}</dd>
+                        <dt className="font-medium text-gray-500">과목 ID</dt>
+                        <dd className="truncate max-w-[150px]">{book.subject_id || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="font-medium text-gray-500">총 페이지</dt>
-                        <dd>{book.total_pages}p</dd>
+                        <dd>{book.total_pages ? `${book.total_pages}p` : "—"}</dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="font-medium text-gray-500">난이도</dt>

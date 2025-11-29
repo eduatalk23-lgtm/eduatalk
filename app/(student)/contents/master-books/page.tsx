@@ -15,11 +15,7 @@ async function getCachedFilterOptions() {
 
   const getCached = unstable_cache(
     async () => {
-      const [subjectsRes, semestersRes, revisionsRes] = await Promise.all([
-        supabase
-          .from("master_books")
-          .select("subject")
-          .not("subject", "is", null),
+      const [semestersRes, revisionsRes] = await Promise.all([
         supabase
           .from("master_books")
           .select("semester")
@@ -29,14 +25,6 @@ async function getCachedFilterOptions() {
           .select("revision")
           .not("revision", "is", null),
       ]);
-
-      const subjects = Array.from(
-        new Set(
-          (subjectsRes.data || [])
-            .map((item) => item.subject)
-            .filter(Boolean)
-        )
-      ).sort() as string[];
 
       const semesters = Array.from(
         new Set(
@@ -54,7 +42,7 @@ async function getCachedFilterOptions() {
         )
       ).sort() as string[];
 
-      return { subjects, semesters, revisions };
+      return { semesters, revisions };
     },
     ["master-books-filter-options"],
     {
@@ -90,11 +78,8 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
         .select("*", { count: "exact" });
 
       // 필터 적용
-      if (filters.subject) {
-        query = query.eq("subject", filters.subject);
-      }
-      if (filters.subject_category) {
-        query = query.eq("subject_category", filters.subject_category);
+      if (filters.subject_id) {
+        query = query.eq("subject_id", filters.subject_id);
       }
       if (filters.semester) {
         query = query.eq("semester", filters.semester);

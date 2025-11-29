@@ -314,8 +314,6 @@ export type CommonContentFields = {
   revision: string | null; // 개정 (2015개정 등)
   content_category: string | null; // 유형
   semester: string | null; // 학기 (고3-1 등)
-  subject_category: string | null; // 교과 (국어, 수학 등)
-  subject: string | null; // 과목 (화법과 작문 등)
   title: string;
   difficulty_level: string | null; // 난이도
   notes: string | null; // 비고/메모
@@ -327,13 +325,52 @@ export type CommonContentFields = {
  * 서비스 마스터 교재
  */
 export type MasterBook = CommonContentFields & {
-  publisher: string | null; // 출판사
-  total_pages: number; // 총 페이지 (필수)
+  // 기본 상태
+  is_active: boolean; // 활성화 상태
+  
+  // 교육과정 관련
+  curriculum_revision_id: string | null; // 교육과정 개정판 ID (FK → curriculum_revisions)
+  subject_id: string | null; // 과목 ID (FK → subjects)
+  grade_min: number | null; // 최소 학년 (1-3)
+  grade_max: number | null; // 최대 학년 (1-3)
+  school_type: string | null; // 학교 유형 (MIDDLE, HIGH, OTHER)
+  
+  // 교재 메타 정보
+  subtitle: string | null; // 부제목
+  series_name: string | null; // 시리즈명
+  author: string | null; // 저자
+  publisher_id: string | null; // 출판사 ID (FK → publishers)
+  publisher_name: string | null; // 출판사명 (중복 저장)
+  
+  // ISBN 정보
+  isbn_10: string | null; // ISBN-10 코드
+  isbn_13: string | null; // ISBN-13 코드 (UNIQUE)
+  
+  // 출판 정보
+  edition: string | null; // 판차
+  published_date: string | null; // 출판일 (date)
+  total_pages: number | null; // 총 페이지 (선택적)
+  
+  // 추가 교육 메타 정보
+  target_exam_type: string[] | null; // 대상 시험 유형 (배열)
+  
+  // 설명 및 리뷰
+  description: string | null; // 교재 설명
+  toc: string | null; // 목차 (Table of Contents)
+  publisher_review: string | null; // 출판사 리뷰
+  tags: string[] | null; // 태그 (배열)
+  
+  // 출처 정보
+  source: string | null; // 데이터 출처
+  source_product_code: string | null; // 출처 상품 코드
+  source_url: string | null; // 출처 URL
+  cover_image_url: string | null; // 표지 이미지 URL
+  
   // AI 분석 필드 (향후 확장용)
-  pdf_url?: string | null;
-  ocr_data?: any | null; // JSONB
-  page_analysis?: any | null; // JSONB
-  overall_difficulty?: number | null; // 0.00 ~ 10.00
+  pdf_url: string | null;
+  ocr_data: any | null; // JSONB
+  page_analysis: any | null; // JSONB
+  overall_difficulty: number | null; // 0.00 ~ 10.00
 };
 
 /**

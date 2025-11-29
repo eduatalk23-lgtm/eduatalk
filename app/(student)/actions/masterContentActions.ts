@@ -35,22 +35,49 @@ export async function addMasterBook(formData: FormData) {
     .eq("id", user.id)
     .maybeSingle();
 
+  const totalPagesStr = formData.get("total_pages")?.toString();
+  
   const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
     tenant_id: student?.tenant_id || null,
+    is_active: true,
+    curriculum_revision_id: formData.get("curriculum_revision_id")?.toString() || null,
+    subject_id: formData.get("subject_id")?.toString() || null,
+    grade_min: formData.get("grade_min") ? parseInt(formData.get("grade_min")!.toString()) : null,
+    grade_max: formData.get("grade_max") ? parseInt(formData.get("grade_max")!.toString()) : null,
+    school_type: formData.get("school_type")?.toString() || null,
     revision: formData.get("revision")?.toString() || null,
     content_category: formData.get("content_category")?.toString() || null,
     semester: formData.get("semester")?.toString() || null,
-    subject_category: formData.get("subject_category")?.toString() || null,
-    subject: formData.get("subject")?.toString() || null,
     title: formData.get("title")?.toString() || "",
-    publisher: formData.get("publisher")?.toString() || null,
-    total_pages: parseInt(formData.get("total_pages")?.toString() || "0"),
+    subtitle: formData.get("subtitle")?.toString() || null,
+    series_name: formData.get("series_name")?.toString() || null,
+    author: formData.get("author")?.toString() || null,
+    publisher_id: formData.get("publisher_id")?.toString() || null,
+    publisher_name: formData.get("publisher_name")?.toString() || null,
+    isbn_10: formData.get("isbn_10")?.toString() || null,
+    isbn_13: formData.get("isbn_13")?.toString() || null,
+    edition: formData.get("edition")?.toString() || null,
+    published_date: formData.get("published_date")?.toString() || null,
+    total_pages: totalPagesStr ? parseInt(totalPagesStr) : null,
+    target_exam_type: null, // TODO: 배열 처리 필요 시 구현
+    description: formData.get("description")?.toString() || null,
+    toc: formData.get("toc")?.toString() || null,
+    publisher_review: formData.get("publisher_review")?.toString() || null,
+    tags: null, // TODO: 배열 처리 필요 시 구현
+    source: formData.get("source")?.toString() || null,
+    source_product_code: formData.get("source_product_code")?.toString() || null,
+    source_url: formData.get("source_url")?.toString() || null,
+    cover_image_url: formData.get("cover_image_url")?.toString() || null,
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
     notes: formData.get("notes")?.toString() || null,
+    pdf_url: null,
+    ocr_data: null,
+    page_analysis: null,
+    overall_difficulty: null,
   };
 
-  if (!bookData.title || !bookData.total_pages) {
-    throw new Error("교재명과 총 페이지는 필수입니다.");
+  if (!bookData.title) {
+    throw new Error("교재명은 필수입니다.");
   }
 
   const book = await createMasterBook(bookData);
@@ -100,19 +127,37 @@ export async function updateMasterBookAction(
     throw new Error("로그인이 필요합니다.");
   }
 
+  const totalPagesStr = formData.get("total_pages")?.toString();
+  
   const updateData: Partial<
     Omit<MasterBook, "id" | "created_at" | "updated_at">
   > = {
+    curriculum_revision_id: formData.get("curriculum_revision_id")?.toString() || null,
+    subject_id: formData.get("subject_id")?.toString() || null,
+    grade_min: formData.get("grade_min") ? parseInt(formData.get("grade_min")!.toString()) : null,
+    grade_max: formData.get("grade_max") ? parseInt(formData.get("grade_max")!.toString()) : null,
+    school_type: formData.get("school_type")?.toString() || null,
     revision: formData.get("revision")?.toString() || null,
     content_category: formData.get("content_category")?.toString() || null,
     semester: formData.get("semester")?.toString() || null,
-    subject_category: formData.get("subject_category")?.toString() || null,
-    subject: formData.get("subject")?.toString() || null,
     title: formData.get("title")?.toString(),
-    publisher: formData.get("publisher")?.toString() || null,
-    total_pages: formData.get("total_pages")
-      ? parseInt(formData.get("total_pages")!.toString())
-      : undefined,
+    subtitle: formData.get("subtitle")?.toString() || null,
+    series_name: formData.get("series_name")?.toString() || null,
+    author: formData.get("author")?.toString() || null,
+    publisher_id: formData.get("publisher_id")?.toString() || null,
+    publisher_name: formData.get("publisher_name")?.toString() || null,
+    isbn_10: formData.get("isbn_10")?.toString() || null,
+    isbn_13: formData.get("isbn_13")?.toString() || null,
+    edition: formData.get("edition")?.toString() || null,
+    published_date: formData.get("published_date")?.toString() || null,
+    total_pages: totalPagesStr ? parseInt(totalPagesStr) : null,
+    description: formData.get("description")?.toString() || null,
+    toc: formData.get("toc")?.toString() || null,
+    publisher_review: formData.get("publisher_review")?.toString() || null,
+    source: formData.get("source")?.toString() || null,
+    source_product_code: formData.get("source_product_code")?.toString() || null,
+    source_url: formData.get("source_url")?.toString() || null,
+    cover_image_url: formData.get("cover_image_url")?.toString() || null,
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
     notes: formData.get("notes")?.toString() || null,
   };
