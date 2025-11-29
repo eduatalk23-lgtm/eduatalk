@@ -547,7 +547,7 @@ export async function copyMasterLectureToStudent(
     const studentEpisodes = episodes.map((episode) => ({
       lecture_id: studentLecture.id,
       episode_number: episode.episode_number,
-      episode_title: episode.episode_title,
+      title: episode.title,  // 변경: episode_title → title
       duration: episode.duration,
       display_order: episode.display_order,
     }));
@@ -1017,7 +1017,7 @@ export async function updateLectureEpisode(
     .from("lecture_episodes")
     .update({
       episode_number: data.episode_number,
-      episode_title: data.episode_title,
+      title: data.title,  // 변경: episode_title → title
       duration: data.duration,
       display_order: data.display_order,
     })
@@ -1100,12 +1100,12 @@ export async function getStudentBookDetails(
 export async function getStudentLectureEpisodes(
   lectureId: string,
   studentId: string
-): Promise<Array<{ id: string; episode_number: number; episode_title: string | null }>> {
+): Promise<Array<{ id: string; episode_number: number; title: string | null }>> {  // 변경: episode_title → title
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("student_lecture_episodes")
-    .select("id, episode_number, episode_title")
+    .select("id, episode_number, title")  // 변경: episode_title → title
     .eq("lecture_id", lectureId)
     .order("episode_number", { ascending: true });
 
@@ -1114,5 +1114,5 @@ export async function getStudentLectureEpisodes(
     return [];
   }
 
-  return (data as Array<{ id: string; episode_number: number; episode_title: string | null }> | null) ?? [];
+  return (data as Array<{ id: string; episode_number: number; title: string | null }> | null) ?? [];  // 변경: episode_title → title
 }
