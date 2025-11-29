@@ -37,6 +37,11 @@ export async function addMasterBook(formData: FormData) {
 
   const totalPagesStr = formData.get("total_pages")?.toString();
   
+  // 배열 필드 처리
+  const targetExamTypes = formData.getAll("target_exam_type").filter(Boolean) as string[];
+  const tagsStr = formData.get("tags")?.toString() || "";
+  const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
+  
   const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
     tenant_id: student?.tenant_id || null,
     is_active: true,
@@ -59,11 +64,11 @@ export async function addMasterBook(formData: FormData) {
     edition: formData.get("edition")?.toString() || null,
     published_date: formData.get("published_date")?.toString() || null,
     total_pages: totalPagesStr ? parseInt(totalPagesStr) : null,
-    target_exam_type: null, // TODO: 배열 처리 필요 시 구현
+    target_exam_type: targetExamTypes.length > 0 ? targetExamTypes : null,
     description: formData.get("description")?.toString() || null,
     toc: formData.get("toc")?.toString() || null,
     publisher_review: formData.get("publisher_review")?.toString() || null,
-    tags: null, // TODO: 배열 처리 필요 시 구현
+    tags: tags,
     source: formData.get("source")?.toString() || null,
     source_product_code: formData.get("source_product_code")?.toString() || null,
     source_url: formData.get("source_url")?.toString() || null,
@@ -129,6 +134,11 @@ export async function updateMasterBookAction(
 
   const totalPagesStr = formData.get("total_pages")?.toString();
   
+  // 배열 필드 처리
+  const targetExamTypes = formData.getAll("target_exam_type").filter(Boolean) as string[];
+  const tagsStr = formData.get("tags")?.toString() || "";
+  const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
+  
   const updateData: Partial<
     Omit<MasterBook, "id" | "created_at" | "updated_at">
   > = {
@@ -151,9 +161,11 @@ export async function updateMasterBookAction(
     edition: formData.get("edition")?.toString() || null,
     published_date: formData.get("published_date")?.toString() || null,
     total_pages: totalPagesStr ? parseInt(totalPagesStr) : null,
+    target_exam_type: targetExamTypes.length > 0 ? targetExamTypes : null,
     description: formData.get("description")?.toString() || null,
     toc: formData.get("toc")?.toString() || null,
     publisher_review: formData.get("publisher_review")?.toString() || null,
+    tags: tags,
     source: formData.get("source")?.toString() || null,
     source_product_code: formData.get("source_product_code")?.toString() || null,
     source_url: formData.get("source_url")?.toString() || null,

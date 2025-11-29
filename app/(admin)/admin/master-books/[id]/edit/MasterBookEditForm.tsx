@@ -1,21 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateMasterBookAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterBook, BookDetail } from "@/lib/types/plan";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
+import type { Subject, SubjectGroup } from "@/lib/data/subjects";
+import type { Publisher } from "@/lib/data/contentMetadata";
+
+type MasterBookEditFormProps = {
+  book: MasterBook;
+  details: BookDetail[];
+  subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
+  publishers: Publisher[];
+  currentSubject: (Subject & { subjectGroup: SubjectGroup }) | null;
+};
 
 export function MasterBookEditForm({
   book,
   details,
-}: {
-  book: MasterBook;
-  details: BookDetail[];
-}) {
+  subjectGroups,
+  publishers,
+  currentSubject,
+}: MasterBookEditFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(
+    currentSubject?.subjectGroup.id || ""
+  );
+  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
+
+  // 초기 과목 목록 설정
+  useEffect(() => {
+    if (currentSubject) {
+      const group = subjectGroups.find(g => g.id === currentSubject.subjectGroup.id);
+      setSelectedSubjects(group?.subjects || []);
+    }
+  }, [currentSubject, subjectGroups]);
+
+  // 교과 그룹 선택 시 해당 그룹의 과목 목록 업데이트
+  function handleSubjectGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const groupId = e.target.value;
+    setSelectedGroupId(groupId);
+    
+    if (groupId) {
+      const group = subjectGroups.find(g => g.id === groupId);
+      setSelectedSubjects(group?.subjects || []);
+    } else {
+      setSelectedSubjects([]);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,49 +111,127 @@ export function MasterBookEditForm({
           />
         </div>
 
-        {/* 과목 ID (subjects 테이블 참조) */}
+        {/* 교과 그룹 선택 */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            과목 ID
+            교과 그룹
           </label>
-          <input
+          <select
+            value={selectedGroupId}
+            onChange={handleSubjectGroupChange}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">선택하세요</option>
+            {subjectGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 과목 선택 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            과목
+          </label>
+          <select
             name="subject_id"
             defaultValue={book.subject_id || ""}
-            placeholder="과목 UUID를 입력하세요"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
+            disabled={!selectedGroupId}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
+          >
+            <option value="">선택하세요</option>
+            {selectedSubjects.map((subject) => (
+              <option key={subject.id} value={subject.id}>
+                {subject.name}
+              </option>
+            ))}
+          </select>
           <p className="mt-1 text-xs text-gray-500">
-            subjects 테이블의 과목 ID를 입력하세요
+            교과 그룹을 먼저 선택하세요
           </p>
         </div>
 
-        {/* 출판사명 */}
+        {/* 출판사 선택 */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
-            출판사명
+            출판사
           </label>
-          <input
-            name="publisher_name"
-            defaultValue={book.publisher_name || ""}
-            placeholder="출판사명을 입력하세요"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
-
-        {/* 출판사 ID (publishers 테이블 참조) */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            출판사 ID
-          </label>
-          <input
+          <select
             name="publisher_id"
             defaultValue={book.publisher_id || ""}
-            placeholder="출판사 UUID를 입력하세요"
+            onChange={(e) => {
+              // publisher_id 변경 시 publisher_name도 자동 설정
+              const selectedPublisher = publishers.find(p => p.id === e.target.value);
+              const publisherNameInput = document.querySelector('input[name="publisher_name"]') as HTMLInputElement;
+              if (publisherNameInput && selectedPublisher) {
+                publisherNameInput.value = selectedPublisher.name;
+              }
+            }}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            publishers 테이블의 출판사 ID를 입력하세요 (선택)
-          </p>
+          >
+            <option value="">선택하세요</option>
+            {publishers.map((publisher) => (
+              <option key={publisher.id} value={publisher.id}>
+                {publisher.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* 출판사명 (숨김 필드, 자동 설정됨) */}
+        <input type="hidden" name="publisher_name" defaultValue={book.publisher_name || ""} />
+
+        {/* 학교 유형 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            학교 유형
+          </label>
+          <select
+            name="school_type"
+            defaultValue={book.school_type || ""}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">선택하세요</option>
+            <option value="MIDDLE">중학교</option>
+            <option value="HIGH">고등학교</option>
+            <option value="OTHER">기타</option>
+          </select>
+        </div>
+
+        {/* 최소 학년 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            최소 학년
+          </label>
+          <select
+            name="grade_min"
+            defaultValue={book.grade_min || ""}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">선택하세요</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+        </div>
+
+        {/* 최대 학년 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            최대 학년
+          </label>
+          <select
+            name="grade_max"
+            defaultValue={book.grade_max || ""}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">선택하세요</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
         </div>
 
         {/* 총 페이지 */}
@@ -150,6 +263,74 @@ export function MasterBookEditForm({
             <option value="기본">기본</option>
             <option value="심화">심화</option>
           </select>
+        </div>
+
+        {/* 대상 시험 유형 */}
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            대상 시험 유형
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="target_exam_type"
+                value="수능"
+                defaultChecked={book.target_exam_type?.includes("수능")}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">수능</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="target_exam_type"
+                value="내신"
+                defaultChecked={book.target_exam_type?.includes("내신")}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">내신</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="target_exam_type"
+                value="모의고사"
+                defaultChecked={book.target_exam_type?.includes("모의고사")}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">모의고사</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="target_exam_type"
+                value="특목고입시"
+                defaultChecked={book.target_exam_type?.includes("특목고입시")}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">특목고입시</span>
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            해당하는 시험 유형을 모두 선택하세요
+          </p>
+        </div>
+
+        {/* 태그 */}
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            태그
+          </label>
+          <input
+            name="tags"
+            defaultValue={book.tags?.join(", ") || ""}
+            placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다
+          </p>
         </div>
 
         {/* 메모 */}

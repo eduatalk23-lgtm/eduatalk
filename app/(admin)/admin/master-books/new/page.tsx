@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getSubjectGroupsWithSubjects, getActiveCurriculumRevision } from "@/lib/data/subjects";
+import { getPublishers } from "@/lib/data/contentMetadata";
 import { MasterBookForm } from "./MasterBookForm";
 
 export default async function NewMasterBookPage() {
@@ -11,6 +13,13 @@ export default async function NewMasterBookPage() {
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }
+
+  // 데이터 조회
+  const [curriculumRevision, subjectGroupsData, publishers] = await Promise.all([
+    getActiveCurriculumRevision(),
+    getSubjectGroupsWithSubjects().catch(() => []),
+    getPublishers().catch(() => []),
+  ]);
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -28,7 +37,10 @@ export default async function NewMasterBookPage() {
           </Link>
         </div>
 
-        <MasterBookForm />
+        <MasterBookForm 
+          subjectGroups={subjectGroupsData}
+          publishers={publishers}
+        />
       </div>
     </section>
   );

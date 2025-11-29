@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterBookById } from "@/lib/data/contentMasters";
+import { getSubjectGroupsWithSubjects, getSubjectById } from "@/lib/data/subjects";
+import { getPublishers } from "@/lib/data/contentMetadata";
 import { MasterBookEditForm } from "./MasterBookEditForm";
 
 export default async function EditMasterBookPage({
@@ -22,6 +24,13 @@ export default async function EditMasterBookPage({
 
   if (!book) notFound();
 
+  // 데이터 조회
+  const [subjectGroupsData, publishers, currentSubject] = await Promise.all([
+    getSubjectGroupsWithSubjects().catch(() => []),
+    getPublishers().catch(() => []),
+    book.subject_id ? getSubjectById(book.subject_id).catch(() => null) : Promise.resolve(null),
+  ]);
+
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
       <div className="flex flex-col gap-8">
@@ -38,7 +47,13 @@ export default async function EditMasterBookPage({
           </Link>
         </div>
 
-        <MasterBookEditForm book={book} details={details} />
+        <MasterBookEditForm 
+          book={book} 
+          details={details}
+          subjectGroups={subjectGroupsData}
+          publishers={publishers}
+          currentSubject={currentSubject}
+        />
       </div>
     </section>
   );
