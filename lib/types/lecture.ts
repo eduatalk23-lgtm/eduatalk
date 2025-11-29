@@ -282,7 +282,8 @@ export interface UpdateStudentEpisodeProgressRequest {
 /**
  * 마스터 강의 + 관계
  */
-export interface MasterLectureWithRelations extends MasterLecture {
+export interface MasterLectureWithRelations extends Omit<MasterLecture, 'subject' | 'platform'> {
+  // 관계형 필드 (MasterLecture의 subject, platform 문자열 필드와 충돌 방지)
   curriculum_revision?: {
     id: string;
     name: string;
