@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SubjectGroup, SubjectType } from "@/lib/data/subjects";
 import type { InternalScoreInputForm } from "@/lib/types/scoreInput";
-import { calculateSchoolYear } from "@/lib/data/studentTerms";
+import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 
 type InternalScoreInputProps = {
   studentId: string;
