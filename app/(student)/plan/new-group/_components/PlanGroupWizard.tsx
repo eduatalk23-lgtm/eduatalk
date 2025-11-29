@@ -24,13 +24,12 @@ import { syncWizardDataToCreationData, validateDataConsistency } from "@/lib/uti
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { Step1BasicInfo } from "./Step1BasicInfo";
 import { Step2TimeSettingsWithPreview } from "./Step2TimeSettingsWithPreview";
-import { Step3Contents } from "./Step3Contents";
-import { Step4RecommendedContents } from "./Step4RecommendedContents";
+import { Step3ContentSelection } from "./Step3ContentSelection";
 import { Step6FinalReview } from "./Step6FinalReview";
 import { Step7ScheduleResult } from "./Step7ScheduleResult";
 import { TemplateWizardChecklist } from "@/app/(admin)/admin/camp-templates/_components/TemplateWizardChecklist";
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type WizardData = {
   // Step 1
@@ -332,18 +331,11 @@ function calculateProgress(currentStep: WizardStep, wizardData: WizardData, isTe
       currentStepProgress = currentStepWeight;
       break;
     case 3:
-      // 스케줄 확인: schedule_summary가 있으면 완료
-      currentStepProgress = wizardData.schedule_summary ? currentStepWeight : 0;
+      // 콘텐츠 선택 (학생 + 추천 통합): student_contents 또는 recommended_contents가 있으면 완료
+      const hasAnyContent = wizardData.student_contents.length > 0 || wizardData.recommended_contents.length > 0;
+      currentStepProgress = hasAnyContent ? currentStepWeight : 0;
       break;
     case 4:
-      // 콘텐츠 선택: student_contents가 있으면 완료
-      currentStepProgress = wizardData.student_contents.length > 0 ? currentStepWeight : 0;
-      break;
-    case 5:
-      // 추천 콘텐츠: recommended_contents가 있으면 완료 (선택사항)
-      currentStepProgress = currentStepWeight;
-      break;
-    case 6:
       // 최종 확인: 모든 필수 항목이 있으면 완료
       // 템플릿 모드일 때는 recommended_contents 제외
       const hasContents = isTemplateMode 
@@ -353,7 +345,7 @@ function calculateProgress(currentStep: WizardStep, wizardData: WizardData, isTe
       const has1730Fields = wizardData.scheduler_type !== "1730_timetable" || true;
       currentStepProgress = (hasContents && has1730Fields) ? currentStepWeight : 0;
       break;
-    case 7:
+    case 5:
       // 스케줄 결과: 항상 완료
       currentStepProgress = currentStepWeight;
       break;
@@ -565,15 +557,8 @@ export function PlanGroupWizard({
     }
 
     if (step === 3) {
-      // Step 2.5 (스케줄 확인)는 검증 불필요, 확인만
-    }
-
-    if (step === 4) {
-      // Step 3는 선택사항 (학생이 등록한 콘텐츠)
-    }
-
-    if (step === 5) {
-      // 최소 1개 이상의 콘텐츠 필요 (학생 + 추천 합쳐서)
+      // Step 3: 콘텐츠 선택 (학생 + 추천 통합)
+      // 최소 1개 이상의 콘텐츠 필요
       const totalContents =
         wizardData.student_contents.length +
         wizardData.recommended_contents.length;
@@ -582,8 +567,8 @@ export function PlanGroupWizard({
       }
     }
 
-    if (step === 6) {
-      // 템플릿 모드에서는 Step 6 검증 건너뛰기 (Step 3에서 바로 제출)
+    if (step === 4) {
+      // 템플릿 모드에서는 Step 4 검증 건너뛰기 (Step 2에서 바로 제출)
       if (isTemplateMode) {
         return true;
       }
@@ -671,8 +656,8 @@ export function PlanGroupWizard({
   };
 
   const handleNext = () => {
-    // Step 7에서는 완료 버튼이 Step7ScheduleResult 내부에 있으므로 여기서는 아무것도 하지 않음
-    if (currentStep === 7) {
+    // Step 5에서는 완료 버튼이 Step7ScheduleResult 내부에 있으므로 여기서는 아무것도 하지 않음
+    if (currentStep === 5) {
       return;
     }
 
@@ -680,34 +665,22 @@ export function PlanGroupWizard({
       return;
     }
 
-    // 템플릿 모드일 때 Step 3에서 바로 제출 (Step 4, 5, 6, 7 건너뛰기)
-    if (isTemplateMode && currentStep === 3) {
+    // 템플릿 모드일 때 Step 2에서 바로 제출 (Step 3, 4, 5 건너뛰기)
+    if (isTemplateMode && currentStep === 2) {
       handleSubmit();
       return;
     }
 
-    // 캠프 모드일 때 Step 4에서 바로 제출 (Step 5, 6, 7 건너뛰기)
-    // 단, 관리자 남은 단계 진행 모드일 때는 Step 5-7을 진행해야 하므로 제출하지 않음
-    if (isCampMode && currentStep === 4 && !isAdminContinueMode) {
+    // 캠프 모드일 때 Step 3에서 바로 제출 (Step 4, 5 건너뛰기)
+    // 단, 관리자 남은 단계 진행 모드일 때는 Step 4-5를 진행해야 하므로 제출하지 않음
+    if (isCampMode && currentStep === 3 && !isAdminContinueMode) {
       handleSubmit();
       return;
     }
 
-    // Step 4에서 Step 5로 넘어갈 때, 9개 모두 선택한 경우 Step 5를 건너뛰고 Step 6으로
-    // 캠프 모드일 때는 이 로직을 실행하지 않음 (Step 4에서 제출)
-    if (!isCampMode) {
-      const totalContents =
-        wizardData.student_contents.length +
-        wizardData.recommended_contents.length;
-      if (currentStep === 4 && totalContents >= 9) {
-        setCurrentStep(6);
-        return;
-      }
-    }
-
-    if (currentStep < 7) {
-      if (currentStep === 6) {
-        // Step 6에서는 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
+    if (currentStep < 5) {
+      if (currentStep === 4) {
+        // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
         handleSubmit(false); // 플랜 생성하지 않음
       } else {
         setCurrentStep((prev) => (prev + 1) as WizardStep);
@@ -1567,27 +1540,20 @@ export function PlanGroupWizard({
         {currentStep === 3 && (
           null // Step 3은 Step 2에 통합됨 - 실시간 미리보기로 대체
         )}
-        {currentStep === 4 && !isTemplateMode && (
-          <Step3Contents
+        {currentStep === 3 && !isTemplateMode && (
+          <Step3ContentSelection
             data={wizardData}
             onUpdate={updateWizardData}
             contents={initialContents}
             onSaveDraft={handleSaveDraft}
             isSavingDraft={isPending}
             isCampMode={isCampMode}
+            isEditMode={isEditMode}
+            studentId={(initialData as any)?.student_id}
             editable={!isAdminContinueMode}
           />
         )}
-        {currentStep === 5 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
-          <Step4RecommendedContents
-            data={wizardData}
-            onUpdate={updateWizardData}
-            isEditMode={isEditMode}
-            isCampMode={isCampMode}
-            studentId={(initialData as any)?.student_id}
-          />
-        )}
-        {currentStep === 6 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
+        {currentStep === 4 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
           <Step6FinalReview
             data={wizardData}
             onUpdate={updateWizardData}
@@ -1596,7 +1562,7 @@ export function PlanGroupWizard({
             studentId={(initialData as any)?.student_id}
           />
         )}
-        {currentStep === 7 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
+        {currentStep === 5 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
           <Step7ScheduleResult
             groupId={draftGroupId}
             onComplete={async () => {
