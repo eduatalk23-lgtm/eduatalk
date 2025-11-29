@@ -56,7 +56,25 @@ export async function getSchoolScoreSummary(
     }
 
     if (error) {
-      console.error("[scoreLoader] 내신 성적 조회 실패", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
+      const errorHint = error && typeof error === "object" && "hint" in error ? error.hint : undefined;
+      
+      console.error("[scoreLoader] 내신 성적 조회 실패", {
+        message: errorMessage,
+        code: errorCode,
+        details: errorDetails,
+        hint: errorHint,
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        } : error,
+        context: {
+          studentId,
+        },
+      });
       return result;
     }
 
@@ -155,7 +173,23 @@ export async function getSchoolScoreSummary(
       });
     });
   } catch (error) {
-    console.error("[scoreLoader] 내신 성적 요약 계산 실패", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
+    
+    console.error("[scoreLoader] 내신 성적 요약 계산 실패", {
+      message: errorMessage,
+      code: errorCode,
+      details: errorDetails,
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : error,
+      context: {
+        studentId,
+      },
+    });
   }
 
   return result;
@@ -253,7 +287,23 @@ export async function getMockScoreSummary(
       });
     });
   } catch (error) {
-    console.error("[scoreLoader] 모의고사 성적 요약 계산 실패", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
+    
+    console.error("[scoreLoader] 모의고사 성적 요약 계산 실패", {
+      message: errorMessage,
+      code: errorCode,
+      details: errorDetails,
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : error,
+      context: {
+        studentId,
+      },
+    });
   }
 
   return result;
@@ -337,7 +387,23 @@ export async function getRiskIndexBySubject(
       });
     });
   } catch (error) {
-    console.error("[scoreLoader] Risk Index 계산 실패", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    const errorDetails = error && typeof error === "object" && "details" in error ? error.details : undefined;
+    
+    console.error("[scoreLoader] Risk Index 계산 실패", {
+      message: errorMessage,
+      code: errorCode,
+      details: errorDetails,
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      } : error,
+      context: {
+        studentId,
+      },
+    });
   }
 
   return result;
