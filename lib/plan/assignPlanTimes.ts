@@ -20,6 +20,7 @@ export function minutesToTime(minutes: number): string {
 export function calculatePlanEstimatedTime(
   plan: {
     content_type: "book" | "lecture" | "custom";
+    content_id?: string | null;  // 추가: content_id 필드
     planned_start_page_or_time: number | null;
     planned_end_page_or_time: number | null;
   },
