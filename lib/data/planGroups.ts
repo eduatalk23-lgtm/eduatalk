@@ -703,7 +703,7 @@ export async function getPlanContents(
     const fallbackSelect = () =>
       supabase
         .from("plan_contents")
-        .select("id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,start_detail_id,end_detail_id,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,created_at,updated_at,book_details,lecture_episodes")
+        .select("id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,start_detail_id,end_detail_id,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at")
         .eq("plan_group_id", groupId)
         .order("display_order", { ascending: true });
     
