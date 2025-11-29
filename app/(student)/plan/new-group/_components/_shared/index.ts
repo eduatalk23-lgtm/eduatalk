@@ -11,4 +11,5 @@ export { ContentRangeInput } from "./ContentRangeInput";
 export { ProgressIndicator } from "./ProgressIndicator";
 export { ContentSelector } from "./ContentSelector";
 export { StudentContentsPanel } from "./StudentContentsPanel";
+export { RecommendedContentsPanel } from "./RecommendedContentsPanel";
 
