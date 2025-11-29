@@ -77,10 +77,12 @@ export default async function LectureDetailPage({
   if (studentEpisodes && studentEpisodes.length > 0) {
     lectureEpisodes = studentEpisodes.map(e => ({
       id: e.id,
+      lecture_id: lecture.id,  // 추가: lecture_id 필수 필드
       episode_number: e.episode_number,
-      episode_title: e.episode_title,
+      title: e.title,  // 변경: episode_title → title
       duration: e.duration,
       display_order: e.display_order,
+      created_at: e.created_at || "",  // 추가: created_at 필수 필드
     }));
   } else if (lecture.master_content_id) {
     // 학생 강의 episode가 없으면 마스터 참조
