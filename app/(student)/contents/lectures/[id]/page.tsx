@@ -88,10 +88,12 @@ export default async function LectureDetailPage({
       const { episodes } = await getMasterLectureById(lecture.master_content_id);
       lectureEpisodes = episodes.map(e => ({
         id: e.id,
+        lecture_id: lecture.id,  // 추가: lecture_id 필수 필드
         episode_number: e.episode_number,
-        episode_title: e.episode_title,
+        title: e.title,  // 변경: episode_title → title
         duration: e.duration,
         display_order: e.display_order,
+        created_at: "",  // 추가: created_at 필수 필드
       }));
     } catch (err) {
       console.error("마스터 강의 episode 정보 조회 실패:", err);

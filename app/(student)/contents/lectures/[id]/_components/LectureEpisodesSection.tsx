@@ -26,7 +26,7 @@ export function LectureEpisodesSection({
     initialEpisodes.map((e) => ({
       lecture_id: e.lecture_id,
       episode_number: e.episode_number,
-      episode_title: e.episode_title,
+      title: e.title,  // 변경: episode_title → title
       duration: e.duration,
       display_order: e.display_order,
     }))
@@ -42,7 +42,7 @@ export function LectureEpisodesSection({
           id: `temp-${index}`,
           lecture_id: lectureId,
           episode_number: e.episode_number || 0,
-          episode_title: e.episode_title,
+          title: e.title,  // 변경: episode_title → title
           duration: e.duration,
           display_order: e.display_order || 0,
           created_at: "",
