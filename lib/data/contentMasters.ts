@@ -216,6 +216,19 @@ export async function getMasterBookById(
   const subjectGroup = subject?.subject_groups;
   const publisher = (bookData as any).publishers;
 
+  // 디버깅: JOIN 결과 확인
+  if (process.env.NODE_ENV === "development") {
+    console.log("[getMasterBookById] JOIN 결과:", {
+      bookId,
+      hasCurriculumRevision: !!curriculumRevision,
+      hasSubject: !!subject,
+      hasSubjectGroup: !!subjectGroup,
+      hasPublisher: !!publisher,
+      subjectData: subject,
+      subjectGroupData: subjectGroup,
+    });
+  }
+
   const book = {
     ...bookData,
     // revision은 curriculum_revisions.name으로 설정 (없으면 기존 revision 유지)

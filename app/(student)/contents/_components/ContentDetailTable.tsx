@@ -24,17 +24,18 @@ function DetailRow({
   value,
 }: {
   label: string;
-  value: string | number | null;
+  value: string | number | null | undefined;
 }) {
   // null, undefined, 빈 문자열 처리
-  const displayValue = value === null || value === undefined || value === "" 
-    ? "알 수 없음" 
-    : String(value);
+  // 값이 없으면 해당 행을 표시하지 않음 (빈 값 숨김)
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
   
   return (
     <div>
       <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-base text-gray-900">{displayValue}</p>
+      <p className="mt-1 text-base text-gray-900">{String(value)}</p>
     </div>
   );
 }
