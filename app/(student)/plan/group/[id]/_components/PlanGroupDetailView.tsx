@@ -16,9 +16,6 @@ const Step1BasicInfo = lazy(() =>
 const Step2TimeSettingsWithPreview = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview").then(module => ({ default: module.Step2TimeSettingsWithPreview }))
 );
-const SchedulePreviewPanel = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/_panels/SchedulePreviewPanel").then(module => ({ default: module.SchedulePreviewPanel }))
-);
 const Step3ContentSelection = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step3ContentSelection").then(module => ({ default: module.Step3ContentSelection }))
 );
@@ -84,7 +81,6 @@ export function PlanGroupDetailView({
   const allTabs = useMemo(() => [
     { id: 1, label: "기본 정보", completed: !!group.name && !!group.plan_purpose && !!group.scheduler_type },
     { id: 2, label: "블록 및 제외일", completed: !!group.block_set_id },
-    { id: 3, label: "스케줄 미리보기", completed: true },
     { id: 4, label: "콘텐츠 선택", completed: contents.length > 0 }, // 학생 + 추천 통합
     { id: 6, label: "최종 검토", completed: true },
     { id: 7, label: "스케줄 결과", completed: hasPlans },
@@ -103,7 +99,7 @@ export function PlanGroupDetailView({
     if (campSubmissionMode) {
       return [1, 2, 4];
     }
-    return [1, 2, 3, 4, 6, 7]; // Step 5 제거 (Step 4에 통합)
+    return [1, 2, 4, 6, 7]; // Step 3, 5 제거 (Step 2, 4에 통합)
   }, [campSubmissionMode]);
 
   // 초기 탭 설정 (허용된 탭 중 첫 번째)
@@ -186,17 +182,7 @@ export function PlanGroupDetailView({
               editable={false} // 완전히 읽기 전용
               isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
               studentId={group.student_id}
-            />
-          </Suspense>
-        );
-      case 3:
-        return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <SchedulePreviewPanel 
-              data={wizardData}
-              onUpdate={() => {}} // 읽기 전용 - 변경 불가
               blockSets={blockSets}
-              isCampMode={campSubmissionMode}
               campTemplateId={campTemplateId || undefined}
             />
           </Suspense>
