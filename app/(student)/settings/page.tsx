@@ -578,8 +578,10 @@ export default function SettingsPage() {
     return (
       <div className="p-6 md:p-8">
         <div className="mx-auto max-w-2xl">
-          <div className="mb-6 h-8 w-48 bg-gray-200 rounded animate-pulse" />
-          <SkeletonForm />
+          <div className="flex flex-col gap-6">
+            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+            <SkeletonForm />
+          </div>
         </div>
       </div>
     );
@@ -588,20 +590,21 @@ export default function SettingsPage() {
   return (
     <div className="p-6 md:p-8 pb-24">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6 text-3xl font-semibold">프로필</h1>
+        <div className="flex flex-col gap-6">
+          <h1 className="text-h1">프로필</h1>
 
-        {/* 초기 설정 모드: 환영 메시지 및 단계별 가이드 */}
-        {isInitialSetup && setupProgress && (
-          <div className="mb-6 rounded-lg bg-indigo-50 border border-indigo-200 p-6">
-            <div className="flex flex-col gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-indigo-900 mb-2">
-                  환영합니다! 🎉
-                </h2>
-                <p className="text-sm text-indigo-700">
-                  먼저 기본 정보를 입력해주세요. 단계별로 진행하시면 더 쉽게 설정하실 수 있습니다.
-                </p>
-              </div>
+          {/* 초기 설정 모드: 환영 메시지 및 단계별 가이드 */}
+          {isInitialSetup && setupProgress && (
+            <div className="rounded-lg bg-indigo-50 border border-indigo-200 p-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-h2 text-indigo-900">
+                    환영합니다! 🎉
+                  </h2>
+                  <p className="text-sm text-indigo-700">
+                    먼저 기본 정보를 입력해주세요. 단계별로 진행하시면 더 쉽게 설정하실 수 있습니다.
+                  </p>
+                </div>
               
               {/* 진행 단계 표시 */}
               <div className="flex flex-col gap-2">
@@ -623,7 +626,7 @@ export default function SettingsPage() {
                 </div>
                 
                 {/* 단계별 체크리스트 */}
-                <div className="flex flex-col gap-2 mt-2">
+                <div className="flex flex-col gap-2">
                   {setupProgress.steps.map((step, index) => (
                     <div key={step.key} className="flex items-center gap-2 text-sm">
                       {step.completed ? (
@@ -653,7 +656,6 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-          </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -959,7 +961,7 @@ export default function SettingsPage() {
                 <label className="text-sm font-medium text-gray-700">
                   진학 희망 대학교 (1순위, 2순위, 3순위)
                 </label>
-                <p className="text-xs text-gray-500 mb-1">
+                <p className="text-xs text-gray-500">
                   최대 3개까지 선택 가능하며, 선택한 순서대로 1순위, 2순위, 3순위로 표시됩니다.
                 </p>
                 <SchoolMultiSelect
