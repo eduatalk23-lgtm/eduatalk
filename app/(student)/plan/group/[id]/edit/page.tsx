@@ -57,11 +57,11 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
     <section className="mx-auto w-full max-w-4xl px-4 py-10">
       <div className="mb-8">
         <div>
-          <p className="text-sm font-medium text-gray-500">학습 플랜</p>
+          <p className="text-sm font-medium text-gray-800">학습 플랜</p>
           <h1 className="text-3xl font-semibold text-gray-900">
             플랜 그룹 수정
           </h1>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-800">
             플랜 그룹의 설정을 수정할 수 있습니다.
           </p>
         </div>

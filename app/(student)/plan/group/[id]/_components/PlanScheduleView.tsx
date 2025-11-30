@@ -95,7 +95,7 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-800">
           총 {plans.length}개의 플랜이 생성되었습니다.
         </p>
       </div>

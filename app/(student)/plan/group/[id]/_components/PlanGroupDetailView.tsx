@@ -279,7 +279,7 @@ export function PlanGroupDetailView({
         <div className="mt-8 border-t border-gray-200 pt-8">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
             <h2 className="mb-2 text-lg font-semibold text-gray-900">플랜 생성</h2>
-            <p className="mb-4 text-sm text-gray-600">
+            <p className="mb-4 text-sm text-gray-800">
               플랜 그룹 설정을 기반으로 개별 학습 플랜을 자동으로 생성합니다.
             </p>
             <GeneratePlansButton

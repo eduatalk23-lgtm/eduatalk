@@ -208,7 +208,6 @@ export function PlanGroupListItem({
               {/* 플랜 생성 완료 뱃지 */}
               {hasPlans && planCount > 0 && (
                 <Badge variant="info" size="sm">
-                  
                   플랜 생성 완료
                 </Badge>
               )}

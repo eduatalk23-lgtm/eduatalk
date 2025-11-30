@@ -226,14 +226,14 @@ export function PlanPreviewDialog({
         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">플랜 미리보기</h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm text-gray-800">
               생성될 플랜 정보를 확인하세요. 총 {plans.length}개의 플랜이 생성됩니다.
             </p>
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-lg p-1 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
           >
             <X className="h-5 w-5" />
           </button>
@@ -363,7 +363,7 @@ export function PlanPreviewDialog({
                               <span className="text-blue-600 text-[10px]">(일부)</span>
                             )}
                             {!plan.is_continued && !plan.is_partial && (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-gray-700">-</span>
                             )}
                           </div>
                         </td>
@@ -411,7 +411,7 @@ export function PlanPreviewDialog({
 
           {plans.length === 0 && !loading && (
             <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-800">
                 "플랜 미리보기" 버튼을 클릭하여 생성될 플랜을 확인하세요.
               </p>
             </div>

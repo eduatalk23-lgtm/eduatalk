@@ -31,9 +31,9 @@ export function PlanGroupProgressCard({
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-medium text-gray-500">플랜 진행 상황</h3>
+            <h3 className="text-sm font-medium text-gray-800">플랜 진행 상황</h3>
             <p className="text-2xl font-semibold text-gray-900">0개</p>
-            <p className="text-sm text-gray-500">플랜이 생성되지 않았습니다.</p>
+            <p className="text-sm text-gray-800">플랜이 생성되지 않았습니다.</p>
           </div>
         </div>
       </div>
@@ -45,16 +45,16 @@ export function PlanGroupProgressCard({
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between">
           <div className="flex-1 flex flex-col gap-3">
-            <h3 className="text-sm font-medium text-gray-500">플랜 진행 상황</h3>
+            <h3 className="text-sm font-medium text-gray-800">플랜 진행 상황</h3>
             <div className="flex items-baseline gap-2">
               <p className="text-2xl font-semibold text-gray-900">{completedCount}</p>
-              <p className="text-lg text-gray-500">/ {planCount}개</p>
+              <p className="text-lg text-gray-800">/ {planCount}개</p>
             </div>
-            <p className="text-sm text-gray-500">완료된 플랜</p>
+            <p className="text-sm text-gray-800">완료된 플랜</p>
           </div>
           <div className="text-right flex flex-col gap-1">
             <p className="text-2xl font-semibold text-blue-600">{progressPercentage}%</p>
-            <p className="text-xs text-gray-500">진행률</p>
+            <p className="text-xs text-gray-800">진행률</p>
           </div>
         </div>
         
@@ -69,19 +69,19 @@ export function PlanGroupProgressCard({
         {/* 상세 정보 */}
         <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
           <div className="flex flex-col gap-1">
-            <p className="text-xs text-gray-500">완료</p>
+            <p className="text-xs text-gray-800">완료</p>
             <p className="text-lg font-semibold text-green-600">
               {completedCount}개
             </p>
           </div>
           <div className="flex flex-col gap-1">
-            <p className="text-xs text-gray-500">진행 중</p>
+            <p className="text-xs text-gray-800">진행 중</p>
             <p className="text-lg font-semibold text-orange-600">
               {inProgressCount}개
             </p>
           </div>
           <div className="flex flex-col gap-1">
-            <p className="text-xs text-gray-500">전체</p>
+            <p className="text-xs text-gray-800">전체</p>
             <p className="text-lg font-semibold text-gray-900">
               {planCount}개
             </p>

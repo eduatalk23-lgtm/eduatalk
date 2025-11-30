@@ -454,7 +454,7 @@ export default async function PlanGroupDetailPage({
             {/* 핵심 정보 */}
             <div className="grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <dt className="text-xs font-medium text-gray-500">플랜 목적</dt>
+                <dt className="text-xs font-medium text-gray-800">플랜 목적</dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
                   {group.plan_purpose
                     ? planPurposeLabels[group.plan_purpose] ||
@@ -463,7 +463,7 @@ export default async function PlanGroupDetailPage({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-gray-500">
+                <dt className="text-xs font-medium text-gray-800">
                   스케줄러 유형
                 </dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
@@ -474,7 +474,7 @@ export default async function PlanGroupDetailPage({
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-gray-500">학습 기간</dt>
+                <dt className="text-xs font-medium text-gray-800">학습 기간</dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
                   {group.period_start && group.period_end
                     ? `${new Date(group.period_start).toLocaleDateString(
@@ -495,7 +495,7 @@ export default async function PlanGroupDetailPage({
               </div>
               {group.target_date && (
                 <div>
-                  <dt className="text-xs font-medium text-gray-500">
+                  <dt className="text-xs font-medium text-gray-800">
                     목표 날짜
                   </dt>
                   <dd className="mt-1 text-sm font-semibold text-gray-900">

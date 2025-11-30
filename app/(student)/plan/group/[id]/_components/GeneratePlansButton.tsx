@@ -73,7 +73,7 @@ export function GeneratePlansButton({
           플랜 미리보기 및 생성
         </button>
         {hasPlans && (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-800">
             플랜이 이미 생성되었습니다. 새로운 플랜을 만들려면 플랜 그룹을 복사하여 수정하세요.
           </p>
         )}

@@ -63,7 +63,7 @@ export function PlanGroupActionButtons({
         {canEdit && (
           <Link
             href={`/plan/group/${groupId}/edit`}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="inline-flex items-center justify-center rounded-lg p-2 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900"
             title="수정"
             aria-label="플랜 그룹 수정"
           >
@@ -75,7 +75,7 @@ export function PlanGroupActionButtons({
           type="button"
           onClick={handleCopy}
           disabled={copyPending || isPending}
-          className="inline-flex items-center justify-center rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-lg p-2 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           title="복사하기"
           aria-label="플랜 그룹 복사하기"
         >
@@ -86,7 +86,7 @@ export function PlanGroupActionButtons({
           <button
             type="button"
             onClick={() => setDeleteDialogOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+            className="inline-flex items-center justify-center rounded-lg p-2 text-gray-700 transition hover:bg-red-50 hover:text-red-600"
             title="삭제"
             aria-label="플랜 그룹 삭제"
           >

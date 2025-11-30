@@ -85,7 +85,7 @@ export function PlanGroupStatusButtons({
   if (availableTransitions.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-800">
           현재 상태에서는 상태 변경이 불가능합니다.
         </p>
       </div>
