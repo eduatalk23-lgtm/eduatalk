@@ -37,12 +37,12 @@ function generateCacheKey(params: ScheduleCalculationParams): string {
     periodStart: params.periodStart,
     periodEnd: params.periodEnd,
     blockSetId: params.blockSetId,
-    exclusions: params.exclusions.map((e) => ({
+    exclusions: (params.exclusions || []).map((e) => ({
       exclusion_date: e.exclusion_date,
       exclusion_type: e.exclusion_type,
       reason: e.reason,
     })),
-    academySchedules: params.academySchedules.map((s) => ({
+    academySchedules: (params.academySchedules || []).map((s) => ({
       day_of_week: s.day_of_week,
       start_time: s.start_time,
       end_time: s.end_time,

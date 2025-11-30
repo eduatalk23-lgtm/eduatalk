@@ -109,16 +109,14 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     }
 
     return {
-      period_start: data.period_start,
-      period_end: data.period_end,
-      scheduler_type: data.scheduler_type,
-      block_set_id: data.block_set_id || "default",
+      periodStart: data.period_start,
+      periodEnd: data.period_end,
+      schedulerType: data.scheduler_type as "1730_timetable",
+      blockSetId: data.block_set_id || "default",
       exclusions: data.exclusions || [],
-      academy_schedules: data.academy_schedules || [],
-      time_settings: data.time_settings,
-      non_study_time_blocks: data.non_study_time_blocks,
-      camp_template_id: isCampMode ? campTemplateId : undefined,
-      blocks: selectedBlockSetBlocks,
+      academySchedules: data.academy_schedules || [],
+      schedulerOptions: data.scheduler_options,
+      timeSettings: data.time_settings,
     };
   }, [
     data.period_start,
@@ -128,11 +126,10 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     data.exclusions,
     data.academy_schedules,
     data.time_settings,
-    data.non_study_time_blocks,
+    data.scheduler_options,
     isTemplateMode,
     isCampMode,
     campTemplateId,
-    selectedBlockSetBlocks,
   ]);
 
   // 스케줄 계산 (debounced)
@@ -153,16 +150,29 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         return;
       }
 
-      // 서버 계산
-      const calculatedResult = await calculateScheduleAvailability(params);
+      // 서버 계산 - calculateScheduleAvailability에 필요한 추가 필드 포함
+      const calculatedResult = await calculateScheduleAvailability({
+        ...params,
+        blocks: selectedBlockSetBlocks,
+        isTemplateMode,
+        isCampMode,
+        campTemplateId: isCampMode ? campTemplateId : undefined,
+      });
+      
+      // 계산 결과 검증
+      if (!calculatedResult.success || !calculatedResult.data) {
+        throw new Error(calculatedResult.error || "스케줄 계산에 실패했습니다.");
+      }
+
+      const result = calculatedResult.data;
       
       // 캐시 저장
-      scheduleCache.set(params, calculatedResult);
+      scheduleCache.set(params, result);
       
-      setResult(calculatedResult);
+      setResult(result);
       onUpdate({
-        schedule_summary: calculatedResult.summary,
-        daily_schedule: calculatedResult.daily_schedule,
+        schedule_summary: result.summary,
+        daily_schedule: result.daily_schedule,
       });
     } catch (err) {
       console.error("[SchedulePreviewPanel] 스케줄 계산 실패:", err);
@@ -171,7 +181,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     } finally {
       setLoading(false);
     }
-  }, [onUpdate]);
+  }, [onUpdate, selectedBlockSetBlocks, isTemplateMode, isCampMode, campTemplateId]);
 
   // 파라미터 변경 시 재계산 (debounce 500ms)
   useEffect(() => {
