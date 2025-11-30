@@ -918,18 +918,44 @@ export async function createPlanExclusions(
   }
 
   // 중복 체크: 같은 학생의 같은 날짜 제외일이 이미 있는지 확인
-  // 제외일은 학생별 전역 관리이므로, plan_group_id와 관계없이 student_id + exclusion_date 조합이 unique해야 함
-  const existingExclusions = await getStudentExclusions(group.student_id, tenantId);
-  const existingDates = new Set(existingExclusions.map((e) => e.exclusion_date));
+  // 제외일은 플랜 그룹별로 관리되지만, 학생별로도 중복되지 않아야 함
+  // 단, 현재 플랜 그룹의 기존 제외일은 제외 (업데이트 시 기존 제외일을 삭제하고 재추가하는 경우를 위해)
+  
+  // 현재 플랜 그룹의 기존 제외일 조회 (중복 체크에서 제외하기 위해)
+  const currentGroupExclusions = await getPlanExclusions(groupId, tenantId);
+  const currentGroupDates = new Set(currentGroupExclusions.map((e) => e.exclusion_date));
+  
+  // 학생의 모든 제외일을 plan_group_id 포함하여 조회
+  const allExclusionsQuery = supabase
+    .from("plan_exclusions")
+    .select("exclusion_date, plan_group_id")
+    .eq("student_id", group.student_id);
+  
+  if (tenantId) {
+    allExclusionsQuery.eq("tenant_id", tenantId);
+  }
+  
+  const { data: allExclusions, error: allExclusionsError } = await allExclusionsQuery;
+  
+  if (allExclusionsError) {
+    console.error("[data/planGroups] 제외일 조회 실패 (중복 체크용)", allExclusionsError);
+    // 조회 실패 시 중복 체크를 건너뛰고 계속 진행 (데이터베이스 레벨 제약조건에서 처리)
+  } else {
+    // 현재 플랜 그룹의 제외일을 제외한 다른 플랜 그룹의 제외일만 중복 체크 대상
+    const otherGroupExclusions = (allExclusions || []).filter(
+      (e) => e.plan_group_id !== groupId
+    );
+    const existingDates = new Set(otherGroupExclusions.map((e) => e.exclusion_date));
 
-  // 중복된 날짜 필터링
-  const duplicates = exclusions.filter((e) => existingDates.has(e.exclusion_date));
-  if (duplicates.length > 0) {
-    const duplicateDates = duplicates.map((e) => e.exclusion_date).join(", ");
-    return {
-      success: false,
-      error: `이미 등록된 제외일이 있습니다: ${duplicateDates}`,
-    };
+    // 중복된 날짜 필터링
+    const duplicates = exclusions.filter((e) => existingDates.has(e.exclusion_date));
+    if (duplicates.length > 0) {
+      const duplicateDates = duplicates.map((e) => e.exclusion_date).join(", ");
+      return {
+        success: false,
+        error: `이미 등록된 제외일이 있습니다: ${duplicateDates}`,
+      };
+    }
   }
 
   const payload = exclusions.map((exclusion) => ({
