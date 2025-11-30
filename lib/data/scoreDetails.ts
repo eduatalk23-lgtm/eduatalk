@@ -55,7 +55,16 @@ export async function getInternalScoresByTerm(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("[data/scoreDetails] 내신 성적 조회 실패", error);
+    console.error("[data/scoreDetails] 내신 성적 조회 실패", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      studentId,
+      tenantId,
+      grade,
+      semester,
+    });
     return [];
   }
 
@@ -110,7 +119,17 @@ export async function getMockScoresByPeriod(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[data/scoreDetails] 모의고사 성적 조회 실패", error);
+    console.error("[data/scoreDetails] 모의고사 성적 조회 실패", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      studentId,
+      tenantId,
+      startDate,
+      endDate,
+      grade,
+    });
     return [];
   }
 
@@ -145,7 +164,15 @@ export async function getRecentMockExams(
     .limit(limit);
 
   if (error) {
-    console.error("[data/scoreDetails] 최근 모의고사 시험 목록 조회 실패", error);
+    console.error("[data/scoreDetails] 최근 모의고사 시험 목록 조회 실패", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      studentId,
+      tenantId,
+      limit,
+    });
     return [];
   }
 
@@ -196,7 +223,16 @@ export async function getMockScoresByExam(
     .order("subject_group_id", { ascending: true });
 
   if (error) {
-    console.error("[data/scoreDetails] 특정 시험 성적 조회 실패", error);
+    console.error("[data/scoreDetails] 특정 시험 성적 조회 실패", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      studentId,
+      tenantId,
+      examDate,
+      examTitle,
+    });
     return [];
   }
 
@@ -287,7 +323,16 @@ export async function getMockTrendBySubject(
     .limit(limit);
 
   if (error) {
-    console.error("[data/scoreDetails] 과목별 모의고사 추이 조회 실패", error);
+    console.error("[data/scoreDetails] 과목별 모의고사 추이 조회 실패", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      studentId,
+      tenantId,
+      subjectId,
+      limit,
+    });
     return [];
   }
 
