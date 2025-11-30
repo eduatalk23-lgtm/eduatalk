@@ -52,7 +52,17 @@ ALTER TABLE public.books
   ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 
 -- 타임스탬프 타입 변경 (timestamp without time zone → timestamp with time zone)
+-- 주의: 뷰나 규칙이 의존하는 경우 먼저 삭제해야 함
 -- 기존 데이터는 자동으로 변환됨
+-- 뷰 의존성 확인 및 처리
+DO $$
+BEGIN
+  -- v_all_contents 뷰가 있는 경우 삭제 (나중에 재생성 필요)
+  IF EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'v_all_contents' AND schemaname = 'public') THEN
+    DROP VIEW IF EXISTS public.v_all_contents CASCADE;
+  END IF;
+END $$;
+
 ALTER TABLE public.books
   ALTER COLUMN created_at TYPE timestamp with time zone USING created_at AT TIME ZONE 'UTC',
   ALTER COLUMN updated_at TYPE timestamp with time zone USING updated_at AT TIME ZONE 'UTC';
@@ -175,6 +185,8 @@ ALTER TABLE public.lectures
   ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 
 -- 타임스탬프 타입 변경 (timestamp without time zone → timestamp with time zone)
+-- 주의: 뷰나 규칙이 의존하는 경우 먼저 삭제해야 함
+-- v_all_contents 뷰는 이미 위에서 삭제됨 (CASCADE로 관련 뷰도 삭제됨)
 ALTER TABLE public.lectures
   ALTER COLUMN created_at TYPE timestamp with time zone USING created_at AT TIME ZONE 'UTC',
   ALTER COLUMN updated_at TYPE timestamp with time zone USING updated_at AT TIME ZONE 'UTC';
@@ -291,41 +303,50 @@ WHERE b.master_content_id = mb.id
 
 -- lectures 테이블: master_lecture_id가 있는 경우 마스터 데이터에서 값 복사
 -- 주의: master_lectures 테이블의 실제 필드명 사용 (instructor, source_url 등)
-UPDATE public.lectures l
-SET
-  content_category = ml.content_category,
-  lecture_type = NULL, -- master_lectures에 lecture_type 필드가 없음
-  subtitle = ml.subtitle,
-  series_name = ml.series_name,
-  instructor_name = ml.instructor, -- master_lectures는 instructor 필드 사용
-  description = ml.description,
-  toc = ml.toc,
-  curriculum_revision_id = ml.curriculum_revision_id,
-  subject_id = ml.subject_id,
-  subject_group_id = NULL, -- master_lectures에 subject_group_id 필드가 없음
-  grade_level = NULL, -- master_lectures는 grade_min, grade_max 사용
-  platform_id = ml.platform_id,
-  lecture_source_url = ml.source_url, -- master_lectures는 source_url 필드 사용
-  source = ml.source,
-  source_product_code = ml.source_product_code,
-  cover_image_url = ml.cover_image_url,
-  total_duration = ml.total_duration,
-  video_url = ml.video_url,
-  transcript = ml.transcript,
-  episode_analysis = ml.episode_analysis,
-  overall_difficulty = ml.overall_difficulty,
-  target_exam_type = ml.target_exam_type,
-  tags = ml.tags,
-  is_active = ml.is_active
-FROM public.master_lectures ml
-WHERE l.master_lecture_id = ml.id
-  AND l.master_lecture_id IS NOT NULL
-  AND (
-    -- 기존 필드가 null이거나 빈 값인 경우에만 업데이트
-    l.content_category IS NULL OR
-    l.instructor_name IS NULL OR
-    l.lecture_source_url IS NULL
-  );
+-- 컬럼이 존재하는 경우에만 업데이트 실행
+DO $$
+BEGIN
+  -- master_lecture_id 컬럼이 존재하는지 확인
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'lectures' 
+      AND column_name = 'master_lecture_id'
+  ) THEN
+    UPDATE public.lectures l
+    SET
+      content_category = ml.content_category,
+      subtitle = ml.subtitle,
+      series_name = ml.series_name,
+      instructor_name = ml.instructor, -- master_lectures는 instructor 필드 사용
+      description = ml.description,
+      toc = ml.toc,
+      curriculum_revision_id = ml.curriculum_revision_id,
+      subject_id = ml.subject_id,
+      platform_id = ml.platform_id,
+      lecture_source_url = ml.source_url, -- master_lectures는 source_url 필드 사용
+      source = ml.source,
+      source_product_code = ml.source_product_code,
+      cover_image_url = ml.cover_image_url,
+      total_duration = ml.total_duration,
+      video_url = ml.video_url,
+      transcript = ml.transcript,
+      episode_analysis = ml.episode_analysis,
+      overall_difficulty = ml.overall_difficulty,
+      target_exam_type = ml.target_exam_type,
+      tags = ml.tags,
+      is_active = ml.is_active
+    FROM public.master_lectures ml
+    WHERE l.master_lecture_id = ml.id
+      AND l.master_lecture_id IS NOT NULL
+      AND (
+        -- 기존 필드가 null이거나 빈 값인 경우에만 업데이트
+        l.content_category IS NULL OR
+        l.instructor_name IS NULL OR
+        l.lecture_source_url IS NULL
+      );
+  END IF;
+END $$;
 
 -- 코멘트 추가
 COMMENT ON COLUMN public.books.content_category IS '콘텐츠 카테고리';
