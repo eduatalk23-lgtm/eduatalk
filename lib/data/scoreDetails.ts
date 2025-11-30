@@ -6,6 +6,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/supabase/database.types";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
 
 type InternalScore = Tables<"student_internal_scores">;
 type MockScore = Tables<"student_mock_scores">;
@@ -35,9 +36,9 @@ export async function getInternalScoresByTerm(
     .from("student_internal_scores")
     .select(`
       *,
-      subject_groups:subject_group_id (name),
-      subjects:subject_id (name),
-      subject_types:subject_type_id (name)
+      subject_group:subject_groups(name),
+      subject:subjects(name),
+      subject_type:subject_types(name)
     `)
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId);
@@ -54,17 +55,20 @@ export async function getInternalScoresByTerm(
     .order("semester", { ascending: true })
     .order("created_at", { ascending: true });
 
-  if (error) {
-    console.error("[data/scoreDetails] 내신 성적 조회 실패", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      studentId,
-      tenantId,
-      grade,
-      semester,
-    });
+  if (handleQueryError(error, {
+    context: "[data/scoreDetails] 내신 성적 조회 실패",
+    logError: true,
+  })) {
+    // 에러 상세 정보 추가 로깅
+    if (error) {
+      console.error("[data/scoreDetails] 내신 성적 조회 상세 정보", {
+        error: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        studentId,
+        tenantId,
+        grade,
+        semester,
+      });
+    }
     return [];
   }
 
@@ -97,8 +101,8 @@ export async function getMockScoresByPeriod(
     .from("student_mock_scores")
     .select(`
       *,
-      subject_groups:subject_group_id (name),
-      subjects:subject_id (name)
+      subject_group:subject_groups(name),
+      subject:subjects(name)
     `)
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId);
@@ -118,18 +122,21 @@ export async function getMockScoresByPeriod(
   const { data, error } = await query.order("exam_date", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("[data/scoreDetails] 모의고사 성적 조회 실패", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      studentId,
-      tenantId,
-      startDate,
-      endDate,
-      grade,
-    });
+  if (handleQueryError(error, {
+    context: "[data/scoreDetails] 모의고사 성적 조회 실패",
+    logError: true,
+  })) {
+    // 에러 상세 정보 추가 로깅
+    if (error) {
+      console.error("[data/scoreDetails] 모의고사 성적 조회 상세 정보", {
+        error: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+        studentId,
+        tenantId,
+        startDate,
+        endDate,
+        grade,
+      });
+    }
     return [];
   }
 
@@ -163,16 +170,10 @@ export async function getRecentMockExams(
     .order("exam_date", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.error("[data/scoreDetails] 최근 모의고사 시험 목록 조회 실패", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      studentId,
-      tenantId,
-      limit,
-    });
+  if (handleQueryError(error, {
+    context: "[data/scoreDetails] 최근 모의고사 시험 목록 조회 실패",
+    logError: true,
+  })) {
     return [];
   }
 
@@ -213,8 +214,8 @@ export async function getMockScoresByExam(
     .from("student_mock_scores")
     .select(`
       *,
-      subject_groups:subject_group_id (name),
-      subjects:subject_id (name)
+      subject_group:subject_groups(name),
+      subject:subjects(name)
     `)
     .eq("student_id", studentId)
     .eq("tenant_id", tenantId)
@@ -222,17 +223,10 @@ export async function getMockScoresByExam(
     .eq("exam_title", examTitle)
     .order("subject_group_id", { ascending: true });
 
-  if (error) {
-    console.error("[data/scoreDetails] 특정 시험 성적 조회 실패", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      studentId,
-      tenantId,
-      examDate,
-      examTitle,
-    });
+  if (handleQueryError(error, {
+    context: "[data/scoreDetails] 특정 시험 성적 조회 실패",
+    logError: true,
+  })) {
     return [];
   }
 
@@ -322,17 +316,10 @@ export async function getMockTrendBySubject(
     .order("exam_date", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    console.error("[data/scoreDetails] 과목별 모의고사 추이 조회 실패", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      studentId,
-      tenantId,
-      subjectId,
-      limit,
-    });
+  if (handleQueryError(error, {
+    context: "[data/scoreDetails] 과목별 모의고사 추이 조회 실패",
+    logError: true,
+  })) {
     return [];
   }
 
