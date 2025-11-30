@@ -260,6 +260,19 @@ export function MasterBookEditForm({
         {/* 출판사명 (숨김 필드, 자동 설정됨) */}
         <input type="hidden" name="publisher_name" defaultValue={book.publisher_name || ""} />
 
+        {/* 저자 */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            저자
+          </label>
+          <input
+            name="author"
+            defaultValue={book.author || ""}
+            placeholder="저자명을 입력하세요"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+
         {/* 학교 유형 */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
