@@ -655,8 +655,9 @@ export default function SettingsPage() {
                   ))}
                 </div>
               </div>
+              </div>
             </div>
-        )}
+          )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* 기본 정보 섹션 */}

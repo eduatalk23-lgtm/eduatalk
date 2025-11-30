@@ -29,16 +29,21 @@ Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
 
 ## 해결 방법
 
-659번째 줄의 불필요한 `</div>` 태그를 제거했습니다.
+599번째 줄의 `<div className="flex flex-col gap-4">`가 닫히지 않아서 발생한 문제였습니다. 닫는 태그를 추가했습니다.
 
-### 수정된 코드
+### 수정된 코드 구조
 
 ```jsx
 {isInitialSetup && setupProgress && (
   <div className="rounded-lg bg-indigo-50 border border-indigo-200 p-6">
     <div className="flex flex-col gap-4">
-      ...
-    </div>
+      <div className="flex flex-col gap-2">
+        ...
+      </div>
+      <div className="flex flex-col gap-2">
+        ...
+      </div>
+    </div>  {/* 이 닫는 태그가 누락되어 있었음 */}
   </div>
 )}
 ```
