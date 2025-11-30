@@ -662,7 +662,10 @@ export async function deleteSubject(id: string): Promise<void> {
 // ============================================
 
 export async function getPlatforms(): Promise<Platform[]> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  
   const { data, error } = await supabase
     .from("platforms")
     .select("*")
@@ -681,8 +684,35 @@ export async function createPlatform(
   name: string,
   display_order: number
 ): Promise<Platform> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("platforms")
+      .insert({ name, display_order })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[contentMetadata] 플랫폼 생성 실패", error);
+      
+      // 중복 키 에러 처리
+      if (error.code === "23505") {
+        if (error.message.includes("platforms_name_key")) {
+          throw new Error(`이미 존재하는 플랫폼명입니다: "${name}"`);
+        }
+        throw new Error("이미 존재하는 데이터입니다.");
+      }
+      
+      throw new Error(`플랫폼 생성 실패: ${error.message}`);
+    }
+
+    return data as Platform;
+  }
+
+  const { data, error } = await supabaseAdmin
     .from("platforms")
     .insert({ name, display_order })
     .select()
@@ -690,6 +720,15 @@ export async function createPlatform(
 
   if (error) {
     console.error("[contentMetadata] 플랫폼 생성 실패", error);
+    
+    // 중복 키 에러 처리
+    if (error.code === "23505") {
+      if (error.message.includes("platforms_name_key")) {
+        throw new Error(`이미 존재하는 플랫폼명입니다: "${name}"`);
+      }
+      throw new Error("이미 존재하는 데이터입니다.");
+    }
+    
     throw new Error(`플랫폼 생성 실패: ${error.message}`);
   }
 
@@ -700,8 +739,36 @@ export async function updatePlatform(
   id: string,
   updates: Partial<{ name: string; display_order: number; is_active: boolean }>
 ): Promise<Platform> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("platforms")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[contentMetadata] 플랫폼 수정 실패", error);
+      
+      // 중복 키 에러 처리
+      if (error.code === "23505") {
+        if (error.message.includes("platforms_name_key") && updates.name) {
+          throw new Error(`이미 존재하는 플랫폼명입니다: "${updates.name}"`);
+        }
+        throw new Error("이미 존재하는 데이터입니다.");
+      }
+      
+      throw new Error(`플랫폼 수정 실패: ${error.message}`);
+    }
+
+    return data as Platform;
+  }
+
+  const { data, error } = await supabaseAdmin
     .from("platforms")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -710,6 +777,15 @@ export async function updatePlatform(
 
   if (error) {
     console.error("[contentMetadata] 플랫폼 수정 실패", error);
+    
+    // 중복 키 에러 처리
+    if (error.code === "23505") {
+      if (error.message.includes("platforms_name_key") && updates.name) {
+        throw new Error(`이미 존재하는 플랫폼명입니다: "${updates.name}"`);
+      }
+      throw new Error("이미 존재하는 데이터입니다.");
+    }
+    
     throw new Error(`플랫폼 수정 실패: ${error.message}`);
   }
 
@@ -717,8 +793,21 @@ export async function updatePlatform(
 }
 
 export async function deletePlatform(id: string): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("platforms").delete().eq("id", id);
+  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from("platforms").delete().eq("id", id);
+
+    if (error) {
+      console.error("[contentMetadata] 플랫폼 삭제 실패", error);
+      throw new Error(`플랫폼 삭제 실패: ${error.message}`);
+    }
+    return;
+  }
+
+  const { error } = await supabaseAdmin.from("platforms").delete().eq("id", id);
 
   if (error) {
     console.error("[contentMetadata] 플랫폼 삭제 실패", error);
@@ -731,7 +820,10 @@ export async function deletePlatform(id: string): Promise<void> {
 // ============================================
 
 export async function getPublishers(): Promise<Publisher[]> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  
   const { data, error } = await supabase
     .from("publishers")
     .select("*")
