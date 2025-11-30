@@ -61,13 +61,30 @@ export async function getInternalScoresByTerm(
   })) {
     // 에러 상세 정보 추가 로깅
     if (error) {
-      console.error("[data/scoreDetails] 내신 성적 조회 상세 정보", {
-        error: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      const errorDetails: Record<string, unknown> = {
         studentId,
         tenantId,
         grade,
         semester,
-      });
+      };
+      
+      // 에러 정보 안전하게 추출
+      if (error.message) errorDetails.errorMessage = error.message;
+      if (error.code) errorDetails.errorCode = error.code;
+      if ("details" in error && error.details) errorDetails.errorDetails = error.details;
+      if ("hint" in error && error.hint) errorDetails.errorHint = error.hint;
+      if ("statusCode" in error) {
+        errorDetails.errorStatusCode = (error as { statusCode?: unknown }).statusCode;
+      }
+      
+      // JSON 직렬화 시도
+      try {
+        errorDetails.errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch (e) {
+        errorDetails.errorString = String(error);
+      }
+      
+      console.error("[data/scoreDetails] 내신 성적 조회 상세 정보", errorDetails);
     }
     return [];
   }
@@ -128,14 +145,31 @@ export async function getMockScoresByPeriod(
   })) {
     // 에러 상세 정보 추가 로깅
     if (error) {
-      console.error("[data/scoreDetails] 모의고사 성적 조회 상세 정보", {
-        error: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      const errorDetails: Record<string, unknown> = {
         studentId,
         tenantId,
         startDate,
         endDate,
         grade,
-      });
+      };
+      
+      // 에러 정보 안전하게 추출
+      if (error.message) errorDetails.errorMessage = error.message;
+      if (error.code) errorDetails.errorCode = error.code;
+      if ("details" in error && error.details) errorDetails.errorDetails = error.details;
+      if ("hint" in error && error.hint) errorDetails.errorHint = error.hint;
+      if ("statusCode" in error) {
+        errorDetails.errorStatusCode = (error as { statusCode?: unknown }).statusCode;
+      }
+      
+      // JSON 직렬화 시도
+      try {
+        errorDetails.errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch (e) {
+        errorDetails.errorString = String(error);
+      }
+      
+      console.error("[data/scoreDetails] 모의고사 성적 조회 상세 정보", errorDetails);
     }
     return [];
   }

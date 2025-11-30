@@ -62,20 +62,56 @@ export function handleQueryError(
 
   // 에러 로깅
   if (logError) {
-    const errorInfo: Record<string, unknown> = {
-      message: error.message || String(error),
-      code: error.code || "UNKNOWN",
-    };
-
-    // 에러 객체의 다른 속성들도 추출
-    if ("details" in error) {
-      errorInfo.details = (error as { details?: unknown }).details;
+    // 에러 객체를 안전하게 직렬화
+    const errorInfo: Record<string, unknown> = {};
+    
+    // 기본 속성 추출
+    if (error.message) {
+      errorInfo.message = error.message;
     }
-    if ("hint" in error) {
-      errorInfo.hint = (error as { hint?: unknown }).hint;
+    if (error.code) {
+      errorInfo.code = error.code;
     }
-    if ("statusCode" in error) {
+    
+    // 에러 객체의 모든 열거 가능한 속성 추출
+    try {
+      Object.keys(error).forEach((key) => {
+        const value = (error as Record<string, unknown>)[key];
+        // 순환 참조 방지 및 직렬화 가능한 값만 포함
+        if (value !== null && typeof value !== "function" && typeof value !== "object") {
+          errorInfo[key] = value;
+        } else if (typeof value === "object" && value !== null) {
+          try {
+            // 객체인 경우 JSON 직렬화 시도
+            JSON.stringify(value);
+            errorInfo[key] = value;
+          } catch {
+            // 직렬화 불가능한 경우 문자열로 변환
+            errorInfo[key] = String(value);
+          }
+        }
+      });
+    } catch (e) {
+      // 속성 추출 실패 시 최소한의 정보라도 로깅
+      errorInfo.errorString = String(error);
+    }
+    
+    // PostgrestError의 표준 속성들 명시적으로 확인
+    if ("details" in error && error.details) {
+      errorInfo.details = error.details;
+    }
+    if ("hint" in error && error.hint) {
+      errorInfo.hint = error.hint;
+    }
+    if ("statusCode" in error && (error as { statusCode?: unknown }).statusCode) {
       errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+    }
+
+    // 최소한의 정보가 있는지 확인
+    if (Object.keys(errorInfo).length === 0) {
+      errorInfo.errorString = String(error);
+      errorInfo.errorType = typeof error;
+      errorInfo.errorConstructor = error?.constructor?.name || "Unknown";
     }
 
     console.error(`${context} 쿼리 에러:`, errorInfo);
