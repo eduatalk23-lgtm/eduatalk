@@ -10,10 +10,11 @@ import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanGroupCard } from "../_shared/PlanCard";
-import { StatusBadge } from "../_shared/StatusBadge";
+import { StatusBadge, statusLabels } from "../_shared/StatusBadge";
 import { ProgressIndicator } from "../_shared/ProgressIndicator";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
+import { Badge } from "@/components/atoms/Badge";
 
 type PlanGroupListItemProps = {
   group: PlanGroup;
@@ -133,6 +134,20 @@ export function PlanGroupListItem({
     group.status === "paused" || 
     group.status === "completed" ||
     group.status === "cancelled";
+
+  // 표시할 상태 정보 생성
+  const getDisplayStatus = () => {
+    if (!shouldShowStatus) {
+      return null;
+    }
+
+    const status = group.status as PlanStatus;
+    const label = statusLabels[status] || status;
+    
+    return { label };
+  };
+
+  const displayStatus = getDisplayStatus();
 
   return (
     <li className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 ${
