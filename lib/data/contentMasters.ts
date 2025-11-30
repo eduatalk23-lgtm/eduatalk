@@ -153,18 +153,37 @@ export async function getMasterBooksList(): Promise<Array<{ id: string; title: s
 
 /**
  * 교재 상세 조회 (세부 정보 포함)
+ * subject_id, curriculum_revision_id, publisher_id로부터 관련 정보를 JOIN으로 조회
  */
 export async function getMasterBookById(
   bookId: string
-): Promise<{ book: MasterBook | null; details: BookDetail[] }> {
+): Promise<{ book: MasterBook & { subject_category?: string | null; subject?: string | null; publisher?: string | null; revision?: string | null }; details: BookDetail[] }> {
   const supabase = await createSupabaseServerClient();
 
   const [bookResult, detailsResult] = await Promise.all([
     supabase
       .from("master_books")
-      .select("*")
+      .select(`
+        *,
+        curriculum_revisions:curriculum_revision_id (
+          id,
+          name
+        ),
+        subjects:subject_id (
+          id,
+          name,
+          subject_groups:subject_group_id (
+            id,
+            name
+          )
+        ),
+        publishers:publisher_id (
+          id,
+          name
+        )
+      `)
       .eq("id", bookId)
-      .maybeSingle<MasterBook>(),
+      .maybeSingle(),
     supabase
       .from("book_details")
       .select("*")
@@ -183,8 +202,34 @@ export async function getMasterBookById(
     // 세부 정보는 선택사항이므로 에러를 무시
   }
 
+  const bookData = bookResult.data;
+  if (!bookData) {
+    return {
+      book: null as any,
+      details: (detailsResult.data as BookDetail[] | null) ?? [],
+    };
+  }
+
+  // JOIN된 데이터를 평탄화하여 표시용 필드 추가
+  const curriculumRevision = (bookData as any).curriculum_revisions;
+  const subject = (bookData as any).subjects;
+  const subjectGroup = subject?.subject_groups;
+  const publisher = (bookData as any).publishers;
+
+  const book = {
+    ...bookData,
+    // revision은 curriculum_revisions.name으로 설정 (없으면 기존 revision 유지)
+    revision: curriculumRevision?.name || bookData.revision || null,
+    // subject_category는 subject_groups.name으로 설정
+    subject_category: subjectGroup?.name || null,
+    // subject는 subjects.name으로 설정
+    subject: subject?.name || null,
+    // publisher는 publishers.name으로 설정 (없으면 publisher_name 유지)
+    publisher: publisher?.name || bookData.publisher_name || null,
+  } as MasterBook & { subject_category?: string | null; subject?: string | null; publisher?: string | null; revision?: string | null };
+
   return {
-    book: bookResult.data,
+    book,
     details: (detailsResult.data as BookDetail[] | null) ?? [],
   };
 }
