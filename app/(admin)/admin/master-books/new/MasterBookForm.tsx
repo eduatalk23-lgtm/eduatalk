@@ -68,6 +68,12 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    // disabled 상태의 select는 FormData에 포함되지 않으므로 수동으로 추가
+    const subjectSelect = e.currentTarget.querySelector<HTMLSelectElement>('select[name="subject_id"]');
+    if (subjectSelect && subjectSelect.value) {
+      formData.set("subject_id", subjectSelect.value);
+    }
+
     startTransition(async () => {
       try {
         await addMasterBook(formData);

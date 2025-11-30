@@ -42,7 +42,9 @@ export async function addMasterBook(formData: FormData) {
   const tagsStr = formData.get("tags")?.toString() || "";
   const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
   
-  const subjectId = formData.get("subject_id")?.toString() || null;
+  // subject_id 처리 (빈 문자열 체크)
+  const subjectIdRaw = formData.get("subject_id")?.toString();
+  const subjectId = subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
   
   const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
     tenant_id: student?.tenant_id || null,
@@ -141,7 +143,9 @@ export async function updateMasterBookAction(
   const tagsStr = formData.get("tags")?.toString() || "";
   const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
 
-  const subjectId = formData.get("subject_id")?.toString() || null;
+  // subject_id 처리 (빈 문자열 체크)
+  const subjectIdRaw = formData.get("subject_id")?.toString();
+  const subjectId = subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
   
   const updateData: Partial<
     Omit<MasterBook, "id" | "created_at" | "updated_at">
