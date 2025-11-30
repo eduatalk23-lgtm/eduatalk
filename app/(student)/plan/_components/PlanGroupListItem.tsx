@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Eye, Power, PowerOff, CheckSquare, Square } from "lucide-react";
+import { Trash2, Power, PowerOff, CheckSquare, Square } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
@@ -15,6 +15,7 @@ import { ProgressIndicator } from "../_shared/ProgressIndicator";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
 import { Badge } from "@/components/atoms/Badge";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type PlanGroupListItemProps = {
   group: PlanGroup;
@@ -163,7 +164,10 @@ export function PlanGroupListItem({
             {onToggleSelect && !isCampPlan && (
               <button
                 type="button"
-                onClick={onToggleSelect}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect();
+                }}
                 className="inline-flex items-center justify-center rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
                 title={isSelected ? "선택 해제" : "선택"}
                 aria-label={isSelected ? "선택 해제" : "선택"}
@@ -216,15 +220,7 @@ export function PlanGroupListItem({
           </div>
 
         {/* 우측: 아이콘 버튼들 */}
-        <div className="flex shrink-0 items-center gap-1">
-          <Link
-            href={`/plan/group/${group.id}`}
-            className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-            aria-label="플랜 그룹 상세 보기"
-            title="상세 보기"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
+        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {canToggle && (
             <button
               type="button"
@@ -269,88 +265,94 @@ export function PlanGroupListItem({
         </div>
         </div>
 
-        {/* 제목 */}
-        <h3 className="break-words text-base font-semibold text-gray-900">
-          {group.name || "플랜 그룹"}
-        </h3>
+        {/* 클릭 가능한 콘텐츠 영역 */}
+        <Link 
+          href={`/plan/group/${group.id}`}
+          className="flex flex-col gap-3 -m-3 p-3 rounded-lg transition hover:bg-gray-50"
+        >
+          {/* 제목 */}
+          <h3 className="break-words text-base font-semibold text-gray-900">
+            {group.name || "플랜 그룹"}
+          </h3>
 
-        <div className="flex flex-col gap-3">
-          {/* 진행률 */}
-          {hasPlans && planCount > 0 && totalCount > 0 && (
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-gray-600">진행률</span>
-                  <span className="text-xs font-semibold text-gray-900">
-                    {completedCount}/{totalCount}개 완료
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <ProgressBar
-                      value={Math.round((completedCount / totalCount) * 100)}
-                      height="sm"
-                      color={
-                        completedCount === totalCount
-                          ? "green"
-                          : completedCount > 0
-                          ? "blue"
-                          : "orange"
-                      }
-                    />
+          <div className="flex flex-col gap-3">
+            {/* 진행률 */}
+            {hasPlans && planCount > 0 && totalCount > 0 && (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-gray-600">진행률</span>
+                    <span className="text-xs font-semibold text-gray-900">
+                      {completedCount}/{totalCount}개 완료
+                    </span>
                   </div>
-                  <span className="text-xs font-medium text-gray-600">
-                    {Math.round((completedCount / totalCount) * 100)}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <ProgressBar
+                        value={Math.round((completedCount / totalCount) * 100)}
+                        height="sm"
+                        color={
+                          completedCount === totalCount
+                            ? "green"
+                            : completedCount > 0
+                            ? "blue"
+                            : "orange"
+                        }
+                      />
+                    </div>
+                    <span className="text-xs font-medium text-gray-600">
+                      {Math.round((completedCount / totalCount) * 100)}%
+                    </span>
+                  </div>
                 </div>
               </div>
+            )}
+
+            {/* 목적 */}
+            <div className="break-words text-sm text-gray-600">
+              <span className="text-gray-500">목적: </span>
+              <span className="font-medium text-gray-900">
+                {group.plan_purpose
+                  ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
+                  : "—"}
+              </span>
             </div>
-          )}
 
-        {/* 목적 */}
-        <div className="break-words text-sm text-gray-600">
-          <span className="text-gray-500">목적: </span>
-          <span className="font-medium text-gray-900">
-            {group.plan_purpose
-              ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
-              : "—"}
-          </span>
-        </div>
+            {/* 스케줄러 */}
+            <div className="break-words text-sm text-gray-600">
+              <span className="text-gray-500">스케줄러: </span>
+              <span className="font-medium text-gray-900">
+                {group.scheduler_type
+                  ? schedulerTypeLabels[group.scheduler_type] || group.scheduler_type
+                  : "—"}
+              </span>
+            </div>
 
-        {/* 스케줄러 */}
-        <div className="break-words text-sm text-gray-600">
-          <span className="text-gray-500">스케줄러: </span>
-          <span className="font-medium text-gray-900">
-            {group.scheduler_type
-              ? schedulerTypeLabels[group.scheduler_type] || group.scheduler_type
-              : "—"}
-          </span>
-        </div>
+            {/* 기간 */}
+            <div className="break-words text-sm text-gray-600">
+              <span className="text-gray-500">기간: </span>
+              <span className="font-medium text-gray-900">
+                {group.period_start && group.period_end
+                  ? `${new Date(group.period_start).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })} ~ ${new Date(group.period_end).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}`
+                  : "—"}
+              </span>
+            </div>
 
-        {/* 기간 */}
-        <div className="break-words text-sm text-gray-600">
-          <span className="text-gray-500">기간: </span>
-          <span className="font-medium text-gray-900">
-            {group.period_start && group.period_end
-              ? `${new Date(group.period_start).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })} ~ ${new Date(group.period_end).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}`
-              : "—"}
-          </span>
-        </div>
-
-          {/* 하단 메타 정보 */}
-          <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-          <p className="text-xs text-gray-500">
-            {group.created_at
-              ? new Date(group.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
-              : "—"}
-          </p>
-          {hasPlans && planCount > 0 && totalCount === 0 && (
-            <span className="text-xs text-gray-500">
-              {planCount}개 플랜
-            </span>
-          )}
-        </div>
-      </div>
+            {/* 하단 메타 정보 */}
+            <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+              <p className="text-xs text-gray-500">
+                {group.created_at
+                  ? new Date(group.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
+                  : "—"}
+              </p>
+              {hasPlans && planCount > 0 && totalCount === 0 && (
+                <span className="text-xs text-gray-500">
+                  {planCount}개 플랜
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
       </div>
 
       <PlanGroupDeleteDialog
