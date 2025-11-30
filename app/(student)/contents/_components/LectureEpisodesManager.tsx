@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { LectureEpisode } from "@/lib/types/plan";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 type LectureEpisodesManagerProps = {
   initialEpisodes?: LectureEpisode[];
@@ -19,7 +20,7 @@ export function LectureEpisodesManager({
       lecture_id: e.lecture_id,
       episode_number: e.episode_number,
       title: e.title || "",  // 변경: episode_title → title
-      duration: e.duration || 0,
+      duration: e.duration ? secondsToMinutes(e.duration) || 0 : 0,  // 초 → 분 변환
       display_order: e.display_order || 0,
       tempId: e.id,
     }))

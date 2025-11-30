@@ -63,7 +63,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                     {lecture.duration && (
                       <>
                         <span>·</span>
-                        <span>총 {lecture.duration}분</span>
+                        <span>총 {Math.round(lecture.duration / 60)}분</span>
                       </>
                     )}
                   </div>

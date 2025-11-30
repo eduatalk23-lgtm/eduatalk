@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterLectures } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import ExcelActions from "./_components/ExcelActions";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 export default async function MasterLecturesPage({
   searchParams,
@@ -271,7 +272,7 @@ export default async function MasterLecturesPage({
                           <dt className="font-medium text-gray-500">
                             총 강의시간
                           </dt>
-                          <dd>{lecture.total_duration}분</dd>
+                          <dd>{secondsToMinutes(lecture.total_duration)}분</dd>
                         </div>
                       )}
                       <div className="flex justify-between">

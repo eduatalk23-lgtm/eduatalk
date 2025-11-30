@@ -283,7 +283,7 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
           },
           {
             label: "총 길이",
-            value: lecture.duration ? `${lecture.duration}분` : null,
+            value: lecture.duration ? `${Math.round(lecture.duration / 60)}분` : null,
           },
           { label: "메모", value: lecture.notes },
         ]}

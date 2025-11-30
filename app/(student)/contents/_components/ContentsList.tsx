@@ -402,7 +402,7 @@ export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
       },
       {
         label: "재생 시간",
-        value: item.duration ? `${item.duration}분` : null,
+        value: item.duration ? `${Math.round(item.duration / 60)}분` : null,
       },
     ];
   }

@@ -8,6 +8,7 @@ import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeade
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
 import { LectureEpisodesDisplay } from "@/app/(student)/contents/_components/LectureEpisodesDisplay";
 import { CopyMasterLectureButton } from "./_components/CopyMasterLectureButton";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 export default async function StudentMasterLectureDetailPage({
   params,
@@ -55,7 +56,7 @@ export default async function StudentMasterLectureDetailPage({
             {
               label: "총 강의시간",
               value: lecture.total_duration
-                ? `${lecture.total_duration}분`
+                ? `${secondsToMinutes(lecture.total_duration)}분`
                 : null,
             },
             { label: "난이도", value: lecture.difficulty_level },

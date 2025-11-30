@@ -14,6 +14,7 @@ import {
   deleteAllLectureEpisodes,
 } from "@/lib/data/contentMasters";
 import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
+import { minutesToSeconds } from "@/lib/utils/duration";
 
 /**
  * 서비스 마스터 교재 생성
@@ -256,7 +257,7 @@ export async function addMasterLecture(formData: FormData) {
       platform_name: formData.get("platform")?.toString() || null,  // 변경: platform → platform_name
       total_episodes: parseInt(formData.get("total_episodes")?.toString() || "0"),
       total_duration: formData.get("total_duration")
-        ? parseInt(formData.get("total_duration")!.toString())
+        ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
         : null,
       difficulty_level: formData.get("difficulty_level")?.toString() || null,
       notes: formData.get("notes")?.toString() || null,
@@ -350,7 +351,7 @@ export async function addMasterLecture(formData: FormData) {
           lecture_id: lecture.id,
           episode_number: episode.episode_number,
           title: episode.title || null,  // 변경: episode_title → title
-          duration: episode.duration || null,
+          duration: episode.duration ? minutesToSeconds(episode.duration) : null,
           display_order: episode.display_order,
         });
       }
@@ -393,7 +394,7 @@ export async function updateMasterLectureAction(
       ? parseInt(formData.get("total_episodes")!.toString())
       : undefined,
     total_duration: formData.get("total_duration")
-      ? parseInt(formData.get("total_duration")!.toString())
+      ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
       : null,
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
     notes: formData.get("notes")?.toString() || null,
@@ -422,7 +423,7 @@ export async function updateMasterLectureAction(
           lecture_id: lectureId,
           episode_number: episode.episode_number,
           title: episode.title || null,  // 변경: episode_title → title
-          duration: episode.duration || null,
+          duration: episode.duration ? minutesToSeconds(episode.duration) : null,
           display_order: episode.display_order,
         });
       }

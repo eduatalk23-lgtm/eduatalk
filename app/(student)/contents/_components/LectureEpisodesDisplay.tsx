@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { LectureEpisode } from "@/lib/types/plan";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 type LectureEpisodesDisplayProps = {
   episodes: LectureEpisode[];
@@ -47,7 +48,7 @@ export function LectureEpisodesDisplay({ episodes }: LectureEpisodesDisplayProps
                   {episode.title || "—"}
                 </td>
                 <td className="px-4 py-2 text-gray-600">
-                  {episode.duration ? `${episode.duration}분` : "—"}
+                  {episode.duration ? `${secondsToMinutes(episode.duration)}분` : "—"}
                 </td>
               </tr>
             ))}

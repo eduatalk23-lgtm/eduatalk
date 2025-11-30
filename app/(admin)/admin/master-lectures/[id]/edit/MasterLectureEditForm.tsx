@@ -7,6 +7,7 @@ import { updateMasterLectureAction } from "@/app/(student)/actions/masterContent
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 export function MasterLectureEditForm({
   lecture,
@@ -155,7 +156,7 @@ export function MasterLectureEditForm({
             name="total_duration"
             type="number"
             min="0"
-            defaultValue={lecture.total_duration || ""}
+            defaultValue={lecture.total_duration ? secondsToMinutes(lecture.total_duration) || "" : ""}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>

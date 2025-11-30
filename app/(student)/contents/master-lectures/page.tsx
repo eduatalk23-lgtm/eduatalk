@@ -7,6 +7,7 @@ import { searchMasterLectures } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 // 필터 옵션 조회 함수 (캐싱 적용)
 async function getCachedFilterOptions() {
@@ -397,7 +398,7 @@ export default async function StudentMasterLecturesPage({
                           <dt className="font-medium text-gray-500">
                             총 강의시간
                           </dt>
-                          <dd>{lecture.total_duration}분</dd>
+                          <dd>{secondsToMinutes(lecture.total_duration)}분</dd>
                         </div>
                       )}
                       <div className="flex justify-between">
