@@ -42,7 +42,7 @@ export default function ExcelActions() {
     setIsExporting(true);
     try {
       const buffer = await downloadMasterBooksTemplate();
-      const blob = new Blob([buffer], {
+      const blob = new Blob([buffer as any], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);

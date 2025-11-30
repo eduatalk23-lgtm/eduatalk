@@ -55,11 +55,11 @@ export default async function MasterBooksPage({
   ]);
   
   const semesters = Array.from(
-    new Set((semestersRes.data || []).map((item) => item.semester).filter(Boolean))
+    new Set((semestersRes.data || []).map((item: any) => item.semester).filter(Boolean))
   ).sort();
   
   const revisions = Array.from(
-    new Set((revisionsRes.data || []).map((item) => item.revision).filter(Boolean))
+    new Set((revisionsRes.data || []).map((item: any) => item.revision).filter(Boolean))
   ).sort();
 
   return (

@@ -14,16 +14,49 @@ import type { WizardData } from "@/app/(student)/plan/new-group/_components/Plan
  * @param group - 플랜 그룹
  * @param exclusions - 제외일 목록
  * @param academySchedules - 학원 일정 목록
+ * @param contents - 콘텐츠 목록 (선택)
+ * @param templateBlocks - 템플릿 블록 목록 (선택)
+ * @param templateBlockSetName - 템플릿 블록세트 이름 (선택)
  * @returns WizardData 형식
  */
 export function planGroupToWizardData(
   group: PlanGroup,
   exclusions: PlanExclusion[] = [],
-  academySchedules: AcademySchedule[] = []
+  academySchedules: AcademySchedule[] = [],
+  contents?: Array<any>,
+  templateBlocks?: Array<{
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  }>,
+  templateBlockSetName?: string | null
 ): WizardData {
   // scheduler_options에서 time_settings 추출
   const schedulerOptions = (group.scheduler_options as any) || {};
   const timeSettings = schedulerOptions.time_settings;
+
+  // 콘텐츠 분리 (학생/추천)
+  let studentContents: any[] = [];
+  let recommendedContents: any[] = [];
+  
+  if (contents && contents.length > 0) {
+    const { studentContents: student, recommendedContents: recommended } = 
+      contentsToWizardFormat(
+        contents.map((c: any) => ({
+          id: c.id || c.content_id,
+          content_id: c.content_id,
+          content_type: c.content_type,
+          start_range: c.start_range,
+          end_range: c.end_range,
+          contentTitle: c.contentTitle || c.title || "알 수 없음",
+          contentSubtitle: c.contentSubtitle || c.subject_category || null,
+          isRecommended: c.isRecommended || c.is_recommended || false,
+        }))
+      );
+    studentContents = student;
+    recommendedContents = recommended;
+  }
 
   return {
     // Step 1: 기본 정보
@@ -38,6 +71,7 @@ export function planGroupToWizardData(
     period_end: group.period_end,
     target_date: group.target_date || undefined,
     block_set_id: group.block_set_id,
+    block_set_name: templateBlockSetName || undefined,
 
     // Step 2: 제외일 및 학원 일정
     exclusions: exclusions.map((e) => ({
@@ -56,10 +90,11 @@ export function planGroupToWizardData(
     })),
     time_settings: timeSettings,
     non_study_time_blocks: [],
+    blocks: templateBlocks || [],
 
-    // Step 3: 콘텐츠 (빈 배열로 초기화, 별도 조회 필요)
-    student_contents: [],
-    recommended_contents: [],
+    // Step 3: 콘텐츠
+    student_contents: studentContents,
+    recommended_contents: recommendedContents,
 
     // Step 4+: 기타 (선택)
     subject_allocations: [],

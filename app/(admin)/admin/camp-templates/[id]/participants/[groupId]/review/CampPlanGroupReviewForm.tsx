@@ -8,10 +8,10 @@ import {
 } from "@/app/(admin)/actions/campTemplateActions";
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-// TODO Phase 5: DetailView를 Step 컴포넌트로 교체 필요
-// import { Step1DetailView } from "@/app/(student)/plan/group/[id]/_components/Step1DetailView";
-// import { Step2DetailView } from "@/app/(student)/plan/group/[id]/_components/Step2DetailView";
-// import { Step3DetailView } from "@/app/(student)/plan/group/[id]/_components/Step3DetailView";
+import { Step1BasicInfo } from "@/app/(student)/plan/new-group/_components/Step1BasicInfo";
+import { Step2TimeSettingsWithPreview } from "@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview";
+import { Step3ContentSelection } from "@/app/(student)/plan/new-group/_components/Step3ContentSelection";
+import { planGroupToWizardData } from "@/lib/utils/planGroupAdapters";
 import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
 
 type CampPlanGroupReviewFormProps = {
@@ -201,6 +201,24 @@ export function CampPlanGroupReviewForm({
     });
   }, [studentContents, contentInfos]);
 
+  // WizardData 생성 (Step 컴포넌트에서 사용)
+  const wizardData = useMemo(() => {
+    return planGroupToWizardData(
+      group,
+      exclusions,
+      academySchedules,
+      studentContentsWithDetails,
+      templateBlocks,
+      templateBlockSetName
+    );
+  }, [
+    group,
+    exclusions,
+    academySchedules,
+    studentContentsWithDetails,
+    templateBlocks,
+    templateBlockSetName,
+  ]);
 
   if (loading) {
     return (
@@ -353,15 +371,27 @@ export function CampPlanGroupReviewForm({
 
         {currentTab === "step1" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            {/* TODO Phase 5: Step1BasicInfo로 교체 */}
-            <div className="text-gray-500">기본 정보 표시 (Phase 5 TODO)</div>
+            <Step1BasicInfo
+              data={wizardData}
+              onUpdate={() => {}} // readonly 모드에서는 업데이트 불필요
+              blockSets={[]} // 검토 모드에서는 블록세트 선택 불필요
+              editable={false}
+              isCampMode={true}
+              isTemplateMode={false}
+            />
           </div>
         )}
 
         {currentTab === "step2" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            {/* TODO Phase 5: Step2TimeSettingsWithPreview로 교체 */}
-            <div className="text-gray-500">시간 설정 표시 (Phase 5 TODO)</div>
+            <Step2TimeSettingsWithPreview
+              data={wizardData}
+              onUpdate={() => {}} // readonly 모드에서는 업데이트 불필요
+              periodStart={group.period_start}
+              periodEnd={group.period_end}
+              campMode={true}
+              isTemplateMode={false}
+            />
           </div>
         )}
 
@@ -385,8 +415,14 @@ export function CampPlanGroupReviewForm({
 
         {currentTab === "step4" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            {/* TODO Phase 5: Step3ContentSelection으로 교체 */}
-            <div className="text-gray-500">콘텐츠 표시 (Phase 5 TODO)</div>
+            <Step3ContentSelection
+              data={wizardData}
+              onUpdate={() => {}} // readonly 모드에서는 업데이트 불필요
+              contents={{ books: [], lectures: [], custom: [] }} // 검토 모드에서는 선택 가능한 콘텐츠 목록 불필요
+              editable={false}
+              isCampMode={true}
+              studentId={group.student_id}
+            />
           </div>
         )}
 
