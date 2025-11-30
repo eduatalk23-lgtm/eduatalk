@@ -46,15 +46,23 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
         return { userId: null, role: null, tenantId: null };
       }
 
-      // 세션이 없는 것은 정상적인 상황일 수 있음 (로그인 페이지 등)
-      // "Auth session missing" 에러는 조용히 처리
+      // 세션이 없거나 refresh token이 만료/손상된 것은 정상적인 상황일 수 있음 (로그인 페이지 등)
+      // "Auth session missing", "Refresh Token" 관련 에러는 조용히 처리
+      const errorMessage = authError.message?.toLowerCase() || "";
+      const errorName = authError.name?.toLowerCase() || "";
       const isSessionMissing = 
-        authError.message?.includes("session") ||
-        authError.message?.includes("Session") ||
-        authError.name === "AuthSessionMissingError";
+        errorMessage.includes("session") ||
+        errorMessage.includes("refresh token") ||
+        errorMessage.includes("refresh_token") ||
+        errorName === "authsessionmissingerror" ||
+        errorName === "authapierror" && (
+          errorMessage.includes("refresh token not found") ||
+          errorMessage.includes("invalid refresh token") ||
+          errorMessage.includes("refresh token expired")
+        );
       
       if (!isSessionMissing) {
-        // 세션 관련이 아닌 다른 에러만 로깅
+        // 세션/토큰 관련이 아닌 다른 에러만 로깅
         const errorDetails = {
           message: authError.message,
           status: authError.status,

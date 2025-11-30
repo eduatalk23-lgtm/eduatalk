@@ -20,6 +20,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     // Rate limit 에러 처리 및 재시도 (인증 요청이므로 더 긴 대기 시간)
     const {
       data: { user },
+      error: authError,
     } = await retryWithBackoff(
       async () => {
         const result = await supabase.auth.getUser();
@@ -32,6 +33,25 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       2000,
       true // 인증 요청 플래그
     );
+
+    // refresh token 에러는 조용히 처리 (세션이 없는 것으로 간주)
+    if (authError) {
+      const errorMessage = authError.message?.toLowerCase() || "";
+      const isRefreshTokenError = 
+        errorMessage.includes("refresh token") ||
+        errorMessage.includes("refresh_token") ||
+        errorMessage.includes("session");
+      
+      // refresh token 에러가 아닌 경우에만 로깅
+      if (!isRefreshTokenError) {
+        console.error("[auth] getCurrentUser: getUser 실패", {
+          message: authError.message,
+          status: authError.status,
+          code: authError.code,
+        });
+      }
+      return null;
+    }
 
     if (!user) {
       return null;
@@ -56,7 +76,16 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       email: user.email ?? null,
     };
   } catch (error) {
-    console.error("[auth] getCurrentUser 실패", error);
+    // refresh token 에러는 조용히 처리
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isRefreshTokenError = 
+      errorMessage.toLowerCase().includes("refresh token") ||
+      errorMessage.toLowerCase().includes("refresh_token") ||
+      errorMessage.toLowerCase().includes("session");
+    
+    if (!isRefreshTokenError) {
+      console.error("[auth] getCurrentUser 실패", error);
+    }
     return null;
   }
 }
