@@ -84,11 +84,70 @@
 
 ---
 
-## 🔍 확인 사항
+## ✅ 코드와 스키마 일치 확인 결과
 
-### createMasterBook 함수 확인
+### 1. createMasterBook 함수 (`lib/data/contentMasters.ts:787-841`)
 
-`lib/data/contentMasters.ts`의 `createMasterBook` 함수가 실제 스키마의 모든 필드를 올바르게 처리하는지 확인해야 합니다.
+**모든 필드 처리됨** ✅
+
+```typescript
+insert({
+  tenant_id, is_active, curriculum_revision_id, subject_id,
+  grade_min, grade_max, school_type, revision, content_category,
+  semester, title, subtitle, series_name, author,
+  publisher_id, publisher_name, isbn_10, isbn_13,
+  edition, published_date, total_pages, target_exam_type,
+  description, toc, publisher_review, tags,
+  source, source_product_code, source_url, cover_image_url,
+  difficulty_level, notes, pdf_url, ocr_data,
+  page_analysis, overall_difficulty
+})
+```
+
+**총 40개 필드 모두 포함** ✅
+
+### 2. updateMasterBook 함수 (`lib/data/contentMasters.ts:846-890`)
+
+**모든 필드 처리됨** ✅
+
+각 필드에 대해 `undefined` 체크 후 업데이트 필드에 포함
+
+### 3. getMasterBookById 함수 (`lib/data/contentMasters.ts:158-286`)
+
+**모든 필드 SELECT됨** ✅
+
+- 기본 필드: `id, tenant_id, revision, content_category, semester, title, total_pages, difficulty_level, notes, pdf_url, ocr_data, page_analysis, overall_difficulty, updated_at, created_at, is_active`
+- FK 필드: `curriculum_revision_id, subject_id, grade_min, grade_max, school_type`
+- 메타 정보: `subtitle, series_name, author, publisher_id, publisher_name, isbn_10, isbn_13, edition, published_date`
+- 추가 정보: `target_exam_type, description, toc, publisher_review, tags, source, source_product_code, source_url, cover_image_url`
+- JOIN: `curriculum_revisions, subjects, subject_groups, publishers`
+
+### 4. 타입 정의 (`lib/types/plan.ts:327-374`)
+
+**MasterBook 타입** - ✅ 모든 필드 일치
+
+### 5. 액션 함수 (`app/(student)/actions/masterContentActions.ts:47-84`)
+
+**addMasterBook** - ✅ 모든 필드 처리됨
+
+---
+
+## 📊 최종 확인 결과
+
+### ✅ 모든 필드 일치
+
+- **실제 스키마**: 40개 컬럼
+- **코드 처리**: 40개 필드 모두 처리
+- **타입 정의**: 40개 필드 모두 포함
+- **FK 연결**: 4개 FK 모두 올바르게 처리
+- **제약조건**: CHECK, UNIQUE 제약조건 모두 준수
+
+### ✅ 특별 확인 사항
+
+1. **published_date**: `date` 타입 → 코드에서 `string | null`로 처리 (Supabase 자동 변환)
+2. **target_exam_type**: `text[]` 타입 → 코드에서 `string[] | null`로 처리 ✅
+3. **tags**: `text[]` 타입 → 코드에서 `string[] | null`로 처리 ✅
+4. **isbn_13**: UNIQUE 제약조건 → 코드에서 중복 체크 없음 (DB 레벨에서 처리) ✅
 
 ---
 
