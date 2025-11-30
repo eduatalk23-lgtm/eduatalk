@@ -45,7 +45,7 @@ export function LectureEpisodesDisplay({ episodes }: LectureEpisodesDisplayProps
                   {episode.episode_number}회
                 </td>
                 <td className="px-4 py-2 text-gray-600">
-                  {episode.title || "—"}
+                  {episode.episode_title || "—"}
                 </td>
                 <td className="px-4 py-2 text-gray-600">
                   {episode.duration ? `${secondsToMinutes(episode.duration)}분` : "—"}

@@ -124,7 +124,7 @@ export interface LectureEpisode {
   lecture_id: string;  // FK to master_lectures
   
   episode_number: number;
-  title?: string | null;
+  episode_title?: string | null;
   duration?: number | null;
   display_order: number;
   
@@ -132,6 +132,7 @@ export interface LectureEpisode {
   difficulty_level?: string | null;
   difficulty_score?: number | null;
   tags?: string[] | null;
+  lecture_source_url?: string | null;
   
   created_at: string;
 }

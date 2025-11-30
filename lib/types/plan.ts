@@ -447,10 +447,14 @@ export type LectureEpisode = {
   id: string;
   lecture_id: string; // master_lectures.id 참조
   episode_number: number; // 회차 번호
-  title: string | null; // 회차 제목 (변경: episode_title → title)
-  duration: number | null; // 회차 시간 (분 단위)
+  episode_title: string | null; // 회차 제목
+  duration: number | null; // 회차 시간 (초 단위)
   display_order: number;
   created_at: string;
+  difficulty_level?: string | null;
+  difficulty_score?: number | null;
+  tags?: string[] | null;
+  lecture_source_url?: string | null;
 };
 
 /**

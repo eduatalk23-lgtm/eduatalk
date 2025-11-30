@@ -407,7 +407,7 @@ export async function getMasterLectureById(
       .maybeSingle<MasterLecture>(),
     supabase
       .from("lecture_episodes")
-      .select("*")
+      .select("id, lecture_id, episode_number, episode_title, duration, display_order, created_at, difficulty_level, difficulty_score, tags, lecture_source_url")
       .eq("lecture_id", lectureId)
       .order("display_order", { ascending: true })
       .order("episode_number", { ascending: true }),

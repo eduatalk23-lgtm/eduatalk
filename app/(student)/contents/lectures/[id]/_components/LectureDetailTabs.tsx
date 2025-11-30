@@ -17,7 +17,7 @@ type LectureDetailTabsProps = {
     id: string;
     lecture_id: string;
     episode_number: number;
-    title: string | null;  // 변경: episode_title → title
+    episode_title: string | null;
     duration: number | null;
     display_order: number;
     created_at: string;

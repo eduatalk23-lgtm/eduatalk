@@ -111,7 +111,7 @@ export default async function LectureDetailPage({
     id: string; 
     lecture_id: string; 
     episode_number: number; 
-    title: string | null;  // 변경: episode_title → title
+    episode_title: string | null;
     duration: number | null; 
     display_order: number;
     created_at: string;
@@ -120,7 +120,7 @@ export default async function LectureDetailPage({
   // 먼저 학생 강의 episode 조회
   const { data: studentEpisodes } = await supabase
     .from("student_lecture_episodes")
-    .select("id,episode_number,title,duration,display_order,created_at")  // 변경: episode_title → title, created_at 추가
+    .select("id,episode_number,episode_title,duration,display_order,created_at")
     .eq("lecture_id", id)
     .order("display_order", { ascending: true })
     .order("episode_number", { ascending: true });
@@ -128,12 +128,12 @@ export default async function LectureDetailPage({
   if (studentEpisodes && studentEpisodes.length > 0) {
     lectureEpisodes = studentEpisodes.map(e => ({
       id: e.id,
-      lecture_id: lecture.id,  // 추가: lecture_id 필수 필드
+      lecture_id: lecture.id,
       episode_number: e.episode_number,
-      title: e.title,  // 변경: episode_title → title
+      episode_title: e.episode_title,
       duration: e.duration,
       display_order: e.display_order,
-      created_at: e.created_at || "",  // 추가: created_at 필수 필드
+      created_at: e.created_at || "",
     }));
   } else if (lecture.master_lecture_id) {
     // 학생 강의 episode가 없으면 마스터 참조
@@ -141,12 +141,12 @@ export default async function LectureDetailPage({
       const { episodes } = await getMasterLectureById(lecture.master_lecture_id);
       lectureEpisodes = episodes.map(e => ({
         id: e.id,
-        lecture_id: lecture.id,  // 추가: lecture_id 필수 필드
+        lecture_id: lecture.id,
         episode_number: e.episode_number,
-        title: e.title,  // 변경: episode_title → title
+        episode_title: e.episode_title,
         duration: e.duration,
         display_order: e.display_order,
-        created_at: "",  // 추가: created_at 필수 필드
+        created_at: "",
       }));
     } catch (err) {
       console.error("마스터 강의 episode 정보 조회 실패:", err);
@@ -187,12 +187,12 @@ export default async function LectureDetailPage({
             studentBooks={studentBooks || []}
             initialEpisodes={lectureEpisodes.map((e) => ({
               id: e.id,
-              lecture_id: e.lecture_id,  // 변경: lecture.id → e.lecture_id (이미 포함됨)
+              lecture_id: e.lecture_id,
               episode_number: e.episode_number,
-              title: e.title,  // 변경: episode_title → title
+              episode_title: e.episode_title,
               duration: e.duration,
               display_order: e.display_order,
-              created_at: e.created_at,  // 변경: "" → e.created_at (이미 포함됨)
+              created_at: e.created_at,
             }))}
             isFromMaster={!!lecture.master_lecture_id}
             masterLecture={masterLecture}
