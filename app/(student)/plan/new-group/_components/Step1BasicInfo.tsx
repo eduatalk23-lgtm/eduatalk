@@ -2614,12 +2614,25 @@ export function Step1BasicInfo({
                       // 4주 기간 계산 (원본 기간의 첫 4주)
                       const periodStart = new Date(data.period_start);
                       const periodEnd = new Date(data.period_end);
+                      
+                      // 날짜 유효성 검사
+                      if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
+                        console.error("Invalid date values for additional period reallocation");
+                        return;
+                      }
+                      
                       const fourWeeksEnd = new Date(periodStart);
                       fourWeeksEnd.setDate(fourWeeksEnd.getDate() + 28); // 4주 = 28일
 
                       // 실제 종료일이 4주보다 짧으면 그 날짜 사용
                       const originalEnd =
                         fourWeeksEnd > periodEnd ? periodEnd : fourWeeksEnd;
+
+                      // originalEnd 유효성 검사
+                      if (isNaN(originalEnd.getTime())) {
+                        console.error("Invalid originalEnd date");
+                        return;
+                      }
 
                       onUpdate({
                         additional_period_reallocation: {
