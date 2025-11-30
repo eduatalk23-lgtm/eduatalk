@@ -6,9 +6,18 @@ import { updateLecture } from "@/app/(student)/actions/contentActions";
 import { Lecture } from "@/app/types/content";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
+import { formatGradeLevel } from "@/lib/utils/formatGradeLevel";
+import { secondsToMinutes } from "@/lib/utils/duration";
 
 type LectureInfoSectionProps = {
-  lecture: Lecture & { linked_book_id?: string | null };
+  lecture: Lecture & { 
+    linked_book_id?: string | null;
+    instructor?: string | null;
+    source_url?: string | null;
+    grade_min?: number | null;
+    grade_max?: number | null;
+    content_category?: string | null;
+  };
   deleteAction: () => void;
   linkedBook?: { id: string; title: string } | null;
   studentBooks?: Array<{ id: string; title: string }>;
@@ -276,7 +285,12 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
           { label: "교과", value: lecture.subject_category },
           { label: "과목", value: lecture.subject },
           { label: "플랫폼", value: lecture.platform },
-          { label: "난이도", value: lecture.difficulty_level },
+          { label: "강사", value: lecture.instructor },
+          {
+            label: "강의 대상 학년",
+            value: formatGradeLevel(lecture.grade_min, lecture.grade_max),
+          },
+          { label: "강의 유형", value: lecture.content_category },
           {
             label: "총 회차",
             value: (lecture as any).total_episodes ? `${(lecture as any).total_episodes}회` : null,
@@ -285,6 +299,7 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             label: "총 길이",
             value: lecture.duration ? `${Math.round(lecture.duration / 60)}분` : null,
           },
+          { label: "출처 URL", value: lecture.source_url, isUrl: true },
           { label: "메모", value: lecture.notes },
         ]}
       />

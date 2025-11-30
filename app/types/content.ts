@@ -25,6 +25,11 @@ export type Lecture = {
   difficulty_level: string | null;
   duration: number | null;
   notes: string | null;
+  instructor?: string | null;
+  source_url?: string | null;
+  grade_min?: number | null;
+  grade_max?: number | null;
+  content_category?: string | null;
   created_at?: string;
 };
 

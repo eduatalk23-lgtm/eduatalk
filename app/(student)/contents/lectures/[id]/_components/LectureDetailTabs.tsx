@@ -8,7 +8,15 @@ import { LectureLinkedBookSection } from "./LectureLinkedBookSection";
 import { Lecture } from "@/app/types/content";
 
 type LectureDetailTabsProps = {
-  lecture: Lecture & { linked_book_id?: string | null; total_episodes?: number | null };
+  lecture: Lecture & { 
+    linked_book_id?: string | null; 
+    total_episodes?: number | null;
+    instructor?: string | null;
+    source_url?: string | null;
+    grade_min?: number | null;
+    grade_max?: number | null;
+    content_category?: string | null;
+  };
   deleteAction: () => void;
   linkedBook: { id: string; title: string } | null;
   studentBooks: Array<{ id: string; title: string }>;

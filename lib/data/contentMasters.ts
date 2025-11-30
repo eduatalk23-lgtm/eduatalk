@@ -655,6 +655,11 @@ export async function copyMasterLectureToStudent(
       difficulty_level: lecture.difficulty_level,
       total_episodes: lecture.total_episodes,  // 추가: 총 회차
       notes: lecture.notes,
+      instructor: lecture.instructor,  // 추가: 강사
+      source_url: lecture.source_url,  // 추가: 출처 URL
+      grade_min: lecture.grade_min,  // 추가: 최소 학년
+      grade_max: lecture.grade_max,  // 추가: 최대 학년
+      content_category: lecture.content_category,  // 추가: 강의 유형
       master_lecture_id: lectureId,  // 변경: master_content_id → master_lecture_id
     })
     .select("id")

@@ -25,7 +25,7 @@ export default async function LectureDetailPage({
     supabase
       .from("lectures")
       .select(
-        "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,notes,master_content_id,linked_book_id,created_at"
+        "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,notes,master_content_id,linked_book_id,created_at,instructor,source_url,grade_min,grade_max,content_category"
       )
       .eq("id", id);
 
@@ -43,6 +43,32 @@ export default async function LectureDetailPage({
   }
 
   if (!lecture) notFound();
+
+  // 마스터 강의 정보 조회 (필드가 없을 경우 마스터에서 가져오기)
+  let masterLectureData: {
+    instructor?: string | null;
+    source_url?: string | null;
+    grade_min?: number | null;
+    grade_max?: number | null;
+    content_category?: string | null;
+  } = {};
+  
+  if (lecture.master_content_id) {
+    try {
+      const { lecture: masterLecture } = await getMasterLectureById(lecture.master_content_id);
+      if (masterLecture) {
+        masterLectureData = {
+          instructor: masterLecture.instructor,
+          source_url: masterLecture.source_url,
+          grade_min: masterLecture.grade_min,
+          grade_max: masterLecture.grade_max,
+          content_category: masterLecture.content_category,
+        };
+      }
+    } catch (err) {
+      console.error("마스터 강의 정보 조회 실패:", err);
+    }
+  }
 
   // 연결된 교재 조회 (있는 경우)
   let linkedBook = null;
@@ -138,7 +164,14 @@ export default async function LectureDetailPage({
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <Suspense fallback={<div className="py-8 text-center text-gray-500">로딩 중...</div>}>
           <LectureDetailTabs
-            lecture={lecture}
+            lecture={{
+              ...lecture,
+              instructor: (lecture as any).instructor || masterLectureData.instructor,
+              source_url: (lecture as any).source_url || masterLectureData.source_url,
+              grade_min: (lecture as any).grade_min || masterLectureData.grade_min,
+              grade_max: (lecture as any).grade_max || masterLectureData.grade_max,
+              content_category: (lecture as any).content_category || masterLectureData.content_category,
+            }}
             deleteAction={deleteAction}
             linkedBook={linkedBook}
             studentBooks={studentBooks || []}
