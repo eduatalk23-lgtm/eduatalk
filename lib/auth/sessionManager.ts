@@ -40,7 +40,10 @@ function parseDeviceName(userAgent: string | null): string {
   // OS 감지
   if (userAgent.includes("Windows")) {
     os = "Windows";
-  } else if (userAgent.includes("Mac OS X") || userAgent.includes("Macintosh")) {
+  } else if (
+    userAgent.includes("Mac OS X") ||
+    userAgent.includes("Macintosh")
+  ) {
     os = "macOS";
   } else if (userAgent.includes("Linux") && !userAgent.includes("Android")) {
     os = "Linux";
@@ -61,7 +64,7 @@ function parseDeviceName(userAgent: string | null): string {
 async function getHeaderValue(name: string): Promise<string | null> {
   try {
     const headersList = await headers();
-    if (!headersList || typeof headersList.get !== 'function') {
+    if (!headersList || typeof headersList.get !== "function") {
       return null;
     }
     return headersList.get(name);
@@ -152,14 +155,14 @@ export async function getUserSessions(): Promise<UserSession[]> {
         data: { session: currentSession },
         error: sessionError,
       } = await supabase.auth.getSession();
-      
+
       if (sessionError) {
         // 세션이 없는 것은 정상적인 상황일 수 있음
-        const isSessionMissing = 
+        const isSessionMissing =
           sessionError.message?.includes("session") ||
           sessionError.message?.includes("Session") ||
           sessionError.name === "AuthSessionMissingError";
-        
+
         if (!isSessionMissing) {
           console.warn("[session] getSession 실패:", sessionError.message);
         }
@@ -292,7 +295,8 @@ export async function revokeSession(sessionId: string): Promise<{
     console.error("[session] 세션 삭제 예외:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "세션 삭제에 실패했습니다.",
+      error:
+        error instanceof Error ? error.message : "세션 삭제에 실패했습니다.",
     };
   }
 }
@@ -332,7 +336,8 @@ export async function revokeAllOtherSessions(): Promise<{
     console.error("[session] 세션 일괄 삭제 예외:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "세션 삭제에 실패했습니다.",
+      error:
+        error instanceof Error ? error.message : "세션 삭제에 실패했습니다.",
     };
   }
 }
@@ -360,4 +365,3 @@ export async function updateLastActive(): Promise<void> {
     console.error("[session] 활동 시간 업데이트 실패:", error);
   }
 }
-

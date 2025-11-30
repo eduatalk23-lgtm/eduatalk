@@ -11,7 +11,12 @@ export default async function ScoreAnalysisPage() {
   }
 
   const studentId = currentUser.userId;
-  const tenantId = currentUser.tenantId || "";
+  const tenantId = currentUser.tenantId;
+
+  // tenantId가 없으면 학생 설정 페이지로 리다이렉트
+  if (!tenantId) {
+    redirect("/student-setup");
+  }
 
   // 내신 성적 조회 (전체)
   const internalScores = await getInternalScoresByTerm(studentId, tenantId);

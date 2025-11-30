@@ -151,9 +151,9 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       };
     }
 
-    // 3. students 테이블에서 조회
+    // 3. students 테이블에서 조회 (tenant_id 포함)
     const selectStudent = () =>
-      supabase.from("students").select("id").eq("id", user.id).maybeSingle();
+      supabase.from("students").select("id,tenant_id").eq("id", user.id).maybeSingle();
 
     let { data: student, error: studentError } = await selectStudent();
 
@@ -177,7 +177,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       return {
         userId: user.id,
         role: "student",
-        tenantId: null,
+        tenantId: student.tenant_id ?? null,
       };
     }
 
