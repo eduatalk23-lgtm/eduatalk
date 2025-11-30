@@ -8,7 +8,7 @@ import {
   getPlanGroupById,
   createPlanContents,
   createPlanExclusions,
-  createStudentAcademySchedules,
+  createPlanAcademySchedules,
 } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -218,17 +218,16 @@ async function _updatePlanGroupDraft(
     }
   }
 
-  // 학원 일정 업데이트 (학생별 전역 관리)
-  // 플랜 그룹 수정 시, 기존 학원 일정을 모두 삭제하고 새로운 학원 일정으로 교체
-  // (학원 일정은 요일 기반이므로 플랜 그룹별로 구분할 수 없음)
+  // 학원 일정 업데이트 (플랜 그룹별 관리)
+  // Phase 2: 플랜 그룹별로 독립적으로 관리되며, 플랜 그룹 간 중복 허용
   if (data.academy_schedules !== undefined) {
     const supabase = await createSupabaseServerClient();
 
-    // 기존 학원 일정 모두 삭제
+    // 기존 학원 일정 삭제 (현재 플랜 그룹만)
     const deleteQuery = supabase
       .from("academy_schedules")
       .delete()
-      .eq("student_id", user.userId);
+      .eq("plan_group_id", groupId); // 플랜 그룹별 삭제
 
     if (tenantContext.tenantId) {
       deleteQuery.eq("tenant_id", tenantContext.tenantId);
@@ -241,10 +240,10 @@ async function _updatePlanGroupDraft(
       // 삭제 실패해도 계속 진행 (경고만)
     }
 
-    // 새로운 학원 일정 추가
+    // 새로운 학원 일정 추가 (현재 플랜 그룹에만)
     if (data.academy_schedules.length > 0) {
-      const schedulesResult = await createStudentAcademySchedules(
-        user.userId,
+      const schedulesResult = await createPlanAcademySchedules(
+        groupId,
         tenantContext.tenantId,
         data.academy_schedules.map((s) => ({
           day_of_week: s.day_of_week,

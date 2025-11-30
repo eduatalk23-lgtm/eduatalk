@@ -1040,28 +1040,61 @@ export async function createStudentExclusions(
 }
 
 /**
- * 플랜 그룹 학원 일정 조회 (학생별 전역 관리)
- * @deprecated getStudentAcademySchedules 사용 권장
+ * 플랜 그룹별 학원 일정 조회 (Phase 2: plan_group_id 기반)
  */
 export async function getAcademySchedules(
   groupId: string,
   tenantId?: string | null
 ): Promise<AcademySchedule[]> {
-  // 하위 호환성을 위해 student_id를 조회하여 사용
   const supabase = await createSupabaseServerClient();
   
-  // 플랜 그룹에서 student_id 조회
-  const { data: group } = await supabase
-    .from("plan_groups")
-    .select("student_id")
-    .eq("id", groupId)
-    .maybeSingle();
-  
-  if (!group?.student_id) {
+  // academies와 조인하여 travel_time 가져오기
+  const selectSchedules = () =>
+    supabase
+      .from("academy_schedules")
+      .select(
+        "id,tenant_id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
+      )
+      .eq("plan_group_id", groupId) // plan_group_id로 조회 (플랜 그룹별 관리)
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true });
+
+  let query = selectSchedules();
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  let { data, error } = await query;
+
+  // tenant_id 컬럼 없는 경우 재시도
+  if (error && error.code === "42703") {
+    console.warn("[getAcademySchedules] tenant_id 컬럼 없음, 재시도");
+    const retryQuery = supabase
+      .from("academy_schedules")
+      .select(
+        "id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
+      )
+      .eq("plan_group_id", groupId)
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true });
+
+    ({ data, error } = await retryQuery);
+  }
+
+  if (error) {
+    console.error("[getAcademySchedules] 학원 일정 조회 실패", error);
     return [];
   }
-  
-  return getStudentAcademySchedules(group.student_id, tenantId);
+
+  // travel_time 추출 및 반환
+  return (
+    data?.map((schedule) => ({
+      ...schedule,
+      travel_time: Array.isArray(schedule.academies)
+        ? schedule.academies[0]?.travel_time ?? 60
+        : (schedule.academies as { travel_time?: number })?.travel_time ?? 60,
+    })) || []
+  );
 }
 
 /**
@@ -1157,7 +1190,187 @@ export async function createAcademySchedules(
 }
 
 /**
+ * 플랜 그룹별 학원 일정 생성
+ * @param groupId 플랜 그룹 ID
+ * @param tenantId 테넌트 ID
+ * @param schedules 생성할 학원 일정 목록
+ * @param useAdminClient 관리자 모드일 때 true로 설정 (RLS 우회)
+ */
+export async function createPlanAcademySchedules(
+  groupId: string,
+  tenantId: string,
+  schedules: Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name?: string | null;
+    subject?: string | null;
+  }>,
+  useAdminClient: boolean = false
+): Promise<{ success: boolean; error?: string }> {
+  // 관리자 모드일 때 Admin 클라이언트 사용 (RLS 우회)
+  let supabase;
+  if (useAdminClient) {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      console.warn("[createPlanAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      supabase = await createSupabaseServerClient();
+    } else {
+      supabase = adminClient;
+    }
+  } else {
+    supabase = await createSupabaseServerClient();
+  }
+
+  if (schedules.length === 0) {
+    console.log("[createPlanAcademySchedules] 학원 일정이 없습니다.");
+    return { success: true };
+  }
+
+  // 플랜 그룹에서 student_id 조회
+  const { data: group } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+  
+  if (!group?.student_id) {
+    return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+  }
+
+  // 디버깅: 입력된 학원 일정 확인
+  console.log("[createPlanAcademySchedules] 입력된 학원 일정:", {
+    groupId,
+    studentId: group.student_id,
+    tenantId,
+    schedulesCount: schedules.length,
+    schedules: schedules,
+  });
+
+  // 중복 체크: 현재 플랜 그룹 내에서만 중복 확인 (플랜 그룹 간 중복 허용)
+  const existingSchedules = await getAcademySchedules(groupId, tenantId);
+  const existingKeys = new Set(
+    existingSchedules.map((s) => `${s.day_of_week}:${s.start_time}:${s.end_time}`)
+  );
+
+  // 디버깅: 기존 학원 일정 확인
+  console.log("[createPlanAcademySchedules] 기존 학원 일정 (현재 플랜 그룹):", {
+    existingSchedulesCount: existingSchedules.length,
+    existingKeys: Array.from(existingKeys),
+  });
+
+  const newSchedules = schedules.filter(
+    (s) => !existingKeys.has(`${s.day_of_week}:${s.start_time}:${s.end_time}`)
+  );
+
+  // 디버깅: 필터링된 새 학원 일정 확인
+  console.log("[createPlanAcademySchedules] 필터링된 새 학원 일정:", {
+    newSchedulesCount: newSchedules.length,
+    newSchedules: newSchedules,
+    skippedCount: schedules.length - newSchedules.length,
+  });
+
+  if (newSchedules.length === 0) {
+    console.log("[createPlanAcademySchedules] 모든 학원 일정이 이미 존재합니다.");
+    return { success: true }; // 모든 학원 일정이 이미 존재
+  }
+
+  // academy_name별로 academy를 찾거나 생성
+  const academyNameMap = new Map<string, string>(); // academy_name -> academy_id
+
+  for (const schedule of newSchedules) {
+    const academyName = schedule.academy_name || "학원";
+    
+    if (!academyNameMap.has(academyName)) {
+      // 기존 academy 찾기
+      const { data: existingAcademy } = await supabase
+        .from("academies")
+        .select("id")
+        .eq("student_id", group.student_id)
+        .eq("name", academyName)
+        .maybeSingle();
+
+      let academyId: string;
+      
+      if (existingAcademy) {
+        academyId = existingAcademy.id;
+      } else {
+        // 새 academy 생성
+        const { data: newAcademy, error: academyError } = await supabase
+          .from("academies")
+          .insert({
+            student_id: group.student_id,
+            tenant_id: tenantId,
+            name: academyName,
+            travel_time: 60, // 기본값
+          })
+          .select("id")
+          .single();
+
+        if (academyError || !newAcademy) {
+          console.error("[createPlanAcademySchedules] 학원 생성 실패", {
+            error: academyError,
+            studentId: group.student_id,
+            tenantId,
+            academyName,
+            useAdminClient,
+          });
+          return { success: false, error: academyError?.message || "학원 생성에 실패했습니다." };
+        }
+
+        academyId = newAcademy.id;
+      }
+
+      academyNameMap.set(academyName, academyId);
+    }
+  }
+
+  // academy_id와 plan_group_id를 포함한 payload 생성
+  const payload = newSchedules.map((schedule) => {
+    const academyName = schedule.academy_name || "학원";
+    const academyId = academyNameMap.get(academyName);
+    
+    if (!academyId) {
+      throw new Error(`학원 ID를 찾을 수 없습니다: ${academyName}`);
+    }
+
+    return {
+      tenant_id: tenantId,
+      student_id: group.student_id,
+      plan_group_id: groupId, // 플랜 그룹별 관리
+      academy_id: academyId,
+      day_of_week: schedule.day_of_week,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      academy_name: schedule.academy_name || null, // 하위 호환성
+      subject: schedule.subject || null,
+    };
+  });
+
+  let { error } = await supabase.from("academy_schedules").insert(payload);
+
+  if (error && error.code === "42703") {
+    const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
+    ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
+  }
+
+  if (error) {
+    console.error("[createPlanAcademySchedules] 학원 일정 생성 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  console.log("[createPlanAcademySchedules] 학원 일정 저장 완료:", {
+    savedCount: payload.length,
+    savedSchedules: payload,
+  });
+
+  return { success: true };
+}
+
+/**
  * 학생별 학원 일정 일괄 생성 (전역 관리)
+ * @deprecated Phase 2 이후 createPlanAcademySchedules 사용 권장
  * @param useAdminClient 관리자 모드일 때 true로 설정 (RLS 우회)
  */
 export async function createStudentAcademySchedules(
@@ -1279,6 +1492,8 @@ export async function createStudentAcademySchedules(
   }
 
   // academy_id를 포함한 payload 생성
+  // 주의: 이 함수는 deprecated되었으며, Phase 2 이후 plan_group_id가 필수입니다.
+  // 이 함수는 시간 관리 메뉴에서만 사용되며, 마이그레이션 전까지만 유효합니다.
   const payload = newSchedules.map((schedule) => {
     const academyName = schedule.academy_name || "학원";
     const academyId = academyNameMap.get(academyName);
@@ -1290,7 +1505,7 @@ export async function createStudentAcademySchedules(
     return {
       tenant_id: tenantId,
       student_id: studentId,
-      plan_group_id: null, // 학생별 전역 관리이므로 plan_group_id는 null
+      // plan_group_id는 마이그레이션 후 NOT NULL이므로 이 함수는 더 이상 사용 불가
       academy_id: academyId,
       day_of_week: schedule.day_of_week,
       start_time: schedule.start_time,

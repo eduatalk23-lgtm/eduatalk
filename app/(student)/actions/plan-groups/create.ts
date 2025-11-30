@@ -11,7 +11,7 @@ import {
   getPlanGroupWithDetails,
   createPlanContents,
   createPlanExclusions,
-  createStudentAcademySchedules,
+  createPlanAcademySchedules,
 } from "@/lib/data/planGroups";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
@@ -144,8 +144,8 @@ async function _createPlanGroup(
           reason: e.reason || null,
         }))
       ),
-      createStudentAcademySchedules(
-        user.userId,
+      createPlanAcademySchedules(
+        groupId,
         tenantContext.tenantId,
         data.academy_schedules.map((s) => ({
           day_of_week: s.day_of_week,
@@ -335,8 +335,8 @@ async function _savePlanGroupDraft(
   }
 
   if (data.academy_schedules && data.academy_schedules.length > 0) {
-    await createStudentAcademySchedules(
-      user.userId,
+    await createPlanAcademySchedules(
+      groupId,
       tenantContext.tenantId,
       data.academy_schedules.map((s) => ({
         day_of_week: s.day_of_week,
