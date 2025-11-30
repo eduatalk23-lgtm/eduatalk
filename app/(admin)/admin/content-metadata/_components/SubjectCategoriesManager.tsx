@@ -104,7 +104,7 @@ export function SubjectCategoriesManager() {
 
   function startEdit(item: SubjectCategory) {
     setEditingId(item.id);
-    setFormData({ name: item.name, display_order: item.display_order });
+    setFormData({ name: item.name, display_order: item.display_order ?? 0 });
     // revision_id는 SubjectCategory에 없으므로 현재 선택된 revision 사용
     // setSelectedRevisionId(item.revision_id);
     setIsCreating(false);

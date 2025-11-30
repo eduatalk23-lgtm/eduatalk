@@ -402,7 +402,7 @@ export function CurriculumHierarchyManager() {
 
   function startEditGroup(group: SubjectGroup) {
     setEditingGroupId(group.id);
-    setGroupFormData({ name: group.name, display_order: group.display_order });
+    setGroupFormData({ name: group.name, display_order: group.display_order ?? 0 });
     setIsCreatingGroup(false);
   }
 
@@ -410,7 +410,7 @@ export function CurriculumHierarchyManager() {
     setEditingSubjectId(subject.id);
     setSubjectFormData({
       name: subject.name,
-      display_order: subject.display_order,
+      display_order: subject.display_order ?? 0,
       subject_type_id: subject.subject_type_id || "",
     });
     setIsCreatingSubject(null);
@@ -420,7 +420,7 @@ export function CurriculumHierarchyManager() {
     setEditingTypeId(type.id);
     setTypeFormData({
       name: type.name,
-      display_order: type.display_order,
+      display_order: type.display_order ?? 0,
       is_active: type.is_active,
     });
     setIsCreatingType(false);

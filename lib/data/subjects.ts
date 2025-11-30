@@ -5,6 +5,7 @@ export type SubjectGroup = {
   id: string;
   curriculum_revision_id: string;
   name: string;
+  display_order?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -13,6 +14,7 @@ export type SubjectType = {
   id: string;
   curriculum_revision_id: string;
   name: string; // 과목구분명 (예: 공통, 일반선택, 진로선택)
+  display_order?: number;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -22,6 +24,7 @@ export type Subject = {
   id: string;
   subject_group_id: string;
   name: string;
+  display_order?: number;
   subject_type_id?: string | null; // 과목구분 ID (FK → subject_types)
   subject_type?: string | null; // 과목구분명 (JOIN 결과, 하위 호환성)
   created_at?: string;

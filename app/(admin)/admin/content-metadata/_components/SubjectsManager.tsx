@@ -127,7 +127,7 @@ export function SubjectsManager() {
 
   function startEdit(item: Subject) {
     setEditingId(item.id);
-    setFormData({ name: item.name, display_order: item.display_order });
+    setFormData({ name: item.name, display_order: item.display_order ?? 0 });
     if (item.subject_category_id) {
       setSelectedCategoryId(item.subject_category_id);
     }

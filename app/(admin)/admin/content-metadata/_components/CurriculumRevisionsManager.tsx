@@ -84,7 +84,7 @@ export function CurriculumRevisionsManager() {
 
   function startEdit(item: CurriculumRevision) {
     setEditingId(item.id);
-    setFormData({ name: item.name, display_order: item.display_order });
+    setFormData({ name: item.name, display_order: item.display_order ?? 0 });
     setIsCreating(false);
   }
 

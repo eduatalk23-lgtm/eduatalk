@@ -120,7 +120,7 @@ export function SubjectTypesManager() {
 
   function startEdit(item: SubjectType) {
     setEditingId(item.id);
-    setFormData({ name: item.name, display_order: item.display_order, is_active: item.is_active });
+    setFormData({ name: item.name, display_order: item.display_order ?? 0, is_active: item.is_active });
     setSelectedRevisionId(item.curriculum_revision_id);
     setIsCreating(false);
   }
