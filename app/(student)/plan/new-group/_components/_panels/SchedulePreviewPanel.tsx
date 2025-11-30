@@ -301,7 +301,9 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
             <span className="text-xs font-medium text-gray-500">제외일</span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
-            {result.summary.excluded_days}
+            {result.summary.total_exclusion_days.휴가 + 
+             result.summary.total_exclusion_days.개인사정 + 
+             result.summary.total_exclusion_days.지정휴일}
           </p>
           <p className="text-xs text-gray-500">일</p>
         </div>
@@ -312,7 +314,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
             <span className="text-xs font-medium text-gray-500">학습일</span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
-            {result.summary.study_days}
+            {result.summary.total_study_days}
           </p>
           <p className="text-xs text-gray-500">일</p>
         </div>
@@ -323,7 +325,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
             <span className="text-xs font-medium text-gray-500">총 학습 시간</span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
-            {formatNumber(Math.round(result.summary.total_available_minutes / 60))}
+            {formatNumber(Math.round(result.summary.total_study_hours))}
           </p>
           <p className="text-xs text-gray-500">시간</p>
         </div>
@@ -385,8 +387,8 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Clock className="h-3 w-3" />
                           <span>
-                            {day.available_minutes > 0
-                              ? `${Math.round(day.available_minutes / 60)}시간`
+                            {day.study_hours > 0
+                              ? `${Math.round(day.study_hours)}시간`
                               : "학습 없음"}
                           </span>
                         </div>
