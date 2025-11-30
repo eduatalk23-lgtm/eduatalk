@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getSubjectGroupsWithSubjects, getActiveCurriculumRevision } from "@/lib/data/subjects";
-import { getPublishers } from "@/lib/data/contentMetadata";
+import { getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
+import { getPublishers, getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterBookForm } from "./MasterBookForm";
 
 export default async function NewMasterBookPage() {
@@ -15,8 +15,8 @@ export default async function NewMasterBookPage() {
   }
 
   // 데이터 조회
-  const [curriculumRevision, subjectGroupsData, publishers] = await Promise.all([
-    getActiveCurriculumRevision(),
+  const [curriculumRevisions, subjectGroupsData, publishers] = await Promise.all([
+    getCurriculumRevisions().catch(() => []),
     getSubjectGroupsWithSubjects().catch(() => []),
     getPublishers().catch(() => []),
   ]);
@@ -38,6 +38,7 @@ export default async function NewMasterBookPage() {
         </div>
 
         <MasterBookForm 
+          curriculumRevisions={curriculumRevisions}
           subjectGroups={subjectGroupsData}
           publishers={publishers}
         />

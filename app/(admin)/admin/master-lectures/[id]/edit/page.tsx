@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterLectureById, getMasterBooksList } from "@/lib/data/contentMasters";
+import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterLectureEditForm } from "./MasterLectureEditForm";
 
 export default async function EditMasterLecturePage({
@@ -22,8 +23,11 @@ export default async function EditMasterLecturePage({
 
   if (!lecture) notFound();
 
-  // 마스터 교재 목록 조회 (드롭다운용)
-  const masterBooks = await getMasterBooksList();
+  // 데이터 조회
+  const [curriculumRevisions, masterBooks] = await Promise.all([
+    getCurriculumRevisions().catch(() => []),
+    getMasterBooksList(),
+  ]);
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -41,7 +45,12 @@ export default async function EditMasterLecturePage({
           </Link>
         </div>
 
-        <MasterLectureEditForm lecture={lecture} episodes={episodes} masterBooks={masterBooks} />
+        <MasterLectureEditForm 
+          lecture={lecture} 
+          episodes={episodes} 
+          masterBooks={masterBooks}
+          curriculumRevisions={curriculumRevisions}
+        />
       </div>
     </section>
   );

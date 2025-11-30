@@ -6,14 +6,15 @@ import Link from "next/link";
 import { addMasterBook } from "@/app/(student)/actions/masterContentActions";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
-import type { Publisher } from "@/lib/data/contentMetadata";
+import type { Publisher, CurriculumRevision } from "@/lib/data/contentMetadata";
 
 type MasterBookFormProps = {
+  curriculumRevisions: CurriculumRevision[];
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
   publishers: Publisher[];
 };
 
-export function MasterBookForm({ subjectGroups, publishers }: MasterBookFormProps) {
+export function MasterBookForm({ curriculumRevisions, subjectGroups, publishers }: MasterBookFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
@@ -69,11 +70,17 @@ export function MasterBookForm({ subjectGroups, publishers }: MasterBookFormProp
           <label className="mb-1 block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
-          <input
+          <select
             name="revision"
-            placeholder="예: 2015개정"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
+          >
+            <option value="">선택하세요</option>
+            {curriculumRevisions.map((revision) => (
+              <option key={revision.id} value={revision.name}>
+                {revision.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 학년/학기 */}

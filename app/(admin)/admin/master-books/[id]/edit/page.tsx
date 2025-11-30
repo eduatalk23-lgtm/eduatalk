@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterBookById } from "@/lib/data/contentMasters";
 import { getSubjectGroupsWithSubjects, getSubjectById } from "@/lib/data/subjects";
-import { getPublishers } from "@/lib/data/contentMetadata";
+import { getPublishers, getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterBookEditForm } from "./MasterBookEditForm";
 
 export default async function EditMasterBookPage({
@@ -25,7 +25,8 @@ export default async function EditMasterBookPage({
   if (!book) notFound();
 
   // 데이터 조회
-  const [subjectGroupsData, publishers, currentSubject] = await Promise.all([
+  const [curriculumRevisions, subjectGroupsData, publishers, currentSubject] = await Promise.all([
+    getCurriculumRevisions().catch(() => []),
     getSubjectGroupsWithSubjects().catch(() => []),
     getPublishers().catch(() => []),
     book.subject_id ? getSubjectById(book.subject_id).catch(() => null) : Promise.resolve(null),
@@ -50,6 +51,7 @@ export default async function EditMasterBookPage({
         <MasterBookEditForm 
           book={book} 
           details={details}
+          curriculumRevisions={curriculumRevisions}
           subjectGroups={subjectGroupsData}
           publishers={publishers}
           currentSubject={currentSubject}

@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 export function MasterLectureEditForm({
   lecture,
   episodes = [],
   masterBooks = [],
+  curriculumRevisions = [],
 }: {
   lecture: MasterLecture;
   episodes?: LectureEpisode[];
   masterBooks?: Array<{ id: string; title: string }>;
+  curriculumRevisions?: CurriculumRevision[];
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -59,11 +62,18 @@ export function MasterLectureEditForm({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
-          <input
+          <select
             name="revision"
             defaultValue={lecture.revision || ""}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
+          >
+            <option value="">선택하세요</option>
+            {curriculumRevisions.map((revision) => (
+              <option key={revision.id} value={revision.name}>
+                {revision.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 학년/학기 */}

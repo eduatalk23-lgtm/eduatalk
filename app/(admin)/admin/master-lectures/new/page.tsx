@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterLectureForm } from "./MasterLectureForm";
 
 export default async function NewMasterLecturePage() {
@@ -11,6 +12,9 @@ export default async function NewMasterLecturePage() {
   if (role !== "admin" && role !== "consultant") {
     redirect("/login");
   }
+
+  // 데이터 조회
+  const curriculumRevisions = await getCurriculumRevisions().catch(() => []);
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -28,7 +32,7 @@ export default async function NewMasterLecturePage() {
           </Link>
         </div>
 
-        <MasterLectureForm />
+        <MasterLectureForm curriculumRevisions={curriculumRevisions} />
       </div>
     </section>
   );
