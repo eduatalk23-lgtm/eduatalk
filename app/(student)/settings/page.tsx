@@ -122,11 +122,26 @@ export default function SettingsPage() {
     []
   );
 
-  // 변경사항 추적
+  // 변경사항 추적 (필드별 직접 비교로 최적화)
   const hasChanges = useMemo(() => {
     if (!initialFormDataRef.current) return false;
+    
+    const initial = initialFormDataRef.current;
+    const current = formData;
+    
     return (
-      JSON.stringify(formData) !== JSON.stringify(initialFormDataRef.current)
+      initial.name !== current.name ||
+      initial.school_id !== current.school_id ||
+      initial.grade !== current.grade ||
+      initial.birth_date !== current.birth_date ||
+      initial.gender !== current.gender ||
+      initial.phone !== current.phone ||
+      initial.mother_phone !== current.mother_phone ||
+      initial.father_phone !== current.father_phone ||
+      initial.exam_year !== current.exam_year ||
+      initial.curriculum_revision !== current.curriculum_revision ||
+      JSON.stringify(initial.desired_university_ids) !== JSON.stringify(current.desired_university_ids) ||
+      initial.desired_career_field !== current.desired_career_field
     );
   }, [formData]);
 
@@ -136,14 +151,24 @@ export default function SettingsPage() {
     [formData.grade, schoolType]
   );
 
-  // school_id로부터 학교 타입 조회
-  useEffect(() => {
-    async function fetchSchoolType() {
-      if (!formData.school_id) {
-        setSchoolType(undefined);
-        return;
-      }
+  // 이전 school_id를 추적하여 중복 조회 방지
+  const previousSchoolIdRef = useRef<string | undefined>(undefined);
 
+  // school_id로부터 학교 타입 조회 (debounce 적용)
+  useEffect(() => {
+    // school_id가 변경되지 않았으면 조회하지 않음
+    if (formData.school_id === previousSchoolIdRef.current) {
+      return;
+    }
+
+    previousSchoolIdRef.current = formData.school_id;
+
+    if (!formData.school_id) {
+      setSchoolType(undefined);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
       try {
         const school = await getSchoolById(formData.school_id);
         if (school && (school.type === "중학교" || school.type === "고등학교")) {
@@ -155,9 +180,9 @@ export default function SettingsPage() {
         console.error("학교 타입 조회 실패:", error);
         setSchoolType(undefined);
       }
-    }
+    }, 300);
 
-    fetchSchoolType();
+    return () => clearTimeout(timeoutId);
   }, [formData.school_id]);
 
   useEffect(() => {
@@ -216,7 +241,8 @@ export default function SettingsPage() {
     }
 
     loadStudent();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 학년이나 생년월일이 변경되면 자동 계산
   useEffect(() => {
@@ -236,12 +262,10 @@ export default function SettingsPage() {
           initialFormDataRef.current &&
           initialFormDataRef.current.exam_year !== calculatedYear.toString()
         ) {
-          initialFormDataRef.current = JSON.parse(
-            JSON.stringify({
-              ...initialFormDataRef.current,
-              exam_year: calculatedYear.toString(),
-            })
-          );
+          initialFormDataRef.current = {
+            ...initialFormDataRef.current,
+            exam_year: calculatedYear.toString(),
+          };
         }
         return;
       }
@@ -253,17 +277,15 @@ export default function SettingsPage() {
         };
         // 자동 계산된 값도 초기값으로 업데이트 (변경사항으로 간주하지 않음)
         if (initialFormDataRef.current) {
-          initialFormDataRef.current = JSON.parse(
-            JSON.stringify({
-              ...initialFormDataRef.current,
-              exam_year: calculatedYear.toString(),
-            })
-          );
+          initialFormDataRef.current = {
+            ...initialFormDataRef.current,
+            exam_year: calculatedYear.toString(),
+          };
         }
         return updated;
       });
     }
-  }, [formData.grade, formData.exam_year, schoolType, autoCalculateExamYear]);
+  }, [formData.grade, schoolType, autoCalculateExamYear]);
 
   useEffect(() => {
     if (isSavingRef.current) return; // 저장 중에는 자동 계산하지 않음
@@ -287,12 +309,10 @@ export default function SettingsPage() {
           initialFormDataRef.current &&
           initialFormDataRef.current.curriculum_revision !== calculated
         ) {
-          initialFormDataRef.current = JSON.parse(
-            JSON.stringify({
-              ...initialFormDataRef.current,
-              curriculum_revision: calculated,
-            })
-          );
+          initialFormDataRef.current = {
+            ...initialFormDataRef.current,
+            curriculum_revision: calculated,
+          };
         }
         return;
       }
@@ -304,12 +324,10 @@ export default function SettingsPage() {
         };
         // 자동 계산된 값도 초기값으로 업데이트 (변경사항으로 간주하지 않음)
         if (initialFormDataRef.current) {
-          initialFormDataRef.current = JSON.parse(
-            JSON.stringify({
-              ...initialFormDataRef.current,
-              curriculum_revision: calculated,
-            })
-          );
+          initialFormDataRef.current = {
+            ...initialFormDataRef.current,
+            curriculum_revision: calculated,
+          };
         }
         return updated;
       });
@@ -317,7 +335,6 @@ export default function SettingsPage() {
   }, [
     formData.grade,
     formData.birth_date,
-    formData.curriculum_revision,
     schoolType,
     autoCalculateCurriculum,
   ]);

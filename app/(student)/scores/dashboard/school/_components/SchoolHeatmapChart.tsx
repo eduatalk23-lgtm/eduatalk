@@ -101,7 +101,7 @@ export function SchoolHeatmapChart({
     );
   }
 
-  // 등급별 색상 매핑
+  // 등급별 색상 매핑 (차트 라이브러리용 hex 컬러)
   const getColorForGrade = (grade: number): string => {
     if (grade <= 1) return "#3b82f6"; // blue-500
     if (grade <= 2) return "#60a5fa"; // blue-400

@@ -446,7 +446,7 @@ export default async function PlanGroupDetailPage({
 
             {/* 플랜 그룹 이름 */}
             <div>
-              <h1 className="text-3xl font-semibold text-gray-900">
+              <h1 className="text-h1 text-gray-900">
                 {group.name || "플랜 그룹"}
               </h1>
             </div>

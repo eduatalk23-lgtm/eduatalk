@@ -58,7 +58,7 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
       <div className="mb-8">
         <div>
           <p className="text-sm font-medium text-gray-800">학습 플랜</p>
-          <h1 className="text-3xl font-semibold text-gray-900">
+          <h1 className="text-h1 text-gray-900">
             플랜 그룹 수정
           </h1>
           <p className="mt-2 text-sm text-gray-800">

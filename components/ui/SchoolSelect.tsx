@@ -87,28 +87,41 @@ export default function SchoolSelect({
     }
   }, [searchQuery, isSearchMode, disabled]);
 
+  // 이전 value를 추적하여 중복 조회 방지
+  const previousValueRef = useRef<string | undefined>(undefined);
+
   // value가 변경되면 학교 정보 조회
   useEffect(() => {
+    // value가 변경되지 않았으면 조회하지 않음
+    if (value === previousValueRef.current) {
+      return;
+    }
+
+    previousValueRef.current = value;
+
     if (value && value.trim()) {
-      // 이미 선택된 학교와 동일하면 조회하지 않음
-      if (selectedSchool && selectedSchool.name === value.trim()) {
+      // 이미 선택된 학교의 ID나 이름과 동일하면 조회하지 않음
+      if (
+        selectedSchool &&
+        (selectedSchool.id === value.trim() ||
+          selectedSchool.name === value.trim())
+      ) {
         return;
       }
-      
+
       // 통합 ID 형식인지 확인 (SCHOOL_123 또는 UNIV_456)
       const isUnifiedId = /^(SCHOOL_|UNIV_)\d+$/.test(value);
       if (isUnifiedId) {
         fetchSchoolById(value);
       } else {
         // 학교명으로 조회
-        if (!selectedSchool || selectedSchool.name !== value.trim()) {
-          fetchSchoolByName(value);
-        }
+        fetchSchoolByName(value);
       }
     } else if (!value) {
       setSelectedSchool(null);
     }
-  }, [value, selectedSchool]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   async function fetchSchoolById(schoolId: string) {
     try {
@@ -344,7 +357,7 @@ export default function SchoolSelect({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span className="ml-2 text-sm text-gray-500">검색 중...</span>
+                <span className="text-sm text-gray-500">검색 중...</span>
               </div>
             ) : schools.length > 0 ? (
               <ul className="py-1">
@@ -361,13 +374,13 @@ export default function SchoolSelect({
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">{school.name}</div>
                         {school.region && (
-                          <div className="mt-0.5 text-xs text-gray-500">
+                          <div className="text-xs text-gray-500">
                             {school.region}
                           </div>
                         )}
                       </div>
                       {school.type && (
-                        <span className="ml-2 whitespace-nowrap text-xs font-medium text-indigo-600">
+                        <span className="whitespace-nowrap text-xs font-medium text-indigo-600">
                           {school.type === "중학교"
                             ? "중등"
                             : school.type === "고등학교"

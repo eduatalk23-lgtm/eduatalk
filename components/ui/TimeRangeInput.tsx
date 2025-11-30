@@ -59,7 +59,7 @@ export function TimeRangeInput({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {description && (
-          <p className="mt-1 text-xs text-gray-800">{description}</p>
+          <p className="text-xs text-gray-800">{description}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">

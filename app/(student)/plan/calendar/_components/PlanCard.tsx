@@ -69,8 +69,7 @@ export function PlanCard({
         {/* 연결선 표시 (아래쪽에 연결선) */}
         {isConnected && !isLast && (
           <div 
-            className={`absolute left-0 right-0 bottom-0 ${isCompleted ? "bg-green-300" : isActive ? "bg-blue-300" : "bg-gray-200"}`} 
-            style={{ height: "3px", transform: "translateY(6px)", zIndex: 10 }} 
+            className={`absolute left-0 right-0 bottom-0 h-[3px] translate-y-[6px] z-10 ${isCompleted ? "bg-green-300" : isActive ? "bg-blue-300" : "bg-gray-200"}`} 
           />
         )}
         <div className="flex items-center gap-0.5 min-w-0">
@@ -84,12 +83,12 @@ export function PlanCard({
             </span>
           )}
           {isCompleted && (
-            <span className="shrink-0 rounded-full bg-green-500 px-1 py-0.5 text-[10px] font-semibold text-white ml-0.5">
+            <span className="shrink-0 rounded-full bg-green-500 px-1 py-0.5 text-[10px] font-semibold text-white">
               ✅
             </span>
           )}
           {isActive && !isCompleted && (
-            <span className="shrink-0 rounded-full bg-blue-500 px-1 py-0.5 text-[10px] font-semibold text-white ml-0.5">
+            <span className="shrink-0 rounded-full bg-blue-500 px-1 py-0.5 text-[10px] font-semibold text-white">
               ⏱️
             </span>
           )}

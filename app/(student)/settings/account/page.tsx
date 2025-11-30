@@ -62,11 +62,11 @@ export default function AccountSettingsPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6 text-3xl font-semibold">계정 관리</h1>
+        <h1 className="text-h1">계정 관리</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <section className="flex flex-col gap-4 rounded-lg border bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold">비밀번호 변경</h2>
+            <h2 className="text-h2">비밀번호 변경</h2>
 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">

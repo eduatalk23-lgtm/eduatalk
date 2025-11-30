@@ -79,13 +79,39 @@ export default function SchoolMultiSelect({
     }
   }, [searchQuery, isSearchMode, disabled]);
 
+  // 이전 value 배열을 추적하여 중복 조회 방지
+  const previousValueRef = useRef<string[]>([]);
+
   // value가 변경되면 학교 정보 조회
   useEffect(() => {
+    // 배열 내용이 실제로 변경되었는지 확인
+    const currentValueStr = JSON.stringify(value?.sort() || []);
+    const previousValueStr = JSON.stringify(previousValueRef.current.sort());
+
+    if (currentValueStr === previousValueStr) {
+      return;
+    }
+
+    previousValueRef.current = value || [];
+
     if (value && value.length > 0) {
-      fetchSchoolsByIds(value);
+      // 이미 선택된 학교들의 ID와 비교하여 불필요한 조회 방지
+      const currentIds = selectedSchools
+        .map((s) => s.id)
+        .filter((id): id is string => !!id)
+        .sort();
+      const newIds = [...value].sort();
+
+      const currentIdsStr = JSON.stringify(currentIds);
+      const newIdsStr = JSON.stringify(newIds);
+
+      if (currentIdsStr !== newIdsStr) {
+        fetchSchoolsByIds(value);
+      }
     } else {
       setSelectedSchools([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   async function fetchSchoolsByIds(schoolIds: string[]) {
@@ -234,10 +260,10 @@ export default function SchoolMultiSelect({
   };
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
+    <div ref={containerRef} className={cn("relative flex flex-col gap-3", className)}>
       {/* 선택된 학교 목록 */}
       {selectedSchools.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3">
           {selectedSchools.map((school, index) => {
             const rank = index + 1;
             const styles = getRankStyles(rank);
@@ -369,7 +395,7 @@ export default function SchoolMultiSelect({
 
       {/* 검색 드롭다운 메뉴 */}
       {isOpen && !disabled && isSearchMode && canAddMore && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-50 top-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
           {/* 검색 입력 필드 */}
           <div className="border-b border-gray-200 p-3">
             <div className="flex gap-2">
@@ -456,7 +482,7 @@ export default function SchoolMultiSelect({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span className="ml-2 text-sm text-gray-500">검색 중...</span>
+                <span className="text-sm text-gray-500">검색 중...</span>
               </div>
             ) : schools.length > 0 ? (
               <ul className="py-1">
@@ -468,12 +494,12 @@ export default function SchoolMultiSelect({
                       "cursor-pointer px-4 py-2 text-sm hover:bg-indigo-50"
                     )}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
                           {school.name}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
+                        <div className="flex items-center gap-2">
                           {school.region && (
                             <span className="text-xs text-gray-500">
                               {school.region}
@@ -488,7 +514,7 @@ export default function SchoolMultiSelect({
                         </div>
                       </div>
                       {school.type && (
-                        <span className="ml-2 text-xs font-medium text-indigo-600 whitespace-nowrap">
+                        <span className="text-xs font-medium text-indigo-600 whitespace-nowrap">
                           {school.type === "중학교"
                             ? "중등"
                             : school.type === "고등학교"

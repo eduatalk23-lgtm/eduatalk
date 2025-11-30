@@ -20,12 +20,11 @@ export function SectionCard({
   headerAction,
 }: SectionCardProps) {
   return (
-    <Card className={cn("", className)}>
+    <Card className={cn("flex flex-col gap-4", className)}>
       <CardHeader
         title={title}
         description={description}
         action={headerAction}
-        className="mb-4"
       />
       <CardContent className="flex flex-col gap-4">{children}</CardContent>
     </Card>

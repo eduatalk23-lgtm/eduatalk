@@ -178,7 +178,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
 
                 {/* 카테고리 아이템들 */}
                 {isExpanded && (
-                  <div className="ml-4 space-y-1">
+                  <div className="flex flex-col gap-1 pl-4">
                     {category.items.map((item) => {
                       // 역할 체크
                       if (item.roles && !item.roles.includes(role)) {
@@ -205,7 +205,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
 
                           {/* Children 아이템 (예: 콘텐츠 > 교재 > 등록) */}
                           {item.children && item.children.length > 0 && (
-                            <div className="ml-6 mt-1 space-y-1">
+                            <div className="flex flex-col gap-1 pl-6">
                               {item.children.map((child) => {
                                 const childActive = isItemActive(child);
                                 return (

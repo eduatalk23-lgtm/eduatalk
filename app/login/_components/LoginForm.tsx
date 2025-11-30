@@ -51,7 +51,7 @@ export function LoginForm() {
   return (
     <>
       <div>
-        <h1 className="text-3xl font-semibold">로그인</h1>
+        <h1 className="text-h1">로그인</h1>
         <p className="text-sm text-neutral-500">
           계정이 없다면{" "}
           <Link href="/signup" className="text-black underline">

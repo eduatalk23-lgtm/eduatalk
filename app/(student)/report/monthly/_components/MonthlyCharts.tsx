@@ -32,7 +32,7 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
               <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
               <YAxis label={{ value: "시간", angle: -90, position: "insideLeft" }} />
               <Tooltip />
-              <Bar dataKey="hours" fill="#6366f1" />
+              <Bar dataKey="hours" fill="#6366f1" /> {/* indigo-500 */}
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -76,7 +76,7 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
               <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
               <YAxis label={{ value: "실행률 (%)", angle: -90, position: "insideLeft" }} />
               <Tooltip />
-              <Line type="monotone" dataKey="completionRate" stroke="#8b5cf6" strokeWidth={2} />
+              <Line type="monotone" dataKey="completionRate" stroke="#8b5cf6" strokeWidth={2} /> {/* purple-500 */}
             </LineChart>
           </ResponsiveContainer>
         </div>

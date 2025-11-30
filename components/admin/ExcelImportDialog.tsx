@@ -98,23 +98,24 @@ export default function ExcelImportDialog({
     >
       <div className="flex flex-col gap-4">
         <div>
-          <label
-            htmlFor="excel-file-input"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Excel 파일 선택
-          </label>
-          <input
-            id="excel-file-input"
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileSelect}
-            disabled={isLoading}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          />
-          {selectedFile && (
-            <p className="mt-2 text-sm text-gray-600">
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="excel-file-input"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Excel 파일 선택
+            </label>
+            <input
+              id="excel-file-input"
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileSelect}
+              disabled={isLoading}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            />
+            {selectedFile && (
+              <p className="text-sm text-gray-600">
               선택된 파일: <span className="font-medium">{selectedFile.name}</span> (
               {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
             </p>

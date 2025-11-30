@@ -1412,8 +1412,8 @@ export function PlanGroupWizard({
             const isEditable = !isAdminContinueMode || step >= 5;
 
             return (
-              <div key={step} className="flex flex-1 items-center">
-                <div className="flex flex-col items-center">
+              <div key={step} className="flex flex-1 items-center gap-2">
+                <div className="flex flex-col items-center gap-2">
                   <div
                     className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold ${
                       isActive
@@ -1421,13 +1421,14 @@ export function PlanGroupWizard({
                         : isCompleted
                         ? "border-gray-900 bg-gray-900 text-white"
                         : "border-gray-300 bg-white text-gray-400"
-                    } ${isReadOnly ? "opacity-60" : ""}`}
+                    } ${isReadOnly ? "opacity-60" : ""} ${
+                      isEditable || isReadOnly ? "cursor-pointer" : "cursor-default"
+                    }`}
                     onClick={() => {
                       if (isEditable || isReadOnly) {
                         setCurrentStep(step);
                       }
                     }}
-                    style={{ cursor: isEditable || isReadOnly ? "pointer" : "default" }}
                   >
                     {isCompleted ? "✓" : step}
                   </div>
@@ -1435,7 +1436,6 @@ export function PlanGroupWizard({
                     className={`text-xs font-medium ${
                       isActive ? "text-gray-900" : "text-gray-500"
                     } ${isReadOnly ? "opacity-60" : ""}`}
-                    style={{ marginTop: "0.5rem" }}
                   >
                     {label}
                     {isReadOnly && " (읽기 전용)"}
@@ -1446,7 +1446,6 @@ export function PlanGroupWizard({
                     className={`h-0.5 flex-1 ${
                       isCompleted ? "bg-gray-900" : "bg-gray-300"
                     }`}
-                    style={{ marginLeft: "0.5rem", marginRight: "0.5rem" }}
                   />
                 )}
               </div>
@@ -1611,7 +1610,7 @@ export function PlanGroupWizard({
       </div>
 
       {/* 네비게이션 버튼 */}
-      <div className="flex justify-between" style={{ marginTop: "1.5rem" }}>
+      <div className="mt-6 flex justify-between">
         <div className="flex gap-2">
           <button
             type="button"

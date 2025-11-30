@@ -306,7 +306,7 @@ export default async function DashboardPage() {
           <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
               <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-semibold text-gray-900">
+                <h1 className="text-h1 text-gray-900">
                   안녕하세요, {studentName}님
                 </h1>
                 <p className="text-sm text-gray-600">
@@ -381,7 +381,7 @@ export default async function DashboardPage() {
 
           {/* 오늘 일정 카드 리스트 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-semibold text-gray-900">
+            <h2 className="text-h2 text-gray-900">
               오늘의 학습 일정
             </h2>
 
@@ -405,7 +405,7 @@ export default async function DashboardPage() {
 
           {/* 이번 주 요일별 계획 블록 카운트 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-semibold text-gray-900">
+            <h2 className="text-h2 text-gray-900">
               이번 주 학습 계획
             </h2>
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -447,7 +447,7 @@ export default async function DashboardPage() {
 
           {/* 콘텐츠별 누적 진행률 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-semibold text-gray-900">
+            <h2 className="text-h2 text-gray-900">
               콘텐츠별 진행률
             </h2>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -511,7 +511,7 @@ export default async function DashboardPage() {
           {/* 주간 요약 하이라이트 */}
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-gray-900">
+              <h2 className="text-h2 text-gray-900">
                 이번 주 요약
               </h2>
               <div className="flex items-center gap-3">
@@ -571,7 +571,7 @@ export default async function DashboardPage() {
           {monthlyReport && (
             <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-gray-900">
+                <h2 className="text-h2 text-gray-900">
                   이번 달 요약
                 </h2>
                 <div className="flex items-center gap-3">
@@ -625,7 +625,7 @@ export default async function DashboardPage() {
 
           {/* 학습 통계 요약 카드 3개 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-semibold text-gray-900">학습 통계</h2>
+            <h2 className="text-h2 text-gray-900">학습 통계</h2>
             <div className="grid gap-4 sm:grid-cols-3">
               <StatisticsCard
                 title="이번 주 학습 완성도"
@@ -650,7 +650,7 @@ export default async function DashboardPage() {
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-semibold text-gray-900">주요 기능</h2>
+            <h2 className="text-h2 text-gray-900">주요 기능</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <QuickActionCard
                 href="/plan"
