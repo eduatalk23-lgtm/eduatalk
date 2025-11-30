@@ -5,6 +5,7 @@ import { Info, RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementExclusionsAction } from "@/app/(student)/actions/planGroupActions";
+import { ExclusionImportModal } from "./_modals/ExclusionImportModal";
 
 type ExclusionsPanelProps = {
   data: WizardData;
@@ -86,6 +87,15 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   const [newExclusionDates, setNewExclusionDates] = useState<string[]>([]);
   const [newExclusionType, setNewExclusionType] = useState<"휴가" | "개인사정" | "휴일지정" | "기타">("휴가");
   const [newExclusionReason, setNewExclusionReason] = useState("");
+  
+  // 모달 상태
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [availableExclusions, setAvailableExclusions] = useState<Array<{
+    exclusion_date: string;
+    exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
+    reason?: string;
+    source?: "time_management";
+  }>>([]);
 
   const toggleExclusionDate = (date: string) => {
     setNewExclusionDates((prev) =>
@@ -187,22 +197,11 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       );
       
       if (result.exclusions && result.exclusions.length > 0) {
-        const existingDates = new Set(data.exclusions.map((e) => e.exclusion_date));
-        const newExclusions = result.exclusions
-          .filter((e) => !existingDates.has(e.exclusion_date))
-          .map((e) => ({ ...e, source: "time_management" as const }));
-        
-        onUpdate({
-          exclusions: [...data.exclusions, ...newExclusions],
-        });
-        
-        if (onNavigateToStep) {
-          onNavigateToStep(2);
-        }
-        
-        toast.showSuccess(`시간 관리에서 ${newExclusions.length}개의 제외일을 불러왔습니다.`);
+        // 모달로 선택 등록 방식으로 변경
+        setAvailableExclusions(result.exclusions);
+        setIsImportModalOpen(true);
       } else {
-        toast.showInfo("불러올 새로운 제외일이 없습니다.");
+        toast.showInfo("플랜 기간 내 등록된 제외일이 없습니다.");
       }
     } catch (error) {
       toast.showError(
@@ -213,8 +212,38 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
     }
   };
 
+  const handleImportExclusions = (selectedExclusions: Array<{
+    exclusion_date: string;
+    exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
+    reason?: string;
+    source?: "time_management";
+  }>) => {
+    const newExclusions = selectedExclusions.map((e) => ({
+      ...e,
+      source: "time_management" as const,
+    }));
+    
+    onUpdate({
+      exclusions: [...data.exclusions, ...newExclusions],
+    });
+    
+    toast.showSuccess(`${newExclusions.length}개의 제외일을 등록했습니다.`);
+  };
+
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
+    <>
+      {/* 제외일 불러오기 모달 */}
+      <ExclusionImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        availableExclusions={availableExclusions}
+        existingExclusions={data.exclusions}
+        onImport={handleImportExclusions}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+      />
+
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
       {/* 헤더 */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -560,7 +589,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       ) : (
         <p className="text-sm text-gray-500">등록된 제외일이 없습니다.</p>
       )}
-    </div>
+      </div>
+    </>
   );
 });
 

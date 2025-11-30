@@ -23,13 +23,14 @@ import { PlanValidator } from "@/lib/validation/planValidator";
 import { syncWizardDataToCreationData, validateDataConsistency } from "@/lib/utils/planGroupDataSync";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { Step1BasicInfo } from "./Step1BasicInfo";
-import { Step2TimeSettingsWithPreview } from "./Step2TimeSettingsWithPreview";
+import { Step2TimeSettings } from "./Step2TimeSettings";
+import { Step3SchedulePreview } from "./Step3SchedulePreview";
 import { Step3ContentSelection } from "./Step3ContentSelection";
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./Step7ScheduleResult";
 import { TemplateWizardChecklist } from "@/app/(admin)/admin/camp-templates/_components/TemplateWizardChecklist";
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
+type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type WizardData = {
   // Step 1
@@ -279,13 +280,13 @@ const campStepLabels = [
 
 // Step별 가중치 (진행률 계산용)
 const stepWeights: Record<WizardStep, number> = {
-  1: 15,  // 기본 정보
-  2: 15,  // 블록 및 제외일
-  3: 10,  // 스케줄 확인
-  4: 20,  // 콘텐츠 선택
-  5: 20,  // 추천 콘텐츠
-  6: 15,  // 최종 확인
-  7: 5,   // 스케줄 결과
+  1: 16.67,  // 기본 정보 (1/6)
+  2: 16.67,  // 블록 및 제외일 (2/6)
+  3: 16.67,  // 스케줄 확인 (3/6)
+  4: 16.67,  // 콘텐츠 선택 (4/6)
+  5: 16.67,  // 추천 콘텐츠 (5/6)
+  6: 16.65,  // 최종 확인 (6/6)
+  7: 0,      // 스케줄 결과 (완료 후)
 };
 
 /**
@@ -331,21 +332,23 @@ function calculateProgress(currentStep: WizardStep, wizardData: WizardData, isTe
       currentStepProgress = currentStepWeight;
       break;
     case 3:
-      // 콘텐츠 선택 (학생 + 추천 통합): student_contents 또는 recommended_contents가 있으면 완료
+      // 스케줄 확인: 항상 완료로 간주 (확인만 하는 단계)
+      currentStepProgress = currentStepWeight;
+      break;
+    case 4:
+      // 콘텐츠 선택: student_contents 또는 recommended_contents가 있으면 완료
       const hasAnyContent = wizardData.student_contents.length > 0 || wizardData.recommended_contents.length > 0;
       currentStepProgress = hasAnyContent ? currentStepWeight : 0;
       break;
-    case 4:
-      // 최종 확인: 모든 필수 항목이 있으면 완료
-      // 템플릿 모드일 때는 recommended_contents 제외
-      const hasContents = isTemplateMode 
-        ? wizardData.student_contents.length > 0 
-        : wizardData.student_contents.length > 0 || wizardData.recommended_contents.length > 0;
-      // 1730 Timetable 필드 검증 제거 - student_level과 subject_allocations는 학생 입력폼에서는 관리자 영역
-      const has1730Fields = wizardData.scheduler_type !== "1730_timetable" || true;
-      currentStepProgress = (hasContents && has1730Fields) ? currentStepWeight : 0;
-      break;
     case 5:
+      // 추천 콘텐츠: 항상 완료 (선택사항)
+      currentStepProgress = currentStepWeight;
+      break;
+    case 6:
+      // 최종 확인: 항상 완료
+      currentStepProgress = currentStepWeight;
+      break;
+    case 7:
       // 스케줄 결과: 항상 완료
       currentStepProgress = currentStepWeight;
       break;
@@ -1518,7 +1521,7 @@ export function PlanGroupWizard({
           />
         )}
         {currentStep === 2 && (
-          <Step2TimeSettingsWithPreview
+          <Step2TimeSettings
             data={wizardData}
             onUpdate={updateWizardData}
             periodStart={wizardData.period_start}
@@ -1532,14 +1535,20 @@ export function PlanGroupWizard({
             studentId={(initialData as any)?.student_id}
             isAdminMode={isAdminMode}
             isAdminContinueMode={isAdminContinueMode}
-            blockSets={blockSets}
-            campTemplateId={isCampMode ? initialData?.templateId : undefined}
           />
         )}
         {currentStep === 3 && (
-          null // Step 3은 Step 2에 통합됨 - 실시간 미리보기로 대체
+          <Step3SchedulePreview
+            data={wizardData}
+            onUpdate={updateWizardData}
+            blockSets={blockSets}
+            isTemplateMode={isTemplateMode}
+            campMode={isCampMode}
+            campTemplateId={isCampMode ? initialData?.templateId : undefined}
+            onNavigateToStep={setCurrentStep}
+          />
         )}
-        {currentStep === 3 && !isTemplateMode && (
+        {currentStep === 4 && !isTemplateMode && (
           <Step3ContentSelection
             data={wizardData}
             onUpdate={updateWizardData}
@@ -1552,14 +1561,14 @@ export function PlanGroupWizard({
             editable={!isAdminContinueMode}
           />
         )}
-        {currentStep === 4 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
+        {currentStep === 5 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
           <Step6Simplified
             data={wizardData}
             onEditStep={(step) => setCurrentStep(step)}
             isCampMode={isCampMode}
           />
         )}
-        {currentStep === 5 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
+        {currentStep === 6 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
           <Step7ScheduleResult
             groupId={draftGroupId}
             onComplete={async () => {

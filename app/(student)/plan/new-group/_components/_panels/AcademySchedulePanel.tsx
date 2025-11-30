@@ -5,6 +5,8 @@ import { RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementAcademySchedulesAction } from "@/app/(student)/actions/planGroupActions";
+import { AcademyScheduleImportModal } from "./_modals/AcademyScheduleImportModal";
+import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
 
 type AcademySchedulePanelProps = {
   data: WizardData;
@@ -72,6 +74,18 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   const [newAcademyName, setNewAcademyName] = useState("");
   const [newAcademySubject, setNewAcademySubject] = useState("");
   const [newAcademyTravelTime, setNewAcademyTravelTime] = useState<number>(60);
+  
+  // 모달 상태
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [availableSchedules, setAvailableSchedules] = useState<Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name?: string;
+    subject?: string;
+    travel_time?: number;
+    source?: "time_management";
+  }>>([]);
 
   const toggleWeekday = (day: number) => {
     setNewAcademyDays((prev) =>
@@ -113,6 +127,17 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       is_locked: isTemplateMode ? true : undefined,
     }));
 
+    // 겹침 검증
+    for (const newSchedule of newSchedules) {
+      const validation = validateAcademyScheduleOverlap(newSchedule, data.academy_schedules);
+      if (!validation.isValid) {
+        toast.showError(
+          `${weekdayLabels[newSchedule.day_of_week]}에 겹치는 학원 일정이 있습니다. 시간을 조정해주세요.`
+        );
+        return;
+      }
+    }
+
     onUpdate({
       academy_schedules: [...data.academy_schedules, ...newSchedules],
     });
@@ -146,26 +171,11 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       const result = await syncTimeManagementAcademySchedulesAction(groupId || null, targetStudentId);
       
       if (result.academySchedules && result.academySchedules.length > 0) {
-        // 기존 학원 일정과 병합 (중복 제거 - 요일+시간 기준)
-        const existingKeys = new Set(
-          data.academy_schedules.map(
-            (s) => `${s.day_of_week}-${s.start_time}-${s.end_time}`
-          )
-        );
-        const newSchedules = result.academySchedules
-          .filter(
-            (s) =>
-              !existingKeys.has(`${s.day_of_week}-${s.start_time}-${s.end_time}`)
-          )
-          .map((s) => ({ ...s, source: "time_management" as const }));
-        
-        onUpdate({
-          academy_schedules: [...data.academy_schedules, ...newSchedules],
-        });
-        
-        toast.showSuccess(`시간 관리에서 ${newSchedules.length}개의 학원 일정을 불러왔습니다.`);
+        // 모달로 선택 등록 방식으로 변경
+        setAvailableSchedules(result.academySchedules);
+        setIsImportModalOpen(true);
       } else {
-        toast.showInfo("불러올 새로운 학원 일정이 없습니다.");
+        toast.showInfo("등록된 학원 일정이 없습니다.");
       }
     } catch (error) {
       toast.showError(
@@ -176,8 +186,39 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
     }
   };
 
+  const handleImportSchedules = (selectedSchedules: Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name?: string;
+    subject?: string;
+    travel_time?: number;
+    source?: "time_management";
+  }>) => {
+    const newSchedules = selectedSchedules.map((s) => ({
+      ...s,
+      source: "time_management" as const,
+    }));
+    
+    onUpdate({
+      academy_schedules: [...data.academy_schedules, ...newSchedules],
+    });
+    
+    toast.showSuccess(`${newSchedules.length}개의 학원 일정을 등록했습니다.`);
+  };
+
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
+    <>
+      {/* 학원 일정 불러오기 모달 */}
+      <AcademyScheduleImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        availableSchedules={availableSchedules}
+        existingSchedules={data.academy_schedules}
+        onImport={handleImportSchedules}
+      />
+
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
       {/* 헤더 */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -398,7 +439,8 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       ) : (
         <p className="text-sm text-gray-500">등록된 학원 일정이 없습니다.</p>
       )}
-    </div>
+      </div>
+    </>
   );
 });
 
