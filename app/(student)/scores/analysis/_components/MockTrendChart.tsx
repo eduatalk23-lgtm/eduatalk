@@ -57,11 +57,11 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" /> {/* gray-200 */}
+        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         <XAxis
           dataKey="label"
           tick={{ fontSize: 11 }}
-          stroke="#6b7280" {/* gray-500 */}
+          stroke="#6b7280"
           angle={-15}
           textAnchor="end"
           height={60}
@@ -69,13 +69,13 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
         <YAxis
           domain={[0, 100]}
           tick={{ fontSize: 12 }}
-          stroke="#6b7280" {/* gray-500 */}
+          stroke="#6b7280"
           label={{ value: "백분위 (%)", angle: -90, position: "insideLeft" }}
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "#fff", {/* white */}
-            border: "1px solid #e5e7eb", {/* gray-200 */}
+            backgroundColor: "#fff",
+            border: "1px solid #e5e7eb",
             borderRadius: "8px",
             fontSize: "12px",
           }}
@@ -85,9 +85,9 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
         <Line
           type="monotone"
           dataKey="average_percentile"
-          stroke="#6366f1" {/* indigo-500 */}
+          stroke="#6366f1"
           strokeWidth={2}
-          dot={{ fill: "#6366f1", r: 4 }} {/* indigo-500 */}
+          dot={{ fill: "#6366f1", r: 4 }}
           activeDot={{ r: 6 }}
           name="평균 백분위"
         />
