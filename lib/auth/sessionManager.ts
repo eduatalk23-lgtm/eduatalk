@@ -58,9 +58,9 @@ function parseDeviceName(userAgent: string | null): string {
 /**
  * headers에서 안전하게 헤더 값 추출
  */
-function getHeaderValue(name: string): string | null {
+async function getHeaderValue(name: string): Promise<string | null> {
   try {
-    const headersList = headers();
+    const headersList = await headers();
     if (!headersList || typeof headersList.get !== 'function') {
       return null;
     }
@@ -73,11 +73,11 @@ function getHeaderValue(name: string): string | null {
 /**
  * IP 주소 추출 (Next.js headers에서)
  */
-function getClientIP(): string | null {
+async function getClientIP(): Promise<string | null> {
   // Vercel, Cloudflare 등 다양한 플랫폼 지원
-  const cfConnectingIP = getHeaderValue("cf-connecting-ip");
-  const realIP = getHeaderValue("x-real-ip");
-  const forwardedFor = getHeaderValue("x-forwarded-for");
+  const cfConnectingIP = await getHeaderValue("cf-connecting-ip");
+  const realIP = await getHeaderValue("x-real-ip");
+  const forwardedFor = await getHeaderValue("x-forwarded-for");
 
   if (cfConnectingIP) return cfConnectingIP;
   if (realIP) return realIP;
@@ -98,8 +98,8 @@ export async function saveUserSession(
   expiresAt?: Date
 ): Promise<void> {
   try {
-    const userAgent = getHeaderValue("user-agent");
-    const ipAddress = getClientIP();
+    const userAgent = await getHeaderValue("user-agent");
+    const ipAddress = await getClientIP();
     const deviceName = parseDeviceName(userAgent);
 
     const supabase = await createSupabaseServerClient();
@@ -189,8 +189,8 @@ export async function getUserSessions(): Promise<UserSession[]> {
     // 현재 세션이 없고 Supabase 세션이 있으면 현재 세션 등록
     if (!hasCurrentSession && session) {
       try {
-        const userAgent = getHeaderValue("user-agent");
-        const ipAddress = getClientIP();
+        const userAgent = await getHeaderValue("user-agent");
+        const ipAddress = await getClientIP();
         const deviceName = parseDeviceName(userAgent);
 
         // 기존 세션의 is_current_session을 false로 업데이트
