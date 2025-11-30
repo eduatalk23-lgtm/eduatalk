@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Info, RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -96,12 +96,51 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
     reason?: string;
     source?: "time_management";
   }>>([]);
+  
+  // 불러올 수 있는 제외일 개수 상태
+  const [availableCount, setAvailableCount] = useState<number | null>(null);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
 
   const toggleExclusionDate = (date: string) => {
     setNewExclusionDates((prev) =>
       prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
     );
   };
+
+  // 불러올 수 있는 제외일 개수 조회
+  const loadAvailableCount = async () => {
+    try {
+      setIsLoadingCount(true);
+      const result = await syncTimeManagementExclusionsAction(
+        groupId || null,
+        periodStart,
+        periodEnd
+      );
+      
+      if (result.exclusions && result.exclusions.length > 0) {
+        // 기존 제외일과 중복되지 않는 항목만 카운트
+        const existingDates = new Set(data.exclusions.map((e) => e.exclusion_date));
+        const newCount = result.exclusions.filter(
+          (e) => !existingDates.has(e.exclusion_date)
+        ).length;
+        setAvailableCount(newCount);
+      } else {
+        setAvailableCount(0);
+      }
+    } catch (error) {
+      console.error("제외일 개수 조회 실패:", error);
+      setAvailableCount(null);
+    } finally {
+      setIsLoadingCount(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 및 기간/기존 제외일 변경 시 개수 조회
+  useEffect(() => {
+    if (editable && periodStart && periodEnd) {
+      loadAvailableCount();
+    }
+  }, [periodStart, periodEnd, data.exclusions.length]);
 
   const generateDateRange = (start: string, end: string): string[] => {
     const dates: string[] = [];
@@ -228,6 +267,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
     });
     
     toast.showSuccess(`${newExclusions.length}개의 제외일을 등록했습니다.`);
+    
+    // 등록 후 개수 다시 조회
+    loadAvailableCount();
   };
 
   return (
@@ -260,15 +302,22 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
             </label>
           )}
         </div>
-        <button
-          type="button"
-          onClick={syncFromTimeManagement}
-          disabled={!editable}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className="h-3 w-3" />
-          시간 관리에서 불러오기
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={syncFromTimeManagement}
+            disabled={!editable}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`} />
+            시간 관리에서 불러오기
+          </button>
+          {availableCount !== null && availableCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              {availableCount}개
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 제외일 추가 폼 */}

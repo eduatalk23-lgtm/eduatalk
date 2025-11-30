@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -86,12 +86,59 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
     travel_time?: number;
     source?: "time_management";
   }>>([]);
+  
+  // 불러올 수 있는 학원 일정 개수 상태
+  const [availableCount, setAvailableCount] = useState<number | null>(null);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
 
   const toggleWeekday = (day: number) => {
     setNewAcademyDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
   };
+
+  // 학원 일정을 고유하게 식별하기 위한 키 생성
+  const getScheduleKey = (schedule: {
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name?: string;
+    subject?: string;
+  }): string => {
+    return `${schedule.day_of_week}-${schedule.start_time}-${schedule.end_time}-${schedule.academy_name || ""}-${schedule.subject || ""}`;
+  };
+
+  // 불러올 수 있는 학원 일정 개수 조회
+  const loadAvailableCount = async () => {
+    try {
+      setIsLoadingCount(true);
+      const targetStudentId = (isAdminMode || isAdminContinueMode) ? studentId : undefined;
+      const result = await syncTimeManagementAcademySchedulesAction(groupId || null, targetStudentId);
+      
+      if (result.academySchedules && result.academySchedules.length > 0) {
+        // 기존 학원 일정과 중복되지 않는 항목만 카운트
+        const existingKeys = new Set(data.academy_schedules.map(getScheduleKey));
+        const newCount = result.academySchedules.filter(
+          (s) => !existingKeys.has(getScheduleKey(s))
+        ).length;
+        setAvailableCount(newCount);
+      } else {
+        setAvailableCount(0);
+      }
+    } catch (error) {
+      console.error("학원 일정 개수 조회 실패:", error);
+      setAvailableCount(null);
+    } finally {
+      setIsLoadingCount(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 및 기존 학원 일정 변경 시 개수 조회
+  useEffect(() => {
+    if (editable) {
+      loadAvailableCount();
+    }
+  }, [data.academy_schedules.length]);
 
   const addAcademySchedule = () => {
     if (newAcademyDays.length === 0) {
@@ -205,6 +252,9 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
     });
     
     toast.showSuccess(`${newSchedules.length}개의 학원 일정을 등록했습니다.`);
+    
+    // 등록 후 개수 다시 조회
+    loadAvailableCount();
   };
 
   return (
@@ -235,14 +285,21 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
             </label>
           )}
         </div>
-        <button
-          type="button"
-          onClick={syncFromTimeManagement}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          <RefreshCw className="h-3 w-3" />
-          시간 관리에서 불러오기
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={syncFromTimeManagement}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <RefreshCw className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`} />
+            시간 관리에서 불러오기
+          </button>
+          {availableCount !== null && availableCount > 0 && (
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              {availableCount}개
+            </span>
+          )}
+        </div>
       </div>
 
       {/* 학원 일정 추가 폼 */}
