@@ -70,7 +70,11 @@ export async function fetchStudentBooks(
       })) || []
     );
   } catch (err) {
-    console.error("[data/planContents] 책 목록 조회 실패", err);
+    console.error("[data/planContents] 책 목록 조회 실패", {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      studentId,
+    });
     return [];
   }
 }
@@ -86,7 +90,7 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject, master_lecture_id")  // 변경: master_content_id → master_lecture_id
+      .select("id, title, subject, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -97,11 +101,15 @@ export async function fetchStudentLectures(
         id: lecture.id,
         title: lecture.title || "제목 없음",
         subtitle: lecture.subject || null,
-        master_content_id: lecture.master_lecture_id || null,  // 변경: 강의는 master_lecture_id 사용
+        master_content_id: lecture.master_content_id || null,
       })) || []
     );
   } catch (err) {
-    console.error("[data/planContents] 강의 목록 조회 실패", err);
+    console.error("[data/planContents] 강의 목록 조회 실패", {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      studentId,
+    });
     return [];
   }
 }
@@ -131,7 +139,11 @@ export async function fetchStudentCustomContents(
       })) || []
     );
   } catch (err) {
-    console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", err);
+    console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+      studentId,
+    });
     return [];
   }
 }
