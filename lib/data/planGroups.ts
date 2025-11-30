@@ -917,37 +917,39 @@ export async function createPlanExclusions(
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
-  // 중복 체크: 같은 학생의 같은 날짜 제외일이 이미 있는지 확인
-  // 제외일은 플랜 그룹별로 관리되므로, 다른 플랜 그룹에 이미 등록된 날짜만 중복으로 처리
-  // 현재 플랜 그룹의 제외일은 업데이트 시 삭제 후 재추가되므로 중복 체크에서 제외
+  // 중복 체크: 같은 플랜 그룹 내에서만 중복 확인
+  // 제외일은 플랜 그룹별로 관리되며, 플랜 그룹 간 중복을 허용함
+  // 현재 플랜 그룹 내에서만 중복 체크 (같은 제외일을 여러 플랜 그룹에서 사용 가능)
   
-  // 학생의 모든 제외일을 plan_group_id 포함하여 조회
-  const allExclusionsQuery = supabase
+  // 현재 플랜 그룹의 기존 제외일 조회
+  const currentExclusionsQuery = supabase
     .from("plan_exclusions")
-    .select("exclusion_date, plan_group_id")
-    .eq("student_id", group.student_id);
+    .select("exclusion_date")
+    .eq("student_id", group.student_id)
+    .eq("plan_group_id", groupId);
   
   if (tenantId) {
-    allExclusionsQuery.eq("tenant_id", tenantId);
+    currentExclusionsQuery.eq("tenant_id", tenantId);
   }
   
-  const { data: allExclusions, error: exclusionsError } = await allExclusionsQuery;
+  const { data: currentExclusions, error: exclusionsError } = await currentExclusionsQuery;
   
   if (exclusionsError) {
     console.error("[data/planGroups] 제외일 조회 실패 (중복 체크용)", exclusionsError);
     // 조회 실패 시 중복 체크를 건너뛰고 계속 진행 (데이터베이스 레벨 제약조건에서 처리)
-  } else if (allExclusions && allExclusions.length > 0) {
-    // 현재 플랜 그룹이 아닌 다른 플랜 그룹에 등록된 날짜만 중복으로 체크
-    const otherGroupExclusions = allExclusions.filter((e) => e.plan_group_id !== groupId);
-    const existingDates = new Set(otherGroupExclusions.map((e) => e.exclusion_date));
+  } else if (currentExclusions && currentExclusions.length > 0) {
+    // 현재 플랜 그룹 내에서만 중복 체크
+    const existingDates = new Set(currentExclusions.map((e) => e.exclusion_date));
 
     // 중복된 날짜 필터링
     const duplicates = exclusions.filter((e) => existingDates.has(e.exclusion_date));
     if (duplicates.length > 0) {
+      // 업데이트 시 삭제 후 재추가 과정에서 자연스럽게 처리되므로
+      // 실제로는 이 에러가 발생하지 않아야 함
       const duplicateDates = duplicates.map((e) => e.exclusion_date).join(", ");
       return {
         success: false,
-        error: `이미 다른 플랜 그룹에 등록된 제외일이 있습니다: ${duplicateDates}`,
+        error: `현재 플랜 그룹에 중복된 제외일이 있습니다: ${duplicateDates}`,
       };
     }
   }
