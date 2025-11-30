@@ -207,7 +207,8 @@ async function _updatePlanGroupDraft(
 
       if (!exclusionsResult.success) {
         // 중복 에러인 경우 VALIDATION_ERROR로 처리
-        const isDuplicateError = exclusionsResult.error?.includes("이미 등록된 제외일");
+        const isDuplicateError = exclusionsResult.error?.includes("이미 등록된 제외일") || 
+                                  exclusionsResult.error?.includes("이미 다른 플랜 그룹에 등록된 제외일");
         throw new AppError(
           exclusionsResult.error || "제외일 업데이트에 실패했습니다.",
           isDuplicateError ? ErrorCode.VALIDATION_ERROR : ErrorCode.DATABASE_ERROR,
