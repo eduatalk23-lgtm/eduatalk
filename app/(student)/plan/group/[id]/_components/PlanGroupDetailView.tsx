@@ -13,8 +13,8 @@ import { planGroupToWizardData, contentsToWizardFormat } from "@/lib/utils/planG
 const Step1BasicInfo = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step1BasicInfo").then(module => ({ default: module.Step1BasicInfo }))
 );
-const Step2TimeSettingsWithPreview = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview").then(module => ({ default: module.Step2TimeSettingsWithPreview }))
+const Step2TimeSettings = lazy(() => 
+  import("@/app/(student)/plan/new-group/_components/Step2TimeSettings").then(module => ({ default: module.Step2TimeSettings }))
 );
 const Step3ContentSelection = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step3ContentSelection").then(module => ({ default: module.Step3ContentSelection }))
@@ -176,7 +176,7 @@ export function PlanGroupDetailView({
       case 2:
         return (
           <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step2TimeSettingsWithPreview 
+            <Step2TimeSettings 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
               periodStart={group.period_start}
@@ -185,8 +185,6 @@ export function PlanGroupDetailView({
               campMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
               isTemplateMode={false}
               studentId={group.student_id}
-              blockSets={blockSets}
-              campTemplateId={campTemplateId || undefined}
             />
           </Suspense>
         );
