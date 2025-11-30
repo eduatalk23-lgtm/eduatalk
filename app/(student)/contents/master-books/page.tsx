@@ -15,7 +15,7 @@ async function getCachedFilterOptions() {
 
   const getCached = unstable_cache(
     async () => {
-      const [semestersRes, revisionsRes] = await Promise.all([
+      const [semestersRes, revisionsRes, subjectsRes] = await Promise.all([
         supabase
           .from("master_books")
           .select("semester")
@@ -24,6 +24,10 @@ async function getCachedFilterOptions() {
           .from("master_books")
           .select("revision")
           .not("revision", "is", null),
+        supabase
+          .from("master_books")
+          .select("subject")
+          .not("subject", "is", null),
       ]);
 
       const semesters = Array.from(
@@ -42,7 +46,15 @@ async function getCachedFilterOptions() {
         )
       ).sort() as string[];
 
-      return { semesters, revisions };
+      const subjects = Array.from(
+        new Set(
+          (subjectsRes.data || [])
+            .map((item) => item.subject)
+            .filter(Boolean)
+        )
+      ).sort() as string[];
+
+      return { semesters, revisions, subjects };
     },
     ["master-books-filter-options"],
     {
@@ -169,7 +181,7 @@ async function FilterForm({
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.revisions.map((rev) => (
+            {(filterOptions.revisions || []).map((rev) => (
               <option key={rev} value={rev}>
                 {rev}
               </option>
@@ -188,7 +200,7 @@ async function FilterForm({
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.semesters.map((sem) => (
+            {(filterOptions.semesters || []).map((sem) => (
               <option key={sem} value={sem}>
                 {sem}
               </option>
@@ -222,7 +234,7 @@ async function FilterForm({
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.subjects.map((subj) => (
+            {(filterOptions.subjects || []).map((subj) => (
               <option key={subj} value={subj}>
                 {subj}
               </option>
