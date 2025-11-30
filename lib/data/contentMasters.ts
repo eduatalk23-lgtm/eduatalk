@@ -697,14 +697,35 @@ export async function createMasterBook(
     .from("master_books")
     .insert({
       tenant_id: data.tenant_id,
+      is_active: data.is_active,
+      curriculum_revision_id: data.curriculum_revision_id,
+      subject_id: data.subject_id,
+      grade_min: data.grade_min,
+      grade_max: data.grade_max,
+      school_type: data.school_type,
       revision: data.revision,
       content_category: data.content_category,
       semester: data.semester,
-      subject_category: data.subject_category,
-      subject: data.subject,
       title: data.title,
-      publisher: data.publisher,
+      subtitle: data.subtitle,
+      series_name: data.series_name,
+      author: data.author,
+      publisher_id: data.publisher_id,
+      publisher_name: data.publisher_name,
+      isbn_10: data.isbn_10,
+      isbn_13: data.isbn_13,
+      edition: data.edition,
+      published_date: data.published_date,
       total_pages: data.total_pages,
+      target_exam_type: data.target_exam_type,
+      description: data.description,
+      toc: data.toc,
+      publisher_review: data.publisher_review,
+      tags: data.tags,
+      source: data.source,
+      source_product_code: data.source_product_code,
+      source_url: data.source_url,
+      cover_image_url: data.cover_image_url,
       difficulty_level: data.difficulty_level,
       notes: data.notes,
       pdf_url: data.pdf_url,
@@ -732,24 +753,49 @@ export async function updateMasterBook(
 ): Promise<MasterBook> {
   const supabase = await createSupabaseServerClient();
 
+  // undefined 필드는 제외하고 실제 존재하는 필드만 업데이트
+  const updateFields: Record<string, any> = {};
+  
+  if (data.tenant_id !== undefined) updateFields.tenant_id = data.tenant_id;
+  if (data.is_active !== undefined) updateFields.is_active = data.is_active;
+  if (data.curriculum_revision_id !== undefined) updateFields.curriculum_revision_id = data.curriculum_revision_id;
+  if (data.subject_id !== undefined) updateFields.subject_id = data.subject_id;
+  if (data.grade_min !== undefined) updateFields.grade_min = data.grade_min;
+  if (data.grade_max !== undefined) updateFields.grade_max = data.grade_max;
+  if (data.school_type !== undefined) updateFields.school_type = data.school_type;
+  if (data.revision !== undefined) updateFields.revision = data.revision;
+  if (data.content_category !== undefined) updateFields.content_category = data.content_category;
+  if (data.semester !== undefined) updateFields.semester = data.semester;
+  if (data.title !== undefined) updateFields.title = data.title;
+  if (data.subtitle !== undefined) updateFields.subtitle = data.subtitle;
+  if (data.series_name !== undefined) updateFields.series_name = data.series_name;
+  if (data.author !== undefined) updateFields.author = data.author;
+  if (data.publisher_id !== undefined) updateFields.publisher_id = data.publisher_id;
+  if (data.publisher_name !== undefined) updateFields.publisher_name = data.publisher_name;
+  if (data.isbn_10 !== undefined) updateFields.isbn_10 = data.isbn_10;
+  if (data.isbn_13 !== undefined) updateFields.isbn_13 = data.isbn_13;
+  if (data.edition !== undefined) updateFields.edition = data.edition;
+  if (data.published_date !== undefined) updateFields.published_date = data.published_date;
+  if (data.total_pages !== undefined) updateFields.total_pages = data.total_pages;
+  if (data.target_exam_type !== undefined) updateFields.target_exam_type = data.target_exam_type;
+  if (data.description !== undefined) updateFields.description = data.description;
+  if (data.toc !== undefined) updateFields.toc = data.toc;
+  if (data.publisher_review !== undefined) updateFields.publisher_review = data.publisher_review;
+  if (data.tags !== undefined) updateFields.tags = data.tags;
+  if (data.source !== undefined) updateFields.source = data.source;
+  if (data.source_product_code !== undefined) updateFields.source_product_code = data.source_product_code;
+  if (data.source_url !== undefined) updateFields.source_url = data.source_url;
+  if (data.cover_image_url !== undefined) updateFields.cover_image_url = data.cover_image_url;
+  if (data.difficulty_level !== undefined) updateFields.difficulty_level = data.difficulty_level;
+  if (data.notes !== undefined) updateFields.notes = data.notes;
+  if (data.pdf_url !== undefined) updateFields.pdf_url = data.pdf_url;
+  if (data.ocr_data !== undefined) updateFields.ocr_data = data.ocr_data;
+  if (data.page_analysis !== undefined) updateFields.page_analysis = data.page_analysis;
+  if (data.overall_difficulty !== undefined) updateFields.overall_difficulty = data.overall_difficulty;
+
   const { data: book, error } = await supabase
     .from("master_books")
-    .update({
-      revision: data.revision,
-      content_category: data.content_category,
-      semester: data.semester,
-      subject_category: data.subject_category,
-      subject: data.subject,
-      title: data.title,
-      publisher: data.publisher,
-      total_pages: data.total_pages,
-      difficulty_level: data.difficulty_level,
-      notes: data.notes,
-      pdf_url: data.pdf_url,
-      ocr_data: data.ocr_data,
-      page_analysis: data.page_analysis,
-      overall_difficulty: data.overall_difficulty,
-    })
+    .update(updateFields)
     .eq("id", bookId)
     .select()
     .single();

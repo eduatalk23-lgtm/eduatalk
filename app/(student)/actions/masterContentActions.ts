@@ -13,7 +13,6 @@ import {
   createLectureEpisode,
   deleteAllLectureEpisodes,
 } from "@/lib/data/contentMasters";
-import { getSubjectById } from "@/lib/data/subjects";
 import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
 
 /**
@@ -43,18 +42,7 @@ export async function addMasterBook(formData: FormData) {
   const tagsStr = formData.get("tags")?.toString() || "";
   const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
   
-  // subject_id로 과목 정보 조회하여 subject_category와 subject 설정
   const subjectId = formData.get("subject_id")?.toString() || null;
-  let subjectCategory: string | null = null;
-  let subject: string | null = null;
-  
-  if (subjectId) {
-    const subjectInfo = await getSubjectById(subjectId);
-    if (subjectInfo) {
-      subjectCategory = subjectInfo.subjectGroup?.name || null;
-      subject = subjectInfo.name || null;
-    }
-  }
   
   const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
     tenant_id: student?.tenant_id || null,
@@ -67,8 +55,6 @@ export async function addMasterBook(formData: FormData) {
     revision: formData.get("revision")?.toString() || null,
     content_category: formData.get("content_category")?.toString() || null,
     semester: formData.get("semester")?.toString() || null,
-    subject_category: subjectCategory,
-    subject: subject,
     title: formData.get("title")?.toString() || "",
     subtitle: formData.get("subtitle")?.toString() || null,
     series_name: formData.get("series_name")?.toString() || null,
@@ -155,22 +141,7 @@ export async function updateMasterBookAction(
   const tagsStr = formData.get("tags")?.toString() || "";
   const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
 
-  // subject_id로 과목 정보 조회하여 subject_category와 subject 설정
   const subjectId = formData.get("subject_id")?.toString() || null;
-  let subjectCategory: string | null | undefined = undefined;
-  let subject: string | null | undefined = undefined;
-  
-  if (subjectId) {
-    const subjectInfo = await getSubjectById(subjectId);
-    if (subjectInfo) {
-      subjectCategory = subjectInfo.subjectGroup?.name || null;
-      subject = subjectInfo.name || null;
-    }
-  } else {
-    // subject_id가 없으면 null로 설정
-    subjectCategory = null;
-    subject = null;
-  }
   
   const updateData: Partial<
     Omit<MasterBook, "id" | "created_at" | "updated_at">
@@ -183,8 +154,6 @@ export async function updateMasterBookAction(
     revision: formData.get("revision")?.toString() || undefined,
     content_category: formData.get("content_category")?.toString() || undefined,
     semester: formData.get("semester")?.toString() || undefined,
-    subject_category: subjectCategory,
-    subject: subject,
     title: formData.get("title")?.toString(),
     subtitle: formData.get("subtitle")?.toString() || null,
     series_name: formData.get("series_name")?.toString() || null,
