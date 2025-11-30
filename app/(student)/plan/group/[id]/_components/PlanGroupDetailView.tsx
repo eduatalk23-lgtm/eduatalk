@@ -179,8 +179,11 @@ export function PlanGroupDetailView({
             <Step2TimeSettingsWithPreview 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
+              periodStart={group.period_start}
+              periodEnd={group.period_end}
               editable={false} // 완전히 읽기 전용
-              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
+              campMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+              isTemplateMode={false}
               studentId={group.student_id}
               blockSets={blockSets}
               campTemplateId={campTemplateId || undefined}
