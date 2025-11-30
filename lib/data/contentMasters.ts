@@ -249,19 +249,42 @@ export async function getMasterBookById(
   }
 
   // JOIN된 데이터를 평탄화하여 표시용 필드 추가
-  const curriculumRevision = (bookData as any).curriculum_revisions;
-  const subject = (bookData as any).subjects;
-  const subjectGroup = subject?.subject_groups;
-  const publisher = (bookData as any).publishers;
+  // Supabase의 중첩 SELECT는 배열로 반환될 수 있으므로 배열 처리
+  const curriculumRevisionRaw = (bookData as any).curriculum_revisions;
+  const curriculumRevision = Array.isArray(curriculumRevisionRaw) 
+    ? curriculumRevisionRaw[0] 
+    : curriculumRevisionRaw;
+
+  const subjectsRaw = (bookData as any).subjects;
+  const subject = Array.isArray(subjectsRaw) 
+    ? subjectsRaw[0] 
+    : subjectsRaw;
+
+  // subject가 있을 때 subject_groups 처리
+  const subjectGroupsRaw = subject?.subject_groups;
+  const subjectGroup = Array.isArray(subjectGroupsRaw)
+    ? subjectGroupsRaw[0]
+    : subjectGroupsRaw;
+
+  const publishersRaw = (bookData as any).publishers;
+  const publisher = Array.isArray(publishersRaw)
+    ? publishersRaw[0]
+    : publishersRaw;
 
   // 디버깅: JOIN 결과 확인
   if (process.env.NODE_ENV === "development") {
     console.log("[getMasterBookById] JOIN 결과:", {
       bookId,
+      subject_id: bookData.subject_id,
+      curriculum_revision_id: bookData.curriculum_revision_id,
       hasCurriculumRevision: !!curriculumRevision,
       hasSubject: !!subject,
       hasSubjectGroup: !!subjectGroup,
       hasPublisher: !!publisher,
+      curriculumRevisionRaw,
+      subjectsRaw,
+      subjectGroupsRaw,
+      publishersRaw,
       subjectData: subject,
       subjectGroupData: subjectGroup,
     });
