@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateMasterBookAction } from "@/app/(student)/actions/masterContentActions";
+import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
 import { MasterBook, BookDetail } from "@/lib/types/plan";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
@@ -13,7 +14,6 @@ type MasterBookEditFormProps = {
   book: MasterBook;
   details: BookDetail[];
   curriculumRevisions: CurriculumRevision[];
-  subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
   publishers: Publisher[];
   currentSubject: (Subject & { subjectGroup: SubjectGroup }) | null;
 };
@@ -22,24 +22,73 @@ export function MasterBookEditForm({
   book,
   details,
   curriculumRevisions,
-  subjectGroups,
   publishers,
   currentSubject,
 }: MasterBookEditFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string>(
+    book.curriculum_revision_id || ""
+  );
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     currentSubject?.subjectGroup.id || ""
   );
   const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
+  const [subjectGroups, setSubjectGroups] = useState<(SubjectGroup & { subjects: Subject[] })[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
-  // 초기 과목 목록 설정
+  // 초기 교과 그룹 목록 로드
   useEffect(() => {
-    if (currentSubject) {
-      const group = subjectGroups.find(g => g.id === currentSubject.subjectGroup.id);
-      setSelectedSubjects(group?.subjects || []);
+    async function loadInitialGroups() {
+      if (book.curriculum_revision_id) {
+        setLoadingGroups(true);
+        try {
+          const groups = await getSubjectGroupsWithSubjectsAction(book.curriculum_revision_id);
+          setSubjectGroups(groups);
+          
+          // 현재 과목이 있으면 해당 과목 목록 설정
+          if (currentSubject) {
+            const group = groups.find(g => g.id === currentSubject.subjectGroup.id);
+            setSelectedSubjects(group?.subjects || []);
+          }
+        } catch (error) {
+          console.error("교과 그룹 조회 실패:", error);
+          setSubjectGroups([]);
+        } finally {
+          setLoadingGroups(false);
+        }
+      }
     }
-  }, [currentSubject, subjectGroups]);
+    loadInitialGroups();
+  }, [book.curriculum_revision_id, currentSubject]);
+
+  // 개정교육과정 선택 시 해당 개정교육과정의 교과 그룹 목록 조회
+  async function handleCurriculumRevisionChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const revisionName = e.target.value;
+    const selectedRevision = curriculumRevisions.find(r => r.name === revisionName);
+    
+    // 교과 그룹과 과목 선택 초기화 (기존 과목은 유지하지 않음)
+    setSelectedGroupId("");
+    setSelectedSubjects([]);
+    
+    if (selectedRevision) {
+      setSelectedRevisionId(selectedRevision.id);
+      setLoadingGroups(true);
+      
+      try {
+        const groups = await getSubjectGroupsWithSubjectsAction(selectedRevision.id);
+        setSubjectGroups(groups);
+      } catch (error) {
+        console.error("교과 그룹 조회 실패:", error);
+        setSubjectGroups([]);
+      } finally {
+        setLoadingGroups(false);
+      }
+    } else {
+      setSelectedRevisionId("");
+      setSubjectGroups([]);
+    }
+  }
 
   // 교과 그룹 선택 시 해당 그룹의 과목 목록 업데이트
   function handleSubjectGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -96,7 +145,8 @@ export function MasterBookEditForm({
           </label>
           <select
             name="revision"
-            defaultValue={book.revision || ""}
+            value={curriculumRevisions.find(r => r.id === selectedRevisionId)?.name || book.revision || ""}
+            onChange={handleCurriculumRevisionChange}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
@@ -128,15 +178,27 @@ export function MasterBookEditForm({
           <select
             value={selectedGroupId}
             onChange={handleSubjectGroupChange}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            disabled={!selectedRevisionId || loadingGroups}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
-            <option value="">선택하세요</option>
+            <option value="">
+              {loadingGroups
+                ? "로딩 중..."
+                : !selectedRevisionId
+                ? "개정교육과정을 먼저 선택하세요"
+                : "선택하세요"}
+            </option>
             {subjectGroups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
+          {!selectedRevisionId && (
+            <p className="mt-1 text-xs text-gray-500">
+              개정교육과정을 먼저 선택하세요
+            </p>
+          )}
         </div>
 
         {/* 과목 선택 */}
@@ -158,7 +220,11 @@ export function MasterBookEditForm({
             ))}
           </select>
           <p className="mt-1 text-xs text-gray-500">
-            교과 그룹을 먼저 선택하세요
+            {!selectedRevisionId
+              ? "개정교육과정과 교과 그룹을 먼저 선택하세요"
+              : !selectedGroupId
+              ? "교과 그룹을 먼저 선택하세요"
+              : ""}
           </p>
         </div>
 

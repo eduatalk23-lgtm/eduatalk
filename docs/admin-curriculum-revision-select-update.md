@@ -109,6 +109,31 @@
 - [ ] 개정교육과정 목록이 올바르게 로드됨
 - [ ] 빈 값 선택 시 정상적으로 저장됨
 
+## 추가 개선 사항
+
+### 개정교육과정 선택에 따른 교과 그룹 필터링
+
+교재 등록/수정 페이지에서 개정교육과정을 선택하면, 해당 개정교육과정에 속한 교과 그룹만 표시되도록 개선했습니다.
+
+#### 구현 내용
+- **서버 액션 추가**: `getSubjectGroupsWithSubjectsAction` 추가 (`app/(admin)/actions/subjectActions.ts`)
+- **동적 로딩**: 개정교육과정 선택 시 해당 개정교육과정의 교과 그룹을 서버에서 동적으로 조회
+- **상태 관리**: 
+  - `selectedRevisionId`: 선택된 개정교육과정 ID 추적
+  - `subjectGroups`: 현재 선택된 개정교육과정의 교과 그룹 목록
+  - `loadingGroups`: 교과 그룹 로딩 상태
+- **UX 개선**:
+  - 개정교육과정 미선택 시 교과 그룹 드롭다운 비활성화
+  - 로딩 중 상태 표시
+  - 안내 메시지 추가
+
+#### 변경된 파일
+- `app/(admin)/actions/subjectActions.ts`: `getSubjectGroupsWithSubjectsAction` 서버 액션 추가
+- `app/(admin)/admin/master-books/new/MasterBookForm.tsx`: 개정교육과정 선택 시 교과 그룹 동적 로딩
+- `app/(admin)/admin/master-books/new/page.tsx`: 초기 교과 그룹 데이터 로딩 제거
+- `app/(admin)/admin/master-books/[id]/edit/MasterBookEditForm.tsx`: 수정 페이지에도 동일 로직 적용
+- `app/(admin)/admin/master-books/[id]/edit/page.tsx`: 초기 교과 그룹 데이터 로딩 제거
+
 ## 작업 일자
 
 2024년 11월 29일
