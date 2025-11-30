@@ -4,6 +4,7 @@ import { useState, Fragment } from "react";
 import { ChevronDown, ChevronUp, Clock, School, MapPin, Utensils, XCircle, Calendar } from "lucide-react";
 import type { BlockData, ContentData } from "../utils/scheduleTransform";
 import { formatNumber } from "@/lib/utils/formatNumber";
+import { TimelineBar } from "./TimelineBar";
 
 type DailySchedule = {
   date: string;
@@ -348,6 +349,14 @@ function ScheduleItem({
                         </div>
                       )}
                     </>
+                  )}
+                  
+                  {/* 타임라인 바 그래프 */}
+                  {schedule.time_slots && schedule.time_slots.length > 0 && (
+                    <TimelineBar 
+                      timeSlots={schedule.time_slots}
+                      totalHours={studyHours + selfStudyHours + travelHours + academyHours}
+                    />
                   )}
                 </div>
               );
