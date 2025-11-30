@@ -51,7 +51,7 @@ type TimelineBarProps = {
 - **aria-label**: 전체 일정 구성을 텍스트로 설명 (스크린 리더용)
 - **title 속성**: 각 세그먼트에 마우스 호버 시 상세 정보 표시 (시작/종료 시간 포함)
 
-### 2. ScheduleTableView 수정
+### 2. ScheduleTableView 수정 (Step 7)
 
 **경로**: `app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView.tsx`
 
@@ -69,6 +69,18 @@ type TimelineBarProps = {
   />
 )}
 ```
+
+### 3. SchedulePreviewPanel 수정 (Step 2)
+
+**경로**: `app/(student)/plan/new-group/_components/_panels/SchedulePreviewPanel.tsx`
+
+#### 변경 사항
+
+1. **Import 추가**: TimelineBar 컴포넌트 임포트
+2. **타임라인 바 통합**: Step 2의 주차별 스케줄 미리보기에서 각 날짜 카드에 타임라인 바 추가
+3. **시간 계산 로직 추가**: Step 7과 동일한 방식으로 각 시간 타입별 시간 계산
+
+Step 2에서는 주차별로 그룹화된 스케줄을 보여주며, 각 날짜 카드에 타임라인 바가 표시됩니다. 이를 통해 사용자가 시간 설정을 변경할 때 실시간으로 시간 구성을 시각적으로 확인할 수 있습니다.
 
 ## 사용 시나리오
 
@@ -188,7 +200,9 @@ const showLabel = slot.durationMinutes >= 30;
 
 ## 참고 사항
 
-- 이 구현은 스케줄 생성 마법사(Step 7)의 미리보기 화면에만 적용됩니다.
+- 이 구현은 스케줄 생성 마법사의 **Step 2 (시간 설정 및 스케줄 확인)**와 **Step 7 (스케줄 결과)** 두 곳에 적용됩니다.
+- Step 2: 실시간 미리보기 패널에서 주차별 스케줄 확인 시 각 날짜별 타임라인 바 표시
+- Step 7: 최종 스케줄 결과 테이블에서 각 날짜별 타임라인 바 표시
 - 캘린더 뷰(`/plan/calendar`)에는 별도의 타임라인 표시 방식이 이미 구현되어 있습니다.
 - 색상 스키마는 기존 시스템과 일관성을 유지하도록 설계되었습니다.
 

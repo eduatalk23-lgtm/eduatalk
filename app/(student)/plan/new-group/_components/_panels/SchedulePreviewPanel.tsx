@@ -11,6 +11,7 @@ import type {
 } from "@/lib/scheduler/calculateAvailableDates";
 import { getDefaultBlocks } from "@/lib/utils/defaultBlockSet";
 import { formatNumber } from "@/lib/utils/formatNumber";
+import { TimelineBar } from "../Step7ScheduleResult/TimelineBar";
 
 type SchedulePreviewPanelProps = {
   data: WizardData;
@@ -367,33 +368,69 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                 {/* 주차 상세 */}
                 {isExpanded && (
                   <div className="p-4 space-y-2">
-                    {week.map((day) => (
-                      <div
-                        key={day.date}
-                        className="flex items-center justify-between p-3 rounded-lg border border-gray-200 bg-white"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm font-medium text-gray-900">
-                            {day.date}
+                    {week.map((day) => {
+                      // 시간 슬롯에서 각 타입별 시간 계산
+                      const calculateTimeFromSlots = (type: "학습시간" | "자율학습" | "이동시간" | "학원일정"): number => {
+                        if (!day.time_slots) return 0;
+                        const minutes = day.time_slots
+                          .filter((slot) => slot.type === type)
+                          .reduce((sum, slot) => {
+                            const [startHour, startMin] = slot.start.split(":").map(Number);
+                            const [endHour, endMin] = slot.end.split(":").map(Number);
+                            const startMinutes = startHour * 60 + startMin;
+                            const endMinutes = endHour * 60 + endMin;
+                            return sum + (endMinutes - startMinutes);
+                          }, 0);
+                        return minutes / 60;
+                      };
+
+                      const isDesignatedHoliday = day.day_type === "지정휴일";
+                      const studyHours = calculateTimeFromSlots("학습시간");
+                      const selfStudyHours = isDesignatedHoliday 
+                        ? day.study_hours 
+                        : calculateTimeFromSlots("자율학습");
+                      const travelHours = calculateTimeFromSlots("이동시간");
+                      const academyHours = calculateTimeFromSlots("학원일정");
+                      const totalHours = studyHours + selfStudyHours + travelHours + academyHours;
+
+                      return (
+                        <div
+                          key={day.date}
+                          className="flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm font-medium text-gray-900">
+                                {day.date}
+                              </div>
+                              <div
+                                className={`rounded-full px-2 py-0.5 text-xs font-medium border ${
+                                  dayTypeColors[day.day_type] || "bg-gray-100 text-gray-800 border-gray-200"
+                                }`}
+                              >
+                                {dayTypeLabels[day.day_type] || day.day_type}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                {day.study_hours > 0
+                                  ? `${Math.round(day.study_hours)}시간`
+                                  : "학습 없음"}
+                              </span>
+                            </div>
                           </div>
-                          <div
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium border ${
-                              dayTypeColors[day.day_type] || "bg-gray-100 text-gray-800 border-gray-200"
-                            }`}
-                          >
-                            {dayTypeLabels[day.day_type] || day.day_type}
-                          </div>
+                          
+                          {/* 타임라인 바 그래프 */}
+                          {day.time_slots && day.time_slots.length > 0 && (
+                            <TimelineBar 
+                              timeSlots={day.time_slots}
+                              totalHours={totalHours}
+                            />
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {day.study_hours > 0
-                              ? `${Math.round(day.study_hours)}시간`
-                              : "학습 없음"}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
