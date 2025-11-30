@@ -114,6 +114,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
               </option>
             ))}
           </select>
+          {/* curriculum_revision_id를 hidden input으로 전송 */}
+          <input type="hidden" name="curriculum_revision_id" value={selectedRevisionId} />
         </div>
 
         {/* 학년/학기 */}
