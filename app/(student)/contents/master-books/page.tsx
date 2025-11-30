@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
@@ -359,6 +360,17 @@ export default async function StudentMasterBooksPage({
                   className="rounded-lg border bg-white p-4 shadow-sm"
                 >
                   <div className="flex flex-col gap-3">
+                    {book.cover_image_url && (
+                      <div className="relative h-40 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                        <Image
+                          src={book.cover_image_url}
+                          alt={`${book.title} 표지`}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        />
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         {book.title}

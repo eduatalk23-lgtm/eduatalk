@@ -26,6 +26,7 @@ export default async function StudentMasterBookDetailPage({
           subtitle={book.publisher || ""}
           icon="📚 교재"
           createdAt={book.created_at}
+          coverImageUrl={book.cover_image_url}
         />
 
         <ContentDetailTable
@@ -38,6 +39,7 @@ export default async function StudentMasterBookDetailPage({
             { label: "총 페이지", value: `${book.total_pages}p` },
             { label: "난이도", value: book.difficulty_level },
             { label: "메모", value: book.notes },
+            { label: "출처 URL", value: book.source_url, isUrl: true },
           ]}
         />
 

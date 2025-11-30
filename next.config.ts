@@ -14,6 +14,24 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60,
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // 외부 이미지 도메인 허용 (cover_image_url 사용 시 필요)
+    // remotePatterns: [
+    //   {
+    //     protocol: "https",
+    //     hostname: "example.com",
+    //   },
+    // ],
+    // 또는 모든 도메인 허용 (보안상 권장하지 않음)
+    // remotePatterns: [
+    //   {
+    //     protocol: "https",
+    //     hostname: "**",
+    //   },
+    //   {
+    //     protocol: "http",
+    //     hostname: "**",
+    //   },
+    // ],
   },
 
   // 압축 설정
