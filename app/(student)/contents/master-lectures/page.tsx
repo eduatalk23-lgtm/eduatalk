@@ -16,18 +16,22 @@ async function getCachedFilterOptions() {
 
   const getCached = unstable_cache(
     async () => {
+      // 학생은 공개 콘텐츠(tenant_id IS NULL)만 조회 가능
       const [subjectsRes, semestersRes, revisionsRes] = await Promise.all([
         supabase
           .from("master_lectures")
           .select("subject")
+          .is("tenant_id", null)
           .not("subject", "is", null),
         supabase
           .from("master_lectures")
           .select("semester")
+          .is("tenant_id", null)
           .not("semester", "is", null),
         supabase
           .from("master_lectures")
           .select("revision")
+          .is("tenant_id", null)
           .not("revision", "is", null),
       ]);
 
@@ -82,58 +86,18 @@ async function getCachedSearchResults(filters: MasterLectureFilters) {
   
   const getCached = unstable_cache(
     async (filters: MasterLectureFilters) => {
-      // 캐시 함수 내부에서 공개 데이터용 Supabase 클라이언트 생성 (쿠키 없이)
-      // master_lectures는 공개 데이터이므로 인증이 필요 없음
+      // 공개 데이터용 Supabase 클라이언트 생성 (쿠키 없이)
+      // 학생은 공개 콘텐츠(tenant_id IS NULL)만 조회 가능
       const supabase = createSupabasePublicClient();
       
-      let query = supabase
-        .from("master_lectures")
-        .select("*", { count: "exact" });
-
-      // 필터 적용
-      if (filters.subject) {
-        query = query.eq("subject", filters.subject);
-      }
-      if (filters.subject_category) {
-        query = query.eq("subject_category", filters.subject_category);
-      }
-      if (filters.semester) {
-        query = query.eq("semester", filters.semester);
-      }
-      if (filters.revision) {
-        query = query.eq("revision", filters.revision);
-      }
-      if (filters.search) {
-        query = query.ilike("title", `%${filters.search}%`);
-      }
-      if (filters.tenantId) {
-        query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
-      } else {
-        query = query.is("tenant_id", null);
-      }
-
-      // 정렬
-      query = query.order("updated_at", { ascending: false });
-
-      // 페이지네이션
-      if (filters.limit) {
-        query = query.limit(filters.limit);
-      }
-      if (filters.offset) {
-        query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error("[master-lectures] 검색 실패", error);
-        throw new Error(error.message || "강의 검색에 실패했습니다.");
-      }
-
-      return {
-        data: (data || []) as any[],
-        total: count ?? 0,
+      // tenantId를 명시적으로 undefined로 설정하여 공개 콘텐츠만 조회
+      const searchFilters: MasterLectureFilters = {
+        ...filters,
+        tenantId: undefined, // 공개 콘텐츠만 조회
       };
+
+      // 표준 함수 사용
+      return await searchMasterLectures(searchFilters, supabase);
     },
     [cacheKey],
     {

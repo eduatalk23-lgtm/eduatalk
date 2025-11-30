@@ -9,6 +9,7 @@ import { ContentDetailTable } from "@/app/(student)/contents/_components/Content
 import { LectureEpisodesDisplay } from "@/app/(student)/contents/_components/LectureEpisodesDisplay";
 import { CopyMasterLectureButton } from "./_components/CopyMasterLectureButton";
 import { secondsToMinutes } from "@/lib/utils/duration";
+import { formatGradeLevel } from "@/lib/utils/formatGradeLevel";
 
 export default async function StudentMasterLectureDetailPage({
   params,
@@ -52,6 +53,12 @@ export default async function StudentMasterLectureDetailPage({
             { label: "교과", value: lecture.subject_category },
             { label: "과목", value: lecture.subject },
             { label: "플랫폼", value: lecture.platform },
+            { label: "강사", value: lecture.instructor },
+            {
+              label: "강의 대상 학년",
+              value: formatGradeLevel(lecture.grade_min, lecture.grade_max),
+            },
+            { label: "강의 유형", value: lecture.content_category },
             { label: "총 회차", value: `${lecture.total_episodes}회` },
             {
               label: "총 강의시간",
@@ -64,6 +71,7 @@ export default async function StudentMasterLectureDetailPage({
               label: "연결된 교재",
               value: linkedBook ? linkedBook.title : null,
             },
+            { label: "출처 URL", value: lecture.source_url, isUrl: true },
             { label: "메모", value: lecture.notes },
           ]}
         />

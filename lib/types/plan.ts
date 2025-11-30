@@ -386,6 +386,12 @@ export type MasterLecture = CommonContentFields & {
   total_duration: number | null; // 총 강의시간 (분 단위)
   linked_book_id: string | null; // 연결된 교재 ID (선택사항)
   
+  // 강의 메타 정보
+  instructor: string | null; // 강사명
+  grade_min: number | null; // 최소 학년 (1-3)
+  grade_max: number | null; // 최대 학년 (1-3)
+  source_url: string | null; // 출처 URL
+  
   // 레거시 필드 (기존 코드 호환성 유지)
   platform?: string | null; // @deprecated platform_name 사용 권장
   subject?: string | null; // @deprecated CommonContentFields.subject 또는 subject_id 사용
