@@ -126,7 +126,7 @@ const FormSelectComponent = forwardRef<HTMLSelectElement, FormSelectProps>(
           <p className="text-xs text-red-600">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-gray-500">{hint}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{hint}</p>
         )}
       </div>
     );

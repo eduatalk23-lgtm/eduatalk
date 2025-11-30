@@ -23,8 +23,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         ref={ref}
         className={cn(
           "w-full rounded-lg border bg-white transition-colors appearance-none cursor-pointer",
+          "text-[var(--text-primary)]",
           "focus:outline-none focus:ring-2 focus:ring-offset-0",
-          "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
+          "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[var(--text-disabled)]",
           hasError
             ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
             : "border-gray-300 focus:border-gray-900 focus:ring-gray-900/20",

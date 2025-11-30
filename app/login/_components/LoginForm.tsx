@@ -71,7 +71,7 @@ export function LoginForm() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border px-3 py-2"
+            className="rounded border px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]"
             placeholder="you@example.com"
           />
         </label>
@@ -82,7 +82,7 @@ export function LoginForm() {
             type="password"
             name="password"
             required
-            className="rounded border px-3 py-2"
+            className="rounded border px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]"
             placeholder="••••••••"
           />
         </label>

@@ -19,6 +19,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
   const router = useRouter();
   const [selectedRevisionId, setSelectedRevisionId] = useState<string>("");
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
   const [subjectGroups, setSubjectGroups] = useState<(SubjectGroup & { subjects: Subject[] })[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -30,6 +31,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
     
     // 교과 그룹과 과목 선택 초기화
     setSelectedGroupId("");
+    setSelectedSubjectId("");
     setSelectedSubjects([]);
     
     if (selectedRevision) {
@@ -55,6 +57,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
   function handleSubjectGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const groupId = e.target.value;
     setSelectedGroupId(groupId);
+    setSelectedSubjectId(""); // 과목 선택 초기화
     
     if (groupId) {
       const group = subjectGroups.find(g => g.id === groupId);
@@ -64,14 +67,32 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
     }
   }
 
+  // 과목 선택 시 처리 (개정교육과정 패턴과 동일)
+  function handleSubjectChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const subjectName = e.target.value;
+    const selectedSubject = selectedSubjects.find(s => s.name === subjectName);
+    setSelectedSubjectId(selectedSubject?.id || "");
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // disabled 상태의 select는 FormData에 포함되지 않으므로 수동으로 추가
-    const subjectSelect = e.currentTarget.querySelector<HTMLSelectElement>('select[name="subject_id"]');
-    if (subjectSelect && subjectSelect.value) {
-      formData.set("subject_id", subjectSelect.value);
+    // 교과 그룹 정보 추가 (denormalize)
+    if (selectedGroupId) {
+      const selectedGroup = subjectGroups.find(g => g.id === selectedGroupId);
+      if (selectedGroup) {
+        formData.set("subject_group_id", selectedGroup.id);
+        formData.set("subject_category", selectedGroup.name);
+      }
+    }
+
+    // 과목 정보 추가 (denormalize)
+    if (selectedSubjectId) {
+      const selectedSubject = selectedSubjects.find(s => s.id === selectedSubjectId);
+      if (selectedSubject) {
+        formData.set("subject", selectedSubject.name);
+      }
     }
 
     startTransition(async () => {
@@ -173,17 +194,20 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
             과목
           </label>
           <select
-            name="subject_id"
+            value={selectedSubjects.find(s => s.id === selectedSubjectId)?.name || ""}
+            onChange={handleSubjectChange}
             disabled={!selectedGroupId}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
           >
             <option value="">선택하세요</option>
             {selectedSubjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
+              <option key={subject.id} value={subject.name}>
                 {subject.name}
               </option>
             ))}
           </select>
+          {/* subject_id를 hidden input으로 전송 */}
+          <input type="hidden" name="subject_id" value={selectedSubjectId} />
           <p className="mt-1 text-xs text-gray-500">
             {!selectedRevisionId
               ? "개정교육과정과 교과 그룹을 먼저 선택하세요"

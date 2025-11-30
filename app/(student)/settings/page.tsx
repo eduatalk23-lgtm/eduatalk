@@ -819,7 +819,7 @@ export default function SettingsPage() {
                   }
                 }}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2",
+                  "rounded-lg border px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:ring-2",
                   errors.phone
                     ? "border-red-500 focus:border-red-500 focus:ring-red-200"
                     : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
@@ -839,7 +839,7 @@ export default function SettingsPage() {
                 type="tel"
                 value={formData.mother_phone}
                 onChange={handlePhoneChange("mother_phone")}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 placeholder="010-1234-5678"
               />
             </div>
@@ -852,7 +852,7 @@ export default function SettingsPage() {
                 type="tel"
                 value={formData.father_phone}
                 onChange={handlePhoneChange("father_phone")}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-gray-900 placeholder:text-gray-600 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 placeholder="010-1234-5678"
               />
             </div>

@@ -38,14 +38,14 @@ function SectionHeaderComponent({
       <div className="flex flex-col gap-1">
         <h2
           className={cn(
-            "font-semibold text-gray-900",
+            "font-semibold text-[var(--text-primary)]",
             sizeClasses[size].title
           )}
         >
           {title}
         </h2>
         {description && (
-          <p className={cn("text-gray-500", sizeClasses[size].description)}>
+          <p className={cn("text-[var(--text-secondary)]", sizeClasses[size].description)}>
             {description}
           </p>
         )}

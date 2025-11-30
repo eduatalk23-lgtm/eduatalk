@@ -182,6 +182,9 @@ export async function getMasterBookById(
         is_active,
         curriculum_revision_id,
         subject_id,
+        subject_group_id,
+        subject_category,
+        subject,
         grade_min,
         grade_max,
         school_type,
@@ -294,12 +297,12 @@ export async function getMasterBookById(
     ...bookData,
     // revision은 curriculum_revisions.name으로 설정 (없으면 기존 revision 유지)
     revision: curriculumRevision?.name || bookData.revision || null,
-    // subject_category는 subject_groups.name으로 설정
-    subject_category: subjectGroup?.name || null,
-    // subject는 subjects.name으로 설정
-    subject: subject?.name || null,
-    // publisher는 publishers.name으로 설정 (없으면 publisher_name 유지)
-    publisher: publisher?.name || bookData.publisher_name || null,
+    // subject_category는 저장된 값 우선, JOIN은 fallback
+    subject_category: bookData.subject_category || subjectGroup?.name || null,
+    // subject는 저장된 값 우선, JOIN은 fallback
+    subject: bookData.subject || subject?.name || null,
+    // publisher는 저장된 값 우선, JOIN은 fallback
+    publisher: bookData.publisher_name || publisher?.name || null,
   } as MasterBook & { subject_category?: string | null; subject?: string | null; publisher?: string | null; revision?: string | null };
 
   return {
@@ -819,6 +822,9 @@ export async function createMasterBook(
       is_active: data.is_active,
       curriculum_revision_id: data.curriculum_revision_id,
       subject_id: data.subject_id,
+      subject_group_id: data.subject_group_id,
+      subject_category: data.subject_category,
+      subject: data.subject,
       grade_min: data.grade_min,
       grade_max: data.grade_max,
       school_type: data.school_type,
@@ -879,6 +885,9 @@ export async function updateMasterBook(
   if (data.is_active !== undefined) updateFields.is_active = data.is_active;
   if (data.curriculum_revision_id !== undefined) updateFields.curriculum_revision_id = data.curriculum_revision_id;
   if (data.subject_id !== undefined) updateFields.subject_id = data.subject_id;
+  if (data.subject_group_id !== undefined) updateFields.subject_group_id = data.subject_group_id;
+  if (data.subject_category !== undefined) updateFields.subject_category = data.subject_category;
+  if (data.subject !== undefined) updateFields.subject = data.subject;
   if (data.grade_min !== undefined) updateFields.grade_min = data.grade_min;
   if (data.grade_max !== undefined) updateFields.grade_max = data.grade_max;
   if (data.school_type !== undefined) updateFields.school_type = data.school_type;

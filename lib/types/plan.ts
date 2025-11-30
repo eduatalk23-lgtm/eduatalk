@@ -331,6 +331,9 @@ export type MasterBook = CommonContentFields & {
   // 교육과정 관련
   curriculum_revision_id: string | null; // 교육과정 개정판 ID (FK → curriculum_revisions)
   subject_id: string | null; // 과목 ID (FK → subjects)
+  subject_group_id: string | null; // 교과 그룹 ID (FK → subject_groups, denormalized)
+  subject_category: string | null; // 교과 그룹명 (denormalized, same as subject_groups.name)
+  subject: string | null; // 과목명 (denormalized, same as subjects.name)
   grade_min: number | null; // 최소 학년 (1-3)
   grade_max: number | null; // 최대 학년 (1-3)
   school_type: string | null; // 학교 유형 (MIDDLE, HIGH, OTHER)
