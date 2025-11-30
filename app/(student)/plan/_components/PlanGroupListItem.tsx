@@ -41,10 +41,9 @@ const schedulerTypeLabels: Record<string, string> = {
   커스텀: "커스텀",
 };
 
-
-export function PlanGroupListItem({ 
-  group, 
-  planCount, 
+export function PlanGroupListItem({
+  group,
+  planCount,
   hasPlans,
   completedCount = 0,
   totalCount = 0,
@@ -60,13 +59,13 @@ export function PlanGroupListItem({
   const isActive = group.status === "active";
   const isCompleted = group.status === "completed";
   const isCancelled = group.status === "cancelled";
-  
+
   // 캠프 플랜 여부 확인
   const isCampPlan = !!(group.plan_type === "camp" && group.camp_invitation_id);
-  
+
   // 플랜이 생성되고, 완료/중단 상태가 아닌 경우만 토글 가능
   const canToggle = hasPlans && planCount > 0 && !isCompleted && !isCancelled;
-  
+
   // 캠프 플랜은 삭제 불가 (제출 전까지는 수정 가능)
   const canDelete = !isCampPlan;
 
@@ -87,7 +86,7 @@ export function PlanGroupListItem({
   const handleToggleActiveConfirm = () => {
     // 활성 상태면 일시정지로, 아니면 활성으로 변경
     const newStatus: PlanStatus = isActive ? "paused" : "active";
-    
+
     // 상태 전이 가능 여부 확인
     const currentStatus = group.status as PlanStatus;
     if (!PlanStatusManager.canTransition(currentStatus, newStatus)) {
@@ -112,17 +111,15 @@ export function PlanGroupListItem({
       try {
         await updatePlanGroupStatus(group.id, newStatus);
         toast.showSuccess(
-          isActive 
-            ? "플랜 그룹이 일시정지되었습니다." 
+          isActive
+            ? "플랜 그룹이 일시정지되었습니다."
             : "플랜 그룹이 활성화되었습니다."
         );
         setToggleDialogOpen(false);
         router.refresh();
       } catch (error) {
         toast.showError(
-          error instanceof Error
-            ? error.message
-            : "상태 변경에 실패했습니다."
+          error instanceof Error ? error.message : "상태 변경에 실패했습니다."
         );
         setToggleDialogOpen(false);
       }
@@ -130,9 +127,9 @@ export function PlanGroupListItem({
   };
 
   // 표시할 상태 결정 (저장됨, 초안 제외)
-  const shouldShowStatus = 
-    group.status === "active" || 
-    group.status === "paused" || 
+  const shouldShowStatus =
+    group.status === "active" ||
+    group.status === "paused" ||
     group.status === "completed" ||
     group.status === "cancelled";
 
@@ -144,7 +141,7 @@ export function PlanGroupListItem({
 
     const status = group.status as PlanStatus;
     const label = statusLabels[status] || status;
-    
+
     return { label };
   };
 
@@ -154,9 +151,9 @@ export function PlanGroupListItem({
     // 버튼 영역 클릭 시에는 네비게이션하지 않음
     const target = e.target as HTMLElement;
     if (
-      target.closest('button') ||
+      target.closest("button") ||
       target.closest('[role="button"]') ||
-      target.closest('a[href]')
+      target.closest("a[href]")
     ) {
       return;
     }
@@ -164,10 +161,10 @@ export function PlanGroupListItem({
   };
 
   return (
-    <li 
+    <li
       className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 cursor-pointer ${
-        isSelected 
-          ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
+        isSelected
+          ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200"
           : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5"
       }`}
       onClick={handleCardClick}
@@ -211,6 +208,7 @@ export function PlanGroupListItem({
               {/* 플랜 생성 완료 뱃지 */}
               {hasPlans && planCount > 0 && (
                 <Badge variant="info" size="sm">
+                  
                   플랜 생성 완료
                 </Badge>
               )}
@@ -236,58 +234,60 @@ export function PlanGroupListItem({
             </div>
           </div>
 
-        {/* 우측: 아이콘 버튼들 */}
-        <div className="flex shrink-0 items-center gap-1 relative z-20">
-          {canToggle && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                handleToggleActiveClick();
-              }}
-              disabled={isPending}
-              className={`inline-flex items-center justify-center rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                isActive
-                  ? "text-green-600 hover:bg-green-50"
-                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              }`}
-              aria-label={isActive ? "플랜 그룹 비활성화" : "플랜 그룹 활성화"}
-              title={isActive ? "비활성화" : "활성화"}
-            >
-              {isActive ? (
-                <PowerOff className="h-4 w-4" />
-              ) : (
-                <Power className="h-4 w-4" />
-              )}
-            </button>
-          )}
-          {canDelete ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setDeleteDialogOpen(true);
-              }}
-              className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
-              aria-label="플랜 그룹 삭제"
-              title="삭제"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-300 cursor-not-allowed"
-              aria-label="캠프 플랜은 삭제할 수 없습니다"
-              title="캠프 플랜은 삭제할 수 없습니다"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+          {/* 우측: 아이콘 버튼들 */}
+          <div className="flex shrink-0 items-center gap-1 relative z-20">
+            {canToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleToggleActiveClick();
+                }}
+                disabled={isPending}
+                className={`inline-flex items-center justify-center rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  isActive
+                    ? "text-green-600 hover:bg-green-50"
+                    : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                }`}
+                aria-label={
+                  isActive ? "플랜 그룹 비활성화" : "플랜 그룹 활성화"
+                }
+                title={isActive ? "비활성화" : "활성화"}
+              >
+                {isActive ? (
+                  <PowerOff className="h-4 w-4" />
+                ) : (
+                  <Power className="h-4 w-4" />
+                )}
+              </button>
+            )}
+            {canDelete ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setDeleteDialogOpen(true);
+                }}
+                className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                aria-label="플랜 그룹 삭제"
+                title="삭제"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-300 cursor-not-allowed"
+                aria-label="캠프 플랜은 삭제할 수 없습니다"
+                title="캠프 플랜은 삭제할 수 없습니다"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* 콘텐츠 영역 */}
@@ -303,7 +303,9 @@ export function PlanGroupListItem({
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-gray-600">진행률</span>
+                    <span className="text-xs font-medium text-gray-600">
+                      진행률
+                    </span>
                     <span className="text-xs font-semibold text-gray-900">
                       {completedCount}/{totalCount}개 완료
                     </span>
@@ -345,7 +347,8 @@ export function PlanGroupListItem({
               <span className="text-gray-500">스케줄러: </span>
               <span className="font-medium text-gray-900">
                 {group.scheduler_type
-                  ? schedulerTypeLabels[group.scheduler_type] || group.scheduler_type
+                  ? schedulerTypeLabels[group.scheduler_type] ||
+                    group.scheduler_type
                   : "—"}
               </span>
             </div>
@@ -355,7 +358,13 @@ export function PlanGroupListItem({
               <span className="text-gray-500">기간: </span>
               <span className="font-medium text-gray-900">
                 {group.period_start && group.period_end
-                  ? `${new Date(group.period_start).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })} ~ ${new Date(group.period_end).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}`
+                  ? `${new Date(group.period_start).toLocaleDateString(
+                      "ko-KR",
+                      { year: "numeric", month: "long", day: "numeric" }
+                    )} ~ ${new Date(group.period_end).toLocaleDateString(
+                      "ko-KR",
+                      { year: "numeric", month: "long", day: "numeric" }
+                    )}`
                   : "—"}
               </span>
             </div>
@@ -364,7 +373,11 @@ export function PlanGroupListItem({
             <div className="flex items-center justify-between border-t border-gray-100 pt-2">
               <p className="text-xs text-gray-500">
                 {group.created_at
-                  ? new Date(group.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" })
+                  ? new Date(group.created_at).toLocaleDateString("ko-KR", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })
                   : "—"}
               </p>
               {hasPlans && planCount > 0 && totalCount === 0 && (
@@ -397,4 +410,3 @@ export function PlanGroupListItem({
     </li>
   );
 }
-

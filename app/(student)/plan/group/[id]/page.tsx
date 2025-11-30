@@ -77,6 +77,10 @@ export default async function PlanGroupDetailPage({
   const canEdit = PlanStatusManager.canEdit(group.status as PlanStatus);
   const canDelete = PlanStatusManager.canDelete(group.status as PlanStatus);
 
+  // 블록 세트 목록 조회 (시간 블록 정보 포함)
+  const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
+  const blockSets = await fetchBlockSetsWithBlocks(user.id);
+
   // 플랜 데이터 조회 (단일 쿼리로 통합)
   const { data: plans } = await supabase
     .from("student_plan")
@@ -526,6 +530,7 @@ export default async function PlanGroupDetailPage({
             hasPlans={hasPlans}
             templateBlocks={templateBlocks}
             templateBlockSetName={templateBlockSetName}
+            blockSets={blockSets}
           />
         </div>
       </div>

@@ -50,6 +50,16 @@ type PlanGroupDetailViewProps = {
     end_time: string;
   }>;
   templateBlockSetName?: string | null;
+  blockSets?: Array<{
+    id: string;
+    name: string;
+    blocks?: Array<{
+      id: string;
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+    }>;
+  }>;
 };
 
 export function PlanGroupDetailView({
@@ -64,6 +74,7 @@ export function PlanGroupDetailView({
   campSubmissionMode = false,
   templateBlocks = [],
   templateBlockSetName = null,
+  blockSets = [],
 }: PlanGroupDetailViewProps) {
   const scheduleViewRef = useRef<PlanScheduleViewRef | null>(null);
 
@@ -157,6 +168,7 @@ export function PlanGroupDetailView({
             <Step1BasicInfo 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용
+              blockSets={blockSets}
               editable={false}
               isCampMode={campSubmissionMode}
               lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
@@ -229,6 +241,7 @@ export function PlanGroupDetailView({
             <Step1BasicInfo 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용
+              blockSets={blockSets}
               editable={false}
               isCampMode={campSubmissionMode}
               lockedFields={[]}

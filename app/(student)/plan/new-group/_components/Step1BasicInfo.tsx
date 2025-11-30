@@ -264,7 +264,7 @@ export function Step1BasicInfo({
 
   // 템플릿 블록 세트 자동 선택 (blockSets가 로드된 후)
   useEffect(() => {
-    if (data.block_set_id && blockSets.length > 0) {
+    if (data.block_set_id && blockSets && blockSets.length > 0) {
       const selectedSet = blockSets.find((set) => set.id === data.block_set_id);
       // block_set_id가 설정되어 있지만 아직 선택되지 않은 경우 (초기 로드 시)
       // 이미 isSelected 로직으로 자동 선택되므로 추가 작업 불필요
@@ -666,6 +666,10 @@ export function Step1BasicInfo({
   const handleStartEdit = () => {
     if (!data.block_set_id) {
       alert("먼저 블록 세트를 선택해주세요.");
+      return;
+    }
+    if (!blockSets || blockSets.length === 0) {
+      alert("블록 세트 목록을 불러올 수 없습니다.");
       return;
     }
     const selectedSet = blockSets.find((set) => set.id === data.block_set_id);
@@ -1975,7 +1979,7 @@ export function Step1BasicInfo({
         {data.block_set_id && (
           <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             {(() => {
-              const selectedSet = data.block_set_id
+              const selectedSet = data.block_set_id && blockSets
                 ? blockSets.find((set) => set.id === data.block_set_id)
                 : null;
               const blocks = selectedSet?.blocks ?? [];
@@ -2377,7 +2381,7 @@ export function Step1BasicInfo({
                     isPending ||
                     !editingBlockSetName.trim() ||
                     editingBlockSetName ===
-                      blockSets.find((s) => s.id === editingBlockSetId)?.name
+                      blockSets?.find((s) => s.id === editingBlockSetId)?.name
                   }
                   className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
                 >
@@ -2388,7 +2392,7 @@ export function Step1BasicInfo({
 
             {/* 현재 블록 목록 */}
             {(() => {
-              const selectedSet = blockSets.find(
+              const selectedSet = blockSets?.find(
                 (set) => set.id === editingBlockSetId
               );
               const blocks = selectedSet?.blocks ?? [];
