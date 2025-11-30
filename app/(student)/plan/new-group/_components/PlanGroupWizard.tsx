@@ -664,8 +664,11 @@ export function PlanGroupWizard({
       return;
     }
 
-    if (!validateStep(currentStep)) {
-      return;
+    // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
+    if (currentStep !== 3) {
+      if (!validateStep(currentStep)) {
+        return;
+      }
     }
 
     // 템플릿 모드일 때 Step 2에서 바로 제출 (Step 3, 4, 5 건너뛰기)
