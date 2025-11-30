@@ -157,103 +157,12 @@ export class WizardValidator {
   }
 
   /**
-   * Step 4: 추천 콘텐츠 검증
+   * Step 4: 콘텐츠 선택 검증
+   * 블록 및 제외일 단계(Step 2)에서 이미 검증이 완료되었으므로 검증 제거
    */
   private static validateStep4(wizardData: WizardData): ValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    const totalContents =
-      wizardData.student_contents.length +
-      wizardData.recommended_contents.length;
-
-    // 최소 1개 이상의 콘텐츠 필요
-    if (totalContents === 0) {
-      errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
-    }
-
-    // 추천 콘텐츠 범위 검증
-    wizardData.recommended_contents.forEach((content, index) => {
-      if (content.start_range >= content.end_range) {
-        errors.push(
-          `추천 콘텐츠 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`
-        );
-      }
-
-      if (content.start_range < 0 || content.end_range < 0) {
-        errors.push(`추천 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
-      }
-    });
-
-    // 필수 과목 검증 (템플릿 설정에 따라 동적 처리)
-    // enable_required_subjects_validation이 true이고 required_subjects가 설정된 경우에만 검증
-    if (
-      wizardData.subject_constraints?.enable_required_subjects_validation &&
-      wizardData.subject_constraints?.required_subjects &&
-      wizardData.subject_constraints.required_subjects.length > 0
-    ) {
-      const requiredSubjects = wizardData.subject_constraints.required_subjects;
-      
-      // 선택된 콘텐츠를 교과/과목별로 카운트
-      const contentCountBySubject = new Map<string, number>();
-      
-      // 학생 콘텐츠 카운트
-      wizardData.student_contents.forEach((sc) => {
-        if (sc.subject_category) {
-          // subject 필드는 레거시이므로 subject_category만 사용
-          const key = sc.subject_category;
-          contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
-        }
-      });
-
-      // 추천 콘텐츠 카운트
-      wizardData.recommended_contents.forEach((rc) => {
-        if (rc.subject_category) {
-          // subject 필드는 레거시이므로 subject_category만 사용
-          const key = rc.subject_category;
-          contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
-        }
-      });
-
-      // 필수 과목 검증
-      const missingRequiredSubjects: string[] = [];
-      
-      requiredSubjects.forEach((req) => {
-        // 세부 과목이 지정된 경우: 정확히 일치하는 과목만 카운트
-        // 세부 과목이 없는 경우: 교과만 일치하면 카운트
-        let count = 0;
-        
-        if (req.subject) {
-          // 세부 과목이 지정된 경우
-          const exactKey = `${req.subject_category}:${req.subject}`;
-          count = contentCountBySubject.get(exactKey) || 0;
-        } else {
-          // 교과만 지정된 경우: 해당 교과의 모든 콘텐츠 카운트
-          contentCountBySubject.forEach((cnt, key) => {
-            if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
-              count += cnt;
-            }
-          });
-        }
-        
-        if (count < req.min_count) {
-          const displayName = req.subject 
-            ? `${req.subject_category} - ${req.subject}` 
-            : req.subject_category;
-          missingRequiredSubjects.push(
-            `${displayName} (최소 ${req.min_count}개 필요, 현재 ${count}개)`
-          );
-        }
-      });
-
-      if (missingRequiredSubjects.length > 0) {
-        errors.push(
-          `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다:\n${missingRequiredSubjects.join("\n")}`
-        );
-      }
-    }
-
-    return { valid: errors.length === 0, errors, warnings };
+    // 검증 로직 제거 (사용자 요청에 따라)
+    return { valid: true, errors: [], warnings: [] };
   }
 
   /**
@@ -426,14 +335,13 @@ export class WizardValidator {
     // 각 단계별 검증 수행
     const step1 = this.validateStep1(wizardData);
     const step2 = this.validateStep2(wizardData);
-    const step4 = this.validateStep4(wizardData);
+    // Step 4 검증 제거 (블록 및 제외일 단계에서 이미 검증 완료)
     const step6 = this.validateStep6(wizardData);
 
-    errors.push(...step1.errors, ...step2.errors, ...step4.errors, ...step6.errors);
+    errors.push(...step1.errors, ...step2.errors, ...step6.errors);
     warnings.push(
       ...step1.warnings,
       ...step2.warnings,
-      ...step4.warnings,
       ...step6.warnings
     );
 

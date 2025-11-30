@@ -571,86 +571,9 @@ export function PlanGroupWizard({
     }
 
     if (step === 4) {
-      // 템플릿 모드에서는 Step 4 검증 건너뛰기 (Step 2에서 바로 제출)
-      if (isTemplateMode) {
-        return true;
-      }
-
-      // Step 6 검증: 최종 확인 단계
-      // 최소 1개 이상의 콘텐츠 필요
-      const totalContents = wizardData.student_contents.length + wizardData.recommended_contents.length;
-      if (totalContents === 0) {
-        errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
-      }
-
-      // selectedSubjectCategories를 먼저 정의 (여러 곳에서 사용)
-      const selectedSubjectCategories = new Set<string>();
-      
-      // 학생 콘텐츠의 subject_category 수집
-      wizardData.student_contents.forEach((sc) => {
-        const subjectCategory = (sc as any).subject_category;
-        if (subjectCategory) {
-          selectedSubjectCategories.add(subjectCategory);
-        }
-      });
-
-      // 추천 콘텐츠의 subject_category 수집
-      wizardData.recommended_contents.forEach((rc) => {
-        const subjectCategory = (rc as any).subject_category;
-        if (subjectCategory) {
-          selectedSubjectCategories.add(subjectCategory);
-        }
-      });
-
-      // 필수 과목 검증 (템플릿 설정에 따라 동적 처리)
-      // enable_required_subjects_validation이 true이고 required_subjects가 설정된 경우에만 검증
-      if (
-        !isTemplateMode &&
-        wizardData.subject_constraints?.enable_required_subjects_validation &&
-        wizardData.subject_constraints?.required_subjects &&
-        wizardData.subject_constraints.required_subjects.length > 0
-      ) {
-        const requiredSubjects = wizardData.subject_constraints.required_subjects;
-
-        const missingRequiredSubjects = requiredSubjects.filter(
-          (subject) => !selectedSubjectCategories.has(subject)
-        );
-
-        if (missingRequiredSubjects.length > 0) {
-          const constraintHandling = wizardData.subject_constraints.constraint_handling || "strict";
-          if (constraintHandling === "strict") {
-            errors.push(
-              `다음 필수 교과를 각각 1개 이상 선택해주세요: ${missingRequiredSubjects.join(
-                ", "
-              )}`
-            );
-          } else if (constraintHandling === "warning") {
-            // 경고만 표시 (에러로 추가하지 않음)
-            console.warn(`[PlanGroupWizard] 필수 교과 누락 경고: ${missingRequiredSubjects.join(", ")}`);
-          }
-          // auto_fix는 나중에 자동으로 보완하는 로직 구현 필요
-        }
-      }
-
-      // 1730 Timetable인 경우 추가 검증
-      if (wizardData.scheduler_type === "1730_timetable") {
-        // student_level 필수 제거됨 (사용자 요청에 따라)
-        
-        // subject_allocations 필수 검증 제거 - 학생 입력폼 제출 후 관리자 영역
-
-        // study_review_cycle 검증
-        const studyDays = wizardData.study_review_cycle?.study_days || wizardData.scheduler_options?.study_days || 6;
-        const reviewDays = wizardData.study_review_cycle?.review_days || wizardData.scheduler_options?.review_days || 1;
-        if (studyDays < 1 || studyDays > 7) {
-          errors.push("학습일 수는 1일 이상 7일 이하여야 합니다.");
-        }
-        if (reviewDays < 1 || reviewDays > 7) {
-          errors.push("복습일 수는 1일 이상 7일 이하여야 합니다.");
-        }
-        if (studyDays + reviewDays > 7) {
-          errors.push("학습일 수와 복습일 수의 합은 7일 이하여야 합니다.");
-        }
-      }
+      // Step 4: 콘텐츠 선택 단계
+      // 블록 및 제외일 단계(Step 2)에서 이미 검증이 완료되었으므로 검증 제거
+      // 콘텐츠 관련 검증은 제거됨 (사용자 요청에 따라)
     }
 
     setValidationErrors(errors);

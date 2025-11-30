@@ -918,33 +918,27 @@ export async function createPlanExclusions(
   }
 
   // 중복 체크: 같은 학생의 같은 날짜 제외일이 이미 있는지 확인
-  // 제외일은 플랜 그룹별로 관리되지만, 학생별로도 중복되지 않아야 함
-  // 단, 현재 플랜 그룹의 기존 제외일은 제외 (업데이트 시 기존 제외일을 삭제하고 재추가하는 경우를 위해)
+  // 제외일은 플랜 그룹별로 관리되므로, 다른 플랜 그룹에 이미 등록된 날짜만 중복으로 처리
+  // 현재 플랜 그룹의 제외일은 업데이트 시 삭제 후 재추가되므로 중복 체크에서 제외
   
-  // 현재 플랜 그룹의 기존 제외일 조회 (중복 체크에서 제외하기 위해)
-  const currentGroupExclusions = await getPlanExclusions(groupId, tenantId);
-  const currentGroupDates = new Set(currentGroupExclusions.map((e) => e.exclusion_date));
-  
-  // 학생의 모든 제외일을 plan_group_id 포함하여 조회
+  // 학생의 모든 제외일을 plan_group_id 포함하여 조회 (현재 플랜 그룹 제외)
   const allExclusionsQuery = supabase
     .from("plan_exclusions")
     .select("exclusion_date, plan_group_id")
-    .eq("student_id", group.student_id);
+    .eq("student_id", group.student_id)
+    .neq("plan_group_id", groupId); // 현재 플랜 그룹의 제외일은 제외
   
   if (tenantId) {
     allExclusionsQuery.eq("tenant_id", tenantId);
   }
   
-  const { data: allExclusions, error: allExclusionsError } = await allExclusionsQuery;
+  const { data: otherGroupExclusions, error: exclusionsError } = await allExclusionsQuery;
   
-  if (allExclusionsError) {
-    console.error("[data/planGroups] 제외일 조회 실패 (중복 체크용)", allExclusionsError);
+  if (exclusionsError) {
+    console.error("[data/planGroups] 제외일 조회 실패 (중복 체크용)", exclusionsError);
     // 조회 실패 시 중복 체크를 건너뛰고 계속 진행 (데이터베이스 레벨 제약조건에서 처리)
-  } else {
-    // 현재 플랜 그룹의 제외일을 제외한 다른 플랜 그룹의 제외일만 중복 체크 대상
-    const otherGroupExclusions = (allExclusions || []).filter(
-      (e) => e.plan_group_id !== groupId
-    );
+  } else if (otherGroupExclusions && otherGroupExclusions.length > 0) {
+    // 다른 플랜 그룹에 이미 등록된 날짜와 중복 체크
     const existingDates = new Set(otherGroupExclusions.map((e) => e.exclusion_date));
 
     // 중복된 날짜 필터링
