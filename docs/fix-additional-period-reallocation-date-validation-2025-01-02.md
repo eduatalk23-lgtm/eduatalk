@@ -25,7 +25,7 @@ at onChange (app/(student)/plan/new-group/_components/Step1BasicInfo.tsx:2631:30
 
 ## 수정 내용
 
-### 변경 전
+### 변경 전 (초기)
 ```typescript
 if (e.target.checked) {
   // 4주 기간 계산 (원본 기간의 첫 4주)
@@ -53,49 +53,74 @@ if (e.target.checked) {
 }
 ```
 
-### 변경 후
+### 변경 후 (최종)
 ```typescript
-if (e.target.checked) {
-  // 4주 기간 계산 (원본 기간의 첫 4주)
-  const periodStart = new Date(data.period_start);
-  const periodEnd = new Date(data.period_end);
-  
-  // 날짜 유효성 검사
-  if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
-    console.error("Invalid date values for additional period reallocation");
-    return;
+// useToast 훅 추가
+const { showError } = useToast();
+
+// 체크박스 변경 핸들러
+onChange={(e) => {
+  if (e.target.checked) {
+    // 날짜 값 확인
+    if (!data.period_start || !data.period_end) {
+      showError("학습 기간을 먼저 입력해주세요.");
+      e.target.checked = false;
+      return;
+    }
+    
+    // 4주 기간 계산 (원본 기간의 첫 4주)
+    const periodStart = new Date(data.period_start);
+    const periodEnd = new Date(data.period_end);
+    
+    // 날짜 유효성 검사
+    if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
+      showError("유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요.");
+      e.target.checked = false;
+      return;
+    }
+    
+    const fourWeeksEnd = new Date(periodStart);
+    fourWeeksEnd.setDate(fourWeeksEnd.getDate() + 28); // 4주 = 28일
+
+    // 실제 종료일이 4주보다 짧으면 그 날짜 사용
+    const originalEnd =
+      fourWeeksEnd > periodEnd ? periodEnd : fourWeeksEnd;
+
+    // originalEnd 유효성 검사
+    if (isNaN(originalEnd.getTime())) {
+      showError("날짜 계산 중 오류가 발생했습니다.");
+      e.target.checked = false;
+      return;
+    }
+
+    onUpdate({
+      additional_period_reallocation: {
+        period_start: "",
+        period_end: "",
+        type: "additional_review",
+        original_period_start: data.period_start,
+        original_period_end: originalEnd
+          .toISOString()
+          .split("T")[0],
+        review_of_review_factor: 0.25,
+      },
+    });
   }
-  
-  const fourWeeksEnd = new Date(periodStart);
-  fourWeeksEnd.setDate(fourWeeksEnd.getDate() + 28); // 4주 = 28일
+}}
 
-  // 실제 종료일이 4주보다 짧으면 그 날짜 사용
-  const originalEnd =
-    fourWeeksEnd > periodEnd ? periodEnd : fourWeeksEnd;
-
-  // originalEnd 유효성 검사
-  if (isNaN(originalEnd.getTime())) {
-    console.error("Invalid originalEnd date");
-    return;
-  }
-
-  onUpdate({
-    additional_period_reallocation: {
-      period_start: "",
-      period_end: "",
-      type: "additional_review",
-      original_period_start: data.period_start,
-      original_period_end: originalEnd
-        .toISOString()
-        .split("T")[0],
-      review_of_review_factor: 0.25,
-    },
-  });
+// 체크박스 비활성화 조건 개선
+disabled={
+  (isCampMode && !canStudentInputAdditionalPeriodReallocation) ||
+  !data.period_start ||
+  !data.period_end ||
+  isNaN(new Date(data.period_start).getTime()) ||
+  isNaN(new Date(data.period_end).getTime())
 }
 ```
 
 ## 수정 사항
 
+### 1단계: 기본 유효성 검사 추가
 1. **날짜 유효성 검사 추가**
    - `periodStart`와 `periodEnd`가 유효한 Date 객체인지 확인
    - Invalid Date인 경우 조기 반환으로 에러 방지
@@ -106,7 +131,20 @@ if (e.target.checked) {
 
 3. **에러 로깅**
    - 유효하지 않은 날짜 값에 대한 콘솔 에러 로깅 추가
-   - 디버깅을 위한 정보 제공
+
+### 2단계: UX 개선 및 사용자 피드백
+1. **Toast 메시지로 사용자 피드백 제공**
+   - `useToast` 훅 추가 및 import
+   - 유효하지 않은 날짜일 때 Toast 에러 메시지 표시
+   - 사용자 친화적인 한국어 에러 메시지 제공
+
+2. **체크박스 조건부 비활성화**
+   - 날짜가 없거나 유효하지 않을 때 체크박스 비활성화
+   - 사용자가 유효하지 않은 상태로 체크할 수 없도록 예방
+
+3. **체크박스 상태 복원**
+   - 에러 발생 시 체크박스 체크 상태를 자동으로 해제
+   - 일관된 UI 상태 유지
 
 ## 테스트 시나리오
 

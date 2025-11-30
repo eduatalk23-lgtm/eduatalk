@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { RefreshCw, Pencil, Plus, MessageCircle } from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   createBlockSet,
   getBlockSets,
@@ -81,6 +82,8 @@ export function Step1BasicInfo({
   templateId,
   isCampMode = false,
 }: Step1BasicInfoProps) {
+  const { showError } = useToast();
+  
   // 템플릿 고정 필드 확인
   // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)
   const lockedFields = data.templateLockedFields?.step1 || {};
@@ -2611,13 +2614,22 @@ export function Step1BasicInfo({
                     )
                       return;
                     if (e.target.checked) {
+                      // 날짜 값 확인
+                      if (!data.period_start || !data.period_end) {
+                        showError("학습 기간을 먼저 입력해주세요.");
+                        // 체크박스 체크 해제
+                        e.target.checked = false;
+                        return;
+                      }
+                      
                       // 4주 기간 계산 (원본 기간의 첫 4주)
                       const periodStart = new Date(data.period_start);
                       const periodEnd = new Date(data.period_end);
                       
                       // 날짜 유효성 검사
                       if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
-                        console.error("Invalid date values for additional period reallocation");
+                        showError("유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요.");
+                        e.target.checked = false;
                         return;
                       }
                       
@@ -2630,7 +2642,8 @@ export function Step1BasicInfo({
 
                       // originalEnd 유효성 검사
                       if (isNaN(originalEnd.getTime())) {
-                        console.error("Invalid originalEnd date");
+                        showError("날짜 계산 중 오류가 발생했습니다.");
+                        e.target.checked = false;
                         return;
                       }
 
@@ -2651,7 +2664,11 @@ export function Step1BasicInfo({
                     }
                   }}
                   disabled={
-                    isCampMode && !canStudentInputAdditionalPeriodReallocation
+                    (isCampMode && !canStudentInputAdditionalPeriodReallocation) ||
+                    !data.period_start ||
+                    !data.period_end ||
+                    isNaN(new Date(data.period_start).getTime()) ||
+                    isNaN(new Date(data.period_end).getTime())
                   }
                   className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                 />
