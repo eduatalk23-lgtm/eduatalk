@@ -150,12 +150,28 @@ export function PlanGroupListItem({
 
   const displayStatus = getDisplayStatus();
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // 버튼 영역 클릭 시에는 네비게이션하지 않음
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') ||
+      target.closest('[role="button"]') ||
+      target.closest('a[href]')
+    ) {
+      return;
+    }
+    router.push(`/plan/group/${group.id}`);
+  };
+
   return (
-    <li className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 ${
-      isSelected 
-        ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
-        : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5"
-    }`}>
+    <li 
+      className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 cursor-pointer ${
+        isSelected 
+          ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200" 
+          : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5"
+      }`}
+      onClick={handleCardClick}
+    >
       <div className="flex flex-col gap-3">
         {/* 1줄: 체크박스 + 뱃지 (좌측) / 아이콘들 (우측) */}
         <div className="flex items-center justify-between gap-3">
@@ -166,9 +182,10 @@ export function PlanGroupListItem({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   onToggleSelect();
                 }}
-                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 relative z-20"
                 title={isSelected ? "선택 해제" : "선택"}
                 aria-label={isSelected ? "선택 해제" : "선택"}
               >
@@ -220,11 +237,15 @@ export function PlanGroupListItem({
           </div>
 
         {/* 우측: 아이콘 버튼들 */}
-        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center gap-1 relative z-20">
           {canToggle && (
             <button
               type="button"
-              onClick={handleToggleActiveClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleToggleActiveClick();
+              }}
               disabled={isPending}
               className={`inline-flex items-center justify-center rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
                 isActive
@@ -244,7 +265,11 @@ export function PlanGroupListItem({
           {canDelete ? (
             <button
               type="button"
-              onClick={() => setDeleteDialogOpen(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setDeleteDialogOpen(true);
+              }}
               className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
               aria-label="플랜 그룹 삭제"
               title="삭제"
@@ -265,11 +290,8 @@ export function PlanGroupListItem({
         </div>
         </div>
 
-        {/* 클릭 가능한 콘텐츠 영역 */}
-        <Link 
-          href={`/plan/group/${group.id}`}
-          className="flex flex-col gap-3 -m-3 p-3 rounded-lg transition hover:bg-gray-50"
-        >
+        {/* 콘텐츠 영역 */}
+        <div className="flex flex-col gap-3">
           {/* 제목 */}
           <h3 className="break-words text-base font-semibold text-gray-900">
             {group.name || "플랜 그룹"}
@@ -290,13 +312,13 @@ export function PlanGroupListItem({
                     <div className="flex-1">
                       <ProgressBar
                         value={Math.round((completedCount / totalCount) * 100)}
-                        height="sm"
-                        color={
+                        size="sm"
+                        variant={
                           completedCount === totalCount
-                            ? "green"
+                            ? "success"
                             : completedCount > 0
-                            ? "blue"
-                            : "orange"
+                            ? "default"
+                            : "warning"
                         }
                       />
                     </div>
@@ -352,7 +374,7 @@ export function PlanGroupListItem({
               )}
             </div>
           </div>
-        </Link>
+        </div>
       </div>
 
       <PlanGroupDeleteDialog
