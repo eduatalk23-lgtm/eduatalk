@@ -56,27 +56,37 @@ function parseDeviceName(userAgent: string | null): string {
 }
 
 /**
- * IP 주소 추출 (Next.js headers에서)
+ * headers에서 안전하게 헤더 값 추출
  */
-function getClientIP(): string | null {
+function getHeaderValue(name: string): string | null {
   try {
     const headersList = headers();
-    // Vercel, Cloudflare 등 다양한 플랫폼 지원
-    const forwardedFor = headersList.get("x-forwarded-for");
-    const realIP = headersList.get("x-real-ip");
-    const cfConnectingIP = headersList.get("cf-connecting-ip");
-
-    if (cfConnectingIP) return cfConnectingIP;
-    if (realIP) return realIP;
-    if (forwardedFor) {
-      // x-forwarded-for는 여러 IP를 포함할 수 있음 (프록시 체인)
-      return forwardedFor.split(",")[0].trim();
+    if (!headersList || typeof headersList.get !== 'function') {
+      return null;
     }
-
-    return null;
+    return headersList.get(name);
   } catch {
     return null;
   }
+}
+
+/**
+ * IP 주소 추출 (Next.js headers에서)
+ */
+function getClientIP(): string | null {
+  // Vercel, Cloudflare 등 다양한 플랫폼 지원
+  const cfConnectingIP = getHeaderValue("cf-connecting-ip");
+  const realIP = getHeaderValue("x-real-ip");
+  const forwardedFor = getHeaderValue("x-forwarded-for");
+
+  if (cfConnectingIP) return cfConnectingIP;
+  if (realIP) return realIP;
+  if (forwardedFor) {
+    // x-forwarded-for는 여러 IP를 포함할 수 있음 (프록시 체인)
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  return null;
 }
 
 /**
@@ -88,8 +98,7 @@ export async function saveUserSession(
   expiresAt?: Date
 ): Promise<void> {
   try {
-    const headersList = headers();
-    const userAgent = headersList.get("user-agent");
+    const userAgent = getHeaderValue("user-agent");
     const ipAddress = getClientIP();
     const deviceName = parseDeviceName(userAgent);
 
@@ -115,11 +124,9 @@ export async function saveUserSession(
 
     if (error) {
       console.error("[session] 세션 저장 실패:", error);
-      // 세션 저장 실패는 로그인을 막지 않음 (선택적 기능)
     }
   } catch (error) {
     console.error("[session] 세션 저장 예외:", error);
-    // 세션 저장 실패는 로그인을 막지 않음
   }
 }
 
@@ -182,18 +189,8 @@ export async function getUserSessions(): Promise<UserSession[]> {
     // 현재 세션이 없고 Supabase 세션이 있으면 현재 세션 등록
     if (!hasCurrentSession && session) {
       try {
-        let userAgent: string | null = null;
-        let ipAddress: string | null = null;
-        
-        try {
-          const headersList = headers();
-          userAgent = headersList.get("user-agent");
-          ipAddress = getClientIP();
-        } catch (headerError) {
-          // headers() 호출 실패 시 조용히 처리 (일부 컨텍스트에서 사용 불가)
-          console.warn("[session] headers() 호출 실패 (무시됨):", headerError);
-        }
-        
+        const userAgent = getHeaderValue("user-agent");
+        const ipAddress = getClientIP();
         const deviceName = parseDeviceName(userAgent);
 
         // 기존 세션의 is_current_session을 false로 업데이트
