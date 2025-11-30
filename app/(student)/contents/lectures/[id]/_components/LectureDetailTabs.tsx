@@ -6,17 +6,10 @@ import { LectureInfoSection } from "./LectureInfoSection";
 import { LectureEpisodesSection } from "./LectureEpisodesSection";
 import { LectureLinkedBookSection } from "./LectureLinkedBookSection";
 import { Lecture } from "@/app/types/content";
+import { MasterLecture } from "@/lib/types/plan";
 
 type LectureDetailTabsProps = {
-  lecture: Lecture & { 
-    linked_book_id?: string | null; 
-    total_episodes?: number | null;
-    instructor?: string | null;
-    source_url?: string | null;
-    grade_min?: number | null;
-    grade_max?: number | null;
-    content_category?: string | null;
-  };
+  lecture: Lecture & { linked_book_id?: string | null; total_episodes?: number | null };
   deleteAction: () => void;
   linkedBook: { id: string; title: string } | null;
   studentBooks: Array<{ id: string; title: string }>;
@@ -30,6 +23,7 @@ type LectureDetailTabsProps = {
     created_at: string;
   }>;
   isFromMaster: boolean;
+  masterLecture?: MasterLecture | null;
 };
 
 export function LectureDetailTabs({
@@ -39,6 +33,7 @@ export function LectureDetailTabs({
   studentBooks,
   initialEpisodes,
   isFromMaster,
+  masterLecture,
 }: LectureDetailTabsProps) {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "info";
@@ -85,6 +80,7 @@ export function LectureDetailTabs({
           linkedBook={linkedBook}
           studentBooks={studentBooks}
           isFromMaster={isFromMaster}
+          masterLecture={masterLecture}
         />
       )}
 

@@ -25,16 +25,16 @@ export default async function LectureDetailPage({
     supabase
       .from("lectures")
       .select(
-        "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,notes,master_content_id,linked_book_id,created_at,instructor,source_url,grade_min,grade_max,content_category"
+        "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,notes,master_lecture_id,linked_book_id,created_at,content_category,lecture_type,subtitle,series_name,instructor_name,description,toc,curriculum_revision_id,subject_id,subject_group_id,grade_level,platform_id,lecture_source_url,source,source_product_code,cover_image_url,total_duration,video_url,transcript,episode_analysis,overall_difficulty,target_exam_type,tags,is_active"
       )
       .eq("id", id);
 
   let { data: lecture, error } = await selectLecture()
     .eq("student_id", user.id)
-    .maybeSingle<Lecture & { master_content_id?: string | null; linked_book_id?: string | null; total_episodes?: number | null }>();
+    .maybeSingle<Lecture & { master_lecture_id?: string | null; linked_book_id?: string | null; total_episodes?: number | null }>();
 
   if (error && error.code === "42703") {
-    ({ data: lecture, error } = await selectLecture().maybeSingle<Lecture & { master_content_id?: string | null; linked_book_id?: string | null }>());
+    ({ data: lecture, error } = await selectLecture().maybeSingle<Lecture & { master_lecture_id?: string | null; linked_book_id?: string | null }>());
   }
 
   if (error) {
@@ -44,25 +44,42 @@ export default async function LectureDetailPage({
 
   if (!lecture) notFound();
 
-  // 마스터 강의 정보 조회 (필드가 없을 경우 마스터에서 가져오기)
-  let masterLectureData: {
-    instructor?: string | null;
-    source_url?: string | null;
-    grade_min?: number | null;
-    grade_max?: number | null;
-    content_category?: string | null;
-  } = {};
-  
-  if (lecture.master_content_id) {
+  // 마스터 강의 정보 조회 및 병합 (master_lecture_id가 있는 경우)
+  let masterLecture = null;
+  if (lecture.master_lecture_id) {
     try {
-      const { lecture: masterLecture } = await getMasterLectureById(lecture.master_content_id);
-      if (masterLecture) {
-        masterLectureData = {
-          instructor: masterLecture.instructor,
-          source_url: masterLecture.source_url,
-          grade_min: masterLecture.grade_min,
-          grade_max: masterLecture.grade_max,
-          content_category: masterLecture.content_category,
+      const { lecture: master } = await getMasterLectureById(lecture.master_lecture_id);
+      if (master) {
+        masterLecture = master;
+        // 마스터 강의 정보를 lecture 객체에 병합 (학생 강의에 값이 없으면 마스터 값 사용)
+        lecture = {
+          ...lecture,
+          content_category: lecture.content_category || master.content_category || null,
+          lecture_type: lecture.lecture_type || master.lecture_type || null,
+          subtitle: lecture.subtitle || master.subtitle || null,
+          series_name: lecture.series_name || master.series_name || null,
+          instructor_name: lecture.instructor_name || master.instructor_name || null,
+          description: lecture.description || master.description || null,
+          toc: lecture.toc || master.toc || null,
+          curriculum_revision_id: lecture.curriculum_revision_id || master.curriculum_revision_id || null,
+          subject_id: lecture.subject_id || master.subject_id || null,
+          subject_group_id: lecture.subject_group_id || master.subject_group_id || null,
+          grade_level: lecture.grade_level || master.grade_level || null,
+          platform_id: lecture.platform_id || master.platform_id || null,
+          lecture_source_url: lecture.lecture_source_url || master.lecture_source_url || null,
+          source: lecture.source || master.source || null,
+          source_product_code: lecture.source_product_code || master.source_product_code || null,
+          cover_image_url: lecture.cover_image_url || master.cover_image_url || null,
+          total_duration: lecture.total_duration || master.total_duration || null,
+          video_url: lecture.video_url || master.video_url || null,
+          transcript: lecture.transcript || master.transcript || null,
+          episode_analysis: lecture.episode_analysis || master.episode_analysis || null,
+          overall_difficulty: lecture.overall_difficulty || master.overall_difficulty || null,
+          target_exam_type: lecture.target_exam_type || master.target_exam_type || null,
+          tags: lecture.tags || master.tags || null,
+          is_active: lecture.is_active ?? master.is_active ?? true,
+          // 플랫폼명도 병합 (platform이 없으면 platform_name 사용)
+          platform: lecture.platform || master.platform_name || master.platform || null,
         };
       }
     } catch (err) {
@@ -118,10 +135,10 @@ export default async function LectureDetailPage({
       display_order: e.display_order,
       created_at: e.created_at || "",  // 추가: created_at 필수 필드
     }));
-  } else if (lecture.master_content_id) {
+  } else if (lecture.master_lecture_id) {
     // 학생 강의 episode가 없으면 마스터 참조
     try {
-      const { episodes } = await getMasterLectureById(lecture.master_content_id);
+      const { episodes } = await getMasterLectureById(lecture.master_lecture_id);
       lectureEpisodes = episodes.map(e => ({
         id: e.id,
         lecture_id: lecture.id,  // 추가: lecture_id 필수 필드
@@ -164,14 +181,7 @@ export default async function LectureDetailPage({
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <Suspense fallback={<div className="py-8 text-center text-gray-500">로딩 중...</div>}>
           <LectureDetailTabs
-            lecture={{
-              ...lecture,
-              instructor: (lecture as any).instructor || masterLectureData.instructor,
-              source_url: (lecture as any).source_url || masterLectureData.source_url,
-              grade_min: (lecture as any).grade_min || masterLectureData.grade_min,
-              grade_max: (lecture as any).grade_max || masterLectureData.grade_max,
-              content_category: (lecture as any).content_category || masterLectureData.content_category,
-            }}
+            lecture={lecture}
             deleteAction={deleteAction}
             linkedBook={linkedBook}
             studentBooks={studentBooks || []}
@@ -184,7 +194,8 @@ export default async function LectureDetailPage({
               display_order: e.display_order,
               created_at: e.created_at,  // 변경: "" → e.created_at (이미 포함됨)
             }))}
-            isFromMaster={!!lecture.master_content_id}
+            isFromMaster={!!lecture.master_lecture_id}
+            masterLecture={masterLecture}
           />
         </Suspense>
       </div>

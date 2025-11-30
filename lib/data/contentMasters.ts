@@ -423,23 +423,9 @@ export async function getMasterLectureById(
     // episode는 선택사항이므로 에러를 무시
   }
 
-  // 데이터베이스 컬럼명을 타입 정의에 맞게 변환
-  // episode_title → title, duration_minutes → duration
-  const episodes: LectureEpisode[] = ((episodesResult.data || []) as any[]).map((episode) => ({
-    id: episode.id,
-    lecture_id: episode.lecture_id,
-    episode_number: episode.episode_number,
-    title: episode.episode_title || episode.title || null, // episode_title 또는 title 지원
-    duration: episode.duration_minutes !== undefined 
-      ? episode.duration_minutes 
-      : episode.duration || null, // duration_minutes 또는 duration 지원
-    display_order: episode.display_order || 0,
-    created_at: episode.created_at,
-  }));
-
   return {
     lecture: lectureResult.data,
-    episodes,
+    episodes: (episodesResult.data as LectureEpisode[] | null) ?? [],
   };
 }
 
@@ -655,11 +641,6 @@ export async function copyMasterLectureToStudent(
       difficulty_level: lecture.difficulty_level,
       total_episodes: lecture.total_episodes,  // 추가: 총 회차
       notes: lecture.notes,
-      instructor: lecture.instructor,  // 추가: 강사
-      source_url: lecture.source_url,  // 추가: 출처 URL
-      grade_min: lecture.grade_min,  // 추가: 최소 학년
-      grade_max: lecture.grade_max,  // 추가: 최대 학년
-      content_category: lecture.content_category,  // 추가: 강의 유형
       master_lecture_id: lectureId,  // 변경: master_content_id → master_lecture_id
     })
     .select("id")

@@ -61,7 +61,11 @@ export default async function MasterLectureDetailPage({
             { label: "학년/학기", value: lecture.semester },
             { label: "교과", value: lecture.subject_category },
             { label: "과목", value: lecture.subject },
-            { label: "플랫폼", value: lecture.platform },
+            { label: "플랫폼", value: lecture.platform_name || lecture.platform },
+            { label: "강의 유형", value: (lecture as any).lecture_type },
+            { label: "콘텐츠 카테고리", value: lecture.content_category },
+            { label: "강사명", value: (lecture as any).instructor_name },
+            { label: "대상 학년", value: (lecture as any).grade_level },
             { label: "총 회차", value: lecture.total_episodes ? `${lecture.total_episodes}회` : null },
             {
               label: "총 강의시간",
@@ -74,6 +78,14 @@ export default async function MasterLectureDetailPage({
               label: "연결된 교재",
               value: linkedBook ? linkedBook.title : null,
             },
+            {
+              label: "출처 URL",
+              value: (lecture as any).lecture_source_url,
+              isUrl: !!(lecture as any).lecture_source_url,
+            },
+            { label: "부제목", value: (lecture as any).subtitle },
+            { label: "시리즈명", value: (lecture as any).series_name },
+            { label: "설명", value: (lecture as any).description },
             { label: "메모", value: lecture.notes },
           ]}
         />
