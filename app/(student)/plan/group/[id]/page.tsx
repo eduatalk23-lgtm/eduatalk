@@ -531,6 +531,7 @@ export default async function PlanGroupDetailPage({
             templateBlocks={templateBlocks}
             templateBlockSetName={templateBlockSetName}
             blockSets={blockSets}
+            campTemplateId={isCampMode ? group.camp_template_id : null}
           />
         </div>
       </div>

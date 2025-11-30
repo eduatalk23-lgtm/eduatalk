@@ -60,6 +60,7 @@ type PlanGroupDetailViewProps = {
       end_time: string;
     }>;
   }>;
+  campTemplateId?: string | null;
 };
 
 export function PlanGroupDetailView({
@@ -75,6 +76,7 @@ export function PlanGroupDetailView({
   templateBlocks = [],
   templateBlockSetName = null,
   blockSets = [],
+  campTemplateId = null,
 }: PlanGroupDetailViewProps) {
   const scheduleViewRef = useRef<PlanScheduleViewRef | null>(null);
 
@@ -192,9 +194,10 @@ export function PlanGroupDetailView({
           <Suspense fallback={<TabLoadingSkeleton />}>
             <SchedulePreviewPanel 
               data={wizardData}
-              onUpdate={() => {}} // 읽기 전용
-              editable={false}
-              studentId={group.student_id}
+              onUpdate={() => {}} // 읽기 전용 - 변경 불가
+              blockSets={blockSets}
+              isCampMode={campSubmissionMode}
+              campTemplateId={campTemplateId || undefined}
             />
           </Suspense>
         );
