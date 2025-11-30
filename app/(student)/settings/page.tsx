@@ -659,7 +659,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* 기본 정보 섹션 */}
           <SectionCard
             title="기본 정보"
@@ -1044,8 +1044,8 @@ export default function SettingsPage() {
             submitLabel={isInitialSetup ? "시작하기" : "저장하기"}
             disabled={!hasChanges && !isInitialSetup}
           />
-        </form>
-      </div>
+          </form>
+        </div>
     </div>
   );
 }

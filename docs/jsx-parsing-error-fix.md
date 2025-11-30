@@ -29,7 +29,10 @@ Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
 
 ## 해결 방법
 
-599번째 줄의 `<div className="flex flex-col gap-4">`가 닫히지 않아서 발생한 문제였습니다. 닫는 태그를 추가했습니다.
+두 가지 문제가 있었습니다:
+
+1. 599번째 줄의 `<div className="flex flex-col gap-4">`가 닫히지 않아서 발생한 문제 - 닫는 태그를 추가했습니다.
+2. 662번째 줄의 `<form>` 태그의 들여쓰기가 잘못되어 593번째 줄의 `<div className="flex flex-col gap-6">`와 같은 레벨로 인식되었습니다 - form의 들여쓰기를 2칸 더 들여쓰기로 수정했습니다.
 
 ### 수정된 코드 구조
 
