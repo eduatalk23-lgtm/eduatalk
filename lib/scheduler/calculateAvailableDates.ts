@@ -857,21 +857,32 @@ function calculateAvailableTimeForDate(
   // 시간 타임라인 생성
   const timeSlots = generateTimeSlots(date, dayType, blocks, academySchedules, options);
 
-  // 타임라인에서 학습시간만 계산하여 검증 (디버깅용, 실제 계산은 availableRanges 기준)
-  // 자율학습도 학습 가능 시간에 포함되므로 계산에 포함
-  const timeSlotsStudyHours = timeSlots
-    .filter((slot) => slot.type === "학습시간" || slot.type === "자율학습")
-    .reduce((sum, slot) => {
-      const start = timeToMinutes(slot.start);
-      const end = timeToMinutes(slot.end);
-      return sum + (end - start) / 60;
-    }, 0);
+  // time_slots 검증
+  if (process.env.NODE_ENV === 'development') {
+    // 타임라인에서 학습시간만 계산하여 검증
+    const timeSlotsStudyHours = timeSlots
+      .filter((slot) => slot.type === "학습시간" || slot.type === "자율학습")
+      .reduce((sum, slot) => {
+        const start = timeToMinutes(slot.start);
+        const end = timeToMinutes(slot.end);
+        return sum + (end - start) / 60;
+      }, 0);
 
-  // 시간이 크게 다르면 경고 (0.5시간 이상 차이 - 자율학습 포함 여부 차이 고려)
-  if (Math.abs(hours - timeSlotsStudyHours) > 0.5) {
-    console.warn(
-      `시간 불일치: ${dateStr} - 계산: ${hours.toFixed(2)}h, 타임라인: ${timeSlotsStudyHours.toFixed(2)}h`
-    );
+    // 시간이 크게 다르면 경고 (0.5시간 이상 차이)
+    if (Math.abs(hours - timeSlotsStudyHours) > 0.5) {
+      console.warn(
+        `[calculateAvailableDates] 시간 불일치: ${dateStr}`,
+        `- 계산: ${hours.toFixed(2)}h, 타임라인: ${timeSlotsStudyHours.toFixed(2)}h`
+      );
+    }
+
+    // 학습일/복습일인데 time_slots가 비어있으면 경고
+    if ((dayType === "학습일" || dayType === "복습일") && timeSlots.length === 0) {
+      console.warn(
+        `[calculateAvailableDates] time_slots가 비어있음: ${dateStr} (${dayType})`,
+        `- 블록 개수: ${dateBlocks.length}, 학원일정: ${dateAcademySchedules.length}`
+      );
+    }
   }
 
   return { ranges: availableRanges, hours, note, timeSlots };

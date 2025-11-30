@@ -6,7 +6,7 @@ import { WizardData } from "./PlanGroupWizard";
 import { calculateScheduleAvailability } from "@/app/(student)/actions/calculateScheduleAvailability";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
-import { scheduleCache, type ScheduleCalculationParams } from "@/lib/utils/scheduleCache";
+import { scheduleCache, type ScheduleCalculationParams, type CacheResultWithTimestamp } from "@/lib/utils/scheduleCache";
 import type {
   ScheduleAvailabilityResult,
   DailySchedule,
@@ -50,9 +50,13 @@ export function Step2_5SchedulePreview({
   campTemplateId,
   editable = true,
 }: Step2_5SchedulePreviewProps) {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScheduleAvailabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [lastCalculatedAt, setLastCalculatedAt] = useState<number | null>(null);
+  const [isFromCache, setIsFromCache] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<string>("");
 
   // 선택된 블록 세트의 블록 데이터 추출
   const selectedBlockSetBlocks = useMemo(() => {
@@ -184,148 +188,198 @@ export function Step2_5SchedulePreview({
     campTemplateId,
   ]);
 
-  useEffect(() => {
-    const fetchSchedule = async () => {
-      if (!scheduleParams) {
-        // 템플릿 모드에서 블록이 없는 경우 특별한 메시지 표시
-        if (isTemplateMode) {
-          if (!data.period_start || !data.period_end) {
-            setError("학습 기간을 입력해주세요.");
-          } else if (!data.scheduler_type) {
-            setError("스케줄러 유형을 선택해주세요.");
-          } else if (data.block_set_id && (!selectedBlockSetBlocks || selectedBlockSetBlocks.length === 0)) {
-            setError("선택한 블록 세트에 시간 블록이 없습니다. Step 1에서 블록을 추가해주세요.");
-          } else {
-            // block_set_id가 없으면 기본 블록을 사용하므로 이 경우는 발생하지 않아야 함
-            setError("필수 정보가 누락되었습니다. Step 1에서 기본 정보를 확인해주세요.");
-          }
-        } else if (isCampMode) {
-          // 캠프 모드에서 필수 정보 누락
-          if (!data.period_start || !data.period_end) {
-            setError("학습 기간을 입력해주세요.");
-          } else if (!data.block_set_id) {
-            setError("블록 세트가 설정되지 않았습니다. Step 1에서 블록 세트를 선택하거나 생성해주세요.");
-          } else if (!data.scheduler_type) {
-            setError("스케줄러 유형을 선택해주세요.");
-          } else if (!campTemplateId) {
-            setError("템플릿 정보가 누락되었습니다. 페이지를 새로고침하거나 관리자에게 문의해주세요.");
-          } else if (!selectedBlockSetBlocks || selectedBlockSetBlocks.length === 0) {
-            setError("선택한 블록 세트에 시간 블록이 없습니다. Step 1에서 블록을 추가해주세요.");
-          } else {
-            setError("필수 정보가 누락되었습니다. 관리자에게 문의해주세요.");
-          }
+  // 스케줄 계산 함수 (수동 호출 가능)
+  const calculateSchedule = async (forceRefresh: boolean = false) => {
+    if (!scheduleParams) {
+      // 템플릿 모드에서 블록이 없는 경우 특별한 메시지 표시
+      if (isTemplateMode) {
+        if (!data.period_start || !data.period_end) {
+          setError("학습 기간을 입력해주세요.");
+        } else if (!data.scheduler_type) {
+          setError("스케줄러 유형을 선택해주세요.");
+        } else if (data.block_set_id && (!selectedBlockSetBlocks || selectedBlockSetBlocks.length === 0)) {
+          setError("선택한 블록 세트에 시간 블록이 없습니다. Step 1에서 블록을 추가해주세요.");
         } else {
-          // 일반 모드에서 필수 정보 누락
-          if (!data.period_start || !data.period_end) {
-            setError("학습 기간을 입력해주세요.");
-          } else if (!data.block_set_id) {
-            setError("블록 세트를 선택해주세요. Step 1에서 블록 세트를 선택하거나 생성해주세요.");
-          } else if (!data.scheduler_type) {
-            setError("스케줄러 유형을 선택해주세요.");
-          } else if (!selectedBlockSetBlocks || selectedBlockSetBlocks.length === 0) {
-            setError("선택한 블록 세트에 시간 블록이 없습니다. Step 1에서 블록을 추가해주세요.");
-          } else {
-            setError("필수 정보가 누락되었습니다.");
-          }
+          setError("필수 정보가 누락되었습니다. Step 1에서 기본 정보를 확인해주세요.");
         }
-        setLoading(false);
-        return;
+      } else if (isCampMode) {
+        if (!data.period_start || !data.period_end) {
+          setError("학습 기간을 입력해주세요.");
+        } else if (!data.block_set_id) {
+          setError("블록 세트가 설정되지 않았습니다. Step 1에서 블록 세트를 선택하거나 생성해주세요.");
+        } else if (!data.scheduler_type) {
+          setError("스케줄러 유형을 선택해주세요.");
+        } else if (!campTemplateId) {
+          setError("템플릿 정보가 누락되었습니다. 페이지를 새로고침하거나 관리자에게 문의해주세요.");
+        } else if (!selectedBlockSetBlocks || selectedBlockSetBlocks.length === 0) {
+          setError("선택한 블록 세트에 시간 블록이 없습니다. Step 1에서 블록을 추가해주세요.");
+        } else {
+          setError("필수 정보가 누락되었습니다. 관리자에게 문의해주세요.");
+        }
+      } else {
+        if (!data.period_start || !data.period_end) {
+          setError("학습 기간을 입력해주세요.");
+        } else if (!data.block_set_id) {
+          setError("블록 세트를 선택해주세요. Step 1에서 블록 세트를 선택하거나 생성해주세요.");
+        } else if (!data.scheduler_type) {
+          setError("스케줄러 유형을 선택해주세요.");
+        } else if (!selectedBlockSetBlocks || selectedBlockSetBlocks.length === 0) {
+          setError("선택한 블록 세트에 시간 블록이 없습니다. Step 1에서 블록을 추가해주세요.");
+        } else {
+          setError("필수 정보가 누락되었습니다.");
+        }
       }
+      setLoading(false);
+      return;
+    }
 
-      // 캐시에서 조회
-      const cachedResult = scheduleCache.get(scheduleParams);
+    // 강제 갱신이 아닐 경우 캐시 확인
+    if (!forceRefresh) {
+      const cachedResult = scheduleCache.getWithTimestamp(scheduleParams);
       if (cachedResult) {
-        setResult(cachedResult);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Step2_5SchedulePreview] 캐시 히트:', {
+            timestamp: cachedResult.timestamp,
+            age: Math.round((Date.now() - cachedResult.timestamp) / 1000) + '초 전',
+          });
+        }
+        setResult(cachedResult.result);
+        setLastCalculatedAt(cachedResult.timestamp);
+        setIsFromCache(true);
         onUpdate({
           schedule_summary: {
-            total_days: cachedResult.summary.total_days,
-            total_study_days: cachedResult.summary.total_study_days,
-            total_review_days: cachedResult.summary.total_review_days,
-            total_study_hours: cachedResult.summary.total_study_hours,
-            total_study_hours_학습일: cachedResult.summary.total_study_hours_학습일,
-            total_study_hours_복습일: cachedResult.summary.total_study_hours_복습일,
-            total_self_study_hours: cachedResult.summary.total_self_study_hours,
+            total_days: cachedResult.result.summary.total_days,
+            total_study_days: cachedResult.result.summary.total_study_days,
+            total_review_days: cachedResult.result.summary.total_review_days,
+            total_study_hours: cachedResult.result.summary.total_study_hours,
+            total_study_hours_학습일: cachedResult.result.summary.total_study_hours_학습일,
+            total_study_hours_복습일: cachedResult.result.summary.total_study_hours_복습일,
+            total_self_study_hours: cachedResult.result.summary.total_self_study_hours,
           },
-          daily_schedule: cachedResult.daily_schedule,
+          daily_schedule: cachedResult.result.daily_schedule,
         });
         setLoading(false);
+        setIsInitialLoad(false);
         return;
+      } else if (process.env.NODE_ENV === 'development') {
+        console.log('[Step2_5SchedulePreview] 캐시 미스 - 새로 계산');
       }
+    } else {
+      // 강제 갱신 시 캐시 무효화
+      scheduleCache.invalidate(scheduleParams);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Step2_5SchedulePreview] 캐시 무효화 및 강제 갱신');
+      }
+    }
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
+    setLoadingStage("블록 조회 중...");
 
-      try {
-        const response = await calculateScheduleAvailability(scheduleParams);
+    try {
+      setLoadingStage("스케줄 계산 중...");
+      const response = await calculateScheduleAvailability(scheduleParams);
 
-        if (response.success && response.data) {
-          // 캐시에 저장
-          scheduleCache.set(scheduleParams, response.data);
-          
-          setResult(response.data);
-          // 스케줄 요약 정보 및 일별 스케줄 정보를 WizardData에 저장
-          onUpdate({
-            schedule_summary: {
-              total_days: response.data.summary.total_days,
-              total_study_days: response.data.summary.total_study_days,
-              total_review_days: response.data.summary.total_review_days,
-              total_study_hours: response.data.summary.total_study_hours,
-              total_study_hours_학습일: response.data.summary.total_study_hours_학습일,
-              total_study_hours_복습일: response.data.summary.total_study_hours_복습일,
-              total_self_study_hours: response.data.summary.total_self_study_hours,
-            },
-            // 일별 스케줄 정보 저장 (plan_groups.daily_schedule에 저장됨)
-            daily_schedule: response.data.daily_schedule,
-          });
-        } else {
-          // 구체적인 에러 메시지 표시
-          let errorMessage = "스케줄 계산에 실패했습니다.";
-          
-          if (response.error) {
-            // 에러 메시지에 따라 구체적인 안내 제공
-            if (response.error.includes("블록")) {
-              errorMessage = response.error.includes("블록 세트")
-                ? response.error
-                : "블록 세트에 문제가 있습니다. Step 1에서 블록을 확인해주세요.";
-            } else if (response.error.includes("날짜") || response.error.includes("기간")) {
-              errorMessage = response.error.includes("학습 기간")
-                ? response.error
-                : "날짜 정보에 문제가 있습니다. Step 1에서 학습 기간을 확인해주세요.";
-            } else if (response.error.includes("제외일")) {
-              errorMessage = "제외일 정보에 문제가 있습니다. Step 2에서 제외일을 확인해주세요.";
-            } else if (response.error.includes("중복")) {
-              errorMessage = response.error;
-            } else {
-              // 기존 에러 메시지 사용
-              errorMessage = response.error;
-            }
-          }
-          
-          setError(errorMessage);
-        }
-      } catch (err) {
-        const error = toPlanGroupError(
-          err,
-          PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED
-        );
+      if (response.success && response.data) {
+        // 캐시에 저장
+        scheduleCache.set(scheduleParams, response.data);
+        const now = Date.now();
         
-        // 예외 발생 시 구체적인 메시지 표시
-        let errorMessage = error.userMessage;
-        if (err instanceof Error) {
-          if (err.message.includes("블록")) {
-            errorMessage = "블록 세트에 문제가 있습니다. Step 1에서 블록을 확인해주세요.";
-          } else if (err.message.includes("날짜")) {
-            errorMessage = "날짜 정보에 문제가 있습니다. Step 1에서 학습 기간을 확인해주세요.";
+        setResult(response.data);
+        setLastCalculatedAt(now);
+        setIsFromCache(false);
+        setLoadingStage("완료");
+        
+        // 스케줄 요약 정보 및 일별 스케줄 정보를 WizardData에 저장
+        onUpdate({
+          schedule_summary: {
+            total_days: response.data.summary.total_days,
+            total_study_days: response.data.summary.total_study_days,
+            total_review_days: response.data.summary.total_review_days,
+            total_study_hours: response.data.summary.total_study_hours,
+            total_study_hours_학습일: response.data.summary.total_study_hours_학습일,
+            total_study_hours_복습일: response.data.summary.total_study_hours_복습일,
+            total_self_study_hours: response.data.summary.total_self_study_hours,
+          },
+          daily_schedule: response.data.daily_schedule,
+        });
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Step2_5SchedulePreview] 계산 완료:', {
+            총일수: response.data.summary.total_days,
+            학습일: response.data.summary.total_study_days,
+            복습일: response.data.summary.total_review_days,
+          });
+        }
+      } else {
+        // 에러 메시지 개선
+        let errorMessage = "스케줄 계산에 실패했습니다.";
+        
+        if (response.error) {
+          if (response.error.includes("블록")) {
+            errorMessage = response.error.includes("블록 세트")
+              ? response.error
+              : (isCampMode 
+                  ? "템플릿 블록을 불러올 수 없습니다. 관리자에게 문의해주세요." 
+                  : "블록 세트에 문제가 있습니다. Step 1에서 블록을 확인해주세요.");
+          } else if (response.error.includes("날짜") || response.error.includes("기간")) {
+            errorMessage = response.error.includes("학습 기간")
+              ? response.error
+              : "날짜 정보에 문제가 있습니다. Step 1에서 학습 기간을 확인해주세요.";
+          } else if (response.error.includes("제외일")) {
+            errorMessage = "제외일 정보에 문제가 있습니다. Step 2에서 제외일을 확인해주세요.";
+          } else if (response.error.includes("time_slots") || response.error.includes("학습 시간")) {
+            errorMessage = "학습 시간 계산에 실패했습니다. 블록 설정을 확인해주세요.";
+          } else if (response.error.includes("중복")) {
+            errorMessage = response.error;
+          } else {
+            errorMessage = response.error;
           }
         }
         
         setError(errorMessage);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      const error = toPlanGroupError(
+        err,
+        PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED
+      );
+      
+      // 예외 발생 시 구체적인 메시지 표시
+      let errorMessage = error.userMessage;
+      if (err instanceof Error) {
+        if (err.message.includes("네트워크") || err.message.includes("fetch")) {
+          errorMessage = "네트워크 오류가 발생했습니다. 다시 시도해주세요.";
+        } else if (err.message.includes("블록")) {
+          errorMessage = "블록 세트에 문제가 있습니다. Step 1에서 블록을 확인해주세요.";
+        } else if (err.message.includes("날짜")) {
+          errorMessage = "날짜 정보에 문제가 있습니다. Step 1에서 학습 기간을 확인해주세요.";
+        }
+      }
+      
+      setError(errorMessage);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Step2_5SchedulePreview] 계산 실패:', err);
+      }
+    } finally {
+      setLoading(false);
+      setIsInitialLoad(false);
+      setLoadingStage("");
+    }
+  };
 
-    fetchSchedule();
+  // 하이브리드 갱신 전략: 최초 진입 시에는 수동, 이후 변경 시에는 자동
+  useEffect(() => {
+    // 최초 로드 시에는 자동 계산하지 않음
+    if (isInitialLoad) {
+      return;
+    }
+
+    // 이후에는 파라미터 변경 시 자동 계산
+    if (scheduleParams) {
+      calculateSchedule(false);
+    }
   }, [
     data.period_start,
     data.period_end,
@@ -341,6 +395,7 @@ export function Step2_5SchedulePreview({
     campTemplateId,
   ]);
 
+  // 로딩 중 UI (스켈레톤)
   if (loading) {
     return (
       <div className="space-y-6">
@@ -353,16 +408,80 @@ export function Step2_5SchedulePreview({
           </p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <div className="flex flex-col gap-4">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900"></div>
-            <p className="text-sm text-gray-500">계산 중...</p>
+          <div className="flex flex-col gap-4 items-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+            {loadingStage && (
+              <p className="text-sm font-medium text-gray-700">{loadingStage}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              기간이 길수록 계산 시간이 더 소요될 수 있습니다
+            </p>
+          </div>
+        </div>
+        {/* 스켈레톤 UI */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="rounded-lg border border-gray-200 bg-white p-4 animate-pulse">
+              <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+              <div className="h-8 bg-gray-300 rounded w-3/4"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 최초 로드 시 UI (확인하기 버튼)
+  if (isInitialLoad && !result) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold text-gray-900">
+            스케줄 가능 날짜 확인
+          </h2>
+          <p className="text-sm text-gray-500">
+            입력하신 정보를 바탕으로 학습 가능한 날짜와 시간을 확인합니다.
+          </p>
+        </div>
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-sm font-semibold text-red-800">오류</h3>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-12 text-center">
+          <div className="flex flex-col gap-4 items-center">
+            <Calendar className="h-16 w-16 text-blue-600" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                스케줄 미리보기
+              </h3>
+              <p className="text-sm text-gray-600 mb-6">
+                블록과 제외일 설정 후 확인 버튼을 눌러주세요
+              </p>
+            </div>
+            <button
+              onClick={() => calculateSchedule(false)}
+              disabled={!scheduleParams}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              스케줄 확인하기
+            </button>
+            {!scheduleParams && (
+              <p className="text-xs text-gray-500 mt-2">
+                학습 기간과 블록 세트를 먼저 설정해주세요
+              </p>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  // 에러만 있는 경우
+  if (error && !result) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
@@ -379,10 +498,19 @@ export function Step2_5SchedulePreview({
             <p className="text-sm text-red-700">{error}</p>
           </div>
         </div>
+        <div className="text-center">
+          <button
+            onClick={() => calculateSchedule(false)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            다시 시도
+          </button>
+        </div>
       </div>
     );
   }
 
+  // 결과가 없는 경우
   if (!result) {
     return (
       <div className="space-y-6">
@@ -403,15 +531,58 @@ export function Step2_5SchedulePreview({
 
   const { summary, daily_schedule, errors } = result;
 
+  // 상대 시간 포맷팅
+  const getRelativeTime = (timestamp: number): string => {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return `${seconds}초 전`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}분 전`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}시간 전`;
+    const days = Math.floor(hours / 24);
+    return `${days}일 전`;
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-semibold text-gray-900">
-          스케줄 가능 날짜 확인
-        </h2>
-        <p className="text-sm text-gray-500">
-          입력하신 정보를 바탕으로 학습 가능한 날짜와 시간을 확인합니다.
-        </p>
+      {/* 헤더 + 캐시 배지 + 다시 계산하기 버튼 */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-900">
+              스케줄 가능 날짜 확인
+            </h2>
+            {/* 캐시 인디케이터 */}
+            {lastCalculatedAt && (
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isFromCache
+                    ? "bg-gray-100 text-gray-600"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {isFromCache
+                  ? `캐시 (${getRelativeTime(lastCalculatedAt)})`
+                  : "새로 계산됨"}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">
+            입력하신 정보를 바탕으로 학습 가능한 날짜와 시간을 확인합니다.
+          </p>
+        </div>
+        {/* 다시 계산하기 버튼 */}
+        <button
+          onClick={(e) => {
+            const forceRefresh = e.shiftKey;
+            calculateSchedule(forceRefresh);
+          }}
+          disabled={loading}
+          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+          title="Shift+클릭으로 캐시 무시"
+        >
+          다시 계산하기
+        </button>
       </div>
 
       {/* 오류 표시 */}
@@ -878,6 +1049,9 @@ function WeekSection({ weekNum, schedules }: { weekNum: number | undefined; sche
               <div className="mt-1 flex items-center gap-3 text-xs text-gray-600">
                 <span>학습일 {weekStudyDays}일</span>
                 <span>복습일 {weekReviewDays}일</span>
+                {weekExclusionDays > 0 && (
+                  <span className="text-gray-500">제외일 {weekExclusionDays}일</span>
+                )}
                 <span>학습시간 {formatNumber(weekTotalHours)}시간</span>
                 {weekSelfStudyHours > 0 && (
                   <span>자율학습시간 {formatNumber(weekSelfStudyHours)}시간</span>

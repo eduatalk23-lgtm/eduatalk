@@ -57,6 +57,15 @@ function generateCacheKey(params: ScheduleCalculationParams): string {
 }
 
 /**
+ * 캐시 결과 타입 (타임스탬프 포함)
+ */
+export type CacheResultWithTimestamp = {
+  result: ScheduleAvailabilityResult;
+  timestamp: number;
+  isFromCache: boolean;
+};
+
+/**
  * 스케줄 계산 결과 캐시
  */
 class ScheduleCache {
@@ -85,6 +94,31 @@ class ScheduleCache {
   }
 
   /**
+   * 캐시에서 결과 조회 (타임스탬프 포함)
+   */
+  getWithTimestamp(params: ScheduleCalculationParams): CacheResultWithTimestamp | null {
+    const key = generateCacheKey(params);
+    const cached = this.cache.get(key);
+
+    if (!cached) {
+      return null;
+    }
+
+    // TTL 체크
+    const now = Date.now();
+    if (now - cached.timestamp > this.TTL) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return {
+      result: cached.result,
+      timestamp: cached.timestamp,
+      isFromCache: true,
+    };
+  }
+
+  /**
    * 캐시에 결과 저장
    */
   set(params: ScheduleCalculationParams, result: ScheduleAvailabilityResult): void {
@@ -101,6 +135,14 @@ class ScheduleCache {
         .sort((a, b) => a[1].timestamp - b[1].timestamp)[0][0];
       this.cache.delete(oldestKey);
     }
+  }
+
+  /**
+   * 특정 파라미터의 캐시 무효화
+   */
+  invalidate(params: ScheduleCalculationParams): void {
+    const key = generateCacheKey(params);
+    this.cache.delete(key);
   }
 
   /**
