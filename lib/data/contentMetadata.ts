@@ -750,8 +750,35 @@ export async function createPublisher(
   name: string,
   display_order: number
 ): Promise<Publisher> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("publishers")
+      .insert({ name, display_order })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[contentMetadata] 출판사 생성 실패", error);
+      
+      // 중복 키 에러 처리
+      if (error.code === "23505") {
+        if (error.message.includes("publishers_name_key")) {
+          throw new Error(`이미 존재하는 출판사명입니다: "${name}"`);
+        }
+        throw new Error("이미 존재하는 데이터입니다.");
+      }
+      
+      throw new Error(`출판사 생성 실패: ${error.message}`);
+    }
+
+    return data as Publisher;
+  }
+
+  const { data, error } = await supabaseAdmin
     .from("publishers")
     .insert({ name, display_order })
     .select()
@@ -759,6 +786,15 @@ export async function createPublisher(
 
   if (error) {
     console.error("[contentMetadata] 출판사 생성 실패", error);
+    
+    // 중복 키 에러 처리
+    if (error.code === "23505") {
+      if (error.message.includes("publishers_name_key")) {
+        throw new Error(`이미 존재하는 출판사명입니다: "${name}"`);
+      }
+      throw new Error("이미 존재하는 데이터입니다.");
+    }
+    
     throw new Error(`출판사 생성 실패: ${error.message}`);
   }
 
@@ -769,8 +805,36 @@ export async function updatePublisher(
   id: string,
   updates: Partial<{ name: string; display_order: number; is_active: boolean }>
 ): Promise<Publisher> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
+  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("publishers")
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[contentMetadata] 출판사 수정 실패", error);
+      
+      // 중복 키 에러 처리
+      if (error.code === "23505") {
+        if (error.message.includes("publishers_name_key") && updates.name) {
+          throw new Error(`이미 존재하는 출판사명입니다: "${updates.name}"`);
+        }
+        throw new Error("이미 존재하는 데이터입니다.");
+      }
+      
+      throw new Error(`출판사 수정 실패: ${error.message}`);
+    }
+
+    return data as Publisher;
+  }
+
+  const { data, error } = await supabaseAdmin
     .from("publishers")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -779,6 +843,15 @@ export async function updatePublisher(
 
   if (error) {
     console.error("[contentMetadata] 출판사 수정 실패", error);
+    
+    // 중복 키 에러 처리
+    if (error.code === "23505") {
+      if (error.message.includes("publishers_name_key") && updates.name) {
+        throw new Error(`이미 존재하는 출판사명입니다: "${updates.name}"`);
+      }
+      throw new Error("이미 존재하는 데이터입니다.");
+    }
+    
     throw new Error(`출판사 수정 실패: ${error.message}`);
   }
 
@@ -786,8 +859,21 @@ export async function updatePublisher(
 }
 
 export async function deletePublisher(id: string): Promise<void> {
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("publishers").delete().eq("id", id);
+  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.from("publishers").delete().eq("id", id);
+
+    if (error) {
+      console.error("[contentMetadata] 출판사 삭제 실패", error);
+      throw new Error(`출판사 삭제 실패: ${error.message}`);
+    }
+    return;
+  }
+
+  const { error } = await supabaseAdmin.from("publishers").delete().eq("id", id);
 
   if (error) {
     console.error("[contentMetadata] 출판사 삭제 실패", error);
