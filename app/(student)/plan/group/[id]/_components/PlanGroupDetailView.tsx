@@ -167,10 +167,10 @@ export function PlanGroupDetailView({
           <Suspense fallback={<TabLoadingSkeleton />}>
             <Step1BasicInfo 
               data={wizardData}
-              onUpdate={() => {}} // 읽기 전용
+              onUpdate={() => {}} // 읽기 전용 - 변경 불가
               blockSets={blockSets}
-              editable={false}
-              isCampMode={campSubmissionMode}
+              editable={false} // 완전히 읽기 전용
+              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
               lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
             />
           </Suspense>
@@ -180,9 +180,9 @@ export function PlanGroupDetailView({
           <Suspense fallback={<TabLoadingSkeleton />}>
             <Step2TimeSettingsWithPreview 
               data={wizardData}
-              onUpdate={() => {}} // 읽기 전용
-              editable={false}
-              isCampMode={campSubmissionMode}
+              onUpdate={() => {}} // 읽기 전용 - 변경 불가
+              editable={false} // 완전히 읽기 전용
+              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
               studentId={group.student_id}
             />
           </Suspense>
@@ -204,11 +204,11 @@ export function PlanGroupDetailView({
           <Suspense fallback={<TabLoadingSkeleton />}>
             <Step3ContentSelection 
               data={wizardData}
-              onUpdate={() => {}} // 읽기 전용
-              isCampMode={campSubmissionMode}
+              onUpdate={() => {}} // 읽기 전용 - 변경 불가
+              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
               isEditMode={false}
               studentId={group.student_id}
-              editable={false}
+              editable={false} // 완전히 읽기 전용
             />
           </Suspense>
         );
@@ -219,8 +219,8 @@ export function PlanGroupDetailView({
               data={wizardData}
               onBack={() => {}}
               onNext={() => {}}
-              editable={false}
-              isCampMode={campSubmissionMode}
+              editable={false} // 완전히 읽기 전용
+              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
               isTemplateMode={false}
               studentId={group.student_id}
             />
@@ -240,10 +240,10 @@ export function PlanGroupDetailView({
           <Suspense fallback={<TabLoadingSkeleton />}>
             <Step1BasicInfo 
               data={wizardData}
-              onUpdate={() => {}} // 읽기 전용
+              onUpdate={() => {}} // 읽기 전용 - 변경 불가
               blockSets={blockSets}
-              editable={false}
-              isCampMode={campSubmissionMode}
+              editable={false} // 완전히 읽기 전용
+              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
               lockedFields={[]}
             />
           </Suspense>
