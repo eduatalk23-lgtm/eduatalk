@@ -15,23 +15,17 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // 외부 이미지 도메인 허용 (cover_image_url 사용 시 필요)
-    // remotePatterns: [
-    //   {
-    //     protocol: "https",
-    //     hostname: "example.com",
-    //   },
-    // ],
-    // 또는 모든 도메인 허용 (보안상 권장하지 않음)
-    // remotePatterns: [
-    //   {
-    //     protocol: "https",
-    //     hostname: "**",
-    //   },
-    //   {
-    //     protocol: "http",
-    //     hostname: "**",
-    //   },
-    // ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "contents.kyobobook.co.kr",
+      },
+      // 필요시 다른 도메인 추가 가능
+      // {
+      //   protocol: "https",
+      //   hostname: "example.com",
+      // },
+    ],
   },
 
   // 압축 설정
