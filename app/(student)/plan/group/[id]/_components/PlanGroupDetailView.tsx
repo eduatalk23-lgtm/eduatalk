@@ -263,8 +263,8 @@ export function PlanGroupDetailView({
         </ErrorBoundary>
       </div>
 
-      {/* 플랜 생성은 Step 7에서만 표시 (읽기 전용 모드에서는 숨김) */}
-      {currentTab === 7 && canEdit && (
+      {/* 플랜 생성은 Step 7에서만 표시 (상세보기에서는 수정 불가하므로 숨김) */}
+      {currentTab === 7 && false && (
         <div className="border-t border-gray-200 pt-8">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-6">
             <div className="flex flex-col gap-4">

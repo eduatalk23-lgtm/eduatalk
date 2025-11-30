@@ -388,7 +388,7 @@ export default async function PlanGroupDetailPage({
             groupStatus={
               isCompleted ? "completed" : (group.status as PlanStatus)
             }
-            canEdit={canEdit}
+            canEdit={false} // 상세보기에서는 수정 불가 (읽기 전용 모드)
             canDelete={canDelete || isCompleted}
           />
         </div>
