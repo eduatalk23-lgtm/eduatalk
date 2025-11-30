@@ -217,7 +217,7 @@ export function MasterBookEditForm({
           <select
             name="subject_id"
             defaultValue={book.subject_id || ""}
-            disabled={!selectedGroupId}
+            disabled={!selectedGroupId || loadingGroups}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
           >
             <option value="">선택하세요</option>
