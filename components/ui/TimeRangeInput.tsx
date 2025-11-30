@@ -59,7 +59,7 @@ export function TimeRangeInput({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {description && (
-          <p className="mt-1 text-xs text-gray-500">{description}</p>
+          <p className="mt-1 text-xs text-gray-800">{description}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -69,7 +69,7 @@ export function TimeRangeInput({
             value={start}
             onChange={(e) => handleStartChange(e.target.value)}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
           />
         </div>
         <div>
@@ -78,12 +78,12 @@ export function TimeRangeInput({
             value={end}
             onChange={(e) => handleEndChange(e.target.value)}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
           />
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-800">
           기본값: {defaultStart} ~ {defaultEnd}
         </div>
         {!isUsingDefault && (
@@ -91,7 +91,7 @@ export function TimeRangeInput({
             type="button"
             onClick={handleReset}
             disabled={disabled}
-            className="text-xs text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-xs text-gray-800 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             기본값으로 되돌리기
           </button>

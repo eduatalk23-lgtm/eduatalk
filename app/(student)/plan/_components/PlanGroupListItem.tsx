@@ -182,7 +182,7 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   onToggleSelect();
                 }}
-                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 relative z-20"
+                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900 relative z-20"
                 title={isSelected ? "선택 해제" : "선택"}
                 aria-label={isSelected ? "선택 해제" : "선택"}
               >
@@ -248,7 +248,7 @@ export function PlanGroupListItem({
                 className={`inline-flex items-center justify-center rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   isActive
                     ? "text-green-600 hover:bg-green-50"
-                    : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 }`}
                 aria-label={
                   isActive ? "플랜 그룹 비활성화" : "플랜 그룹 활성화"
@@ -270,7 +270,7 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   setDeleteDialogOpen(true);
                 }}
-                className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-700 transition hover:bg-red-50 hover:text-red-600"
                 aria-label="플랜 그룹 삭제"
                 title="삭제"
               >
@@ -334,7 +334,7 @@ export function PlanGroupListItem({
 
             {/* 목적 */}
             <div className="break-words text-sm text-gray-600">
-              <span className="text-gray-500">목적: </span>
+              <span className="text-gray-800">목적: </span>
               <span className="font-medium text-gray-900">
                 {group.plan_purpose
                   ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
@@ -344,7 +344,7 @@ export function PlanGroupListItem({
 
             {/* 스케줄러 */}
             <div className="break-words text-sm text-gray-600">
-              <span className="text-gray-500">스케줄러: </span>
+              <span className="text-gray-800">스케줄러: </span>
               <span className="font-medium text-gray-900">
                 {group.scheduler_type
                   ? schedulerTypeLabels[group.scheduler_type] ||
@@ -355,7 +355,7 @@ export function PlanGroupListItem({
 
             {/* 기간 */}
             <div className="break-words text-sm text-gray-600">
-              <span className="text-gray-500">기간: </span>
+              <span className="text-gray-800">기간: </span>
               <span className="font-medium text-gray-900">
                 {group.period_start && group.period_end
                   ? `${new Date(group.period_start).toLocaleDateString(
@@ -371,7 +371,7 @@ export function PlanGroupListItem({
 
             {/* 하단 메타 정보 */}
             <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-800">
                 {group.created_at
                   ? new Date(group.created_at).toLocaleDateString("ko-KR", {
                       year: "numeric",
@@ -381,7 +381,7 @@ export function PlanGroupListItem({
                   : "—"}
               </p>
               {hasPlans && planCount > 0 && totalCount === 0 && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-800">
                   {planCount}개 플랜
                 </span>
               )}

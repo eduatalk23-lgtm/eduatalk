@@ -6,9 +6,9 @@
   
   /* Text Color System */
   --text-primary: #171717;
-  --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
-  --text-placeholder: #9ca3af;
+  --text-secondary: #374151;
+  --text-tertiary: #4b5563;
+  --text-placeholder: #4b5563;
   --text-disabled: #d1d5db;
 }
 
@@ -33,10 +33,10 @@
     
     /* Dark Mode Text Colors */
     --text-primary: #ededed;
-    --text-secondary: #9ca3af;
-    --text-tertiary: #6b7280;
-    --text-placeholder: #6b7280;
-    --text-disabled: #4b5563;
+    --text-secondary: #d1d5db;
+    --text-tertiary: #9ca3af;
+    --text-placeholder: #9ca3af;
+    --text-disabled: #6b7280;
   }
 }
 

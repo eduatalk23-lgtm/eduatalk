@@ -50,7 +50,7 @@ const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
           <p className="text-xs text-red-600">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-gray-500">{hint}</p>
+          <p className="text-xs text-gray-800">{hint}</p>
         )}
       </div>
     );
