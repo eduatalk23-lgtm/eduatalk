@@ -41,7 +41,7 @@ export default async function StudentMasterLectureDetailPage({
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <ContentHeader
           title={lecture.title}
-          subtitle={lecture.platform || ""}
+          subtitle={lecture.platform_name || lecture.platform || ""}
           icon="🎧 강의"
           createdAt={lecture.created_at}
         />
@@ -52,14 +52,10 @@ export default async function StudentMasterLectureDetailPage({
             { label: "학년/학기", value: lecture.semester },
             { label: "교과", value: lecture.subject_category },
             { label: "과목", value: lecture.subject },
-            { label: "플랫폼", value: lecture.platform },
-            { label: "강사", value: lecture.instructor },
-            {
-              label: "강의 대상 학년",
-              value: formatGradeLevel(lecture.grade_min, lecture.grade_max),
-            },
-            { label: "강의 유형", value: lecture.content_category },
-            { label: "총 회차", value: `${lecture.total_episodes}회` },
+            { label: "플랫폼", value: lecture.platform_name || lecture.platform },
+            { label: "강사", value: lecture.instructor_name },
+            { label: "강의 유형", value: lecture.lecture_type },
+            { label: "총 회차", value: lecture.total_episodes ? `${lecture.total_episodes}회` : null },
             {
               label: "총 강의시간",
               value: lecture.total_duration
@@ -71,7 +67,7 @@ export default async function StudentMasterLectureDetailPage({
               label: "연결된 교재",
               value: linkedBook ? linkedBook.title : null,
             },
-            { label: "출처 URL", value: lecture.source_url, isUrl: true },
+            { label: "출처 URL", value: lecture.lecture_source_url, isUrl: true },
             { label: "메모", value: lecture.notes },
           ]}
         />

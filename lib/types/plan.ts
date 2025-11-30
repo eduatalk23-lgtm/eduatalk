@@ -387,10 +387,14 @@ export type MasterLecture = CommonContentFields & {
   linked_book_id: string | null; // 연결된 교재 ID (선택사항)
   
   // 강의 메타 정보
-  instructor: string | null; // 강사명
+  instructor_name: string | null; // 강사명 (실제 DB 컬럼명)
+  instructor?: string | null; // @deprecated instructor_name 사용 권장
+  grade_level: string | null; // 학년 레벨
   grade_min: number | null; // 최소 학년 (1-3)
   grade_max: number | null; // 최대 학년 (1-3)
-  source_url: string | null; // 출처 URL
+  lecture_type: string | null; // 강의 유형
+  lecture_source_url: string | null; // 강의 출처 URL
+  source_url: string | null; // 출처 URL (레거시)
   
   // 레거시 필드 (기존 코드 호환성 유지)
   platform?: string | null; // @deprecated platform_name 사용 권장
@@ -447,7 +451,8 @@ export type LectureEpisode = {
   id: string;
   lecture_id: string; // master_lectures.id 참조
   episode_number: number; // 회차 번호
-  episode_title: string | null; // 회차 제목
+  episode_title: string | null; // 회차 제목 (실제 DB 컬럼명)
+  title?: string | null; // 회차 제목 (호환성)
   duration: number | null; // 회차 시간 (초 단위)
   display_order: number;
   created_at: string;
