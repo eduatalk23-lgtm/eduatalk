@@ -99,19 +99,40 @@ export function RangeSettingModal({
 
         // 응답 본문 읽기 (에러 처리 전에)
         const responseText = await response.text();
-        let responseData: any;
+        let responseData: any = {};
+        
+        // 빈 응답 체크
+        if (!responseText || responseText.trim() === "") {
+          console.error("[RangeSettingModal] 빈 응답 수신:", {
+            status: response.status,
+            statusText: response.statusText,
+            url,
+            contentType: content.type,
+            contentId: content.id,
+          });
+          throw new Error("서버에서 빈 응답을 받았습니다.");
+        }
+
         try {
           responseData = JSON.parse(responseText);
         } catch (e) {
           console.error("[RangeSettingModal] 응답 파싱 실패:", {
             responseText,
             error: e,
+            status: response.status,
+            statusText: response.statusText,
+            url,
           });
           throw new Error("응답을 파싱할 수 없습니다.");
         }
 
+        // HTTP 상태 코드 체크
         if (!response.ok) {
-          const errorMessage = responseData.error?.message || "상세 정보를 불러올 수 없습니다.";
+          const errorMessage = 
+            responseData?.error?.message || 
+            responseData?.message ||
+            `서버 오류가 발생했습니다. (${response.status})`;
+          
           console.error(
             `[RangeSettingModal] API 호출 실패: ${apiPath}`,
             {
@@ -121,27 +142,41 @@ export function RangeSettingModal({
               contentId: content.id,
               isRecommendedContent,
               url,
-              responseData,
-              responseText,
+              responseData: responseData || {},
+              responseText: responseText.substring(0, 500), // 처음 500자만
             }
           );
           throw new Error(errorMessage);
         }
         
-        if (!responseData.success) {
-          const errorMessage = responseData.error?.message || "상세 정보를 불러올 수 없습니다.";
-          console.error(
-            `[RangeSettingModal] API 응답 실패: ${apiPath}`,
-            {
-              contentType: content.type,
-              contentId: content.id,
-              isRecommendedContent,
-              url,
-              error: responseData.error,
-              responseData,
-            }
-          );
-          throw new Error(errorMessage);
+        // API 응답 형식 체크 (success 필드)
+        if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+          if (!responseData.success) {
+            const errorMessage = 
+              responseData.error?.message || 
+              responseData.error?.code ||
+              "상세 정보를 불러올 수 없습니다.";
+            
+            console.error(
+              `[RangeSettingModal] API 응답 실패: ${apiPath}`,
+              {
+                contentType: content.type,
+                contentId: content.id,
+                isRecommendedContent,
+                url,
+                error: responseData.error || {},
+                responseData,
+              }
+            );
+            throw new Error(errorMessage);
+          }
+        } else {
+          // 레거시 응답 형식 지원 (success 필드가 없는 경우)
+          console.warn("[RangeSettingModal] 레거시 응답 형식 감지:", {
+            url,
+            hasSuccess: 'success' in (responseData || {}),
+            responseDataKeys: responseData ? Object.keys(responseData) : [],
+          });
         }
 
         console.log("[RangeSettingModal] API 응답 성공:", {
@@ -191,22 +226,32 @@ export function RangeSettingModal({
         const errorMessage = err instanceof Error
           ? err.message
           : "상세 정보를 불러오는 중 오류가 발생했습니다.";
+        
+        // 에러 타입별 상세 로깅
+        const errorDetails: Record<string, unknown> = {
+          type: "API_ERROR",
+          contentType: content.type,
+          contentId: content.id,
+          title: content.title,
+          isRecommendedContent,
+          apiPath: isRecommendedContent
+            ? "/api/master-content-details"
+            : "/api/student-content-details",
+        };
+
+        if (err instanceof Error) {
+          errorDetails.errorMessage = err.message;
+          errorDetails.errorStack = err.stack;
+          errorDetails.errorName = err.name;
+        } else {
+          errorDetails.error = String(err);
+        }
+
         console.error(
-          "[RangeSettingModal] 상세 정보 조회 실패 (에러):",
-          {
-            type: "API_ERROR",
-            error: err,
-            errorMessage: err instanceof Error ? err.message : String(err),
-            contentType: content.type,
-            contentId: content.id,
-            title: content.title,
-            isRecommendedContent,
-            apiPath: isRecommendedContent
-              ? "/api/master-content-details"
-              : "/api/student-content-details",
-            reason: "API 호출 실패 또는 네트워크 에러",
-          }
+          "[RangeSettingModal] 상세 정보 조회 실패:",
+          errorDetails
         );
+        
         setError(errorMessage);
       } finally {
         setLoading(false);

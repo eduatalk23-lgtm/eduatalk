@@ -39,39 +39,59 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
 
     if (contentType === "book") {
-      const { details } = await getMasterBookById(contentId);
+      try {
+        const { details } = await getMasterBookById(contentId);
 
-      if (includeMetadata) {
-        const { data: bookData } = await supabase
-          .from("master_books")
-          .select("subject, semester, revision, difficulty_level, publisher")
-          .eq("id", contentId)
-          .maybeSingle();
+        if (includeMetadata) {
+          const { data: bookData } = await supabase
+            .from("master_books")
+            .select("subject, semester, revision, difficulty_level, publisher")
+            .eq("id", contentId)
+            .maybeSingle();
 
-        return apiSuccess({
-          details,
-          metadata: bookData || null,
+          return apiSuccess({
+            details: details || [],
+            metadata: bookData || null,
+          });
+        }
+
+        return apiSuccess({ details: details || [] });
+      } catch (error) {
+        console.error("[api/master-content-details] 교재 조회 실패:", {
+          contentId,
+          contentType,
+          error: error instanceof Error ? error.message : String(error),
         });
+        // getMasterBookById에서 발생한 에러를 재던지기
+        throw error;
       }
-
-      return apiSuccess({ details });
     } else if (contentType === "lecture") {
-      const { episodes } = await getMasterLectureById(contentId);
+      try {
+        const { episodes } = await getMasterLectureById(contentId);
 
-      if (includeMetadata) {
-        const { data: lectureData } = await supabase
-          .from("master_lectures")
-          .select("subject, semester, revision, difficulty_level, platform")
-          .eq("id", contentId)
-          .maybeSingle();
+        if (includeMetadata) {
+          const { data: lectureData } = await supabase
+            .from("master_lectures")
+            .select("subject, semester, revision, difficulty_level, platform")
+            .eq("id", contentId)
+            .maybeSingle();
 
-        return apiSuccess({
-          episodes,
-          metadata: lectureData || null,
+          return apiSuccess({
+            episodes: episodes || [],
+            metadata: lectureData || null,
+          });
+        }
+
+        return apiSuccess({ episodes: episodes || [] });
+      } catch (error) {
+        console.error("[api/master-content-details] 강의 조회 실패:", {
+          contentId,
+          contentType,
+          error: error instanceof Error ? error.message : String(error),
         });
+        // getMasterLectureById에서 발생한 에러를 재던지기
+        throw error;
       }
-
-      return apiSuccess({ episodes });
     } else {
       return apiBadRequest("지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요.");
     }
