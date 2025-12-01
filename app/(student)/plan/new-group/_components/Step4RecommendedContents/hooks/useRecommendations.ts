@@ -306,19 +306,45 @@ export function useRecommendations({
 
         // API 응답을 RecommendedContent로 변환 (contentType 보장)
         const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
-          // contentType이 없으면 에러 로깅 및 기본값 설정
-          if (!r.contentType && !r.content_type) {
-            console.error("[useRecommendations] contentType이 없는 추천 콘텐츠:", {
+          // contentType 결정 로직
+          let contentType = r.contentType || r.content_type;
+          
+          // contentType이 없으면 publisher/platform으로 추정
+          if (!contentType) {
+            if (r.publisher) {
+              contentType = "book";
+            } else if (r.platform) {
+              contentType = "lecture";
+            } else {
+              // 기본값: book
+              contentType = "book";
+            }
+            
+            console.warn("[useRecommendations] contentType이 없어 추정값 사용:", {
               id: r.id,
               title: r.title,
+              estimatedContentType: contentType,
+              publisher: r.publisher,
+              platform: r.platform,
               allKeys: Object.keys(r),
+            });
+          }
+
+          // 타입 검증
+          if (contentType !== "book" && contentType !== "lecture") {
+            console.error("[useRecommendations] 잘못된 contentType:", {
+              id: r.id,
+              title: r.title,
+              contentType,
               rawData: r,
             });
+            // 잘못된 타입은 기본값으로 변경
+            contentType = "book";
           }
 
           return {
             id: r.id,
-            contentType: r.contentType || r.content_type || "book", // fallback: book
+            contentType: contentType as "book" | "lecture",
             title: r.title,
             subject_category: r.subject_category,
             subject: r.subject,
@@ -501,19 +527,45 @@ export function useRecommendations({
 
       // API 응답을 RecommendedContent로 변환 (contentType 보장)
       const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
-        // contentType이 없으면 에러 로깅 및 기본값 설정
-        if (!r.contentType && !r.content_type) {
-          console.error("[useRecommendations] contentType이 없는 추천 콘텐츠 (fetchRecommendations):", {
+        // contentType 결정 로직
+        let contentType = r.contentType || r.content_type;
+        
+        // contentType이 없으면 publisher/platform으로 추정
+        if (!contentType) {
+          if (r.publisher) {
+            contentType = "book";
+          } else if (r.platform) {
+            contentType = "lecture";
+          } else {
+            // 기본값: book
+            contentType = "book";
+          }
+          
+          console.warn("[useRecommendations] contentType이 없어 추정값 사용 (fetchRecommendations):", {
             id: r.id,
             title: r.title,
+            estimatedContentType: contentType,
+            publisher: r.publisher,
+            platform: r.platform,
             allKeys: Object.keys(r),
+          });
+        }
+
+        // 타입 검증
+        if (contentType !== "book" && contentType !== "lecture") {
+          console.error("[useRecommendations] 잘못된 contentType (fetchRecommendations):", {
+            id: r.id,
+            title: r.title,
+            contentType,
             rawData: r,
           });
+          // 잘못된 타입은 기본값으로 변경
+          contentType = "book";
         }
 
         return {
           id: r.id,
-          contentType: r.contentType || r.content_type || "book", // fallback: book
+          contentType: contentType as "book" | "lecture",
           title: r.title,
           subject_category: r.subject_category,
           subject: r.subject,

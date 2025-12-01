@@ -122,12 +122,14 @@ Step4RecommendedContents에서 `onUpdate`가 호출되는 지점:
 반복 루프 문제로 인해 Step3ContentSelection의 자동 저장 기능을 완전히 제거했습니다.
 
 **제거된 코드:**
+
 - `onSaveDraft`, `isSavingDraft` props
 - `onSaveDraftRef` useRef
 - 자동 저장 useEffect (2개)
 - 저장 중 UI 표시
 
 **영향:**
+
 - 콘텐츠 변경 시 자동 저장되지 않음
 - 사용자가 수동으로 저장 버튼을 클릭해야 함
 - 반복 루프 문제 해결

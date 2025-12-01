@@ -109,29 +109,45 @@ export function RecommendedContentsPanel({
         return;
       }
 
-      // contentType이 없는 경우 처리
-      if (!content.contentType) {
-        const errorMessage = `[RecommendedContentsPanel] contentType이 없습니다. contentId: ${content.id}, title: ${content.title}`;
-        console.error(errorMessage, { 
-          content,
-          allKeys: Object.keys(content),
-          contentType: content.contentType,
-          content_type: (content as any).content_type,
-        });
-        alert("콘텐츠 타입 정보가 없습니다. 페이지를 새로고침해주세요.");
-        return;
+      // contentType이 없는 경우 처리 (fallback 추가)
+      let contentType = content.contentType;
+      if (!contentType) {
+        // content_type (snake_case) 확인
+        const content_type = (content as any).content_type;
+        if (content_type) {
+          contentType = content_type;
+        } else {
+          // publisher가 있으면 book, platform이 있으면 lecture로 추정
+          if ((content as any).publisher) {
+            contentType = "book";
+          } else if ((content as any).platform) {
+            contentType = "lecture";
+          } else {
+            // 기본값: book
+            contentType = "book";
+          }
+          
+          const errorMessage = `[RecommendedContentsPanel] contentType이 없습니다. contentId: ${content.id}, title: ${content.title}. 추정값 사용: ${contentType}`;
+          console.warn(errorMessage, { 
+            content,
+            allKeys: Object.keys(content),
+            contentType: content.contentType,
+            content_type: (content as any).content_type,
+            estimatedContentType: contentType,
+          });
+        }
       }
 
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
-      if (content.contentType === "custom") {
-        const errorMessage = `[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}, contentType: ${content.contentType}`;
+      if (contentType === "custom") {
+        const errorMessage = `[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}, contentType: ${contentType}`;
         console.error(errorMessage, { content });
         return;
       }
 
       // 타입 검증
-      if (content.contentType !== "book" && content.contentType !== "lecture") {
-        const errorMessage = `[RecommendedContentsPanel] 잘못된 contentType입니다. contentId: ${content.id}, contentType: ${content.contentType}`;
+      if (contentType !== "book" && contentType !== "lecture") {
+        const errorMessage = `[RecommendedContentsPanel] 잘못된 contentType입니다. contentId: ${content.id}, contentType: ${contentType}`;
         console.error(errorMessage, { content });
         alert("지원하지 않는 콘텐츠 타입입니다.");
         return;
@@ -140,7 +156,7 @@ export function RecommendedContentsPanel({
       // 범위 설정 모달 열기
       const modalContent = {
         id: content.id,
-        type: content.contentType as "book" | "lecture",
+        type: contentType as "book" | "lecture",
         title: content.title,
         recommendedContent: content,
       };
