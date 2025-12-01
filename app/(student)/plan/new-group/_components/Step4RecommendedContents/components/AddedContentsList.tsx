@@ -1,0 +1,421 @@
+/**
+ * AddedContentsList
+ * 추가된 추천 콘텐츠 목록 (범위 편집 포함)
+ */
+
+"use client";
+
+import { BookDetail, LectureEpisode, RecommendedContent } from "../types";
+import { Pencil, Check, X, Trash2 } from "lucide-react";
+
+type AddedContentsListProps = {
+  contents: Array<{
+    content_type: "book" | "lecture";
+    content_id: string;
+    start_range: number;
+    end_range: number;
+  }>;
+  allRecommendedContents: RecommendedContent[];
+  editingRangeIndex: number | null;
+  editingRange: { start: string; end: string } | null;
+  contentDetails: Map<
+    number,
+    { details: (BookDetail | LectureEpisode)[]; type: "book" | "lecture" }
+  >;
+  startDetailId: Map<number, string>;
+  endDetailId: Map<number, string>;
+  loadingDetails: Set<number>;
+  onStartEditing: (index: number) => void;
+  onSaveRange: () => void;
+  onCancelEditing: () => void;
+  onRemove: (index: number) => void;
+  onStartDetailChange: (index: number, detailId: string) => void;
+  onEndDetailChange: (index: number, detailId: string) => void;
+};
+
+export default function AddedContentsList({
+  contents,
+  allRecommendedContents,
+  editingRangeIndex,
+  editingRange,
+  contentDetails,
+  startDetailId,
+  endDetailId,
+  loadingDetails,
+  onStartEditing,
+  onSaveRange,
+  onCancelEditing,
+  onRemove,
+  onStartDetailChange,
+  onEndDetailChange,
+}: AddedContentsListProps) {
+  if (contents.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+        <span>추가된 추천 콘텐츠 ({contents.length}개)</span>
+      </div>
+      {contents.map((content, index) => {
+        // 제목 및 과목 정보 조회
+        let title = (content as any).title;
+        let subjectCategory = (content as any).subject_category;
+
+        // allRecommendedContents에서 조회
+        const recommendedContent = allRecommendedContents.find(
+          (c) => c.id === content.content_id
+        );
+        if (recommendedContent) {
+          title = title || recommendedContent.title;
+          subjectCategory =
+            subjectCategory ||
+            recommendedContent.subject_category ||
+            undefined;
+        }
+
+        // 여전히 없으면 "알 수 없음"
+        if (!title) {
+          title = "알 수 없음";
+        }
+
+        const isEditing = editingRangeIndex === index;
+        const contentInfo = contentDetails.get(index);
+        const isLoading = loadingDetails.has(index);
+        const selectedStartId = startDetailId.get(index);
+        const selectedEndId = endDetailId.get(index);
+
+        return (
+          <div
+            key={index}
+            className="flex items-start justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
+          >
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-medium text-gray-900">
+                      {title}
+                    </div>
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                      추천 콘텐츠
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    {content.content_type === "book" && (
+                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
+                        📚 교재
+                      </span>
+                    )}
+                    {content.content_type === "lecture" && (
+                      <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
+                        🎧 강의
+                      </span>
+                    )}
+                    {recommendedContent?.subject && (
+                      <>
+                        <span>·</span>
+                        <span>{recommendedContent.subject}</span>
+                      </>
+                    )}
+                    {recommendedContent?.semester && (
+                      <>
+                        <span>·</span>
+                        <span>{recommendedContent.semester}</span>
+                      </>
+                    )}
+                    {recommendedContent?.revision && (
+                      <>
+                        <span>·</span>
+                        <span className="font-medium text-indigo-600">
+                          {recommendedContent.revision} 개정판
+                        </span>
+                      </>
+                    )}
+                    {recommendedContent?.difficulty_level && (
+                      <>
+                        <span>·</span>
+                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-800 text-xs">
+                          {recommendedContent.difficulty_level}
+                        </span>
+                      </>
+                    )}
+                    {recommendedContent?.publisher && (
+                      <>
+                        <span>·</span>
+                        <span>{recommendedContent.publisher}</span>
+                      </>
+                    )}
+                    {recommendedContent?.platform && (
+                      <>
+                        <span>·</span>
+                        <span>{recommendedContent.platform}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 범위 정보 또는 범위 편집 UI */}
+              <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                <span>·</span>
+                {isEditing ? (
+                  <div className="flex-1 space-y-3">
+                    {/* 상세정보가 있는 경우 시작/끝 범위 각각 선택 */}
+                    {isLoading ? (
+                      <div className="text-xs text-gray-500">
+                        상세 정보를 불러오는 중...
+                      </div>
+                    ) : contentInfo && contentInfo.details.length > 0 ? (
+                      <div className="space-y-3">
+                        {/* 시작 범위 선택 */}
+                        <div>
+                          <div className="mb-2 text-xs font-medium text-gray-700">
+                            시작 범위 선택
+                          </div>
+                          <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+                            <div className="space-y-1">
+                              {contentInfo.type === "book"
+                                ? (contentInfo.details as BookDetail[]).map(
+                                    (detail) => {
+                                      const isSelected =
+                                        selectedStartId === detail.id;
+                                      return (
+                                        <label
+                                          key={detail.id}
+                                          className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
+                                            isSelected
+                                              ? "border-blue-500 bg-blue-50"
+                                              : "border-gray-200 hover:bg-gray-50"
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`start-recommended-${index}`}
+                                            checked={isSelected}
+                                            onChange={() =>
+                                              onStartDetailChange(index, detail.id)
+                                            }
+                                            className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                          />
+                                          <div className="flex-1 text-xs">
+                                            <span className="font-medium">
+                                              페이지 {detail.page_number}
+                                            </span>
+                                            {detail.major_unit && (
+                                              <span className="ml-2 text-gray-500">
+                                                · {detail.major_unit}
+                                                {detail.minor_unit &&
+                                                  ` - ${detail.minor_unit}`}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </label>
+                                      );
+                                    }
+                                  )
+                                : (
+                                    contentInfo.details as LectureEpisode[]
+                                  ).map((episode) => {
+                                    const isSelected =
+                                      selectedStartId === episode.id;
+                                    return (
+                                      <label
+                                        key={episode.id}
+                                        className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
+                                          isSelected
+                                            ? "border-blue-500 bg-blue-50"
+                                            : "border-gray-200 hover:bg-gray-50"
+                                        }`}
+                                      >
+                                        <input
+                                          type="radio"
+                                          name={`start-recommended-${index}`}
+                                          checked={isSelected}
+                                          onChange={() =>
+                                            onStartDetailChange(index, episode.id)
+                                          }
+                                          className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <div className="flex-1 text-xs">
+                                          <span className="font-medium">
+                                            {episode.episode_number}회차
+                                          </span>
+                                          {episode.episode_title && (
+                                            <span className="ml-2 text-gray-500">
+                                              · {episode.episode_title}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 끝 범위 선택 */}
+                        <div>
+                          <div className="mb-2 text-xs font-medium text-gray-700">
+                            끝 범위 선택
+                          </div>
+                          <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+                            <div className="space-y-1">
+                              {contentInfo.type === "book"
+                                ? (contentInfo.details as BookDetail[]).map(
+                                    (detail) => {
+                                      const isSelected =
+                                        selectedEndId === detail.id;
+                                      return (
+                                        <label
+                                          key={detail.id}
+                                          className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
+                                            isSelected
+                                              ? "border-green-500 bg-green-50"
+                                              : "border-gray-200 hover:bg-gray-50"
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`end-recommended-${index}`}
+                                            checked={isSelected}
+                                            onChange={() =>
+                                              onEndDetailChange(index, detail.id)
+                                            }
+                                            className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500"
+                                          />
+                                          <div className="flex-1 text-xs">
+                                            <span className="font-medium">
+                                              페이지 {detail.page_number}
+                                            </span>
+                                            {detail.major_unit && (
+                                              <span className="ml-2 text-gray-500">
+                                                · {detail.major_unit}
+                                                {detail.minor_unit &&
+                                                  ` - ${detail.minor_unit}`}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </label>
+                                      );
+                                    }
+                                  )
+                                : (
+                                    contentInfo.details as LectureEpisode[]
+                                  ).map((episode) => {
+                                    const isSelected =
+                                      selectedEndId === episode.id;
+                                    return (
+                                      <label
+                                        key={episode.id}
+                                        className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
+                                          isSelected
+                                            ? "border-green-500 bg-green-50"
+                                            : "border-gray-200 hover:bg-gray-50"
+                                        }`}
+                                      >
+                                        <input
+                                          type="radio"
+                                          name={`end-recommended-${index}`}
+                                          checked={isSelected}
+                                          onChange={() =>
+                                            onEndDetailChange(index, episode.id)
+                                          }
+                                          className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500"
+                                        />
+                                        <div className="flex-1 text-xs">
+                                          <span className="font-medium">
+                                            {episode.episode_number}회차
+                                          </span>
+                                          {episode.episode_title && (
+                                            <span className="ml-2 text-gray-500">
+                                              · {episode.episode_title}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 선택된 범위 표시 */}
+                        {editingRange && (
+                          <div className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                            <span className="font-medium">선택된 범위:</span>{" "}
+                            {content.content_type === "book"
+                              ? `${editingRange.start}페이지 ~ ${editingRange.end}페이지`
+                              : `${editingRange.start}회차 ~ ${editingRange.end}회차`}
+                          </div>
+                        )}
+
+                        {/* 저장/취소 버튼 */}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={onSaveRange}
+                            className="flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                          >
+                            <Check className="h-3 w-3" />
+                            저장
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onCancelEditing}
+                            className="flex items-center gap-1 rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-300"
+                          >
+                            <X className="h-3 w-3" />
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-500">
+                        상세 정보가 없습니다. 범위를 직접 입력해주세요.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span>
+                    {content.content_type === "book"
+                      ? `${content.start_range}페이지 ~ ${content.end_range}페이지`
+                      : `${content.start_range}회차 ~ ${content.end_range}회차`}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 액션 버튼 */}
+            <div className="flex gap-2 ml-2">
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => onStartEditing(index)}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-600"
+                  aria-label="범위 수정"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("이 콘텐츠를 제거하시겠습니까?")) {
+                    onRemove(index);
+                  }
+                }}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+                aria-label="콘텐츠 제거"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
