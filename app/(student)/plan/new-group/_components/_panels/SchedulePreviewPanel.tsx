@@ -169,7 +169,70 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         throw new Error(calculatedResult.error || "스케줄 계산에 실패했습니다.");
       }
 
-      const result = calculatedResult.data;
+      let result = calculatedResult.data;
+      
+      // 추가 기간이 있으면 해당 날짜들을 복습일로 변경
+      if (data.additional_period_reallocation) {
+        const additionalStart = data.additional_period_reallocation.period_start;
+        const additionalEnd = data.additional_period_reallocation.period_end;
+        
+        // daily_schedule에서 추가 기간 날짜들의 day_type을 복습일로 변경
+        const updatedDailySchedule = result.daily_schedule.map((day) => {
+          if (
+            day.date >= additionalStart &&
+            day.date <= additionalEnd &&
+            day.day_type !== "휴가" &&
+            day.day_type !== "개인일정" &&
+            day.day_type !== "지정휴일"
+          ) {
+            return {
+              ...day,
+              day_type: "복습일" as const,
+            };
+          }
+          return day;
+        });
+        
+        // 통계 재계산
+        let totalStudyDays = 0;
+        let totalReviewDays = 0;
+        let totalStudyHours_학습일 = 0;
+        let totalStudyHours_복습일 = 0;
+        
+        for (const day of updatedDailySchedule) {
+          // 학습 시간 계산: timeSlots에서 "학습시간" 타입만 계산
+          const studyHoursOnly = (day.time_slots || [])
+            .filter((slot) => slot.type === "학습시간")
+            .reduce((sum, slot) => {
+              const [startHour, startMin] = slot.start.split(":").map(Number);
+              const [endHour, endMin] = slot.end.split(":").map(Number);
+              const startMinutes = startHour * 60 + startMin;
+              const endMinutes = endHour * 60 + endMin;
+              return sum + (endMinutes - startMinutes) / 60;
+            }, 0);
+          
+          if (day.day_type === "학습일") {
+            totalStudyDays++;
+            totalStudyHours_학습일 += studyHoursOnly;
+          } else if (day.day_type === "복습일") {
+            totalReviewDays++;
+            totalStudyHours_복습일 += studyHoursOnly;
+          }
+        }
+        
+        // summary 업데이트
+        result = {
+          ...result,
+          daily_schedule: updatedDailySchedule,
+          summary: {
+            ...result.summary,
+            total_study_days: totalStudyDays,
+            total_review_days: totalReviewDays,
+            total_study_hours_학습일: totalStudyHours_학습일,
+            total_study_hours_복습일: totalStudyHours_복습일,
+          },
+        };
+      }
       
       // 캐시 저장
       scheduleCache.set(params, result);
