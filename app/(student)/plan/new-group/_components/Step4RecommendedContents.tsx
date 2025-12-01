@@ -3,7 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { formatNumber } from "@/lib/utils/formatNumber";
-import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import {
+  PlanGroupError,
+  toPlanGroupError,
+  PlanGroupErrorCodes,
+} from "@/lib/errors/planGroupErrors";
 import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
 import { ProgressIndicator } from "./_shared/ProgressIndicator";
@@ -71,11 +75,15 @@ export function Step4RecommendedContents({
   const [hasRequestedRecommendations, setHasRequestedRecommendations] =
     useState(!isEditMode); // 편집 모드일 때는 아직 요청 안 함
   const [hasScoreData, setHasScoreData] = useState(false);
-  
+
   // 추천 받기 설정 (교과 선택, 개수)
   const availableSubjects = ["국어", "수학", "영어", "과학", "사회"];
-  const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
-  const [recommendationCounts, setRecommendationCounts] = useState<Map<string, number>>(new Map());
+  const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(
+    new Set()
+  );
+  const [recommendationCounts, setRecommendationCounts] = useState<
+    Map<string, number>
+  >(new Map());
   const [autoAssignContents, setAutoAssignContents] = useState(false); // 콘텐츠 자동 배정 옵션
   const [editingRangeIndex, setEditingRangeIndex] = useState<number | null>(
     null
@@ -111,294 +119,338 @@ export function Step4RecommendedContents({
   >(new Map());
 
   // 필수 교과 설정 관련 상태
-  const [detailSubjects, setDetailSubjects] = useState<Map<string, string[]>>(new Map());
-  const [loadingDetailSubjects, setLoadingDetailSubjects] = useState<Set<string>>(new Set());
+  const [detailSubjects, setDetailSubjects] = useState<Map<string, string[]>>(
+    new Map()
+  );
+  const [loadingDetailSubjects, setLoadingDetailSubjects] = useState<
+    Set<string>
+  >(new Set());
 
   // 교과별 추천 목록 조회 함수 (고도화 버전)
-  const fetchRecommendationsWithSubjects = useCallback(async (
-    subjects: string[],
-    counts: Map<string, number>,
-    autoAssign: boolean = false
-  ) => {
-    setLoading(true);
-    try {
-      // 교과별 추천 개수를 쿼리 파라미터로 전달
-      const params = new URLSearchParams();
-      subjects.forEach((subject) => {
-        const count = counts.get(subject) || 1;
-        params.append("subjects", subject);
-        params.append(`count_${subject}`, String(count));
-      });
-      
-      // 관리자 모드에서 다른 학생의 추천 콘텐츠를 조회할 때는 student_id 파라미터 추가
-      if (propStudentId) {
-        params.append("student_id", propStudentId);
-      }
-      
-      const response = await fetch(`/api/recommended-master-contents?${params.toString()}`);
-      if (response.ok) {
-        const result = await response.json();
-        // API 응답 구조: { success: true, data: { recommendations } }
-        const recommendations = result.data?.recommendations || [];
-        
-        console.log("[Step4RecommendedContents] 추천 결과:", {
-          totalRecommendations: recommendations.length,
-          requestedSubjects: subjects,
-          requestedCounts: Object.fromEntries(counts),
-          recommendations: recommendations.map((r: RecommendedContent) => ({
-            id: r.id,
-            title: r.title,
-            subject_category: r.subject_category,
-            contentType: r.contentType,
-          })),
-        });
-        
-        // 추천 콘텐츠가 부족한 경우 확인
-        const recommendedBySubject = new Map<string, RecommendedContent[]>();
-        recommendations.forEach((r: RecommendedContent) => {
-          if (r.subject_category && subjects.includes(r.subject_category)) {
-            if (!recommendedBySubject.has(r.subject_category)) {
-              recommendedBySubject.set(r.subject_category, []);
-            }
-            recommendedBySubject.get(r.subject_category)!.push(r);
-          }
-        });
-        
-        console.log("[Step4RecommendedContents] 교과별 추천 분류:", {
-          recommendedBySubject: Object.fromEntries(
-            Array.from(recommendedBySubject.entries()).map(([k, v]) => [k, v.length])
-          ),
-        });
-        
-        // 부족한 교과 확인 및 메시지 표시
-        const insufficientSubjects: string[] = [];
+  const fetchRecommendationsWithSubjects = useCallback(
+    async (
+      subjects: string[],
+      counts: Map<string, number>,
+      autoAssign: boolean = false
+    ) => {
+      setLoading(true);
+      try {
+        // 교과별 추천 개수를 쿼리 파라미터로 전달
+        const params = new URLSearchParams();
         subjects.forEach((subject) => {
-          const requestedCount = counts.get(subject) || 1;
-          const actualCount = recommendedBySubject.get(subject)?.length || 0;
-          if (actualCount < requestedCount) {
-            insufficientSubjects.push(`${subject} (요청: ${requestedCount}개, 실제: ${actualCount}개)`);
-          }
+          const count = counts.get(subject) || 1;
+          params.append("subjects", subject);
+          params.append(`count_${subject}`, String(count));
         });
-        
-        console.log("[Step4RecommendedContents] 부족한 교과:", {
-          insufficientSubjects,
-        });
-        
-        // 추천 콘텐츠가 하나도 없는 경우
-        if (recommendations.length === 0) {
-          alert("추천 콘텐츠가 부족합니다. 다른 교과를 선택하거나 개수를 조정해주세요.");
-          setLoading(false);
-          return;
+
+        // 관리자 모드에서 다른 학생의 추천 콘텐츠를 조회할 때는 student_id 파라미터 추가
+        if (propStudentId) {
+          params.append("student_id", propStudentId);
         }
-        
-        if (insufficientSubjects.length > 0) {
-          const confirmMessage = `다음 교과의 추천 콘텐츠가 부족합니다:\n${insufficientSubjects.join("\n")}\n\n부족한 교과를 제외하고 추천 받으시겠습니까?`;
-          const shouldContinue = window.confirm(confirmMessage);
-          if (!shouldContinue) {
+
+        const response = await fetch(
+          `/api/recommended-master-contents?${params.toString()}`
+        );
+        if (response.ok) {
+          const result = await response.json();
+          // API 응답 구조: { success: true, data: { recommendations } }
+          const recommendations = result.data?.recommendations || [];
+
+          console.log("[Step4RecommendedContents] 추천 결과:", {
+            totalRecommendations: recommendations.length,
+            requestedSubjects: subjects,
+            requestedCounts: Object.fromEntries(counts),
+            recommendations: recommendations.map((r: RecommendedContent) => ({
+              id: r.id,
+              title: r.title,
+              subject_category: r.subject_category,
+              contentType: r.contentType,
+            })),
+          });
+
+          // 추천 콘텐츠가 부족한 경우 확인
+          const recommendedBySubject = new Map<string, RecommendedContent[]>();
+          recommendations.forEach((r: RecommendedContent) => {
+            if (r.subject_category && subjects.includes(r.subject_category)) {
+              if (!recommendedBySubject.has(r.subject_category)) {
+                recommendedBySubject.set(r.subject_category, []);
+              }
+              recommendedBySubject.get(r.subject_category)!.push(r);
+            }
+          });
+
+          console.log("[Step4RecommendedContents] 교과별 추천 분류:", {
+            recommendedBySubject: Object.fromEntries(
+              Array.from(recommendedBySubject.entries()).map(([k, v]) => [
+                k,
+                v.length,
+              ])
+            ),
+          });
+
+          // 부족한 교과 확인 및 메시지 표시
+          const insufficientSubjects: string[] = [];
+          subjects.forEach((subject) => {
+            const requestedCount = counts.get(subject) || 1;
+            const actualCount = recommendedBySubject.get(subject)?.length || 0;
+            if (actualCount < requestedCount) {
+              insufficientSubjects.push(
+                `${subject} (요청: ${requestedCount}개, 실제: ${actualCount}개)`
+              );
+            }
+          });
+
+          console.log("[Step4RecommendedContents] 부족한 교과:", {
+            insufficientSubjects,
+          });
+
+          // 추천 콘텐츠가 하나도 없는 경우
+          if (recommendations.length === 0) {
+            alert(
+              "추천 콘텐츠가 부족합니다. 다른 교과를 선택하거나 개수를 조정해주세요."
+            );
             setLoading(false);
             return;
           }
-        }
 
-        // 성적 데이터 존재 여부 확인
-        const hasDetailedReasons = recommendations.some(
-          (r: RecommendedContent) =>
-            r.reason.includes("내신") ||
-            r.reason.includes("모의고사") ||
-            r.reason.includes("위험도") ||
-            r.scoreDetails
-        );
-        setHasScoreData(hasDetailedReasons);
-
-        // 중복 제거
-        const existingIds = new Set([
-          ...data.student_contents.map((c) => c.content_id),
-          ...data.recommended_contents.map((c) => c.content_id),
-        ]);
-
-        // allRecommendedContents에서도 이미 추가된 콘텐츠 ID 수집 (추가 안전장치)
-        // 추천 콘텐츠를 추가한 직후 다시 조회할 때를 대비
-        const allRecommendedIds = new Set(
-          allRecommendedContents
-            .filter((c) => 
-              data.recommended_contents.some((rc) => rc.content_id === c.id)
-            )
-            .map((c) => c.id)
-        );
-
-        // 학생 콘텐츠의 master_content_id 수집 (WizardData에서 직접 가져오기 우선)
-        const studentMasterIds = new Set<string>();
-        data.student_contents.forEach((c) => {
-          const masterContentId = (c as any).master_content_id;
-          if (masterContentId) {
-            studentMasterIds.add(masterContentId);
-          }
-        });
-
-        // WizardData에 master_content_id가 없는 경우에만 데이터베이스에서 조회
-        const studentContentsWithoutMasterId = data.student_contents.filter(
-          (c) => (c.content_type === "book" || c.content_type === "lecture") && !(c as any).master_content_id
-        ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
-
-        if (studentContentsWithoutMasterId.length > 0) {
-          try {
-            const { getStudentContentMasterIdsAction } = await import(
-              "@/app/(student)/actions/getStudentContentMasterIds"
-            );
-            const masterIdResult = await getStudentContentMasterIdsAction(
-              studentContentsWithoutMasterId
-            );
-            if (masterIdResult.success && masterIdResult.data) {
-              masterIdResult.data.forEach((masterId, contentId) => {
-                if (masterId) {
-                  studentMasterIds.add(masterId);
-                }
-              });
+          if (insufficientSubjects.length > 0) {
+            const confirmMessage = `다음 교과의 추천 콘텐츠가 부족합니다:\n${insufficientSubjects.join(
+              "\n"
+            )}\n\n부족한 교과를 제외하고 추천 받으시겠습니까?`;
+            const shouldContinue = window.confirm(confirmMessage);
+            if (!shouldContinue) {
+              setLoading(false);
+              return;
             }
-          } catch (error) {
-            console.warn("[Step4RecommendedContents] master_content_id 조회 실패:", error);
           }
-        }
 
-        const recommendationsMap = new Map<string, RecommendedContent>();
-        recommendations.forEach((c: RecommendedContent) => {
-          recommendationsMap.set(c.id, c);
-        });
+          // 성적 데이터 존재 여부 확인
+          const hasDetailedReasons = recommendations.some(
+            (r: RecommendedContent) =>
+              r.reason.includes("내신") ||
+              r.reason.includes("모의고사") ||
+              r.reason.includes("위험도") ||
+              r.scoreDetails
+          );
+          setHasScoreData(hasDetailedReasons);
 
-        setAllRecommendedContents((prev) => {
-          const merged = new Map<string, RecommendedContent>();
-          prev.forEach((c) => merged.set(c.id, c));
-          recommendationsMap.forEach((c, id) => {
-            merged.set(id, c);
+          // 중복 제거
+          const existingIds = new Set([
+            ...data.student_contents.map((c) => c.content_id),
+            ...data.recommended_contents.map((c) => c.content_id),
+          ]);
+
+          // allRecommendedContents에서도 이미 추가된 콘텐츠 ID 수집 (추가 안전장치)
+          // 추천 콘텐츠를 추가한 직후 다시 조회할 때를 대비
+          const allRecommendedIds = new Set(
+            allRecommendedContents
+              .filter((c) =>
+                data.recommended_contents.some((rc) => rc.content_id === c.id)
+              )
+              .map((c) => c.id)
+          );
+
+          // 학생 콘텐츠의 master_content_id 수집 (WizardData에서 직접 가져오기 우선)
+          const studentMasterIds = new Set<string>();
+          data.student_contents.forEach((c) => {
+            const masterContentId = (c as any).master_content_id;
+            if (masterContentId) {
+              studentMasterIds.add(masterContentId);
+            }
           });
-          return Array.from(merged.values());
-        });
 
-        const filteredRecommendations = recommendations.filter(
-          (r: RecommendedContent) => {
-            // content_id로 직접 비교
-            if (existingIds.has(r.id)) {
-              return false;
-            }
-            // allRecommendedContents에서도 확인 (추가 안전장치)
-            if (allRecommendedIds.has(r.id)) {
-              return false;
-            }
-            // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
-            if (studentMasterIds.has(r.id)) {
-              return false;
-            }
-            return true;
-          }
-        );
+          // WizardData에 master_content_id가 없는 경우에만 데이터베이스에서 조회
+          const studentContentsWithoutMasterId = data.student_contents.filter(
+            (c) =>
+              (c.content_type === "book" || c.content_type === "lecture") &&
+              !(c as any).master_content_id
+          ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
-        setRecommendedContents(filteredRecommendations);
-        setHasRequestedRecommendations(true);
-        
-        // 자동 배정 옵션이 활성화된 경우에만 자동으로 추가
-        // 마스터 콘텐츠 상세 정보를 조회하여 범위 자동 설정
-        if (autoAssign && filteredRecommendations.length > 0) {
-          const contentsToAutoAdd: Array<{
-            content_type: "book" | "lecture";
-            content_id: string;
-            start_range: number;
-            end_range: number;
-            title?: string;
-            subject_category?: string;
-          }> = [];
-
-          for (const r of filteredRecommendations) {
+          if (studentContentsWithoutMasterId.length > 0) {
             try {
-              // 마스터 콘텐츠 상세 정보 조회
-              const response = await fetch(
-                `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
+              const { getStudentContentMasterIdsAction } = await import(
+                "@/app/(student)/actions/getStudentContentMasterIds"
               );
-              
-              let startRange = 1;
-              let endRange = 100;
-
-              if (response.ok) {
-                const result = await response.json();
-                
-                if (r.contentType === "book") {
-                  const details = result.details || [];
-                  if (details.length > 0) {
-                    startRange = details[0].page_number || 1;
-                    endRange = details[details.length - 1].page_number || 100;
+              const masterIdResult = await getStudentContentMasterIdsAction(
+                studentContentsWithoutMasterId
+              );
+              if (masterIdResult.success && masterIdResult.data) {
+                masterIdResult.data.forEach((masterId, contentId) => {
+                  if (masterId) {
+                    studentMasterIds.add(masterId);
                   }
-                } else if (r.contentType === "lecture") {
-                  const episodes = result.episodes || [];
-                  if (episodes.length > 0) {
-                    startRange = episodes[0].episode_number || 1;
-                    endRange = episodes[episodes.length - 1].episode_number || 100;
+                });
+              }
+            } catch (error) {
+              console.warn(
+                "[Step4RecommendedContents] master_content_id 조회 실패:",
+                error
+              );
+            }
+          }
+
+          const recommendationsMap = new Map<string, RecommendedContent>();
+          recommendations.forEach((c: RecommendedContent) => {
+            recommendationsMap.set(c.id, c);
+          });
+
+          setAllRecommendedContents((prev) => {
+            const merged = new Map<string, RecommendedContent>();
+            prev.forEach((c) => merged.set(c.id, c));
+            recommendationsMap.forEach((c, id) => {
+              merged.set(id, c);
+            });
+            return Array.from(merged.values());
+          });
+
+          const filteredRecommendations = recommendations.filter(
+            (r: RecommendedContent) => {
+              // content_id로 직접 비교
+              if (existingIds.has(r.id)) {
+                return false;
+              }
+              // allRecommendedContents에서도 확인 (추가 안전장치)
+              if (allRecommendedIds.has(r.id)) {
+                return false;
+              }
+              // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
+              if (studentMasterIds.has(r.id)) {
+                return false;
+              }
+              return true;
+            }
+          );
+
+          setRecommendedContents(filteredRecommendations);
+          setHasRequestedRecommendations(true);
+
+          // 자동 배정 옵션이 활성화된 경우에만 자동으로 추가
+          // 마스터 콘텐츠 상세 정보를 조회하여 범위 자동 설정
+          if (autoAssign && filteredRecommendations.length > 0) {
+            const contentsToAutoAdd: Array<{
+              content_type: "book" | "lecture";
+              content_id: string;
+              start_range: number;
+              end_range: number;
+              title?: string;
+              subject_category?: string;
+            }> = [];
+
+            for (const r of filteredRecommendations) {
+              try {
+                // 마스터 콘텐츠 상세 정보 조회
+                const response = await fetch(
+                  `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
+                );
+
+                let startRange = 1;
+                let endRange = 100;
+
+                if (response.ok) {
+                  const result = await response.json();
+
+                  if (r.contentType === "book") {
+                    const details = result.details || [];
+                    if (details.length > 0) {
+                      startRange = details[0].page_number || 1;
+                      endRange = details[details.length - 1].page_number || 100;
+                    }
+                  } else if (r.contentType === "lecture") {
+                    const episodes = result.episodes || [];
+                    if (episodes.length > 0) {
+                      startRange = episodes[0].episode_number || 1;
+                      endRange =
+                        episodes[episodes.length - 1].episode_number || 100;
+                    }
                   }
                 }
-              }
 
-              contentsToAutoAdd.push({
-                content_type: r.contentType as "book" | "lecture",
-                content_id: r.id,
-                start_range: startRange,
-                end_range: endRange,
-                title: r.title,
-                subject_category: r.subject_category || undefined,
-              });
-            } catch (error) {
-              console.warn(`[Step4RecommendedContents] 콘텐츠 ${r.id} 상세 정보 조회 실패:`, error);
-              // 조회 실패 시 기본값 사용
-              contentsToAutoAdd.push({
-                content_type: r.contentType as "book" | "lecture",
-                content_id: r.id,
-                start_range: 1,
-                end_range: 100,
-                title: r.title,
-                subject_category: r.subject_category || undefined,
-              });
+                contentsToAutoAdd.push({
+                  content_type: r.contentType as "book" | "lecture",
+                  content_id: r.id,
+                  start_range: startRange,
+                  end_range: endRange,
+                  title: r.title,
+                  subject_category: r.subject_category || undefined,
+                });
+              } catch (error) {
+                console.warn(
+                  `[Step4RecommendedContents] 콘텐츠 ${r.id} 상세 정보 조회 실패:`,
+                  error
+                );
+                // 조회 실패 시 기본값 사용
+                contentsToAutoAdd.push({
+                  content_type: r.contentType as "book" | "lecture",
+                  content_id: r.id,
+                  start_range: 1,
+                  end_range: 100,
+                  title: r.title,
+                  subject_category: r.subject_category || undefined,
+                });
+              }
             }
-          }
-          
-          // 최대 9개 제한 확인
-          const currentTotal = data.student_contents.length + data.recommended_contents.length;
-          const toAdd = contentsToAutoAdd.length;
-          
-          if (currentTotal + toAdd > 9) {
-            // 최대 개수 초과 시 자를 개수 계산
-            const maxToAdd = 9 - currentTotal;
-            const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
-            
-            if (trimmed.length > 0) {
+
+            // 최대 9개 제한 확인
+            const currentTotal =
+              data.student_contents.length + data.recommended_contents.length;
+            const toAdd = contentsToAutoAdd.length;
+
+            if (currentTotal + toAdd > 9) {
+              // 최대 개수 초과 시 자를 개수 계산
+              const maxToAdd = 9 - currentTotal;
+              const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
+
+              if (trimmed.length > 0) {
+                onUpdate({
+                  recommended_contents: [
+                    ...data.recommended_contents,
+                    ...trimmed,
+                  ],
+                });
+                alert(
+                  `추천 콘텐츠 ${
+                    trimmed.length
+                  }개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${
+                    toAdd - trimmed.length
+                  }개 제외됨)`
+                );
+              } else {
+                alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
+              }
+            } else {
               onUpdate({
                 recommended_contents: [
                   ...data.recommended_contents,
-                  ...trimmed,
+                  ...contentsToAutoAdd,
                 ],
               });
-              alert(`추천 콘텐츠 ${trimmed.length}개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`);
-            } else {
-              alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
+              alert(
+                `추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`
+              );
             }
-          } else {
-            onUpdate({
-              recommended_contents: [
-                ...data.recommended_contents,
-                ...contentsToAutoAdd,
-              ],
-            });
-            alert(`추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`);
           }
         }
+      } catch (error) {
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.CONTENT_FETCH_FAILED
+        );
+        console.error(
+          "[Step4RecommendedContents] 추천 목록 조회 실패:",
+          planGroupError
+        );
+        alert("추천 콘텐츠를 불러오는데 실패했습니다.");
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      const planGroupError = toPlanGroupError(
-        error,
-        PlanGroupErrorCodes.CONTENT_FETCH_FAILED
-      );
-      console.error("[Step4RecommendedContents] 추천 목록 조회 실패:", planGroupError);
-      alert("추천 콘텐츠를 불러오는데 실패했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  }, [data.student_contents, data.recommended_contents, allRecommendedContents, onUpdate]);
+    },
+    [
+      data.student_contents,
+      data.recommended_contents,
+      allRecommendedContents,
+      onUpdate,
+    ]
+  );
 
   // 추천 목록 조회 함수 (기존 버전, 편집 모드가 아닐 때 사용)
   const fetchRecommendations = useCallback(async () => {
@@ -409,7 +461,9 @@ export function Step4RecommendedContents({
       if (propStudentId) {
         params.append("student_id", propStudentId);
       }
-      const url = `/api/recommended-master-contents${params.toString() ? `?${params.toString()}` : ""}`;
+      const url = `/api/recommended-master-contents${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
       const response = await fetch(url);
       if (response.ok) {
         const result = await response.json();
@@ -437,7 +491,7 @@ export function Step4RecommendedContents({
         // data.recommended_contents에 있는 콘텐츠는 allRecommendedContents에서도 제외
         const allRecommendedIds = new Set(
           allRecommendedContents
-            .filter((c) => 
+            .filter((c) =>
               data.recommended_contents.some((rc) => rc.content_id === c.id)
             )
             .map((c) => c.id)
@@ -454,7 +508,9 @@ export function Step4RecommendedContents({
 
         // WizardData에 master_content_id가 없는 경우에만 데이터베이스에서 조회
         const studentContentsWithoutMasterId = data.student_contents.filter(
-          (c) => (c.content_type === "book" || c.content_type === "lecture") && !(c as any).master_content_id
+          (c) =>
+            (c.content_type === "book" || c.content_type === "lecture") &&
+            !(c as any).master_content_id
         ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
         if (studentContentsWithoutMasterId.length > 0) {
@@ -529,11 +585,18 @@ export function Step4RecommendedContents({
         error,
         PlanGroupErrorCodes.CONTENT_FETCH_FAILED
       );
-      console.error("[Step4RecommendedContents] 추천 목록 조회 실패:", planGroupError);
+      console.error(
+        "[Step4RecommendedContents] 추천 목록 조회 실패:",
+        planGroupError
+      );
     } finally {
       setLoading(false);
     }
-  }, [data.student_contents, data.recommended_contents, allRecommendedContents]);
+  }, [
+    data.student_contents,
+    data.recommended_contents,
+    allRecommendedContents,
+  ]);
 
   // 학생 콘텐츠의 과목 정보 조회 (추천 전 안내용)
   useEffect(() => {
@@ -583,7 +646,10 @@ export function Step4RecommendedContents({
             PlanGroupErrorCodes.CONTENT_FETCH_FAILED,
             { contentId: content.content_id }
           );
-          console.error("[Step4RecommendedContents] 콘텐츠 메타데이터 조회 실패:", planGroupError);
+          console.error(
+            "[Step4RecommendedContents] 콘텐츠 메타데이터 조회 실패:",
+            planGroupError
+          );
           subjectMap.set(content.content_id, {
             title: storedTitle || "알 수 없음",
             subject_category: storedSubjectCategory || null,
@@ -676,7 +742,10 @@ export function Step4RecommendedContents({
             PlanGroupErrorCodes.CONTENT_FETCH_FAILED,
             { contentId: content.content_id }
           );
-          console.error("[Step4RecommendedContents] 추천 콘텐츠 정보 조회 실패:", planGroupError);
+          console.error(
+            "[Step4RecommendedContents] 추천 콘텐츠 정보 조회 실패:",
+            planGroupError
+          );
           // 에러 발생 시 저장된 정보 또는 기본값 사용
           contentsMap.set(content.content_id, {
             id: content.content_id,
@@ -731,8 +800,9 @@ export function Step4RecommendedContents({
   // 1. 학생 콘텐츠의 subject_category (저장된 값 우선, 없으면 조회한 값 사용)
   data.student_contents.forEach((sc) => {
     const storedSubjectCategory = (sc as any).subject_category;
-    const fetchedSubjectCategory =
-      studentContentSubjects.get(sc.content_id)?.subject_category;
+    const fetchedSubjectCategory = studentContentSubjects.get(
+      sc.content_id
+    )?.subject_category;
     const subjectCategory = storedSubjectCategory || fetchedSubjectCategory;
     if (subjectCategory) {
       selectedSubjectCategories.add(subjectCategory);
@@ -767,13 +837,15 @@ export function Step4RecommendedContents({
     data.subject_constraints.required_subjects.length > 0
       ? data.subject_constraints.required_subjects
       : [];
-  
+
   // 필수 과목의 subject_category 배열 (렌더링 및 검증용)
-  const requiredSubjectCategories = requiredSubjects.map((req) => req.subject_category);
-  
+  const requiredSubjectCategories = requiredSubjects.map(
+    (req) => req.subject_category
+  );
+
   // 선택된 콘텐츠를 교과/과목별로 카운트
   const contentCountBySubject = new Map<string, number>();
-  
+
   // 학생 콘텐츠 카운트
   data.student_contents.forEach((sc) => {
     const subjectCategory = (sc as any).subject_category;
@@ -788,7 +860,8 @@ export function Step4RecommendedContents({
   data.recommended_contents.forEach((rc) => {
     const subjectCategory =
       (rc as any).subject_category ||
-      allRecommendedContents.find((c) => c.id === rc.content_id)?.subject_category;
+      allRecommendedContents.find((c) => c.id === rc.content_id)
+        ?.subject_category;
     const subject = (rc as any).subject;
     if (subjectCategory) {
       const key = subject ? `${subjectCategory}:${subject}` : subjectCategory;
@@ -806,11 +879,15 @@ export function Step4RecommendedContents({
   });
 
   // 필수 과목 검증
-  const missingRequiredSubjects: Array<{ name: string; current: number; required: number }> = [];
-  
+  const missingRequiredSubjects: Array<{
+    name: string;
+    current: number;
+    required: number;
+  }> = [];
+
   requiredSubjects.forEach((req) => {
     let count = 0;
-    
+
     if (req.subject) {
       // 세부 과목이 지정된 경우
       const exactKey = `${req.subject_category}:${req.subject}`;
@@ -818,15 +895,18 @@ export function Step4RecommendedContents({
     } else {
       // 교과만 지정된 경우: 해당 교과의 모든 콘텐츠 카운트
       contentCountBySubject.forEach((cnt, key) => {
-        if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
+        if (
+          key.startsWith(req.subject_category + ":") ||
+          key === req.subject_category
+        ) {
           count += cnt;
         }
       });
     }
-    
+
     if (count < req.min_count) {
-      const displayName = req.subject 
-        ? `${req.subject_category} - ${req.subject}` 
+      const displayName = req.subject
+        ? `${req.subject_category} - ${req.subject}`
         : req.subject_category;
       missingRequiredSubjects.push({
         name: displayName,
@@ -839,7 +919,7 @@ export function Step4RecommendedContents({
   // ProgressIndicator용 필수과목 정보 생성
   const progressRequiredSubjects = requiredSubjects.map((req) => {
     let count = 0;
-    
+
     if (req.subject) {
       // 세부 과목이 지정된 경우
       const exactKey = `${req.subject_category}:${req.subject}`;
@@ -847,16 +927,19 @@ export function Step4RecommendedContents({
     } else {
       // 교과만 지정된 경우: 해당 교과의 모든 콘텐츠 카운트
       contentCountBySubject.forEach((cnt, key) => {
-        if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
+        if (
+          key.startsWith(req.subject_category + ":") ||
+          key === req.subject_category
+        ) {
           count += cnt;
         }
       });
     }
-    
-    const displayName = req.subject 
-      ? `${req.subject_category} - ${req.subject}` 
+
+    const displayName = req.subject
+      ? `${req.subject_category} - ${req.subject}`
       : req.subject_category;
-    
+
     return {
       subject: displayName,
       selected: count >= req.min_count,
@@ -961,7 +1044,10 @@ export function Step4RecommendedContents({
           error,
           PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
         );
-        console.error("[Step4RecommendedContents] 상세정보 조회 실패:", planGroupError);
+        console.error(
+          "[Step4RecommendedContents] 상세정보 조회 실패:",
+          planGroupError
+        );
       } finally {
         setLoadingDetails((prev) => {
           const newSet = new Set(prev);
@@ -996,7 +1082,7 @@ export function Step4RecommendedContents({
       const endDetail = details.find((d) => d.id === endId);
       if (startDetail && endDetail) {
         newStart = startDetail.page_number;
-        
+
         // 끝 범위: 끝 항목의 다음 항목의 페이지 - 1
         const endIndex = details.findIndex((d) => d.id === endId);
         if (endIndex !== -1 && endIndex < details.length - 1) {
@@ -1011,7 +1097,7 @@ export function Step4RecommendedContents({
           );
           newEnd = totalPages;
         }
-        
+
         if (newStart > newEnd) [newStart, newEnd] = [newEnd, newStart];
       }
     } else {
@@ -1060,10 +1146,7 @@ export function Step4RecommendedContents({
 
     // 필수 과목 검증 (템플릿 설정에 따라 검증)
     // enable_required_subjects_validation이 true이고 required_subjects가 설정된 경우에만 검증
-    if (
-      requiredSubjects.length > 0 &&
-      missingRequiredSubjects.length > 0
-    ) {
+    if (requiredSubjects.length > 0 && missingRequiredSubjects.length > 0) {
       const missingList = missingRequiredSubjects
         .map((m) => `${m.name} (현재 ${m.current}개, 필요 ${m.required}개)`)
         .join("\n");
@@ -1140,7 +1223,10 @@ export function Step4RecommendedContents({
           error,
           PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
         );
-        console.error("[Step4RecommendedContents] 마스터 콘텐츠 정보 조회 실패:", planGroupError);
+        console.error(
+          "[Step4RecommendedContents] 마스터 콘텐츠 정보 조회 실패:",
+          planGroupError
+        );
         // 에러 시 기본값 사용
         contentsToAdd.push({
           content_type: content.contentType,
@@ -1163,7 +1249,7 @@ export function Step4RecommendedContents({
     setRecommendedContents((prev) =>
       prev.filter((c) => !addedContentIds.has(c.id))
     );
-    
+
     // allRecommendedContents에서도 제거 (다시 추천 목록 조회 시 중복 방지)
     setAllRecommendedContents((prev) =>
       prev.filter((c) => !addedContentIds.has(c.id))
@@ -1175,24 +1261,27 @@ export function Step4RecommendedContents({
 
   // 필수 교과 설정 핸들러
   // 세부 과목 불러오기
-  const handleLoadDetailSubjects = useCallback(async (category: string) => {
-    if (detailSubjects.has(category)) return;
-    
-    setLoadingDetailSubjects(prev => new Set([...prev, category]));
-    
-    try {
-      const subjects = await fetchDetailSubjects(category);
-      setDetailSubjects(prev => new Map([...prev, [category, subjects]]));
-    } catch (error) {
-      console.error("Error loading detail subjects:", error);
-    } finally {
-      setLoadingDetailSubjects(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(category);
-        return newSet;
-      });
-    }
-  }, [detailSubjects]);
+  const handleLoadDetailSubjects = useCallback(
+    async (category: string) => {
+      if (detailSubjects.has(category)) return;
+
+      setLoadingDetailSubjects((prev) => new Set([...prev, category]));
+
+      try {
+        const subjects = await fetchDetailSubjects(category);
+        setDetailSubjects((prev) => new Map([...prev, [category, subjects]]));
+      } catch (error) {
+        console.error("Error loading detail subjects:", error);
+      } finally {
+        setLoadingDetailSubjects((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(category);
+          return newSet;
+        });
+      }
+    },
+    [detailSubjects]
+  );
 
   // 필수 교과 추가
   const handleAddRequiredSubject = useCallback(() => {
@@ -1200,70 +1289,88 @@ export function Step4RecommendedContents({
       enable_required_subjects_validation: true,
       required_subjects: [],
       excluded_subjects: [],
-      constraint_handling: "warning"
+      constraint_handling: "warning",
     };
-    
+
     const newRequirement = {
       subject_category: "",
-      min_count: 1
+      min_count: 1,
     };
-    
+
     onUpdate({
       subject_constraints: {
         ...currentConstraints,
         enable_required_subjects_validation: true,
-        required_subjects: [...(currentConstraints.required_subjects || []), newRequirement]
-      }
+        required_subjects: [
+          ...(currentConstraints.required_subjects || []),
+          newRequirement,
+        ],
+      },
     });
   }, [data.subject_constraints, onUpdate]);
 
   // 필수 교과 업데이트
-  const handleRequiredSubjectUpdate = useCallback((
-    index: number, 
-    updated: Partial<{ subject_category: string; subject?: string; min_count: number }>
-  ) => {
-    if (!data.subject_constraints) return;
-    
-    const currentConstraints = data.subject_constraints;
-    const newRequirements = [...currentConstraints.required_subjects!];
-    newRequirements[index] = { ...newRequirements[index], ...updated };
-    
-    onUpdate({
-      subject_constraints: {
-        ...currentConstraints,
-        required_subjects: newRequirements
-      }
-    });
-  }, [data.subject_constraints, onUpdate]);
+  const handleRequiredSubjectUpdate = useCallback(
+    (
+      index: number,
+      updated: Partial<{
+        subject_category: string;
+        subject?: string;
+        min_count: number;
+      }>
+    ) => {
+      if (!data.subject_constraints) return;
+
+      const currentConstraints = data.subject_constraints;
+      const newRequirements = [...currentConstraints.required_subjects!];
+      newRequirements[index] = { ...newRequirements[index], ...updated };
+
+      onUpdate({
+        subject_constraints: {
+          ...currentConstraints,
+          required_subjects: newRequirements,
+        },
+      });
+    },
+    [data.subject_constraints, onUpdate]
+  );
 
   // 필수 교과 삭제
-  const handleRequiredSubjectRemove = useCallback((index: number) => {
-    if (!data.subject_constraints) return;
-    
-    const currentConstraints = data.subject_constraints;
-    const newRequirements = currentConstraints.required_subjects!.filter((_, i) => i !== index);
-    
-    onUpdate({
-      subject_constraints: {
-        ...currentConstraints,
-        required_subjects: newRequirements,
-        enable_required_subjects_validation: newRequirements.length > 0
-      }
-    });
-  }, [data.subject_constraints, onUpdate]);
+  const handleRequiredSubjectRemove = useCallback(
+    (index: number) => {
+      if (!data.subject_constraints) return;
+
+      const currentConstraints = data.subject_constraints;
+      const newRequirements = currentConstraints.required_subjects!.filter(
+        (_, i) => i !== index
+      );
+
+      onUpdate({
+        subject_constraints: {
+          ...currentConstraints,
+          required_subjects: newRequirements,
+          enable_required_subjects_validation: newRequirements.length > 0,
+        },
+      });
+    },
+    [data.subject_constraints, onUpdate]
+  );
 
   // 제약 조건 처리 방식 변경
-  const handleConstraintHandlingChange = useCallback((handling: "strict" | "warning" | "auto_fix") => {
-    if (!data.subject_constraints) return;
-    
-    const currentConstraints = data.subject_constraints;
-    onUpdate({
-      subject_constraints: {
-        ...currentConstraints,
-        constraint_handling: handling
-      }
-    });
-  }, [data.subject_constraints, onUpdate]);
+  const handleConstraintHandlingChange = useCallback(
+    (handling: "strict" | "warning" | "auto_fix") => {
+      if (!data.subject_constraints) return;
+
+      const currentConstraints = data.subject_constraints;
+      onUpdate({
+        subject_constraints: {
+          ...currentConstraints,
+          constraint_handling: handling,
+        },
+      });
+    },
+    [data.subject_constraints, onUpdate]
+  );
 
   // 과목별 그룹화
   const contentsBySubject = new Map<string, RecommendedContent[]>();
@@ -1302,7 +1409,8 @@ export function Step4RecommendedContents({
   data.recommended_contents.forEach((rc) => {
     const subjectCategory =
       (rc as any).subject_category ||
-      allRecommendedContents.find((c) => c.id === rc.content_id)?.subject_category;
+      allRecommendedContents.find((c) => c.id === rc.content_id)
+        ?.subject_category;
     if (subjectCategory) {
       allContentSubjects.add(subjectCategory);
     }
@@ -1312,43 +1420,48 @@ export function Step4RecommendedContents({
     <div className="space-y-6">
       {/* 필수 교과 설정 섹션 - 상단으로 이동 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 mb-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">필수 교과 설정</h2>
-          <button
-            type="button"
-            onClick={() => onUpdate({ show_required_subjects_ui: !data.show_required_subjects_ui })}
-            className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
-          >
-            {data.show_required_subjects_ui ? "숨기기" : "설정하기"}
-          </button>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            필수 교과 설정
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다.
+          </p>
         </div>
-        
-        {data.show_required_subjects_ui && (
-          <div className="space-y-4">
+
+        <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다.
-              세부 과목까지 지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
+              플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 세부
+              과목까지 지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
             </p>
-            
+
             {/* 필수 교과 목록 */}
             {(data.subject_constraints?.required_subjects || []).length > 0 && (
               <div className="space-y-3">
-                {(data.subject_constraints?.required_subjects || []).map((req, index) => (
-                  <RequiredSubjectItem
-                    key={index}
-                    requirement={req}
-                    index={index}
-                    availableSubjects={availableSubjects}
-                    availableDetailSubjects={detailSubjects.get(req.subject_category) || []}
-                    loadingDetailSubjects={loadingDetailSubjects.has(req.subject_category)}
-                    onUpdate={(updated) => handleRequiredSubjectUpdate(index, updated)}
-                    onRemove={() => handleRequiredSubjectRemove(index)}
-                    onLoadDetailSubjects={handleLoadDetailSubjects}
-                  />
-                ))}
+                {(data.subject_constraints?.required_subjects || []).map(
+                  (req, index) => (
+                    <RequiredSubjectItem
+                      key={index}
+                      requirement={req}
+                      index={index}
+                      availableSubjects={availableSubjects}
+                      availableDetailSubjects={
+                        detailSubjects.get(req.subject_category) || []
+                      }
+                      loadingDetailSubjects={loadingDetailSubjects.has(
+                        req.subject_category
+                      )}
+                      onUpdate={(updated) =>
+                        handleRequiredSubjectUpdate(index, updated)
+                      }
+                      onRemove={() => handleRequiredSubjectRemove(index)}
+                      onLoadDetailSubjects={handleLoadDetailSubjects}
+                    />
+                  )
+                )}
               </div>
             )}
-            
+
             {/* 교과 추가 버튼 */}
             <button
               type="button"
@@ -1357,29 +1470,43 @@ export function Step4RecommendedContents({
             >
               + 필수 교과 추가
             </button>
-            
+
             {/* 제약 조건 처리 방식 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 제약 조건 처리 방식
               </label>
               <select
-                value={data.subject_constraints?.constraint_handling || "warning"}
-                onChange={(e) => handleConstraintHandlingChange(e.target.value as "strict" | "warning" | "auto_fix")}
+                value={
+                  data.subject_constraints?.constraint_handling || "warning"
+                }
+                onChange={(e) =>
+                  handleConstraintHandlingChange(
+                    e.target.value as "strict" | "warning" | "auto_fix"
+                  )
+                }
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
               >
-                <option value="warning">경고 (권장) - 경고만 표시하고 진행</option>
-                <option value="strict">엄격 (필수) - 조건 미충족 시 진행 불가</option>
-                <option value="auto_fix">자동 보정 - 시스템이 자동으로 보정</option>
+                <option value="warning">
+                  경고 (권장) - 경고만 표시하고 진행
+                </option>
+                <option value="strict">
+                  엄격 (필수) - 조건 미충족 시 진행 불가
+                </option>
+                <option value="auto_fix">
+                  자동 보정 - 시스템이 자동으로 보정
+                </option>
               </select>
               <p className="mt-1 text-xs text-gray-500">
-                {data.subject_constraints?.constraint_handling === "warning" && "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
-                {data.subject_constraints?.constraint_handling === "strict" && "조건을 반드시 충족해야 다음 단계로 진행할 수 있습니다."}
-                {data.subject_constraints?.constraint_handling === "auto_fix" && "시스템이 자동으로 필요한 콘텐츠를 추천합니다."}
+                {data.subject_constraints?.constraint_handling === "warning" &&
+                  "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
+                {data.subject_constraints?.constraint_handling === "strict" &&
+                  "조건을 반드시 충족해야 다음 단계로 진행할 수 있습니다."}
+                {data.subject_constraints?.constraint_handling === "auto_fix" &&
+                  "시스템이 자동으로 필요한 콘텐츠를 추천합니다."}
               </p>
             </div>
           </div>
-        )}
       </div>
 
       <div>
@@ -1402,12 +1529,17 @@ export function Step4RecommendedContents({
             showWarning={missingRequiredSubjects.length > 0}
             warningMessage={
               missingRequiredSubjects.length > 0
-                ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects.map((m) => `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`).join(", ")}`
+                ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects
+                    .map(
+                      (m) =>
+                        `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`
+                    )
+                    .join(", ")}`
                 : undefined
             }
           />
         </div>
-        
+
         {/* 필수 과목 검증 안내 (상단 표시) */}
         {requiredSubjects.length > 0 && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -1429,25 +1561,32 @@ export function Step4RecommendedContents({
                   count = contentCountBySubject.get(exactKey) || 0;
                 } else {
                   contentCountBySubject.forEach((cnt, key) => {
-                    if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
+                    if (
+                      key.startsWith(req.subject_category + ":") ||
+                      key === req.subject_category
+                    ) {
                       count += cnt;
                     }
                   });
                 }
-                const displayName = req.subject 
-                  ? `${req.subject_category} - ${req.subject}` 
+                const displayName = req.subject
+                  ? `${req.subject_category} - ${req.subject}`
                   : req.subject_category;
                 const isSatisfied = count >= req.min_count;
-                
+
                 return (
                   <div
                     key={req.subject_category}
                     className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">{displayName}</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {displayName}
+                      </span>
                       {req.subject && (
-                        <span className="text-xs text-gray-500">(세부 과목 지정)</span>
+                        <span className="text-xs text-gray-500">
+                          (세부 과목 지정)
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -1481,7 +1620,8 @@ export function Step4RecommendedContents({
                   ))}
                 </ul>
                 <p className="mt-2 text-xs text-amber-700">
-                  추천 콘텐츠에서 위 과목을 선택하시면 더 효과적인 학습 플랜을 만들 수 있습니다.
+                  추천 콘텐츠에서 위 과목을 선택하시면 더 효과적인 학습 플랜을
+                  만들 수 있습니다.
                 </p>
               </div>
             )}
@@ -1534,10 +1674,15 @@ export function Step4RecommendedContents({
                 const storedTitle = (content as any).title;
                 const storedSubjectCategory = (content as any).subject_category;
                 const masterContentId = (content as any).master_content_id;
-                const contentInfo = studentContentSubjects.get(content.content_id);
-                
+                const contentInfo = studentContentSubjects.get(
+                  content.content_id
+                );
+
                 const title = storedTitle || contentInfo?.title || "알 수 없음";
-                const subjectCategory = storedSubjectCategory || contentInfo?.subject_category || null;
+                const subjectCategory =
+                  storedSubjectCategory ||
+                  contentInfo?.subject_category ||
+                  null;
 
                 return (
                   <div
@@ -1579,7 +1724,8 @@ export function Step4RecommendedContents({
                 <div className="space-y-1">
                   {requiredSubjects.map((req) => {
                     const subjectCategory = req.subject_category;
-                    const isIncluded = selectedSubjectCategories.has(subjectCategory);
+                    const isIncluded =
+                      selectedSubjectCategories.has(subjectCategory);
                     return (
                       <div
                         key={subjectCategory}
@@ -1612,7 +1758,8 @@ export function Step4RecommendedContents({
                       ))}
                     </ul>
                     <p className="mt-2 text-xs text-amber-700">
-                      추천 콘텐츠에서 위 과목을 선택하시면 더 효과적인 학습 플랜을 만들 수 있습니다.
+                      추천 콘텐츠에서 위 과목을 선택하시면 더 효과적인 학습
+                      플랜을 만들 수 있습니다.
                     </p>
                   </div>
                 )}
@@ -2160,15 +2307,24 @@ export function Step4RecommendedContents({
       )}
 
       {/* 필수 과목 검증 결과 표시 */}
-      {data.show_required_subjects_ui && 
-       missingRequiredSubjects.length > 0 && (
+      {data.show_required_subjects_ui && missingRequiredSubjects.length > 0 && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-start gap-3">
-            <svg className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            <svg
+              className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
             </svg>
             <div className="flex-1">
-              <h4 className="text-sm font-medium text-amber-800">필수 교과 부족</h4>
+              <h4 className="text-sm font-medium text-amber-800">
+                필수 교과 부족
+              </h4>
               <p className="mt-1 text-xs text-amber-700">
                 다음 교과의 콘텐츠를 더 추가해주세요:
               </p>
@@ -2177,9 +2333,9 @@ export function Step4RecommendedContents({
                   <li key={i} className="flex items-center gap-2">
                     <span className="flex-shrink-0">•</span>
                     <span className="flex-1">
-                      <strong>{missing.name}</strong>: 
-                      현재 {missing.current}개 / 필요 {missing.required}개 
-                      (부족: <strong>{missing.required - missing.current}개</strong>)
+                      <strong>{missing.name}</strong>: 현재 {missing.current}개
+                      / 필요 {missing.required}개 (부족:{" "}
+                      <strong>{missing.required - missing.current}개</strong>)
                     </span>
                   </li>
                 ))}
@@ -2201,7 +2357,7 @@ export function Step4RecommendedContents({
                 추천 받을 교과와 개수를 선택하세요. (최대 9개까지 가능)
               </p>
             </div>
-            
+
             {/* 교과 선택 */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">
@@ -2250,16 +2406,26 @@ export function Step4RecommendedContents({
                 <div className="space-y-3">
                   {Array.from(selectedSubjects).map((subject) => {
                     const currentCount = recommendationCounts.get(subject) || 1;
-                    const totalSelectedCount = Array.from(recommendationCounts.values()).reduce((sum, count) => sum + count, 0);
+                    const totalSelectedCount = Array.from(
+                      recommendationCounts.values()
+                    ).reduce((sum, count) => sum + count, 0);
                     const currentStudentCount = data.student_contents.length;
-                    const currentRecommendedCount = data.recommended_contents.length;
-                    const maxAvailable = 9 - currentStudentCount - currentRecommendedCount;
-                    const remainingForOthers = maxAvailable - (totalSelectedCount - currentCount);
+                    const currentRecommendedCount =
+                      data.recommended_contents.length;
+                    const maxAvailable =
+                      9 - currentStudentCount - currentRecommendedCount;
+                    const remainingForOthers =
+                      maxAvailable - (totalSelectedCount - currentCount);
                     const maxForThis = Math.max(1, remainingForOthers);
 
                     return (
-                      <div key={subject} className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <span className="text-sm font-medium text-gray-900">{subject}</span>
+                      <div
+                        key={subject}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <span className="text-sm font-medium text-gray-900">
+                          {subject}
+                        </span>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -2306,9 +2472,17 @@ export function Step4RecommendedContents({
                 </div>
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs text-blue-800">
-                    현재 학생 콘텐츠: {data.student_contents.length}개, 추천 콘텐츠: {data.recommended_contents.length}개
+                    현재 학생 콘텐츠: {data.student_contents.length}개, 추천
+                    콘텐츠: {data.recommended_contents.length}개
                     <br />
-                    추가 가능: {Math.max(0, 9 - data.student_contents.length - data.recommended_contents.length)}개 / 전체 최대 9개
+                    추가 가능:{" "}
+                    {Math.max(
+                      0,
+                      9 -
+                        data.student_contents.length -
+                        data.recommended_contents.length
+                    )}
+                    개 / 전체 최대 9개
                   </p>
                 </div>
               </div>
@@ -2328,7 +2502,8 @@ export function Step4RecommendedContents({
                 </span>
               </label>
               <p className="text-xs text-gray-500">
-                선택 시 추천 받은 콘텐츠를 자동으로 추가 추천 콘텐츠로 이동합니다.
+                선택 시 추천 받은 콘텐츠를 자동으로 추가 추천 콘텐츠로
+                이동합니다.
               </p>
             </div>
 
@@ -2342,22 +2517,34 @@ export function Step4RecommendedContents({
                     alert("최소 1개 이상의 교과를 선택해주세요.");
                     return;
                   }
-                  
-                  const totalRequested = Array.from(recommendationCounts.values()).reduce((sum, count) => sum + count, 0);
-                  const currentTotal = data.student_contents.length + data.recommended_contents.length;
-                  
+
+                  const totalRequested = Array.from(
+                    recommendationCounts.values()
+                  ).reduce((sum, count) => sum + count, 0);
+                  const currentTotal =
+                    data.student_contents.length +
+                    data.recommended_contents.length;
+
                   if (totalRequested === 0) {
-                    alert("최소 1개 이상의 콘텐츠를 추천 받으려면 개수를 설정해주세요.");
+                    alert(
+                      "최소 1개 이상의 콘텐츠를 추천 받으려면 개수를 설정해주세요."
+                    );
                     return;
                   }
-                  
+
                   if (currentTotal + totalRequested > 9) {
-                    alert(`추천 받을 수 있는 최대 개수를 초과했습니다. (현재: ${currentTotal}개, 요청: ${totalRequested}개, 최대: 9개)`);
+                    alert(
+                      `추천 받을 수 있는 최대 개수를 초과했습니다. (현재: ${currentTotal}개, 요청: ${totalRequested}개, 최대: 9개)`
+                    );
                     return;
                   }
 
                   // 교과별 추천 개수 정보를 포함하여 추천 요청
-                  await fetchRecommendationsWithSubjects(Array.from(selectedSubjects), recommendationCounts, autoAssignContents);
+                  await fetchRecommendationsWithSubjects(
+                    Array.from(selectedSubjects),
+                    recommendationCounts,
+                    autoAssignContents
+                  );
                 }}
                 disabled={selectedSubjects.size === 0}
                 className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400"
@@ -2600,14 +2787,15 @@ export function Step4RecommendedContents({
                       </span>
                     )}
                   </div>
-                  {requiredSubjects.length > 0 && missingRequiredSubjects.length > 0 && (
-                    <div className="text-xs font-medium text-red-600">
-                      필수 과목 미충족:{" "}
-                      {missingRequiredSubjects
-                        .map((m) => `${m.name} (${m.current}/${m.required})`)
-                        .join(", ")}
-                    </div>
-                  )}
+                  {requiredSubjects.length > 0 &&
+                    missingRequiredSubjects.length > 0 && (
+                      <div className="text-xs font-medium text-red-600">
+                        필수 과목 미충족:{" "}
+                        {missingRequiredSubjects
+                          .map((m) => `${m.name} (${m.current}/${m.required})`)
+                          .join(", ")}
+                      </div>
+                    )}
                 </div>
                 {selectedContentIds.size > 0 && (
                   <div className="rounded-lg border border-green-200 bg-green-50 p-2">
@@ -2643,7 +2831,8 @@ export function Step4RecommendedContents({
                 onClick={addSelectedContents}
                 disabled={
                   selectedContentIds.size === 0 ||
-                  (requiredSubjects.length > 0 && missingRequiredSubjects.length > 0) ||
+                  (requiredSubjects.length > 0 &&
+                    missingRequiredSubjects.length > 0) ||
                   totalCount + selectedContentIds.size > 9
                 }
                 className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
@@ -2654,7 +2843,6 @@ export function Step4RecommendedContents({
             </div>
           </>
         )}
-
     </div>
   );
 }
@@ -2670,7 +2858,13 @@ type RequiredSubjectItemProps = {
   availableSubjects: string[];
   availableDetailSubjects: string[];
   loadingDetailSubjects: boolean;
-  onUpdate: (updated: Partial<{ subject_category: string; subject?: string; min_count: number }>) => void;
+  onUpdate: (
+    updated: Partial<{
+      subject_category: string;
+      subject?: string;
+      min_count: number;
+    }>
+  ) => void;
   onRemove: () => void;
   onLoadDetailSubjects: (category: string) => void;
 };
@@ -2686,7 +2880,7 @@ function RequiredSubjectItem({
   onLoadDetailSubjects,
 }: RequiredSubjectItemProps) {
   const [showDetailSubjects, setShowDetailSubjects] = useState(false);
-  
+
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
       <div className="flex items-start gap-3">
@@ -2697,16 +2891,20 @@ function RequiredSubjectItem({
           </label>
           <select
             value={requirement.subject_category}
-            onChange={(e) => onUpdate({ subject_category: e.target.value, subject: undefined })}
+            onChange={(e) =>
+              onUpdate({ subject_category: e.target.value, subject: undefined })
+            }
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
           >
             <option value="">교과 선택</option>
-            {availableSubjects.map(subject => (
-              <option key={subject} value={subject}>{subject}</option>
+            {availableSubjects.map((subject) => (
+              <option key={subject} value={subject}>
+                {subject}
+              </option>
             ))}
           </select>
         </div>
-        
+
         {/* 최소 개수 */}
         <div className="w-24">
           <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -2717,11 +2915,13 @@ function RequiredSubjectItem({
             min="1"
             max="9"
             value={requirement.min_count}
-            onChange={(e) => onUpdate({ min_count: parseInt(e.target.value) || 1 })}
+            onChange={(e) =>
+              onUpdate({ min_count: parseInt(e.target.value) || 1 })
+            }
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
           />
         </div>
-        
+
         {/* 삭제 버튼 */}
         <button
           type="button"
@@ -2729,12 +2929,22 @@ function RequiredSubjectItem({
           className="mt-6 text-gray-400 hover:text-red-600 transition-colors"
           aria-label="필수 교과 삭제"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
-      
+
       {/* 세부 과목 선택 (선택사항) */}
       {requirement.subject_category && (
         <div className="mt-3">
@@ -2748,26 +2958,36 @@ function RequiredSubjectItem({
             }}
             className="text-xs text-blue-600 hover:text-blue-700 transition-colors"
           >
-            {showDetailSubjects ? "세부 과목 숨기기" : "세부 과목 지정 (선택사항)"}
+            {showDetailSubjects
+              ? "세부 과목 숨기기"
+              : "세부 과목 지정 (선택사항)"}
           </button>
-          
+
           {showDetailSubjects && (
             <div className="mt-2">
               {loadingDetailSubjects ? (
-                <p className="text-xs text-gray-500">세부 과목 불러오는 중...</p>
+                <p className="text-xs text-gray-500">
+                  세부 과목 불러오는 중...
+                </p>
               ) : availableDetailSubjects.length > 0 ? (
                 <select
                   value={requirement.subject || ""}
-                  onChange={(e) => onUpdate({ subject: e.target.value || undefined })}
+                  onChange={(e) =>
+                    onUpdate({ subject: e.target.value || undefined })
+                  }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
                 >
                   <option value="">세부 과목 선택 (전체)</option>
-                  {availableDetailSubjects.map(subject => (
-                    <option key={subject} value={subject}>{subject}</option>
+                  {availableDetailSubjects.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
+                    </option>
                   ))}
                 </select>
               ) : (
-                <p className="text-xs text-gray-500">세부 과목 정보가 없습니다.</p>
+                <p className="text-xs text-gray-500">
+                  세부 과목 정보가 없습니다.
+                </p>
               )}
             </div>
           )}
