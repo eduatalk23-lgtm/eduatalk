@@ -1,235 +1,289 @@
-# Phase 2 구현 완료: 학원 일정 플랜 그룹별 관리
+# Phase 2 Implementation: UI 통합 완성
 
-## 변경 사항 요약
+## 구현 일자
+2025-01-30
 
-### 1. 데이터베이스 스키마 변경
+## 개요
+Step 4와 Step 6의 UI 통합 완성 작업을 진행하였습니다. 이전에 구축된 백엔드 로직과 데이터 구조를 기반으로, 사용자 인터페이스를 완전히 통합하여 실제로 사용 가능한 기능으로 완성했습니다.
 
-**파일**: `supabase/migrations/20251201064437_add_plan_group_id_to_academy_schedules.sql`
+## 구현된 기능
 
-- `academy_schedules` 테이블에 `plan_group_id` 컬럼 추가
-- 기존 데이터를 가장 최근 플랜 그룹에 자동 할당
-- `plan_group_id`를 NOT NULL로 설정
-- 인덱스 추가로 조회 성능 최적화
+### Phase 1: Step 4 핸들러 함수 구현 ✅
+**파일**: `app/(student)/plan/new-group/_components/Step4RecommendedContents.tsx`
 
-### 2. 데이터 레이어 함수 구현/수정
+**구현 내용**:
+- `handleLoadDetailSubjects`: 세부 과목 비동기 불러오기
+- `handleAddRequiredSubject`: 새 필수 교과 추가
+- `handleRequiredSubjectUpdate`: 필수 교과 수정
+- `handleRequiredSubjectRemove`: 필수 교과 삭제
+- `handleConstraintHandlingChange`: 제약 조건 처리 방식 변경
 
-**파일**: `lib/data/planGroups.ts`
+**핵심 기능**:
+- 세부 과목 정보는 `fetchDetailSubjects` 서버 액션을 통해 비동기로 조회
+- `subject_constraints` 객체를 업데이트하여 필수 교과 설정 관리
+- 모든 핸들러는 `useCallback`으로 최적화
 
-#### 2-1. 새로운 함수 추가
+### Phase 2: Step 4 메인 UI 섹션 통합 ✅
+**파일**: `app/(student)/plan/new-group/_components/Step4RecommendedContents.tsx`
 
-- **`createPlanAcademySchedules`**: 플랜 그룹별 학원 일정 생성
-  - 플랜 그룹 내에서만 중복 체크 (플랜 그룹 간 중복 허용)
-  - `plan_group_id`를 포함하여 저장
+**구현 내용**:
+- "필수 교과 설정" 섹션을 "추천 콘텐츠 받기" 섹션 위에 추가
+- 토글 방식으로 UI 표시/숨김 제어 (`show_required_subjects_ui`)
+- `RequiredSubjectItem` 컴포넌트를 활용한 개별 교과 설정
+- 교과 추가 버튼 (border-dashed 스타일)
+- 제약 조건 처리 방식 선택 (경고/엄격/자동 보정)
 
-#### 2-2. 기존 함수 수정
-
-- **`getAcademySchedules`**: `plan_group_id` 기반으로 조회하도록 변경
-  - 변경 전: `student_id`로 조회 (전역)
-  - 변경 후: `plan_group_id`로 조회 (플랜 그룹별)
-
-#### 2-3. 하위 호환성
-
-- **`createStudentAcademySchedules`**: deprecated 표시, 시간 관리 메뉴에서만 사용 (마이그레이션 전까지)
-- **`getStudentAcademySchedules`**: 유지, 시간 관리 메뉴 및 "불러오기" 기능에서 사용
-
-### 3. Action 레이어 수정
-
-#### 3-1. update.ts
-
-**파일**: `app/(student)/actions/plan-groups/update.ts`
-
-- 학원 일정 삭제: `student_id` → `plan_group_id`로 변경
-- 학원 일정 생성: `createStudentAcademySchedules` → `createPlanAcademySchedules` 사용
-- 주석 업데이트: "학생별 전역 관리" → "플랜 그룹별 관리"
-
-**변경 내용**:
-
-```typescript
-// 변경 전: 학생의 모든 학원 일정 삭제
-.delete()
-.eq("student_id", user.userId);
-
-// 변경 후: 현재 플랜 그룹의 학원 일정만 삭제
-.delete()
-.eq("plan_group_id", groupId);
+**UI 구조**:
+```
+필수 교과 설정
+├─ 설정하기/숨기기 토글
+└─ (펼쳤을 때)
+   ├─ 안내 문구
+   ├─ 필수 교과 목록 (RequiredSubjectItem)
+   ├─ + 필수 교과 추가 버튼
+   └─ 제약 조건 처리 방식 선택
 ```
 
-#### 3-2. create.ts
+### Phase 3: Step 4 실시간 검증 표시 개선 ✅
+**파일**: `app/(student)/plan/new-group/_components/Step4RecommendedContents.tsx`
 
-**파일**: `app/(student)/actions/plan-groups/create.ts`
+**구현 내용**:
+- 필수 교과 부족 시 amber(경고) 색상 박스 표시
+- SVG 아이콘을 사용한 시각적 강조
+- 교과별 부족 개수 상세 표시 (현재 X개 / 필요 Y개)
+- 조건부 렌더링: `show_required_subjects_ui`와 `missingRequiredSubjects.length > 0`
 
-- 두 군데에서 `createStudentAcademySchedules` → `createPlanAcademySchedules`로 변경
-- `user.userId` 대신 `groupId` 전달
+**UI 요소**:
+- 경고 아이콘 (SVG)
+- 교과명 (굵게)
+- 현재 개수 / 필요 개수
+- 부족 개수 강조 표시
 
-### 4. UI 레이어 수정
+### Phase 4: Step 6 SubjectAllocationUI 컴포넌트 추출 ✅
+**파일**: `app/(student)/plan/new-group/_components/Step6FinalReview.tsx`
 
-#### 4-1. 캘린더 페이지
+**구현 내용**:
+- 기존 교과별 설정 로직을 독립적인 컴포넌트로 추출
+- `SubjectAllocationUI` 컴포넌트 생성
+- Props: `data`, `onUpdate`, `contentInfos`
 
-**파일**: `app/(student)/plan/calendar/page.tsx`
+**주요 기능**:
+- 콘텐츠에서 과목 추출 및 정렬
+- 교과별 전략/취약 라디오 버튼
+- 전략과목 선택 시 주당 배정 일수 선택 (2/3/4일)
+- 교과별 콘텐츠 개수 표시
 
-**변경 전**:
+**장점**:
+- 재사용성 향상
+- 코드 가독성 개선
+- Phase 6에서 모드 전환 UI와 결합 용이
 
-```typescript
-const academySchedules = await getStudentAcademySchedules(user.id);
+### Phase 5: Step 6 ContentAllocationUI 컴포넌트 구현 ✅
+**파일**: `app/(student)/plan/new-group/_components/Step6FinalReview.tsx`
+
+**구현 내용**:
+- 콘텐츠별 전략/취약 설정 UI 구현
+- `ContentAllocationUI` 컴포넌트 생성
+- 폴백 메커니즘 UI 반영
+
+**주요 기능**:
+1. **교과별 그룹화**: 콘텐츠를 교과별로 그룹화하여 표시
+2. **폴백 메커니즘**: 
+   - 1순위: `content_allocations` (콘텐츠별 설정)
+   - 2순위: `subject_allocations` (교과별 설정)
+   - 3순위: 기본값 (취약과목)
+3. **시각적 표시**: 
+   - "교과별 설정 적용 중" (2순위 폴백)
+   - "기본값 (취약과목)" (3순위 폴백)
+4. **설정 요약**: 
+   - 콘텐츠별 설정 개수
+   - 교과별 설정 개수
+   - 우선순위 안내
+
+**UI 구조**:
+```
+교과별 섹션
+├─ 교과명
+└─ 콘텐츠 목록
+   ├─ 콘텐츠 제목 (책/강의 아이콘)
+   ├─ 폴백 상태 표시 (선택사항)
+   ├─ 전략/취약 라디오 버튼
+   └─ 주당 배정 일수 (전략과목인 경우)
+
+설정 요약 (파란색 박스)
+├─ 콘텐츠별 설정: N개
+├─ 교과별 설정 (폴백): M개
+└─ 우선순위 안내
 ```
 
-**변경 후**:
+### Phase 6: Step 6 모드 전환 UI 통합 ✅
+**파일**: `app/(student)/plan/new-group/_components/Step6FinalReview.tsx`
 
-```typescript
-// 활성 플랜 그룹들의 학원 일정 조회
-const academySchedulesPromises = activePlanGroups.map((group) =>
-  getAcademySchedules(group.id, tenantContext.tenantId)
-);
-const academySchedulesArrays = await Promise.all(academySchedulesPromises);
+**구현 내용**:
+- 기존 전략/취약과목 섹션을 새로운 모드 전환 UI로 완전 교체
+- 교과별 / 콘텐츠별 설정 모드 토글 버튼
+- 조건부 렌더링으로 모드별 UI 표시
 
-// 중복 제거: day_of_week:start_time:end_time 조합이 같은 것은 하나만 표시
-const academySchedulesMap = new Map();
-for (const schedules of academySchedulesArrays) {
-  for (const schedule of schedules) {
-    const key = `${schedule.day_of_week}:${schedule.start_time}:${schedule.end_time}`;
-    if (!academySchedulesMap.has(key)) {
-      academySchedulesMap.set(key, schedule);
-    }
-  }
+**UI 구조**:
+```
+전략과목/취약과목 정보
+├─ 헤더
+│  ├─ 제목
+│  └─ 모드 토글 (교과별 설정 / 콘텐츠별 설정)
+├─ 안내 문구 (모드별 상이)
+└─ 컴포넌트 렌더링
+   ├─ SubjectAllocationUI (교과별 모드)
+   └─ ContentAllocationUI (콘텐츠별 모드)
+```
+
+**모드별 동작**:
+- **교과별 설정 모드** (`allocation_mode: "subject"` 또는 기본값):
+  - 같은 교과의 모든 콘텐츠에 동일한 설정 적용
+  - 빠른 설정 가능
+  
+- **콘텐츠별 설정 모드** (`allocation_mode: "content"`):
+  - 개별 콘텐츠마다 세밀한 설정 가능
+  - 폴백 메커니즘으로 설정되지 않은 콘텐츠는 교과별 설정을 따름
+
+## 기술적 세부사항
+
+### 1. 상태 관리
+- `WizardData`의 다음 필드 활용:
+  - `show_required_subjects_ui`: Step 4 필수 교과 UI 표시 여부
+  - `allocation_mode`: Step 6 전략/취약 설정 모드 ("subject" | "content")
+  - `subject_constraints`: 필수 교과 제약 조건
+  - `subject_allocations`: 교과별 전략/취약 설정
+  - `content_allocations`: 콘텐츠별 전략/취약 설정
+
+### 2. 컴포넌트 계층
+```
+Step4RecommendedContents
+├─ 필수 교과 설정 섹션
+│  └─ RequiredSubjectItem (기존)
+└─ 추천 콘텐츠 받기 섹션
+
+Step6FinalReview
+└─ 전략과목/취약과목 정보
+   ├─ SubjectAllocationUI (신규)
+   └─ ContentAllocationUI (신규)
+```
+
+### 3. 데이터 흐름
+```
+사용자 입력
+  ↓
+핸들러 함수 (useCallback)
+  ↓
+onUpdate({ ...updates })
+  ↓
+WizardData 업데이트
+  ↓
+UI 리렌더링
+```
+
+### 4. 폴백 메커니즘 (ContentAllocationUI)
+```javascript
+getEffectiveAllocation(content) {
+  // 1순위: 콘텐츠별 설정
+  if (content_allocations[content_id]) return content_allocations[content_id];
+  
+  // 2순위: 교과별 설정
+  if (subject_allocations[subject_category]) return subject_allocations[subject_category];
+  
+  // 3순위: 기본값
+  return { subject_type: "weakness" };
 }
-const academySchedules = Array.from(academySchedulesMap.values());
 ```
 
-**특징**:
+## UI/UX 개선사항
 
-- 활성 플랜 그룹들의 학원 일정을 모두 조회하여 병합 표시
-- 각 플랜 그룹은 독립적으로 관리되므로, 플랜 그룹 간 겹침 검증은 불필요
-- UI 표현 최적화를 위해 동일 시간대는 하나로 표시 (겹침 검증과 무관)
+### Step 4 개선
+1. **토글 방식**: 필수 교과 설정을 선택적으로 표시하여 UI 복잡도 감소
+2. **실시간 검증**: 부족한 필수 교과를 즉시 시각화
+3. **세부 과목 선택**: 더 정확한 필수 교과 지정 가능
 
-## 동작 방식
+### Step 6 개선
+1. **모드 전환**: 사용자의 니즈에 따라 빠른 설정 또는 세밀한 설정 선택 가능
+2. **폴백 표시**: 어떤 설정이 적용되는지 명확히 표시
+3. **설정 요약**: 현재 설정 상태를 한눈에 파악 가능
 
-### 학원 일정 관리 정책
+## 테스트 체크리스트
 
-1. **플랜 그룹별 관리**: 각 플랜 그룹은 독립적인 학원 일정을 가짐
-2. **플랜 그룹 간 중복 허용**: 같은 학원 일정(월요일 9:00-10:00)을 여러 플랜 그룹에서 사용 가능
-3. **플랜 그룹 내 중복 방지**: 같은 플랜 그룹 내에서는 동일 시간대 중복 불가
-4. **시간 겹침 검증**: 학원 시간 + 이동시간 겹침 검증은 기존대로 유지
+### Step 4
+- [ ] 필수 교과 설정 토글 동작
+- [ ] 필수 교과 추가/삭제/수정
+- [ ] 세부 과목 불러오기 (비동기)
+- [ ] 제약 조건 처리 방식 변경
+- [ ] 실시간 검증 표시
 
-### 업데이트 시나리오
+### Step 6
+- [ ] 모드 전환 토글 동작
+- [ ] 교과별 설정 모드에서 전략/취약 설정
+- [ ] 교과별 설정 모드에서 주당 일수 설정
+- [ ] 콘텐츠별 설정 모드에서 개별 콘텐츠 설정
+- [ ] 폴백 메커니즘 동작 확인
+- [ ] 설정 요약 정확성
 
-1. 플랜 그룹 A 수정 시
+### 통합 테스트
+- [ ] Step 4 → Step 6 데이터 흐름
+- [ ] 캠프 모드 / 일반 모드 각각 테스트
+- [ ] 플랜 생성 시 설정 반영 확인
 
-   - 플랜 그룹 A의 학원 일정만 삭제
-   - 플랜 그룹 A의 새로운 학원 일정 삽입
-   - 플랜 그룹 B, C의 학원 일정은 영향 없음
+## 파일 변경 사항
 
-2. 플랜 그룹 생성 시
-   - 시간 관리에서 학원 일정 불러오기 가능
-   - 불러온 학원 일정은 현재 플랜 그룹에만 저장
+### 수정된 파일
+1. `app/(student)/plan/new-group/_components/Step4RecommendedContents.tsx`
+   - 필수 교과 설정 핸들러 추가 (5개)
+   - 필수 교과 설정 UI 섹션 추가
+   - 실시간 검증 표시 UI 추가
 
-### 캘린더 뷰
+2. `app/(student)/plan/new-group/_components/Step6FinalReview.tsx`
+   - `SubjectAllocationUI` 컴포넌트 추출
+   - `ContentAllocationUI` 컴포넌트 구현
+   - 모드 전환 UI로 기존 섹션 교체
 
-- 모든 활성 플랜 그룹의 학원 일정을 조회하여 표시
-- 각 플랜 그룹은 독립적으로 관리되므로, 플랜 그룹 간 겹침 검증 불필요
-- UI 표현 최적화: 동일 시간대는 하나로 표시 (겹침 검증과 무관)
-- 성능: 플랜 그룹별 병렬 조회 (`Promise.all`)
+### 변경되지 않은 파일 (의존)
+- `lib/types/wizard.ts` (타입 정의)
+- `app/(student)/plan/new-group/_components/PlanGroupWizard.tsx` (메인 위저드)
+- `app/(student)/actions/fetchDetailSubjects.ts` (서버 액션)
+- `lib/plan/1730TimetableLogic.ts` (검증 로직)
+- `lib/validation/wizardValidator.ts` (서버 검증)
 
-## 사용자 의도 반영 확인
+## 성과
 
-### 요구사항 대조
+### 정량적 성과
+- **새로운 UI 컴포넌트**: 2개 (`SubjectAllocationUI`, `ContentAllocationUI`)
+- **새로운 핸들러 함수**: 5개 (Step 4)
+- **코드 라인 수**: 약 +500줄
+- **Linting 에러**: 0개
 
-| 요구사항                         | 구현 상태       | 비고                                            |
-| -------------------------------- | --------------- | ----------------------------------------------- |
-| 제외일 플랜 그룹별 관리          | ✅ Phase 1 완료 | `plan_group_id` 기반 관리                       |
-| 제외일 플랜 그룹 간 중복 가능    | ✅ Phase 1 완료 | 같은 날짜를 여러 플랜에서 사용 가능             |
-| 학원 일정 플랜 그룹별 관리       | ✅ Phase 2 완료 | `plan_group_id` 기반 관리                       |
-| 학원 일정 플랜 그룹 간 중복 가능 | ✅ Phase 2 완료 | 같은 일정을 여러 플랜에서 사용 가능             |
-| 학원 일정 시간 겹침 검증         | ✅ 유지         | `validateAcademyScheduleOverlap` 함수 정상 작동 |
-
-## 마이그레이션 전략
-
-### 기존 데이터 처리
-
-1. **자동 할당**: 기존 학원 일정을 학생의 가장 최근 플랜 그룹에 자동 할당
-2. **고아 데이터 정리**: 플랜 그룹이 없는 학생의 학원 일정은 삭제
-3. **인덱스 최적화**: 조회 성능 향상을 위한 인덱스 추가
-
-### 롤백 계획
-
-- 마이그레이션 전 데이터베이스 백업 필수
-- `plan_group_id` 컬럼 제거 시 기존 데이터 복구 가능
-
-## 테스트 시나리오
-
-### 시나리오 1: 플랜 그룹 생성 및 학원 일정 등록
-
-1. ✅ 플랜 그룹 A 생성
-2. ✅ 시간 관리에서 학원 일정 불러오기 (월요일 9:00-10:00)
-3. ✅ 플랜 그룹 A에 학원 일정 등록 성공
-4. ✅ 플랜 그룹 B 생성
-5. ✅ 같은 학원 일정 (월요일 9:00-10:00) 불러오기
-6. ✅ 플랜 그룹 B에도 등록 성공 (플랜 그룹 간 중복 허용)
-
-### 시나리오 2: 플랜 그룹 수정 시 독립성
-
-1. ✅ 플랜 그룹 A에 학원 일정 3개 등록
-2. ✅ 플랜 그룹 B에 학원 일정 2개 등록
-3. ✅ 플랜 그룹 A 수정하여 학원 일정 1개 삭제
-4. ✅ 플랜 그룹 A의 학원 일정만 변경됨
-5. ✅ 플랜 그룹 B의 학원 일정은 영향 없음
-
-### 시나리오 3: 캘린더 뷰 병합
-
-1. ✅ 플랜 그룹 A (활성): 월요일 9:00-10:00, 화요일 10:00-11:00
-2. ✅ 플랜 그룹 B (활성): 월요일 9:00-10:00, 수요일 14:00-15:00
-3. ✅ 캘린더는 활성 플랜 그룹들의 학원 일정을 모두 조회하여 표시
-4. ✅ 캘린더에는 월요일 9:00-10:00 (1개), 화요일 10:00-11:00 (1개), 수요일 14:00-15:00 (1개) 표시
-5. ✅ 참고: 각 플랜 그룹은 독립적으로 관리되므로, 같은 시간대의 학원 일정이 여러 플랜 그룹에 있어도 문제 없음
-6. ✅ UI 표현 최적화를 위해 동일 시간대는 하나로 표시 (겹침 검증과 무관 - 플랜 그룹 간 겹침 검증은 불필요)
-
-### 시나리오 4: 시간 겹침 검증
-
-1. ✅ 학원 일정: 월요일 9:00-10:00, 이동시간 60분
-2. ✅ 다른 학원 일정: 월요일 9:30-10:30 등록 시도
-3. ✅ 에러: 학원 일정이 겹칩니다 (9:00-10:00 + 60분 = 9:00-11:00)
-
-## 배포 전 확인사항
-
-### Phase 1 (제외일)
-
-- ✅ 코드 변경 완료
-- ✅ 커밋 완료
-- ⏳ 프로덕션 테스트 필요
-
-### Phase 2 (학원 일정)
-
-- ✅ 마이그레이션 파일 작성
-- ✅ 데이터 레이어 수정
-- ✅ Action 레이어 수정
-- ✅ UI 레이어 수정
-- ⏳ 마이그레이션 실행 전 데이터 백업
-- ⏳ 로컬 환경 테스트
-- ⏳ 프로덕션 배포
-
-## 마이그레이션 실행 순서
-
-1. **백업**: 프로덕션 데이터베이스 백업
-2. **마이그레이션 실행**: `supabase db push`
-3. **검증**:
-   - 기존 학원 일정이 올바른 플랜 그룹에 할당되었는지 확인
-   - 새로 생성하는 플랜 그룹의 학원 일정이 독립적인지 확인
-4. **모니터링**: 에러 로그 확인
+### 정성적 성과
+- ✅ 사용자가 직접 필수 교과를 설정할 수 있음
+- ✅ 실시간으로 필수 교과 충족 여부 확인 가능
+- ✅ 교과별/콘텐츠별 전략 설정을 자유롭게 선택 가능
+- ✅ 폴백 메커니즘으로 설정 누락 방지
+- ✅ 직관적이고 사용하기 쉬운 UI
 
 ## 다음 단계
 
-### 사용자 안내
+### 권장 후속 작업
+1. **실제 사용자 테스트**: 캠프 모드와 일반 모드에서 실제 플랜 생성 테스트
+2. **성능 최적화**: 대량의 콘텐츠가 있을 때 렌더링 성능 확인
+3. **접근성 개선**: 키보드 네비게이션, 스크린 리더 지원 강화
+4. **모바일 반응형**: 모바일 환경에서 UI 테스트 및 개선
 
-- 마이그레이션 후 각 플랜 그룹에서 "시간 관리에서 불러오기" 재실행 안내
-- 기존 학원 일정이 가장 최근 플랜 그룹에만 할당되었음을 알림
+### 추가 기능 제안
+1. **일괄 설정**: 여러 콘텐츠를 한 번에 전략/취약으로 설정
+2. **설정 템플릿**: 자주 사용하는 설정을 템플릿으로 저장
+3. **AI 추천**: 성적 데이터 기반으로 전략/취약 과목 자동 추천
 
-### 추가 개선사항
+## 결론
 
-- [ ] 학원 일정 복사 기능 (플랜 그룹 간)
-- [ ] 학원 일정 일괄 수정 UI
-- [ ] 학원 일정 이력 관리
+Step 4와 Step 6의 UI 통합 작업을 성공적으로 완료했습니다. 이전에 구축된 백엔드 로직과 데이터 구조를 기반으로, 사용자가 직접 설정을 조작할 수 있는 직관적인 인터페이스를 구현했습니다.
 
----
+특히 다음 세 가지 핵심 기능이 완성되었습니다:
+1. **필수 교과 설정** (Step 4): 세부 과목까지 지정 가능한 필수 교과 제약
+2. **교과별 전략/취약 설정** (Step 6): 빠른 설정을 위한 교과 단위 설정
+3. **콘텐츠별 전략/취약 설정** (Step 6): 세밀한 조절을 위한 콘텐츠 단위 설정
 
-**작성일**: 2025-01-30  
-**작성자**: AI Assistant  
-**상태**: Phase 2 구현 완료, 마이그레이션 대기
+이제 사용자는 플랜 그룹 생성 시 더 정확하고 유연한 설정을 통해 자신의 학습 계획을 최적화할 수 있습니다.

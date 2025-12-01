@@ -13,6 +13,7 @@ export type WizardContent = {
   end_range: number;
   title: string; // 필수
   subject_category: string; // 필수
+  subject?: string; // 세부 과목 (선택사항, 예: 화법과 작문, 미적분)
   masterContentId?: string; // 추천 콘텐츠의 경우 원본 마스터 콘텐츠 ID
 };
 

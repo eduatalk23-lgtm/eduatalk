@@ -2452,174 +2452,450 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
       )}
 
 
-      {/* 전략과목/취약과목 정보 (추가 등록한 콘텐츠 기준) */}
-      {isCampMode && data.scheduler_type === "1730_timetable" && data.recommended_contents.length > 0 && (
+      {/* 전략과목/취약과목 정보 */}
+      {isCampMode && data.scheduler_type === "1730_timetable" && (
+        data.student_contents.length > 0 || data.recommended_contents.length > 0
+      ) && (
         <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
-            전략과목/취약과목 정보
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">
+              전략과목/취약과목 정보
+            </h2>
+            
+            {/* 모드 전환 토글 */}
+            <div className="inline-flex rounded-lg border border-gray-300 p-1">
+              <button
+                type="button"
+                onClick={() => onUpdate({ allocation_mode: "subject" })}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  (data.allocation_mode || "subject") === "subject"
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+              >
+                교과별 설정
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdate({ allocation_mode: "content" })}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  data.allocation_mode === "content"
+                    ? "bg-gray-900 text-white"
+                    : "text-gray-700 hover:text-gray-900"
+                }`}
+              >
+                콘텐츠별 설정
+              </button>
+            </div>
+          </div>
+          
           <p className="mb-6 text-sm text-gray-600">
-            추가 등록한 콘텐츠를 기준으로 각 과목을 전략과목 또는 취약과목으로 분류하여 학습 배정 방식을 결정합니다.
+            {(data.allocation_mode || "subject") === "subject"
+              ? "교과 단위로 전략/취약과목을 설정합니다. 같은 교과의 모든 콘텐츠에 동일하게 적용됩니다."
+              : "개별 콘텐츠마다 전략/취약과목을 설정합니다. 더 세밀한 조절이 가능합니다."}
           </p>
+          
+          {/* 교과별 설정 모드 */}
+          {(data.allocation_mode || "subject") === "subject" && (
+            <SubjectAllocationUI
+              data={data}
+              onUpdate={onUpdate}
+              contentInfos={contentInfos}
+            />
+          )}
+          
+          {/* 콘텐츠별 설정 모드 */}
+          {data.allocation_mode === "content" && (
+            <ContentAllocationUI
+              data={data}
+              onUpdate={onUpdate}
+              contentInfos={contentInfos}
+            />
+          )}
+        </div>
+      )}
 
-          {(() => {
-            // 추가 등록한 콘텐츠(recommended_contents)의 과목(subject_category) 추출
-            const recommendedContentSubjects = new Set<string>();
-            contentInfos.forEach((content) => {
-              if (content.isRecommended && content.subject_category) {
-                recommendedContentSubjects.add(content.subject_category);
-              }
-            });
-            const subjects = Array.from(recommendedContentSubjects).sort();
+    </div>
+  );
+}
 
-            if (subjects.length === 0) {
-              return (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-                  <p className="text-sm text-gray-500">추가 등록한 콘텐츠의 과목 정보가 없습니다.</p>
-                </div>
-              );
-            }
+// SubjectAllocationUI 컴포넌트
+type SubjectAllocationUIProps = {
+  data: WizardData;
+  onUpdate: (updates: Partial<WizardData>) => void;
+  contentInfos: Array<{
+    content_type: "book" | "lecture";
+    content_id: string;
+    title: string;
+    subject_category: string | null;
+    isRecommended: boolean;
+  }>;
+};
 
-            // subject_allocations 핸들러
-            const handleSubjectAllocationChange = (
-              subject: string,
-              allocation: {
-                subject_id: string;
-                subject_name: string;
-                subject_type: "strategy" | "weakness";
-                weekly_days?: number;
-              }
-            ) => {
-              const currentAllocations = data.subject_allocations || [];
-              const updatedAllocations = currentAllocations.filter(
-                (a) => a.subject_name !== subject
-              );
-              updatedAllocations.push(allocation);
-              onUpdate({ subject_allocations: updatedAllocations });
-            };
+function SubjectAllocationUI({
+  data,
+  onUpdate,
+  contentInfos,
+}: SubjectAllocationUIProps) {
+  // 과목 추출
+  const allSubjects = new Set<string>();
+  contentInfos.forEach((content) => {
+    if (content.subject_category) {
+      allSubjects.add(content.subject_category);
+    }
+  });
+  const subjects = Array.from(allSubjects).sort();
 
-            return (
-              <div className="space-y-4">
-                {subjects.map((subject) => {
-                  const existingAllocation = (data.subject_allocations || []).find(
-                    (a) => a.subject_name === subject
-                  );
-                  const subjectType = existingAllocation?.subject_type || "weakness";
-                  const weeklyDays = existingAllocation?.weekly_days || 3;
+  if (subjects.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <p className="text-sm text-gray-500">콘텐츠의 과목 정보가 없습니다.</p>
+      </div>
+    );
+  }
 
-                  // 해당 과목의 추가 등록한 콘텐츠 개수 계산
-                  const subjectContentCount = contentInfos.filter(
-                    (c) => c.isRecommended && c.subject_category === subject
-                  ).length;
+  const handleSubjectAllocationChange = (
+    subject: string,
+    allocation: {
+      subject_id: string;
+      subject_name: string;
+      subject_type: "strategy" | "weakness";
+      weekly_days?: number;
+    }
+  ) => {
+    const currentAllocations = data.subject_allocations || [];
+    const updatedAllocations = currentAllocations.filter(
+      (a) => a.subject_name !== subject
+    );
+    updatedAllocations.push(allocation);
+    onUpdate({ subject_allocations: updatedAllocations });
+  };
 
-                  return (
-                    <div
-                      key={subject}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4"
-                    >
-                      <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-gray-900">
-                          {subject}
-                        </h3>
-                        <span className="text-xs text-gray-500">
-                          {subjectContentCount}개 콘텐츠
-                        </span>
+  return (
+    <div className="space-y-4">
+      {subjects.map((subject) => {
+        const existingAllocation = (data.subject_allocations || []).find(
+          (a) => a.subject_name === subject
+        );
+        const subjectType = existingAllocation?.subject_type || "weakness";
+        const weeklyDays = existingAllocation?.weekly_days || 3;
+
+        const subjectContentCount = contentInfos.filter(
+          (c) => c.subject_category === subject
+        ).length;
+
+        return (
+          <div
+            key={subject}
+            className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">
+                {subject}
+              </h3>
+              <span className="text-xs text-gray-500">
+                {subjectContentCount}개 콘텐츠
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="mb-2 block text-xs font-medium text-gray-700">
+                  과목 유형
+                </label>
+                <div className="flex gap-3">
+                  <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                    <input
+                      type="radio"
+                      name={`subject_type_${subject}`}
+                      value="weakness"
+                      checked={subjectType === "weakness"}
+                      onChange={() => {
+                        handleSubjectAllocationChange(subject, {
+                          subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                          subject_name: subject,
+                          subject_type: "weakness",
+                        });
+                      }}
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        취약과목
                       </div>
+                      <div className="text-xs text-gray-500">
+                        전체 학습일에 플랜 배정
+                      </div>
+                    </div>
+                  </label>
+                  <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
+                    <input
+                      type="radio"
+                      name={`subject_type_${subject}`}
+                      value="strategy"
+                      checked={subjectType === "strategy"}
+                      onChange={() => {
+                        handleSubjectAllocationChange(subject, {
+                          subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                          subject_name: subject,
+                          subject_type: "strategy",
+                          weekly_days: 3,
+                        });
+                      }}
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        전략과목
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        주당 배정 일수에 따라 배정
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
 
-                      <div className="space-y-3">
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-700">
-                            과목 유형
-                          </label>
-                          <div className="flex gap-3">
-                            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                              <input
-                                type="radio"
-                                name={`subject_type_${subject}`}
-                                value="weakness"
-                                checked={subjectType === "weakness"}
-                                onChange={() => {
-                                  handleSubjectAllocationChange(subject, {
-                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                    subject_name: subject,
-                                    subject_type: "weakness",
-                                  });
-                                }}
-                                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">
-                                  취약과목
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  전체 학습일에 플랜 배정 (더 많은 시간 필요)
-                                </div>
-                              </div>
-                            </label>
-                            <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
-                              <input
-                                type="radio"
-                                name={`subject_type_${subject}`}
-                                value="strategy"
-                                checked={subjectType === "strategy"}
-                                onChange={() => {
-                                  handleSubjectAllocationChange(subject, {
-                                    subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                    subject_name: subject,
-                                    subject_type: "strategy",
-                                    weekly_days: 3,
-                                  });
-                                }}
-                                className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">
-                                  전략과목
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  주당 배정 일수에 따라 배정
-                                </div>
-                              </div>
-                            </label>
-                          </div>
+              {subjectType === "strategy" && (
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-gray-700">
+                    주당 배정 일수
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    value={weeklyDays}
+                    onChange={(e) => {
+                      handleSubjectAllocationChange(subject, {
+                        subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                        subject_name: subject,
+                        subject_type: "strategy",
+                        weekly_days: Number(e.target.value),
+                      });
+                    }}
+                  >
+                    <option value="2">주 2일</option>
+                    <option value="3">주 3일</option>
+                    <option value="4">주 4일</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ContentAllocationUI 컴포넌트
+type ContentAllocationUIProps = {
+  data: WizardData;
+  onUpdate: (updates: Partial<WizardData>) => void;
+  contentInfos: Array<{
+    content_type: "book" | "lecture";
+    content_id: string;
+    title: string;
+    subject_category: string | null;
+    isRecommended: boolean;
+  }>;
+};
+
+function ContentAllocationUI({
+  data,
+  onUpdate,
+  contentInfos,
+}: ContentAllocationUIProps) {
+  // 교과별로 콘텐츠 그룹화
+  const contentsBySubject = new Map<string, typeof contentInfos>();
+  contentInfos.forEach((content) => {
+    if (content.subject_category) {
+      if (!contentsBySubject.has(content.subject_category)) {
+        contentsBySubject.set(content.subject_category, []);
+      }
+      contentsBySubject.get(content.subject_category)!.push(content);
+    }
+  });
+
+  const subjects = Array.from(contentsBySubject.keys()).sort();
+
+  if (subjects.length === 0) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <p className="text-sm text-gray-500">콘텐츠의 과목 정보가 없습니다.</p>
+      </div>
+    );
+  }
+
+  const handleContentAllocationChange = (
+    content: { content_type: string; content_id: string },
+    allocation: {
+      subject_type: "strategy" | "weakness";
+      weekly_days?: number;
+    }
+  ) => {
+    const currentAllocations = data.content_allocations || [];
+    const updatedAllocations = currentAllocations.filter(
+      (a) => !(a.content_type === content.content_type && a.content_id === content.content_id)
+    );
+    updatedAllocations.push({
+      content_type: content.content_type as "book" | "lecture",
+      content_id: content.content_id,
+      subject_type: allocation.subject_type,
+      weekly_days: allocation.weekly_days,
+    });
+    onUpdate({ content_allocations: updatedAllocations });
+  };
+
+  // 폴백 메커니즘: content_allocations → subject_allocations → default
+  const getEffectiveAllocation = (content: typeof contentInfos[0]) => {
+    // 1순위: 콘텐츠별 설정
+    const contentAlloc = (data.content_allocations || []).find(
+      (a) => a.content_type === content.content_type && a.content_id === content.content_id
+    );
+    if (contentAlloc) {
+      return {
+        subject_type: contentAlloc.subject_type,
+        weekly_days: contentAlloc.weekly_days,
+        source: "content" as const,
+      };
+    }
+
+    // 2순위: 교과별 설정 (폴백)
+    if (content.subject_category) {
+      const subjectAlloc = (data.subject_allocations || []).find(
+        (a) => a.subject_name === content.subject_category
+      );
+      if (subjectAlloc) {
+        return {
+          subject_type: subjectAlloc.subject_type,
+          weekly_days: subjectAlloc.weekly_days,
+          source: "subject" as const,
+        };
+      }
+    }
+
+    // 3순위: 기본값
+    return {
+      subject_type: "weakness" as const,
+      weekly_days: undefined,
+      source: "default" as const,
+    };
+  };
+
+  return (
+    <div className="space-y-6">
+      {subjects.map((subject) => {
+        const contents = contentsBySubject.get(subject) || [];
+
+        return (
+          <div key={subject} className="rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">{subject}</h3>
+            <div className="space-y-3">
+              {contents.map((content) => {
+                const effectiveAlloc = getEffectiveAllocation(content);
+                const subjectType = effectiveAlloc.subject_type;
+                const weeklyDays = effectiveAlloc.weekly_days || 3;
+                const source = effectiveAlloc.source;
+
+                return (
+                  <div
+                    key={`${content.content_type}-${content.content_id}`}
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                  >
+                    <div className="mb-2 flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {content.content_type === "book" ? "📚" : "🎧"} {content.title}
                         </div>
-
-                        {subjectType === "strategy" && (
-                          <div>
-                            <label className="mb-2 block text-xs font-medium text-gray-700">
-                              주당 배정 일수
-                            </label>
-                            <select
-                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-                              value={weeklyDays}
-                              onChange={(e) => {
-                                handleSubjectAllocationChange(subject, {
-                                  subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
-                                  subject_name: subject,
-                                  subject_type: "strategy",
-                                  weekly_days: Number(e.target.value),
-                                });
-                              }}
-                            >
-                              <option value="2">주 2일</option>
-                              <option value="3">주 3일</option>
-                              <option value="4">주 4일</option>
-                            </select>
-                            <p className="mt-1 text-xs text-gray-500">
-                              선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
-                            </p>
+                        {source !== "content" && (
+                          <div className="mt-1 text-xs text-gray-500">
+                            {source === "subject" && "교과별 설정 적용 중"}
+                            {source === "default" && "기본값 (취약과목)"}
                           </div>
                         )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </div>
-      )}
 
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border p-2 text-xs transition-colors hover:bg-gray-100">
+                          <input
+                            type="radio"
+                            name={`content_type_${content.content_type}_${content.content_id}`}
+                            value="weakness"
+                            checked={subjectType === "weakness"}
+                            onChange={() => {
+                              handleContentAllocationChange(content, {
+                                subject_type: "weakness",
+                              });
+                            }}
+                            className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-900">취약과목</span>
+                        </label>
+                        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border p-2 text-xs transition-colors hover:bg-gray-100">
+                          <input
+                            type="radio"
+                            name={`content_type_${content.content_type}_${content.content_id}`}
+                            value="strategy"
+                            checked={subjectType === "strategy"}
+                            onChange={() => {
+                              handleContentAllocationChange(content, {
+                                subject_type: "strategy",
+                                weekly_days: 3,
+                              });
+                            }}
+                            className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-900">전략과목</span>
+                        </label>
+                      </div>
+
+                      {subjectType === "strategy" && (
+                        <div>
+                          <select
+                            className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-gray-900 focus:outline-none"
+                            value={weeklyDays}
+                            onChange={(e) => {
+                              handleContentAllocationChange(content, {
+                                subject_type: "strategy",
+                                weekly_days: Number(e.target.value),
+                              });
+                            }}
+                          >
+                            <option value="2">주 2일</option>
+                            <option value="3">주 3일</option>
+                            <option value="4">주 4일</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* 설정 요약 */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+        <h4 className="mb-2 text-xs font-semibold text-blue-900">설정 요약</h4>
+        <div className="space-y-1 text-xs text-blue-800">
+          <p>
+            • 콘텐츠별 설정: {(data.content_allocations || []).length}개
+          </p>
+          <p>
+            • 교과별 설정 (폴백): {(data.subject_allocations || []).length}개
+          </p>
+          <p className="text-blue-700">
+            콘텐츠별 설정이 우선 적용되며, 설정되지 않은 콘텐츠는 교과별 설정을 따릅니다.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

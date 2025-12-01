@@ -98,6 +98,7 @@ export type WizardData = {
     end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
+    subject?: string; // 추가: 세부 과목 저장 (검증용)
     master_content_id?: string | null; // 추가: 마스터 콘텐츠 ID (중복 방지용)
   }>;
   // Step 4 - 추천 콘텐츠
@@ -110,6 +111,7 @@ export type WizardData = {
     end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
+    subject?: string; // 추가: 세부 과목 저장 (검증용)
   }>;
   // Step 2.5 - 스케줄 요약 정보 (Step 3에서 학습 범위 추천에 사용)
   schedule_summary?: {
@@ -189,6 +191,17 @@ export type WizardData = {
     day_of_week?: number[]; // 0-6, 없으면 매일
     description?: string;
   }>;
+  // Step 4 - 필수 교과 설정 UI 표시 여부
+  show_required_subjects_ui?: boolean;
+  // Step 6 - 콘텐츠별 전략/취약 설정 (우선순위)
+  content_allocations?: Array<{
+    content_type: "book" | "lecture";
+    content_id: string;
+    subject_type: "strategy" | "weakness";
+    weekly_days?: number; // 전략과목인 경우만
+  }>;
+  // Step 6 - 전략/취약 설정 모드 ("subject" | "content")
+  allocation_mode?: "subject" | "content";
   // 템플릿 고정 필드 (템플릿 모드에서만 사용)
   templateLockedFields?: {
     // Step 1 고정 필드

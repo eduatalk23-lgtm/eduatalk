@@ -246,6 +246,7 @@ export class WizardValidator {
         allContents.map((c) => ({
           subject_id: c.subject_category || "",
           subject_name: c.subject_category || "",
+          detail_subject: c.subject || undefined, // 세부 과목 추가
         })),
         wizardData.subject_constraints
       );

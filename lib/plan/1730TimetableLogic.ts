@@ -128,6 +128,64 @@ export function calculateStudyReviewCycle(
 }
 
 /**
+ * 콘텐츠의 전략/취약 설정을 가져옴 (폴백 메커니즘)
+ * 
+ * 우선순위:
+ * 1. content_allocations (콘텐츠별 설정)
+ * 2. subject_allocations (교과별 설정)
+ * 3. 기본값 (취약과목)
+ * 
+ * @param content - 콘텐츠 정보 (content_type, content_id, subject_category 포함)
+ * @param contentAllocations - 콘텐츠별 설정 (선택사항)
+ * @param subjectAllocations - 교과별 설정 (선택사항)
+ * @returns 전략/취약 설정 및 주당 배정 일수
+ */
+export function getContentAllocation(
+  content: { content_type: string; content_id: string; subject_category?: string },
+  contentAllocations?: Array<{
+    content_type: string;
+    content_id: string;
+    subject_type: "strategy" | "weakness";
+    weekly_days?: number;
+  }>,
+  subjectAllocations?: Array<{
+    subject_name: string;
+    subject_type: "strategy" | "weakness";
+    weekly_days?: number;
+  }>
+): { subject_type: "strategy" | "weakness"; weekly_days?: number } {
+  
+  // 1순위: 콘텐츠별 설정
+  if (contentAllocations) {
+    const contentAlloc = contentAllocations.find(
+      a => a.content_type === content.content_type && a.content_id === content.content_id
+    );
+    if (contentAlloc) {
+      return {
+        subject_type: contentAlloc.subject_type,
+        weekly_days: contentAlloc.weekly_days
+      };
+    }
+  }
+  
+  // 2순위: 교과별 설정 (폴백)
+  if (subjectAllocations && content.subject_category) {
+    const subjectAlloc = subjectAllocations.find(
+      a => a.subject_name === content.subject_category
+    );
+    if (subjectAlloc) {
+      return {
+        subject_type: subjectAlloc.subject_type,
+        weekly_days: subjectAlloc.weekly_days
+      };
+    }
+  }
+  
+  // 3순위: 기본값 (취약과목)
+  return { subject_type: "weakness" };
+}
+
+/**
  * 전략과목/취약과목 배정 날짜 계산
  */
 export function calculateSubjectAllocationDates(
@@ -346,31 +404,45 @@ export function calculateReviewDuration(
  * 교과 제약 조건 검증
  */
 export function validateSubjectConstraints(
-  plans: Array<{ subject_id?: string; subject_name?: string }>,
+  plans: Array<{ 
+    subject_id?: string; 
+    subject_name?: string;
+    detail_subject?: string; // 세부 과목 (선택사항)
+  }>,
   constraints: SubjectConstraints
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // 플랜에서 교과 추출
-  const planSubjects = new Set<string>();
-  for (const plan of plans) {
-    const subject = plan.subject_id || plan.subject_name;
-    if (subject) {
-      planSubjects.add(subject.toLowerCase().trim());
-    }
-  }
-
-  // 필수 교과 검증
+  // 필수 교과 검증 (세부 과목 포함)
   if (
     constraints.required_subjects &&
     constraints.required_subjects.length > 0
   ) {
-    const missingSubjects = constraints.required_subjects.filter(
-      (subject) => !planSubjects.has(subject.toLowerCase().trim())
-    );
-
-    if (missingSubjects.length > 0) {
-      errors.push(`필수 교과가 누락되었습니다: ${missingSubjects.join(", ")}`);
+    for (const req of constraints.required_subjects) {
+      if (req.subject) {
+        // 세부 과목까지 검증
+        const matchingCount = plans.filter(
+          p => (p.subject_name || p.subject_id) === req.subject_category && 
+               p.detail_subject === req.subject
+        ).length;
+        
+        if (matchingCount < req.min_count) {
+          errors.push(
+            `필수 교과 "${req.subject_category} - ${req.subject}"의 콘텐츠가 ${req.min_count}개 필요하지만 ${matchingCount}개만 선택되었습니다.`
+          );
+        }
+      } else {
+        // 교과만 검증 (기존 로직)
+        const matchingCount = plans.filter(
+          p => (p.subject_name || p.subject_id) === req.subject_category
+        ).length;
+        
+        if (matchingCount < req.min_count) {
+          errors.push(
+            `필수 교과 "${req.subject_category}"의 콘텐츠가 ${req.min_count}개 필요하지만 ${matchingCount}개만 선택되었습니다.`
+          );
+        }
+      }
     }
   }
 
@@ -379,6 +451,14 @@ export function validateSubjectConstraints(
     constraints.excluded_subjects &&
     constraints.excluded_subjects.length > 0
   ) {
+    const planSubjects = new Set<string>();
+    for (const plan of plans) {
+      const subject = plan.subject_id || plan.subject_name;
+      if (subject) {
+        planSubjects.add(subject.toLowerCase().trim());
+      }
+    }
+
     const includedExcludedSubjects = constraints.excluded_subjects.filter(
       (subject) => planSubjects.has(subject.toLowerCase().trim())
     );
