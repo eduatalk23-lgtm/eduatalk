@@ -194,12 +194,63 @@ const normalizedRecommendations = recommendations.map((r) => {
 4. `app/(student)/plan/new-group/_components/Step4RecommendedContents/hooks/useRecommendations.ts`
    - fallback 로직 단순화 (서버에서 보장되므로 검증만 수행)
 
+5. `app/(student)/plan/new-group/_components/Step3ContentSelection.tsx` (2025-01-30 추가)
+   - API 응답을 `RecommendedContent`로 변환할 때 `contentType` 보장 로직 추가
+   - `getRecommendedMasterContentsAction`이 반환하는 `RecommendedMasterContent`를 올바르게 변환
+
+6. `app/(student)/actions/getRecommendedMasterContents.ts` (2025-01-30 추가)
+   - 원본 `RecommendedMasterContent`를 그대로 반환하도록 수정 (변환은 클라이언트에서 수행)
+   - `contentType` 필드가 포함된 원본 데이터 반환
+
 ### 효과
 
 1. **서버 사이드 보장**: 서버에서 `contentType`을 항상 포함하도록 보장
 2. **데이터 무결성**: 여러 단계에서 정규화를 수행하여 데이터 무결성 보장
 3. **코드 단순화**: 프런트엔드 fallback 로직 단순화로 유지보수성 향상
 4. **에러 방지**: 서버에서 보장하므로 프런트엔드에서 에러 발생 가능성 감소
+
+## 추가 수정 사항 (2025-01-30)
+
+### Step3ContentSelection에서 발생한 에러 해결
+
+`Step3ContentSelection`에서 `getRecommendedMasterContentsAction`을 직접 호출하여 추천 콘텐츠를 받아오는데, 이 과정에서 `contentType` 변환이 누락되어 에러가 발생했습니다.
+
+#### 해결 방법
+
+1. **Step3ContentSelection.tsx 수정**
+   - API 응답을 `RecommendedContent`로 변환할 때 `contentType` 보장 로직 추가
+   - `contentType` 또는 `content_type` 확인 후 없으면 `publisher`/`platform`으로 추정
+
+2. **getRecommendedMasterContentsAction.ts 수정**
+   - 원본 `RecommendedMasterContent`를 그대로 반환하도록 수정
+   - 변환은 클라이언트(`Step3ContentSelection`)에서 수행
+
+#### 코드 예시
+
+```typescript
+// Step3ContentSelection.tsx
+const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
+  // contentType 결정: camelCase 우선, 없으면 snake_case, 없으면 추정
+  let contentType = r.contentType || r.content_type;
+  
+  if (!contentType) {
+    // publisher가 있으면 book, platform이 있으면 lecture로 추정
+    if (r.publisher) {
+      contentType = "book";
+    } else if (r.platform) {
+      contentType = "lecture";
+    } else {
+      contentType = "book";
+    }
+  }
+  
+  return {
+    id: r.id,
+    contentType: contentType as "book" | "lecture",
+    // ... 나머지 필드
+  };
+});
+```
 
 ## 추가 개선 사항
 
