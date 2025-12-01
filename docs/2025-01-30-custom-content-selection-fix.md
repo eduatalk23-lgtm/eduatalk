@@ -205,25 +205,55 @@ const fetchDetails = async () => {
 모든 방어 지점에 구조화된 에러 로깅을 추가했습니다:
 
 ### 1. RangeSettingModal
-- `custom` 타입 감지 시: `console.error`로 상세 정보 출력 (contentId, title 포함)
-- API 호출 실패 시: `console.error`로 HTTP 상태, 요청 정보, 에러 상세 출력
-- 예외 발생 시: `console.error`로 전체 에러 컨텍스트 출력
+- **API 호출 전**: 요청 URL, 파라미터, 콘텐츠 정보 로깅
+- **API 응답 상태**: HTTP 상태 코드, 상태 텍스트, Content-Type 로깅
+- **응답 본문**: 전체 응답 텍스트 및 파싱된 데이터 로깅
+- **API 호출 실패 시**: HTTP 상태, 요청 정보, 응답 데이터, 에러 상세 출력
+- **API 응답 실패 시**: 에러 정보, 응답 데이터 전체 출력
+- **성공 시**: details/episodes 개수 등 성공 정보 로깅
+- **custom 타입 감지 시**: `console.error`로 상세 정보 출력 (contentId, title 포함)
+- **예외 발생 시**: `console.error`로 전체 에러 컨텍스트 출력
+- **URL 파라미터**: `URLSearchParams`를 사용하여 안전하게 전달
 
 ### 2. RecommendedContentsPanel
-- `custom` 타입 추천 콘텐츠 감지 시: `console.error`로 상세 정보 출력
-- 범위 편집 시도 시: `console.error`로 콘텐츠 정보 출력
+- **모달 콘텐츠 설정 시**: 원본 콘텐츠와 모달 콘텐츠 정보 로깅
+- **타입 검증**: `contentType`이 `"book" | "lecture"`가 아닌 경우 에러 로깅
+- **custom 타입 추천 콘텐츠 감지 시**: `console.error`로 상세 정보 출력
+- **범위 편집 시도 시**: `console.error`로 콘텐츠 정보 출력
 
 ### 3. StudentContentsPanel
-- `custom` 콘텐츠 추가 시: `console.log`로 성공 로그 출력
-- `custom` 콘텐츠 찾기 실패 시: `console.error`로 에러 출력
-- 범위 편집 시도 시: `console.error`로 콘텐츠 정보 출력
+- **custom 콘텐츠 추가 시**: `console.log`로 성공 로그 출력
+- **custom 콘텐츠 찾기 실패 시**: `console.error`로 에러 출력
+- **범위 편집 시도 시**: `console.error`로 콘텐츠 정보 출력
 
 **로깅 형식**:
 ```typescript
+// API 호출 전
+console.log("[RangeSettingModal] API 호출 시작:", {
+  apiPath,
+  url,
+  contentType: content.type,
+  contentId: content.id,
+  isRecommendedContent,
+  content: { id, type, title },
+});
+
+// API 응답 상태
+console.log("[RangeSettingModal] API 응답 상태:", {
+  status: response.status,
+  statusText: response.statusText,
+  ok: response.ok,
+  contentType: response.headers.get("content-type"),
+});
+
+// 에러 발생 시
 console.error("[ComponentName] 메시지", {
   contentId: "...",
   title: "...",
   contentType: "...",
+  url,
+  responseData,
+  responseText,
   // 기타 컨텍스트 정보
 });
 ```
