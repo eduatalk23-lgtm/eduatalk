@@ -15,6 +15,7 @@ import { SectionSummary } from "./SectionSummary";
 
 export type ContentsSummaryProps = {
   data: WizardData;
+  isCampMode?: boolean;
 };
 
 type SubjectGroup = {
@@ -28,6 +29,7 @@ type SubjectGroup = {
 
 export const ContentsSummary = React.memo(function ContentsSummary({
   data,
+  isCampMode = false,
 }: ContentsSummaryProps) {
   // 과목별 그룹핑
   const subjectGroups = useMemo(() => {
@@ -89,24 +91,27 @@ export const ContentsSummary = React.memo(function ContentsSummary({
     );
   }, [data.student_contents, data.recommended_contents]);
 
-  // 필수 과목 체크
+  // 필수 과목 체크 (캠프 모드에서만)
   const requiredSubjects = useMemo(() => {
+    if (!isCampMode) return [];
+    
+    // 필수 교과 설정에서 지정한 과목 가져오기
+    const requiredSubjectCategories =
+      data.subject_constraints?.required_subjects?.map(
+        (req) => req.subject_category
+      ) || [];
+    
+    // 필수 교과가 설정되지 않았으면 빈 배열 반환
+    if (requiredSubjectCategories.length === 0) {
+      return [];
+    }
+    
     const subjects = subjectGroups.map((g) => g.subject);
-    return [
-      {
-        name: "국어",
-        selected: subjects.includes("국어"),
-      },
-      {
-        name: "수학",
-        selected: subjects.includes("수학"),
-      },
-      {
-        name: "영어",
-        selected: subjects.includes("영어"),
-      },
-    ];
-  }, [subjectGroups]);
+    return requiredSubjectCategories.map((category) => ({
+      name: category,
+      selected: subjects.includes(category),
+    }));
+  }, [subjectGroups, data.subject_constraints?.required_subjects, isCampMode]);
 
   const totalStudent = data.student_contents.length;
   const totalRecommended = data.recommended_contents.length;
@@ -137,8 +142,8 @@ export const ContentsSummary = React.memo(function ContentsSummary({
         />
       </div>
 
-      {/* 필수 과목 체크 */}
-      {requiredSubjects.length > 0 && (
+      {/* 필수 과목 체크 (캠프 모드에서만 표시) */}
+      {isCampMode && requiredSubjects.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-semibold text-gray-900">필수 과목</h4>
@@ -189,7 +194,7 @@ export const ContentsSummary = React.memo(function ContentsSummary({
                 ) : (
                   <Video className="h-4 w-4" />
                 ),
-              highlight: requiredSubjects.some(
+              highlight: isCampMode && requiredSubjects.some(
                 (s) => s.name === group.subject && s.selected
               ),
             }))}

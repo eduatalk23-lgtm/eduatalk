@@ -730,14 +730,31 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
     contentsBySubject.get(subject)!.push(content);
   });
 
-  // 필수 과목 우선 정렬
-  const requiredSubjects = ["국어", "수학", "영어"];
+  // 필수 과목 우선 정렬 (캠프 모드에서만)
+  // 캠프 모드일 때는 필수 교과 설정에서 지정한 과목을 우선 정렬
+  // 일반 모드일 때는 알파벳 순서로 정렬
+  const getRequiredSubjects = () => {
+    if (!isCampMode) return [];
+    
+    // 필수 교과 설정에서 지정한 과목 가져오기
+    const requiredSubjectCategories =
+      data.subject_constraints?.required_subjects?.map(
+        (req) => req.subject_category
+      ) || [];
+    
+    return requiredSubjectCategories;
+  };
+  
+  const requiredSubjects = getRequiredSubjects();
   const sortedSubjects = Array.from(contentsBySubject.keys()).sort((a, b) => {
-    const aIndex = requiredSubjects.indexOf(a);
-    const bIndex = requiredSubjects.indexOf(b);
-    if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-    if (aIndex !== -1) return -1;
-    if (bIndex !== -1) return 1;
+    // 캠프 모드이고 필수 과목이 설정된 경우에만 우선 정렬
+    if (isCampMode && requiredSubjects.length > 0) {
+      const aIndex = requiredSubjects.indexOf(a);
+      const bIndex = requiredSubjects.indexOf(b);
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+    }
     return a.localeCompare(b);
   });
 
@@ -745,13 +762,15 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
   const recommendedCount = data.recommended_contents.length;
   const totalCount = studentCount + recommendedCount;
 
-  // 필수 과목 검증
+  // 필수 과목 검증 (캠프 모드에서만)
   const selectedSubjectCategories = new Set(
     contentInfos.map((c) => c.subject_category).filter((s): s is string => !!s)
   );
-  const missingRequiredSubjects = requiredSubjects.filter(
-    (subject) => !selectedSubjectCategories.has(subject)
-  );
+  const missingRequiredSubjects = isCampMode
+    ? requiredSubjects.filter(
+        (subject) => !selectedSubjectCategories.has(subject)
+      )
+    : [];
 
   if (loading) {
     return (

@@ -74,7 +74,7 @@ export function Step6Simplified({
           onEdit={() => onEditStep(3)}
           editLabel="Step 3로 돌아가기"
         >
-          <ContentsSummary data={data} />
+          <ContentsSummary data={data} isCampMode={isCampMode} />
         </CollapsibleSection>
 
         {/* 4. 학습량 비교 */}
