@@ -63,7 +63,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
   };
 
   // 블록 색상 (block_index에 따라)
-  const getBlockColor = (index: number) => {
+  const getBlockColor = (index: number | undefined | null) => {
     const colors = [
       "bg-blue-500",
       "bg-indigo-500",
@@ -71,7 +71,9 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
       "bg-pink-500",
       "bg-cyan-500",
     ];
-    return colors[index % colors.length];
+    // index가 없거나 유효하지 않으면 기본 색상 사용
+    const safeIndex = index ?? 0;
+    return colors[safeIndex % colors.length];
   };
 
   return (
@@ -151,12 +153,12 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                     {/* 블록 표시 */}
                     {dayBlocks.map((block, idx) => {
                       const style = getBlockStyle(block);
-                      const colorClass = getBlockColor(block.block_index);
+                      const colorClass = getBlockColor(block.block_index ?? 0);
 
                       return (
                         <div
                           key={idx}
-                          className={`group absolute left-0 right-0 mx-1 rounded ${colorClass} cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
+                          className={`group absolute left-0 right-0 mx-1 rounded ${colorClass || "bg-blue-500"} cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
                           style={style}
                           title={`${block.start_time} ~ ${block.end_time}`}
                         >
