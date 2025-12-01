@@ -912,7 +912,7 @@ export function Step1BasicInfo({
         <input
           type="text"
           id="plan_name"
-          className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+          className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none ${
             (!editable && !isCampMode) ||
             isFieldLocked("name") ||
             (isCampMode && !canStudentInputName)
@@ -1095,7 +1095,7 @@ export function Step1BasicInfo({
             </label>
             <input
               type="date"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                 isFieldLocked("period_start") ||
                 isFieldLocked("period_end") ||
                 (isCampMode && !canStudentInputPeriod)
@@ -1155,7 +1155,7 @@ export function Step1BasicInfo({
             </label>
             <input
               type="date"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                 isFieldLocked("period_start") ||
                 isFieldLocked("period_end") ||
                 (isCampMode && !canStudentInputPeriod)
@@ -2187,7 +2187,7 @@ export function Step1BasicInfo({
                 </label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
                   placeholder="예: 평일 학습 블록"
                   value={newBlockSetName}
                   onChange={(e) => setNewBlockSetName(e.target.value)}
@@ -2373,7 +2373,7 @@ export function Step1BasicInfo({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
                   value={editingBlockSetName}
                   onChange={(e) => setEditingBlockSetName(e.target.value)}
                 />
@@ -2693,7 +2693,7 @@ export function Step1BasicInfo({
                       </label>
                       <input
                         type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                           isCampMode &&
                           !canStudentInputAdditionalPeriodReallocation
                             ? "cursor-not-allowed bg-gray-100 opacity-60"
@@ -2725,7 +2725,7 @@ export function Step1BasicInfo({
                       </label>
                       <input
                         type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                           isCampMode &&
                           !canStudentInputAdditionalPeriodReallocation
                             ? "cursor-not-allowed bg-gray-100 opacity-60"

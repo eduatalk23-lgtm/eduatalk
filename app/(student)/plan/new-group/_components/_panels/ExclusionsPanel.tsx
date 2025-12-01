@@ -538,7 +538,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
                 placeholder="예: 가족 여행"
                 value={newExclusionReason}
                 onChange={(e) => setNewExclusionReason(e.target.value)}

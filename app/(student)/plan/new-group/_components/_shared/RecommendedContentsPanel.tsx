@@ -307,7 +307,7 @@ export function RecommendedContentsPanel({
                     onChange={(e) =>
                       handleCountChange(subject, Number(e.target.value))
                     }
-                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
                   <span className="text-sm text-gray-500">개</span>
                 </div>

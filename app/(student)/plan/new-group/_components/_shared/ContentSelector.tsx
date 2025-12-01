@@ -184,7 +184,7 @@ export const ContentSelector = React.memo(function ContentSelector({
           placeholder="콘텐츠 검색..."
           disabled={disabled}
           className={cn(
-            "w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm transition-colors",
+            "w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-500 transition-colors",
             "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
             disabled && "cursor-not-allowed bg-gray-50 opacity-50"
           )}

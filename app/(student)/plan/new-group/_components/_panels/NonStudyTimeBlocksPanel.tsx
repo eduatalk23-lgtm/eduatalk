@@ -201,7 +201,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                   <label className="mb-1 block text-xs font-medium text-gray-700">시작 시간</label>
                   <input
                     type="time"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
                     value={newNonStudyTimeBlock.start_time}
                     onChange={(e) =>
                       setNewNonStudyTimeBlock({
@@ -215,7 +215,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                   <label className="mb-1 block text-xs font-medium text-gray-700">종료 시간</label>
                   <input
                     type="time"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
                     value={newNonStudyTimeBlock.end_time}
                     onChange={(e) =>
                       setNewNonStudyTimeBlock({
