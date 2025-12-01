@@ -116,13 +116,28 @@ export function RecommendedContentsPanel({
         return;
       }
 
+      // 타입 검증
+      if (content.contentType !== "book" && content.contentType !== "lecture") {
+        const errorMessage = `[RecommendedContentsPanel] 잘못된 contentType입니다. contentId: ${content.id}, contentType: ${content.contentType}`;
+        console.error(errorMessage, { content });
+        alert("지원하지 않는 콘텐츠 타입입니다.");
+        return;
+      }
+
       // 범위 설정 모달 열기
-      setRangeModalContent({
+      const modalContent = {
         id: content.id,
-        type: content.contentType,
+        type: content.contentType as "book" | "lecture",
         title: content.title,
         recommendedContent: content,
+      };
+
+      console.log("[RecommendedContentsPanel] 범위 설정 모달 열기:", {
+        modalContent,
+        originalContent: content,
       });
+
+      setRangeModalContent(modalContent);
       setRangeModalOpen(true);
     },
     [canAddMore, maxContents]

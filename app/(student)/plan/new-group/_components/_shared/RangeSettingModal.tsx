@@ -66,13 +66,52 @@ export function RangeSettingModal({
           ? "/api/master-content-details"
           : "/api/student-content-details";
 
-        const response = await fetch(
-          `${apiPath}?contentType=${content.type}&contentId=${content.id}`
-        );
+        // URL 파라미터 안전하게 생성
+        const params = new URLSearchParams({
+          contentType: content.type,
+          contentId: content.id,
+        });
+        const url = `${apiPath}?${params.toString()}`;
+
+        // API 호출 전 로깅
+        console.log("[RangeSettingModal] API 호출 시작:", {
+          apiPath,
+          url,
+          contentType: content.type,
+          contentId: content.id,
+          isRecommendedContent,
+          content: {
+            id: content.id,
+            type: content.type,
+            title: content.title,
+          },
+        });
+
+        const response = await fetch(url);
+
+        // 응답 상태 로깅
+        console.log("[RangeSettingModal] API 응답 상태:", {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          contentType: response.headers.get("content-type"),
+        });
+
+        // 응답 본문 읽기 (에러 처리 전에)
+        const responseText = await response.text();
+        let responseData: any;
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (e) {
+          console.error("[RangeSettingModal] 응답 파싱 실패:", {
+            responseText,
+            error: e,
+          });
+          throw new Error("응답을 파싱할 수 없습니다.");
+        }
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMessage = errorData.error?.message || "상세 정보를 불러올 수 없습니다.";
+          const errorMessage = responseData.error?.message || "상세 정보를 불러올 수 없습니다.";
           console.error(
             `[RangeSettingModal] API 호출 실패: ${apiPath}`,
             {
@@ -81,33 +120,44 @@ export function RangeSettingModal({
               contentType: content.type,
               contentId: content.id,
               isRecommendedContent,
-              error: errorData,
+              url,
+              responseData,
+              responseText,
             }
           );
           throw new Error(errorMessage);
         }
-
-        const result = await response.json();
         
-        if (!result.success) {
-          const errorMessage = result.error?.message || "상세 정보를 불러올 수 없습니다.";
+        if (!responseData.success) {
+          const errorMessage = responseData.error?.message || "상세 정보를 불러올 수 없습니다.";
           console.error(
             `[RangeSettingModal] API 응답 실패: ${apiPath}`,
             {
               contentType: content.type,
               contentId: content.id,
               isRecommendedContent,
-              error: result.error,
+              url,
+              error: responseData.error,
+              responseData,
             }
           );
           throw new Error(errorMessage);
         }
 
+        console.log("[RangeSettingModal] API 응답 성공:", {
+          contentType: content.type,
+          contentId: content.id,
+          hasDetails: !!responseData.data?.details,
+          hasEpisodes: !!responseData.data?.episodes,
+          detailsCount: responseData.data?.details?.length || 0,
+          episodesCount: responseData.data?.episodes?.length || 0,
+        });
+
         // 콘텐츠 타입에 따라 details 또는 episodes 사용
         const detailsData = 
           content.type === "book" 
-            ? result.data.details || []
-            : result.data.episodes || [];
+            ? responseData.data.details || []
+            : responseData.data.episodes || [];
         
         setDetails(detailsData);
         
