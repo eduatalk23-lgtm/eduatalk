@@ -83,6 +83,7 @@ export default function Step4RecommendedContents({
     loadingDetails,
     startDetailId,
     endDetailId,
+    contentTotals,
     startEditingRange,
     cancelEditingRange,
     saveEditingRange,
@@ -406,6 +407,7 @@ export default function Step4RecommendedContents({
           contentDetails={contentDetails}
           startDetailId={startDetailId}
           endDetailId={endDetailId}
+          contentTotals={contentTotals}
           loadingDetails={loadingDetails}
           onStartEditing={startEditingRange}
           onSaveRange={saveEditingRange}
@@ -413,6 +415,7 @@ export default function Step4RecommendedContents({
           onRemove={removeContent}
           onStartDetailChange={setStartRange}
           onEndDetailChange={setEndRange}
+          onRangeChange={setEditingRange}
         />
 
         {/* 추천 요청 폼 (추천을 받기 전 또는 추가 추천을 받을 때) */}

@@ -24,6 +24,7 @@ type AddedContentsListProps = {
   >;
   startDetailId: Map<number, string>;
   endDetailId: Map<number, string>;
+  contentTotals: Map<number, number>;
   loadingDetails: Set<number>;
   onStartEditing: (index: number) => void;
   onSaveRange: () => void;
@@ -31,6 +32,7 @@ type AddedContentsListProps = {
   onRemove: (index: number) => void;
   onStartDetailChange: (index: number, detailId: string) => void;
   onEndDetailChange: (index: number, detailId: string) => void;
+  onRangeChange?: (start: string, end: string) => void;
 };
 
 export default function AddedContentsList({
@@ -41,6 +43,7 @@ export default function AddedContentsList({
   contentDetails,
   startDetailId,
   endDetailId,
+  contentTotals,
   loadingDetails,
   onStartEditing,
   onSaveRange,
@@ -48,6 +51,7 @@ export default function AddedContentsList({
   onRemove,
   onStartDetailChange,
   onEndDetailChange,
+  onRangeChange,
 }: AddedContentsListProps) {
   if (contents.length === 0) {
     return null;
@@ -372,27 +376,119 @@ export default function AddedContentsList({
                         </div>
                       </div>
                     ) : (
-                      <>
+                      <div className="space-y-3">
                         {(() => {
                           // 상세정보가 없는 경우 로깅 (정상 케이스)
                           const content = contents[editingRangeIndex!];
                           const originalContent = allRecommendedContents.find(
                             (c) => c.id === content.content_id
                           );
+                          const total = contentTotals.get(editingRangeIndex!);
+                          
                           console.warn("[AddedContentsList] 상세정보 없음 (정상):", {
                             type: "NO_DETAILS",
                             contentType: content.content_type,
                             contentId: content.content_id,
                             title: originalContent?.title || "제목 없음",
                             editingRangeIndex,
-                            reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+                            total: total || "없음",
+                            reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 총 페이지수/회차를 바탕으로 범위를 직접 입력할 수 있습니다.",
                           });
                           return null;
                         })()}
-                        <div className="text-xs text-gray-500">
-                          상세 정보가 없습니다. 범위를 직접 입력해주세요.
+                        
+                        {/* 총 페이지수/회차 정보 표시 */}
+                        {(() => {
+                          const content = contents[editingRangeIndex!];
+                          const total = contentTotals.get(editingRangeIndex!);
+                          
+                          if (total) {
+                            return (
+                              <div className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                                <span className="font-medium">
+                                  {content.content_type === "book" ? "총 페이지수" : "총 회차"}: {total}
+                                  {content.content_type === "book" ? "페이지" : "회차"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {/* 범위 직접 입력 */}
+                        <div className="space-y-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                              시작 범위
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max={contentTotals.get(editingRangeIndex!) || undefined}
+                              value={editingRange?.start || "1"}
+                              onChange={(e) => {
+                                const newStart = e.target.value;
+                                const currentEnd = editingRange?.end || "1";
+                                if (onRangeChange) {
+                                  onRangeChange(newStart, currentEnd);
+                                }
+                              }}
+                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              placeholder="1"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                              끝 범위
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max={contentTotals.get(editingRangeIndex!) || undefined}
+                              value={editingRange?.end || "1"}
+                              onChange={(e) => {
+                                const newEnd = e.target.value;
+                                const currentStart = editingRange?.start || "1";
+                                if (onRangeChange) {
+                                  onRangeChange(currentStart, newEnd);
+                                }
+                              }}
+                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              placeholder={contentTotals.get(editingRangeIndex!)?.toString() || "100"}
+                            />
+                          </div>
+                          
+                          {/* 선택된 범위 표시 */}
+                          {editingRange && (
+                            <div className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800">
+                              <span className="font-medium">선택된 범위:</span>{" "}
+                              {contents[editingRangeIndex!].content_type === "book"
+                                ? `${editingRange.start}페이지 ~ ${editingRange.end}페이지`
+                                : `${editingRange.start}회차 ~ ${editingRange.end}회차`}
+                            </div>
+                          )}
+
+                          {/* 저장/취소 버튼 */}
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={onSaveRange}
+                              className="flex items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                            >
+                              <Check className="h-3 w-3" />
+                              저장
+                            </button>
+                            <button
+                              type="button"
+                              onClick={onCancelEditing}
+                              className="flex items-center gap-1 rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-300"
+                            >
+                              <X className="h-3 w-3" />
+                              취소
+                            </button>
+                          </div>
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 ) : (

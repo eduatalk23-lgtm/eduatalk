@@ -32,8 +32,50 @@ export function useRangeEditor({
   const [loadingDetails, setLoadingDetails] = useState<Set<number>>(new Set());
   const [startDetailId, setStartDetailId] = useState<Map<number, string>>(new Map());
   const [endDetailId, setEndDetailId] = useState<Map<number, string>>(new Map());
+  const [contentTotals, setContentTotals] = useState<Map<number, number>>(new Map());
   
   const cachedDetailsRef = useRef<Map<string, ContentDetail>>(new Map());
+  const cachedTotalsRef = useRef<Map<string, number>>(new Map());
+
+  /**
+   * 총 페이지수/회차 조회
+   */
+  const fetchContentTotal = useCallback(async (
+    contentType: "book" | "lecture",
+    contentId: string
+  ): Promise<number | null> => {
+    // 캐시 확인
+    if (cachedTotalsRef.current.has(contentId)) {
+      return cachedTotalsRef.current.get(contentId) ?? null;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/master-content-info?content_type=${contentType}&content_id=${contentId}`
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          const total = contentType === "book" 
+            ? result.data.total_pages 
+            : result.data.total_episodes;
+          
+          if (total && total > 0) {
+            cachedTotalsRef.current.set(contentId, total);
+            return total;
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error("[useRangeEditor] 총 페이지수/회차 조회 실패:", {
+        contentType,
+        contentId,
+        error,
+      });
+      return null;
+    }
+  }, []);
 
   /**
    * 콘텐츠 상세정보 조회 (편집 시작 시)
@@ -51,17 +93,33 @@ export function useRangeEditor({
       if (cachedDetailsRef.current.has(content.content_id)) {
         const cached = cachedDetailsRef.current.get(content.content_id)!;
         setContentDetails(new Map([[editingRangeIndex, cached]]));
+        
+        // 총 페이지수/회차 정보도 확인
+        const cachedTotal = cachedTotalsRef.current.get(content.content_id);
+        if (cachedTotal) {
+          setContentTotals(new Map([[editingRangeIndex, cachedTotal]]));
+        }
         return;
       }
 
       setLoadingDetails(new Set([editingRangeIndex]));
 
       try {
-        const response = await fetch(
-          `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`
-        );
-        if (response.ok) {
-          const result = await response.json();
+        // 상세정보와 총 페이지수/회차를 동시에 조회
+        const [detailsResponse, total] = await Promise.all([
+          fetch(
+            `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`
+          ),
+          fetchContentTotal(content.content_type, content.content_id),
+        ]);
+
+        // 총 페이지수/회차 정보 저장
+        if (total) {
+          setContentTotals(new Map([[editingRangeIndex, total]]));
+        }
+
+        if (detailsResponse.ok) {
+          const result = await detailsResponse.json();
           const detailData: ContentDetail =
             content.content_type === "book"
               ? { details: result.details || [], type: "book" as const }
@@ -74,8 +132,17 @@ export function useRangeEditor({
               contentType: content.content_type,
               contentId: content.content_id,
               title: content.title,
-              reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+              total: total || "없음",
+              reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 총 페이지수/회차를 바탕으로 범위를 설정할 수 있습니다.",
             });
+
+            // 상세정보가 없고 총 페이지수/회차가 있는 경우, 전체 범위로 자동 설정
+            if (total && total > 0) {
+              setEditingRange({
+                start: "1",
+                end: String(total),
+              });
+            }
           } else {
             console.log("[useRangeEditor] 상세정보 조회 성공:", {
               type: "SUCCESS",
@@ -84,42 +151,54 @@ export function useRangeEditor({
               title: content.title,
               detailsCount: detailData.details.length,
             });
+
+            // 캐시 저장
+            cachedDetailsRef.current.set(content.content_id, detailData);
+            setContentDetails(new Map([[editingRangeIndex, detailData]]));
+
+            // 현재 범위에 해당하는 항목 자동 선택
+            const currentRange = {
+              start: content.start_range,
+              end: content.end_range,
+            };
+
+            if (detailData.type === "book") {
+              const details = detailData.details as BookDetail[];
+              const startDetail = details.find(
+                (d) => d.page_number === currentRange.start
+              );
+              const endDetail = details.find(
+                (d) => d.page_number === currentRange.end
+              );
+              if (startDetail)
+                setStartDetailId(new Map([[editingRangeIndex, startDetail.id]]));
+              if (endDetail)
+                setEndDetailId(new Map([[editingRangeIndex, endDetail.id]]));
+            } else {
+              const episodes = detailData.details as LectureEpisode[];
+              const startEpisode = episodes.find(
+                (e) => e.episode_number === currentRange.start
+              );
+              const endEpisode = episodes.find(
+                (e) => e.episode_number === currentRange.end
+              );
+              if (startEpisode)
+                setStartDetailId(new Map([[editingRangeIndex, startEpisode.id]]));
+              if (endEpisode)
+                setEndDetailId(new Map([[editingRangeIndex, endEpisode.id]]));
+            }
           }
 
-          // 캐시 저장
+          // 캐시 저장 (상세정보가 없어도 빈 배열로 저장)
           cachedDetailsRef.current.set(content.content_id, detailData);
           setContentDetails(new Map([[editingRangeIndex, detailData]]));
-
-          // 현재 범위에 해당하는 항목 자동 선택
-          const currentRange = {
-            start: content.start_range,
-            end: content.end_range,
-          };
-
-          if (detailData.type === "book") {
-            const details = detailData.details as BookDetail[];
-            const startDetail = details.find(
-              (d) => d.page_number === currentRange.start
-            );
-            const endDetail = details.find(
-              (d) => d.page_number === currentRange.end
-            );
-            if (startDetail)
-              setStartDetailId(new Map([[editingRangeIndex, startDetail.id]]));
-            if (endDetail)
-              setEndDetailId(new Map([[editingRangeIndex, endDetail.id]]));
-          } else {
-            const episodes = detailData.details as LectureEpisode[];
-            const startEpisode = episodes.find(
-              (e) => e.episode_number === currentRange.start
-            );
-            const endEpisode = episodes.find(
-              (e) => e.episode_number === currentRange.end
-            );
-            if (startEpisode)
-              setStartDetailId(new Map([[editingRangeIndex, startEpisode.id]]));
-            if (endEpisode)
-              setEndDetailId(new Map([[editingRangeIndex, endEpisode.id]]));
+        } else {
+          // API 호출 실패 시에도 총 페이지수/회차가 있으면 범위 자동 설정
+          if (total && total > 0) {
+            setEditingRange({
+              start: "1",
+              end: String(total),
+            });
           }
         }
       } catch (error) {
@@ -149,7 +228,7 @@ export function useRangeEditor({
 
     fetchDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingRangeIndex]);
+  }, [editingRangeIndex, fetchContentTotal]);
 
   /**
    * 시작/끝 범위 선택 시 범위 자동 계산
@@ -279,6 +358,7 @@ export function useRangeEditor({
     loadingDetails,
     startDetailId,
     endDetailId,
+    contentTotals,
     startEditingRange,
     cancelEditingRange,
     saveEditingRange,

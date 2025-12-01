@@ -50,9 +50,41 @@ export function useContentSelection({
   }, [data.student_contents, data.recommended_contents]);
 
   /**
+   * 총 페이지수/회차 조회
+   */
+  const fetchContentTotal = useCallback(async (
+    contentType: "book" | "lecture",
+    contentId: string
+  ): Promise<number | null> => {
+    try {
+      const response = await fetch(
+        `/api/master-content-info?content_type=${contentType}&content_id=${contentId}`
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          if (contentType === "book") {
+            return result.data.total_pages ?? null;
+          } else {
+            return result.data.total_episodes ?? null;
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error("[useContentSelection] 총 페이지수/회차 조회 실패:", {
+        contentType,
+        contentId,
+        error,
+      });
+      return null;
+    }
+  }, []);
+
+  /**
    * 선택된 콘텐츠 추가
    */
-  const addSelectedContents = useCallback(() => {
+  const addSelectedContents = useCallback(async () => {
     if (selectedContentIds.size === 0) {
       alert(ERROR_MESSAGES.NO_CONTENT_SELECTED);
       return;
@@ -80,21 +112,26 @@ export function useContentSelection({
       recommendation_reason?: string;
     }> = [];
 
-    selectedContentIds.forEach((contentId) => {
+    // 각 콘텐츠의 총 페이지수/회차 조회
+    for (const contentId of selectedContentIds) {
       const content = recommendedContents.find((c) => c.id === contentId);
       if (content) {
+        // 총 페이지수/회차 조회
+        const total = await fetchContentTotal(content.contentType, content.id);
+        const endRange = total && total > 0 ? total : 100;
+
         contentsToAdd.push({
           content_type: content.contentType,
           content_id: content.id,
           start_range: 1,
-          end_range: 100,
+          end_range: endRange,
           title: content.title,
           subject_category: content.subject_category || undefined,
           master_content_id: content.id,
           recommendation_reason: content.reason,
         });
       }
-    });
+    }
 
     if (contentsToAdd.length > 0) {
       onUpdate({
@@ -112,6 +149,7 @@ export function useContentSelection({
     data.recommended_contents,
     recommendedContents,
     onUpdate,
+    fetchContentTotal,
   ]);
 
   /**

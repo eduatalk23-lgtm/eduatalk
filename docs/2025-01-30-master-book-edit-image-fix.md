@@ -21,7 +21,9 @@
 - **Next.js Image 컴포넌트 사용**: 최적화된 이미지 표시
 
 ```tsx
-{/* 표지 이미지 URL */}
+{
+  /* 표지 이미지 URL */
+}
 <div className="md:col-span-2">
   <label className="mb-1 block text-sm font-medium text-gray-700">
     표지 이미지 URL
@@ -50,7 +52,7 @@
   <p className="mt-1 text-xs text-gray-500">
     교재 표지 이미지의 URL을 입력하세요
   </p>
-</div>
+</div>;
 ```
 
 ### 2. 이미지 URL 처리 로직 개선
@@ -69,6 +71,7 @@ cover_image_url: (() => {
 ### 수정된 파일
 
 1. **app/(admin)/admin/master-books/[id]/edit/MasterBookEditForm.tsx**
+
    - `Image` 컴포넌트 import 추가
    - 표지 이미지 URL 입력 필드 추가
    - 기존 이미지 미리보기 기능 추가
@@ -93,12 +96,15 @@ cover_image_url: (() => {
 **원인**: `updateMasterBookAction`에서 폼에 필드가 없을 때도 `null`로 설정되어, `updateMasterBook` 함수에서 `undefined` 체크를 하지만 실제로는 `null`이 전달되어 데이터베이스에 `null`로 업데이트되었습니다.
 
 **해결 방법**:
+
 1. `getFormValue` 헬퍼 함수 추가:
+
    - 폼에 필드가 없으면 → `undefined` 반환 (업데이트하지 않음)
    - 폼에 필드가 있고 빈 문자열이면 → `null` 반환 (명시적으로 삭제)
    - 폼에 필드가 있고 값이 있으면 → 값 반환
 
 2. 모든 선택적 필드에 `getFormValue` 적용:
+
    - `subtitle`, `series_name`, `author`, `publisher_id`, `publisher_name`, `isbn_10`, `isbn_13`, `edition`, `published_date`, `description`, `toc`, `publisher_review`, `source`, `source_product_code`, `source_url`, `cover_image_url`, `difficulty_level`, `notes` 등
 
 3. `tags` 필드도 동일한 로직 적용:
@@ -112,4 +118,3 @@ cover_image_url: (() => {
 - 향후 이미지 파일 업로드 기능을 추가할 수 있습니다.
 - 새 교재 등록 폼(`MasterBookForm.tsx`)에도 동일한 이미지 필드를 추가하는 것을 고려할 수 있습니다.
 - 폼에 표시되지 않은 필드는 데이터베이스에서 유지되며, 명시적으로 빈 값으로 설정한 경우에만 `null`로 업데이트됩니다.
-

@@ -26,7 +26,7 @@ type RecommendedContentsListProps = {
   loading: boolean;
   onToggleSelection: (contentId: string) => void;
   onRefresh: () => Promise<void>;
-  onAddSelectedContents: () => void;
+  onAddSelectedContents: () => Promise<void>;
 };
 
 export default function RecommendedContentsList({
