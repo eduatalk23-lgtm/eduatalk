@@ -42,16 +42,24 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
       {/* 헤더 */}
-      <button
-        type="button"
+      <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
         className={cn(
           "w-full flex items-center justify-between p-4 text-left transition-colors",
           disabled
             ? "cursor-not-allowed bg-gray-50"
             : "hover:bg-gray-50 cursor-pointer"
         )}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setIsOpen(!isOpen);
+          }
+        }}
+        aria-expanded={isOpen}
+        aria-disabled={disabled}
       >
         <div className="flex items-center gap-3">
           {/* 화살표 아이콘 */}
@@ -80,7 +88,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
             {editLabel}
           </button>
         )}
-      </button>
+      </div>
 
       {/* 내용 */}
       {isOpen && (
