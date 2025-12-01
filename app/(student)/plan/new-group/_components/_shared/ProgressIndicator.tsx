@@ -23,12 +23,13 @@ export const ProgressIndicator = React.memo(function ProgressIndicator({
   const isComplete = current === max;
   const isOverLimit = current > max;
 
-  // 필수 과목 체크
+  // 필수 과목 체크 (캠프 모드에서만)
+  const hasRequiredSubjects = requiredSubjects.length > 0;
   const allRequiredSelected =
-    requiredSubjects.length > 0 &&
+    hasRequiredSubjects &&
     requiredSubjects.every((subj) => subj.selected);
   const someRequiredMissing =
-    requiredSubjects.length > 0 &&
+    hasRequiredSubjects &&
     requiredSubjects.some((subj) => !subj.selected);
 
   return (
@@ -92,8 +93,8 @@ export const ProgressIndicator = React.memo(function ProgressIndicator({
         </div>
       </div>
 
-      {/* 필수 과목 체크 */}
-      {requiredSubjects.length > 0 && (
+      {/* 필수 과목 체크 (캠프 모드에서만 표시) */}
+      {hasRequiredSubjects && (
         <div className="mt-4 rounded-lg bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">
@@ -145,8 +146,8 @@ export const ProgressIndicator = React.memo(function ProgressIndicator({
         </div>
       )}
 
-      {/* 필수 과목 미선택 경고 */}
-      {someRequiredMissing && current >= max && (
+      {/* 필수 과목 미선택 경고 (캠프 모드에서만 표시) */}
+      {hasRequiredSubjects && someRequiredMissing && current >= max && (
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
           <div className="text-sm text-yellow-800">

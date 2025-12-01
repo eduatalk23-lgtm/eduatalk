@@ -83,6 +83,17 @@ export function Step3ContentSelection({
       return [];
     }
 
+    // 필수 교과 설정에서 지정한 과목 가져오기
+    const requiredSubjectCategories =
+      data.subject_constraints?.required_subjects?.map(
+        (req) => req.subject_category
+      ) || [];
+
+    // 필수 교과가 설정되지 않았으면 빈 배열 반환
+    if (requiredSubjectCategories.length === 0) {
+      return [];
+    }
+
     const allContents = [
       ...data.student_contents,
       ...data.recommended_contents,
@@ -93,12 +104,17 @@ export function Step3ContentSelection({
         .filter((s): s is string => !!s)
     );
 
-    return [
-      { subject: "국어", selected: subjectSet.has("국어") },
-      { subject: "수학", selected: subjectSet.has("수학") },
-      { subject: "영어", selected: subjectSet.has("영어") },
-    ];
-  }, [data.student_contents, data.recommended_contents, isCampMode]);
+    // 필수 교과 설정에 따라 동적으로 생성
+    return requiredSubjectCategories.map((category) => ({
+      subject: category,
+      selected: subjectSet.has(category),
+    }));
+  }, [
+    data.student_contents,
+    data.recommended_contents,
+    data.subject_constraints?.required_subjects,
+    isCampMode,
+  ]);
 
   // 필수 과목 모두 선택 여부 (캠프 모드에서만)
   const allRequiredSelected = useMemo(() => {
