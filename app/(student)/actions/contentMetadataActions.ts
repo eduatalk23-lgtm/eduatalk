@@ -8,6 +8,8 @@ import {
   getPlatforms,
   getPublishers,
 } from "@/lib/data/contentMetadata";
+import { getSubjectGroups, getSubjectsByGroup } from "@/lib/data/subjects";
+import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 
 /**
@@ -34,9 +36,8 @@ async function _getSubjectCategories(revisionId?: string) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  // subject_groups로 변환하여 반환 (하위 호환성)
-  const { getSubjectGroupsAction } = await import("@/app/(admin)/actions/subjectActions");
-  const groups = await getSubjectGroupsAction(revisionId);
+  // 학생용 액션 사용
+  const groups = await getSubjectGroups(revisionId);
   
   // SubjectCategory 형태로 변환
   return groups.map((group) => ({
@@ -63,9 +64,8 @@ async function _getSubjects(subjectCategoryId?: string) {
     return [];
   }
 
-  // getSubjectsByGroupAction 사용
-  const { getSubjectsByGroupAction } = await import("@/app/(admin)/actions/subjectActions");
-  const subjects = await getSubjectsByGroupAction(subjectCategoryId);
+  // 학생용 함수 직접 사용
+  const subjects = await getSubjectsByGroup(subjectCategoryId);
   
   // Subject 형태로 변환
   return subjects.map((subject) => ({
@@ -106,4 +106,38 @@ async function _getPublishers() {
 }
 
 export const getPublishersAction = withErrorHandling(_getPublishers);
+
+/**
+ * 교과 그룹 목록 조회 (학생용)
+ * @param curriculumRevisionId 개정교육과정 ID (선택사항)
+ */
+async function _getSubjectGroups(revisionId?: string): Promise<SubjectGroup[]> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  return await getSubjectGroups(revisionId);
+}
+
+export const getSubjectGroupsAction = withErrorHandling(_getSubjectGroups);
+
+/**
+ * 교과 그룹에 속한 과목 목록 조회 (학생용)
+ * @param subjectGroupId 교과 그룹 ID
+ */
+async function _getSubjectsByGroup(subjectGroupId: string): Promise<Subject[]> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  if (!subjectGroupId) {
+    return [];
+  }
+
+  return await getSubjectsByGroup(subjectGroupId);
+}
+
+export const getSubjectsByGroupAction = withErrorHandling(_getSubjectsByGroup);
 

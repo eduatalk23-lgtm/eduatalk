@@ -10,7 +10,7 @@ import {
   getCurriculumRevisionsAction,
   getPlatformsAction,
 } from "@/app/(student)/actions/contentMetadataActions";
-import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(admin)/actions/subjectActions";
+import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 
 export default function NewLecturePage() {
