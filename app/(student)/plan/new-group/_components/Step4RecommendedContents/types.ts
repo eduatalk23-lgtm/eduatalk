@@ -90,31 +90,37 @@ export type UseRangeEditorReturn = {
   editingRange: { start: string; end: string } | null;
   contentDetails: Map<
     number,
-    { details: ContentDetail[]; type: "book" | "lecture" }
+    { details: (BookDetail | LectureEpisode)[]; type: "book" | "lecture" }
   >;
   startDetailId: Map<number, string>;
   endDetailId: Map<number, string>;
   loadingDetails: Set<number>;
-  startEditing: (index: number) => void;
-  saveRange: (index: number) => void;
-  cancelEditing: () => void;
-  setEditingRangeIndex: React.Dispatch<React.SetStateAction<number | null>>;
+  startEditingRange: (index: number) => void;
+  saveEditingRange: () => void;
+  cancelEditingRange: () => void;
+  setStartRange: (index: number, detailId: string) => void;
+  setEndRange: (index: number, detailId: string) => void;
+  setEditingRange: React.Dispatch<React.SetStateAction<{ start: string; end: string } | null>>;
 };
 
 export type UseRequiredSubjectsReturn = {
-  detailSubjects: Map<string, string[]>;
-  loadingDetailSubjects: Set<string>;
-  handleLoadDetailSubjects: (category: string) => Promise<void>;
-  handleRequiredSubjectUpdate: (
-    index: number,
-    updated: Partial<{
-      subject_category: string;
-      subject?: string;
-      min_count: number;
-    }>
-  ) => void;
-  handleRequiredSubjectRemove: (index: number) => void;
-  handleAddRequiredSubject: () => void;
+  requiredSubjects: Array<{
+    subject_category: string;
+    subject?: string;
+    min_count: number;
+  }>;
+  requiredSubjectCategories: string[];
+  missingRequiredSubjects: Array<{
+    name: string;
+    current: number;
+    required: number;
+  }>;
+  progressRequiredSubjects: Array<{
+    subject: string;
+    selected: boolean;
+  }>;
+  selectedSubjectCategories: Set<string>;
+  contentCountBySubject: Map<string, number>;
 };
 
 // ============================================================================
