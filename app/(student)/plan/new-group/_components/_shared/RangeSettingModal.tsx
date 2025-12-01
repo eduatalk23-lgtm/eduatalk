@@ -52,18 +52,34 @@ export function RangeSettingModal({
 
       try {
         const response = await fetch(
-          `/api/student-content-details?id=${content.id}&type=${content.type}`
+          `/api/student-content-details?contentType=${content.type}&contentId=${content.id}`
         );
 
         if (!response.ok) {
-          throw new Error("상세 정보를 불러올 수 없습니다.");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.error?.message || "상세 정보를 불러올 수 없습니다."
+          );
         }
 
-        const data = await response.json();
-        setDetails(data.details || []);
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(
+            result.error?.message || "상세 정보를 불러올 수 없습니다."
+          );
+        }
+
+        // 콘텐츠 타입에 따라 details 또는 episodes 사용
+        const detailsData = 
+          content.type === "book" 
+            ? result.data.details || []
+            : result.data.episodes || [];
+        
+        setDetails(detailsData);
         
         // 캐시 저장
-        cacheRef.current.set(content.id, data.details || []);
+        cacheRef.current.set(content.id, detailsData);
       } catch (err) {
         console.error("[RangeSettingModal] 상세 정보 조회 실패:", err);
         setError(
