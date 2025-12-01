@@ -1306,8 +1306,10 @@ function WeekSection({
               </div>
               <div className="mt-1 flex flex-col gap-1">
                 <div className="flex items-center gap-3 text-xs text-gray-600">
-                  <span>학습일 {weekStudyDays}일</span>
-                  <span>복습일 {weekReviewDays}일</span>
+                  <span>
+                    학습일 {weekStudyDays}일
+                    {weekReviewDays > 0 && <> + 복습일 {weekReviewDays}일</>}
+                  </span>
                   <span>학습시간 {formatNumber(weekTotalHours)}시간</span>
                   {weekSelfStudyHours > 0 && (
                     <span>자율학습시간 {formatNumber(weekSelfStudyHours)}시간</span>

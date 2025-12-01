@@ -312,10 +312,13 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-green-400" />
-            <span className="text-xs font-medium text-gray-500">학습일</span>
+            <span className="text-xs font-medium text-gray-500">학습일 + 복습일</span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
-            {result.summary.total_study_days}
+            {result.summary.total_study_days}일
+            {result.summary.total_review_days > 0 && (
+              <> + {result.summary.total_review_days}일(복습)</>
+            )}
           </p>
           <p className="text-xs text-gray-500">일</p>
         </div>
