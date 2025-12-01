@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Step3ContentSelectionProps,
   RecommendationSettings,
@@ -372,15 +372,28 @@ export function Step3ContentSelection({
   }, [isEditMode, data.recommended_contents]);
 
   // Draft 자동 저장 (데이터 변경 시)
+  // onSaveDraft를 useRef로 저장하여 무한 루프 방지
+  const onSaveDraftRef = useRef(onSaveDraft);
   useEffect(() => {
-    if (onSaveDraft && !isSavingDraft) {
-      const timer = setTimeout(() => {
-        onSaveDraft();
-      }, 2000);
+    onSaveDraftRef.current = onSaveDraft;
+  }, [onSaveDraft]);
 
-      return () => clearTimeout(timer);
+  useEffect(() => {
+    // onSaveDraft가 없거나 저장 중이면 스킵
+    if (!onSaveDraftRef.current || isSavingDraft) {
+      return;
     }
-  }, [data.student_contents, data.recommended_contents, onSaveDraft, isSavingDraft]);
+
+    // 데이터가 실제로 변경되었는지 확인
+    const timer = setTimeout(() => {
+      // 현재 저장 중이 아닐 때만 실행
+      if (!isSavingDraft && onSaveDraftRef.current) {
+        onSaveDraftRef.current();
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [data.student_contents, data.recommended_contents, isSavingDraft]);
 
   return (
     <div className="space-y-6">

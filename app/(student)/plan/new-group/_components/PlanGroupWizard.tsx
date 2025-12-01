@@ -549,7 +549,12 @@ export function PlanGroupWizard({
     }
 
     if (step === 3) {
-      // Step 3: 콘텐츠 선택 (학생 + 추천 통합)
+      // Step 3: 스케줄 미리보기 단계
+      // 스케줄 미리보기는 확인만 하는 단계이므로 검증 불필요
+    }
+
+    if (step === 4) {
+      // Step 4: 콘텐츠 선택 단계
       // 최소 1개 이상의 콘텐츠 필요
       const totalContents =
         wizardData.student_contents.length +
@@ -557,12 +562,6 @@ export function PlanGroupWizard({
       if (totalContents === 0) {
         errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
       }
-    }
-
-    if (step === 4) {
-      // Step 4: 콘텐츠 선택 단계
-      // 블록 및 제외일 단계(Step 2)에서 이미 검증이 완료되었으므로 검증 제거
-      // 콘텐츠 관련 검증은 제거됨 (사용자 요청에 따라)
     }
 
     setValidationErrors(errors);
@@ -1137,6 +1136,14 @@ export function PlanGroupWizard({
           setDraftGroupId(finalGroupId);
           setCurrentStep(7);
           toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
+          return;
+        }
+
+        // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 6에서)
+        if (currentStep === 4 && !generatePlans) {
+          setDraftGroupId(finalGroupId);
+          setCurrentStep(5);
+          toast.showSuccess("저장되었습니다.");
           return;
         }
 
