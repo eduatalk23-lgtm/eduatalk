@@ -1,5 +1,7 @@
 "use client";
 
+import { Calendar } from "lucide-react";
+
 interface Block {
   day_of_week: number;
   start_time: string; // "HH:mm"
@@ -15,9 +17,22 @@ interface BlockSetTimelineProps {
 export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
   if (blocks.length === 0) {
     return (
-      <p className="text-xs text-gray-500">
-        이 블록 세트에는 등록된 시간 블록이 없습니다.
-      </p>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-gray-900">
+            {name || "블록 세트를 선택해주세요"}
+          </p>
+        </div>
+        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+          <p className="text-sm font-medium text-gray-700">
+            블록 세트를 선택해주세요
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            선택하면 요일별 학습 시간을 확인할 수 있습니다
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -73,15 +88,22 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
       {/* 타임라인 시각화 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex gap-1">
-          {/* 시간 축 (왼쪽) */}
-          <div className="flex w-12 flex-col justify-between py-2 text-right">
-            <div className="text-[10px] font-medium text-gray-400">0시</div>
-            <div className="text-[10px] font-medium text-gray-600">6시</div>
-            <div className="border-t border-gray-300 text-[10px] font-semibold text-gray-900">
-              12시
-            </div>
-            <div className="text-[10px] font-medium text-gray-600">18시</div>
-            <div className="text-[10px] font-medium text-gray-400">24시</div>
+          {/* 시간 축 (왼쪽) - 3시간 간격 */}
+          <div className="flex w-14 flex-col justify-between py-2 pr-2 text-right">
+            {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((hour) => (
+              <div
+                key={hour}
+                className={`text-[10px] ${
+                  hour === 12
+                    ? "font-bold text-gray-900"
+                    : hour === 0 || hour === 24
+                    ? "font-medium text-gray-400"
+                    : "font-medium text-gray-600"
+                }`}
+              >
+                {hour}시
+              </div>
+            ))}
           </div>
 
           {/* 요일별 타임라인 */}
@@ -102,12 +124,21 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                   </div>
 
                   {/* 타임라인 컨테이너 */}
-                  <div className="relative h-48 w-full rounded border border-gray-200 bg-gray-50">
-                    {/* 12시 기준선 */}
-                    <div
-                      className="absolute left-0 right-0 border-t border-gray-300"
-                      style={{ top: "50%" }}
-                    />
+                  <div className="relative h-64 w-full rounded border border-gray-200 bg-gray-50">
+                    {/* 시간 그리드 라인 - 1시간 간격 */}
+                    {Array.from({ length: 25 }, (_, i) => (
+                      <div
+                        key={`grid-${i}`}
+                        className={`pointer-events-none absolute left-0 right-0 ${
+                          i === 12
+                            ? "border-t-2 border-gray-400"
+                            : i % 3 === 0
+                            ? "border-t border-gray-300"
+                            : "border-t border-dashed border-gray-200"
+                        }`}
+                        style={{ top: `${(i / 24) * 100}%` }}
+                      />
+                    ))}
 
                     {/* 오전/오후 라벨 */}
                     <div className="absolute left-1 top-1 text-[9px] text-gray-400">

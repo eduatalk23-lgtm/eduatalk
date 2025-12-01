@@ -2023,23 +2023,22 @@ export function Step1BasicInfo({
         )}
 
         {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
-        {data.block_set_id && (
-          <div className="mb-4">
-            {(() => {
-              const selectedSet = data.block_set_id && blockSets
-                ? blockSets.find((set) => set.id === data.block_set_id)
-                : null;
-              const blocks = selectedSet?.blocks ?? [];
+        <div className="mb-4">
+          {(() => {
+            const selectedSet = data.block_set_id && blockSets
+              ? blockSets.find((set) => set.id === data.block_set_id)
+              : null;
+            const blocks = selectedSet?.blocks ?? [];
+            const name = selectedSet?.name || "블록 세트를 선택해주세요";
 
-              return (
-                <BlockSetTimeline 
-                  blocks={blocks} 
-                  name={selectedSet?.name || "선택된 블록 세트"} 
-                />
-              );
-            })()}
-          </div>
-        )}
+            return (
+              <BlockSetTimeline 
+                blocks={blocks} 
+                name={name} 
+              />
+            );
+          })()}
+        </div>
 
         {/* 기존 블록 세트 선택 */}
         {blockSetMode === "select" && (
@@ -2798,50 +2797,8 @@ export function Step1BasicInfo({
                     <p className="mt-1 text-xs text-blue-700">
                       학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을 진행합니다.
                     </p>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">
-                      복습의 복습 보정 계수:{" "}
-                      {data.additional_period_reallocation
-                        .review_of_review_factor ?? 0.25}
-                    </label>
-                    <input
-                      type="range"
-                      min="0.1"
-                      max="0.5"
-                      step="0.05"
-                      value={
-                        data.additional_period_reallocation
-                          .review_of_review_factor ?? 0.25
-                      }
-                      onChange={(e) => {
-                        if (
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                        )
-                          return;
-                        onUpdate({
-                          additional_period_reallocation: {
-                            ...data.additional_period_reallocation!,
-                            review_of_review_factor: Number(e.target.value),
-                          },
-                        });
-                      }}
-                      disabled={
-                        isCampMode &&
-                        !canStudentInputAdditionalPeriodReallocation
-                      }
-                      className={`w-full ${
-                        isCampMode &&
-                        !canStudentInputAdditionalPeriodReallocation
-                          ? "cursor-not-allowed opacity-60"
-                          : ""
-                      }`}
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      원본 학습 소요시간 대비 추가 복습 소요시간 비율입니다.
-                      (기본값: 0.25 = 25%)
+                    <p className="mt-1 text-xs text-blue-600">
+                      복습 소요시간은 원본 학습 소요시간의 25%로 자동 계산됩니다.
                     </p>
                   </div>
                 </div>
