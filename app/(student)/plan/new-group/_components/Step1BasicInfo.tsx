@@ -2737,10 +2737,22 @@ export function Step1BasicInfo({
                             return;
                           }
                           
+                          // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
+                          let newEndDate = data.additional_period_reallocation.period_end;
+                          if (newEndDate && newEndDate < newStartDate) {
+                            const adjustedEndDate = new Date(
+                              new Date(newStartDate).getTime() + 86400000
+                            )
+                              .toISOString()
+                              .split("T")[0];
+                            newEndDate = adjustedEndDate;
+                          }
+                          
                           onUpdate({
                             additional_period_reallocation: {
                               ...data.additional_period_reallocation!,
                               period_start: newStartDate,
+                              period_end: newEndDate,
                             },
                           });
                         }}
@@ -2763,16 +2775,42 @@ export function Step1BasicInfo({
                             : ""
                         }`}
                         value={data.additional_period_reallocation.period_end}
+                        min={
+                          data.additional_period_reallocation.period_start
+                            ? new Date(
+                                new Date(data.additional_period_reallocation.period_start).getTime() + 86400000
+                              )
+                                .toISOString()
+                                .split("T")[0]
+                            : undefined
+                        }
                         onChange={(e) => {
                           if (
                             isCampMode &&
                             !canStudentInputAdditionalPeriodReallocation
                           )
                             return;
+                          
+                          const newEndDate = e.target.value;
+                          const minDate = data.additional_period_reallocation.period_start
+                            ? new Date(
+                                new Date(data.additional_period_reallocation.period_start).getTime() + 86400000
+                              )
+                                .toISOString()
+                                .split("T")[0]
+                            : null;
+                          
+                          if (minDate && newEndDate < minDate) {
+                            showError(
+                              "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
+                            );
+                            return;
+                          }
+                          
                           onUpdate({
                             additional_period_reallocation: {
                               ...data.additional_period_reallocation!,
-                              period_end: e.target.value,
+                              period_end: newEndDate,
                             },
                           });
                         }}
