@@ -1430,83 +1430,81 @@ export function Step4RecommendedContents({
         </div>
 
         <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 세부
-              과목까지 지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
-            </p>
+          <p className="text-sm text-gray-600">
+            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 세부 과목까지
+            지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
+          </p>
 
-            {/* 필수 교과 목록 */}
-            {(data.subject_constraints?.required_subjects || []).length > 0 && (
-              <div className="space-y-3">
-                {(data.subject_constraints?.required_subjects || []).map(
-                  (req, index) => (
-                    <RequiredSubjectItem
-                      key={index}
-                      requirement={req}
-                      index={index}
-                      availableSubjects={availableSubjects}
-                      availableDetailSubjects={
-                        detailSubjects.get(req.subject_category) || []
-                      }
-                      loadingDetailSubjects={loadingDetailSubjects.has(
-                        req.subject_category
-                      )}
-                      onUpdate={(updated) =>
-                        handleRequiredSubjectUpdate(index, updated)
-                      }
-                      onRemove={() => handleRequiredSubjectRemove(index)}
-                      onLoadDetailSubjects={handleLoadDetailSubjects}
-                    />
-                  )
-                )}
-              </div>
-            )}
-
-            {/* 교과 추가 버튼 */}
-            <button
-              type="button"
-              onClick={handleAddRequiredSubject}
-              className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors"
-            >
-              + 필수 교과 추가
-            </button>
-
-            {/* 제약 조건 처리 방식 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                제약 조건 처리 방식
-              </label>
-              <select
-                value={
-                  data.subject_constraints?.constraint_handling || "warning"
-                }
-                onChange={(e) =>
-                  handleConstraintHandlingChange(
-                    e.target.value as "strict" | "warning" | "auto_fix"
-                  )
-                }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-              >
-                <option value="warning">
-                  경고 (권장) - 경고만 표시하고 진행
-                </option>
-                <option value="strict">
-                  엄격 (필수) - 조건 미충족 시 진행 불가
-                </option>
-                <option value="auto_fix">
-                  자동 보정 - 시스템이 자동으로 보정
-                </option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500">
-                {data.subject_constraints?.constraint_handling === "warning" &&
-                  "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
-                {data.subject_constraints?.constraint_handling === "strict" &&
-                  "조건을 반드시 충족해야 다음 단계로 진행할 수 있습니다."}
-                {data.subject_constraints?.constraint_handling === "auto_fix" &&
-                  "시스템이 자동으로 필요한 콘텐츠를 추천합니다."}
-              </p>
+          {/* 필수 교과 목록 */}
+          {(data.subject_constraints?.required_subjects || []).length > 0 && (
+            <div className="space-y-3">
+              {(data.subject_constraints?.required_subjects || []).map(
+                (req, index) => (
+                  <RequiredSubjectItem
+                    key={index}
+                    requirement={req}
+                    index={index}
+                    availableSubjects={availableSubjects}
+                    availableDetailSubjects={
+                      detailSubjects.get(req.subject_category) || []
+                    }
+                    loadingDetailSubjects={loadingDetailSubjects.has(
+                      req.subject_category
+                    )}
+                    onUpdate={(updated) =>
+                      handleRequiredSubjectUpdate(index, updated)
+                    }
+                    onRemove={() => handleRequiredSubjectRemove(index)}
+                    onLoadDetailSubjects={handleLoadDetailSubjects}
+                  />
+                )
+              )}
             </div>
+          )}
+
+          {/* 교과 추가 버튼 */}
+          <button
+            type="button"
+            onClick={handleAddRequiredSubject}
+            className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors"
+          >
+            + 필수 교과 추가
+          </button>
+
+          {/* 제약 조건 처리 방식 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              제약 조건 처리 방식
+            </label>
+            <select
+              value={data.subject_constraints?.constraint_handling || "warning"}
+              onChange={(e) =>
+                handleConstraintHandlingChange(
+                  e.target.value as "strict" | "warning" | "auto_fix"
+                )
+              }
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+            >
+              <option value="warning">
+                경고 (권장) - 경고만 표시하고 진행
+              </option>
+              <option value="strict">
+                엄격 (필수) - 조건 미충족 시 진행 불가
+              </option>
+              <option value="auto_fix">
+                자동 보정 - 시스템이 자동으로 보정
+              </option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              {data.subject_constraints?.constraint_handling === "warning" &&
+                "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
+              {data.subject_constraints?.constraint_handling === "strict" &&
+                "조건을 반드시 충족해야 다음 단계로 진행할 수 있습니다."}
+              {data.subject_constraints?.constraint_handling === "auto_fix" &&
+                "시스템이 자동으로 필요한 콘텐츠를 추천합니다."}
+            </p>
           </div>
+        </div>
       </div>
 
       <div>
