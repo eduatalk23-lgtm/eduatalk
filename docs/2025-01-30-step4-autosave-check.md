@@ -110,9 +110,26 @@ Step4RecommendedContents에서 `onUpdate`가 호출되는 지점:
    - ❌ 자동 저장 로직 없음
    - ⚠️ 현재 `PlanGroupWizard`에서 직접 사용되지 않음
 
+### 변경 사항
+
+#### 자동 저장 기능 제거 (2025-01-30)
+
+반복 루프 문제로 인해 Step3ContentSelection의 자동 저장 기능을 완전히 제거했습니다.
+
+**제거된 코드:**
+- `onSaveDraft`, `isSavingDraft` props
+- `onSaveDraftRef` useRef
+- 자동 저장 useEffect (2개)
+- 저장 중 UI 표시
+
+**영향:**
+- 콘텐츠 변경 시 자동 저장되지 않음
+- 사용자가 수동으로 저장 버튼을 클릭해야 함
+- 반복 루프 문제 해결
+
 ### 권장 사항
 
-#### 옵션 1: Step4RecommendedContents에 자동 저장 추가 (향후 사용 대비)
+#### 옵션 1: Step4RecommendedContents에 자동 저장 추가 (향후 사용 대비) - **비권장**
 
 만약 `Step4RecommendedContents`를 독립적으로 사용할 계획이 있다면, Step3ContentSelection과 동일한 자동 저장 로직을 추가해야 합니다.
 
