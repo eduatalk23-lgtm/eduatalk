@@ -1430,7 +1430,8 @@ export function Step4RecommendedContents({
             </span>
           </div>
           <p className="mt-1 text-sm text-gray-600">
-            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어, 수학, 영어)
+            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어,
+            수학, 영어)
           </p>
         </div>
 
