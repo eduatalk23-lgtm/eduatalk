@@ -6,6 +6,7 @@ import { formatNumber } from "@/lib/utils/formatNumber";
 import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
+import { ProgressIndicator } from "./_shared/ProgressIndicator";
 
 type BookDetail = {
   id: string;
@@ -835,6 +836,33 @@ export function Step4RecommendedContents({
     }
   });
 
+  // ProgressIndicator용 필수과목 정보 생성
+  const progressRequiredSubjects = requiredSubjects.map((req) => {
+    let count = 0;
+    
+    if (req.subject) {
+      // 세부 과목이 지정된 경우
+      const exactKey = `${req.subject_category}:${req.subject}`;
+      count = contentCountBySubject.get(exactKey) || 0;
+    } else {
+      // 교과만 지정된 경우: 해당 교과의 모든 콘텐츠 카운트
+      contentCountBySubject.forEach((cnt, key) => {
+        if (key.startsWith(req.subject_category + ":") || key === req.subject_category) {
+          count += cnt;
+        }
+      });
+    }
+    
+    const displayName = req.subject 
+      ? `${req.subject_category} - ${req.subject}` 
+      : req.subject_category;
+    
+    return {
+      subject: displayName,
+      selected: count >= req.min_count,
+    };
+  });
+
   const toggleContentSelection = (contentId: string) => {
     const newSet = new Set(selectedContentIds);
     if (newSet.has(contentId)) {
@@ -1355,24 +1383,29 @@ export function Step4RecommendedContents({
       </div>
 
       <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              서비스 추천 콘텐츠
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              성적 데이터를 기반으로 추천된 교재와 강의를 선택하세요. (최대 9개,
-              국어/수학/영어 각 1개 이상 필수)
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">
-              {totalCount}/9
-            </div>
-            <div className="text-xs text-gray-500">
-              학생 {studentCount}개 / 추천 {recommendedCount}개
-            </div>
-          </div>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            서비스 추천 콘텐츠
+          </h2>
+          <p className="text-sm text-gray-500">
+            성적 데이터를 기반으로 추천된 교재와 강의를 선택하세요. (최대 9개,
+            국어/수학/영어 각 1개 이상 필수)
+          </p>
+        </div>
+
+        {/* 콘텐츠 선택 진행률 */}
+        <div className="mb-6">
+          <ProgressIndicator
+            current={totalCount}
+            max={9}
+            requiredSubjects={progressRequiredSubjects}
+            showWarning={missingRequiredSubjects.length > 0}
+            warningMessage={
+              missingRequiredSubjects.length > 0
+                ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects.map((m) => `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`).join(", ")}`
+                : undefined
+            }
+          />
         </div>
         
         {/* 필수 과목 검증 안내 (상단 표시) */}
