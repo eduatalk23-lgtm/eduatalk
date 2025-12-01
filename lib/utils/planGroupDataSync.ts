@@ -36,16 +36,30 @@ export function syncWizardDataToCreationData(
     }
 
     // 2. daily_schedule 유효성 검증 및 필터링
+    const periodStart = new Date(wizardData.period_start);
+    const periodEnd = new Date(wizardData.period_end);
+    
+    // 추가 기간이 있으면 유효한 기간 범위 확장
+    let validStart = periodStart;
+    let validEnd = periodEnd;
+    
+    if (wizardData.additional_period_reallocation) {
+      const additionalStart = new Date(wizardData.additional_period_reallocation.period_start);
+      const additionalEnd = new Date(wizardData.additional_period_reallocation.period_end);
+      
+      // 유효한 기간: 원래 기간 + 추가 기간
+      validStart = periodStart < additionalStart ? periodStart : additionalStart;
+      validEnd = periodEnd > additionalEnd ? periodEnd : additionalEnd;
+    }
+    
     const validatedDailySchedule = wizardData.daily_schedule?.filter(
       (schedule) => {
         try {
           const scheduleDate = new Date(schedule.date);
-          const periodStart = new Date(wizardData.period_start);
-          const periodEnd = new Date(wizardData.period_end);
 
           return (
-            scheduleDate >= periodStart &&
-            scheduleDate <= periodEnd &&
+            scheduleDate >= validStart &&
+            scheduleDate <= validEnd &&
             schedule.study_hours >= 0
           );
         } catch {
@@ -374,11 +388,25 @@ export function validateDataConsistency(
 
   // 2. daily_schedule과 period 일치 검증
   if (wizardData.daily_schedule) {
+    const periodStart = new Date(wizardData.period_start);
+    const periodEnd = new Date(wizardData.period_end);
+    
+    // 추가 기간이 있으면 유효한 기간 범위 확장
+    let validStart = periodStart;
+    let validEnd = periodEnd;
+    
+    if (wizardData.additional_period_reallocation) {
+      const additionalStart = new Date(wizardData.additional_period_reallocation.period_start);
+      const additionalEnd = new Date(wizardData.additional_period_reallocation.period_end);
+      
+      // 유효한 기간: 원래 기간 + 추가 기간
+      validStart = periodStart < additionalStart ? periodStart : additionalStart;
+      validEnd = periodEnd > additionalEnd ? periodEnd : additionalEnd;
+    }
+    
     const invalidSchedules = wizardData.daily_schedule.filter((schedule) => {
       const scheduleDate = new Date(schedule.date);
-      const periodStart = new Date(wizardData.period_start);
-      const periodEnd = new Date(wizardData.period_end);
-      return scheduleDate < periodStart || scheduleDate > periodEnd;
+      return scheduleDate < validStart || scheduleDate > validEnd;
     });
 
     if (invalidSchedules.length > 0) {
