@@ -67,7 +67,10 @@ export function StudentContentsPanel({
       // 커스텀 콘텐츠는 범위 설정 없이 바로 추가
       if (type === "custom") {
         const customContent = contents.custom.find((c) => c.id === contentId);
-        if (!customContent) return;
+        if (!customContent) {
+          console.error(`[StudentContentsPanel] custom 콘텐츠를 찾을 수 없습니다. contentId: ${contentId}`);
+          return;
+        }
 
         // custom 콘텐츠는 기본 범위 값으로 바로 추가
         const newContent: SelectedContent = {
@@ -78,6 +81,7 @@ export function StudentContentsPanel({
           title: customContent.title,
         };
 
+        console.log(`[StudentContentsPanel] custom 콘텐츠 추가: ${customContent.title} (${contentId})`);
         const updated = [...selectedContents, newContent];
         onUpdate(updated);
         return;
@@ -140,6 +144,8 @@ export function StudentContentsPanel({
 
       // custom 타입은 범위 설정을 지원하지 않음
       if (content.content_type === "custom") {
+        const errorMessage = `[StudentContentsPanel] custom 타입 콘텐츠는 범위 설정을 지원하지 않습니다. contentId: ${content.content_id}, title: ${content.title}`;
+        console.error(errorMessage, { content });
         alert("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
         return;
       }

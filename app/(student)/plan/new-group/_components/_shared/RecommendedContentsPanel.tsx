@@ -111,7 +111,8 @@ export function RecommendedContentsPanel({
 
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
       if (content.contentType === "custom") {
-        console.warn("[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다.");
+        const errorMessage = `[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}, contentType: ${content.contentType}`;
+        console.error(errorMessage, { content });
         return;
       }
 
@@ -141,6 +142,8 @@ export function RecommendedContentsPanel({
     (content: SelectedContent) => {
       // custom 타입은 범위 설정을 지원하지 않음
       if (content.content_type === "custom") {
+        const errorMessage = `[RecommendedContentsPanel] custom 타입 콘텐츠는 범위 설정을 지원하지 않습니다. contentId: ${content.content_id}, title: ${content.title}`;
+        console.error(errorMessage, { content });
         alert("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
         return;
       }

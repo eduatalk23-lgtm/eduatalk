@@ -200,6 +200,34 @@ const fetchDetails = async () => {
 - API 엔드포인트: `/api/student-content-details`
 - 관련 문서: `docs/2025-01-30-custom-type-range-error-fix.md` (범위 편집 시 에러 수정)
 
+## 에러 로깅 개선
+
+모든 방어 지점에 구조화된 에러 로깅을 추가했습니다:
+
+### 1. RangeSettingModal
+- `custom` 타입 감지 시: `console.error`로 상세 정보 출력 (contentId, title 포함)
+- API 호출 실패 시: `console.error`로 HTTP 상태, 요청 정보, 에러 상세 출력
+- 예외 발생 시: `console.error`로 전체 에러 컨텍스트 출력
+
+### 2. RecommendedContentsPanel
+- `custom` 타입 추천 콘텐츠 감지 시: `console.error`로 상세 정보 출력
+- 범위 편집 시도 시: `console.error`로 콘텐츠 정보 출력
+
+### 3. StudentContentsPanel
+- `custom` 콘텐츠 추가 시: `console.log`로 성공 로그 출력
+- `custom` 콘텐츠 찾기 실패 시: `console.error`로 에러 출력
+- 범위 편집 시도 시: `console.error`로 콘텐츠 정보 출력
+
+**로깅 형식**:
+```typescript
+console.error("[ComponentName] 메시지", {
+  contentId: "...",
+  title: "...",
+  contentType: "...",
+  // 기타 컨텍스트 정보
+});
+```
+
 ## 결론
 
 다층 방어 전략을 통해 `custom` 타입 콘텐츠의 범위 설정 에러를 완전히 해결했습니다:
@@ -208,6 +236,7 @@ const fetchDetails = async () => {
 2. **선택 레벨**: `StudentContentsPanel`에서 `custom` 타입 선택 시 범위 설정 모달을 열지 않고 바로 추가
 3. **추천 레벨**: `RecommendedContentsPanel`에서 `custom` 타입 추천 콘텐츠 차단
 4. **모달 레벨**: `RangeSettingModal`에서 `custom` 타입이 전달되는 경우 API 호출 전 차단
+5. **로깅 레벨**: 모든 방어 지점에 구조화된 에러 로깅 추가
 
-이제 `custom` 타입 콘텐츠는 범위 설정 없이 바로 추가되며, 모든 경로에서 API 호출 에러가 발생하지 않습니다.
+이제 `custom` 타입 콘텐츠는 범위 설정 없이 바로 추가되며, 모든 경로에서 API 호출 에러가 발생하지 않습니다. 또한 터미널에서 모든 에러 상황을 명확하게 확인할 수 있습니다.
 

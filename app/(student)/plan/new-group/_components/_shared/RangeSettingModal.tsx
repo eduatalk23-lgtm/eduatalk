@@ -44,6 +44,8 @@ export function RangeSettingModal({
     const fetchDetails = async () => {
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
       if (content.type === "custom") {
+        const errorMessage = `[RangeSettingModal] custom 타입 콘텐츠는 범위 설정을 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}`;
+        console.error(errorMessage);
         setError("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
         setLoading(false);
         return;
@@ -70,17 +72,35 @@ export function RangeSettingModal({
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.error?.message || "상세 정보를 불러올 수 없습니다."
+          const errorMessage = errorData.error?.message || "상세 정보를 불러올 수 없습니다.";
+          console.error(
+            `[RangeSettingModal] API 호출 실패: ${apiPath}`,
+            {
+              status: response.status,
+              statusText: response.statusText,
+              contentType: content.type,
+              contentId: content.id,
+              isRecommendedContent,
+              error: errorData,
+            }
           );
+          throw new Error(errorMessage);
         }
 
         const result = await response.json();
         
         if (!result.success) {
-          throw new Error(
-            result.error?.message || "상세 정보를 불러올 수 없습니다."
+          const errorMessage = result.error?.message || "상세 정보를 불러올 수 없습니다.";
+          console.error(
+            `[RangeSettingModal] API 응답 실패: ${apiPath}`,
+            {
+              contentType: content.type,
+              contentId: content.id,
+              isRecommendedContent,
+              error: result.error,
+            }
           );
+          throw new Error(errorMessage);
         }
 
         // 콘텐츠 타입에 따라 details 또는 episodes 사용
@@ -94,12 +114,22 @@ export function RangeSettingModal({
         // 캐시 저장
         cacheRef.current.set(content.id, detailsData);
       } catch (err) {
-        console.error("[RangeSettingModal] 상세 정보 조회 실패:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "상세 정보를 불러오는 중 오류가 발생했습니다."
+        const errorMessage = err instanceof Error
+          ? err.message
+          : "상세 정보를 불러오는 중 오류가 발생했습니다.";
+        console.error(
+          "[RangeSettingModal] 상세 정보 조회 실패:",
+          {
+            error: err,
+            contentType: content.type,
+            contentId: content.id,
+            isRecommendedContent,
+            apiPath: isRecommendedContent
+              ? "/api/master-content-details"
+              : "/api/student-content-details",
+          }
         );
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
