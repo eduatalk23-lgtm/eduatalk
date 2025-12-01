@@ -21,6 +21,7 @@ import {
   toPlanGroupError,
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
+import { BlockSetTimeline } from "./_shared/BlockSetTimeline";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -2023,57 +2024,18 @@ export function Step1BasicInfo({
 
         {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
         {data.block_set_id && (
-          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="mb-4">
             {(() => {
               const selectedSet = data.block_set_id && blockSets
                 ? blockSets.find((set) => set.id === data.block_set_id)
                 : null;
               const blocks = selectedSet?.blocks ?? [];
 
-              if (blocks.length === 0) {
-                return (
-                  <p className="text-xs text-gray-500">
-                    이 블록 세트에는 등록된 시간 블록이 없습니다.
-                  </p>
-                );
-              }
-
-              // 요일별로 그룹화
-              const blocksByDay = blocks.reduce((acc, block) => {
-                const day = block.day_of_week;
-                if (!acc[day]) acc[day] = [];
-                acc[day].push(block);
-                return acc;
-              }, {} as Record<number, typeof blocks>);
-
-              const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-
               return (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {selectedSet?.name || "선택된 블록 세트"}
-                    </p>
-                    <p className="text-xs font-medium text-gray-700">
-                      등록된 시간 블록 ({blocks.length}개)
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    {Object.entries(blocksByDay).map(([day, dayBlocks]) => (
-                      <div key={day} className="text-xs text-gray-600">
-                        <span className="font-medium">
-                          {dayNames[Number(day)]}요일:
-                        </span>{" "}
-                        {dayBlocks.map((block, idx) => (
-                          <span key={idx}>
-                            {block.start_time} ~ {block.end_time}
-                            {idx < dayBlocks.length - 1 && ", "}
-                          </span>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <BlockSetTimeline 
+                  blocks={blocks} 
+                  name={selectedSet?.name || "선택된 블록 세트"} 
+                />
               );
             })()}
           </div>
@@ -2640,8 +2602,9 @@ export function Step1BasicInfo({
               )}
             </div>
             <p className="mb-4 text-xs text-gray-600">
-              1730 Timetable은 4주 단위로 진행하며, 추가 기간에는 앞서 4주치
-              학습한 내용을 다시 반복합니다.
+              추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
+              <br />
+              학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
             </p>
 
             <div className="space-y-4">
@@ -2723,7 +2686,7 @@ export function Step1BasicInfo({
                       : "text-gray-700"
                   }`}
                 >
-                  추가 기간 재배치 사용 (4주 학습 범위 재배치)
+                  추가 기간 학습 범위 재배치 사용
                 </label>
               </div>
 
@@ -2743,16 +2706,42 @@ export function Step1BasicInfo({
                             : ""
                         }`}
                         value={data.additional_period_reallocation.period_start}
+                        min={
+                          data.period_end
+                            ? new Date(
+                                new Date(data.period_end).getTime() + 86400000
+                              )
+                                .toISOString()
+                                .split("T")[0]
+                            : undefined
+                        }
                         onChange={(e) => {
                           if (
                             isCampMode &&
                             !canStudentInputAdditionalPeriodReallocation
                           )
                             return;
+                          
+                          const newStartDate = e.target.value;
+                          const minDate = data.period_end
+                            ? new Date(
+                                new Date(data.period_end).getTime() + 86400000
+                              )
+                                .toISOString()
+                                .split("T")[0]
+                            : null;
+                          
+                          if (minDate && newStartDate < minDate) {
+                            showError(
+                              "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
+                            );
+                            return;
+                          }
+                          
                           onUpdate({
                             additional_period_reallocation: {
                               ...data.additional_period_reallocation!,
-                              period_start: e.target.value,
+                              period_start: newStartDate,
                             },
                           });
                         }}
@@ -2804,12 +2793,10 @@ export function Step1BasicInfo({
                           .original_period_start
                       }{" "}
                       ~{" "}
-                      {data.additional_period_reallocation.original_period_end}{" "}
-                      (4주치 학습 내용)
+                      {data.additional_period_reallocation.original_period_end}
                     </p>
                     <p className="mt-1 text-xs text-blue-700">
-                      앞서 4주치 학습한 내용을 추가 기간에 재배치하여 복습의
-                      복습을 진행합니다.
+                      학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을 진행합니다.
                     </p>
                   </div>
 

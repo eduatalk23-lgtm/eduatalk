@@ -109,9 +109,12 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       return null;
     }
 
+    // 추가 기간이 있으면 종료일을 추가 기간 종료일로 확장
+    const effectiveEndDate = data.additional_period_reallocation?.period_end || data.period_end;
+
     return {
       periodStart: data.period_start,
-      periodEnd: data.period_end,
+      periodEnd: effectiveEndDate,
       schedulerType: data.scheduler_type as "1730_timetable",
       blockSetId: data.block_set_id || "default",
       exclusions: data.exclusions || [],
@@ -128,6 +131,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     data.academy_schedules,
     data.time_settings,
     data.scheduler_options,
+    data.additional_period_reallocation,
     isTemplateMode,
     isCampMode,
     campTemplateId,
@@ -283,6 +287,26 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         </p>
       </div>
 
+      {/* 추가 기간 안내 */}
+      {data.additional_period_reallocation && (
+        <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+          <div className="flex items-start gap-3">
+            <RotateCcw className="h-5 w-5 flex-shrink-0 text-purple-600" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-purple-900">
+                추가 기간 학습 범위 재배치 포함
+              </h3>
+              <p className="mt-1 text-xs text-purple-700">
+                <strong>학습 기간:</strong> {data.period_start} ~ {data.period_end}
+              </p>
+              <p className="text-xs text-purple-700">
+                <strong>추가 기간:</strong> {data.additional_period_reallocation.period_start} ~ {data.additional_period_reallocation.period_end} (복습일로 계산됨)
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 요약 통계 */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -404,13 +428,22 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                       const academyHours = calculateTimeFromSlots("학원일정");
                       const totalHours = studyHours + selfStudyHours + travelHours + academyHours;
 
+                      // 추가 기간 여부 확인
+                      const isAdditionalPeriod = data.additional_period_reallocation &&
+                        day.date >= data.additional_period_reallocation.period_start &&
+                        day.date <= data.additional_period_reallocation.period_end;
+
                       return (
                         <div
                           key={day.date}
-                          className="flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white"
+                          className={`flex flex-col gap-2 p-3 rounded-lg border ${
+                            isAdditionalPeriod
+                              ? "border-purple-300 bg-purple-50"
+                              : "border-gray-200 bg-white"
+                          }`}
                         >
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                               <div className="text-sm font-medium text-gray-900">
                                 {day.date}
                               </div>
@@ -421,6 +454,11 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                               >
                                 {dayTypeLabels[day.day_type] || day.day_type}
                               </div>
+                              {isAdditionalPeriod && (
+                                <div className="rounded-full px-2 py-0.5 text-xs font-medium border border-purple-300 bg-purple-100 text-purple-800">
+                                  추가 기간
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 text-xs text-gray-500">
                               <Clock className="h-3 w-3" />
