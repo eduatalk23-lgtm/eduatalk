@@ -109,6 +109,19 @@ export function RecommendedContentsPanel({
         return;
       }
 
+      // contentType이 없는 경우 처리
+      if (!content.contentType) {
+        const errorMessage = `[RecommendedContentsPanel] contentType이 없습니다. contentId: ${content.id}, title: ${content.title}`;
+        console.error(errorMessage, { 
+          content,
+          allKeys: Object.keys(content),
+          contentType: content.contentType,
+          content_type: (content as any).content_type,
+        });
+        alert("콘텐츠 타입 정보가 없습니다. 페이지를 새로고침해주세요.");
+        return;
+      }
+
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
       if (content.contentType === "custom") {
         const errorMessage = `[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}, contentType: ${content.contentType}`;

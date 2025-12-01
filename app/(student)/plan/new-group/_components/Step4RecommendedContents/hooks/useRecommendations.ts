@@ -288,12 +288,12 @@ export function useRecommendations({
           return;
         }
 
-        const recommendations = result.data?.recommendations || [];
+        const rawRecommendations = result.data?.recommendations || [];
 
         // 각 추천 콘텐츠의 contentType 필드 확인
-        console.log("[useRecommendations] 추천 콘텐츠 상세:", {
-          count: recommendations.length,
-          items: recommendations.map((r: any) => ({
+        console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 전):", {
+          count: rawRecommendations.length,
+          items: rawRecommendations.map((r: any) => ({
             id: r.id,
             title: r.title,
             contentType: r.contentType,
@@ -301,6 +301,46 @@ export function useRecommendations({
             hasContentType: !!r.contentType,
             hasContent_type: !!r.content_type,
             allKeys: Object.keys(r),
+          })),
+        });
+
+        // API 응답을 RecommendedContent로 변환 (contentType 보장)
+        const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
+          // contentType이 없으면 에러 로깅 및 기본값 설정
+          if (!r.contentType && !r.content_type) {
+            console.error("[useRecommendations] contentType이 없는 추천 콘텐츠:", {
+              id: r.id,
+              title: r.title,
+              allKeys: Object.keys(r),
+              rawData: r,
+            });
+          }
+
+          return {
+            id: r.id,
+            contentType: r.contentType || r.content_type || "book", // fallback: book
+            title: r.title,
+            subject_category: r.subject_category,
+            subject: r.subject,
+            semester: r.semester,
+            revision: r.revision,
+            publisher: r.publisher,
+            platform: r.platform,
+            difficulty_level: r.difficulty_level,
+            reason: r.reason,
+            priority: r.priority,
+            scoreDetails: r.scoreDetails,
+          };
+        });
+
+        // 변환 후 확인
+        console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 후):", {
+          count: recommendations.length,
+          items: recommendations.map((r) => ({
+            id: r.id,
+            title: r.title,
+            contentType: r.contentType,
+            hasContentType: !!r.contentType,
           })),
         });
 
@@ -443,12 +483,12 @@ export function useRecommendations({
         rawResponse: result,
       });
 
-      const recommendations = result.data?.recommendations || [];
+      const rawRecommendations = result.data?.recommendations || [];
 
       // 각 추천 콘텐츠의 contentType 필드 확인
-      console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations):", {
-        count: recommendations.length,
-        items: recommendations.map((r: any) => ({
+      console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations, 변환 전):", {
+        count: rawRecommendations.length,
+        items: rawRecommendations.map((r: any) => ({
           id: r.id,
           title: r.title,
           contentType: r.contentType,
@@ -456,6 +496,46 @@ export function useRecommendations({
           hasContentType: !!r.contentType,
           hasContent_type: !!r.content_type,
           allKeys: Object.keys(r),
+        })),
+      });
+
+      // API 응답을 RecommendedContent로 변환 (contentType 보장)
+      const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
+        // contentType이 없으면 에러 로깅 및 기본값 설정
+        if (!r.contentType && !r.content_type) {
+          console.error("[useRecommendations] contentType이 없는 추천 콘텐츠 (fetchRecommendations):", {
+            id: r.id,
+            title: r.title,
+            allKeys: Object.keys(r),
+            rawData: r,
+          });
+        }
+
+        return {
+          id: r.id,
+          contentType: r.contentType || r.content_type || "book", // fallback: book
+          title: r.title,
+          subject_category: r.subject_category,
+          subject: r.subject,
+          semester: r.semester,
+          revision: r.revision,
+          publisher: r.publisher,
+          platform: r.platform,
+          difficulty_level: r.difficulty_level,
+          reason: r.reason,
+          priority: r.priority,
+          scoreDetails: r.scoreDetails,
+        };
+      });
+
+      // 변환 후 확인
+      console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations, 변환 후):", {
+        count: recommendations.length,
+        items: recommendations.map((r) => ({
+          id: r.id,
+          title: r.title,
+          contentType: r.contentType,
+          hasContentType: !!r.contentType,
         })),
       });
 
