@@ -1298,29 +1298,6 @@ export function PlanGroupWizard({
         </div>
       </div>
 
-      {/* 진행률 바 - 템플릿 모드와 캠프 모드에서는 제외 (다수가 단계를 나누어 진행하므로 오차 발생) */}
-      {!isTemplateMode && !isCampMode && (
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
-              진행률: {Math.round(progress)}%
-            </span>
-            <span className="text-sm text-gray-500">
-              {stepLabels[currentStep - 1]} ({currentStep}/7)
-            </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  progress === 100 ? "bg-green-600" : "bg-blue-600"
-                }`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 진행 단계 표시 */}
       <div>
