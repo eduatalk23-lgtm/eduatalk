@@ -96,6 +96,7 @@ export function Step4RecommendedContents({
     Map<string, { title: string; subject_category: string | null }>
   >(new Map());
   const fetchedRecommendedContentIdsRef = useRef<Set<string>>(new Set());
+  const previousRecommendedContentsRef = useRef<string>("");
 
   // 상세정보 관련 상태
   const [contentDetails, setContentDetails] = useState<
@@ -691,6 +692,15 @@ export function Step4RecommendedContents({
     const fetchExistingRecommendedContents = async () => {
       if (!isEditMode || data.recommended_contents.length === 0) return;
 
+      // 이전 값과 비교하여 실제로 변경된 경우에만 실행
+      const currentContentsKey = JSON.stringify(
+        data.recommended_contents.map((c) => c.content_id)
+      );
+      if (previousRecommendedContentsRef.current === currentContentsKey) {
+        return;
+      }
+      previousRecommendedContentsRef.current = currentContentsKey;
+
       const contentsMap = new Map<string, RecommendedContent>();
 
       for (const content of data.recommended_contents) {
@@ -808,7 +818,8 @@ export function Step4RecommendedContents({
     };
 
     fetchExistingRecommendedContents();
-  }, [isEditMode, data.recommended_contents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, data.recommended_contents.length]);
 
   // 추천 목록 자동 조회 (생성 모드일 때만)
   useEffect(() => {
@@ -1082,7 +1093,8 @@ export function Step4RecommendedContents({
     };
 
     fetchDetails();
-  }, [editingRangeIndex, data.recommended_contents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRangeIndex]);
 
   // 시작/끝 범위 선택 시 범위 자동 계산
   useEffect(() => {
@@ -1147,7 +1159,8 @@ export function Step4RecommendedContents({
     endDetailId,
     contentDetails,
     editingRangeIndex,
-    data.recommended_contents,
+    // data.recommended_contents 대신 editingRangeIndex가 변경될 때만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ]);
 
   const setStartRange = (index: number, detailId: string) => {
