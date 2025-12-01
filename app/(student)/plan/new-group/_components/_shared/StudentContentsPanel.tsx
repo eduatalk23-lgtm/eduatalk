@@ -64,6 +64,28 @@ export function StudentContentsPanel({
         return;
       }
 
+      // 마스터 콘텐츠 ID 기반 중복 체크 (book, lecture만)
+      if (type === "book" || type === "lecture") {
+        const content =
+          type === "book"
+            ? contents.books.find((b) => b.id === contentId)
+            : contents.lectures.find((l) => l.id === contentId);
+
+        if (content?.master_content_id) {
+          // 이미 선택된 콘텐츠 중 같은 master_content_id를 가진 것이 있는지 확인
+          const hasDuplicateMasterId = selectedContents.some(
+            (c) => (c as any).master_content_id === content.master_content_id
+          );
+
+          if (hasDuplicateMasterId) {
+            alert(
+              "같은 마스터 콘텐츠를 기반으로 한 콘텐츠가 이미 추가되어 있습니다."
+            );
+            return;
+          }
+        }
+      }
+
       // 커스텀 콘텐츠는 범위 설정 없이 바로 추가
       if (type === "custom") {
         const customContent = contents.custom.find((c) => c.id === contentId);
@@ -123,6 +145,7 @@ export function StudentContentsPanel({
       maxContents,
       editable,
       metadataCache,
+      selectedContents,
     ]
   );
 
