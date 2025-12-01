@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Calendar, Clock, AlertCircle, Loader2, ChevronDown, ChevronUp, XCircle } from "lucide-react";
+import { Calendar, Clock, AlertCircle, Loader2, ChevronDown, ChevronUp, XCircle, BookOpen, RotateCcw } from "lucide-react";
 import { WizardData } from "../PlanGroupWizard";
 import { calculateScheduleAvailability } from "@/app/(student)/actions/calculateScheduleAvailability";
 import { scheduleCache, type ScheduleCalculationParams } from "@/lib/utils/scheduleCache";
@@ -284,7 +284,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       </div>
 
       {/* 요약 통계 */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-gray-400" />
@@ -309,18 +309,26 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
           <p className="text-xs text-gray-500">일</p>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-green-400" />
-            <span className="text-xs font-medium text-gray-500">학습일 + 복습일</span>
+            <BookOpen className="h-5 w-5 text-blue-500" />
+            <span className="text-xs font-medium text-blue-700">학습일</span>
           </div>
-          <p className="mt-2 text-2xl font-bold text-gray-900">
-            {result.summary.total_study_days}일
-            {result.summary.total_review_days > 0 && (
-              <> + {result.summary.total_review_days}일(복습)</>
-            )}
+          <p className="mt-2 text-2xl font-bold text-blue-900">
+            {result.summary.total_study_days}
           </p>
-          <p className="text-xs text-gray-500">일</p>
+          <p className="text-xs text-blue-600">일</p>
+        </div>
+
+        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-green-500" />
+            <span className="text-xs font-medium text-green-700">복습일</span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-green-900">
+            {result.summary.total_review_days}
+          </p>
+          <p className="text-xs text-green-600">일</p>
         </div>
 
         <div className="rounded-lg border border-gray-200 bg-white p-4">
