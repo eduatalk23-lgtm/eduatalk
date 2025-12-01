@@ -156,15 +156,22 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                       return (
                         <div
                           key={idx}
-                          className={`group absolute left-0 right-0 mx-1 rounded ${colorClass} cursor-pointer opacity-80 transition-opacity hover:opacity-100`}
+                          className={`group absolute left-0 right-0 mx-1 rounded ${colorClass} cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
                           style={style}
                           title={`${block.start_time} ~ ${block.end_time}`}
                         >
-                          {/* 호버 시 시간 표시 */}
-                          <div className="invisible absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-[9px] text-white opacity-0 transition-all group-hover:visible group-hover:opacity-100">
-                            {block.start_time}
-                            <br />~<br />
-                            {block.end_time}
+                          {/* 시작 시간 - 상단 */}
+                          <div className="px-1 pt-0.5">
+                            <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                              {block.start_time}
+                            </div>
+                          </div>
+                          
+                          {/* 종료 시간 - 하단 */}
+                          <div className="px-1 pb-0.5">
+                            <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                              {block.end_time}
+                            </div>
                           </div>
                         </div>
                       );
