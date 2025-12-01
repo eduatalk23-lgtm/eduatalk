@@ -2,28 +2,20 @@
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
+import { getRecommendedMasterContents, RecommendedMasterContent } from "@/lib/recommendations/masterContentRecommendation";
 
 /**
  * 추천 마스터 콘텐츠 조회 액션
  * 
  * 학생 ID와 과목별 개수를 기반으로 추천 콘텐츠를 반환합니다.
+ * RecommendedMasterContent를 그대로 반환합니다 (contentType 포함).
  */
-
-type RecommendedContent = {
-  id: string;
-  title: string;
-  content_type: "book" | "lecture";
-  subject_category: string;
-  total_range: number;
-  description?: string;
-};
 
 export async function getRecommendedMasterContentsAction(
   studentId: string | undefined,
   subjects: string[],
   counts: Record<string, number>
-): Promise<{ success: boolean; data?: { recommendations: RecommendedContent[] }; error?: string }> {
+): Promise<{ success: boolean; data?: { recommendations: RecommendedMasterContent[] }; error?: string }> {
   try {
     // studentId가 없으면 현재 사용자 ID 사용
     let targetStudentId = studentId;
@@ -87,22 +79,20 @@ export async function getRecommendedMasterContentsAction(
 
     console.log("[getRecommendedMasterContentsAction] 성공:", {
       recommendationsCount: recommendations.length,
+      firstItem: recommendations[0] ? {
+        id: recommendations[0].id,
+        title: recommendations[0].title,
+        contentType: recommendations[0].contentType,
+        hasContentType: !!recommendations[0].contentType,
+      } : null,
     });
 
-    // RecommendedMasterContent를 RecommendedContent로 변환
-    const convertedRecommendations: RecommendedContent[] = recommendations.map((r) => ({
-      id: r.id,
-      title: r.title,
-      content_type: r.content_type,
-      subject_category: r.subject_category,
-      total_range: r.total_range,
-      description: r.description,
-    }));
-
+    // RecommendedMasterContent를 그대로 반환 (contentType 포함)
+    // Step3ContentSelection에서 RecommendedContent로 변환
     return {
       success: true,
       data: {
-        recommendations: convertedRecommendations,
+        recommendations: recommendations,
       },
     };
   } catch (error) {

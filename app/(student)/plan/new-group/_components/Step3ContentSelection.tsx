@@ -177,11 +177,66 @@ export function Step3ContentSelection({
         return;
       }
 
-      const recommendations = result.data.recommendations || [];
+      const rawRecommendations = result.data.recommendations || [];
+
+      // API 응답을 RecommendedContent로 변환 (contentType 보장)
+      const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
+        // contentType 결정: camelCase 우선, 없으면 snake_case, 없으면 추정
+        let contentType = r.contentType || r.content_type;
+        
+        if (!contentType) {
+          // publisher가 있으면 book, platform이 있으면 lecture로 추정
+          if (r.publisher) {
+            contentType = "book";
+          } else if (r.platform) {
+            contentType = "lecture";
+          } else {
+            // 기본값: book
+            contentType = "book";
+          }
+          
+          console.warn("[Step3ContentSelection] contentType이 없어 추정값 사용:", {
+            id: r.id,
+            title: r.title,
+            estimatedContentType: contentType,
+            publisher: r.publisher,
+            platform: r.platform,
+            allKeys: Object.keys(r),
+          });
+        }
+
+        // 타입 검증
+        if (contentType !== "book" && contentType !== "lecture") {
+          console.error("[Step3ContentSelection] 잘못된 contentType:", {
+            id: r.id,
+            title: r.title,
+            contentType,
+            rawData: r,
+          });
+          // 잘못된 타입은 기본값으로 변경
+          contentType = "book";
+        }
+
+        return {
+          id: r.id,
+          contentType: contentType as "book" | "lecture",
+          title: r.title,
+          subject_category: r.subject_category,
+          subject: r.subject,
+          semester: r.semester,
+          revision: r.revision,
+          publisher: r.publisher,
+          platform: r.platform,
+          difficulty_level: r.difficulty_level,
+          reason: r.reason || "",
+          priority: r.priority || 0,
+          scoreDetails: r.scoreDetails,
+        };
+      });
 
       // 성적 데이터 유무 확인
       const hasDetailedReasons = recommendations.some(
-        (r: any) =>
+        (r: RecommendedContent) =>
           r.reason?.includes("내신") ||
           r.reason?.includes("모의고사") ||
           r.reason?.includes("위험도") ||
@@ -206,7 +261,7 @@ export function Step3ContentSelection({
 
       // 추천 콘텐츠 매핑
       const recommendationsMap = new Map<string, RecommendedContent>();
-      recommendations.forEach((c: any) => {
+      recommendations.forEach((c: RecommendedContent) => {
         recommendationsMap.set(c.id, c);
       });
 
