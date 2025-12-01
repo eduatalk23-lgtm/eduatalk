@@ -109,34 +109,20 @@ export function RecommendedContentsPanel({
         return;
       }
 
-      // contentType이 없는 경우 처리 (fallback 추가)
-      let contentType = content.contentType;
-      if (!contentType) {
-        // content_type (snake_case) 확인
-        const content_type = (content as any).content_type;
-        if (content_type) {
-          contentType = content_type;
-        } else {
-          // publisher가 있으면 book, platform이 있으면 lecture로 추정
-          if ((content as any).publisher) {
-            contentType = "book";
-          } else if ((content as any).platform) {
-            contentType = "lecture";
-          } else {
-            // 기본값: book
-            contentType = "book";
-          }
-          
-          const errorMessage = `[RecommendedContentsPanel] contentType이 없습니다. contentId: ${content.id}, title: ${content.title}. 추정값 사용: ${contentType}`;
-          console.warn(errorMessage, { 
-            content,
-            allKeys: Object.keys(content),
-            contentType: content.contentType,
-            content_type: (content as any).content_type,
-            estimatedContentType: contentType,
-          });
-        }
+      // contentType 검증 (서버에서 보장되지만 방어 코드)
+      if (!content.contentType) {
+        const errorMessage = `[RecommendedContentsPanel] contentType이 없습니다. contentId: ${content.id}, title: ${content.title}`;
+        console.error(errorMessage, { 
+          content,
+          allKeys: Object.keys(content),
+          contentType: content.contentType,
+          content_type: (content as any).content_type,
+        });
+        alert("콘텐츠 타입 정보가 없습니다. 페이지를 새로고침해주세요.");
+        return;
       }
+
+      const contentType = content.contentType;
 
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
       if (contentType === "custom") {

@@ -109,10 +109,102 @@ if (contentType !== "book" && contentType !== "lecture") {
 2. **사용자 경험 개선**: 에러 대신 경고 로그로 처리하여 사용자에게 알림 표시 없이 동작
 3. **데이터 안정성**: 여러 단계에서 fallback 로직으로 데이터 무결성 보장
 
+## 근본 해결 방법 (2025-01-30 추가)
+
+### 문제점
+프런트엔드에서 fallback 로직을 사용하는 것은 임시 방편이었습니다. 근본적으로는 서버에서 `contentType`을 보장해야 합니다.
+
+### 해결 방법
+
+#### 1. 서버 사이드 정규화 (`lib/recommendations/masterContentRecommendation.ts`)
+
+`getRecommendedMasterContents` 함수에서 반환 전에 모든 항목에 `contentType`이 있는지 검증하고, 없으면 추가하는 정규화 로직을 추가했습니다.
+
+```typescript
+// contentType 보장: 모든 항목에 contentType이 있는지 확인하고 없으면 추가
+const normalizedRecommendations = finalRecommendations.map((r) => {
+  if (!r.contentType) {
+    // publisher가 있으면 book, platform이 있으면 lecture로 추정
+    const estimatedType = r.publisher ? "book" : r.platform ? "lecture" : "book";
+    console.warn("[recommendations/masterContent] contentType 누락, 추정값 사용:", {
+      id: r.id,
+      title: r.title,
+      estimatedType,
+      publisher: r.publisher,
+      platform: r.platform,
+    });
+    return {
+      ...r,
+      contentType: estimatedType as "book" | "lecture",
+    };
+  }
+  return r;
+});
+```
+
+#### 2. API 응답 직렬화 전 정규화 (`app/api/recommended-master-contents/route.ts`)
+
+API 응답 직렬화 전에 최종 정규화를 수행하여 `contentType`이 항상 포함되도록 보장합니다.
+
+```typescript
+// contentType 보장: API 응답 직렬화 전 최종 정규화
+const normalizedRecommendations = recommendations.map((r) => {
+  // contentType이 없으면 추정
+  if (!r.contentType) {
+    const estimatedType = r.publisher ? "book" : r.platform ? "lecture" : "book";
+    console.warn("[api/recommended-master-contents] contentType 누락, 추정값 사용:", {
+      id: r.id,
+      title: r.title,
+      estimatedType,
+      publisher: r.publisher,
+      platform: r.platform,
+    });
+    return {
+      ...r,
+      contentType: estimatedType as "book" | "lecture",
+    };
+  }
+  return r;
+});
+```
+
+#### 3. 프런트엔드 fallback 단순화
+
+서버에서 `contentType`을 보장하므로, 프런트엔드에서는 단순히 타입 검증만 수행합니다.
+
+**변경 전:**
+- 복잡한 fallback 로직 (publisher/platform 추정)
+- 경고 로그 및 추정값 사용
+
+**변경 후:**
+- 서버에서 보장되므로 단순 검증만 수행
+- 에러 발생 시 사용자에게 알림 표시
+
+### 수정된 파일
+
+1. `lib/recommendations/masterContentRecommendation.ts`
+   - `getRecommendedMasterContents` 함수에 반환 전 정규화 로직 추가
+
+2. `app/api/recommended-master-contents/route.ts`
+   - API 응답 직렬화 전 최종 정규화 로직 추가
+
+3. `app/(student)/plan/new-group/_components/_shared/RecommendedContentsPanel.tsx`
+   - fallback 로직 단순화 (서버에서 보장되므로 검증만 수행)
+
+4. `app/(student)/plan/new-group/_components/Step4RecommendedContents/hooks/useRecommendations.ts`
+   - fallback 로직 단순화 (서버에서 보장되므로 검증만 수행)
+
+### 효과
+
+1. **서버 사이드 보장**: 서버에서 `contentType`을 항상 포함하도록 보장
+2. **데이터 무결성**: 여러 단계에서 정규화를 수행하여 데이터 무결성 보장
+3. **코드 단순화**: 프런트엔드 fallback 로직 단순화로 유지보수성 향상
+4. **에러 방지**: 서버에서 보장하므로 프런트엔드에서 에러 발생 가능성 감소
+
 ## 추가 개선 사항
 
 향후 개선할 수 있는 사항:
-1. API 응답에서 항상 `contentType`을 포함하도록 보장
-2. 타입 정의를 더 엄격하게 하여 컴파일 타임에 에러 방지
-3. 데이터 변환 로직을 단일 함수로 추출하여 재사용성 향상
+1. 타입 정의를 더 엄격하게 하여 컴파일 타임에 에러 방지
+2. 데이터 변환 로직을 단일 함수로 추출하여 재사용성 향상
+3. Supabase 쿼리 단계에서 `contentType`을 별칭으로 추가 (현재는 테이블에 해당 컬럼이 없어 불가능)
 

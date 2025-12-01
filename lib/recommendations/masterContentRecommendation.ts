@@ -752,8 +752,28 @@ export async function getRecommendedMasterContents(
       }, {} as Record<string, number>),
     });
     
+    // contentType 보장: 모든 항목에 contentType이 있는지 확인하고 없으면 추가
+    const normalizedRecommendations = finalRecommendations.map((r) => {
+      if (!r.contentType) {
+        // publisher가 있으면 book, platform이 있으면 lecture로 추정
+        const estimatedType = r.publisher ? "book" : r.platform ? "lecture" : "book";
+        console.warn("[recommendations/masterContent] contentType 누락, 추정값 사용:", {
+          id: r.id,
+          title: r.title,
+          estimatedType,
+          publisher: r.publisher,
+          platform: r.platform,
+        });
+        return {
+          ...r,
+          contentType: estimatedType as "book" | "lecture",
+        };
+      }
+      return r;
+    });
+    
     // 우선순위 순으로 정렬
-    return finalRecommendations.sort((a, b) => a.priority - b.priority);
+    return normalizedRecommendations.sort((a, b) => a.priority - b.priority);
   } catch (error) {
     console.error("[recommendations/masterContent] 마스터 콘텐츠 추천 생성 실패", error);
     // 에러 발생 시에도 기본 추천 제공
@@ -772,7 +792,7 @@ export async function getRecommendedMasterContents(
 
         if (booksResult.data.length > 0) {
           const book = sortByRevision(booksResult.data)[0];
-          fallbackRecommendations.push({
+          const fallbackItem: RecommendedMasterContent = {
             id: book.id,
             contentType: "book",
             title: book.title,
@@ -780,11 +800,12 @@ export async function getRecommendedMasterContents(
             subject: book.subject,
             semester: book.semester,
             revision: book.revision,
-            publisher: book.publisher,
+            publisher: book.publisher_name || book.publisher || null,
             difficulty_level: book.difficulty_level,
             reason: `필수 과목 "${subject}" (기본 추천)`,
             priority: 100 + fallbackRecommendations.length,
-          });
+          };
+          fallbackRecommendations.push(fallbackItem);
         }
       }
       

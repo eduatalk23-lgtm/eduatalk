@@ -95,51 +95,27 @@ export async function GET(request: NextRequest) {
       subjectCounts.size > 0 ? subjectCounts : undefined
     );
 
-    // 서버 사이드에서 반환 전 로깅
-    console.log("[api/recommended-master-contents] 반환 전 recommendations 확인:", {
-      count: recommendations.length,
-      items: recommendations.map((r) => ({
-        id: r.id,
-        title: r.title,
-        contentType: r.contentType,
-        hasContentType: !!r.contentType,
-        contentTypeType: typeof r.contentType,
-        allKeys: Object.keys(r),
-      })),
+    // contentType 보장: API 응답 직렬화 전 최종 정규화
+    const normalizedRecommendations = recommendations.map((r) => {
+      // contentType이 없으면 추정
+      if (!r.contentType) {
+        const estimatedType = r.publisher ? "book" : r.platform ? "lecture" : "book";
+        console.warn("[api/recommended-master-contents] contentType 누락, 추정값 사용:", {
+          id: r.id,
+          title: r.title,
+          estimatedType,
+          publisher: r.publisher,
+          platform: r.platform,
+        });
+        return {
+          ...r,
+          contentType: estimatedType as "book" | "lecture",
+        };
+      }
+      return r;
     });
 
-    // 첫 번째 항목 전체 확인
-    if (recommendations.length > 0) {
-      const firstItem = recommendations[0];
-      console.log("[api/recommended-master-contents] 첫 번째 항목 상세:", {
-        id: firstItem.id,
-        title: firstItem.title,
-        contentType: firstItem.contentType,
-        fullObject: firstItem,
-        jsonStringified: JSON.stringify(firstItem),
-      });
-
-      // JSON 직렬화 테스트
-      const testSerialized = JSON.stringify(firstItem);
-      const testParsed = JSON.parse(testSerialized);
-      console.log("[api/recommended-master-contents] JSON 직렬화 테스트:", {
-        originalContentType: firstItem.contentType,
-        serialized: testSerialized.substring(0, 200) + "...",
-        parsedContentType: testParsed.contentType,
-        hasContentTypeAfterParse: !!testParsed.contentType,
-        parsedAllKeys: Object.keys(testParsed),
-      });
-    }
-
-    // apiSuccess로 감싸기 전 데이터 확인
-    const responseData = { recommendations };
-    console.log("[api/recommended-master-contents] apiSuccess 호출 전 데이터:", {
-      hasRecommendations: !!responseData.recommendations,
-      recommendationsCount: responseData.recommendations.length,
-      firstItemContentType: responseData.recommendations[0]?.contentType,
-    });
-
-    return apiSuccess({ recommendations });
+    return apiSuccess({ recommendations: normalizedRecommendations });
   } catch (error) {
     return handleApiError(error, "[api/recommended-master-contents]");
   }

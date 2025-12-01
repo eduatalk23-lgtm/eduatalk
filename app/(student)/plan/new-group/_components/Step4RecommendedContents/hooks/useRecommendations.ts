@@ -304,47 +304,32 @@ export function useRecommendations({
           })),
         });
 
-        // API 응답을 RecommendedContent로 변환 (contentType 보장)
+        // API 응답을 RecommendedContent로 변환 (서버에서 contentType 보장)
         const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
-          // contentType 결정 로직
-          let contentType = r.contentType || r.content_type;
-          
-          // contentType이 없으면 publisher/platform으로 추정
-          if (!contentType) {
-            if (r.publisher) {
-              contentType = "book";
-            } else if (r.platform) {
-              contentType = "lecture";
-            } else {
-              // 기본값: book
-              contentType = "book";
-            }
-            
-            console.warn("[useRecommendations] contentType이 없어 추정값 사용:", {
+          // contentType 검증 (서버에서 보장되지만 방어 코드)
+          if (!r.contentType) {
+            console.error("[useRecommendations] contentType이 없는 추천 콘텐츠:", {
               id: r.id,
               title: r.title,
-              estimatedContentType: contentType,
-              publisher: r.publisher,
-              platform: r.platform,
               allKeys: Object.keys(r),
+              rawData: r,
             });
+            // 서버에서 보장되어야 하므로 에러 로깅만 수행
           }
 
           // 타입 검증
-          if (contentType !== "book" && contentType !== "lecture") {
+          if (r.contentType && r.contentType !== "book" && r.contentType !== "lecture") {
             console.error("[useRecommendations] 잘못된 contentType:", {
               id: r.id,
               title: r.title,
-              contentType,
+              contentType: r.contentType,
               rawData: r,
             });
-            // 잘못된 타입은 기본값으로 변경
-            contentType = "book";
           }
 
           return {
             id: r.id,
-            contentType: contentType as "book" | "lecture",
+            contentType: (r.contentType || "book") as "book" | "lecture", // 서버에서 보장되지만 fallback
             title: r.title,
             subject_category: r.subject_category,
             subject: r.subject,
@@ -525,47 +510,32 @@ export function useRecommendations({
         })),
       });
 
-      // API 응답을 RecommendedContent로 변환 (contentType 보장)
+      // API 응답을 RecommendedContent로 변환 (서버에서 contentType 보장)
       const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
-        // contentType 결정 로직
-        let contentType = r.contentType || r.content_type;
-        
-        // contentType이 없으면 publisher/platform으로 추정
-        if (!contentType) {
-          if (r.publisher) {
-            contentType = "book";
-          } else if (r.platform) {
-            contentType = "lecture";
-          } else {
-            // 기본값: book
-            contentType = "book";
-          }
-          
-          console.warn("[useRecommendations] contentType이 없어 추정값 사용 (fetchRecommendations):", {
+        // contentType 검증 (서버에서 보장되지만 방어 코드)
+        if (!r.contentType) {
+          console.error("[useRecommendations] contentType이 없는 추천 콘텐츠 (fetchRecommendations):", {
             id: r.id,
             title: r.title,
-            estimatedContentType: contentType,
-            publisher: r.publisher,
-            platform: r.platform,
             allKeys: Object.keys(r),
+            rawData: r,
           });
+          // 서버에서 보장되어야 하므로 에러 로깅만 수행
         }
 
         // 타입 검증
-        if (contentType !== "book" && contentType !== "lecture") {
+        if (r.contentType && r.contentType !== "book" && r.contentType !== "lecture") {
           console.error("[useRecommendations] 잘못된 contentType (fetchRecommendations):", {
             id: r.id,
             title: r.title,
-            contentType,
+            contentType: r.contentType,
             rawData: r,
           });
-          // 잘못된 타입은 기본값으로 변경
-          contentType = "book";
         }
 
         return {
           id: r.id,
-          contentType: contentType as "book" | "lecture",
+          contentType: (r.contentType || "book") as "book" | "lecture", // 서버에서 보장되지만 fallback
           title: r.title,
           subject_category: r.subject_category,
           subject: r.subject,
