@@ -47,9 +47,14 @@ export function ExclusionImportModal({
 }: ExclusionImportModalProps) {
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
 
-  // 기존 제외일 날짜 Set
-  const existingDatesSet = useMemo(() => {
-    return new Set(existingExclusions.map((e) => e.exclusion_date));
+  // 제외일 고유 키 생성 함수 (날짜 + 유형)
+  const getExclusionKey = (exclusion: Exclusion): string => {
+    return `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
+  };
+
+  // 기존 제외일 키 Set (날짜+유형 조합)
+  const existingKeys = useMemo(() => {
+    return new Set(existingExclusions.map(getExclusionKey));
   }, [existingExclusions]);
 
   // 플랜 기간 내 제외일 필터링 및 정렬
@@ -68,12 +73,12 @@ export function ExclusionImportModal({
       .sort((a, b) => a.exclusion_date.localeCompare(b.exclusion_date));
   }, [availableExclusions, periodStart, periodEnd]);
 
-  // 새로 추가 가능한 제외일
+  // 새로 추가 가능한 제외일 (날짜+유형 조합으로 체크)
   const newExclusions = useMemo(() => {
     return filteredExclusions.filter(
-      (e) => !existingDatesSet.has(e.exclusion_date)
+      (e) => !existingKeys.has(getExclusionKey(e))
     );
-  }, [filteredExclusions, existingDatesSet]);
+  }, [filteredExclusions, existingKeys]);
 
   // 전체 선택/해제
   const handleSelectAll = () => {
@@ -183,12 +188,13 @@ export function ExclusionImportModal({
 
               {/* 제외일 항목 */}
               {filteredExclusions.map((exclusion) => {
-                const isExisting = existingDatesSet.has(exclusion.exclusion_date);
+                const exclusionKey = getExclusionKey(exclusion);
+                const isExisting = existingKeys.has(exclusionKey);
                 const isSelected = selectedDates.has(exclusion.exclusion_date);
 
                 return (
                   <div
-                    key={exclusion.exclusion_date}
+                    key={exclusionKey}
                     className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
                       isExisting
                         ? "border-gray-200 bg-gray-50 opacity-60"

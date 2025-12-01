@@ -917,14 +917,10 @@ export async function createPlanExclusions(
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
-  // 중복 체크: 같은 플랜 그룹 내에서만 중복 확인
-  // 제외일은 플랜 그룹별로 관리되며, 플랜 그룹 간 중복을 허용함
-  // 현재 플랜 그룹 내에서만 중복 체크 (같은 제외일을 여러 플랜 그룹에서 사용 가능)
-  
-  // 현재 플랜 그룹의 기존 제외일 조회
+  // 중복 체크: 현재 플랜 그룹 내 제외일 조회 (날짜+유형 조합)
   const currentExclusionsQuery = supabase
     .from("plan_exclusions")
-    .select("exclusion_date")
+    .select("id, exclusion_date, exclusion_type")
     .eq("student_id", group.student_id)
     .eq("plan_group_id", groupId);
   
@@ -936,51 +932,122 @@ export async function createPlanExclusions(
   
   if (exclusionsError) {
     console.error("[data/planGroups] 제외일 조회 실패 (중복 체크용)", exclusionsError);
-    // 조회 실패 시 중복 체크를 건너뛰고 계속 진행 (데이터베이스 레벨 제약조건에서 처리)
-  } else if (currentExclusions && currentExclusions.length > 0) {
-    // 현재 플랜 그룹 내에서만 중복 체크
-    const existingDates = new Set(currentExclusions.map((e) => e.exclusion_date));
+  }
 
-    // 중복된 날짜 필터링
-    const duplicates = exclusions.filter((e) => existingDates.has(e.exclusion_date));
-    if (duplicates.length > 0) {
-      // 업데이트 시 삭제 후 재추가 과정에서 자연스럽게 처리되므로
-      // 실제로는 이 에러가 발생하지 않아야 함
-      const duplicateDates = duplicates.map((e) => e.exclusion_date).join(", ");
-      return {
-        success: false,
-        error: `현재 플랜 그룹에 중복된 제외일이 있습니다: ${duplicateDates}`,
-      };
+  // 현재 플랜 그룹에 이미 있는 제외일 (날짜+유형 조합)
+  const existingKeys = new Set(
+    (currentExclusions || []).map(
+      (e) => `${e.exclusion_date}-${e.exclusion_type}`
+    )
+  );
+
+  // 시간 관리 영역의 제외일 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
+  const timeManagementExclusionsQuery = supabase
+    .from("plan_exclusions")
+    .select("id, exclusion_date, exclusion_type, reason")
+    .eq("student_id", group.student_id);
+  
+  if (tenantId) {
+    timeManagementExclusionsQuery.eq("tenant_id", tenantId);
+  }
+  
+  // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
+  timeManagementExclusionsQuery.or(`plan_group_id.is.null,plan_group_id.neq.${groupId}`);
+  
+  const { data: timeManagementExclusions } = await timeManagementExclusionsQuery;
+  
+  // 시간 관리 영역의 제외일을 키로 매핑
+  const timeManagementMap = new Map(
+    (timeManagementExclusions || []).map((e) => [
+      `${e.exclusion_date}-${e.exclusion_type}`,
+      e,
+    ])
+  );
+
+  // 업데이트할 항목과 새로 생성할 항목 분리
+  const toUpdate: Array<{ id: string; exclusion: typeof exclusions[0] }> = [];
+  const toInsert: typeof exclusions = [];
+
+  for (const exclusion of exclusions) {
+    const key = `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
+    
+    // 현재 플랜 그룹에 이미 있으면 스킵
+    if (existingKeys.has(key)) {
+      console.log(`[createPlanExclusions] 이미 존재하는 제외일 스킵: ${key}`);
+      continue;
+    }
+    
+    // 시간 관리 영역에 있으면 업데이트
+    const timeManagementExclusion = timeManagementMap.get(key);
+    if (timeManagementExclusion) {
+      toUpdate.push({
+        id: timeManagementExclusion.id,
+        exclusion,
+      });
+    } else {
+      // 없으면 새로 생성
+      toInsert.push(exclusion);
     }
   }
 
-  const payload = exclusions.map((exclusion) => ({
-    tenant_id: tenantId,
-    student_id: group.student_id,
-    plan_group_id: groupId,
-    exclusion_date: exclusion.exclusion_date,
-    exclusion_type: exclusion.exclusion_type,
-    reason: exclusion.reason || null,
-  }));
+  console.log(`[createPlanExclusions] 처리 요약: 업데이트 ${toUpdate.length}개, 생성 ${toInsert.length}개, 스킵 ${exclusions.length - toUpdate.length - toInsert.length}개`);
 
-  let { error } = await supabase.from("plan_exclusions").insert(payload);
+  // 시간 관리 영역의 제외일을 현재 플랜 그룹으로 업데이트
+  if (toUpdate.length > 0) {
+    for (const { id, exclusion } of toUpdate) {
+      const { error: updateError } = await supabase
+        .from("plan_exclusions")
+        .update({
+          plan_group_id: groupId,
+          reason: exclusion.reason || null,
+        })
+        .eq("id", id);
 
-  if (error && error.code === "42703") {
-    const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
-    ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
+      if (updateError) {
+        console.error(
+          `[createPlanExclusions] 제외일 업데이트 실패 (id: ${id}), 새로 생성으로 폴백`,
+          updateError
+        );
+        // 업데이트 실패 시 새로 생성 목록에 추가
+        toInsert.push(exclusion);
+      } else {
+        console.log(`[createPlanExclusions] 제외일 재활용 성공: ${exclusion.exclusion_date} (${exclusion.exclusion_type})`);
+      }
+    }
   }
 
-  // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
-  if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
-    return {
-      success: false,
-      error: "이미 등록된 제외일이 있습니다.",
-    };
-  }
+  // 새로 생성할 제외일
+  if (toInsert.length > 0) {
+    const payload = toInsert.map((exclusion) => ({
+      tenant_id: tenantId,
+      student_id: group.student_id,
+      plan_group_id: groupId,
+      exclusion_date: exclusion.exclusion_date,
+      exclusion_type: exclusion.exclusion_type,
+      reason: exclusion.reason || null,
+    }));
 
-  if (error) {
-    console.error("[data/planGroups] 플랜 그룹 제외일 생성 실패", error);
-    return { success: false, error: error.message };
+    let { error } = await supabase.from("plan_exclusions").insert(payload);
+
+    if (error && error.code === "42703") {
+      const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
+      ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
+    }
+
+    // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
+    if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+      return {
+        success: false,
+        error: "이미 등록된 제외일이 있습니다.",
+      };
+    }
+
+    if (error) {
+      console.error("[createPlanExclusions] 플랜 그룹 제외일 생성 실패", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`[createPlanExclusions] 제외일 생성 완료: ${toInsert.length}개`);
   }
 
   return { success: true };
@@ -1248,122 +1315,192 @@ export async function createPlanAcademySchedules(
     schedules: schedules,
   });
 
-  // 중복 체크: 현재 플랜 그룹 내에서만 중복 확인 (플랜 그룹 간 중복 허용)
+  const studentId = group.student_id;
+
+  // 중복 체크: 현재 플랜 그룹의 기존 학원 일정 조회
   const existingSchedules = await getAcademySchedules(groupId, tenantId);
   const existingKeys = new Set(
-    existingSchedules.map((s) => `${s.day_of_week}:${s.start_time}:${s.end_time}`)
+    existingSchedules.map((s) => 
+      `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`
+    )
   );
 
-  // 디버깅: 기존 학원 일정 확인
   console.log("[createPlanAcademySchedules] 기존 학원 일정 (현재 플랜 그룹):", {
     existingSchedulesCount: existingSchedules.length,
-    existingKeys: Array.from(existingKeys),
   });
 
-  const newSchedules = schedules.filter(
-    (s) => !existingKeys.has(`${s.day_of_week}:${s.start_time}:${s.end_time}`)
+  // 시간 관리 영역의 학원 일정 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
+  const timeManagementSchedulesQuery = supabase
+    .from("academy_schedules")
+    .select("id, day_of_week, start_time, end_time, academy_name, subject, academy_id")
+    .eq("student_id", studentId);
+  
+  if (tenantId) {
+    timeManagementSchedulesQuery.eq("tenant_id", tenantId);
+  }
+  
+  // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
+  timeManagementSchedulesQuery.or(`plan_group_id.is.null,plan_group_id.neq.${groupId}`);
+  
+  const { data: timeManagementSchedules } = await timeManagementSchedulesQuery;
+  
+  // 시간 관리 영역의 학원 일정을 키로 매핑
+  const timeManagementMap = new Map(
+    (timeManagementSchedules || []).map((s) => [
+      `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`,
+      s,
+    ])
   );
 
-  // 디버깅: 필터링된 새 학원 일정 확인
-  console.log("[createPlanAcademySchedules] 필터링된 새 학원 일정:", {
-    newSchedulesCount: newSchedules.length,
-    newSchedules: newSchedules,
-    skippedCount: schedules.length - newSchedules.length,
-  });
+  // 업데이트할 항목과 새로 생성할 항목 분리
+  const toUpdate: Array<{ id: string; schedule: typeof schedules[0] }> = [];
+  const toInsert: typeof schedules = [];
 
-  if (newSchedules.length === 0) {
-    console.log("[createPlanAcademySchedules] 모든 학원 일정이 이미 존재합니다.");
-    return { success: true }; // 모든 학원 일정이 이미 존재
+  for (const schedule of schedules) {
+    const key = `${schedule.day_of_week}:${schedule.start_time}:${schedule.end_time}:${schedule.academy_name || ""}:${schedule.subject || ""}`;
+    
+    // 현재 플랜 그룹에 이미 있으면 스킵
+    if (existingKeys.has(key)) {
+      console.log(`[createPlanAcademySchedules] 이미 존재하는 학원 일정 스킵: ${key}`);
+      continue;
+    }
+    
+    // 시간 관리 영역에 있으면 업데이트
+    const timeManagementSchedule = timeManagementMap.get(key);
+    if (timeManagementSchedule) {
+      toUpdate.push({
+        id: timeManagementSchedule.id,
+        schedule,
+      });
+    } else {
+      // 없으면 새로 생성
+      toInsert.push(schedule);
+    }
   }
 
-  // academy_name별로 academy를 찾거나 생성
-  const academyNameMap = new Map<string, string>(); // academy_name -> academy_id
+  console.log(`[createPlanAcademySchedules] 처리 요약: 업데이트 ${toUpdate.length}개, 생성 ${toInsert.length}개, 스킵 ${schedules.length - toUpdate.length - toInsert.length}개`);
 
-  for (const schedule of newSchedules) {
-    const academyName = schedule.academy_name || "학원";
-    
-    if (!academyNameMap.has(academyName)) {
-      // 기존 academy 찾기
-      const { data: existingAcademy } = await supabase
-        .from("academies")
-        .select("id")
-        .eq("student_id", group.student_id)
-        .eq("name", academyName)
-        .maybeSingle();
+  // academy_name별로 academy를 찾거나 생성하는 헬퍼 함수
+  const getOrCreateAcademy = async (academyName: string): Promise<string | null> => {
+    const { data: existingAcademy } = await supabase
+      .from("academies")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("name", academyName)
+      .maybeSingle();
 
-      let academyId: string;
+    if (existingAcademy) {
+      return existingAcademy.id;
+    }
+
+    // 새 academy 생성
+    const { data: newAcademy, error: academyError } = await supabase
+      .from("academies")
+      .insert({
+        student_id: studentId,
+        tenant_id: tenantId,
+        name: academyName,
+        travel_time: 60,
+      })
+      .select("id")
+      .single();
+
+    if (academyError || !newAcademy) {
+      console.error("[createPlanAcademySchedules] 학원 생성 실패", academyError);
+      return null;
+    }
+
+    return newAcademy.id;
+  };
+
+  // 시간 관리 영역의 학원 일정을 현재 플랜 그룹으로 업데이트
+  if (toUpdate.length > 0) {
+    for (const { id, schedule } of toUpdate) {
+      // academy_name으로 academy 찾기 또는 생성
+      const academyName = schedule.academy_name || "학원";
+      const academyId = await getOrCreateAcademy(academyName);
       
-      if (existingAcademy) {
-        academyId = existingAcademy.id;
-      } else {
-        // 새 academy 생성
-        const { data: newAcademy, error: academyError } = await supabase
-          .from("academies")
-          .insert({
-            student_id: group.student_id,
-            tenant_id: tenantId,
-            name: academyName,
-            travel_time: 60, // 기본값
-          })
-          .select("id")
-          .single();
-
-        if (academyError || !newAcademy) {
-          console.error("[createPlanAcademySchedules] 학원 생성 실패", {
-            error: academyError,
-            studentId: group.student_id,
-            tenantId,
-            academyName,
-            useAdminClient,
-          });
-          return { success: false, error: academyError?.message || "학원 생성에 실패했습니다." };
-        }
-
-        academyId = newAcademy.id;
+      if (!academyId) {
+        console.error(`[createPlanAcademySchedules] 학원 ID 확보 실패: ${academyName}, 새로 생성으로 폴백`);
+        toInsert.push(schedule);
+        continue;
       }
 
-      academyNameMap.set(academyName, academyId);
+      const { error: updateError } = await supabase
+        .from("academy_schedules")
+        .update({
+          plan_group_id: groupId,
+          academy_id: academyId,
+          academy_name: schedule.academy_name || null,
+          subject: schedule.subject || null,
+        })
+        .eq("id", id);
+
+      if (updateError) {
+        console.error(
+          `[createPlanAcademySchedules] 학원 일정 업데이트 실패 (id: ${id}), 새로 생성으로 폴백`,
+          updateError
+        );
+        toInsert.push(schedule);
+      } else {
+        console.log(`[createPlanAcademySchedules] 학원 일정 재활용 성공: ${schedule.day_of_week}요일 ${schedule.start_time}-${schedule.end_time}`);
+      }
     }
   }
 
-  // academy_id와 plan_group_id를 포함한 payload 생성
-  const payload = newSchedules.map((schedule) => {
-    const academyName = schedule.academy_name || "학원";
-    const academyId = academyNameMap.get(academyName);
-    
-    if (!academyId) {
-      throw new Error(`학원 ID를 찾을 수 없습니다: ${academyName}`);
+  // 새로 생성할 학원 일정
+  if (toInsert.length > 0) {
+    // academy_name별로 academy를 찾거나 생성
+    const academyNameMap = new Map<string, string>();
+
+    for (const schedule of toInsert) {
+      const academyName = schedule.academy_name || "학원";
+      
+      if (!academyNameMap.has(academyName)) {
+        const academyId = await getOrCreateAcademy(academyName);
+        if (!academyId) {
+          return { success: false, error: `학원 생성에 실패했습니다: ${academyName}` };
+        }
+        academyNameMap.set(academyName, academyId);
+      }
     }
 
-    return {
-      tenant_id: tenantId,
-      student_id: group.student_id,
-      plan_group_id: groupId, // 플랜 그룹별 관리
-      academy_id: academyId,
-      day_of_week: schedule.day_of_week,
-      start_time: schedule.start_time,
-      end_time: schedule.end_time,
-      academy_name: schedule.academy_name || null, // 하위 호환성
-      subject: schedule.subject || null,
-    };
-  });
+    // academy_id와 plan_group_id를 포함한 payload 생성
+    const payload = toInsert.map((schedule) => {
+      const academyName = schedule.academy_name || "학원";
+      const academyId = academyNameMap.get(academyName);
+      
+      if (!academyId) {
+        throw new Error(`학원 ID를 찾을 수 없습니다: ${academyName}`);
+      }
 
-  let { error } = await supabase.from("academy_schedules").insert(payload);
+      return {
+        tenant_id: tenantId,
+        student_id: studentId,
+        plan_group_id: groupId,
+        academy_id: academyId,
+        day_of_week: schedule.day_of_week,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        academy_name: schedule.academy_name || null,
+        subject: schedule.subject || null,
+      };
+    });
 
-  if (error && error.code === "42703") {
-    const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
-    ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
+    let { error } = await supabase.from("academy_schedules").insert(payload);
+
+    if (error && error.code === "42703") {
+      const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
+      ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
+    }
+
+    if (error) {
+      console.error("[createPlanAcademySchedules] 학원 일정 생성 실패", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`[createPlanAcademySchedules] 학원 일정 생성 완료: ${toInsert.length}개`);
   }
-
-  if (error) {
-    console.error("[createPlanAcademySchedules] 학원 일정 생성 실패", error);
-    return { success: false, error: error.message };
-  }
-
-  console.log("[createPlanAcademySchedules] 학원 일정 저장 완료:", {
-    savedCount: payload.length,
-    savedSchedules: payload,
-  });
 
   return { success: true };
 }

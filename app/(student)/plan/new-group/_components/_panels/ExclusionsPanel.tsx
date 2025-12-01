@@ -107,6 +107,14 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
     );
   };
 
+  // 제외일 고유 키 생성 함수 (날짜 + 유형)
+  const getExclusionKey = (exclusion: {
+    exclusion_date: string;
+    exclusion_type: string;
+  }): string => {
+    return `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
+  };
+
   // 불러올 수 있는 제외일 개수 조회
   const loadAvailableCount = async () => {
     try {
@@ -118,10 +126,10 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       );
       
       if (result.exclusions && result.exclusions.length > 0) {
-        // 기존 제외일과 중복되지 않는 항목만 카운트
-        const existingDates = new Set(data.exclusions.map((e) => e.exclusion_date));
+        // 기존 제외일과 중복되지 않는 항목만 카운트 (날짜+유형 조합)
+        const existingKeys = new Set(data.exclusions.map(getExclusionKey));
         const newCount = result.exclusions.filter(
-          (e) => !existingDates.has(e.exclusion_date)
+          (e) => !existingKeys.has(getExclusionKey(e))
         ).length;
         setAvailableCount(newCount);
       } else {
@@ -183,9 +191,11 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       datesToAdd = [...newExclusionDates];
     }
 
-    // 기존 제외일과 중복 체크
-    const existingDates = new Set(data.exclusions.map((e) => e.exclusion_date));
-    const duplicates = datesToAdd.filter((date) => existingDates.has(date));
+    // 기존 제외일과 중복 체크 (날짜+유형 조합)
+    const existingKeys = new Set(data.exclusions.map(getExclusionKey));
+    const duplicates = datesToAdd.filter((date) => 
+      existingKeys.has(getExclusionKey({ exclusion_date: date, exclusion_type: newExclusionType }))
+    );
 
     if (duplicates.length > 0) {
       toast.showError(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
