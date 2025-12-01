@@ -196,7 +196,7 @@ export type RangeSettingModalProps = {
   // 콘텐츠 정보
   content: {
     id: string;
-    type: ContentType;
+    type: "book" | "lecture"; // custom 타입은 범위 설정을 지원하지 않음
     title: string;
   };
   

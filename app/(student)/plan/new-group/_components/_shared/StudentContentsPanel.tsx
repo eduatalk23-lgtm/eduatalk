@@ -134,6 +134,12 @@ export function StudentContentsPanel({
     (content: SelectedContent) => {
       if (!editable) return;
 
+      // custom 타입은 범위 설정을 지원하지 않음
+      if (content.content_type === "custom") {
+        alert("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
+        return;
+      }
+
       const contentInfo =
         content.content_type === "book"
           ? contents.books.find((b) => b.id === content.content_id)

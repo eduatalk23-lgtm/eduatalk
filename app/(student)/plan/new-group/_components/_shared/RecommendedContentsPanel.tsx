@@ -133,6 +133,12 @@ export function RecommendedContentsPanel({
   // 범위 수정 모달 열기
   const handleEditRange = useCallback(
     (content: SelectedContent) => {
+      // custom 타입은 범위 설정을 지원하지 않음
+      if (content.content_type === "custom") {
+        alert("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
+        return;
+      }
+
       // allRecommendedContents에서 원본 정보 찾기
       const originalContent = allRecommendedContents.find(
         (c) => c.id === content.content_id
@@ -140,7 +146,7 @@ export function RecommendedContentsPanel({
 
       setRangeModalContent({
         id: content.content_id,
-        type: content.content_type,
+        type: content.content_type as "book" | "lecture",
         title: content.title || "제목 없음",
         recommendedContent: originalContent,
         currentRange: {

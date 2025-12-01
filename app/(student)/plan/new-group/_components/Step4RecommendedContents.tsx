@@ -339,11 +339,13 @@ export default function Step4RecommendedContents({
   const recommendedCount = data.recommended_contents.length;
   const totalCount = studentCount + recommendedCount;
   const canAddMore = totalCount < 9;
-  
+
   // 추천 요청 폼 표시 조건: 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
-  const shouldShowRecommendationForm = 
-    !hasRequestedRecommendations || 
-    (hasRequestedRecommendations && recommendedContents.length === 0 && !loading);
+  const shouldShowRecommendationForm =
+    !hasRequestedRecommendations ||
+    (hasRequestedRecommendations &&
+      recommendedContents.length === 0 &&
+      !loading);
 
   // ============================================================================
   // Render

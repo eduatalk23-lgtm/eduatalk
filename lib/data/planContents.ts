@@ -765,6 +765,23 @@ export async function classifyPlanContents(
     });
   }
 
+  // 최종 검증: custom 타입이 recommended에 포함되지 않았는지 확인
+  const invalidRecommended = recommendedContents.filter(
+    (c) => c.content_type === "custom"
+  );
+
+  if (invalidRecommended.length > 0) {
+    console.warn(
+      "[classifyPlanContents] custom 타입 콘텐츠가 추천 콘텐츠로 분류됨:",
+      invalidRecommended.map((c) => c.content_id)
+    );
+    // custom 타입을 studentContents로 이동
+    recommendedContents = recommendedContents.filter(
+      (c) => c.content_type !== "custom"
+    );
+    studentContents.push(...invalidRecommended);
+  }
+
   // 디버깅: 최종 결과 로그
   if (process.env.NODE_ENV === "development") {
     console.log("[classifyPlanContents] 최종 결과:", {
@@ -772,6 +789,7 @@ export async function classifyPlanContents(
       recommendedContentsCount: recommendedContents.length,
       missingContentsCount: missingContents.length,
       totalInputCount: contents.length,
+      invalidRecommendedMoved: invalidRecommended.length,
     });
   }
 
