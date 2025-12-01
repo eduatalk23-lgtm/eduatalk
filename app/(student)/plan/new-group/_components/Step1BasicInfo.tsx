@@ -1749,15 +1749,8 @@ export function Step1BasicInfo({
                     <li className="flex items-start gap-2">
                       <span className="mt-1">•</span>
                       <span>
-                        복습 범위를 <strong>부분 복습</strong> 또는{" "}
-                        <strong>전체 복습</strong>으로 선택할 수 있습니다.
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
-                      <span>
-                        학습일 수와 복습일 수를 조절하여 자신에게 맞는 학습
-                        패턴을 설정할 수 있습니다.
+                        학습일과 복습일의 비율을 조절하여 자신에게 맞는 학습
+                        패턴을 설정할 수 있습니다. (학습일 + 복습일 = 7일)
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
@@ -1789,114 +1782,164 @@ export function Step1BasicInfo({
               >
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700">
-                    학습일 수:{" "}
-                    {data.scheduler_options?.study_days ??
-                      data.study_review_cycle?.study_days ??
-                      6}
-                    일
+                    학습일 수
                   </label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="7"
-                    value={
-                      data.scheduler_options?.study_days ??
-                      data.study_review_cycle?.study_days ??
-                      6
-                    }
-                    onChange={(e) => {
-                      if (isCampMode && !canStudentInputStudyReviewCycle)
-                        return;
-                      const studyDays = Number(e.target.value);
-                      const reviewDays =
-                        data.scheduler_options?.review_days ??
-                        data.study_review_cycle?.review_days ??
-                        1;
-                      onUpdate({
-                        scheduler_options: {
-                          ...data.scheduler_options,
-                          study_days: studyDays,
-                        },
-                        study_review_cycle: {
-                          study_days: studyDays,
-                          review_days: reviewDays,
-                        },
-                      });
-                    }}
-                    disabled={isCampMode && !canStudentInputStudyReviewCycle}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700">
-                    복습일 수:{" "}
-                    {data.scheduler_options?.review_days ??
-                      data.study_review_cycle?.review_days ??
-                      1}
-                    일
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="3"
-                    value={
-                      data.scheduler_options?.review_days ??
-                      data.study_review_cycle?.review_days ??
-                      1
-                    }
-                    onChange={(e) => {
-                      if (isCampMode && !canStudentInputStudyReviewCycle)
-                        return;
-                      const reviewDays = Number(e.target.value);
-                      const studyDays =
-                        data.scheduler_options?.study_days ??
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCampMode && !canStudentInputStudyReviewCycle)
+                          return;
+                        const currentStudyDays =
+                          data.scheduler_options?.study_days ??
+                          data.study_review_cycle?.study_days ??
+                          6;
+                        const newStudyDays = Math.max(1, currentStudyDays - 1);
+                        const newReviewDays = 7 - newStudyDays;
+                        onUpdate({
+                          scheduler_options: {
+                            ...data.scheduler_options,
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                          study_review_cycle: {
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                        });
+                      }}
+                      disabled={
+                        (data.scheduler_options?.study_days ??
+                          data.study_review_cycle?.study_days ??
+                          6) <= 1 ||
+                        (isCampMode && !canStudentInputStudyReviewCycle)
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      −
+                    </button>
+                    <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900">
+                      {data.scheduler_options?.study_days ??
                         data.study_review_cycle?.study_days ??
-                        6;
-                      onUpdate({
-                        scheduler_options: {
-                          ...data.scheduler_options,
-                          review_days: reviewDays,
-                        },
-                        study_review_cycle: {
-                          study_days: studyDays,
-                          review_days: reviewDays,
-                        },
-                      });
-                    }}
-                    disabled={isCampMode && !canStudentInputStudyReviewCycle}
-                    className="w-full"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    복습일 수는 0일 이상이어야 합니다. 0일이면 복습일이
-                    없습니다.
-                  </p>
+                        6}
+                      일
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCampMode && !canStudentInputStudyReviewCycle)
+                          return;
+                        const currentStudyDays =
+                          data.scheduler_options?.study_days ??
+                          data.study_review_cycle?.study_days ??
+                          6;
+                        const newStudyDays = Math.min(6, currentStudyDays + 1);
+                        const newReviewDays = 7 - newStudyDays;
+                        onUpdate({
+                          scheduler_options: {
+                            ...data.scheduler_options,
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                          study_review_cycle: {
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                        });
+                      }}
+                      disabled={
+                        (data.scheduler_options?.study_days ??
+                          data.study_review_cycle?.study_days ??
+                          6) >= 6 ||
+                        (isCampMode && !canStudentInputStudyReviewCycle)
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700">
-                    복습 범위
+                    복습일 수
                   </label>
-                  <select
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
-                      isCampMode && !canStudentInputStudyReviewCycle
-                        ? "cursor-not-allowed bg-gray-100 opacity-60"
-                        : ""
-                    }`}
-                    value={data.scheduler_options?.review_scope ?? "partial"}
-                    onChange={(e) => {
-                      if (isCampMode && !canStudentInputStudyReviewCycle)
-                        return;
-                      onUpdate({
-                        scheduler_options: {
-                          ...data.scheduler_options,
-                          review_scope: e.target.value as "full" | "partial",
-                        },
-                      });
-                    }}
-                    disabled={isCampMode && !canStudentInputStudyReviewCycle}
-                  >
-                    <option value="partial">부분 복습</option>
-                    <option value="full">전체 복습</option>
-                  </select>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCampMode && !canStudentInputStudyReviewCycle)
+                          return;
+                        const currentReviewDays =
+                          data.scheduler_options?.review_days ??
+                          data.study_review_cycle?.review_days ??
+                          1;
+                        const newReviewDays = Math.max(1, currentReviewDays - 1);
+                        const newStudyDays = 7 - newReviewDays;
+                        onUpdate({
+                          scheduler_options: {
+                            ...data.scheduler_options,
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                          study_review_cycle: {
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                        });
+                      }}
+                      disabled={
+                        (data.scheduler_options?.review_days ??
+                          data.study_review_cycle?.review_days ??
+                          1) <= 1 ||
+                        (isCampMode && !canStudentInputStudyReviewCycle)
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      −
+                    </button>
+                    <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900">
+                      {data.scheduler_options?.review_days ??
+                        data.study_review_cycle?.review_days ??
+                        1}
+                      일
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCampMode && !canStudentInputStudyReviewCycle)
+                          return;
+                        const currentReviewDays =
+                          data.scheduler_options?.review_days ??
+                          data.study_review_cycle?.review_days ??
+                          1;
+                        const newReviewDays = Math.min(6, currentReviewDays + 1);
+                        const newStudyDays = 7 - newReviewDays;
+                        onUpdate({
+                          scheduler_options: {
+                            ...data.scheduler_options,
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                          study_review_cycle: {
+                            study_days: newStudyDays,
+                            review_days: newReviewDays,
+                          },
+                        });
+                      }}
+                      disabled={
+                        (data.scheduler_options?.review_days ??
+                          data.study_review_cycle?.review_days ??
+                          1) >= 6 ||
+                        (isCampMode && !canStudentInputStudyReviewCycle)
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    학습일 + 복습일 = 7일로 고정됩니다. 복습일은 최소 1일이어야 합니다.
+                  </p>
                 </div>
               </div>
             </div>
