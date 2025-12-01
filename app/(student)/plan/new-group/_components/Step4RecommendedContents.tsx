@@ -415,7 +415,7 @@ export default function Step4RecommendedContents({
           onRemove={removeContent}
           onStartDetailChange={setStartRange}
           onEndDetailChange={setEndRange}
-          onRangeChange={setEditingRange}
+          onRangeChange={(start, end) => setEditingRange({ start, end })}
         />
 
         {/* 추천 요청 폼 (추천을 받기 전 또는 추가 추천을 받을 때) */}
