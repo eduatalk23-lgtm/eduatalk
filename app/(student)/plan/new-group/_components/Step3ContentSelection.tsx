@@ -76,8 +76,13 @@ export function Step3ContentSelection({
   const currentTotal =
     data.student_contents.length + data.recommended_contents.length;
 
-  // 필수 과목 체크
+  // 필수 과목 체크 (캠프 모드에서만)
   const requiredSubjects = useMemo(() => {
+    // 일반 모드에서는 필수 과목 검증 사용 안 함
+    if (!isCampMode) {
+      return [];
+    }
+
     const allContents = [
       ...data.student_contents,
       ...data.recommended_contents,
@@ -93,26 +98,28 @@ export function Step3ContentSelection({
       { subject: "수학", selected: subjectSet.has("수학") },
       { subject: "영어", selected: subjectSet.has("영어") },
     ];
-  }, [data.student_contents, data.recommended_contents]);
+  }, [data.student_contents, data.recommended_contents, isCampMode]);
 
-  // 필수 과목 모두 선택 여부
+  // 필수 과목 모두 선택 여부 (캠프 모드에서만)
   const allRequiredSelected = useMemo(() => {
+    if (!isCampMode) return true; // 일반 모드에서는 항상 true
     return requiredSubjects.every((s) => s.selected);
-  }, [requiredSubjects]);
+  }, [requiredSubjects, isCampMode]);
 
   // 경고 메시지
   const warningMessage = useMemo(() => {
     if (currentTotal === 0) {
       return "최소 1개 이상의 콘텐츠를 선택해주세요.";
     }
-    if (!allRequiredSelected && currentTotal >= maxContents) {
+    // 캠프 모드에서만 필수 과목 검증
+    if (isCampMode && !allRequiredSelected && currentTotal >= maxContents) {
       const missing = requiredSubjects
         .filter((s) => !s.selected)
         .map((s) => s.subject);
       return `필수 과목 (${missing.join(", ")})을 선택해주세요.`;
     }
     return undefined;
-  }, [currentTotal, allRequiredSelected, requiredSubjects]);
+  }, [currentTotal, allRequiredSelected, requiredSubjects, isCampMode, maxContents]);
 
   // 학생 콘텐츠 업데이트
   const handleStudentContentsUpdate = useCallback(
