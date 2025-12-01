@@ -158,7 +158,9 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                       return (
                         <div
                           key={idx}
-                          className={`group absolute left-0 right-0 mx-1 rounded ${colorClass || "bg-blue-500"} cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
+                          className={`group absolute left-0 right-0 mx-1 rounded ${
+                            colorClass || "bg-blue-500"
+                          } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
                           style={style}
                           title={`${block.start_time} ~ ${block.end_time}`}
                         >
@@ -168,7 +170,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                               {block.start_time}
                             </div>
                           </div>
-                          
+
                           {/* 종료 시간 - 하단 */}
                           <div className="px-1 pb-0.5">
                             <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
@@ -191,7 +193,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
           {Array.from(new Set(blocks.map((b) => b.block_index)))
             .sort((a, b) => a - b)
             .map((index) => (
-              <div key={index} className="flex items-center gap-1">
+              <div key={`legend-${index}`} className="flex items-center gap-1">
                 <div
                   className={`h-3 w-3 rounded ${getBlockColor(index)}`}
                 ></div>
@@ -203,4 +205,3 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
     </div>
   );
 }
-
