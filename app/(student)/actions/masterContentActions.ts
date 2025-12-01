@@ -184,7 +184,10 @@ export async function updateMasterBookAction(
     source: formData.get("source")?.toString() || null,
     source_product_code: formData.get("source_product_code")?.toString() || null,
     source_url: formData.get("source_url")?.toString() || null,
-    cover_image_url: formData.get("cover_image_url")?.toString() || null,
+    cover_image_url: (() => {
+      const url = formData.get("cover_image_url")?.toString();
+      return url && url.trim() !== "" ? url.trim() : null;
+    })(),
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
     notes: formData.get("notes")?.toString() || null,
   };

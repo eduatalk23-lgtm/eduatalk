@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateMasterBookAction } from "@/app/(student)/actions/masterContentActions";
@@ -467,6 +468,37 @@ export function MasterBookEditForm({
           />
           <p className="mt-1 text-xs text-gray-500">
             쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다
+          </p>
+        </div>
+
+        {/* 표지 이미지 URL */}
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            표지 이미지 URL
+          </label>
+          <input
+            name="cover_image_url"
+            type="url"
+            defaultValue={book.cover_image_url || ""}
+            placeholder="https://example.com/image.jpg"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          {book.cover_image_url && (
+            <div className="mt-3">
+              <p className="mb-2 text-xs text-gray-500">현재 이미지 미리보기:</p>
+              <div className="relative h-48 w-32 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                <Image
+                  src={book.cover_image_url}
+                  alt={`${book.title} 표지`}
+                  fill
+                  className="object-cover"
+                  sizes="128px"
+                />
+              </div>
+            </div>
+          )}
+          <p className="mt-1 text-xs text-gray-500">
+            교재 표지 이미지의 URL을 입력하세요
           </p>
         </div>
 
