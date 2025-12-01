@@ -9,9 +9,10 @@ import {
 import {
   StudentContentsPanel,
   RecommendedContentsPanel,
+  MasterContentsPanel,
   ProgressIndicator,
 } from "./_shared";
-import { BookOpen, Sparkles } from "lucide-react";
+import { BookOpen, Sparkles, Package } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getRecommendedMasterContentsAction } from "@/app/(student)/actions/getRecommendedMasterContents";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
@@ -33,7 +34,7 @@ export function Step3ContentSelection({
   editable = true,
 }: Step3ContentSelectionProps) {
   // 탭 상태
-  const [activeTab, setActiveTab] = useState<"student" | "recommended">(
+  const [activeTab, setActiveTab] = useState<"student" | "recommended" | "master">(
     "student"
   );
 
@@ -597,6 +598,20 @@ export function Step3ContentSelection({
             {data.recommended_contents.length}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("master")}
+          className={cn(
+            "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+            activeTab === "master"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-600 hover:text-gray-900"
+          )}
+        >
+          <Package className="h-4 w-4" />
+          <span>마스터 콘텐츠</span>
+        </button>
       </div>
 
       {/* 탭 내용 */}
@@ -611,7 +626,7 @@ export function Step3ContentSelection({
             editable={editable}
             isCampMode={isCampMode}
           />
-        ) : (
+        ) : activeTab === "recommended" ? (
           <RecommendedContentsPanel
             recommendedContents={recommendedContents}
             allRecommendedContents={allRecommendedContents}
@@ -629,6 +644,15 @@ export function Step3ContentSelection({
             hasRequestedRecommendations={hasRequestedRecommendations}
             hasScoreData={hasScoreData}
             studentId={studentId}
+          />
+        ) : (
+          <MasterContentsPanel
+            selectedContents={data.student_contents}
+            maxContents={maxContents}
+            currentTotal={currentTotal}
+            onUpdate={handleStudentContentsUpdate}
+            editable={editable}
+            isCampMode={isCampMode}
           />
         )}
       </div>

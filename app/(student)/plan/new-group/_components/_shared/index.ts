@@ -10,6 +10,7 @@ export { ProgressIndicator } from "./ProgressIndicator";
 export { ContentSelector } from "./ContentSelector";
 export { StudentContentsPanel } from "./StudentContentsPanel";
 export { RecommendedContentsPanel } from "./RecommendedContentsPanel";
+export { MasterContentsPanel } from "./MasterContentsPanel";
 
 // Phase 5: 편집/읽기 모드 통합 컴포넌트
 export { EditableField } from "./EditableField";
