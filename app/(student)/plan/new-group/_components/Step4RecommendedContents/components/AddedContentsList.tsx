@@ -372,9 +372,27 @@ export default function AddedContentsList({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-xs text-gray-500">
-                        상세 정보가 없습니다. 범위를 직접 입력해주세요.
-                      </div>
+                      <>
+                        {(() => {
+                          // 상세정보가 없는 경우 로깅 (정상 케이스)
+                          const content = contents[editingRangeIndex!];
+                          const originalContent = allRecommendedContents.find(
+                            (c) => c.id === content.content_id
+                          );
+                          console.warn("[AddedContentsList] 상세정보 없음 (정상):", {
+                            type: "NO_DETAILS",
+                            contentType: content.content_type,
+                            contentId: content.content_id,
+                            title: originalContent?.title || "제목 없음",
+                            editingRangeIndex,
+                            reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+                          });
+                          return null;
+                        })()}
+                        <div className="text-xs text-gray-500">
+                          상세 정보가 없습니다. 범위를 직접 입력해주세요.
+                        </div>
+                      </>
                     )}
                   </div>
                 ) : (

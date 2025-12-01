@@ -159,6 +159,30 @@ export function RangeSettingModal({
             ? responseData.data.details || []
             : responseData.data.episodes || [];
         
+        // 상세정보가 없는 경우 로깅 (정상 케이스)
+        if (detailsData.length === 0) {
+          console.warn("[RangeSettingModal] 상세정보 없음 (정상):", {
+            type: "NO_DETAILS",
+            contentType: content.type,
+            contentId: content.id,
+            title: content.title,
+            isRecommendedContent,
+            reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+            apiPath: isRecommendedContent
+              ? "/api/master-content-details"
+              : "/api/student-content-details",
+          });
+        } else {
+          console.log("[RangeSettingModal] 상세정보 조회 성공:", {
+            type: "SUCCESS",
+            contentType: content.type,
+            contentId: content.id,
+            title: content.title,
+            detailsCount: detailsData.length,
+            isRecommendedContent,
+          });
+        }
+        
         setDetails(detailsData);
         
         // 캐시 저장
@@ -168,15 +192,19 @@ export function RangeSettingModal({
           ? err.message
           : "상세 정보를 불러오는 중 오류가 발생했습니다.";
         console.error(
-          "[RangeSettingModal] 상세 정보 조회 실패:",
+          "[RangeSettingModal] 상세 정보 조회 실패 (에러):",
           {
+            type: "API_ERROR",
             error: err,
+            errorMessage: err instanceof Error ? err.message : String(err),
             contentType: content.type,
             contentId: content.id,
+            title: content.title,
             isRecommendedContent,
             apiPath: isRecommendedContent
               ? "/api/master-content-details"
               : "/api/student-content-details",
+            reason: "API 호출 실패 또는 네트워크 에러",
           }
         );
         setError(errorMessage);

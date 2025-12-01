@@ -67,6 +67,25 @@ export function useRangeEditor({
               ? { details: result.details || [], type: "book" as const }
               : { details: result.episodes || [], type: "lecture" as const };
 
+          // 상세정보가 없는 경우 로깅 (정상 케이스)
+          if (detailData.details.length === 0) {
+            console.warn("[useRangeEditor] 상세정보 없음 (정상):", {
+              type: "NO_DETAILS",
+              contentType: content.content_type,
+              contentId: content.content_id,
+              title: content.title,
+              reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+            });
+          } else {
+            console.log("[useRangeEditor] 상세정보 조회 성공:", {
+              type: "SUCCESS",
+              contentType: content.content_type,
+              contentId: content.content_id,
+              title: content.title,
+              detailsCount: detailData.details.length,
+            });
+          }
+
           // 캐시 저장
           cachedDetailsRef.current.set(content.content_id, detailData);
           setContentDetails(new Map([[editingRangeIndex, detailData]]));
@@ -109,8 +128,15 @@ export function useRangeEditor({
           PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
         );
         console.error(
-          "[useRangeEditor] 상세정보 조회 실패:",
-          planGroupError
+          "[useRangeEditor] 상세정보 조회 실패 (에러):",
+          {
+            type: "API_ERROR",
+            error: planGroupError,
+            contentType: content.content_type,
+            contentId: content.content_id,
+            title: content.title,
+            reason: "API 호출 실패 또는 네트워크 에러",
+          }
         );
       } finally {
         setLoadingDetails((prev) => {

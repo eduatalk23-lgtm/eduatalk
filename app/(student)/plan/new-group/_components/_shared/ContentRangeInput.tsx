@@ -81,6 +81,14 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   }
 
   if (details.length === 0) {
+    // 상세정보가 없는 경우 로깅 (정상 케이스)
+    console.warn("[ContentRangeInput] 상세정보 없음 (정상):", {
+      type: "NO_DETAILS",
+      contentType: type,
+      detailsLength: details.length,
+      reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+    });
+
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
         <p className="text-sm text-gray-600">
