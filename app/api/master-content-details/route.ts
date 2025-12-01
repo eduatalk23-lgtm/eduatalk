@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
 
     if (contentType === "book") {
       try {
-        const { details } = await getMasterBookById(contentId);
+        const result = await getMasterBookById(contentId);
+        const { details } = result;
 
         if (includeMetadata) {
           const { data: bookData } = await supabase
@@ -61,13 +62,15 @@ export async function GET(request: NextRequest) {
           contentId,
           contentType,
           error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
         });
         // getMasterBookById에서 발생한 에러를 재던지기
         throw error;
       }
     } else if (contentType === "lecture") {
       try {
-        const { episodes } = await getMasterLectureById(contentId);
+        const result = await getMasterLectureById(contentId);
+        const { episodes } = result;
 
         if (includeMetadata) {
           const { data: lectureData } = await supabase
@@ -88,6 +91,7 @@ export async function GET(request: NextRequest) {
           contentId,
           contentType,
           error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
         });
         // getMasterLectureById에서 발생한 에러를 재던지기
         throw error;
@@ -96,6 +100,10 @@ export async function GET(request: NextRequest) {
       return apiBadRequest("지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요.");
     }
   } catch (error) {
+    console.error("[api/master-content-details] 예외 발생:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return handleApiError(error, "[api/master-content-details]");
   }
 }

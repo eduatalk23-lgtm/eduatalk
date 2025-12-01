@@ -99,7 +99,7 @@ export function RangeSettingModal({
 
         // 응답 본문 읽기 (에러 처리 전에)
         const responseText = await response.text();
-        let responseData: any = {};
+        let responseData: any = null;
         
         // 빈 응답 체크
         if (!responseText || responseText.trim() === "") {
@@ -110,20 +110,28 @@ export function RangeSettingModal({
             contentType: content.type,
             contentId: content.id,
           });
-          throw new Error("서버에서 빈 응답을 받았습니다.");
+          throw new Error(
+            response.status >= 500
+              ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+              : `서버에서 빈 응답을 받았습니다. (${response.status})`
+          );
         }
 
         try {
           responseData = JSON.parse(responseText);
         } catch (e) {
           console.error("[RangeSettingModal] 응답 파싱 실패:", {
-            responseText,
+            responseText: responseText.substring(0, 500),
             error: e,
             status: response.status,
             statusText: response.statusText,
             url,
           });
-          throw new Error("응답을 파싱할 수 없습니다.");
+          throw new Error(
+            response.status >= 500
+              ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+              : "응답을 파싱할 수 없습니다."
+          );
         }
 
         // HTTP 상태 코드 체크
@@ -131,7 +139,9 @@ export function RangeSettingModal({
           const errorMessage = 
             responseData?.error?.message || 
             responseData?.message ||
-            `서버 오류가 발생했습니다. (${response.status})`;
+            (response.status >= 500
+              ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+              : `서버 오류가 발생했습니다. (${response.status})`);
           
           console.error(
             `[RangeSettingModal] API 호출 실패: ${apiPath}`,
@@ -142,7 +152,7 @@ export function RangeSettingModal({
               contentId: content.id,
               isRecommendedContent,
               url,
-              responseData: responseData || {},
+              responseData: responseData || null,
               responseText: responseText.substring(0, 500), // 처음 500자만
             }
           );
