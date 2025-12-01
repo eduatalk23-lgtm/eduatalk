@@ -1419,7 +1419,7 @@ export function Step4RecommendedContents({
   return (
     <div className="space-y-6">
       {/* 필수 교과 설정 섹션 - 상단으로 이동 */}
-      <div className="rounded-lg border-2 border-blue-500 bg-blue-50 p-6 mb-6 shadow-lg">
+      <div className="rounded-lg border border-gray-200 bg-white p-6 mb-6">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
             필수 교과 설정
