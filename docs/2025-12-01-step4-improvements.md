@@ -194,20 +194,21 @@ Step4RecommendedContents/
    - 새 추천 목록은 기존 목록에 병합
    - 사용자 알림 추가
 
-### Phase 3: 마스터 콘텐츠 탭 (3-5일)
+### Phase 3: 마스터 콘텐츠 탭 (3-5일) ✅ API 완료, UI 보류
 4. ✅ **API 엔드포인트 구현**
-   - `/api/master-books` GET
-   - `/api/master-lectures` GET
-   - 검색/필터/페이지네이션
+   - `/api/master-books` GET ✅ 완료
+   - `/api/master-lectures` GET ✅ 완료
+   - 검색/필터/페이지네이션 지원
 
-5. ✅ **UI 컴포넌트 구현**
-   - 탭 구조
+5. ⏸️ **UI 컴포넌트 구현** (보류)
+   - 탭 구조 (복잡도로 인해 별도 작업 필요)
    - 검색/필터
    - 콘텐츠 목록
+   - **사유**: Step4RecommendedContents.tsx가 3,040줄로 매우 복잡하여 탭 UI 추가 시 구조적 리팩토링 필요
+   - **다음 단계**: 컴포넌트 분리 후 탭 UI 추가 권장
 
-6. ✅ **통합 및 테스트**
-   - 전체 플로우 테스트
-   - 에지 케이스 처리
+6. ⏸️ **통합 및 테스트** (보류)
+   - UI 구현 후 진행 예정
 
 ---
 
@@ -358,13 +359,52 @@ Step4RecommendedContents/
 **수정 파일**:
 - `app/(student)/plan/new-group/_components/Step4RecommendedContents.tsx`: 재추천 버튼 UI 및 로직
 
-### 테스트 결과
-- ✅ 모든 파일 린트 에러 없음
-- ✅ TypeScript 타입 체크 통과
+### Phase 3: 마스터 콘텐츠 API 완성 ✅
 
-### 다음 단계 (Phase 3)
-- 서비스 마스터 콘텐츠 탭 추가 (전체 교재/강의 검색 및 선택)
-- API 엔드포인트 구현 필요: `/api/master-books`, `/api/master-lectures`
+**기능**:
+- 서비스 전체 교재/강의를 검색할 수 있는 API 엔드포인트 구현
+- 검색, 필터링, 페이지네이션 지원
+
+**구현 세부사항**:
+- `/api/master-books`: 마스터 교재 검색
+  - 파라미터: search, subject_category, semester, revision, difficulty_level, page, limit
+  - 페이지네이션: 페이지 단위로 최대 100개까지 조회 가능
+- `/api/master-lectures`: 마스터 강의 검색
+  - 파라미터: search, subject_category, semester, revision, difficulty_level, platform, page, limit
+  - 페이지네이션: 페이지 단위로 최대 100개까지 조회 가능
+- 기존 `searchMasterBooks`, `searchMasterLectures` 함수 활용
+
+**추가된 파일**:
+- `app/api/master-books/route.ts`: 마스터 교재 검색 API (신규)
+- `app/api/master-lectures/route.ts`: 마스터 강의 검색 API (신규)
+
+### Phase 3 UI 구현 보류 사유
+
+**문제점**:
+- Step4RecommendedContents.tsx가 3,040줄로 매우 복잡
+- 탭 UI 추가 시 구조적 에러 발생 (JSX 중첩 문제)
+- 유지보수성을 위해 컴포넌트 분리 필요
+
+**권장 사항**:
+1. Step4RecommendedContents를 여러 컴포넌트로 분리
+2. 탭별 컴포넌트 생성:
+   - `RecommendedTab.tsx`: 현재 추천 콘텐츠 UI
+   - `MasterBooksTab.tsx`: 전체 교재 검색 UI
+   - `MasterLecturesTab.tsx`: 전체 강의 검색 UI
+3. 공통 컴포넌트 분리:
+   - `ContentCard.tsx`: 콘텐츠 카드
+   - `ContentFilters.tsx`: 검색 및 필터
+   - `ContentList.tsx`: 콘텐츠 목록
+
+### 테스트 결과
+- ✅ API 엔드포인트 린트 에러 없음
+- ✅ TypeScript 타입 체크 통과
+- ✅ 재추천 기능 동작 확인
+
+### 다음 단계 (별도 작업 권장)
+1. Step4RecommendedContents 컴포넌트 리팩토링 (분리)
+2. 탭 UI 구현
+3. 전체 교재/강의 검색 UI 구현
 
 ---
 
