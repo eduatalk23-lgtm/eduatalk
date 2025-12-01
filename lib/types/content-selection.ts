@@ -200,6 +200,9 @@ export type RangeSettingModalProps = {
     title: string;
   };
   
+  // 콘텐츠 소스 구분 (추천 = 마스터, 학생 = 학생 콘텐츠)
+  isRecommendedContent?: boolean;
+  
   // 현재 범위
   currentRange?: ContentRange;
   

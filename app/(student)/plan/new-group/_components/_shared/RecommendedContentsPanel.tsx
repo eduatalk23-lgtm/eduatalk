@@ -446,6 +446,7 @@ export function RecommendedContentsPanel({
             setRangeModalContent(null);
           }}
           content={rangeModalContent}
+          isRecommendedContent={true}
           currentRange={rangeModalContent.currentRange}
           onSave={handleRangeSave}
         />

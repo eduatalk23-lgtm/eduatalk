@@ -17,6 +17,7 @@ export function RangeSettingModal({
   open,
   onClose,
   content,
+  isRecommendedContent = false,
   currentRange,
   onSave,
   loading: externalLoading = false,
@@ -51,8 +52,13 @@ export function RangeSettingModal({
       setError(null);
 
       try {
+        // 추천 콘텐츠는 마스터 API, 학생 콘텐츠는 학생 API 호출
+        const apiPath = isRecommendedContent
+          ? "/api/master-content-details"
+          : "/api/student-content-details";
+
         const response = await fetch(
-          `/api/student-content-details?contentType=${content.type}&contentId=${content.id}`
+          `${apiPath}?contentType=${content.type}&contentId=${content.id}`
         );
 
         if (!response.ok) {
@@ -93,7 +99,7 @@ export function RangeSettingModal({
     };
 
     fetchDetails();
-  }, [open, content.id, content.type]);
+  }, [open, content.id, content.type, isRecommendedContent]);
 
   // 현재 범위로 초기화
   useEffect(() => {

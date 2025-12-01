@@ -284,6 +284,7 @@ export function StudentContentsPanel({
             setRangeModalContent(null);
           }}
           content={rangeModalContent}
+          isRecommendedContent={false}
           currentRange={rangeModalContent.currentRange}
           onSave={handleRangeSave}
         />
