@@ -3,7 +3,7 @@
  * 추천 콘텐츠 조회 및 관리
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { WizardData } from "../../PlanGroupWizard";
 import {
   PlanGroupError,
@@ -36,6 +36,22 @@ export function useRecommendations({
   const [hasRequestedRecommendations, setHasRequestedRecommendations] =
     useState(!isEditMode);
   const [hasScoreData, setHasScoreData] = useState(false);
+  
+  // 편집 모드에서 초기 데이터 로드 시 추천 콘텐츠가 있으면 hasRequestedRecommendations를 true로 설정
+  // 하지만 recommendedContents는 빈 배열로 유지 (추천 목록을 다시 조회해야 함)
+  const hasInitializedRef = useRef(false);
+  
+  useEffect(() => {
+    if (isEditMode && !hasInitializedRef.current) {
+      // 편집 모드에서 초기 로드 시 추천 콘텐츠가 있으면 추천을 받은 것으로 간주
+      if (data.recommended_contents.length > 0) {
+        setHasRequestedRecommendations(true);
+        // 추천 콘텐츠가 있지만 recommendedContents는 빈 배열이므로
+        // 사용자가 다시 추천을 요청하거나 추가 추천을 받을 수 있도록 함
+      }
+      hasInitializedRef.current = true;
+    }
+  }, [isEditMode, data.recommended_contents.length]);
 
   /**
    * 학생 콘텐츠의 master_content_id 수집

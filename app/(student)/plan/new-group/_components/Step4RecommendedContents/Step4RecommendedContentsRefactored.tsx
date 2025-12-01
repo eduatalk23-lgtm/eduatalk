@@ -6,29 +6,25 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { WizardData } from "./PlanGroupWizard";
-import { ProgressIndicator } from "./_shared/ProgressIndicator";
+import { WizardData } from "../PlanGroupWizard";
+import { ProgressIndicator } from "../_shared/ProgressIndicator";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
 
 // Hooks
-import { useRecommendations } from "./Step4RecommendedContents/hooks/useRecommendations";
-import { useContentSelection } from "./Step4RecommendedContents/hooks/useContentSelection";
-import { useRangeEditor } from "./Step4RecommendedContents/hooks/useRangeEditor";
-import { useRequiredSubjects } from "./Step4RecommendedContents/hooks/useRequiredSubjects";
+import { useRecommendations } from "./hooks/useRecommendations";
+import { useContentSelection } from "./hooks/useContentSelection";
+import { useRangeEditor } from "./hooks/useRangeEditor";
+import { useRequiredSubjects } from "./hooks/useRequiredSubjects";
 
 // Components
-import RecommendationRequestForm from "./Step4RecommendedContents/components/RecommendationRequestForm";
-import RecommendedContentsList from "./Step4RecommendedContents/components/RecommendedContentsList";
-import AddedContentsList from "./Step4RecommendedContents/components/AddedContentsList";
-import RequiredSubjectsSection from "./Step4RecommendedContents/components/RequiredSubjectsSection";
+import RecommendationRequestForm from "./components/RecommendationRequestForm";
+import RecommendedContentsList from "./components/RecommendedContentsList";
+import AddedContentsList from "./components/AddedContentsList";
+import RequiredSubjectsSection from "./components/RequiredSubjectsSection";
 
 // Types & Constants
-import { Step4RecommendedContentsProps } from "./Step4RecommendedContents/types";
-import {
-  AVAILABLE_SUBJECTS,
-  ERROR_MESSAGES,
-  CONFIRM_MESSAGES,
-} from "./Step4RecommendedContents/constants";
+import { Step4RecommendedContentsProps } from "./types";
+import { AVAILABLE_SUBJECTS, ERROR_MESSAGES, CONFIRM_MESSAGES } from "./constants";
 
 export default function Step4RecommendedContents({
   data,
@@ -205,7 +201,7 @@ export default function Step4RecommendedContents({
 
       const currentConstraints = data.subject_constraints;
       const newRequirements = currentConstraints.required_subjects!.filter(
-        (_: any, i: number) => i !== index
+        (_, i) => i !== index
       );
 
       onUpdate({
@@ -339,11 +335,6 @@ export default function Step4RecommendedContents({
   const recommendedCount = data.recommended_contents.length;
   const totalCount = studentCount + recommendedCount;
   const canAddMore = totalCount < 9;
-  
-  // 추천 요청 폼 표시 조건: 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
-  const shouldShowRecommendationForm = 
-    !hasRequestedRecommendations || 
-    (hasRequestedRecommendations && recommendedContents.length === 0 && !loading);
 
   // ============================================================================
   // Render
@@ -353,7 +344,7 @@ export default function Step4RecommendedContents({
       {/* 필수 교과 설정 섹션 */}
       <RequiredSubjectsSection
         data={data}
-        availableSubjects={Array.from(AVAILABLE_SUBJECTS)}
+        availableSubjects={AVAILABLE_SUBJECTS}
         detailSubjects={detailSubjects}
         loadingDetailSubjects={loadingDetailSubjects}
         onUpdate={onUpdate}
@@ -386,7 +377,7 @@ export default function Step4RecommendedContents({
               missingRequiredSubjects.length > 0
                 ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects
                     .map(
-                      (m: any) =>
+                      (m) =>
                         `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`
                     )
                     .join(", ")}`
@@ -414,8 +405,7 @@ export default function Step4RecommendedContents({
         />
 
         {/* 추천 요청 폼 (추천을 받기 전 또는 추가 추천을 받을 때) */}
-        {/* 편집 모드에서 저장 후 다시 로드할 때 recommendedContents가 비어있으면 추천 요청 폼을 다시 표시 */}
-        {shouldShowRecommendationForm && (
+        {!hasRequestedRecommendations && (
           <RecommendationRequestForm
             selectedSubjects={selectedSubjects}
             recommendationCounts={recommendationCounts}
@@ -437,11 +427,10 @@ export default function Step4RecommendedContents({
           </div>
         )}
 
-        {/* 추천 결과가 없을 때 (추천 요청 폼이 표시되지 않을 때만) */}
+        {/* 추천 결과가 없을 때 */}
         {hasRequestedRecommendations &&
           !loading &&
-          recommendedContents.length === 0 &&
-          !shouldShowRecommendationForm && (
+          recommendedContents.length === 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
               <p className="text-sm font-medium text-amber-800">
                 추천할 콘텐츠가 없습니다.
@@ -476,3 +465,4 @@ export default function Step4RecommendedContents({
     </div>
   );
 }
+
