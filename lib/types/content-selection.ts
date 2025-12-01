@@ -351,10 +351,6 @@ export type Step3ContentSelectionProps = {
   isCampMode?: boolean;
   studentId?: string;
   
-  // Draft 저장
-  onSaveDraft?: () => Promise<void> | void;
-  isSavingDraft?: boolean;
-  
   // 상태
   editable?: boolean;
 };

@@ -1223,8 +1223,6 @@ export function PlanGroupWizard({
             data={wizardData}
             onUpdate={updateWizardData}
             contents={initialContents}
-            onSaveDraft={handleSaveDraft}
-            isSavingDraft={isPending}
             isCampMode={isCampMode}
             isEditMode={isEditMode}
             studentId={(initialData as any)?.student_id}

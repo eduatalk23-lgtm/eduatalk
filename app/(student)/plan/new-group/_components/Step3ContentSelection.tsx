@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Step3ContentSelectionProps,
   RecommendationSettings,
@@ -30,8 +30,6 @@ export function Step3ContentSelection({
   isEditMode = false,
   isCampMode = false,
   studentId,
-  onSaveDraft,
-  isSavingDraft = false,
   editable = true,
 }: Step3ContentSelectionProps) {
   // 탭 상태
@@ -387,30 +385,6 @@ export function Step3ContentSelection({
     }
   }, [isEditMode, data.recommended_contents]);
 
-  // Draft 자동 저장 (데이터 변경 시)
-  // onSaveDraft를 useRef로 저장하여 무한 루프 방지
-  const onSaveDraftRef = useRef(onSaveDraft);
-  useEffect(() => {
-    onSaveDraftRef.current = onSaveDraft;
-  }, [onSaveDraft]);
-
-  useEffect(() => {
-    // onSaveDraft가 없거나 저장 중이면 스킵
-    if (!onSaveDraftRef.current || isSavingDraft) {
-      return;
-    }
-
-    // 데이터가 실제로 변경되었는지 확인
-    const timer = setTimeout(() => {
-      // 현재 저장 중이 아닐 때만 실행
-      if (!isSavingDraft && onSaveDraftRef.current) {
-        onSaveDraftRef.current();
-      }
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [data.student_contents, data.recommended_contents, isSavingDraft]);
-
   return (
     <div className="space-y-6">
       {/* 필수 교과 설정 섹션 - 캠프 모드에서만 표시 */}
@@ -603,13 +577,6 @@ export function Step3ContentSelection({
           />
         )}
       </div>
-
-      {/* Draft 저장 상태 */}
-      {isSavingDraft && (
-        <div className="fixed bottom-4 right-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-lg">
-          저장 중...
-        </div>
-      )}
     </div>
   );
 }
