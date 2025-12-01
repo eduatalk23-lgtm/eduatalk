@@ -109,6 +109,12 @@ export function RecommendedContentsPanel({
         return;
       }
 
+      // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
+      if (content.contentType === "custom") {
+        console.warn("[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다.");
+        return;
+      }
+
       // 범위 설정 모달 열기
       setRangeModalContent({
         id: content.id,

@@ -42,6 +42,13 @@ export function RangeSettingModal({
     if (!open) return;
 
     const fetchDetails = async () => {
+      // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
+      if (content.type === "custom") {
+        setError("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
+        setLoading(false);
+        return;
+      }
+
       // 캐시 확인
       if (cacheRef.current.has(content.id)) {
         setDetails(cacheRef.current.get(content.id)!);

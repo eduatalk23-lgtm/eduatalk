@@ -39,7 +39,33 @@ export type ContentType = "book" | "lecture" | "custom";
 - `SelectedContent`의 `content_type` 필드가 자동으로 `"book" | "lecture" | "custom"`로 확장됨
 - 타입 안전성 확보
 
-### 2. StudentContentsPanel 수정
+### 2. RecommendedContent 타입 제한
+
+**파일**: `lib/types/content-selection.ts`
+
+`RecommendedContent`의 `contentType`을 `"book" | "lecture"`로 제한:
+
+```typescript
+// 수정 전
+export type RecommendedContent = {
+  id: string;
+  contentType: ContentType; // "book" | "lecture" | "custom"
+  // ...
+};
+
+// 수정 후
+export type RecommendedContent = {
+  id: string;
+  contentType: "book" | "lecture"; // 추천 콘텐츠는 custom 타입이 될 수 없음
+  // ...
+};
+```
+
+**효과**:
+- 추천 콘텐츠에서 `custom` 타입이 올 수 없음을 타입 레벨에서 보장
+- 타입 안전성 확보
+
+### 3. StudentContentsPanel 수정
 
 **파일**: `app/(student)/plan/new-group/_components/_shared/StudentContentsPanel.tsx`
 
@@ -86,6 +112,58 @@ if (type === "custom") {
 - API 호출 없이 처리되어 에러 방지
 - 기본 범위 값(`start_range: 1, end_range: 1`)으로 설정
 
+### 4. RecommendedContentsPanel 방어 코드 추가
+
+**파일**: `app/(student)/plan/new-group/_components/_shared/RecommendedContentsPanel.tsx`
+
+`handleRecommendedSelect` 함수에 타입 체크 추가:
+
+```typescript
+const handleRecommendedSelect = useCallback(
+  (content: RecommendedContent) => {
+    // ... 기존 코드 ...
+
+    // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
+    if (content.contentType === "custom") {
+      console.warn("[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다.");
+      return;
+    }
+
+    // 범위 설정 모달 열기
+    // ...
+  },
+  [canAddMore, maxContents]
+);
+```
+
+**효과**:
+- 예상치 못한 `custom` 타입 추천 콘텐츠가 전달되는 경우 방어
+- 에러 발생 전 조기 차단
+
+### 5. RangeSettingModal 방어 코드 추가
+
+**파일**: `app/(student)/plan/new-group/_components/_shared/RangeSettingModal.tsx`
+
+`useEffect` 내부에 타입 체크 추가:
+
+```typescript
+const fetchDetails = async () => {
+  // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
+  if (content.type === "custom") {
+    setError("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");
+    setLoading(false);
+    return;
+  }
+
+  // ... 기존 API 호출 로직 ...
+};
+```
+
+**효과**:
+- `custom` 타입이 모달로 전달되는 경우 API 호출 전 차단
+- 사용자에게 명확한 에러 메시지 제공
+- 런타임 안전성 확보
+
 ## 테스트 결과
 
 ### 1. Custom 콘텐츠 선택
@@ -103,11 +181,13 @@ if (type === "custom") {
 ## 영향 범위
 
 ### 수정된 파일
-1. `lib/types/content-selection.ts` - 타입 정의 확장
+1. `lib/types/content-selection.ts` - 타입 정의 확장 및 `RecommendedContent` 타입 제한
 2. `app/(student)/plan/new-group/_components/_shared/StudentContentsPanel.tsx` - custom 타입 처리 로직 수정
+3. `app/(student)/plan/new-group/_components/_shared/RecommendedContentsPanel.tsx` - 방어 코드 추가
+4. `app/(student)/plan/new-group/_components/_shared/RangeSettingModal.tsx` - 방어 코드 추가
 
 ### 변경 라인 수
-- 총 약 15줄 수정
+- 총 약 30줄 수정/추가
 
 ### 호환성
 - ✅ 기존 기능에 영향 없음
@@ -122,5 +202,12 @@ if (type === "custom") {
 
 ## 결론
 
-`custom` 타입 콘텐츠 선택 시 범위 설정 모달이 열리지 않도록 수정하고, 타입 정의를 확장하여 타입 안전성을 확보했습니다. 이제 `custom` 타입 콘텐츠는 범위 설정 없이 바로 추가되며, API 호출 에러가 발생하지 않습니다.
+다층 방어 전략을 통해 `custom` 타입 콘텐츠의 범위 설정 에러를 완전히 해결했습니다:
+
+1. **타입 레벨**: `RecommendedContent`의 `contentType`을 `"book" | "lecture"`로 제한
+2. **선택 레벨**: `StudentContentsPanel`에서 `custom` 타입 선택 시 범위 설정 모달을 열지 않고 바로 추가
+3. **추천 레벨**: `RecommendedContentsPanel`에서 `custom` 타입 추천 콘텐츠 차단
+4. **모달 레벨**: `RangeSettingModal`에서 `custom` 타입이 전달되는 경우 API 호출 전 차단
+
+이제 `custom` 타입 콘텐츠는 범위 설정 없이 바로 추가되며, 모든 경로에서 API 호출 에러가 발생하지 않습니다.
 

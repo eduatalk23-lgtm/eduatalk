@@ -87,7 +87,7 @@ export type ContentRange = {
  */
 export type RecommendedContent = {
   id: string;
-  contentType: ContentType;
+  contentType: "book" | "lecture"; // 추천 콘텐츠는 custom 타입이 될 수 없음
   title: string;
   subject_category: string | null;
   subject: string | null;
