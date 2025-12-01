@@ -449,12 +449,7 @@ export function Step4RecommendedContents({
         setLoading(false);
       }
     },
-    [
-      data.student_contents,
-      data.recommended_contents,
-      onUpdate,
-      propStudentId,
-    ]
+    [data.student_contents, data.recommended_contents, onUpdate, propStudentId]
   );
 
   // 추천 목록 조회 함수 (기존 버전, 편집 모드가 아닐 때 사용)
@@ -574,7 +569,7 @@ export function Step4RecommendedContents({
           });
           return Array.from(merged.values());
         });
-        
+
         // allRecommendedContents 업데이트 후 중복 제거 재확인
         // 이미 추가된 콘텐츠는 제외
         const finalFilteredRecommendations = filteredRecommendations.filter(
@@ -601,11 +596,7 @@ export function Step4RecommendedContents({
     } finally {
       setLoading(false);
     }
-  }, [
-    data.student_contents,
-    data.recommended_contents,
-    propStudentId,
-  ]);
+  }, [data.student_contents, data.recommended_contents, propStudentId]);
 
   // 학생 콘텐츠의 과목 정보 조회 (추천 전 안내용)
   useEffect(() => {

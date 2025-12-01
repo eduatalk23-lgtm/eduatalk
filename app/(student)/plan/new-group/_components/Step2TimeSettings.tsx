@@ -46,14 +46,6 @@ export function Step2TimeSettings({
 }: Step2TimeSettingsProps) {
   return (
     <div className="flex flex-col gap-6">
-      {/* 헤더 */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">블록 및 제외일 설정</h2>
-        <p className="mt-2 text-gray-600">
-          학습 제외일과 학원 일정을 설정해주세요. 다음 단계에서 스케줄을 확인할 수 있습니다.
-        </p>
-      </div>
-
       {/* 설정 패널 */}
       <TimeSettingsPanel
         data={data}
