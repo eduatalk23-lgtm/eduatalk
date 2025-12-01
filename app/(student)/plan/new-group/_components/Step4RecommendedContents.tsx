@@ -151,12 +151,36 @@ export function Step4RecommendedContents({
         const response = await fetch(
           `/api/recommended-master-contents?${params.toString()}`
         );
-        if (response.ok) {
-          const result = await response.json();
-          // API 응답 구조: { success: true, data: { recommendations } }
-          const recommendations = result.data?.recommendations || [];
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("[Step4RecommendedContents] API 응답 실패:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText,
+          });
+          alert(
+            `추천 콘텐츠를 불러오는 데 실패했습니다. (${response.status} ${response.statusText})`
+          );
+          setLoading(false);
+          return;
+        }
+        
+        const result = await response.json();
+        
+        // API 응답 구조: { success: true, data: { recommendations } }
+        if (!result.success) {
+          console.error("[Step4RecommendedContents] API 에러:", result.error);
+          alert(
+            result.error?.message || "추천 콘텐츠를 불러오는 데 실패했습니다."
+          );
+          setLoading(false);
+          return;
+        }
+        
+        const recommendations = result.data?.recommendations || [];
 
-          console.log("[Step4RecommendedContents] 추천 결과:", {
+        console.log("[Step4RecommendedContents] 추천 결과:", {
             totalRecommendations: recommendations.length,
             requestedSubjects: subjects,
             requestedCounts: Object.fromEntries(counts),
@@ -227,9 +251,9 @@ export function Step4RecommendedContents({
           // 성적 데이터 존재 여부 확인
           const hasDetailedReasons = recommendations.some(
             (r: RecommendedContent) =>
-              r.reason.includes("내신") ||
-              r.reason.includes("모의고사") ||
-              r.reason.includes("위험도") ||
+              r.reason?.includes("내신") ||
+              r.reason?.includes("모의고사") ||
+              r.reason?.includes("위험도") ||
               r.scoreDetails
           );
           setHasScoreData(hasDetailedReasons);
@@ -434,7 +458,6 @@ export function Step4RecommendedContents({
               );
             }
           }
-        }
       } catch (error) {
         const planGroupError = toPlanGroupError(
           error,
