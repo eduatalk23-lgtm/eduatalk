@@ -242,13 +242,8 @@ export function Step4RecommendedContents({
 
           // allRecommendedContents에서도 이미 추가된 콘텐츠 ID 수집 (추가 안전장치)
           // 추천 콘텐츠를 추가한 직후 다시 조회할 때를 대비
-          const allRecommendedIds = new Set(
-            allRecommendedContents
-              .filter((c) =>
-                data.recommended_contents.some((rc) => rc.content_id === c.id)
-              )
-              .map((c) => c.id)
-          );
+          // 주의: allRecommendedContents를 dependency에서 제거하기 위해 함수형 업데이트 사용
+          const allRecommendedIds = new Set<string>();
 
           // 학생 콘텐츠의 master_content_id 수집 (WizardData에서 직접 가져오기 우선)
           const studentMasterIds = new Set<string>();
@@ -303,14 +298,13 @@ export function Step4RecommendedContents({
             return Array.from(merged.values());
           });
 
+          // 중복 제거 (같은 콘텐츠가 이미 선택된 경우)
+          // content_id와 master_content_id 모두 확인
+          // allRecommendedContents는 함수형 업데이트 내에서 확인
           const filteredRecommendations = recommendations.filter(
             (r: RecommendedContent) => {
               // content_id로 직접 비교
               if (existingIds.has(r.id)) {
-                return false;
-              }
-              // allRecommendedContents에서도 확인 (추가 안전장치)
-              if (allRecommendedIds.has(r.id)) {
                 return false;
               }
               // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
@@ -321,12 +315,23 @@ export function Step4RecommendedContents({
             }
           );
 
-          setRecommendedContents(filteredRecommendations);
+          // allRecommendedContents 업데이트 후 중복 제거 재확인
+          // 이미 추가된 콘텐츠는 제외
+          const finalFilteredRecommendations = filteredRecommendations.filter(
+            (r: RecommendedContent) => {
+              // data.recommended_contents에 이미 있는 콘텐츠는 제외
+              return !data.recommended_contents.some(
+                (rc) => rc.content_id === r.id
+              );
+            }
+          );
+
+          setRecommendedContents(finalFilteredRecommendations);
           setHasRequestedRecommendations(true);
 
           // 자동 배정 옵션이 활성화된 경우에만 자동으로 추가
           // 마스터 콘텐츠 상세 정보를 조회하여 범위 자동 설정
-          if (autoAssign && filteredRecommendations.length > 0) {
+          if (autoAssign && finalFilteredRecommendations.length > 0) {
             const contentsToAutoAdd: Array<{
               content_type: "book" | "lecture";
               content_id: string;
@@ -336,7 +341,7 @@ export function Step4RecommendedContents({
               subject_category?: string;
             }> = [];
 
-            for (const r of filteredRecommendations) {
+            for (const r of finalFilteredRecommendations) {
               try {
                 // 마스터 콘텐츠 상세 정보 조회
                 const response = await fetch(
@@ -447,8 +452,8 @@ export function Step4RecommendedContents({
     [
       data.student_contents,
       data.recommended_contents,
-      allRecommendedContents,
       onUpdate,
+      propStudentId,
     ]
   );
 
@@ -489,13 +494,8 @@ export function Step4RecommendedContents({
         // allRecommendedContents에서도 이미 추가된 콘텐츠 ID 수집 (추가 안전장치)
         // 추천 콘텐츠를 추가한 직후 다시 조회할 때를 대비
         // data.recommended_contents에 있는 콘텐츠는 allRecommendedContents에서도 제외
-        const allRecommendedIds = new Set(
-          allRecommendedContents
-            .filter((c) =>
-              data.recommended_contents.some((rc) => rc.content_id === c.id)
-            )
-            .map((c) => c.id)
-        );
+        // 주의: allRecommendedContents를 dependency에서 제거하기 위해 함수형 업데이트 사용
+        const allRecommendedIds = new Set<string>();
 
         // 학생 콘텐츠의 master_content_id 수집 (WizardData에서 직접 가져오기 우선)
         const studentMasterIds = new Set<string>();
@@ -545,28 +545,13 @@ export function Step4RecommendedContents({
           recommendationsMap.set(c.id, c);
         });
 
-        // 기존 allRecommendedContents와 병합 (이미 추가된 콘텐츠 정보 유지)
-        setAllRecommendedContents((prev) => {
-          const merged = new Map<string, RecommendedContent>();
-          // 기존 데이터 먼저 추가 (이미 추가된 콘텐츠 정보 보존)
-          prev.forEach((c) => merged.set(c.id, c));
-          // 새 추천 목록으로 업데이트 (같은 ID가 있으면 최신 정보로 덮어쓰기)
-          recommendationsMap.forEach((c, id) => {
-            merged.set(id, c);
-          });
-          return Array.from(merged.values());
-        });
-
         // 중복 제거 (같은 콘텐츠가 이미 선택된 경우)
         // content_id와 master_content_id 모두 확인
+        // allRecommendedContents는 함수형 업데이트 내에서 확인
         const filteredRecommendations = recommendations.filter(
           (r: RecommendedContent) => {
             // content_id로 직접 비교
             if (existingIds.has(r.id)) {
-              return false;
-            }
-            // allRecommendedContents에서도 확인 (추가 안전장치)
-            if (allRecommendedIds.has(r.id)) {
               return false;
             }
             // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
@@ -577,7 +562,31 @@ export function Step4RecommendedContents({
           }
         );
 
-        setRecommendedContents(filteredRecommendations);
+        // 기존 allRecommendedContents와 병합 (이미 추가된 콘텐츠 정보 유지)
+        // 함수형 업데이트를 사용하여 allRecommendedContents를 dependency에서 제거
+        setAllRecommendedContents((prev) => {
+          const merged = new Map<string, RecommendedContent>();
+          // 기존 데이터 먼저 추가 (이미 추가된 콘텐츠 정보 보존)
+          prev.forEach((c) => merged.set(c.id, c));
+          // 새 추천 목록으로 업데이트 (같은 ID가 있으면 최신 정보로 덮어쓰기)
+          recommendationsMap.forEach((c, id) => {
+            merged.set(id, c);
+          });
+          return Array.from(merged.values());
+        });
+        
+        // allRecommendedContents 업데이트 후 중복 제거 재확인
+        // 이미 추가된 콘텐츠는 제외
+        const finalFilteredRecommendations = filteredRecommendations.filter(
+          (r: RecommendedContent) => {
+            // data.recommended_contents에 이미 있는 콘텐츠는 제외
+            return !data.recommended_contents.some(
+              (rc) => rc.content_id === r.id
+            );
+          }
+        );
+
+        setRecommendedContents(finalFilteredRecommendations);
         setHasRequestedRecommendations(true);
       }
     } catch (error) {
@@ -595,7 +604,7 @@ export function Step4RecommendedContents({
   }, [
     data.student_contents,
     data.recommended_contents,
-    allRecommendedContents,
+    propStudentId,
   ]);
 
   // 학생 콘텐츠의 과목 정보 조회 (추천 전 안내용)
@@ -792,7 +801,8 @@ export function Step4RecommendedContents({
     if (!isEditMode) {
       fetchRecommendations();
     }
-  }, [isEditMode, fetchRecommendations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode]);
 
   // 전체 선택된 콘텐츠의 subject_category 집합 (학생 + 추천 + 현재 선택 중)
   const selectedSubjectCategories = new Set<string>();
