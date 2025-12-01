@@ -51,7 +51,7 @@ export function Step3ContentSelection({
   >(new Set());
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [hasRequestedRecommendations, setHasRequestedRecommendations] =
-    useState(!isEditMode);
+    useState(false); // 항상 false로 초기화 (일반 모드에서도 추천 기능 사용 가능)
   const [hasScoreData, setHasScoreData] = useState(false);
 
   // 추천 설정
@@ -358,6 +358,18 @@ export function Step3ContentSelection({
     },
     [data.subject_constraints, onUpdate]
   );
+
+  // 편집 모드에서 기존 추천 콘텐츠 정보 로드
+  useEffect(() => {
+    if (isEditMode && data.recommended_contents.length > 0) {
+      // 편집 모드에서 기존 추천 콘텐츠가 있으면 allRecommendedContents에 추가
+      // 실제 추천 콘텐츠 정보는 나중에 필요할 때 조회
+      const existingIds = new Set(
+        data.recommended_contents.map((c) => c.content_id)
+      );
+      setSelectedRecommendedIds(existingIds);
+    }
+  }, [isEditMode, data.recommended_contents]);
 
   // Draft 자동 저장 (데이터 변경 시)
   useEffect(() => {
