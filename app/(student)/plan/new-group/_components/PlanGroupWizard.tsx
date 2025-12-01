@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useTransition, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { debounce } from "@/lib/utils/performance";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -475,15 +474,6 @@ export function PlanGroupWizard({
   // }
   const [activationDialogOpen, setActivationDialogOpen] = useState(false);
   const [activeGroupNames, setActiveGroupNames] = useState<string[]>([]);
-  
-  // 자동 저장 상태
-  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const autoSaveSnapshotRef = useRef<string>("");
-  const isInitialMountRef = useRef(true);
-  const shouldTrackAutoSave =
-    isCampMode && !isTemplateMode && !isAdminMode && !isAdminContinueMode;
 
   const updateWizardData = (updates: Partial<WizardData>) => {
     setWizardData((prev) => ({ ...prev, ...updates }));
@@ -612,49 +602,12 @@ export function PlanGroupWizard({
     }
   };
 
-  const buildAutoSaveSnapshot = useCallback(() => {
-    if (!shouldTrackAutoSave) {
-      return "";
-    }
-
-    try {
-      return JSON.stringify({
-        name: wizardData.name,
-        plan_purpose: wizardData.plan_purpose,
-        scheduler_type: wizardData.scheduler_type,
-        period_start: wizardData.period_start,
-        period_end: wizardData.period_end,
-        block_set_id: wizardData.block_set_id,
-        exclusions: wizardData.exclusions,
-        academy_schedules: wizardData.academy_schedules,
-        student_contents: wizardData.student_contents,
-      });
-    } catch (error) {
-      console.warn("[PlanGroupWizard] 자동 저장 스냅샷 생성 실패", error);
-      return "";
-    }
-  }, [
-    shouldTrackAutoSave,
-    wizardData.name,
-    wizardData.plan_purpose,
-    wizardData.scheduler_type,
-    wizardData.period_start,
-    wizardData.period_end,
-    wizardData.block_set_id,
-    wizardData.exclusions,
-    wizardData.academy_schedules,
-    wizardData.student_contents,
-  ]);
-
   const handleSaveDraft = useCallback(
-    (silent = false, nextSnapshot?: string | null) => {
+    (silent = false) => {
       const executeSave = async () => {
         if (!wizardData.name || wizardData.name.trim() === "") {
           if (!silent) {
             setValidationErrors(["플랜 이름을 입력해주세요."]);
-          }
-          if (!silent && shouldTrackAutoSave) {
-            setAutoSaveStatus("idle");
           }
           return;
         }
@@ -708,9 +661,6 @@ export function PlanGroupWizard({
             !wizardData.period_start ||
             !wizardData.period_end)
         ) {
-          if (!silent) {
-            setAutoSaveStatus("idle");
-          }
           return;
         }
 
@@ -724,9 +674,6 @@ export function PlanGroupWizard({
             true
           );
         }
-
-        const snapshotValue =
-          nextSnapshot ?? (shouldTrackAutoSave ? buildAutoSaveSnapshot() : null);
 
         // 데이터 변환 (일관성 보장)
         const creationData = syncWizardDataToCreationData(wizardData);
@@ -763,20 +710,7 @@ export function PlanGroupWizard({
             );
           }
         }
-
-        if (snapshotValue) {
-          autoSaveSnapshotRef.current = snapshotValue;
-        }
-
-        if (!silent && shouldTrackAutoSave) {
-          setAutoSaveStatus("saved");
-          setLastSavedAt(new Date());
-        }
       };
-
-      if (!silent && shouldTrackAutoSave) {
-        setAutoSaveStatus("saving");
-      }
 
       return new Promise<void>((resolve, reject) => {
         startTransition(() => {
@@ -790,7 +724,6 @@ export function PlanGroupWizard({
               if (!silent) {
                 toast.showError(planGroupError.userMessage);
                 setValidationErrors([planGroupError.userMessage]);
-                setAutoSaveStatus("error");
               }
               if (!isRecoverableError(planGroupError)) {
                 console.error("[PlanGroupWizard] Draft 저장 실패:", planGroupError);
@@ -802,7 +735,6 @@ export function PlanGroupWizard({
     },
     [
       wizardData,
-      shouldTrackAutoSave,
       isTemplateMode,
       onTemplateSave,
       templateId,
@@ -814,73 +746,8 @@ export function PlanGroupWizard({
       campInvitationId,
       initialData?.templateId,
       draftGroupId,
-      buildAutoSaveSnapshot,
     ]
   );
-
-  useEffect(() => {
-    if (!shouldTrackAutoSave) {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-        autoSaveTimeoutRef.current = null;
-      }
-      if (autoSaveStatus !== "idle") {
-        setAutoSaveStatus("idle");
-      }
-      return;
-    }
-
-    const snapshot = buildAutoSaveSnapshot();
-    if (!snapshot) {
-      return;
-    }
-
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      autoSaveSnapshotRef.current = snapshot;
-      return;
-    }
-
-    if (snapshot === autoSaveSnapshotRef.current) {
-      return;
-    }
-
-    if (!wizardData.name || !wizardData.period_start || !wizardData.period_end) {
-      return;
-    }
-
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-
-    autoSaveTimeoutRef.current = setTimeout(() => {
-      setAutoSaveStatus("saving");
-      handleSaveDraft(true, snapshot)
-        .then(() => {
-          autoSaveSnapshotRef.current = snapshot;
-          setLastSavedAt(new Date());
-          setAutoSaveStatus("saved");
-        })
-        .catch(() => {
-          setAutoSaveStatus("error");
-        });
-    }, 2000);
-
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-        autoSaveTimeoutRef.current = null;
-      }
-    };
-  }, [
-    shouldTrackAutoSave,
-    buildAutoSaveSnapshot,
-    handleSaveDraft,
-    wizardData.name,
-    wizardData.period_start,
-    wizardData.period_end,
-    autoSaveStatus,
-  ]);
 
   const handleSubmit = (generatePlans: boolean = true) => {
     // Step 6 검증 (학습 분량 관련만)
@@ -1204,20 +1071,6 @@ export function PlanGroupWizard({
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
 
-  // 자동 저장 상태 텍스트
-  const getAutoSaveStatusText = () => {
-    switch (autoSaveStatus) {
-      case "saving":
-        return "저장 중...";
-      case "saved":
-        return lastSavedAt ? `저장됨 (${lastSavedAt.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })})` : "저장됨";
-      case "error":
-        return "저장 실패";
-      default:
-        return "";
-    }
-  };
-
   return (
     <div className="mx-auto w-full max-w-4xl">
       {/* 상단 액션 바 */}
@@ -1247,13 +1100,6 @@ export function PlanGroupWizard({
           )}
         </div>
         <div className="flex items-center gap-4">
-          {!isTemplateMode && autoSaveStatus !== "idle" && (
-            <div className="text-sm">
-              <span className={autoSaveStatus === "saving" ? "text-blue-600" : autoSaveStatus === "saved" ? "text-green-600" : "text-red-600"}>
-                {getAutoSaveStatusText()}
-              </span>
-            </div>
-          )}
           <button
             type="button"
             onClick={() => {
