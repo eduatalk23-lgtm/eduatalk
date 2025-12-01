@@ -270,6 +270,15 @@ export function useRecommendations({
 
         const result = await response.json();
 
+        // API 응답 전체 로깅
+        console.log("[useRecommendations] API 응답:", {
+          success: result.success,
+          hasData: !!result.data,
+          hasRecommendations: !!result.data?.recommendations,
+          recommendationsCount: result.data?.recommendations?.length || 0,
+          rawResponse: result,
+        });
+
         if (!result.success) {
           console.error("[useRecommendations] API 에러:", result.error);
           alert(
@@ -280,6 +289,20 @@ export function useRecommendations({
         }
 
         const recommendations = result.data?.recommendations || [];
+
+        // 각 추천 콘텐츠의 contentType 필드 확인
+        console.log("[useRecommendations] 추천 콘텐츠 상세:", {
+          count: recommendations.length,
+          items: recommendations.map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            contentType: r.contentType,
+            content_type: r.content_type,
+            hasContentType: !!r.contentType,
+            hasContent_type: !!r.content_type,
+            allKeys: Object.keys(r),
+          })),
+        });
 
         // 추천 콘텐츠가 없는 경우
         if (recommendations.length === 0) {
@@ -410,7 +433,31 @@ export function useRecommendations({
       }
 
       const result = await response.json();
+
+      // API 응답 전체 로깅
+      console.log("[useRecommendations] API 응답 (fetchRecommendations):", {
+        success: result.success,
+        hasData: !!result.data,
+        hasRecommendations: !!result.data?.recommendations,
+        recommendationsCount: result.data?.recommendations?.length || 0,
+        rawResponse: result,
+      });
+
       const recommendations = result.data?.recommendations || [];
+
+      // 각 추천 콘텐츠의 contentType 필드 확인
+      console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations):", {
+        count: recommendations.length,
+        items: recommendations.map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          contentType: r.contentType,
+          content_type: r.content_type,
+          hasContentType: !!r.contentType,
+          hasContent_type: !!r.content_type,
+          allKeys: Object.keys(r),
+        })),
+      });
 
       // 성적 데이터 존재 여부 확인
       const hasDetailedReasons = recommendations.some(
