@@ -1419,13 +1419,18 @@ export function Step4RecommendedContents({
   return (
     <div className="space-y-6">
       {/* 필수 교과 설정 섹션 - 상단으로 이동 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 mb-6">
+      <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-6 mb-6 shadow-md">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            필수 교과 설정
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다.
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-lg font-semibold text-gray-900">
+              필수 교과 설정
+            </h2>
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+              필수
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-gray-600">
+            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어, 수학, 영어)
           </p>
         </div>
 
