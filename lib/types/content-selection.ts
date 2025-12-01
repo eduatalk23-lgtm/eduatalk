@@ -9,7 +9,7 @@
 // 기본 타입
 // ============================================================================
 
-export type ContentType = "book" | "lecture";
+export type ContentType = "book" | "lecture" | "custom";
 
 export type ExclusionType = "휴가" | "개인사정" | "휴일지정" | "기타";
 

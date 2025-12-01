@@ -64,18 +64,22 @@ export function StudentContentsPanel({
         return;
       }
 
-      // 커스텀 콘텐츠는 메타데이터 없이 바로 추가
+      // 커스텀 콘텐츠는 범위 설정 없이 바로 추가
       if (type === "custom") {
         const customContent = contents.custom.find((c) => c.id === contentId);
         if (!customContent) return;
 
-        // 범위 설정 모달 열기
-        setRangeModalContent({
-          id: contentId,
-          type: "book", // 커스텀은 기본적으로 book 타입으로 처리
+        // custom 콘텐츠는 기본 범위 값으로 바로 추가
+        const newContent: SelectedContent = {
+          content_type: "custom",
+          content_id: contentId,
+          start_range: 1,
+          end_range: 1,
           title: customContent.title,
-        });
-        setRangeModalOpen(true);
+        };
+
+        const updated = [...selectedContents, newContent];
+        onUpdate(updated);
         return;
       }
 

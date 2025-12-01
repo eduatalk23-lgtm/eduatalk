@@ -515,7 +515,7 @@ export async function classifyPlanContents(
 
   // 6. 콘텐츠 분류 및 상세 정보 생성
   const studentContents: Array<ContentDetail> = [];
-  const recommendedContents: Array<ContentDetail> = [];
+  let recommendedContents: Array<ContentDetail> = [];
   const missingContents: Array<{
     content_type: string;
     content_id: string;
