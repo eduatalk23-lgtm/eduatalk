@@ -266,30 +266,6 @@ type PlanGroupWizardProps = {
   onTemplateSave?: (wizardData: WizardData) => Promise<void>; // 템플릿 저장 콜백
 };
 
-const stepLabels = [
-  "기본 정보",
-  "블록 및 제외일",
-  "스케줄 확인",
-  "콘텐츠 선택",
-  "추천 콘텐츠",
-  "최종 확인",
-  "스케줄 결과",
-];
-
-// 템플릿 모드용 라벨 (Step 4, 5, 6, 7 제외 - 1, 2, 3만)
-const templateStepLabels = [
-  "기본 정보",
-  "블록 및 제외일",
-  "스케줄 확인",
-];
-
-// 캠프 모드용 라벨 (Step 5, 6, 7 제외 - 1, 2, 3, 4만)
-const campStepLabels = [
-  "기본 정보",
-  "블록 및 제외일",
-  "스케줄 확인",
-  "콘텐츠 선택",
-];
 
 // Step별 가중치 (진행률 계산용)
 const stepWeights: Record<WizardStep, number> = {
@@ -1295,81 +1271,6 @@ export function PlanGroupWizard({
           >
             {isPending ? "저장 중..." : "저장"}
           </button>
-        </div>
-      </div>
-
-
-      {/* 진행 단계 표시 */}
-      <div>
-        <div className="flex items-center justify-between">
-          {(isTemplateMode ? templateStepLabels : (isCampMode && !isAdminContinueMode) ? campStepLabels : stepLabels).map((label, index) => {
-            // 템플릿 모드일 때 Step 4, 5, 6, 7을 건너뛰기 위해 step 번호 매핑
-            // 캠프 모드일 때 Step 5, 6, 7을 건너뛰기 위해 step 번호 매핑 (단, 관리자 남은 단계 진행 모드일 때는 포함)
-            let step: WizardStep;
-            if (isTemplateMode) {
-              // 템플릿 모드: 1, 2, 3만 (Step 4, 5, 6, 7 제외)
-              const templateSteps: WizardStep[] = [1, 2, 3];
-              step = templateSteps[index];
-            } else if (isCampMode && !isAdminContinueMode) {
-              // 캠프 모드: 1, 2, 3, 4만 (Step 5, 6, 7 제외)
-              const campSteps: WizardStep[] = [1, 2, 3, 4];
-              step = campSteps[index];
-            } else {
-              // 일반 모드 또는 관리자 남은 단계 진행 모드: 모든 Step 표시
-              step = (index + 1) as WizardStep;
-            }
-            const isActive = step === currentStep;
-            const isCompleted = step < currentStep;
-            
-            // 템플릿 모드일 때 Step 4, 5, 6, 7 숨기기
-            if (isTemplateMode && (step === 4 || step === 5 || step === 6 || step === 7)) return null;
-            // 캠프 모드일 때 Step 5, 6, 7 숨기기 (단, 관리자 남은 단계 진행 모드일 때는 보여야 함)
-            if (isCampMode && (step === 5 || step === 6 || step === 7) && !isAdminContinueMode) return null;
-
-            // 관리자 남은 단계 진행 모드일 때 1~4단계는 읽기 전용 표시
-            const isReadOnly = isAdminContinueMode && step >= 1 && step <= 4;
-            const isEditable = !isAdminContinueMode || step >= 5;
-
-            return (
-              <div key={step} className="flex flex-1 items-center gap-2">
-                <div className="flex flex-col items-center gap-2">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold ${
-                      isActive
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : isCompleted
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-300 bg-white text-gray-400"
-                    } ${isReadOnly ? "opacity-60" : ""} ${
-                      isEditable || isReadOnly ? "cursor-pointer" : "cursor-default"
-                    }`}
-                    onClick={() => {
-                      if (isEditable || isReadOnly) {
-                        setCurrentStep(step);
-                      }
-                    }}
-                  >
-                    {isCompleted ? "✓" : step}
-                  </div>
-                  <span
-                    className={`text-xs font-medium ${
-                      isActive ? "text-gray-900" : "text-gray-500"
-                    } ${isReadOnly ? "opacity-60" : ""}`}
-                  >
-                    {label}
-                    {isReadOnly && " (읽기 전용)"}
-                  </span>
-                </div>
-                {index < (isTemplateMode ? templateStepLabels : (isCampMode && !isAdminContinueMode) ? campStepLabels : stepLabels).length - 1 && (
-                  <div
-                    className={`h-0.5 flex-1 ${
-                      isCompleted ? "bg-gray-900" : "bg-gray-300"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          }).filter(Boolean)}
         </div>
       </div>
 
