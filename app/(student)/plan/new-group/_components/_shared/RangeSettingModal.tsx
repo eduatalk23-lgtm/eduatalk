@@ -66,26 +66,40 @@ export function RangeSettingModal({
           ? "/api/master-content-details"
           : "/api/student-content-details";
 
-        // URL 파라미터 안전하게 생성
-        const params = new URLSearchParams({
+      // content.type 검증
+      if (content.type !== "book" && content.type !== "lecture") {
+        const errorMessage = `[RangeSettingModal] 잘못된 content.type: ${content.type}. contentId: ${content.id}, title: ${content.title}`;
+        console.error(errorMessage, {
           contentType: content.type,
           contentId: content.id,
+          title: content.title,
+          expectedValues: ["book", "lecture"],
         });
-        const url = `${apiPath}?${params.toString()}`;
+        setError(`지원하지 않는 콘텐츠 타입입니다. (${content.type})`);
+        setLoading(false);
+        return;
+      }
 
-        // API 호출 전 로깅
-        console.log("[RangeSettingModal] API 호출 시작:", {
-          apiPath,
-          url,
-          contentType: content.type,
-          contentId: content.id,
-          isRecommendedContent,
-          content: {
-            id: content.id,
-            type: content.type,
-            title: content.title,
-          },
-        });
+      // URL 파라미터 안전하게 생성
+      const params = new URLSearchParams({
+        contentType: content.type,
+        contentId: content.id,
+      });
+      const url = `${apiPath}?${params.toString()}`;
+
+      // API 호출 전 로깅
+      console.log("[RangeSettingModal] API 호출 시작:", {
+        apiPath,
+        url,
+        contentType: content.type,
+        contentId: content.id,
+        isRecommendedContent,
+        content: {
+          id: content.id,
+          type: content.type,
+          title: content.title,
+        },
+      });
 
         const response = await fetch(url);
 

@@ -36,6 +36,19 @@ export async function GET(request: NextRequest) {
       return apiBadRequest("contentType과 contentId가 필요합니다.");
     }
 
+    // contentType 검증
+    if (contentType !== "book" && contentType !== "lecture") {
+      console.error("[api/master-content-details] 잘못된 contentType:", {
+        contentType,
+        contentId,
+        receivedValue: contentType,
+        expectedValues: ["book", "lecture"],
+      });
+      return apiBadRequest(
+        `지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요. (받은 값: ${contentType})`
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
 
     if (contentType === "book") {

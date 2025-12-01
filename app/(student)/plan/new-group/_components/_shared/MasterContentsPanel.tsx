@@ -140,9 +140,21 @@ export function MasterContentsPanel({
 
       // 범위 설정 모달 열기
       const contentType = masterContent.content_type;
+      
+      // content_type이 "book" 또는 "lecture"인지 확인
+      if (contentType !== "book" && contentType !== "lecture") {
+        console.error("[MasterContentsPanel] 잘못된 content_type:", {
+          id: masterContent.id,
+          title: masterContent.title,
+          content_type: contentType,
+        });
+        alert("지원하지 않는 콘텐츠 타입입니다.");
+        return;
+      }
+      
       setRangeModalContent({
         id: masterContent.id,
-        type: contentType,
+        type: contentType as "book" | "lecture",
         title: masterContent.title,
         masterContentId: masterContent.id,
       });
