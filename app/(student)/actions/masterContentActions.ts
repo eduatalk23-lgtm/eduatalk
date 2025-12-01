@@ -140,12 +140,27 @@ export async function updateMasterBookAction(
     throw new Error("로그인이 필요합니다.");
   }
 
+  // 헬퍼 함수: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
+  // 빈 문자열이면 null 반환 (명시적으로 삭제)
+  const getFormValue = (key: string): string | null | undefined => {
+    const value = formData.get(key);
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString();
+    return str.trim() === "" ? null : str.trim(); // 빈 문자열 → null로 설정 (삭제)
+  };
+
   const totalPagesStr = formData.get("total_pages")?.toString();
   
   // 배열 필드 처리
   const targetExamTypes = formData.getAll("target_exam_type").filter(Boolean) as string[];
-  const tagsStr = formData.get("tags")?.toString() || "";
-  const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
+  
+  // tags 처리: 폼에 필드가 있으면 처리하고, 없으면 undefined
+  const tagsValue = getFormValue("tags");
+  const tags = tagsValue === undefined 
+    ? undefined 
+    : tagsValue === null 
+    ? null 
+    : tagsValue.split(",").map((t: string) => t.trim()).filter(Boolean);
 
   // subject_id 처리 (빈 문자열 체크)
   const subjectIdRaw = formData.get("subject_id")?.toString();
@@ -154,42 +169,42 @@ export async function updateMasterBookAction(
   const updateData: Partial<
     Omit<MasterBook, "id" | "created_at" | "updated_at">
   > = {
-    curriculum_revision_id: formData.get("curriculum_revision_id")?.toString() || undefined,
+    // 필수 필드 또는 폼에 항상 있는 필드
+    title: formData.get("title")?.toString(),
+    
+    // 폼에 필드가 있을 때만 업데이트하는 필드들
+    curriculum_revision_id: getFormValue("curriculum_revision_id") || undefined,
     subject_id: subjectId || undefined,
-    subject_group_id: formData.get("subject_group_id")?.toString() || undefined,
-    subject_category: formData.get("subject_category")?.toString() || undefined,
-    subject: formData.get("subject")?.toString() || undefined,
+    subject_group_id: getFormValue("subject_group_id") || undefined,
+    subject_category: getFormValue("subject_category") || undefined,
+    subject: getFormValue("subject") || undefined,
     grade_min: formData.get("grade_min") ? parseInt(formData.get("grade_min")!.toString()) : undefined,
     grade_max: formData.get("grade_max") ? parseInt(formData.get("grade_max")!.toString()) : undefined,
-    school_type: formData.get("school_type")?.toString() || undefined,
-    revision: formData.get("revision")?.toString() || undefined,
-    content_category: formData.get("content_category")?.toString() || undefined,
-    semester: formData.get("semester")?.toString() || undefined,
-    title: formData.get("title")?.toString(),
-    subtitle: formData.get("subtitle")?.toString() || null,
-    series_name: formData.get("series_name")?.toString() || null,
-    author: formData.get("author")?.toString() || null,
-    publisher_id: formData.get("publisher_id")?.toString() || null,
-    publisher_name: formData.get("publisher_name")?.toString() || null,
-    isbn_10: formData.get("isbn_10")?.toString() || null,
-    isbn_13: formData.get("isbn_13")?.toString() || null,
-    edition: formData.get("edition")?.toString() || null,
-    published_date: formData.get("published_date")?.toString() || null,
-    total_pages: totalPagesStr ? parseInt(totalPagesStr) : null,
-    target_exam_type: targetExamTypes.length > 0 ? targetExamTypes : null,
-    description: formData.get("description")?.toString() || null,
-    toc: formData.get("toc")?.toString() || null,
-    publisher_review: formData.get("publisher_review")?.toString() || null,
+    school_type: getFormValue("school_type") || undefined,
+    revision: getFormValue("revision") || undefined,
+    content_category: getFormValue("content_category") || undefined,
+    semester: getFormValue("semester") || undefined,
+    subtitle: getFormValue("subtitle"),
+    series_name: getFormValue("series_name"),
+    author: getFormValue("author"),
+    publisher_id: getFormValue("publisher_id"),
+    publisher_name: getFormValue("publisher_name"),
+    isbn_10: getFormValue("isbn_10"),
+    isbn_13: getFormValue("isbn_13"),
+    edition: getFormValue("edition"),
+    published_date: getFormValue("published_date"),
+    total_pages: totalPagesStr ? parseInt(totalPagesStr) : undefined,
+    target_exam_type: targetExamTypes.length > 0 ? targetExamTypes : undefined,
+    description: getFormValue("description"),
+    toc: getFormValue("toc"),
+    publisher_review: getFormValue("publisher_review"),
     tags: tags,
-    source: formData.get("source")?.toString() || null,
-    source_product_code: formData.get("source_product_code")?.toString() || null,
-    source_url: formData.get("source_url")?.toString() || null,
-    cover_image_url: (() => {
-      const url = formData.get("cover_image_url")?.toString();
-      return url && url.trim() !== "" ? url.trim() : null;
-    })(),
-    difficulty_level: formData.get("difficulty_level")?.toString() || null,
-    notes: formData.get("notes")?.toString() || null,
+    source: getFormValue("source"),
+    source_product_code: getFormValue("source_product_code"),
+    source_url: getFormValue("source_url"),
+    cover_image_url: getFormValue("cover_image_url"),
+    difficulty_level: getFormValue("difficulty_level"),
+    notes: getFormValue("notes"),
   };
 
   await updateMasterBook(bookId, updateData);

@@ -84,9 +84,32 @@ cover_image_url: (() => {
 3. ✅ 이미지 URL을 삭제(빈 문자열)할 수 있는지 확인
 4. ✅ 이미지 미리보기가 올바르게 표시되는지 확인
 
+## 추가 수정 사항
+
+### 폼에 없는 필드가 데이터베이스에서 사라지는 문제 수정
+
+**문제**: 수정 폼에 표시되지 않은 필드들이 `|| null`로 처리되어 데이터베이스에서 값이 사라지는 문제가 발생했습니다.
+
+**원인**: `updateMasterBookAction`에서 폼에 필드가 없을 때도 `null`로 설정되어, `updateMasterBook` 함수에서 `undefined` 체크를 하지만 실제로는 `null`이 전달되어 데이터베이스에 `null`로 업데이트되었습니다.
+
+**해결 방법**:
+1. `getFormValue` 헬퍼 함수 추가:
+   - 폼에 필드가 없으면 → `undefined` 반환 (업데이트하지 않음)
+   - 폼에 필드가 있고 빈 문자열이면 → `null` 반환 (명시적으로 삭제)
+   - 폼에 필드가 있고 값이 있으면 → 값 반환
+
+2. 모든 선택적 필드에 `getFormValue` 적용:
+   - `subtitle`, `series_name`, `author`, `publisher_id`, `publisher_name`, `isbn_10`, `isbn_13`, `edition`, `published_date`, `description`, `toc`, `publisher_review`, `source`, `source_product_code`, `source_url`, `cover_image_url`, `difficulty_level`, `notes` 등
+
+3. `tags` 필드도 동일한 로직 적용:
+   - 폼에 필드가 없으면 → `undefined` (업데이트하지 않음)
+   - 폼에 필드가 있고 빈 문자열이면 → `null` (태그 삭제)
+   - 폼에 필드가 있고 값이 있으면 → 배열로 변환
+
 ## 참고 사항
 
 - 이미지 업로드 기능은 아직 구현되지 않았으며, URL 입력 방식만 지원합니다.
 - 향후 이미지 파일 업로드 기능을 추가할 수 있습니다.
 - 새 교재 등록 폼(`MasterBookForm.tsx`)에도 동일한 이미지 필드를 추가하는 것을 고려할 수 있습니다.
+- 폼에 표시되지 않은 필드는 데이터베이스에서 유지되며, 명시적으로 빈 값으로 설정한 경우에만 `null`로 업데이트됩니다.
 
