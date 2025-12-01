@@ -955,7 +955,7 @@ export function Step1BasicInfo({
           {planPurposes.map((purpose) => (
             <label
               key={purpose.value}
-              className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
                 !editable || !canStudentInputPlanPurpose
                   ? "cursor-not-allowed bg-gray-100"
                   : "cursor-pointer hover:border-gray-300"
