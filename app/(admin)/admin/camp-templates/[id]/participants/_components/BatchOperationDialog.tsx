@@ -49,7 +49,7 @@ export function BatchOperationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <div className="p-6">
         <h2 className="text-lg font-semibold text-gray-900">{getTitle()}</h2>
-        <p className="mt-2 text-sm text-gray-600">{getDescription()}</p>
+        <p className="mt-2 text-sm text-gray-700">{getDescription()}</p>
         
         <div className="mt-6 flex justify-end gap-3">
           <button

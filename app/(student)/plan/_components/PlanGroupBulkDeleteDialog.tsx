@@ -69,7 +69,7 @@ export function PlanGroupBulkDeleteDialog({
     >
       <DialogContent>
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-700">
             선택한 플랜 그룹을 모두 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
           </p>
           

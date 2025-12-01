@@ -92,7 +92,7 @@ function DialogComponent({
         {showCloseButton && (
           <button
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
             aria-label="닫기"
           >
             <svg
@@ -125,7 +125,7 @@ function DialogComponent({
               </h2>
             )}
             {description && (
-              <p className="mt-1.5 text-sm text-gray-500">{description}</p>
+              <p className="mt-1.5 text-sm text-gray-700">{description}</p>
             )}
           </div>
         )}

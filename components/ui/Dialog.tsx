@@ -90,7 +90,7 @@ export function Dialog({
               </h2>
             )}
             {description && (
-              <div className="mt-1.5 text-sm text-gray-500">{description}</div>
+              <div className="mt-1.5 text-sm text-gray-700">{description}</div>
             )}
           </div>
         )}

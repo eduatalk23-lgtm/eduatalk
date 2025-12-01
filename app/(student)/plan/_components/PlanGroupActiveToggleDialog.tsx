@@ -33,12 +33,12 @@ export function PlanGroupActiveToggleDialog({
       <DialogContent>
         <div className="flex flex-col gap-4">
           {isActive ? (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-700">
               플랜 그룹을 비활성화하면 일시정지 상태로 변경됩니다. 나중에 다시 활성화할 수 있습니다.
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-700">
                 플랜 그룹을 활성화하면 현재 활성화된 다른 플랜 그룹이 자동으로 비활성화됩니다.
               </p>
               <p className="text-xs text-yellow-700">

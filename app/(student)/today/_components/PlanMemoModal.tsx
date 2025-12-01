@@ -84,17 +84,17 @@ export function PlanMemoModal({
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">플랜 메모</h2>
-            <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+            <div className="mt-1 flex items-center gap-2 text-sm text-gray-700">
               <span className="text-lg">{contentTypeIcon}</span>
               <span>{contentTitle}</span>
               {group.sequence && (
-                <span className="text-xs text-gray-500">({group.sequence}회차)</span>
+                <span className="text-xs text-gray-600">({group.sequence}회차)</span>
               )}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex items-center justify-center rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            className="flex items-center justify-center rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 hover:text-gray-800"
           >
             <X className="h-5 w-5" />
           </button>
@@ -119,7 +119,7 @@ export function PlanMemoModal({
               rows={8}
               className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
-            <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+            <div className="mt-1 flex items-center justify-between text-xs text-gray-600">
               <span>줄바꿈 및 특수 문자 허용</span>
               <span className={memo.length > MAX_MEMO_LENGTH * 0.9 ? "text-amber-600" : ""}>
                 {memo.length}/{MAX_MEMO_LENGTH}자
@@ -134,7 +134,7 @@ export function PlanMemoModal({
               <h3 className="text-sm font-semibold text-gray-900">추천 메모</h3>
             </div>
             <div className="mb-3">
-              <p className="mb-2 text-xs text-gray-600">템플릿:</p>
+              <p className="mb-2 text-xs text-gray-700">템플릿:</p>
               <div className="flex flex-wrap gap-2">
                 {MEMO_TEMPLATES.map((item, index) => (
                   <button
@@ -149,7 +149,7 @@ export function PlanMemoModal({
               </div>
             </div>
             <div>
-              <p className="mb-2 text-xs text-gray-600">빠른 입력:</p>
+              <p className="mb-2 text-xs text-gray-700">빠른 입력:</p>
               <div className="flex flex-wrap gap-2">
                 {QUICK_INPUTS.map((item, index) => (
                   <button

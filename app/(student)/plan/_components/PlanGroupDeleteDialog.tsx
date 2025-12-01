@@ -103,7 +103,7 @@ export function PlanGroupDeleteDialog({
             </div>
           )}
           {!isCampPlan && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-700">
               이 작업은 되돌릴 수 없습니다. 플랜 그룹과 관련된 모든 플랜이 함께
               삭제됩니다.
             </p>

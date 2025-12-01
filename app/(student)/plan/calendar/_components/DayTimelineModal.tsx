@@ -96,7 +96,7 @@ export function DayTimelineModal({
         {dayTypeInfo.icon} {dayTypeInfo.label}
       </span>
       {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-gray-700">
           ({dayExclusions[0].exclusion_type})
         </span>
       )}
