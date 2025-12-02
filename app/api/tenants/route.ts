@@ -18,6 +18,39 @@ type Tenant = {
 };
 
 /**
+ * 테넌트 목록 조회 API
+ * GET /api/tenants
+ *
+ * @returns
+ * 성공: { success: true, data: Tenant[] }
+ * 에러: { success: false, error: { code, message } }
+ */
+export async function GET() {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    // Super Admin만 접근 가능
+    if (!userId || role !== "superadmin") {
+      return apiForbidden("Super Admin만 기관 목록을 조회할 수 있습니다.");
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("tenants")
+      .select("id, name, type, created_at, updated_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return handleApiError(error, "[api/tenants] 목록 조회 실패");
+    }
+
+    return apiSuccess((data as Tenant[]) ?? []);
+  } catch (error) {
+    return handleApiError(error, "[api/tenants] 목록 조회 오류");
+  }
+}
+
+/**
  * 테넌트 생성 API
  * POST /api/tenants
  *
