@@ -1637,10 +1637,15 @@ export function Step1BasicInfo({
               title="추가 기간 학습 범위 재배치 (선택사항)"
               defaultOpen={!!data.additional_period_reallocation}
               studentInputAllowed={lockedFields.allow_student_additional_period_reallocation === true}
-              onStudentInputToggle={(enabled) =>
-                toggleFieldControl("allow_student_additional_period_reallocation")
-              }
-              showStudentInputToggle={isTemplateMode}
+              onStudentInputToggle={(enabled) => {
+                // 재배치 사용이 체크되어 있을 때만 학생 입력 허용 토글 가능
+                if (!data.additional_period_reallocation && enabled) {
+                  showError("재배치 사용을 먼저 체크해주세요.");
+                  return;
+                }
+                toggleFieldControl("allow_student_additional_period_reallocation");
+              }}
+              showStudentInputToggle={isTemplateMode && !!data.additional_period_reallocation}
               headerActions={
                 <label
                   className="flex items-center gap-2 text-xs text-gray-600"

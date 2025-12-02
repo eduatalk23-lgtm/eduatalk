@@ -110,7 +110,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
                 }}
                 className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
               />
-              <span>학생 입력 허용</span>
+              <span className={!showStudentInputToggle || disabled ? "text-gray-400" : ""}>학생 입력 허용</span>
             </label>
           )}
 
