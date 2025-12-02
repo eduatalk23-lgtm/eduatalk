@@ -449,18 +449,37 @@ export async function searchContentMasters(
 ): Promise<{ data: any[]; total: number }> {
   if (filters.content_type === "book") {
     const result = await searchMasterBooks(filters);
-    return { data: result.data, total: result.total };
+    // content_type 필드 추가
+    const dataWithType = result.data.map((book) => ({
+      ...book,
+      content_type: "book" as const,
+    }));
+    return { data: dataWithType, total: result.total };
   } else if (filters.content_type === "lecture") {
     const result = await searchMasterLectures(filters);
-    return { data: result.data, total: result.total };
+    // content_type 필드 추가
+    const dataWithType = result.data.map((lecture) => ({
+      ...lecture,
+      content_type: "lecture" as const,
+    }));
+    return { data: dataWithType, total: result.total };
   } else {
     // 둘 다 검색
     const [booksResult, lecturesResult] = await Promise.all([
       searchMasterBooks(filters),
       searchMasterLectures(filters),
     ]);
+    // content_type 필드 추가
+    const booksWithType = booksResult.data.map((book) => ({
+      ...book,
+      content_type: "book" as const,
+    }));
+    const lecturesWithType = lecturesResult.data.map((lecture) => ({
+      ...lecture,
+      content_type: "lecture" as const,
+    }));
     return {
-      data: [...booksResult.data, ...lecturesResult.data],
+      data: [...booksWithType, ...lecturesWithType],
       total: booksResult.total + lecturesResult.total,
     };
   }

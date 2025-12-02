@@ -104,9 +104,42 @@ export function MasterContentsPanel({
       const results = await Promise.all(searchPromises);
       const allResults: ContentMaster[] = [];
       
-      results.forEach((result) => {
-        allResults.push(...result.data);
+      // 각 검색 결과를 합치면서 content_type 확인
+      results.forEach((result, index) => {
+        // searchContentMasters에서 이미 content_type을 추가했지만, 
+        // 혹시 모를 경우를 대비해 검증 및 추가
+        const dataWithType = result.data.map((item: any) => {
+          // content_type이 없으면 검색 타입에 따라 추가
+          if (!item.content_type) {
+            // 첫 번째 결과는 book, 두 번째는 lecture (selectedContentType === "all"인 경우)
+            const contentType = 
+              (selectedContentType === "book") || 
+              (selectedContentType === "all" && index === 0)
+                ? "book"
+                : "lecture";
+            return {
+              ...item,
+              content_type: contentType,
+            };
+          }
+          return item;
+        });
+        
+        allResults.push(...dataWithType);
       });
+
+      // 디버깅: 검색 결과의 content_type 확인
+      if (process.env.NODE_ENV === "development") {
+        console.log("[MasterContentsPanel] 검색 결과:", {
+          selectedContentType,
+          resultsCount: allResults.length,
+          contentTypes: allResults.map((r) => ({
+            id: r.id,
+            title: r.title,
+            content_type: r.content_type,
+          })),
+        });
+      }
 
       setSearchResults(allResults);
     } catch (error) {
