@@ -25,7 +25,7 @@ import {
 
 export type Step6SimplifiedProps = {
   data: WizardData;
-  onEditStep: (step: 1 | 2 | 3) => void;
+  onEditStep: (step: 1 | 2 | 4) => void;
   isCampMode?: boolean;
 };
 
@@ -71,8 +71,8 @@ export function Step6Simplified({
         <CollapsibleSection
           title="콘텐츠 선택"
           defaultOpen={true}
-          onEdit={() => onEditStep(3)}
-          editLabel="Step 3로 돌아가기"
+          onEdit={() => onEditStep(4)}
+          editLabel="Step 4로 돌아가기"
         >
           <ContentsSummary data={data} isCampMode={isCampMode} />
         </CollapsibleSection>
