@@ -16,7 +16,7 @@ export default async function SuperAdminLayout({ children }: { children: ReactNo
 
   return (
     <RoleBasedLayout
-      role="admin" // 네비게이션은 superadmin으로 별도 처리됨
+      role="superadmin"
       dashboardHref="/superadmin/dashboard"
       roleLabel="Super Admin"
       showSidebar={true}
