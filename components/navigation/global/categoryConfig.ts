@@ -525,7 +525,9 @@ export const categoryConfig: Record<NavigationRole, NavigationCategory[]> = {
 /**
  * 역할별 카테고리 설정 조회
  */
-export function getCategoriesForRole(role: NavigationRole): NavigationCategory[] {
+export function getCategoriesForRole(
+  role: NavigationRole
+): NavigationCategory[] {
   return categoryConfig[role] || [];
 }
 
@@ -536,7 +538,10 @@ export function getAllNavigationItems(role: NavigationRole): NavigationItem[] {
   const categories = getCategoriesForRole(role);
   const items: NavigationItem[] = [];
 
-  function collectItems(items: NavigationItem[], categoryItems: NavigationItem[]) {
+  function collectItems(
+    items: NavigationItem[],
+    categoryItems: NavigationItem[]
+  ) {
     for (const item of categoryItems) {
       // 역할 체크
       if (item.roles && !item.roles.includes(role)) {
@@ -555,4 +560,3 @@ export function getAllNavigationItems(role: NavigationRole): NavigationItem[] {
 
   return items;
 }
-

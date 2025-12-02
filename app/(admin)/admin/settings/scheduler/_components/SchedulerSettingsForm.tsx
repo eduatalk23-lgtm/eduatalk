@@ -82,11 +82,11 @@ export function SchedulerSettingsForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {/* 학습일/복습일 비율 */}
-      <div className="rounded-xl border border-gray-30 bg-white p-6">
-        <h2 className="text-h2 text-gray-100 mb-4">학습일/복습일 비율</h2>
+      <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <h2 className="text-h2 text-gray-900 mb-4">학습일/복습일 비율</h2>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-body-2-bold text-gray-90 mb-2">
+            <label className="block text-body-2-bold text-gray-800 mb-2">
               주당 학습일 수
             </label>
             <input
@@ -100,15 +100,15 @@ export function SchedulerSettingsForm() {
                   default_study_days: parseInt(e.target.value, 10),
                 })
               }
-              className="w-full rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
             />
-            <p className="mt-1 text-sm text-gray-60">
+            <p className="mt-1 text-sm text-gray-600">
               1-7일 사이의 값을 입력하세요.
             </p>
           </div>
 
           <div>
-            <label className="block text-body-2-bold text-gray-90 mb-2">
+            <label className="block text-body-2-bold text-gray-800 mb-2">
               주당 복습일 수
             </label>
             <input
@@ -122,9 +122,9 @@ export function SchedulerSettingsForm() {
                   default_review_days: parseInt(e.target.value, 10),
                 })
               }
-              className="w-full rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
             />
-            <p className="mt-1 text-sm text-gray-60">
+            <p className="mt-1 text-sm text-gray-600">
               0-7일 사이의 값을 입력하세요.
             </p>
           </div>
@@ -132,11 +132,11 @@ export function SchedulerSettingsForm() {
       </div>
 
       {/* 기타 옵션 */}
-      <div className="rounded-xl border border-gray-30 bg-white p-6">
-        <h2 className="text-h2 text-gray-100 mb-4">기타 옵션</h2>
+      <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <h2 className="text-h2 text-gray-900 mb-4">기타 옵션</h2>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-body-2-bold text-gray-90 mb-2">
+            <label className="block text-body-2-bold text-gray-800 mb-2">
               취약과목 집중 모드
             </label>
             <select
@@ -150,7 +150,7 @@ export function SchedulerSettingsForm() {
                     | "high",
                 })
               }
-              className="w-full rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
             >
               <option value="low">낮음</option>
               <option value="medium">중간</option>
@@ -159,7 +159,7 @@ export function SchedulerSettingsForm() {
           </div>
 
           <div>
-            <label className="block text-body-2-bold text-gray-90 mb-2">
+            <label className="block text-body-2-bold text-gray-800 mb-2">
               복습 범위
             </label>
             <select
@@ -170,7 +170,7 @@ export function SchedulerSettingsForm() {
                   default_review_scope: e.target.value as "full" | "partial",
                 })
               }
-              className="w-full rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
             >
               <option value="full">전체 복습</option>
               <option value="partial">축소 복습</option>
@@ -180,11 +180,11 @@ export function SchedulerSettingsForm() {
       </div>
 
       {/* 시간 설정 */}
-      <div className="rounded-xl border border-gray-30 bg-white p-6">
-        <h2 className="text-h2 text-gray-100 mb-4">시간 설정</h2>
+      <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <h2 className="text-h2 text-gray-900 mb-4">시간 설정</h2>
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-body-2-bold text-gray-90 mb-2">
+            <label className="block text-body-2-bold text-gray-800 mb-2">
               점심시간
             </label>
             <div className="flex gap-2 items-center">
@@ -200,9 +200,9 @@ export function SchedulerSettingsForm() {
                     },
                   })
                 }
-                className="flex-1 rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
               />
-              <span className="text-gray-60">~</span>
+              <span className="text-gray-600">~</span>
               <input
                 type="time"
                 value={settings.default_lunch_time?.end || "13:00"}
@@ -215,13 +215,13 @@ export function SchedulerSettingsForm() {
                     },
                   })
                 }
-                className="flex-1 rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-body-2-bold text-gray-90 mb-2">
+            <label className="block text-body-2-bold text-gray-800 mb-2">
               학습시간
             </label>
             <div className="flex gap-2 items-center">
@@ -237,9 +237,9 @@ export function SchedulerSettingsForm() {
                     },
                   })
                 }
-                className="flex-1 rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
               />
-              <span className="text-gray-60">~</span>
+              <span className="text-gray-600">~</span>
               <input
                 type="time"
                 value={settings.default_study_hours?.end || "18:00"}
@@ -252,7 +252,7 @@ export function SchedulerSettingsForm() {
                     },
                   })
                 }
-                className="flex-1 rounded-lg border border-gray-30 px-4 py-2 text-body-2 text-gray-100"
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-body-2 text-gray-900"
               />
             </div>
           </div>

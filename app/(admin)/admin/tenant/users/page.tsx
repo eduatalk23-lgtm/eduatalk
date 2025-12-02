@@ -25,8 +25,8 @@ export default async function TenantUsersPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-h1 text-gray-100">기관별 사용자 관리</h1>
-        <p className="mt-2 text-body-2 text-gray-70">
+        <h1 className="text-h1 text-gray-900">기관별 사용자 관리</h1>
+        <p className="mt-2 text-body-2 text-gray-600">
           기관별 학생 및 학부모를 조회하고 관리할 수 있습니다.
         </p>
       </div>
