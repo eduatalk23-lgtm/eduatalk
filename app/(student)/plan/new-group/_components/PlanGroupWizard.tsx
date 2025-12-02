@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useCallback, useEffect } from "react";
+import { useState, useTransition, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
@@ -1098,12 +1098,18 @@ export function PlanGroupWizard({
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
 
+  // handleSaveDraft를 ref로 저장하여 최신 함수를 참조
+  const handleSaveDraftRef = useRef(handleSaveDraft);
+  useEffect(() => {
+    handleSaveDraftRef.current = handleSaveDraft;
+  }, [handleSaveDraft]);
+
   // 저장 함수를 외부에 노출 (템플릿 모드일 때만)
   useEffect(() => {
     if (isTemplateMode && onSaveRequest) {
-      onSaveRequest(() => handleSaveDraft(false));
+      onSaveRequest(() => handleSaveDraftRef.current(false));
     }
-  }, [isTemplateMode, onSaveRequest, handleSaveDraft]);
+  }, [isTemplateMode, onSaveRequest]);
 
   return (
     <div className="mx-auto w-full max-w-4xl">

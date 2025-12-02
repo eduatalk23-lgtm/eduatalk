@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -88,6 +88,11 @@ export function CampTemplateEditForm({
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
   const [wizardSaveFunction, setWizardSaveFunction] = useState<(() => Promise<void>) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // 저장 함수를 받는 콜백을 useCallback으로 메모이제이션
+  const handleSaveRequest = useCallback((saveFn: () => Promise<void>) => {
+    setWizardSaveFunction(() => saveFn);
+  }, []);
 
   const handleTemplateUpdate = async (wizardData: WizardData) => {
     const finalWizardData: WizardData = {
@@ -416,7 +421,7 @@ export function CampTemplateEditForm({
         }}
         isTemplateMode={true}
         onTemplateSave={handleTemplateUpdate}
-        onSaveRequest={(saveFn) => setWizardSaveFunction(() => saveFn)}
+        onSaveRequest={handleSaveRequest}
       />
     </div>
   );
