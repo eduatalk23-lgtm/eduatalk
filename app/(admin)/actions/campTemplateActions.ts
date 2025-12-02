@@ -2477,10 +2477,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
           );
         }
 
-        // generatePlansFromGroupAction은 학생 권한만 허용하므로,
-        // 관리자용으로 별도 처리 필요
-        // 일단은 generatePlansFromGroupAction을 호출하되,
-        // planGroupActions.ts에서 관리자 권한을 지원하도록 수정 필요
+        // generatePlansFromGroupAction은 verifyPlanGroupAccess를 사용하여
+        // Admin/Consultant 권한도 지원합니다 (planGroupAuth.ts 참조)
         const { generatePlansFromGroupAction } = await import(
           "@/app/(student)/actions/planGroupActions"
         );
