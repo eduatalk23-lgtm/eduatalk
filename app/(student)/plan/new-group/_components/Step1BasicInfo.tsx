@@ -1629,6 +1629,239 @@ export function Step1BasicInfo({
             </div>
           </div>
         )}
+
+        {/* 추가 기간 학습 범위 재배치 (1730 Timetable) */}
+        {data.scheduler_type === "1730_timetable" && (
+          <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">
+                추가 기간 학습 범위 재배치 (선택사항)
+              </h3>
+              {isTemplateMode && (
+                <div className="flex items-center gap-2">
+                  {renderStudentInputCheckbox(
+                    "allow_student_additional_period_reallocation"
+                  )}
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-600">
+              추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
+              <br />
+              학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
+            </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="enable_additional_period"
+                  checked={!!data.additional_period_reallocation}
+                  onChange={(e) => {
+                    if (
+                      isCampMode &&
+                      !canStudentInputAdditionalPeriodReallocation
+                    )
+                      return;
+                    if (e.target.checked) {
+                      // 날짜 값 확인
+                      if (!data.period_start || !data.period_end) {
+                        showError("학습 기간을 먼저 입력해주세요.");
+                        // 체크박스 체크 해제
+                        e.target.checked = false;
+                        return;
+                      }
+                      
+                      // 4주 기간 계산 (원본 기간의 첫 4주)
+                      // 날짜 유효성 검사
+                      if (!data.period_start || !data.period_end) {
+                        showError("유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요.");
+                        e.target.checked = false;
+                        return;
+                      }
+                      
+                      // 4주 후 날짜 계산 (타임존 문제 방지)
+                      const fourWeeksEndStr = addDaysToDate(data.period_start, 28); // 4주 = 28일
+                      
+                      // 실제 종료일이 4주보다 짧으면 그 날짜 사용
+                      const originalEndStr = fourWeeksEndStr > data.period_end 
+                        ? data.period_end 
+                        : fourWeeksEndStr;
+
+                      onUpdate({
+                        additional_period_reallocation: {
+                          period_start: "",
+                          period_end: "",
+                          type: "additional_review",
+                          original_period_start: data.period_start,
+                          original_period_end: originalEndStr,
+                          review_of_review_factor: 0.25,
+                        },
+                      });
+                    } else {
+                      onUpdate({ additional_period_reallocation: undefined });
+                    }
+                  }}
+                  disabled={
+                    (isCampMode && !canStudentInputAdditionalPeriodReallocation) ||
+                    !data.period_start ||
+                    !data.period_end ||
+                    isNaN(new Date(data.period_start).getTime()) ||
+                    isNaN(new Date(data.period_end).getTime())
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <label
+                  htmlFor="enable_additional_period"
+                  className={`text-sm ${
+                    isCampMode && !canStudentInputAdditionalPeriodReallocation
+                      ? "text-gray-500"
+                      : "text-gray-700"
+                  }`}
+                >
+                  추가 기간 학습 범위 재배치 사용
+                </label>
+              </div>
+
+              {data.additional_period_reallocation && (
+                <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700">
+                        추가 기간 시작일
+                      </label>
+                      <input
+                        type="date"
+                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
+                          isCampMode &&
+                          !canStudentInputAdditionalPeriodReallocation
+                            ? "cursor-not-allowed bg-gray-100 opacity-60"
+                            : ""
+                        }`}
+                        value={data.additional_period_reallocation.period_start}
+                        min={
+                          data.period_end
+                            ? addDaysToDate(data.period_end, 1)
+                            : undefined
+                        }
+                        onChange={(e) => {
+                          if (
+                            isCampMode &&
+                            !canStudentInputAdditionalPeriodReallocation
+                          )
+                            return;
+                          
+                          const newStartDate = e.target.value;
+                          const minDate = data.period_end
+                            ? addDaysToDate(data.period_end, 1)
+                            : null;
+                          
+                          if (minDate && newStartDate < minDate) {
+                            showError(
+                              "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
+                            );
+                            return;
+                          }
+                          
+                          // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
+                          let newEndDate = data.additional_period_reallocation.period_end;
+                          if (newEndDate && newEndDate < newStartDate) {
+                            newEndDate = addDaysToDate(newStartDate, 1);
+                          }
+                          
+                          onUpdate({
+                            additional_period_reallocation: {
+                              ...data.additional_period_reallocation!,
+                              period_start: newStartDate,
+                              period_end: newEndDate,
+                            },
+                          });
+                        }}
+                        disabled={
+                          isCampMode &&
+                          !canStudentInputAdditionalPeriodReallocation
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700">
+                        추가 기간 종료일
+                      </label>
+                      <input
+                        type="date"
+                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
+                          isCampMode &&
+                          !canStudentInputAdditionalPeriodReallocation
+                            ? "cursor-not-allowed bg-gray-100 opacity-60"
+                            : ""
+                        }`}
+                        value={data.additional_period_reallocation.period_end}
+                        min={
+                          data.additional_period_reallocation.period_start
+                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
+                            : undefined
+                        }
+                        onChange={(e) => {
+                          if (
+                            isCampMode &&
+                            !canStudentInputAdditionalPeriodReallocation
+                          )
+                            return;
+                          
+                          const newEndDate = e.target.value;
+                          const minDate = data.additional_period_reallocation.period_start
+                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
+                            : null;
+                          
+                          if (minDate && newEndDate < minDate) {
+                            showError(
+                              "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
+                            );
+                            return;
+                          }
+                          
+                          onUpdate({
+                            additional_period_reallocation: {
+                              ...data.additional_period_reallocation!,
+                              period_end: newEndDate,
+                            },
+                          });
+                        }}
+                        disabled={
+                          isCampMode &&
+                          !canStudentInputAdditionalPeriodReallocation
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                    <p className="text-xs text-blue-800">
+                      <strong>재배치 범위:</strong>{" "}
+                      {
+                        data.additional_period_reallocation
+                          .original_period_start
+                      }{" "}
+                      ~{" "}
+                      {data.additional_period_reallocation.original_period_end}
+                    </p>
+                    <p className="mt-1 text-xs text-blue-700">
+                      학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을 진행합니다.
+                    </p>
+                    <p className="mt-1 text-xs text-blue-600">
+                      복습 소요시간은 원본 학습 소요시간의 25%로 자동 계산됩니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            {isCampMode && !canStudentInputAdditionalPeriodReallocation && (
+              <p className="mt-2 text-xs text-gray-500">
+                추가 기간 학습 범위 재배치는 템플릿에서 고정되어 수정할 수 없습니다.
+              </p>
+            )}
+          </div>
+        )}
       </CollapsibleSection>
 
       {/* 스케줄러 유형 */}
@@ -2574,241 +2807,6 @@ export function Step1BasicInfo({
               </button>
             </div>
           </div>
-        )}
-
-        {/* 추가 기간 학습 범위 재배치 (1730 Timetable) */}
-        {data.scheduler_type === "1730_timetable" && (
-          <div
-            className={`rounded-lg border border-gray-200 bg-white p-4 ${
-              isCampMode && !canStudentInputAdditionalPeriodReallocation
-                ? "opacity-60"
-                : ""
-            }`}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">
-                추가 기간 학습 범위 재배치 (선택사항)
-              </h3>
-              {renderStudentInputCheckbox(
-                "allow_student_additional_period_reallocation"
-              )}
-            </div>
-            <p className="mb-4 text-xs text-gray-600">
-              추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
-              <br />
-              학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
-            </p>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable_additional_period"
-                  checked={!!data.additional_period_reallocation}
-                  onChange={(e) => {
-                    if (
-                      isCampMode &&
-                      !canStudentInputAdditionalPeriodReallocation
-                    )
-                      return;
-                    if (e.target.checked) {
-                      // 날짜 값 확인
-                      if (!data.period_start || !data.period_end) {
-                        showError("학습 기간을 먼저 입력해주세요.");
-                        // 체크박스 체크 해제
-                        e.target.checked = false;
-                        return;
-                      }
-                      
-                      // 4주 기간 계산 (원본 기간의 첫 4주)
-                      // 날짜 유효성 검사
-                      if (!data.period_start || !data.period_end) {
-                        showError("유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요.");
-                        e.target.checked = false;
-                        return;
-                      }
-                      
-                      // 4주 후 날짜 계산 (타임존 문제 방지)
-                      const fourWeeksEndStr = addDaysToDate(data.period_start, 28); // 4주 = 28일
-                      
-                      // 실제 종료일이 4주보다 짧으면 그 날짜 사용
-                      const originalEndStr = fourWeeksEndStr > data.period_end 
-                        ? data.period_end 
-                        : fourWeeksEndStr;
-
-                      onUpdate({
-                        additional_period_reallocation: {
-                          period_start: "",
-                          period_end: "",
-                          type: "additional_review",
-                          original_period_start: data.period_start,
-                          original_period_end: originalEndStr,
-                          review_of_review_factor: 0.25,
-                        },
-                      });
-                    } else {
-                      onUpdate({ additional_period_reallocation: undefined });
-                    }
-                  }}
-                  disabled={
-                    (isCampMode && !canStudentInputAdditionalPeriodReallocation) ||
-                    !data.period_start ||
-                    !data.period_end ||
-                    isNaN(new Date(data.period_start).getTime()) ||
-                    isNaN(new Date(data.period_end).getTime())
-                  }
-                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
-                />
-                <label
-                  htmlFor="enable_additional_period"
-                  className={`text-sm ${
-                    isCampMode && !canStudentInputAdditionalPeriodReallocation
-                      ? "text-gray-500"
-                      : "text-gray-700"
-                  }`}
-                >
-                  추가 기간 학습 범위 재배치 사용
-                </label>
-              </div>
-
-              {data.additional_period_reallocation && (
-                <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700">
-                        추가 기간 시작일
-                      </label>
-                      <input
-                        type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                            ? "cursor-not-allowed bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                        value={data.additional_period_reallocation.period_start}
-                        min={
-                          data.period_end
-                            ? addDaysToDate(data.period_end, 1)
-                            : undefined
-                        }
-                        onChange={(e) => {
-                          if (
-                            isCampMode &&
-                            !canStudentInputAdditionalPeriodReallocation
-                          )
-                            return;
-                          
-                          const newStartDate = e.target.value;
-                          const minDate = data.period_end
-                            ? addDaysToDate(data.period_end, 1)
-                            : null;
-                          
-                          if (minDate && newStartDate < minDate) {
-                            showError(
-                              "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
-                            );
-                            return;
-                          }
-                          
-                          // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
-                          let newEndDate = data.additional_period_reallocation.period_end;
-                          if (newEndDate && newEndDate < newStartDate) {
-                            newEndDate = addDaysToDate(newStartDate, 1);
-                          }
-                          
-                          onUpdate({
-                            additional_period_reallocation: {
-                              ...data.additional_period_reallocation!,
-                              period_start: newStartDate,
-                              period_end: newEndDate,
-                            },
-                          });
-                        }}
-                        disabled={
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700">
-                        추가 기간 종료일
-                      </label>
-                      <input
-                        type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                            ? "cursor-not-allowed bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                        value={data.additional_period_reallocation.period_end}
-                        min={
-                          data.additional_period_reallocation.period_start
-                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
-                            : undefined
-                        }
-                        onChange={(e) => {
-                          if (
-                            isCampMode &&
-                            !canStudentInputAdditionalPeriodReallocation
-                          )
-                            return;
-                          
-                          const newEndDate = e.target.value;
-                          const minDate = data.additional_period_reallocation.period_start
-                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
-                            : null;
-                          
-                          if (minDate && newEndDate < minDate) {
-                            showError(
-                              "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
-                            );
-                            return;
-                          }
-                          
-                          onUpdate({
-                            additional_period_reallocation: {
-                              ...data.additional_period_reallocation!,
-                              period_end: newEndDate,
-                            },
-                          });
-                        }}
-                        disabled={
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                    <p className="text-xs text-blue-800">
-                      <strong>재배치 범위:</strong>{" "}
-                      {
-                        data.additional_period_reallocation
-                          .original_period_start
-                      }{" "}
-                      ~{" "}
-                      {data.additional_period_reallocation.original_period_end}
-                    </p>
-                    <p className="mt-1 text-xs text-blue-700">
-                      학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을 진행합니다.
-                    </p>
-                    <p className="mt-1 text-xs text-blue-600">
-                      복습 소요시간은 원본 학습 소요시간의 25%로 자동 계산됩니다.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {isCampMode && !canStudentInputAdditionalPeriodReallocation && (
-          <p className="mt-2 text-xs text-gray-500">
-            추가 기간 학습 범위 재배치는 템플릿에서 고정되어 수정할 수 없습니다.
-          </p>
         )}
       </CollapsibleSection>
     </div>
