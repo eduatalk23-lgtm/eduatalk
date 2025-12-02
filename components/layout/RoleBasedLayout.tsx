@@ -10,6 +10,10 @@ type RoleBasedLayoutProps = {
   roleLabel: string;
   showSidebar?: boolean;
   wrapper?: (children: ReactNode) => ReactNode;
+  tenantInfo?: {
+    name: string;
+    type?: string;
+  } | null;
 };
 
 export function RoleBasedLayout({
@@ -19,6 +23,7 @@ export function RoleBasedLayout({
   roleLabel,
   showSidebar = true,
   wrapper,
+  tenantInfo,
 }: RoleBasedLayoutProps) {
   const content = (
     <div className="flex min-h-screen bg-gray-50">
@@ -37,6 +42,31 @@ export function RoleBasedLayout({
                 <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
               </a>
             </div>
+
+            {/* 기관 정보 (Admin/Consultant인 경우) */}
+            {tenantInfo && (role === "admin" || role === "consultant") && (
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🏢</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">
+                      {tenantInfo.name}
+                    </div>
+                    {tenantInfo.type && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {tenantInfo.type === "academy"
+                          ? "학원"
+                          : tenantInfo.type === "school"
+                          ? "학교"
+                          : tenantInfo.type === "enterprise"
+                          ? "기업"
+                          : "기타"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 카테고리 네비게이션 */}
             <div className="p-4">
@@ -67,6 +97,30 @@ export function RoleBasedLayout({
                   <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
                 </a>
               </div>
+              {/* 기관 정보 (모바일 - Admin/Consultant인 경우) */}
+              {tenantInfo && (role === "admin" || role === "consultant") && (
+                <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🏢</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 truncate">
+                        {tenantInfo.name}
+                      </div>
+                      {tenantInfo.type && (
+                        <div className="text-xs text-gray-500">
+                          {tenantInfo.type === "academy"
+                            ? "학원"
+                            : tenantInfo.type === "school"
+                            ? "학교"
+                            : tenantInfo.type === "enterprise"
+                            ? "기업"
+                            : "기타"}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               <CategoryNav role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
             </div>
           </nav>
