@@ -30,6 +30,7 @@
 **파일**: `lib/validation/planValidator.ts`
 
 **변경 내용**:
+
 - `validateCreation` 메서드에 `options` 파라미터 추가
 - `skipContentValidation` 옵션을 통해 콘텐츠 검증을 건너뛸 수 있도록 함
 
@@ -56,6 +57,7 @@ static validateCreation(
 **파일**: `app/(student)/actions/plan-groups/create.ts`
 
 **변경 내용**:
+
 - `_createPlanGroup` 함수에 `options` 파라미터 추가
 - `PlanValidator.validateCreation` 호출 시 옵션 전달
 
@@ -77,6 +79,7 @@ async function _createPlanGroup(
 **파일**: `app/(student)/actions/plan-groups/create.ts`
 
 **변경 내용**:
+
 - `createPlanGroupAction`이 옵션을 받을 수 있도록 수정
 
 ```typescript
@@ -97,6 +100,7 @@ export const createPlanGroupAction = withErrorHandling(
 **파일**: `app/(student)/actions/campActions.ts`
 
 **변경 내용**:
+
 - `createPlanGroupAction` 호출 시 `skipContentValidation: true` 옵션 전달
 
 ```typescript
@@ -118,11 +122,13 @@ const result = await createPlanGroupAction(
 **파일**: `app/(student)/plan/new-group/_components/PlanGroupWizard.tsx`
 
 **변경 내용**:
+
 - 캠프 모드에서 Step 3에서 제출할 때 `skipContentValidation: true` 옵션 전달
 
 ```typescript
 // 캠프 모드에서 Step 3에서 제출할 때는 콘텐츠 검증 건너뛰기
-const skipContentValidation = isCampMode && currentStep === 3 && !isAdminContinueMode;
+const skipContentValidation =
+  isCampMode && currentStep === 3 && !isAdminContinueMode;
 const result = await createPlanGroupAction(creationData, {
   skipContentValidation,
 });
@@ -160,4 +166,3 @@ const result = await createPlanGroupAction(creationData, {
 ## 완료 일자
 
 2025-02-02
-

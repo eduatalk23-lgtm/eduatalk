@@ -582,9 +582,10 @@ export function PlanGroupWizard({
       return;
     }
 
-    // 캠프 모드일 때 Step 3에서 바로 제출 (Step 4, 5 건너뛰기)
+    // 캠프 모드일 때 Step 4에서 바로 제출 (Step 5 건너뛰기)
     // 단, 관리자 남은 단계 진행 모드일 때는 Step 4-5를 진행해야 하므로 제출하지 않음
-    if (isCampMode && currentStep === 3 && !isAdminContinueMode) {
+    // Step 3 (스케줄 미리보기)에서는 Step 4 (콘텐츠 추가)로 이동
+    if (isCampMode && currentStep === 4 && !isAdminContinueMode) {
       handleSubmit();
       return;
     }
@@ -597,8 +598,12 @@ export function PlanGroupWizard({
 
     if (currentStep < 5) {
       if (currentStep === 4) {
-        // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
-        handleSubmit(false); // 플랜 생성하지 않음
+        // 캠프 모드가 아닐 때만 Step 4에서 데이터만 저장하고 Step 5로 이동
+        // 캠프 모드일 때는 위에서 이미 handleSubmit()이 호출됨
+        if (!isCampMode || isAdminContinueMode) {
+          // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
+          handleSubmit(false); // 플랜 생성하지 않음
+        }
       } else {
         setCurrentStep((prev) => (prev + 1) as WizardStep);
       }
@@ -984,8 +989,8 @@ export function PlanGroupWizard({
           finalGroupId = draftGroupId;
         } else {
           // 생성 모드
-          // 캠프 모드에서 Step 3에서 제출할 때는 콘텐츠 검증 건너뛰기
-          const skipContentValidation = isCampMode && currentStep === 3 && !isAdminContinueMode;
+          // 캠프 모드에서 Step 4에서 제출할 때는 콘텐츠 검증 건너뛰기 (콘텐츠가 없어도 제출 가능)
+          const skipContentValidation = isCampMode && currentStep === 4 && !isAdminContinueMode;
           const result = await createPlanGroupAction(creationData, {
             skipContentValidation,
           });
