@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
@@ -52,10 +53,17 @@ export async function PUT(
       });
     }
 
-    const supabase = await createSupabaseServerClient();
+    // Super Admin은 Admin Client 사용 (RLS 우회)
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return handleApiError(
+        new Error("SUPABASE_SERVICE_ROLE_KEY 환경 변수가 설정되지 않았습니다."),
+        "[api/tenants] Admin 클라이언트 생성 실패"
+      );
+    }
 
     // 먼저 테넌트 존재 여부 확인
-    const { data: existingTenant, error: checkError } = await supabase
+    const { data: existingTenant, error: checkError } = await adminClient
       .from("tenants")
       .select("id")
       .eq("id", id)
@@ -78,7 +86,7 @@ export async function PUT(
 
     if (!existingTenant) {
       // 모든 테넌트 ID 확인 (디버깅용)
-      const { data: allTenants } = await supabase
+      const { data: allTenants } = await adminClient
         .from("tenants")
         .select("id, name");
       console.log("[api/tenants] 현재 존재하는 테넌트:", allTenants);
@@ -86,7 +94,7 @@ export async function PUT(
     }
 
     // 테넌트 업데이트
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from("tenants")
       .update({
         name: name.trim(),
@@ -136,10 +144,17 @@ export async function DELETE(
       return apiForbidden("Super Admin만 기관을 삭제할 수 있습니다.");
     }
 
-    const supabase = await createSupabaseServerClient();
+    // Super Admin은 Admin Client 사용 (RLS 우회)
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return handleApiError(
+        new Error("SUPABASE_SERVICE_ROLE_KEY 환경 변수가 설정되지 않았습니다."),
+        "[api/tenants] Admin 클라이언트 생성 실패"
+      );
+    }
 
     // 먼저 테넌트 존재 여부 확인
-    const { data: existingTenant, error: checkError } = await supabase
+    const { data: existingTenant, error: checkError } = await adminClient
       .from("tenants")
       .select("id")
       .eq("id", id)
@@ -154,7 +169,7 @@ export async function DELETE(
     }
 
     // 테넌트 삭제
-    const { error } = await supabase
+    const { error } = await adminClient
       .from("tenants")
       .delete()
       .eq("id", id);

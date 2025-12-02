@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
@@ -34,8 +35,16 @@ export async function GET() {
       return apiForbidden("Super Admin만 기관 목록을 조회할 수 있습니다.");
     }
 
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
+    // Super Admin은 Admin Client 사용 (RLS 우회)
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return handleApiError(
+        new Error("SUPABASE_SERVICE_ROLE_KEY 환경 변수가 설정되지 않았습니다."),
+        "[api/tenants] Admin 클라이언트 생성 실패"
+      );
+    }
+
+    const { data, error } = await adminClient
       .from("tenants")
       .select("id, name, type, created_at, updated_at")
       .order("created_at", { ascending: false });
@@ -78,8 +87,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
+    // Super Admin은 Admin Client 사용 (RLS 우회)
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return handleApiError(
+        new Error("SUPABASE_SERVICE_ROLE_KEY 환경 변수가 설정되지 않았습니다."),
+        "[api/tenants] Admin 클라이언트 생성 실패"
+      );
+    }
+
+    const { data, error } = await adminClient
       .from("tenants")
       .insert({
         name: name.trim(),
