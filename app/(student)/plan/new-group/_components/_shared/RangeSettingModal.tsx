@@ -30,7 +30,7 @@ export function RangeSettingModal({
   const [endDetailId, setEndDetailId] = useState<string | null>(
     currentRange?.end_detail_id || null
   );
-  // 직접 입력 값 (상세 정보가 없을 때)
+  // 직접 입력 값 (상세 정보가 없을 때) - 빈 문자열도 허용
   const [startRange, setStartRange] = useState<string | null>(
     currentRange?.start ? currentRange.start.replace(/[^\d]/g, "") : null
   );
@@ -344,8 +344,9 @@ export function RangeSettingModal({
       if (!currentRange.start_detail_id && !currentRange.end_detail_id) {
         const startMatch = currentRange.start?.match(/\d+/);
         const endMatch = currentRange.end?.match(/\d+/);
-        setStartRange(startMatch ? startMatch[0] : "1");
-        setEndRange(endMatch ? endMatch[0] : null);
+        // 빈 값도 허용 (기본값으로 대체하지 않음)
+        setStartRange(startMatch ? startMatch[0] : "");
+        setEndRange(endMatch ? endMatch[0] : "");
       } else {
         setStartRange(null);
         setEndRange(null);
@@ -367,11 +368,12 @@ export function RangeSettingModal({
         endDetailId !== (currentRange?.end_detail_id || null);
     } else {
       // 상세 정보가 없을 때 (직접 입력)
-      const currentStart = currentRange?.start ? currentRange.start.replace(/[^\d]/g, "") : null;
-      const currentEnd = currentRange?.end ? currentRange.end.replace(/[^\d]/g, "") : null;
+      const currentStart = currentRange?.start ? currentRange.start.replace(/[^\d]/g, "") : "";
+      const currentEnd = currentRange?.end ? currentRange.end.replace(/[^\d]/g, "") : "";
+      // 빈 값도 비교에 포함 (기본값으로 대체하지 않음)
       changed =
-        startRange !== (currentStart || "1") ||
-        endRange !== (currentEnd || null);
+        (startRange ?? "") !== currentStart ||
+        (endRange ?? "") !== currentEnd;
     }
     
     setHasChanges(changed);
@@ -414,7 +416,8 @@ export function RangeSettingModal({
       });
     } else {
       // 상세 정보가 없을 때 (직접 입력)
-      if (!startRange || !endRange) {
+      // 빈 문자열 체크 (null, undefined, 빈 문자열 모두 체크)
+      if (!startRange || startRange.trim() === "" || !endRange || endRange.trim() === "") {
         setError("시작과 종료 범위를 모두 입력해주세요.");
         return;
       }
@@ -422,8 +425,8 @@ export function RangeSettingModal({
       const startNum = Number(startRange);
       const endNum = Number(endRange);
 
-      if (isNaN(startNum) || isNaN(endNum)) {
-        setError("올바른 숫자를 입력해주세요.");
+      if (isNaN(startNum) || isNaN(endNum) || startNum <= 0 || endNum <= 0) {
+        setError("1 이상의 올바른 숫자를 입력해주세요.");
         return;
       }
 
@@ -498,7 +501,11 @@ export function RangeSettingModal({
   const hasDetails = details.length > 0;
   const isValid = hasDetails
     ? startDetailId && endDetailId
-    : startRange && endRange && Number(startRange) > 0 && Number(endRange) > 0 && Number(startRange) <= Number(endRange);
+    : startRange && startRange.trim() !== "" && 
+      endRange && endRange.trim() !== "" && 
+      Number(startRange) > 0 && 
+      Number(endRange) > 0 && 
+      Number(startRange) <= Number(endRange);
   const isSaving = externalLoading;
 
   return (

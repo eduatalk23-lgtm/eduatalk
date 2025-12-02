@@ -100,8 +100,9 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
       });
     }
 
-    const currentStart = startRange || "1";
-    const currentEnd = endRange || (maxValue ? String(maxValue) : "100");
+    // 빈 값을 허용하도록 수정 (기본값으로 대체하지 않음)
+    const currentStart = startRange ?? "";
+    const currentEnd = endRange ?? "";
 
     return (
       <div className="space-y-4">
@@ -134,6 +135,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             value={currentStart}
             onChange={(e) => {
               if (onStartRangeChange) {
+                // 빈 값도 허용
                 onStartRangeChange(e.target.value);
               }
             }}
@@ -154,6 +156,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             value={currentEnd}
             onChange={(e) => {
               if (onEndRangeChange) {
+                // 빈 값도 허용
                 onEndRangeChange(e.target.value);
               }
             }}
@@ -163,7 +166,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         </div>
 
         {/* 범위 요약 */}
-        {currentStart && currentEnd && (
+        {currentStart && currentEnd && Number(currentStart) > 0 && Number(currentEnd) > 0 && (
           <div className="rounded-lg bg-blue-50 p-3">
             <p className="text-sm font-medium text-blue-900">선택된 범위</p>
             <p className="mt-1 text-sm text-blue-700">
@@ -181,7 +184,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         )}
 
         {/* 범위 검증 */}
-        {currentStart && currentEnd && Number(currentStart) > Number(currentEnd) && (
+        {currentStart && currentEnd && Number(currentStart) > 0 && Number(currentEnd) > 0 && Number(currentStart) > Number(currentEnd) && (
           <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
             <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-600" />
             <p className="text-sm text-red-800">
