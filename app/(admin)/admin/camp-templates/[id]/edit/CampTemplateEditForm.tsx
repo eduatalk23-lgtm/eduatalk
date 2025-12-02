@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { updateCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
@@ -47,6 +47,7 @@ export function CampTemplateEditForm({
 }: CampTemplateEditFormProps) {
   const router = useRouter();
   const toast = useToast();
+  const [isPending, startTransition] = useTransition();
 
   // template_data에서 템플릿 이름 추출
   const templateData = (template.template_data as Partial<WizardData>) || {};
@@ -163,23 +164,29 @@ export function CampTemplateEditForm({
         <button
           type="button"
           onClick={() => {
-            router.replace(`/admin/camp-templates/${template.id}`);
+            startTransition(() => {
+              router.replace(`/admin/camp-templates/${template.id}`);
+            });
           }}
-          className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+          disabled={isPending}
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          템플릿 상세보기
+          {isPending ? "이동 중..." : "템플릿 상세보기"}
         </button>
         <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => {
               if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
-                router.replace(`/admin/camp-templates/${template.id}`);
+                startTransition(() => {
+                  router.replace(`/admin/camp-templates/${template.id}`);
+                });
               }
             }}
+            disabled={isPending}
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             취소
