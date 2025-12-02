@@ -68,12 +68,17 @@ export function useRecommendations({
         data.recommended_contents.map((c) => c.content_id)
       );
       
+      console.log("[useRecommendations] useEffect: 추가된 콘텐츠 감지:", {
+        addedContentIds: Array.from(addedContentIds),
+        currentRecommendedContentsCount: data.recommended_contents.length,
+      });
+      
       // recommendedContents에서 제거
       setRecommendedContents((prev) => {
         const filtered = prev.filter((c) => !addedContentIds.has(c.id));
         
         if (filtered.length !== prev.length) {
-          console.log("[useRecommendations] 추가된 콘텐츠를 추천 목록에서 제거:", {
+          console.log("[useRecommendations] useEffect: 추가된 콘텐츠를 추천 목록에서 제거:", {
             before: prev.length,
             after: filtered.length,
             removed: prev.length - filtered.length,
@@ -91,7 +96,7 @@ export function useRecommendations({
         const filtered = prev.filter((c) => !addedContentIds.has(c.id));
         
         if (filtered.length !== prev.length) {
-          console.log("[useRecommendations] 추가된 콘텐츠를 전체 추천 목록에서 제거:", {
+          console.log("[useRecommendations] useEffect: 추가된 콘텐츠를 전체 추천 목록에서 제거:", {
             before: prev.length,
             after: filtered.length,
             removed: prev.length - filtered.length,
