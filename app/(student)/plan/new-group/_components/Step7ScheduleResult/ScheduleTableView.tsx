@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useMemo, memo, useCallback } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -14,6 +14,7 @@ import {
 import type { BlockData, ContentData } from "../utils/scheduleTransform";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { TimelineBar } from "./TimelineBar";
+import { VirtualizedList } from "@/lib/components/VirtualizedList";
 
 type DailySchedule = {
   date: string;
@@ -169,17 +170,15 @@ export function ScheduleTableView({
       sequenceMap.set(plan.id, calculateSequenceForPlan(plan, plans));
     });
   }
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [expandedDates, setExpandedDates] = useState<Map<string, boolean>>(new Map());
 
-  const toggleDate = (date: string) => {
-    const newExpanded = new Set(expandedDates);
-    if (newExpanded.has(date)) {
-      newExpanded.delete(date);
-    } else {
-      newExpanded.add(date);
-    }
-    setExpandedDates(newExpanded);
-  };
+  const toggleDate = useCallback((date: string) => {
+    setExpandedDates((prev) => {
+      const next = new Map(prev);
+      next.set(date, !next.get(date));
+      return next;
+    });
+  }, []);
 
   if (!dailySchedule || dailySchedule.length === 0) {
     return (
@@ -203,6 +202,14 @@ export function ScheduleTableView({
   // 주차별 그룹화가 가능한지 확인 (week_number가 있는지)
   const hasWeekNumbers = dailySchedule.some((s) => s.week_number !== undefined);
 
+  // 날짜 순으로 정렬된 스케줄 (주차 정보가 없는 경우)
+  const sortedSchedules = useMemo(() => {
+    if (hasWeekNumbers) return [];
+    return [...(dailySchedule || [])].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  }, [dailySchedule, hasWeekNumbers]);
+
   return (
     <div className="w-full rounded-lg border border-gray-200 bg-white">
       <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
@@ -210,8 +217,8 @@ export function ScheduleTableView({
           일별 스케줄 ({dailySchedule.length}일)
         </h3>
       </div>
-      <div className="max-h-[800px] overflow-y-auto">
-        {hasWeekNumbers ? (
+      {hasWeekNumbers ? (
+        <div className="max-h-[800px] overflow-y-auto">
           <ScheduleListByWeek
             schedules={dailySchedule}
             plansByDate={plansByDate}
@@ -221,34 +228,36 @@ export function ScheduleTableView({
             expandedDates={expandedDates}
             onToggleDate={toggleDate}
           />
-        ) : (
-          // 주차 정보가 없으면 날짜 순으로 정렬하여 표시
-          [...(dailySchedule || [])]
-            .sort(
-              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-            )
-            .map((schedule) => {
-              const datePlans = plansByDate.get(schedule.date) || [];
-              return (
-                <ScheduleItem
-                  key={schedule.date}
-                  schedule={schedule}
-                  datePlans={datePlans}
-                  contents={contents}
-                  blocks={blocks}
-                  sequenceMap={sequenceMap}
-                  isExpanded={expandedDates.has(schedule.date)}
-                  onToggle={() => toggleDate(schedule.date)}
-                />
-              );
-            })
-        )}
-      </div>
+        </div>
+      ) : (
+        // 주차 정보가 없으면 가상 스크롤링 적용
+        <VirtualizedList
+          items={sortedSchedules}
+          itemHeight={120} // 기본 높이 (확장 시 더 높아질 수 있음)
+          containerHeight={800}
+          overscan={3}
+          renderItem={(schedule, index) => {
+            const datePlans = plansByDate.get(schedule.date) || [];
+            return (
+              <ScheduleItem
+                key={schedule.date}
+                schedule={schedule}
+                datePlans={datePlans}
+                contents={contents}
+                blocks={blocks}
+                sequenceMap={sequenceMap}
+                isExpanded={expandedDates.get(schedule.date) ?? false}
+                onToggle={() => toggleDate(schedule.date)}
+              />
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ScheduleItem({
+const ScheduleItem = memo(function ScheduleItem({
   schedule,
   datePlans,
   contents,
@@ -494,10 +503,20 @@ function ScheduleItem({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // 커스텀 비교 함수로 불필요한 재렌더링 방지
+  return (
+    prevProps.schedule.date === nextProps.schedule.date &&
+    prevProps.isExpanded === nextProps.isExpanded &&
+    prevProps.datePlans.length === nextProps.datePlans.length &&
+    prevProps.sequenceMap.size === nextProps.sequenceMap.size &&
+    prevProps.schedule.day_type === nextProps.schedule.day_type &&
+    prevProps.schedule.study_hours === nextProps.schedule.study_hours
+  );
+});
 
 // 모든 시간 슬롯과 플랜을 함께 처리하는 컴포넌트 (플랜이 여러 블록에 걸칠 수 있음)
-function TimeSlotsWithPlans({
+const TimeSlotsWithPlans = memo(function TimeSlotsWithPlans({
   timeSlots,
   date,
   datePlans,
@@ -521,90 +540,109 @@ function TimeSlotsWithPlans({
   totalStudyHours: number;
   sequenceMap: Map<string, number>;
 }) {
-  // 학습시간과 자율학습 블록 필터링
-  const studyTimeSlots = timeSlots.filter(
-    (slot) => slot.type === "학습시간" || slot.type === "자율학습"
+  // 학습시간과 자율학습 블록 필터링 (메모이제이션)
+  const studyTimeSlots = useMemo(
+    () => timeSlots.filter(
+      (slot) => slot.type === "학습시간" || slot.type === "자율학습"
+    ),
+    [timeSlots]
   );
 
-  // 이동시간과 학원일정 슬롯 필터링
-  const travelAndAcademySlots = timeSlots.filter(
-    (slot) => slot.type === "이동시간" || slot.type === "학원일정"
+  // 이동시간과 학원일정 슬롯 필터링 (메모이제이션)
+  const travelAndAcademySlots = useMemo(
+    () => timeSlots.filter(
+      (slot) => slot.type === "이동시간" || slot.type === "학원일정"
+    ),
+    [timeSlots]
   );
 
-  // 플랜 정보 준비
-  const plansWithInfo = datePlans.map((plan) => {
-    const startTime = getPlanStartTime(plan, date, blocks);
-    const estimatedTime = calculateEstimatedTime(plan, contents, dayType);
-    return {
-      plan,
-      originalStartTime: startTime ? timeToMinutes(startTime) : null,
-      originalEstimatedTime: estimatedTime, // 원래 예상 소요시간 저장
-      estimatedTime, // 배치에 사용할 시간
-      remainingTime: estimatedTime, // 남은 시간 추적
-      blockIndex: plan.block_index,
-    };
-  });
-
-  // 복습일이고 예상 소요시간이 총 학습시간보다 큰 경우 평균 시간으로 조정
-  const isReviewDay = dayType === "복습일";
-  const totalEstimatedTime = plansWithInfo.reduce(
-    (sum, p) => sum + p.originalEstimatedTime,
-    0
-  );
-  const totalStudyMinutes = totalStudyHours * 60;
-
-  if (
-    isReviewDay &&
-    totalEstimatedTime > totalStudyMinutes &&
-    datePlans.length > 0
-  ) {
-    // 평균 시간 계산
-    const averageTime = Math.floor(totalStudyMinutes / datePlans.length);
-    plansWithInfo.forEach((p) => {
-      p.estimatedTime = averageTime;
-      p.remainingTime = averageTime;
-      // originalEstimatedTime은 그대로 유지 (강조 표시용)
+  // 플랜 정보 준비 (메모이제이션)
+  const plansWithInfo = useMemo(() => {
+    const plans = datePlans.map((plan) => {
+      const startTime = getPlanStartTime(plan, date, blocks);
+      const estimatedTime = calculateEstimatedTime(plan, contents, dayType);
+      return {
+        plan,
+        originalStartTime: startTime ? timeToMinutes(startTime) : null,
+        originalEstimatedTime: estimatedTime, // 원래 예상 소요시간 저장
+        estimatedTime, // 배치에 사용할 시간
+        remainingTime: estimatedTime, // 남은 시간 추적
+        blockIndex: plan.block_index,
+      };
     });
-  }
 
-  // 플랜을 시간 순으로 정렬 (시작 시간이 있는 것 우선, 같은 날 모든 플랜 우선 배치)
-  const sortedPlans = [...plansWithInfo].sort((a, b) => {
-    if (a.originalStartTime !== null && b.originalStartTime !== null) {
-      return a.originalStartTime - b.originalStartTime;
+    // 복습일이고 예상 소요시간이 총 학습시간보다 큰 경우 평균 시간으로 조정
+    const isReviewDay = dayType === "복습일";
+    const totalEstimatedTime = plans.reduce(
+      (sum, p) => sum + p.originalEstimatedTime,
+      0
+    );
+    const totalStudyMinutes = totalStudyHours * 60;
+
+    if (
+      isReviewDay &&
+      totalEstimatedTime > totalStudyMinutes &&
+      datePlans.length > 0
+    ) {
+      // 평균 시간 계산
+      const averageTime = Math.floor(totalStudyMinutes / datePlans.length);
+      plans.forEach((p) => {
+        p.estimatedTime = averageTime;
+        p.remainingTime = averageTime;
+        // originalEstimatedTime은 그대로 유지 (강조 표시용)
+      });
     }
-    if (a.originalStartTime !== null) return -1;
-    if (b.originalStartTime !== null) return 1;
-    return (a.blockIndex || 0) - (b.blockIndex || 0);
-  });
 
-  // 각 학습시간 블록에 플랜 배치
-  const slotPlansMap = new Map<
-    number,
-    Array<{
-      plan: Plan;
-      start: string;
-      end: string;
-      isPartial: boolean;
-      isContinued: boolean; // 이전 블록에서 이어지는지
-      originalEstimatedTime: number; // 원래 예상 소요시간
-    }>
-  >();
+    return plans;
+  }, [datePlans, date, blocks, contents, dayType, totalStudyHours]);
 
-  // 각 슬롯에 플랜 배치 (같은 날 모든 플랜 우선 배치)
-  studyTimeSlots.forEach((slot, slotIdx) => {
-    const slotStart = timeToMinutes(slot.start);
-    const slotEnd = timeToMinutes(slot.end);
-    const plansInSlot: Array<{
-      plan: Plan;
-      start: string;
-      end: string;
-      isPartial: boolean;
-      isContinued: boolean;
-      originalEstimatedTime: number;
-    }> = [];
+  // 플랜을 시간 순으로 정렬 (메모이제이션)
+  const sortedPlans = useMemo(() => {
+    return [...plansWithInfo].sort((a, b) => {
+      if (a.originalStartTime !== null && b.originalStartTime !== null) {
+        return a.originalStartTime - b.originalStartTime;
+      }
+      if (a.originalStartTime !== null) return -1;
+      if (b.originalStartTime !== null) return 1;
+      return (a.blockIndex || 0) - (b.blockIndex || 0);
+    });
+  }, [plansWithInfo]);
 
-    // 시작 시간이 있는 플랜들 배치
-    for (const planInfo of sortedPlans) {
+  // 각 학습시간 블록에 플랜 배치 (메모이제이션)
+  const slotPlansMap = useMemo(() => {
+    const map = new Map<
+      number,
+      Array<{
+        plan: Plan;
+        start: string;
+        end: string;
+        isPartial: boolean;
+        isContinued: boolean; // 이전 블록에서 이어지는지
+        originalEstimatedTime: number; // 원래 예상 소요시간
+      }>
+    >();
+
+    // 각 슬롯에 플랜 배치 (같은 날 모든 플랜 우선 배치)
+    // plansWithInfo를 복사하여 remainingTime을 추적
+    const plansWithRemainingTime = sortedPlans.map((p) => ({
+      ...p,
+      remainingTime: p.estimatedTime,
+    }));
+
+    studyTimeSlots.forEach((slot, slotIdx) => {
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const plansInSlot: Array<{
+        plan: Plan;
+        start: string;
+        end: string;
+        isPartial: boolean;
+        isContinued: boolean;
+        originalEstimatedTime: number;
+      }> = [];
+
+      // 시작 시간이 있는 플랜들 배치
+      for (const planInfo of plansWithRemainingTime) {
       if (planInfo.remainingTime <= 0) continue;
 
       if (planInfo.originalStartTime !== null) {
@@ -638,9 +676,9 @@ function TimeSlotsWithPlans({
       }
     }
 
-    // 시작 시간이 없는 플랜들 배치 (같은 날 모든 플랜 우선 배치)
-    let currentTime = slotStart;
-    for (const planInfo of sortedPlans) {
+      // 시작 시간이 없는 플랜들 배치 (같은 날 모든 플랜 우선 배치)
+      let currentTime = slotStart;
+      for (const planInfo of plansWithRemainingTime) {
       if (planInfo.remainingTime <= 0) continue;
       if (planInfo.originalStartTime !== null) continue; // 이미 배치된 플랜은 스킵
 
@@ -665,107 +703,115 @@ function TimeSlotsWithPlans({
       }
     }
 
-    // 시간 순으로 정렬
-    plansInSlot.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+      // 시간 순으로 정렬
+      plansInSlot.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
-    if (plansInSlot.length > 0) {
-      slotPlansMap.set(slotIdx, plansInSlot);
-    }
-  });
-
-  // 각 학습시간 슬롯에서 남은 시간 영역 계산
-  const remainingTimeSlotsMap = new Map<
-    number,
-    Array<{
-      start: string;
-      end: string;
-      type: "학습시간" | "자율학습";
-    }>
-  >();
-
-  studyTimeSlots.forEach((slot, slotIdx) => {
-    const slotStart = timeToMinutes(slot.start);
-    const slotEnd = timeToMinutes(slot.end);
-    const plansInSlot = slotPlansMap.get(slotIdx) || [];
-
-    // 플랜이 배치된 시간 구간들
-    const usedRanges: Array<{ start: number; end: number }> = [];
-    plansInSlot.forEach((plan) => {
-      usedRanges.push({
-        start: timeToMinutes(plan.start),
-        end: timeToMinutes(plan.end),
-      });
+      if (plansInSlot.length > 0) {
+        map.set(slotIdx, plansInSlot);
+      }
     });
 
-    // 시간 순으로 정렬
-    usedRanges.sort((a, b) => a.start - b.start);
+    return map;
+  }, [studyTimeSlots, sortedPlans]);
 
-    // 남은 시간 구간 계산
-    const remainingRanges: Array<{ start: string; end: string }> = [];
-    let currentTime = slotStart;
+  // 각 학습시간 슬롯에서 남은 시간 영역 계산 (메모이제이션)
+  const remainingTimeSlotsMap = useMemo(() => {
+    const map = new Map<
+      number,
+      Array<{
+        start: string;
+        end: string;
+        type: "학습시간" | "자율학습";
+      }>
+    >();
 
-    usedRanges.forEach((range) => {
-      if (currentTime < range.start) {
-        // 플랜 배치 전 남은 시간
+    studyTimeSlots.forEach((slot, slotIdx) => {
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const plansInSlot = slotPlansMap.get(slotIdx) || [];
+
+      // 플랜이 배치된 시간 구간들
+      const usedRanges: Array<{ start: number; end: number }> = [];
+      plansInSlot.forEach((plan) => {
+        usedRanges.push({
+          start: timeToMinutes(plan.start),
+          end: timeToMinutes(plan.end),
+        });
+      });
+
+      // 시간 순으로 정렬
+      usedRanges.sort((a, b) => a.start - b.start);
+
+      // 남은 시간 구간 계산
+      const remainingRanges: Array<{ start: string; end: string }> = [];
+      let currentTime = slotStart;
+
+      usedRanges.forEach((range) => {
+        if (currentTime < range.start) {
+          // 플랜 배치 전 남은 시간
+          remainingRanges.push({
+            start: minutesToTime(currentTime),
+            end: minutesToTime(range.start),
+          });
+        }
+        currentTime = Math.max(currentTime, range.end);
+      });
+
+      // 마지막 플랜 이후 남은 시간
+      if (currentTime < slotEnd) {
         remainingRanges.push({
           start: minutesToTime(currentTime),
-          end: minutesToTime(range.start),
+          end: minutesToTime(slotEnd),
         });
       }
-      currentTime = Math.max(currentTime, range.end);
+
+      if (remainingRanges.length > 0) {
+        map.set(
+          slotIdx,
+          remainingRanges.map((range) => ({
+            ...range,
+            type: slot.type as "학습시간" | "자율학습",
+          }))
+        );
+      }
     });
 
-    // 마지막 플랜 이후 남은 시간
-    if (currentTime < slotEnd) {
-      remainingRanges.push({
-        start: minutesToTime(currentTime),
-        end: minutesToTime(slotEnd),
-      });
-    }
+    return map;
+  }, [studyTimeSlots, slotPlansMap]);
 
-    if (remainingRanges.length > 0) {
-      remainingTimeSlotsMap.set(
-        slotIdx,
-        remainingRanges.map((range) => ({
-          ...range,
-          type: slot.type as "학습시간" | "자율학습",
-        }))
-      );
-    }
-  });
+  // 이동시간/학원일정 슬롯에 커스텀 플랜 배치 (메모이제이션)
+  const travelAndAcademyPlansMap = useMemo(() => {
+    const map = new Map<
+      number,
+      Array<{
+        plan: Plan;
+        start: string;
+        end: string;
+        isPartial: boolean;
+        isContinued: boolean;
+        originalEstimatedTime: number;
+      }>
+    >();
 
-  // 이동시간/학원일정 슬롯에 커스텀 플랜 배치
-  const travelAndAcademyPlansMap = new Map<
-    number,
-    Array<{
-      plan: Plan;
-      start: string;
-      end: string;
-      isPartial: boolean;
-      isContinued: boolean;
-      originalEstimatedTime: number;
-    }>
-  >();
+    // 커스텀 플랜만 별도로 처리 (이동시간/학원일정 슬롯에 배치)
+    const customPlansWithInfo = plansWithInfo.filter(
+      (p) => p.plan.content_type === "custom"
+    );
 
-  // 커스텀 플랜만 별도로 처리 (이동시간/학원일정 슬롯에 배치)
-  const customPlansWithInfo = plansWithInfo.filter(
-    (p) => p.plan.content_type === "custom"
-  );
+    travelAndAcademySlots.forEach((slot, slotIdx) => {
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const plansInSlot: Array<{
+        plan: Plan;
+        start: string;
+        end: string;
+        isPartial: boolean;
+        isContinued: boolean;
+        originalEstimatedTime: number;
+      }> = [];
 
-  travelAndAcademySlots.forEach((slot, slotIdx) => {
-    const slotStart = timeToMinutes(slot.start);
-    const slotEnd = timeToMinutes(slot.end);
-    const plansInSlot: Array<{
-      plan: Plan;
-      start: string;
-      end: string;
-      isPartial: boolean;
-      isContinued: boolean;
-      originalEstimatedTime: number;
-    }> = [];
-
-    // 커스텀 플랜 중에서 이 슬롯과 시간이 일치하는 플랜 찾기
-    for (const planInfo of customPlansWithInfo) {
+      // 커스텀 플랜 중에서 이 슬롯과 시간이 일치하는 플랜 찾기
+      for (const planInfo of customPlansWithInfo) {
       // 시작 시간이 있는 경우: 슬롯과 시간이 겹치는지 확인
       if (planInfo.originalStartTime !== null) {
         const planStart = planInfo.originalStartTime;
@@ -804,10 +850,13 @@ function TimeSlotsWithPlans({
       }
     }
 
-    if (plansInSlot.length > 0) {
-      travelAndAcademyPlansMap.set(slotIdx, plansInSlot);
-    }
-  });
+      if (plansInSlot.length > 0) {
+        map.set(slotIdx, plansInSlot);
+      }
+    });
+
+    return map;
+  }, [travelAndAcademySlots, plansWithInfo]);
 
   // 모든 이동시간/학원일정 슬롯에서 배치된 플랜 ID 수집
   const placedPlanIds = new Set<string>();
@@ -817,25 +866,31 @@ function TimeSlotsWithPlans({
     });
   });
 
-  // 학습시간 및 자율학습 블록 인덱스 매핑 (timeSlots 전체 인덱스 -> 학습시간/자율학습 블록 인덱스)
-  const studySlotIndexMap = new Map<number, number>();
-  let studySlotIdx = 0;
-  timeSlots.forEach((slot, idx) => {
-    if (slot.type === "학습시간" || slot.type === "자율학습") {
-      studySlotIndexMap.set(idx, studySlotIdx);
-      studySlotIdx++;
-    }
-  });
+  // 학습시간 및 자율학습 블록 인덱스 매핑 (메모이제이션)
+  const studySlotIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+    let studySlotIdx = 0;
+    timeSlots.forEach((slot, idx) => {
+      if (slot.type === "학습시간" || slot.type === "자율학습") {
+        map.set(idx, studySlotIdx);
+        studySlotIdx++;
+      }
+    });
+    return map;
+  }, [timeSlots]);
 
-  // 이동시간/학원일정 슬롯 인덱스 매핑 (timeSlots 전체 인덱스 -> 이동시간/학원일정 블록 인덱스)
-  const travelAndAcademySlotIndexMap = new Map<number, number>();
-  let travelAndAcademySlotIdx = 0;
-  timeSlots.forEach((slot, idx) => {
-    if (slot.type === "이동시간" || slot.type === "학원일정") {
-      travelAndAcademySlotIndexMap.set(idx, travelAndAcademySlotIdx);
-      travelAndAcademySlotIdx++;
-    }
-  });
+  // 이동시간/학원일정 슬롯 인덱스 매핑 (메모이제이션)
+  const travelAndAcademySlotIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+    let travelAndAcademySlotIdx = 0;
+    timeSlots.forEach((slot, idx) => {
+      if (slot.type === "이동시간" || slot.type === "학원일정") {
+        map.set(idx, travelAndAcademySlotIdx);
+        travelAndAcademySlotIdx++;
+      }
+    });
+    return map;
+  }, [timeSlots]);
 
   return (
     <>
@@ -992,10 +1047,20 @@ function TimeSlotsWithPlans({
       })}
     </>
   );
-}
+}, (prevProps, nextProps) => {
+  // timeSlots, datePlans, dayType이 변경되었는지 확인
+  return (
+    prevProps.date === nextProps.date &&
+    prevProps.dayType === nextProps.dayType &&
+    prevProps.totalStudyHours === nextProps.totalStudyHours &&
+    prevProps.timeSlots.length === nextProps.timeSlots.length &&
+    prevProps.datePlans.length === nextProps.datePlans.length &&
+    prevProps.sequenceMap.size === nextProps.sequenceMap.size
+  );
+});
 
 // 플랜 표 컴포넌트
-function PlanTable({
+const PlanTable = memo(function PlanTable({
   plans,
   contents,
   dayType,
@@ -1163,7 +1228,14 @@ function PlanTable({
       </tbody>
     </table>
   );
-}
+}, (prevProps, nextProps) => {
+  // plans 배열의 길이와 주요 속성만 비교
+  return (
+    prevProps.plans.length === nextProps.plans.length &&
+    prevProps.dayType === nextProps.dayType &&
+    prevProps.sequenceMap.size === nextProps.sequenceMap.size
+  );
+});
 
 // 유틸리티 함수들
 function timeToMinutes(time: string): number {
@@ -1231,7 +1303,7 @@ function ScheduleListByWeek({
   contents: Map<string, ContentData>;
   blocks: BlockData[];
   sequenceMap: Map<string, number>;
-  expandedDates: Set<string>;
+  expandedDates: Map<string, boolean>;
   onToggleDate: (date: string) => void;
 }) {
   // 주차별로 그룹화
@@ -1288,7 +1360,7 @@ function WeekSection({
   contents: Map<string, ContentData>;
   blocks: BlockData[];
   sequenceMap: Map<string, number>;
-  expandedDates: Set<string>;
+  expandedDates: Map<string, boolean>;
   onToggleDate: (date: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1307,7 +1379,7 @@ function WeekSection({
               contents={contents}
               blocks={blocks}
               sequenceMap={sequenceMap}
-              isExpanded={expandedDates.has(schedule.date)}
+              isExpanded={expandedDates.get(schedule.date) ?? false}
               onToggle={() => onToggleDate(schedule.date)}
             />
           );
@@ -1442,7 +1514,7 @@ function WeekSection({
                 contents={contents}
                 blocks={blocks}
                 sequenceMap={sequenceMap}
-                isExpanded={expandedDates.has(schedule.date)}
+                isExpanded={expandedDates.get(schedule.date) ?? false}
                 onToggle={() => onToggleDate(schedule.date)}
               />
             );

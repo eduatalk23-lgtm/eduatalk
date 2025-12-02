@@ -79,6 +79,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
   const [result, setResult] = useState<ScheduleAvailabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([0]));
+  const [visibleWeeks, setVisibleWeeks] = useState<Set<number>>(new Set([0]));
 
   // 선택된 블록 세트의 블록 데이터 추출
   const selectedBlockSetBlocks = useMemo(() => {
@@ -295,7 +296,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     return () => clearTimeout(timer);
   }, [scheduleParams, calculateSchedule]);
 
-  // 주차별 그룹화
+  // 주차별 그룹화 및 통계 계산 (메모이제이션)
   const weeklySchedules = useMemo(() => {
     if (!result?.daily_schedule) return [];
 
@@ -318,7 +319,25 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     return weeks;
   }, [result?.daily_schedule]);
 
-  const toggleWeek = (weekIndex: number) => {
+  // 시간 계산 헬퍼 함수 (메모이제이션)
+  const calculateTimeFromSlots = useCallback((
+    timeSlots: Array<{ type: string; start: string; end: string }> | undefined,
+    type: "학습시간" | "자율학습" | "이동시간" | "학원일정"
+  ): number => {
+    if (!timeSlots) return 0;
+    const minutes = timeSlots
+      .filter((slot) => slot.type === type)
+      .reduce((sum, slot) => {
+        const [startHour, startMin] = slot.start.split(":").map(Number);
+        const [endHour, endMin] = slot.end.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        return sum + (endMinutes - startMinutes);
+      }, 0);
+    return minutes / 60;
+  }, []);
+
+  const toggleWeek = useCallback((weekIndex: number) => {
     setExpandedWeeks((prev) => {
       const next = new Set(prev);
       if (next.has(weekIndex)) {
@@ -328,7 +347,49 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       }
       return next;
     });
-  };
+    // 확장 시 visibleWeeks에도 추가
+    setVisibleWeeks((prev) => {
+      const next = new Set(prev);
+      next.add(weekIndex);
+      return next;
+    });
+  }, []);
+
+  // Intersection Observer를 사용한 지연 로딩
+  const weekRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (!result || weeklySchedules.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const weekIndex = parseInt(
+              entry.target.getAttribute("data-week-index") || "0"
+            );
+            setVisibleWeeks((prev) => {
+              const next = new Set(prev);
+              next.add(weekIndex);
+              return next;
+            });
+          }
+        });
+      },
+      { rootMargin: "200px" } // 200px 전에 미리 로드
+    );
+
+    // 모든 주차 섹션 관찰
+    weekRefs.current.forEach((element) => {
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [result, weeklySchedules.length]);
 
   if (loading) {
     return (
@@ -475,12 +536,21 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         <div className="space-y-3">
           {weeklySchedules.map((week, weekIndex) => {
             const isExpanded = expandedWeeks.has(weekIndex);
+            const isVisible = visibleWeeks.has(weekIndex);
             const weekStart = week[0].date;
             const weekEnd = week[week.length - 1].date;
 
             return (
               <div
                 key={weekIndex}
+                ref={(el) => {
+                  if (el) {
+                    weekRefs.current.set(weekIndex, el);
+                  } else {
+                    weekRefs.current.delete(weekIndex);
+                  }
+                }}
+                data-week-index={weekIndex}
                 className="border border-gray-200 rounded-lg overflow-hidden"
               >
                 {/* 주차 헤더 */}
@@ -505,38 +575,18 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                   )}
                 </button>
 
-                {/* 주차 상세 */}
-                {isExpanded && (
+                {/* 주차 상세 - 지연 로딩: 확장되었거나 화면에 보이는 경우만 렌더링 */}
+                {isExpanded && isVisible && (
                   <div className="p-4 space-y-2">
                     {week.map((day) => {
-                      // 시간 슬롯에서 각 타입별 시간 계산
-                      const calculateTimeFromSlots = (
-                        type: "학습시간" | "자율학습" | "이동시간" | "학원일정"
-                      ): number => {
-                        if (!day.time_slots) return 0;
-                        const minutes = day.time_slots
-                          .filter((slot) => slot.type === type)
-                          .reduce((sum, slot) => {
-                            const [startHour, startMin] = slot.start
-                              .split(":")
-                              .map(Number);
-                            const [endHour, endMin] = slot.end
-                              .split(":")
-                              .map(Number);
-                            const startMinutes = startHour * 60 + startMin;
-                            const endMinutes = endHour * 60 + endMin;
-                            return sum + (endMinutes - startMinutes);
-                          }, 0);
-                        return minutes / 60;
-                      };
-
+                      // 시간 슬롯에서 각 타입별 시간 계산 (메모이제이션된 함수 사용)
                       const isDesignatedHoliday = day.day_type === "지정휴일";
-                      const studyHours = calculateTimeFromSlots("학습시간");
+                      const studyHours = calculateTimeFromSlots(day.time_slots, "학습시간");
                       const selfStudyHours = isDesignatedHoliday
                         ? day.study_hours
-                        : calculateTimeFromSlots("자율학습");
-                      const travelHours = calculateTimeFromSlots("이동시간");
-                      const academyHours = calculateTimeFromSlots("학원일정");
+                        : calculateTimeFromSlots(day.time_slots, "자율학습");
+                      const travelHours = calculateTimeFromSlots(day.time_slots, "이동시간");
+                      const academyHours = calculateTimeFromSlots(day.time_slots, "학원일정");
                       const totalHours =
                         studyHours +
                         selfStudyHours +

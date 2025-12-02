@@ -52,6 +52,9 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
     },
     staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
     gcTime: 1000 * 60 * 10, // 10분간 메모리 유지
+    refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 재요청 방지
+    refetchOnMount: false, // 마운트 시 자동 재요청 방지 (캐시된 데이터가 있으면 사용)
+    refetchOnReconnect: false, // 네트워크 재연결 시 자동 재요청 방지
   });
 
   // ref를 통해 외부에서 refresh 함수 호출 가능하도록
