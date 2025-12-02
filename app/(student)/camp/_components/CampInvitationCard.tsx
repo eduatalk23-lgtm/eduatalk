@@ -53,12 +53,16 @@ export function CampInvitationCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            {invitation.template?.program_type && (
+              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-800">
+                {invitation.template.program_type}
+              </span>
+            )}
+          </div>
           <h3 className="text-lg font-semibold text-gray-900">
             {invitation.template?.name || "캠프 프로그램"}
           </h3>
-          <p className="mt-1 text-sm text-gray-600">
-            {invitation.template?.program_type}
-          </p>
           {invitation.template?.description && (
             <p className="mt-2 text-sm text-gray-500">
               {invitation.template.description}

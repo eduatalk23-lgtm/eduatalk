@@ -61,10 +61,21 @@
 ### 3. 카드 UI에 장소 및 기간 정보 표시
 **파일**: `app/(student)/camp/_components/CampInvitationCard.tsx`
 
+- 프로그램 유형을 이름 위에 뱃지 형태로 표시
 - 설명 아래에 장소 정보 표시
 - 장소 아래에 캠프 기간 정보 표시 (날짜 포맷팅 포함)
 
-```59:80:app/(student)/camp/_components/CampInvitationCard.tsx
+```56:80:app/(student)/camp/_components/CampInvitationCard.tsx
+          <div className="flex items-center gap-2 mb-2">
+            {invitation.template?.program_type && (
+              <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-800">
+                {invitation.template.program_type}
+              </span>
+            )}
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {invitation.template?.name || "캠프 프로그램"}
+          </h3>
           {invitation.template?.description && (
             <p className="mt-2 text-sm text-gray-500">
               {invitation.template.description}
@@ -95,13 +106,18 @@
 ## 표시 정보 구조
 
 ```
+- 프로그램 유형 (뱃지 형태, 이름 위) ← 수정
 - 템플릿 이름
-- 프로그램 유형
 - 설명 (있는 경우)
 - 장소 (있는 경우) ← 추가
 - 캠프 기간 (있는 경우) ← 추가
 - 플랜 상태 표시
 ```
+
+### 프로그램 유형 뱃지 스타일
+- 이름 위에 뱃지 형태로 표시
+- `bg-indigo-100`, `text-indigo-800` 색상 사용
+- `rounded-full` 형태의 작은 뱃지
 
 ## 날짜 포맷
 - 한국어 형식으로 표시: "2025년 1월 15일 ~ 2025년 1월 20일"
