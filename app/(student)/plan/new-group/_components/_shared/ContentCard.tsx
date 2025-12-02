@@ -115,7 +115,7 @@ export const ContentCard = React.memo(function ContentCard({
             {recommended && recommended.scoreDetails && (
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 {recommended.scoreDetails.schoolGrade !== null && (
-                  <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-700">
+                  <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">
                     내신: {recommended.scoreDetails.schoolGrade}등급
                   </span>
                 )}

@@ -108,16 +108,16 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
       <div className="space-y-4">
         {/* 안내 메시지 */}
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-          <p className="text-sm font-medium text-blue-900">
+          <p className="text-sm font-medium text-blue-800">
             상세 정보가 없습니다
           </p>
-          <p className="mt-1 text-xs text-blue-700">
+          <p className="mt-1 text-xs text-blue-800">
             {isBook
               ? "페이지 범위를 직접 입력해주세요."
               : "회차 범위를 직접 입력해주세요."}
           </p>
           {maxValue && (
-            <p className="mt-1 text-xs text-blue-600">
+            <p className="mt-1 text-xs text-blue-800">
               {isBook ? `총 페이지수: ${maxValue}페이지` : `총 회차: ${maxValue}회차`}
             </p>
           )}
@@ -168,14 +168,14 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         {/* 범위 요약 */}
         {currentStart && currentEnd && Number(currentStart) > 0 && Number(currentEnd) > 0 && (
           <div className="rounded-lg bg-blue-50 p-3">
-            <p className="text-sm font-medium text-blue-900">선택된 범위</p>
-            <p className="mt-1 text-sm text-blue-700">
+            <p className="text-sm font-medium text-blue-800">선택된 범위</p>
+            <p className="mt-1 text-sm text-blue-800">
               {isBook
                 ? `${currentStart}페이지 ~ ${currentEnd}페이지`
                 : `${currentStart}회차 ~ ${currentEnd}회차`}
             </p>
             {Number(currentStart) && Number(currentEnd) && (
-              <p className="mt-1 text-xs text-blue-600">
+              <p className="mt-1 text-xs text-blue-800">
                 총 {Number(currentEnd) - Number(currentStart) + 1}
                 {isBook ? "페이지" : "회차"}
               </p>
@@ -279,7 +279,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             {getOptionLabel(details[endIndex])}
           </p>
           {isBook && (
-            <p className="mt-1 text-xs text-blue-600">
+            <p className="mt-1 text-xs text-blue-800">
               총{" "}
               {(details[endIndex] as BookDetail).page_number -
                 (details[startIndex] as BookDetail).page_number +
@@ -288,7 +288,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             </p>
           )}
           {!isBook && (
-            <p className="mt-1 text-xs text-blue-600">
+            <p className="mt-1 text-xs text-blue-800">
               총{" "}
               {(details[endIndex] as LectureEpisode).episode_number -
                 (details[startIndex] as LectureEpisode).episode_number +

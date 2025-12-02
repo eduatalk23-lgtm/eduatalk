@@ -8,10 +8,7 @@ import {
   PlanGroupWizard,
   WizardData,
 } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import {
-  CampTemplate,
-  CampProgramType,
-} from "@/lib/types/plan";
+import { CampTemplate, CampProgramType } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BlockSetWithBlocks } from "@/lib/data/blockSets";
 import { CampTemplateImpactSummary } from "@/lib/data/campTemplates";
@@ -86,7 +83,9 @@ export function CampTemplateEditForm({
     template.camp_location || ""
   );
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
-  const [wizardSaveFunction, setWizardSaveFunction] = useState<(() => Promise<void>) | null>(null);
+  const [wizardSaveFunction, setWizardSaveFunction] = useState<
+    (() => Promise<void>) | null
+  >(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // 저장 함수를 받는 콜백을 useCallback으로 메모이제이션
@@ -171,8 +170,18 @@ export function CampTemplateEditForm({
           disabled={isPending}
           className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           {isPending ? "이동 중..." : "템플릿 상세보기"}
         </button>
@@ -231,122 +240,122 @@ export function CampTemplateEditForm({
         {isBasicInfoOpen && (
           <div className="border-t border-gray-200 p-6">
             <div className="grid gap-4 md:grid-cols-2">
-          {/* 템플릿 이름 */}
-          <div className="md:col-span-2">
-            <label
-              htmlFor="template_name"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              템플릿 이름 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="template_name"
-              value={templateName}
-              onChange={(e) => {
-                setTemplateName(e.target.value);
-              }}
-              placeholder="템플릿 이름을 입력하세요"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
-              required
-            />
-          </div>
+              {/* 템플릿 이름 */}
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="template_name"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  템플릿 이름 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="template_name"
+                  value={templateName}
+                  onChange={(e) => {
+                    setTemplateName(e.target.value);
+                  }}
+                  placeholder="템플릿 이름을 입력하세요"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                  required
+                />
+              </div>
 
-          {/* 프로그램 유형 */}
-          <div>
-            <label
-              htmlFor="program_type"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              프로그램 유형 <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="program_type"
-              value={programType}
-              onChange={(e) =>
-                setProgramType(e.target.value as CampProgramType)
-              }
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
-              required
-            >
-              {programTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              {/* 프로그램 유형 */}
+              <div>
+                <label
+                  htmlFor="program_type"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  프로그램 유형 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="program_type"
+                  value={programType}
+                  onChange={(e) =>
+                    setProgramType(e.target.value as CampProgramType)
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                  required
+                >
+                  {programTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {/* 설명 */}
-          <div className="md:col-span-2">
-            <label
-              htmlFor="description"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              설명
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="템플릿에 대한 설명을 입력하세요. (선택사항)"
-              rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+              {/* 설명 */}
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="description"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  설명
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="템플릿에 대한 설명을 입력하세요. (선택사항)"
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                />
+              </div>
 
-          {/* 캠프 기간 */}
-          <div>
-            <label
-              htmlFor="camp_start_date"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              캠프 시작일
-            </label>
-            <input
-              type="date"
-              id="camp_start_date"
-              value={campStartDate}
-              onChange={(e) => setCampStartDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+              {/* 캠프 기간 */}
+              <div>
+                <label
+                  htmlFor="camp_start_date"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  캠프 시작일
+                </label>
+                <input
+                  type="date"
+                  id="camp_start_date"
+                  value={campStartDate}
+                  onChange={(e) => setCampStartDate(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                />
+              </div>
 
-          <div>
-            <label
-              htmlFor="camp_end_date"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              캠프 종료일
-            </label>
-            <input
-              type="date"
-              id="camp_end_date"
-              value={campEndDate}
-              onChange={(e) => setCampEndDate(e.target.value)}
-              min={campStartDate || undefined}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+              <div>
+                <label
+                  htmlFor="camp_end_date"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  캠프 종료일
+                </label>
+                <input
+                  type="date"
+                  id="camp_end_date"
+                  value={campEndDate}
+                  onChange={(e) => setCampEndDate(e.target.value)}
+                  min={campStartDate || undefined}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                />
+              </div>
 
-          {/* 캠프 장소 */}
-          <div className="md:col-span-2">
-            <label
-              htmlFor="camp_location"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              캠프 장소
-            </label>
-            <input
-              type="text"
-              id="camp_location"
-              value={campLocation}
-              onChange={(e) => setCampLocation(e.target.value)}
-              placeholder="캠프 장소를 입력하세요. (선택사항)"
-              maxLength={200}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+              {/* 캠프 장소 */}
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="camp_location"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  캠프 장소
+                </label>
+                <input
+                  type="text"
+                  id="camp_location"
+                  value={campLocation}
+                  onChange={(e) => setCampLocation(e.target.value)}
+                  placeholder="캠프 장소를 입력하세요. (선택사항)"
+                  maxLength={200}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
         )}

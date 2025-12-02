@@ -869,9 +869,9 @@ export function Step1BasicInfo({
       {/* 캠프 템플릿 정보 표시 */}
       {campTemplateInfo && (
         <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <h3 className="font-semibold text-blue-900">캠프 프로그램</h3>
-          <p className="text-sm text-blue-700">{campTemplateInfo.name}</p>
-          <p className="text-xs text-blue-600">
+          <h3 className="font-semibold text-blue-800">캠프 프로그램</h3>
+          <p className="text-sm text-blue-800">{campTemplateInfo.name}</p>
+          <p className="text-xs text-blue-800">
             {campTemplateInfo.program_type}
           </p>
         </div>
@@ -1845,10 +1845,10 @@ export function Step1BasicInfo({
                       ~{" "}
                       {data.additional_period_reallocation.original_period_end}
                     </p>
-                    <p className="mt-1 text-xs text-blue-700">
+                    <p className="mt-1 text-xs text-blue-800">
                       학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을 진행합니다.
                     </p>
-                    <p className="mt-1 text-xs text-blue-600">
+                    <p className="mt-1 text-xs text-blue-800">
                       복습 소요시간은 원본 학습 소요시간의 25%로 자동 계산됩니다.
                     </p>
                   </div>
@@ -1941,7 +1941,7 @@ export function Step1BasicInfo({
 
               {show1730Desc && (
                 <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
-                  <h4 className="mb-3 font-semibold text-blue-900">
+                  <h4 className="mb-3 font-semibold text-blue-800">
                     1730 Timetable 동작 방식
                   </h4>
                   <ul className="space-y-2 text-blue-800">

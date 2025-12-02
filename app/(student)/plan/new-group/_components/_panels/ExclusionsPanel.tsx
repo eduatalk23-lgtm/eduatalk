@@ -512,13 +512,13 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                       <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
                       <div className="space-y-1 text-xs text-blue-800">
                         <div className="font-semibold">지정휴일 안내</div>
-                        <div className="text-blue-700">
+                        <div className="text-blue-800">
                           • 학습 분량은 배정되지 않습니다
                         </div>
-                        <div className="text-blue-700">
+                        <div className="text-blue-800">
                           • 자율 학습은 가능합니다 (설정된 시간대)
                         </div>
-                        <div className="text-blue-700">
+                        <div className="text-blue-800">
                           • 주차 계산에서 제외되어 7일 단위 학습 패턴에 영향을 주지 않습니다
                         </div>
                       </div>

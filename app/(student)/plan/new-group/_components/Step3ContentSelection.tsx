@@ -811,7 +811,7 @@ export function Step3ContentSelection({
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "student"
-              ? "border-blue-600 text-blue-600"
+              ? "border-blue-600 text-blue-800"
               : "border-transparent text-gray-600 hover:text-gray-900"
           )}
         >
@@ -821,7 +821,7 @@ export function Step3ContentSelection({
             className={cn(
               "rounded-full px-2 py-0.5 text-xs",
               activeTab === "student"
-                ? "bg-blue-100 text-blue-700"
+                ? "bg-blue-100 text-blue-800"
                 : "bg-gray-100 text-gray-600"
             )}
           >
@@ -835,7 +835,7 @@ export function Step3ContentSelection({
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "recommended"
-              ? "border-blue-600 text-blue-600"
+              ? "border-blue-600 text-blue-800"
               : "border-transparent text-gray-600 hover:text-gray-900"
           )}
         >
@@ -845,7 +845,7 @@ export function Step3ContentSelection({
             className={cn(
               "rounded-full px-2 py-0.5 text-xs",
               activeTab === "recommended"
-                ? "bg-blue-100 text-blue-700"
+                ? "bg-blue-100 text-blue-800"
                 : "bg-gray-100 text-gray-600"
             )}
           >
@@ -859,7 +859,7 @@ export function Step3ContentSelection({
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "master"
-              ? "border-blue-600 text-blue-600"
+              ? "border-blue-600 text-blue-800"
               : "border-transparent text-gray-600 hover:text-gray-900"
           )}
         >

@@ -101,7 +101,7 @@ export function Step6Simplified({
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
             <svg
-              className="h-5 w-5 text-blue-600"
+              className="h-5 w-5 text-blue-800"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -115,7 +115,7 @@ export function Step6Simplified({
             </svg>
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-semibold text-blue-900">
+            <h4 className="text-sm font-semibold text-blue-800">
               플랜 생성 전 확인사항
             </h4>
             <ul className="mt-2 space-y-1 text-sm text-blue-800">

@@ -399,12 +399,12 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-blue-500" />
-            <span className="text-xs font-medium text-blue-700">학습일</span>
+            <span className="text-xs font-medium text-blue-800">학습일</span>
           </div>
-          <p className="mt-2 text-2xl font-bold text-blue-900">
+          <p className="mt-2 text-2xl font-bold text-blue-800">
             {result.summary.total_study_days}
           </p>
-          <p className="text-xs text-blue-600">일</p>
+          <p className="text-xs text-blue-800">일</p>
         </div>
 
         <div className="rounded-lg border border-green-200 bg-green-50 p-4">

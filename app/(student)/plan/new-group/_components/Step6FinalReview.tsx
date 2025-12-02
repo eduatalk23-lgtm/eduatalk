@@ -799,8 +799,8 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
             <div className="mt-1 text-2xl font-bold text-gray-900">{totalCount}개</div>
           </div>
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <div className="text-sm font-medium text-blue-700">학생 콘텐츠</div>
-            <div className="mt-1 text-2xl font-bold text-blue-900">{studentCount}개</div>
+            <div className="text-sm font-medium text-blue-800">학생 콘텐츠</div>
+            <div className="mt-1 text-2xl font-bold text-blue-800">{studentCount}개</div>
           </div>
           <div className="rounded-lg border border-green-200 bg-green-50 p-4">
             <div className="text-sm font-medium text-green-700">추천 콘텐츠</div>
@@ -946,8 +946,8 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {/* 현재 범위 */}
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <div className="text-xs font-medium text-blue-700">현재 지정 범위</div>
-                <div className="mt-1 text-lg font-bold text-blue-900">
+                <div className="text-xs font-medium text-blue-800">현재 지정 범위</div>
+                <div className="mt-1 text-lg font-bold text-blue-800">
                   {currentTotalPages > 0 && (
                     <span className="block">📄 {currentTotalPages}페이지</span>
                   )}
@@ -1502,11 +1502,11 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
                               <div className="rounded-lg border border-blue-200 bg-blue-50 p-2">
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
-                                    <div className="text-xs font-medium text-blue-900">
+                                    <div className="text-xs font-medium text-blue-800">
                                       💡 추천 범위: {recommendedRange.start} ~ {recommendedRange.end}
                                       {content.content_type === "book" ? " 페이지" : " 회차"}
                                     </div>
-                                    <div className="mt-1 text-xs text-blue-700">
+                                    <div className="mt-1 text-xs text-blue-800">
                                       {recommendedRange.reason}
                                     </div>
                                   </div>
@@ -1849,7 +1849,7 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
                       <div className="ml-4 flex flex-col items-end gap-2">
                         {recommendedRange ? (
                           <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs">
-                            <div className="font-medium text-blue-900">
+                            <div className="font-medium text-blue-800">
                               💡 추천: {recommendedRange.start} ~ {recommendedRange.end}
                               {content.content_type === "book" ? " 페이지" : " 회차"}
                             </div>
@@ -2002,11 +2002,11 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
                               <div className="rounded-lg border border-blue-200 bg-blue-50 p-2">
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
-                                    <div className="text-xs font-medium text-blue-900">
+                                    <div className="text-xs font-medium text-blue-800">
                                       💡 추천 범위: {recommendedRange.start} ~ {recommendedRange.end}
                                       {content.content_type === "book" ? " 페이지" : " 회차"}
                                     </div>
-                                    <div className="mt-1 text-xs text-blue-700">
+                                    <div className="mt-1 text-xs text-blue-800">
                                       {recommendedRange.reason}
                                     </div>
                                   </div>
@@ -2349,7 +2349,7 @@ export function Step6FinalReview({ data, onUpdate, contents, isCampMode = false,
                       <div className="ml-4 flex flex-col items-end gap-2">
                         {recommendedRange ? (
                           <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs">
-                            <div className="font-medium text-blue-900">
+                            <div className="font-medium text-blue-800">
                               💡 추천: {recommendedRange.start} ~ {recommendedRange.end}
                               {content.content_type === "book" ? " 페이지" : " 회차"}
                             </div>
@@ -2902,7 +2902,7 @@ function ContentAllocationUI({
 
       {/* 설정 요약 */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-        <h4 className="mb-2 text-xs font-semibold text-blue-900">설정 요약</h4>
+        <h4 className="mb-2 text-xs font-semibold text-blue-800">설정 요약</h4>
         <div className="space-y-1 text-xs text-blue-800">
           <p>
             • 콘텐츠별 설정: {(data.content_allocations || []).length}개
@@ -2910,7 +2910,7 @@ function ContentAllocationUI({
           <p>
             • 교과별 설정 (폴백): {(data.subject_allocations || []).length}개
           </p>
-          <p className="text-blue-700">
+          <p className="text-blue-800">
             콘텐츠별 설정이 우선 적용되며, 설정되지 않은 콘텐츠는 교과별 설정을 따릅니다.
           </p>
         </div>

@@ -312,7 +312,7 @@ export function MasterContentsPanel({
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                   selectedContentType === "all"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    ? "border-blue-600 bg-blue-50 text-blue-800"
                     : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                 )}
               >
@@ -324,7 +324,7 @@ export function MasterContentsPanel({
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                   selectedContentType === "book"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    ? "border-blue-600 bg-blue-50 text-blue-800"
                     : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                 )}
               >
@@ -337,7 +337,7 @@ export function MasterContentsPanel({
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                   selectedContentType === "lecture"
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    ? "border-blue-600 bg-blue-50 text-blue-800"
                     : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                 )}
               >
@@ -431,7 +431,7 @@ export function MasterContentsPanel({
                         className={cn(
                           "rounded-full px-2 py-0.5 text-xs font-medium",
                           result.content_type === "book"
-                            ? "bg-blue-100 text-blue-700"
+                            ? "bg-blue-100 text-blue-800"
                             : "bg-purple-100 text-purple-700"
                         )}
                       >

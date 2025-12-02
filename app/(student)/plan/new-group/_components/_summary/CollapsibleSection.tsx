@@ -124,7 +124,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
                 e.stopPropagation();
                 onEdit();
               }}
-              className="flex items-center gap-2 rounded-lg border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50"
+              className="flex items-center gap-2 rounded-lg border border-blue-500 px-4 py-2 text-sm font-medium text-blue-800 transition-colors hover:bg-blue-50"
             >
               <Edit className="h-4 w-4" />
               {editLabel}

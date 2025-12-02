@@ -622,7 +622,7 @@ export function Step3Contents({
                             📚 교재
                           </span>
                           {book.master_content_id && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
                               📦 마스터에서 가져옴
                             </span>
                           )}
@@ -960,7 +960,7 @@ export function Step3Contents({
                             🎧 강의
                           </span>
                           {lecture.master_content_id && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
                               📦 마스터에서 가져옴
                             </span>
                           )}
@@ -1311,7 +1311,7 @@ export function Step3Contents({
                       ? contents.books.find((b) => b.id === contentId)
                       : contents.lectures.find((l) => l.id === contentId);
                     return foundContent?.master_content_id ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
                         📦 마스터에서 가져옴
                       </span>
                     ) : null;

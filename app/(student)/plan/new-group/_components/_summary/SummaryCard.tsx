@@ -36,8 +36,8 @@ const variantStyles = {
   },
   primary: {
     container: "bg-blue-50 border-blue-200",
-    title: "text-blue-600",
-    value: "text-blue-900",
+    title: "text-blue-800",
+    value: "text-blue-800",
     icon: "text-blue-500",
   },
   success: {

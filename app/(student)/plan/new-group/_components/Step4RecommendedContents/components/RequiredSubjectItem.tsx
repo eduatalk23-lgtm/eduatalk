@@ -223,7 +223,7 @@ export default function RequiredSubjectItem({
                 });
               }
             }}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors"
+            className="flex items-center gap-1 text-xs text-blue-800 hover:text-blue-800 transition-colors"
           >
             {showCurriculumSubjects ? (
               <>
