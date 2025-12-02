@@ -108,7 +108,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
       {/* 헤더 */}
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-semibold text-gray-900">학습 시간 제외 항목</h3>
-        <Info className="h-4 w-4 text-gray-400" />
+        <Info className="h-4 w-4 text-gray-600" />
       </div>
 
       <div>
@@ -135,7 +135,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                       )}
                     </div>
                     {block.description && (
-                      <div className="mt-1 text-xs text-gray-500">{block.description}</div>
+                      <div className="mt-1 text-xs text-gray-600">{block.description}</div>
                     )}
                   </div>
                   <button
@@ -158,7 +158,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-800">제외 항목 유형</label>
                 <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
                   value={newNonStudyTimeBlock.type}
                   onChange={(e) =>
                     setNewNonStudyTimeBlock({

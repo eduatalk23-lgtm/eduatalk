@@ -56,7 +56,7 @@ export const TimeSettingsPanel = React.memo(function TimeSettingsPanel({
       {/* 헤더 */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900">블록 및 제외일 설정</h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-600">
           학습 제외일과 학원 일정을 설정해주세요. 설정한 내용은 우측에서 실시간으로 확인할 수 있습니다.
         </p>
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">

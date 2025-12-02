@@ -529,7 +529,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 )}
               </div>
               <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
                 value={newExclusionType}
                 onChange={(e) =>
                   setNewExclusionType(e.target.value as typeof newExclusionType)
