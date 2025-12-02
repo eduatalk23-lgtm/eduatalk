@@ -406,6 +406,12 @@ const superadminCategories: NavigationCategory[] = [
         href: "/superadmin/unverified-users",
         icon: "✉️",
       },
+      {
+        id: "superadmin-tenantless-users",
+        label: "테넌트 미할당 사용자",
+        href: "/superadmin/tenantless-users",
+        icon: "🔗",
+      },
     ],
   },
   {

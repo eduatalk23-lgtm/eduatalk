@@ -427,6 +427,7 @@ function getSegmentLabel(segment: string, role: NavigationRole): string {
       tenants: "기관 관리",
       "admin-users": "관리자 계정",
       "unverified-users": "미인증 가입 관리",
+      "tenantless-users": "테넌트 미할당 사용자",
       settings: "설정",
     },
     parent: {
