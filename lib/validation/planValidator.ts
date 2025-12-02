@@ -17,8 +17,15 @@ export type ValidationResult = {
 export class PlanValidator {
   /**
    * 플랜 그룹 생성 데이터 검증
+   * @param data 플랜 그룹 생성 데이터
+   * @param options 검증 옵션 (캠프 모드에서 콘텐츠 검증 건너뛰기 등)
    */
-  static validateCreation(data: PlanGroupCreationData): ValidationResult {
+  static validateCreation(
+    data: PlanGroupCreationData,
+    options?: {
+      skipContentValidation?: boolean; // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
+    }
+  ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -36,10 +43,12 @@ export class PlanValidator {
     errors.push(...exclusionValidation.errors);
     warnings.push(...exclusionValidation.warnings);
 
-    // 3. 콘텐츠 검증
-    const contentValidation = this.validateContents(data.contents);
-    errors.push(...contentValidation.errors);
-    warnings.push(...contentValidation.warnings);
+    // 3. 콘텐츠 검증 (옵션으로 건너뛸 수 있음)
+    if (!options?.skipContentValidation) {
+      const contentValidation = this.validateContents(data.contents);
+      errors.push(...contentValidation.errors);
+      warnings.push(...contentValidation.warnings);
+    }
 
     // 4. 학원 일정 검증
     const academyValidation = this.validateAcademySchedules(data.academy_schedules);

@@ -984,7 +984,11 @@ export function PlanGroupWizard({
           finalGroupId = draftGroupId;
         } else {
           // 생성 모드
-          const result = await createPlanGroupAction(creationData);
+          // 캠프 모드에서 Step 3에서 제출할 때는 콘텐츠 검증 건너뛰기
+          const skipContentValidation = isCampMode && currentStep === 3 && !isAdminContinueMode;
+          const result = await createPlanGroupAction(creationData, {
+            skipContentValidation,
+          });
           if (!result?.groupId) {
             throw new PlanGroupError(
               "플랜 그룹 생성 결과가 없습니다.",

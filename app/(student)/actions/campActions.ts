@@ -439,12 +439,18 @@ export const submitCampParticipation = withErrorHandling(
       groupId = existingGroup.id;
     } else {
       // 새 플랜 그룹 생성
-      const result = await createPlanGroupAction({
-        ...creationData,
-        plan_type: "camp",
-        camp_template_id: invitation.camp_template_id,
-        camp_invitation_id: invitationId,
-      });
+      // 캠프 모드에서 Step 3 제출 시 콘텐츠가 없어도 제출 가능하도록 콘텐츠 검증 건너뛰기
+      const result = await createPlanGroupAction(
+        {
+          ...creationData,
+          plan_type: "camp",
+          camp_template_id: invitation.camp_template_id,
+          camp_invitation_id: invitationId,
+        },
+        {
+          skipContentValidation: true, // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
+        }
+      );
 
       if (!result.groupId) {
         // 플랜 그룹 생성 실패 시 초대 상태를 업데이트하지 않음

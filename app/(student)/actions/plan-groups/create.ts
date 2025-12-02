@@ -22,13 +22,16 @@ import { normalizePlanPurpose } from "./utils";
  * 플랜 그룹 생성 (JSON 데이터)
  */
 async function _createPlanGroup(
-  data: PlanGroupCreationData
+  data: PlanGroupCreationData,
+  options?: {
+    skipContentValidation?: boolean; // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
+  }
 ): Promise<{ groupId: string }> {
   const user = await requireStudentAuth();
   const tenantContext = await requireTenantContext();
 
   // 검증
-  const validation = PlanValidator.validateCreation(data);
+  const validation = PlanValidator.validateCreation(data, options);
   if (!validation.valid) {
     throw new AppError(
       validation.errors.join(", ") || "입력값을 확인해주세요.",
@@ -193,7 +196,16 @@ async function _createPlanGroup(
   return { groupId };
 }
 
-export const createPlanGroupAction = withErrorHandling(_createPlanGroup);
+export const createPlanGroupAction = withErrorHandling(
+  async (
+    data: PlanGroupCreationData,
+    options?: {
+      skipContentValidation?: boolean;
+    }
+  ) => {
+    return _createPlanGroup(data, options);
+  }
+);
 
 /**
  * 플랜 그룹 임시저장 (draft 상태로 저장, 검증 완화)
