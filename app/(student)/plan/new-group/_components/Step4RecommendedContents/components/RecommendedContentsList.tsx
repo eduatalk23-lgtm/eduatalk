@@ -210,7 +210,19 @@ export default function RecommendedContentsList({
         </div>
         <button
           type="button"
-          onClick={onAddSelectedContents}
+          onClick={() => {
+            console.log("[RecommendedContentsList] 선택한 콘텐츠 추가하기 버튼 클릭:", {
+              selectedContentIds: Array.from(selectedContentIds),
+              selectedContentIdsSize: selectedContentIds.size,
+              totalCount,
+              missingRequiredSubjects,
+              disabled:
+                selectedContentIds.size === 0 ||
+                missingRequiredSubjects.length > 0 ||
+                totalCount + selectedContentIds.size > 9,
+            });
+            onAddSelectedContents();
+          }}
           disabled={
             selectedContentIds.size === 0 ||
             missingRequiredSubjects.length > 0 ||

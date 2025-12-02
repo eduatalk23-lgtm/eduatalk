@@ -363,6 +363,15 @@ export default function Step4RecommendedContents({
       recommendedContents.length === 0 &&
       !loading);
 
+  // 디버깅: 추천 요청 폼 표시 조건 확인
+  console.log("[Step4RecommendedContents] 추천 요청 폼 표시 조건:", {
+    hasRequestedRecommendations,
+    recommendedContentsLength: recommendedContents.length,
+    loading,
+    shouldShowRecommendationForm,
+    autoAssignContents,
+  });
+
   // ============================================================================
   // Render
   // ============================================================================
