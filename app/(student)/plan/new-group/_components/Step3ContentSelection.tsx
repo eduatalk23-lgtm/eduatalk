@@ -293,12 +293,213 @@ export function Step3ContentSelection({
       setHasRequestedRecommendations(true);
 
       // 자동 배정
+      console.log("[Step3ContentSelection] 자동 배정 체크:", {
+        autoAssign: recommendationSettings.autoAssignContents,
+        filteredRecommendationsCount: filteredRecommendations.length,
+        willAutoAssign: recommendationSettings.autoAssignContents && filteredRecommendations.length > 0,
+      });
+
       if (
         recommendationSettings.autoAssignContents &&
         filteredRecommendations.length > 0
       ) {
-        // TODO: 자동 배정 로직 구현 (전체 범위)
-        // 현재는 수동 선택만 지원
+        console.log("[Step3ContentSelection] 자동 배정 시작:", {
+          recommendationsCount: filteredRecommendations.length,
+          recommendations: filteredRecommendations.map((r) => ({
+            id: r.id,
+            title: r.title,
+            contentType: r.contentType,
+          })),
+        });
+
+        // 자동 배정 로직 구현
+        const contentsToAutoAdd: Array<{
+          content_type: "book" | "lecture";
+          content_id: string;
+          start_range: number;
+          end_range: number;
+          title?: string;
+          subject_category?: string;
+        }> = [];
+
+        for (const r of filteredRecommendations) {
+          try {
+            let startRange = 1;
+            let endRange = 100;
+
+            // 상세 정보 조회
+            let detailsResult: any = null;
+            let hasDetails = false;
+            
+            const detailsResponse = await fetch(
+              `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
+            );
+
+            if (detailsResponse.ok) {
+              detailsResult = await detailsResponse.json();
+
+              if (detailsResult.success && detailsResult.data) {
+                if (r.contentType === "book") {
+                  const details = detailsResult.data.details || [];
+                  hasDetails = details.length > 0;
+                  if (hasDetails) {
+                    startRange = details[0].page_number || 1;
+                    endRange = details[details.length - 1].page_number || 100;
+                  }
+                } else if (r.contentType === "lecture") {
+                  const episodes = detailsResult.data.episodes || [];
+                  hasDetails = episodes.length > 0;
+                  if (hasDetails) {
+                    startRange = episodes[0].episode_number || 1;
+                    endRange = episodes[episodes.length - 1].episode_number || 100;
+                  }
+                }
+              }
+            }
+
+            // 상세 정보가 없거나 기본값일 때 총량 조회
+            if (!hasDetails || (startRange === 1 && endRange === 100)) {
+              try {
+                const infoResponse = await fetch(
+                  `/api/master-content-info?content_type=${r.contentType}&content_id=${r.id}`
+                );
+
+                if (infoResponse.ok) {
+                  const infoResult = await infoResponse.json();
+                  if (infoResult.success && infoResult.data) {
+                    if (r.contentType === "book" && infoResult.data.total_pages) {
+                      endRange = infoResult.data.total_pages;
+                    } else if (r.contentType === "lecture" && infoResult.data.total_episodes) {
+                      endRange = infoResult.data.total_episodes;
+                    }
+                  }
+                }
+              } catch (infoError) {
+                // 총량 조회 실패는 무시 (기본값 100 사용)
+              }
+            }
+
+            contentsToAutoAdd.push({
+              content_type: r.contentType,
+              content_id: r.id,
+              start_range: startRange,
+              end_range: endRange,
+              title: r.title,
+              subject_category: r.subject_category || undefined,
+            });
+          } catch (error) {
+            console.warn(
+              `[Step3ContentSelection] 콘텐츠 ${r.id} 상세 정보 조회 실패:`,
+              error
+            );
+            // 조회 실패 시 기본값 사용
+            contentsToAutoAdd.push({
+              content_type: r.contentType,
+              content_id: r.id,
+              start_range: 1,
+              end_range: 100,
+              title: r.title,
+              subject_category: r.subject_category || undefined,
+            });
+          }
+        }
+
+        // 함수형 업데이트를 사용하여 최신 상태 보장
+        console.log("[Step3ContentSelection] 자동 배정 실행 - 함수형 업데이트 호출:", {
+          contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
+            content_id: c.content_id,
+            content_type: c.content_type,
+            start_range: c.start_range,
+            end_range: c.end_range,
+            title: c.title,
+          })),
+        });
+
+        try {
+          onUpdate((prev) => {
+            const currentTotal =
+              prev.student_contents.length + prev.recommended_contents.length;
+            const toAdd = contentsToAutoAdd.length;
+
+            console.log("[Step3ContentSelection] 자동 배정 실행 (함수형 업데이트 내부):", {
+              currentTotal,
+              toAdd,
+              currentRecommendedContents: prev.recommended_contents.length,
+              currentStudentContents: prev.student_contents.length,
+            });
+
+            if (currentTotal + toAdd > 9) {
+              const maxToAdd = 9 - currentTotal;
+              const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
+
+              if (trimmed.length > 0) {
+                const newRecommendedContents = [
+                  ...prev.recommended_contents,
+                  ...trimmed,
+                ];
+                console.log("[Step3ContentSelection] 자동 배정 (제한 적용):", {
+                  trimmed: trimmed.length,
+                  excluded: toAdd - trimmed.length,
+                });
+                setTimeout(() => {
+                  alert(
+                    `추천 콘텐츠 ${trimmed.length}개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`
+                  );
+                }, 0);
+                return {
+                  recommended_contents: newRecommendedContents,
+                };
+              } else {
+                setTimeout(() => {
+                  alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
+                }, 0);
+                return {};
+              }
+            } else {
+              const newRecommendedContents = [
+                ...prev.recommended_contents,
+                ...contentsToAutoAdd,
+              ];
+              console.log("[Step3ContentSelection] 자동 배정 성공:", {
+                added: contentsToAutoAdd.length,
+                newRecommendedContents: newRecommendedContents.length,
+              });
+              setTimeout(() => {
+                alert(`추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`);
+              }, 0);
+              return {
+                recommended_contents: newRecommendedContents,
+              };
+            }
+          });
+
+          console.log("[Step3ContentSelection] onUpdate 호출 완료");
+
+          // 자동 배정된 콘텐츠를 추천 목록에서 제거
+          const autoAssignedIds = new Set(
+            filteredRecommendations.map((r) => r.id)
+          );
+          setRecommendedContents((prev) => {
+            const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
+            console.log("[Step3ContentSelection] 자동 배정 후 목록 업데이트:", {
+              before: prev.length,
+              after: filtered.length,
+              autoAssigned: autoAssignedIds.size,
+            });
+            return filtered;
+          });
+        } catch (error) {
+          console.error("[Step3ContentSelection] 자동 배정 중 오류 발생:", error);
+          alert("자동 배정 중 오류가 발생했습니다. 다시 시도해주세요.");
+        }
+      } else {
+        console.log("[Step3ContentSelection] 자동 배정 스킵:", {
+          autoAssign: recommendationSettings.autoAssignContents,
+          filteredRecommendationsCount: filteredRecommendations.length,
+          reason: !recommendationSettings.autoAssignContents
+            ? "자동 배정 옵션이 비활성화됨"
+            : "추천 콘텐츠가 없음",
+        });
       }
 
       // 추천 탭으로 전환
