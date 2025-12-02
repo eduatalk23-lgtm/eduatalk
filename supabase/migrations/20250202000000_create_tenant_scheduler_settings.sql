@@ -30,10 +30,10 @@ CREATE POLICY "tenant_scheduler_settings_select" ON tenant_scheduler_settings
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.tenant_id = tenant_scheduler_settings.tenant_id
-      AND users.role IN ('admin', 'consultant')
+      SELECT 1 FROM admin_users
+      WHERE admin_users.id = auth.uid()
+      AND admin_users.tenant_id = tenant_scheduler_settings.tenant_id
+      AND admin_users.role IN ('admin', 'consultant')
     )
   );
 
@@ -42,10 +42,10 @@ CREATE POLICY "tenant_scheduler_settings_update" ON tenant_scheduler_settings
   FOR UPDATE
   USING (
     EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.tenant_id = tenant_scheduler_settings.tenant_id
-      AND users.role = 'admin'
+      SELECT 1 FROM admin_users
+      WHERE admin_users.id = auth.uid()
+      AND admin_users.tenant_id = tenant_scheduler_settings.tenant_id
+      AND admin_users.role = 'admin'
     )
   );
 
@@ -54,10 +54,10 @@ CREATE POLICY "tenant_scheduler_settings_insert" ON tenant_scheduler_settings
   FOR INSERT
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.tenant_id = tenant_scheduler_settings.tenant_id
-      AND users.role = 'admin'
+      SELECT 1 FROM admin_users
+      WHERE admin_users.id = auth.uid()
+      AND admin_users.tenant_id = tenant_scheduler_settings.tenant_id
+      AND admin_users.role = 'admin'
     )
   );
 
