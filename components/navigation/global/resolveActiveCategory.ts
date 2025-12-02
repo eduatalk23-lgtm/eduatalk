@@ -170,9 +170,17 @@ export function getBreadcrumbChain(
       ? "/dashboard"
       : role === "admin"
       ? "/admin/dashboard"
+      : role === "superadmin"
+      ? "/superadmin/dashboard"
       : "/parent/dashboard";
   const homeLabel =
-    role === "student" ? "홈" : role === "admin" ? "관리자 홈" : "학부모 홈";
+    role === "student"
+      ? "홈"
+      : role === "admin"
+      ? "관리자 홈"
+      : role === "superadmin"
+      ? "Super Admin 홈"
+      : "학부모 홈";
   chain.push({ label: homeLabel, href: homeHref });
 
   // 특별 처리: /contents/books/new, /contents/lectures/new (정확한 매칭보다 먼저 처리)
@@ -412,6 +420,14 @@ function getSegmentLabel(segment: string, role: NavigationRole): string {
       tenants: "기관 관리",
       subjects: "교과/과목 관리",
       schools: "학교 관리",
+    },
+    superadmin: {
+      superadmin: "Super Admin",
+      dashboard: "대시보드",
+      tenants: "기관 관리",
+      "admin-users": "관리자 계정",
+      "unverified-users": "미인증 가입 관리",
+      settings: "설정",
     },
     parent: {
       parent: "학부모",
