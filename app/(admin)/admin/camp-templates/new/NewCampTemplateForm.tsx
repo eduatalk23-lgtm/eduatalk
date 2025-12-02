@@ -46,7 +46,6 @@ export function NewCampTemplateForm() {
     setIsSubmitting(true);
 
     try {
-
       const formData = new FormData();
       formData.append("name", templateName.trim());
       formData.append("program_type", programType);
