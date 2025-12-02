@@ -52,17 +52,6 @@ export function RoleBasedLayout({
                     <div className="text-sm font-semibold text-gray-900 truncate">
                       {tenantInfo.name}
                     </div>
-                    {tenantInfo.type && (
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {tenantInfo.type === "academy"
-                          ? "학원"
-                          : tenantInfo.type === "school"
-                          ? "학교"
-                          : tenantInfo.type === "enterprise"
-                          ? "기업"
-                          : "기타"}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -106,17 +95,6 @@ export function RoleBasedLayout({
                       <div className="text-sm font-semibold text-gray-900 truncate">
                         {tenantInfo.name}
                       </div>
-                      {tenantInfo.type && (
-                        <div className="text-xs text-gray-500">
-                          {tenantInfo.type === "academy"
-                            ? "학원"
-                            : tenantInfo.type === "school"
-                            ? "학교"
-                            : tenantInfo.type === "enterprise"
-                            ? "기업"
-                            : "기타"}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
