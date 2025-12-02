@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiCreated,
@@ -28,10 +28,10 @@ type Tenant = {
  */
 export async function POST(request: NextRequest) {
   try {
-    const tenantContext = await getTenantContext();
+    const { userId, role } = await getCurrentUserRole();
 
     // Super Admin만 접근 가능
-    if (tenantContext?.role !== "superadmin") {
+    if (!userId || role !== "superadmin") {
       return apiForbidden("Super Admin만 기관을 생성할 수 있습니다.");
     }
 

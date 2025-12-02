@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import {
   apiSuccess,
   apiNoContent,
@@ -32,10 +32,10 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const tenantContext = await getTenantContext();
+    const { userId, role } = await getCurrentUserRole();
 
     // Super Admin만 접근 가능
-    if (tenantContext?.role !== "superadmin") {
+    if (!userId || role !== "superadmin") {
       return apiForbidden("Super Admin만 기관을 수정할 수 있습니다.");
     }
 
@@ -84,10 +84,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const tenantContext = await getTenantContext();
+    const { userId, role } = await getCurrentUserRole();
 
     // Super Admin만 접근 가능
-    if (tenantContext?.role !== "superadmin") {
+    if (!userId || role !== "superadmin") {
       return apiForbidden("Super Admin만 기관을 삭제할 수 있습니다.");
     }
 

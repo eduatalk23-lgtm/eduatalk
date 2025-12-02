@@ -2,14 +2,14 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { TenantList } from "./_components/TenantList";
 
 export default async function SuperAdminTenantsPage() {
-  const tenantContext = await getTenantContext();
+  const { userId, role } = await getCurrentUserRole();
 
   // Super Admin만 접근 가능
-  if (tenantContext?.role !== "superadmin") {
+  if (!userId || role !== "superadmin") {
     redirect("/admin/dashboard");
   }
 
