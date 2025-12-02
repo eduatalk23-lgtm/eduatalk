@@ -423,6 +423,12 @@ export function useRecommendations({
       counts: Map<string, number>,
       autoAssign: boolean = false
     ) => {
+      console.log("[useRecommendations] fetchRecommendationsWithSubjects 호출:", {
+        subjects,
+        counts: Object.fromEntries(counts),
+        autoAssign,
+      });
+
       setLoading(true);
       try {
         // 쿼리 파라미터 구성
@@ -438,9 +444,20 @@ export function useRecommendations({
         }
 
         // API 호출
+        console.log("[useRecommendations] API 호출 시작:", {
+          url: `/api/recommended-master-contents?${params.toString()}`,
+          params: params.toString(),
+        });
+
         const response = await fetch(
           `/api/recommended-master-contents?${params.toString()}`
         );
+
+        console.log("[useRecommendations] API 응답 받음:", {
+          ok: response.ok,
+          status: response.status,
+          statusText: response.statusText,
+        });
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -477,6 +494,11 @@ export function useRecommendations({
         }
 
         const rawRecommendations = result.data?.recommendations || [];
+        
+        console.log("[useRecommendations] 추천 콘텐츠 수:", {
+          count: rawRecommendations.length,
+          autoAssign,
+        });
 
         // 각 추천 콘텐츠의 contentType 필드 확인
         console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 전):", {
@@ -545,6 +567,11 @@ export function useRecommendations({
 
         // 추천 콘텐츠가 없는 경우
         if (recommendations.length === 0) {
+          console.warn("[useRecommendations] 추천 콘텐츠가 없음:", {
+            autoAssign,
+            subjects,
+            counts: Object.fromEntries(counts),
+          });
           alert(
             "추천 콘텐츠가 부족합니다. 다른 교과를 선택하거나 개수를 조정해주세요."
           );

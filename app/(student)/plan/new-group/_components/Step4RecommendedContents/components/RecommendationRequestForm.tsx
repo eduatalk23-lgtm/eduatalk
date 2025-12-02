@@ -148,7 +148,10 @@ export default function RecommendationRequestForm({
           <input
             type="checkbox"
             checked={autoAssignContents}
-            onChange={(e) => onAutoAssignChange(e.target.checked)}
+            onChange={(e) => {
+              console.log("[RecommendationRequestForm] 자동 배정 체크박스 변경:", e.target.checked);
+              onAutoAssignChange(e.target.checked);
+            }}
             disabled={disabled}
             className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
           />

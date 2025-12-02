@@ -268,6 +268,12 @@ export default function Step4RecommendedContents({
   }, []);
 
   const handleSubmitRecommendation = useCallback(async () => {
+    console.log("[Step4RecommendedContents] 추천 요청 시작:", {
+      selectedSubjects: Array.from(selectedSubjects),
+      recommendationCounts: Object.fromEntries(recommendationCounts),
+      autoAssignContents,
+    });
+
     // 최소 제약 검증
     if (selectedSubjects.size === 0) {
       alert(ERROR_MESSAGES.NO_SUBJECTS_SELECTED);
@@ -292,6 +298,12 @@ export default function Step4RecommendedContents({
       );
       return;
     }
+
+    console.log("[Step4RecommendedContents] fetchRecommendationsWithSubjects 호출:", {
+      subjects: Array.from(selectedSubjects),
+      counts: Object.fromEntries(recommendationCounts),
+      autoAssign: autoAssignContents,
+    });
 
     // 교과별 추천 개수 정보를 포함하여 추천 요청
     await fetchRecommendationsWithSubjects(
