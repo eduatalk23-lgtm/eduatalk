@@ -110,17 +110,6 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-gray-900">학습 시간 제외 항목</h3>
-          {isTemplateMode && (
-            <label className="flex items-center gap-2 text-xs text-gray-600">
-              <input
-                type="checkbox"
-                checked={lockedFields.allow_student_non_study_time_blocks === true}
-                onChange={() => toggleFieldControl("allow_student_non_study_time_blocks")}
-                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-              />
-              <span>학생 입력 허용</span>
-            </label>
-          )}
           <Info className="h-4 w-4 text-gray-400" />
         </div>
         <button

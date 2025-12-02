@@ -305,22 +305,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
       <div className="rounded-lg border border-gray-200 bg-white p-6">
       {/* 헤더 */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-gray-900">학습 제외일</h3>
-          {isTemplateMode && (
-            <label className="flex items-center gap-2 text-xs text-gray-600">
-              <input
-                type="checkbox"
-                checked={lockedFields.allow_student_exclusions === true}
-                onChange={() => toggleFieldControl("allow_student_exclusions")}
-                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-              />
-              <span>학생 입력 허용</span>
-            </label>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="mb-4 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={syncFromTimeManagement}

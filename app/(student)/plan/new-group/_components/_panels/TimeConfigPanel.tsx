@@ -82,17 +82,6 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
             {isOpen ? "▲" : "▼"}
           </span>
         </button>
-        {isTemplateMode && (
-          <label className="ml-3 flex items-center gap-2 text-xs text-gray-600">
-            <input
-              type="checkbox"
-              checked={lockedFields.allow_student_time_settings === true}
-              onChange={() => toggleFieldControl("allow_student_time_settings")}
-              className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-            />
-            <span>학생 입력 허용</span>
-          </label>
-        )}
       </div>
 
       {isOpen && (
