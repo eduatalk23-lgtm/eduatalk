@@ -155,17 +155,35 @@ export function useRecommendations({
           if (response.ok) {
             const result = await response.json();
 
-            if (r.contentType === "book") {
-              const details = result.details || [];
-              if (details.length > 0) {
-                startRange = details[0].page_number || 1;
-                endRange = details[details.length - 1].page_number || 100;
+            // API 응답 형식: { success: true, data: { details/episodes: [...] } }
+            if (result.success && result.data) {
+              if (r.contentType === "book") {
+                const details = result.data.details || [];
+                if (details.length > 0) {
+                  startRange = details[0].page_number || 1;
+                  endRange = details[details.length - 1].page_number || 100;
+                }
+              } else if (r.contentType === "lecture") {
+                const episodes = result.data.episodes || [];
+                if (episodes.length > 0) {
+                  startRange = episodes[0].episode_number || 1;
+                  endRange = episodes[episodes.length - 1].episode_number || 100;
+                }
               }
-            } else if (r.contentType === "lecture") {
-              const episodes = result.episodes || [];
-              if (episodes.length > 0) {
-                startRange = episodes[0].episode_number || 1;
-                endRange = episodes[episodes.length - 1].episode_number || 100;
+            } else {
+              // 레거시 응답 형식 지원 (하위 호환성)
+              if (r.contentType === "book") {
+                const details = result.details || result.data?.details || [];
+                if (details.length > 0) {
+                  startRange = details[0].page_number || 1;
+                  endRange = details[details.length - 1].page_number || 100;
+                }
+              } else if (r.contentType === "lecture") {
+                const episodes = result.episodes || result.data?.episodes || [];
+                if (episodes.length > 0) {
+                  startRange = episodes[0].episode_number || 1;
+                  endRange = episodes[episodes.length - 1].episode_number || 100;
+                }
               }
             }
           }
