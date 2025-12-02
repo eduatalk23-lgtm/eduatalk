@@ -1856,6 +1856,7 @@ export function Step1BasicInfo({
               )}
             </div>
           </CollapsibleSection>
+          </div>
         )}
       </CollapsibleSection>
 
