@@ -343,6 +343,13 @@ const adminCategories: NavigationCategory[] = [
         roles: ["admin"], // admin만 접근
       },
       {
+        id: "admin-scheduler-settings",
+        label: "스케줄러 설정",
+        href: "/admin/settings/scheduler",
+        icon: "📅",
+        roles: ["admin"], // admin만 접근
+      },
+      {
         id: "admin-tenant-users",
         label: "기관별 사용자 관리",
         href: "/admin/tenant/users",

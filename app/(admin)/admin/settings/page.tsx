@@ -53,18 +53,36 @@ export default async function AdminSettingsPage() {
 
         {/* 기관 설정 */}
         {role === "admin" && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">기관 설정</h2>
-              <Link
-                href="/admin/tenant/settings"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                기관 설정 관리
-              </Link>
+          <>
+            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">기관 설정</h2>
+                <Link
+                  href="/admin/tenant/settings"
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  기관 설정 관리
+                </Link>
+              </div>
+              <p className="text-sm text-gray-600">기관 정보 및 설정을 관리할 수 있습니다.</p>
             </div>
-            <p className="text-sm text-gray-600">기관 정보 및 설정을 관리할 수 있습니다.</p>
-          </div>
+
+            {/* 스케줄러 설정 */}
+            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">스케줄러 설정</h2>
+                <Link
+                  href="/admin/settings/scheduler"
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  스케줄러 설정 관리
+                </Link>
+              </div>
+              <p className="text-sm text-gray-600">
+                기관 전체의 기본 스케줄러 설정을 관리합니다. 학습일/복습일 비율, 취약과목 집중 모드 등을 설정할 수 있습니다.
+              </p>
+            </div>
+          </>
         )}
 
         {/* 코치 계정 관리 */}

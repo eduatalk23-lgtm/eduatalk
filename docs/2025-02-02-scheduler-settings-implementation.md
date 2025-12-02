@@ -125,6 +125,21 @@ export function mergeSchedulerSettings(
 - 유효성 검증 (1-7일)
 - 실시간 저장
 
+### 3.3. 메뉴 연결
+
+**네비게이션 메뉴**: `components/navigation/global/categoryConfig.ts`
+
+- 관리자 설정 카테고리(`admin-settings`)에 스케줄러 설정 메뉴 항목 추가
+- 경로: `/admin/settings/scheduler`
+- 역할 제한: `admin`만 접근 가능 (`roles: ["admin"]`)
+- 아이콘: `📅`
+
+**설정 메인 페이지**: `app/(admin)/admin/settings/page.tsx`
+
+- 기관 설정 섹션 아래에 스케줄러 설정 카드 추가
+- "스케줄러 설정 관리" 버튼으로 `/admin/settings/scheduler` 페이지로 이동
+- 관리자(`admin`)만 표시
+
 ---
 
 ## Phase 4: 백엔드 로직 개선
@@ -280,6 +295,10 @@ const schedulerOptions = {
 
 - `app/(student)/actions/plan-groups/plans.ts`
   - 병합된 설정 사용하도록 수정
+- `components/navigation/global/categoryConfig.ts`
+  - 관리자 설정 메뉴에 스케줄러 설정 항목 추가
+- `app/(admin)/admin/settings/page.tsx`
+  - 스케줄러 설정 카드 추가
 
 ---
 
@@ -329,6 +348,8 @@ const schedulerOptions = {
 - [ ] 설정 저장 기능
 - [ ] 유효성 검증 (1-7일)
 - [ ] Toast 알림 표시
+- [x] 네비게이션 메뉴 연결 확인
+- [x] 설정 메인 페이지 링크 추가
 
 ### 플랜 생성
 
