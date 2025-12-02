@@ -140,8 +140,10 @@ export function useRecommendations({
         const { getStudentContentMasterIdsAction } = await import(
           "@/app/(student)/actions/getStudentContentMasterIds"
         );
+        // studentId가 있으면 전달 (템플릿 모드에서는 studentId가 없을 수 있음)
         const masterIdResult = await getStudentContentMasterIdsAction(
-          studentContentsWithoutMasterId
+          studentContentsWithoutMasterId,
+          studentId
         );
         if (masterIdResult.success && masterIdResult.data) {
           masterIdResult.data.forEach((masterId, contentId) => {
@@ -155,6 +157,7 @@ export function useRecommendations({
           "[useRecommendations] master_content_id 조회 실패:",
           error
         );
+        // 템플릿 모드에서는 studentId가 없어서 실패할 수 있으므로 에러를 무시
       }
     }
 
@@ -427,7 +430,16 @@ export function useRecommendations({
         subjects,
         counts: Object.fromEntries(counts),
         autoAssign,
+        studentId,
       });
+
+      // 템플릿 모드에서 studentId가 없으면 추천 콘텐츠 조회 불가
+      if (!studentId) {
+        console.warn("[useRecommendations] studentId가 없어 추천 콘텐츠를 조회할 수 없습니다. (템플릿 모드)");
+        alert("템플릿 모드에서는 추천 콘텐츠를 조회할 수 없습니다.");
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       try {
@@ -439,9 +451,8 @@ export function useRecommendations({
           params.append(`count_${subject}`, String(count));
         });
 
-        if (studentId) {
-          params.append("student_id", studentId);
-        }
+        // studentId는 필수 (템플릿 모드에서는 위에서 체크)
+        params.append("student_id", studentId);
 
         // API 호출
         console.log("[useRecommendations] API 호출 시작:", {
@@ -740,15 +751,20 @@ export function useRecommendations({
    * 기본 추천 목록 조회 (편집 모드가 아닐 때)
    */
   const fetchRecommendations = useCallback(async () => {
+    // 템플릿 모드에서 studentId가 없으면 추천 콘텐츠 조회 불가
+    if (!studentId) {
+      console.warn("[useRecommendations] studentId가 없어 추천 콘텐츠를 조회할 수 없습니다. (템플릿 모드)");
+      setLoading(false);
+      setHasRequestedRecommendations(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (studentId) {
-        params.append("student_id", studentId);
-      }
-      const url = `/api/recommended-master-contents${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
+      // studentId는 필수 (템플릿 모드에서는 위에서 체크)
+      params.append("student_id", studentId);
+      const url = `/api/recommended-master-contents?${params.toString()}`;
       
       const response = await fetch(url);
       
