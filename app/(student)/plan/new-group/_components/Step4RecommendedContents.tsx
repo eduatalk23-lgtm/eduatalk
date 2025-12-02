@@ -9,7 +9,11 @@ import { useState, useCallback, useEffect } from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { ProgressIndicator } from "./_shared/ProgressIndicator";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
-import { getCurriculumRevisionsAction, getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
+import {
+  getCurriculumRevisionsAction,
+  getSubjectGroupsAction,
+  getSubjectsByGroupAction,
+} from "@/app/(student)/actions/contentMetadataActions";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
@@ -129,8 +133,12 @@ export default function Step4RecommendedContents({
   // ============================================================================
   // 필수 교과 설정 관리
   // ============================================================================
-  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
-  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<
+    SubjectGroup[]
+  >([]);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<
+    CurriculumRevision[]
+  >([]);
   const [loadingSubjectGroups, setLoadingSubjectGroups] = useState(false);
   const [loadingRevisions, setLoadingRevisions] = useState(false);
 
@@ -168,17 +176,24 @@ export default function Step4RecommendedContents({
   // 필수 교과 핸들러
   // ============================================================================
   const handleLoadSubjects = useCallback(
-    async (subjectGroupId: string, curriculumRevisionId: string): Promise<Array<{ id: string; name: string }>> => {
+    async (
+      subjectGroupId: string,
+      curriculumRevisionId: string
+    ): Promise<Array<{ id: string; name: string }>> => {
       try {
         // 해당 개정교육과정의 교과 그룹 찾기
-        const selectedGroup = availableSubjectGroups.find((g) => g.id === subjectGroupId);
+        const selectedGroup = availableSubjectGroups.find(
+          (g) => g.id === subjectGroupId
+        );
         if (!selectedGroup) {
           return [];
         }
 
         // 같은 이름의 교과 그룹 중 해당 개정교육과정의 것 찾기
         const curriculumGroup = availableSubjectGroups.find(
-          (g) => g.name === selectedGroup.name && g.curriculum_revision_id === curriculumRevisionId
+          (g) =>
+            g.name === selectedGroup.name &&
+            g.curriculum_revision_id === curriculumRevisionId
         );
 
         if (!curriculumGroup) {

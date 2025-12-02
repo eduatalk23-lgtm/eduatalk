@@ -19,7 +19,7 @@ import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects
 import { getCurriculumRevisionsAction, getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";
-import RequiredSubjectItem from "../Step4RecommendedContents/components/RequiredSubjectItem";
+import RequiredSubjectItem from "./Step4RecommendedContents/components/RequiredSubjectItem";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
