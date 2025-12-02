@@ -77,7 +77,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
           {/* 화살표 아이콘 */}
           <ChevronRight
             className={cn(
-              "h-5 w-5 text-gray-700 transition-transform duration-200",
+              "h-5 w-5 text-gray-600 transition-transform duration-200",
               isOpen && "rotate-90"
             )}
           />
@@ -98,7 +98,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
           {/* 학생 입력 허용 체크박스 */}
           {showStudentInputToggle && onStudentInputToggle && (
             <label
-              className="flex items-center gap-2 text-xs text-gray-700"
+              className="flex items-center gap-2 text-xs text-gray-600"
               onClick={(e) => e.stopPropagation()}
             >
               <input
@@ -112,7 +112,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
               />
               <span
                 className={
-                  !showStudentInputToggle || disabled ? "text-gray-700" : ""
+                  !showStudentInputToggle || disabled ? "text-gray-600" : ""
                 }
               >
                 학생 입력 허용

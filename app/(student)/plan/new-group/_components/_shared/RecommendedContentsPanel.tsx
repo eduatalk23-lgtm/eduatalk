@@ -313,7 +313,7 @@ export function RecommendedContentsPanel({
 
           {/* 과목 선택 */}
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-800">
               추천받을 과목 선택
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -326,7 +326,7 @@ export function RecommendedContentsPanel({
                     "rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors",
                     settings.selectedSubjects.has(subject)
                       ? "border-blue-500 bg-blue-50 text-blue-800"
-                      : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                      : "border-gray-300 bg-white text-gray-800 hover:border-gray-400"
                   )}
                 >
                   {subject}
@@ -338,12 +338,12 @@ export function RecommendedContentsPanel({
           {/* 과목별 추천 개수 */}
           {settings.selectedSubjects.size > 0 && (
             <div className="mt-4 space-y-3">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-800">
                 과목별 추천 개수
               </label>
               {Array.from(settings.selectedSubjects).map((subject) => (
                 <div key={subject} className="flex items-center gap-3">
-                  <span className="w-16 text-sm font-medium text-gray-700">
+                  <span className="w-16 text-sm font-medium text-gray-800">
                     {subject}
                   </span>
                   <input
@@ -356,7 +356,7 @@ export function RecommendedContentsPanel({
                     }
                     className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
-                  <span className="text-sm text-gray-700">개</span>
+                  <span className="text-sm text-gray-600">개</span>
                 </div>
               ))}
             </div>
@@ -376,11 +376,11 @@ export function RecommendedContentsPanel({
                 }
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-gray-800">
                 추천 콘텐츠 자동 배정 (전체 범위)
               </span>
             </label>
-            <p className="ml-6 mt-1 text-xs text-gray-700">
+            <p className="ml-6 mt-1 text-xs text-gray-600">
               체크하면 추천받은 콘텐츠가 자동으로 추가됩니다 (범위: 전체)
             </p>
           </div>
@@ -421,7 +421,7 @@ export function RecommendedContentsPanel({
                 추천 콘텐츠
               </h3>
             </div>
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-gray-600">
               {recommendedContents.length}개
             </span>
           </div>
@@ -460,7 +460,7 @@ export function RecommendedContentsPanel({
           <p className="mt-3 text-sm font-medium text-gray-900">
             추천할 콘텐츠가 없습니다
           </p>
-          <p className="mt-1 text-sm text-gray-700">
+          <p className="mt-1 text-sm text-gray-600">
             이미 모든 추천 콘텐츠를 선택하셨거나,
             <br />
             현재 조건에 맞는 추천이 없습니다.
@@ -475,7 +475,7 @@ export function RecommendedContentsPanel({
             <h3 className="text-lg font-semibold text-gray-900">
               선택된 추천 콘텐츠
             </h3>
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-gray-600">
               {selectedContents.length}개
             </span>
           </div>

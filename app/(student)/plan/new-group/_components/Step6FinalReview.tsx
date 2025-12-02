@@ -891,7 +891,7 @@ export function Step6FinalReview({
     return (
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-700">콘텐츠 정보를 불러오는 중...</p>
+          <p className="text-sm text-gray-600">콘텐츠 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -903,7 +903,7 @@ export function Step6FinalReview({
         <h2 className="text-xl font-semibold text-gray-900">
           최종 확인 및 조정
         </h2>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="mt-1 text-sm text-gray-600">
           선택한 콘텐츠와 학습 범위를 확인하고 필요시 조정해주세요.
         </p>
       </div>
@@ -912,7 +912,7 @@ export function Step6FinalReview({
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="text-sm font-medium text-gray-700">전체 콘텐츠</div>
+            <div className="text-sm font-medium text-gray-800">전체 콘텐츠</div>
             <div className="mt-1 text-2xl font-bold text-gray-900">
               {totalCount}개
             </div>
@@ -955,12 +955,12 @@ export function Step6FinalReview({
                   <div className="flex flex-col items-center justify-center gap-3">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-medium text-gray-800">
                         {loadingContentTotals
                           ? "콘텐츠 정보를 불러오는 중..."
                           : "추천 범위를 계산하는 중..."}
                       </p>
-                      <p className="text-xs text-gray-700">
+                      <p className="text-xs text-gray-600">
                         잠시만 기다려주세요
                       </p>
                     </div>
@@ -1128,7 +1128,7 @@ export function Step6FinalReview({
                       </span>
                     )}
                     {currentTotalPages === 0 && currentTotalEpisodes === 0 && (
-                      <span className="text-sm text-gray-700">없음</span>
+                      <span className="text-sm text-gray-600">없음</span>
                     )}
                   </div>
                   <div className="mt-1 text-xs text-blue-600">
@@ -1180,7 +1180,7 @@ export function Step6FinalReview({
                     )}
                     {recommendedTotalPages === 0 &&
                       recommendedTotalEpisodes === 0 && (
-                        <span className="text-sm text-gray-700">없음</span>
+                        <span className="text-sm text-gray-600">없음</span>
                       )}
                   </div>
                   <div className="mt-1 text-xs text-green-600">
@@ -1397,19 +1397,19 @@ export function Step6FinalReview({
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="px-3 py-2 text-left font-medium text-gray-700">
+                  <th className="px-3 py-2 text-left font-medium text-gray-800">
                     콘텐츠
                   </th>
-                  <th className="px-3 py-2 text-center font-medium text-gray-700">
+                  <th className="px-3 py-2 text-center font-medium text-gray-800">
                     학생 지정
                   </th>
-                  <th className="px-3 py-2 text-center font-medium text-gray-700">
+                  <th className="px-3 py-2 text-center font-medium text-gray-800">
                     추천 범위
                   </th>
-                  <th className="px-3 py-2 text-center font-medium text-gray-700">
+                  <th className="px-3 py-2 text-center font-medium text-gray-800">
                     차이
                   </th>
-                  <th className="px-3 py-2 text-center font-medium text-gray-700">
+                  <th className="px-3 py-2 text-center font-medium text-gray-800">
                     적용
                   </th>
                 </tr>
@@ -1505,7 +1505,7 @@ export function Step6FinalReview({
                                     💡 {info.recommendation_reason}
                                   </div>
                                 )}
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                                 {info.content_type === "book" && (
                                   <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                                     📚 교재
@@ -1564,7 +1564,7 @@ export function Step6FinalReview({
                           <div className="font-medium text-gray-900">
                             {content.start_range} ~ {content.end_range}
                           </div>
-                          <div className="text-xs text-gray-700">
+                          <div className="text-xs text-gray-600">
                             ({studentRange}
                             {info.content_type === "book" ? "페이지" : "회차"})
                           </div>
@@ -1587,10 +1587,10 @@ export function Step6FinalReview({
                               </div>
                             </>
                           ) : (
-                            <div className="text-xs text-gray-700">
+                            <div className="text-xs text-gray-600">
                               추천 범위 없음
                               {rangeUnavailableReasons.get(contentKey) && (
-                                <div className="mt-0.5 text-gray-700">
+                                <div className="mt-0.5 text-gray-600">
                                   ({rangeUnavailableReasons.get(contentKey)})
                                 </div>
                               )}
@@ -1612,7 +1612,7 @@ export function Step6FinalReview({
                                   : "회차"}
                               </span>
                             ) : (
-                              <span className="text-gray-700">-</span>
+                              <span className="text-gray-600">-</span>
                             )
                           ) : (
                             <span className="text-gray-700">-</span>
@@ -1854,7 +1854,7 @@ export function Step6FinalReview({
                               )}
 
                               {isLoading ? (
-                                <div className="text-xs text-gray-700">
+                                <div className="text-xs text-gray-600">
                                   상세 정보를 불러오는 중...
                                 </div>
                               ) : contentInfo &&
@@ -2478,7 +2478,7 @@ export function Step6FinalReview({
                               )}
 
                               {isLoading ? (
-                                <div className="text-xs text-gray-700">
+                                <div className="text-xs text-gray-600">
                                   상세 정보를 불러오는 중...
                                 </div>
                               ) : contentInfo &&

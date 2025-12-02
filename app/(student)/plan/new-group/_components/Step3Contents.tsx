@@ -508,7 +508,7 @@ export function Step3Contents({
             <h2 className="text-xl font-semibold text-gray-900">
               학습 대상 콘텐츠
             </h2>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-600">
               플랜에 포함할 교재와 강의를 선택하고 학습 범위를 지정해주세요.
               (최대 9개)
             </p>
@@ -517,7 +517,7 @@ export function Step3Contents({
             <div className="text-2xl font-bold text-gray-900">
               {totalCount}/9
             </div>
-            <div className="text-xs text-gray-700">
+            <div className="text-xs text-gray-600">
               학생 {studentCount}개
               {!isCampMode &&
                 recommendedCount > 0 &&
@@ -589,8 +589,8 @@ export function Step3Contents({
         </div>
         {contents.books.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-700">등록된 교재가 없습니다.</p>
-            <p className="mt-2 text-xs text-gray-700">
+            <p className="text-sm text-gray-600">등록된 교재가 없습니다.</p>
+            <p className="mt-2 text-xs text-gray-600">
               학습 중인 교재를 추가하고 싶다면{" "}
               <Link
                 href="/contents"
@@ -701,7 +701,7 @@ export function Step3Contents({
                             <div className="space-y-3">
                               {/* 시작 범위 선택 */}
                               <div>
-                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                <div className="mb-2 text-xs font-medium text-gray-800">
                                   시작 범위 선택
                                 </div>
                                 <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -737,7 +737,7 @@ export function Step3Contents({
                                                 페이지 {detail.page_number}
                                               </span>
                                               {detail.major_unit && (
-                                                <span className="ml-2 text-gray-700">
+                                                <span className="ml-2 text-gray-600">
                                                   · {detail.major_unit}
                                                   {detail.minor_unit &&
                                                     ` - ${detail.minor_unit}`}
@@ -754,7 +754,7 @@ export function Step3Contents({
 
                               {/* 끝 범위 선택 */}
                               <div>
-                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                <div className="mb-2 text-xs font-medium text-gray-800">
                                   끝 범위 선택
                                 </div>
                                 <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -787,7 +787,7 @@ export function Step3Contents({
                                                 페이지 {detail.page_number}
                                               </span>
                                               {detail.major_unit && (
-                                                <span className="ml-2 text-gray-700">
+                                                <span className="ml-2 text-gray-600">
                                                   · {detail.major_unit}
                                                   {detail.minor_unit &&
                                                     ` - ${detail.minor_unit}`}
@@ -804,7 +804,7 @@ export function Step3Contents({
                             </div>
                             {range && (
                               <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                <div className="text-xs font-medium text-gray-700">
+                                <div className="text-xs font-medium text-gray-800">
                                   선택된 범위: {range.start} ~ {range.end}{" "}
                                   페이지
                                 </div>
@@ -851,7 +851,7 @@ export function Step3Contents({
                         ) : (
                           <div className="grid gap-2 md:grid-cols-2">
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <label className="mb-1 block text-xs font-medium text-gray-800">
                                 시작 페이지
                               </label>
                               <input
@@ -870,7 +870,7 @@ export function Step3Contents({
                               />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <label className="mb-1 block text-xs font-medium text-gray-800">
                                 종료 페이지
                               </label>
                               <input
@@ -926,8 +926,8 @@ export function Step3Contents({
         </div>
         {contents.lectures.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-700">등록된 강의가 없습니다.</p>
-            <p className="mt-2 text-xs text-gray-700">
+            <p className="text-sm text-gray-600">등록된 강의가 없습니다.</p>
+            <p className="mt-2 text-xs text-gray-600">
               학습 중인 강의를 추가하고 싶다면{" "}
               <Link
                 href="/contents"
@@ -1039,7 +1039,7 @@ export function Step3Contents({
                             <div className="space-y-3">
                               {/* 시작 범위 선택 */}
                               <div>
-                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                <div className="mb-2 text-xs font-medium text-gray-800">
                                   시작 범위 선택
                                 </div>
                                 <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -1090,7 +1090,7 @@ export function Step3Contents({
 
                               {/* 끝 범위 선택 */}
                               <div>
-                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                <div className="mb-2 text-xs font-medium text-gray-800">
                                   끝 범위 선택
                                 </div>
                                 <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -1185,7 +1185,7 @@ export function Step3Contents({
                         ) : (
                           <div className="grid gap-2 md:grid-cols-2">
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <label className="mb-1 block text-xs font-medium text-gray-800">
                                 시작 회차
                               </label>
                               <input
@@ -1204,7 +1204,7 @@ export function Step3Contents({
                               />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <label className="mb-1 block text-xs font-medium text-gray-800">
                                 종료 회차
                               </label>
                               <input

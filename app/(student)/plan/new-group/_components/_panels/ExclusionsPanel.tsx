@@ -331,7 +331,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           type="button"
           onClick={syncFromTimeManagement}
           disabled={!editable}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshCw
             className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`}
@@ -356,7 +356,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 exclusionInputType === "single"
                   ? "bg-gray-900 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
+                  : "bg-white text-gray-800 hover:bg-gray-100"
               }`}
             >
               단일 날짜
@@ -367,7 +367,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 exclusionInputType === "range"
                   ? "bg-gray-900 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
+                  : "bg-white text-gray-800 hover:bg-gray-100"
               }`}
             >
               시작일 ~ 종료일
@@ -378,7 +378,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 exclusionInputType === "multiple"
                   ? "bg-gray-900 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-100"
+                  : "bg-white text-gray-800 hover:bg-gray-100"
               }`}
             >
               비연속 다중 선택
@@ -388,7 +388,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           {/* 날짜 입력 */}
           {exclusionInputType === "single" && (
             <div className="mb-4">
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-800">
                 날짜
               </label>
               <input
@@ -405,7 +405,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           {exclusionInputType === "range" && (
             <div className="mb-4 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+                <label className="mb-1 block text-xs font-medium text-gray-800">
                   시작일
                 </label>
                 <input
@@ -418,7 +418,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+                <label className="mb-1 block text-xs font-medium text-gray-800">
                   종료일
                 </label>
                 <input
@@ -435,7 +435,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
           {exclusionInputType === "multiple" && (
             <div className="mb-4">
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+              <label className="mb-2 block text-xs font-medium text-gray-800">
                 날짜 선택 (다중 선택 가능)
               </label>
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
@@ -474,10 +474,10 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         disabled={isExcluded}
                         className={`w-full rounded px-2 py-1 text-left text-xs transition-colors ${
                           isExcluded
-                            ? "cursor-not-allowed bg-gray-100 text-gray-700 line-through"
-                            : isSelected
-                            ? "bg-gray-900 text-white"
-                            : "hover:bg-gray-100 text-gray-700"
+                            ? "cursor-not-allowed bg-gray-100 text-gray-600 line-through"
+                          : isSelected
+                          ? "bg-gray-900 text-white"
+                          : "hover:bg-gray-100 text-gray-800"
                         }`}
                       >
                         {date} {isExcluded && "(이미 제외됨)"}
@@ -487,7 +487,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 })()}
               </div>
               {newExclusionDates.length > 0 && (
-                <p className="mt-2 text-xs text-gray-700">
+                <p className="mt-2 text-xs text-gray-600">
                   {newExclusionDates.length}개 날짜 선택됨
                 </p>
               )}
@@ -498,20 +498,20 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           <div className="mb-4 grid gap-4 md:grid-cols-2">
             <div>
               <div className="mb-1 flex items-center gap-1">
-                <label className="block text-xs font-medium text-gray-700">
+                <label className="block text-xs font-medium text-gray-800">
                   유형
                 </label>
                 {data.scheduler_type === "1730_timetable" && (
                   <div className="group relative">
-                    <Info className="h-3.5 w-3.5 text-gray-700 hover:text-gray-700" />
-                    <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-700 shadow-lg group-hover:block">
+                    <Info className="h-3.5 w-3.5 text-gray-600 hover:text-gray-800" />
+                    <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-600 shadow-lg group-hover:block">
                       <div className="space-y-1">
                         <div className="font-semibold">유형별 안내</div>
                         <div className="border-t border-gray-100 pt-1">
                           <div className="font-medium text-gray-900">
                             지정휴일:
                           </div>
-                          <div className="text-gray-700">
+                          <div className="text-gray-600">
                             학습 분량은 배정되지 않지만, 자율 학습은 가능합니다.
                           </div>
                         </div>
@@ -519,7 +519,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                           <div className="font-medium text-gray-900">
                             휴가/개인사정:
                           </div>
-                          <div className="text-gray-700">
+                          <div className="text-gray-600">
                             학습이 불가능한 날입니다.
                           </div>
                         </div>
@@ -564,12 +564,12 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 )}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-800">
                 사유 (선택사항)
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
                 placeholder="예: 가족 여행"
                 value={newExclusionReason}
                 onChange={(e) => setNewExclusionReason(e.target.value)}
@@ -621,7 +621,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         </span>
                       )}
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
                     <span>{exclusion.exclusion_type}</span>
                     {exclusion.reason && <span>· {exclusion.reason}</span>}
                     {exclusion.source === "template" && (
@@ -665,7 +665,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                     !editable ||
                     (campMode &&
                       (exclusion.is_locked || exclusion.source === "template"))
-                      ? "cursor-not-allowed text-gray-700"
+                      ? "cursor-not-allowed text-gray-600"
                       : "text-red-600 hover:text-red-800"
                   }`}
                   title={
@@ -682,7 +682,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-700">등록된 제외일이 없습니다.</p>
+        <p className="text-sm text-gray-600">등록된 제외일이 없습니다.</p>
       )}
     </>
   );

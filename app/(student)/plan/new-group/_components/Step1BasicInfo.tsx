@@ -153,7 +153,7 @@ export function Step1BasicInfo({
     if (!isTemplateMode) return null;
 
     return (
-      <label className="flex items-center gap-2 text-xs text-gray-700">
+      <label className="flex items-center gap-2 text-xs text-gray-800">
         <input
           type="checkbox"
           checked={lockedFields[fieldName] === true}
@@ -878,7 +878,7 @@ export function Step1BasicInfo({
         <h2 className="text-xl font-semibold text-gray-900">
           {isCampMode ? "캠프 기본 정보" : "플랜 기본 정보"}
         </h2>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="mt-1 text-sm text-gray-600">
           {isCampMode
             ? "캠프의 목적과 기간, 스케줄러 유형을 설정해주세요."
             : "플랜의 목적과 기간, 스케줄러 유형을 설정해주세요."}
@@ -909,7 +909,7 @@ export function Step1BasicInfo({
         <div>
           <label
             htmlFor="plan_name"
-            className="mb-2 block text-sm font-medium text-gray-700"
+            className="mb-2 block text-sm font-medium text-gray-800"
           >
             {isCampMode ? "캠프 이름" : "플랜 이름"}{" "}
             <span className="text-red-500">*</span>
@@ -917,7 +917,7 @@ export function Step1BasicInfo({
           <input
             type="text"
             id="plan_name"
-            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none ${
+              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none ${
               (!editable && !isCampMode) ||
               isFieldLocked("name") ||
               (isCampMode && !canStudentInputName)
@@ -935,12 +935,12 @@ export function Step1BasicInfo({
             required
           />
           {isFieldLocked("name") && (
-            <p className="mt-1 text-xs text-gray-700">
+            <p className="mt-1 text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 있습니다.
             </p>
           )}
           {isCampMode && !canStudentInputName && (
-            <p className="mt-1 text-xs text-gray-700">
+            <p className="mt-1 text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
             </p>
           )}
@@ -973,7 +973,7 @@ export function Step1BasicInfo({
                 } ${
                   data.plan_purpose === purpose.value
                     ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-700"
+                    : "border-gray-200 bg-white text-gray-800"
                 }`}
               >
                 <input
@@ -995,7 +995,7 @@ export function Step1BasicInfo({
             ))}
           </div>
           {isCampMode && !canStudentInputPlanPurpose && (
-            <p className="mt-2 text-xs text-gray-700">
+            <p className="mt-2 text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
             </p>
           )}
@@ -1033,7 +1033,7 @@ export function Step1BasicInfo({
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               periodInputType === "dday"
                 ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                : "border-gray-300 text-gray-800 hover:bg-gray-50"
             } ${
               isFieldLocked("period_start") ||
               isFieldLocked("period_end") ||
@@ -1055,7 +1055,7 @@ export function Step1BasicInfo({
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               periodInputType === "weeks"
                 ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                : "border-gray-300 text-gray-800 hover:bg-gray-50"
             } ${
               isFieldLocked("period_start") ||
               isFieldLocked("period_end") ||
@@ -1077,7 +1077,7 @@ export function Step1BasicInfo({
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               periodInputType === "direct"
                 ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                : "border-gray-300 text-gray-800 hover:bg-gray-50"
             } ${
               isFieldLocked("period_start") ||
               isFieldLocked("period_end") ||
@@ -1090,12 +1090,12 @@ export function Step1BasicInfo({
           </button>
         </div>
         {(isFieldLocked("period_start") || isFieldLocked("period_end")) && (
-          <p className="mb-2 text-xs text-gray-700">
+          <p className="mb-2 text-xs text-gray-600">
             학습 기간은 템플릿에서 고정되어 있습니다.
           </p>
         )}
         {isCampMode && !canStudentInputPeriod && (
-          <p className="mb-2 text-xs text-gray-700">
+          <p className="mb-2 text-xs text-gray-600">
             학습 기간은 템플릿에서 고정되어 수정할 수 없습니다.
           </p>
         )}
@@ -1103,7 +1103,7 @@ export function Step1BasicInfo({
         {/* D-day 입력 */}
         {periodInputType === "dday" && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className="mb-2 block text-sm font-medium text-gray-800">
               시험일 입력
             </label>
             <input
@@ -1144,8 +1144,8 @@ export function Step1BasicInfo({
             />
             {ddayState.calculated && data.period_start && data.period_end && (
               <div className="mt-3 rounded-lg bg-white p-3">
-                <div className="text-sm text-gray-700">
-                  <div className="font-medium text-gray-900">학습 기간</div>
+                <div className="text-sm text-gray-600">
+                  <div className="font-medium text-gray-800">학습 기간</div>
                   <div className="mt-1">
                     시작일:{" "}
                     <span className="font-medium">{data.period_start}</span>
@@ -1163,7 +1163,7 @@ export function Step1BasicInfo({
         {/* 주 단위 입력 */}
         {periodInputType === "weeks" && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+            <label className="mb-2 block text-sm font-medium text-gray-900">
               시작일 입력
             </label>
             <input
@@ -1201,7 +1201,7 @@ export function Step1BasicInfo({
 
             {weeksState.startDate && (
               <div className="mt-4">
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-gray-900">
                   학습 주수
                 </label>
                 <div className="flex items-center gap-3">
@@ -1224,11 +1224,11 @@ export function Step1BasicInfo({
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
                     }
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     −
                   </button>
-                  <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900">
+                  <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-800">
                     {weeksState.weeks}주
                   </div>
                   <button
@@ -1249,7 +1249,7 @@ export function Step1BasicInfo({
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
                     }
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     +
                   </button>
@@ -1259,8 +1259,8 @@ export function Step1BasicInfo({
 
             {weeksState.startDate && data.period_start && data.period_end && (
               <div className="mt-3 rounded-lg bg-white p-3">
-                <div className="text-sm text-gray-700">
-                  <div className="font-medium text-gray-900">
+                <div className="text-sm text-gray-600">
+                  <div className="font-medium text-gray-800">
                     {weeksState.weeks}주 학습 기간
                   </div>
                   <div className="mt-1">
@@ -1282,14 +1282,14 @@ export function Step1BasicInfo({
           <div className="grid gap-4 md:grid-cols-2">
             {/* 시작일 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-900">
                 시작일
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label
                     htmlFor="start_year"
-                    className="mb-1 block text-xs text-gray-700"
+                    className="mb-1 block text-xs text-gray-800"
                   >
                     연도
                   </label>
@@ -1349,7 +1349,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="start_month"
-                    className="mb-1 block text-xs text-gray-700"
+                    className="mb-1 block text-xs text-gray-800"
                   >
                     월
                   </label>
@@ -1409,7 +1409,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="start_day"
-                    className="mb-1 block text-xs text-gray-700"
+                    className="mb-1 block text-xs text-gray-800"
                   >
                     일
                   </label>
@@ -1470,14 +1470,14 @@ export function Step1BasicInfo({
 
             {/* 종료일 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-900">
                 종료일
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label
                     htmlFor="end_year"
-                    className="mb-1 block text-xs text-gray-700"
+                    className="mb-1 block text-xs text-gray-800"
                   >
                     연도
                   </label>
@@ -1534,7 +1534,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="end_month"
-                    className="mb-1 block text-xs text-gray-700"
+                    className="mb-1 block text-xs text-gray-800"
                   >
                     월
                   </label>
@@ -1591,7 +1591,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="end_day"
-                    className="mb-1 block text-xs text-gray-700"
+                    className="mb-1 block text-xs text-gray-800"
                   >
                     일
                   </label>
@@ -1677,7 +1677,7 @@ export function Step1BasicInfo({
               }
               headerActions={
                 <label
-                  className="flex items-center gap-2 text-xs text-gray-700"
+                  className="flex items-center gap-2 text-xs text-gray-800"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <input
@@ -1748,7 +1748,7 @@ export function Step1BasicInfo({
                   <span
                     className={
                       isCampMode && !canStudentInputAdditionalPeriodReallocation
-                        ? "text-gray-700"
+                        ? "text-gray-900"
                         : ""
                     }
                   >
@@ -1758,7 +1758,7 @@ export function Step1BasicInfo({
               }
             >
               <div className="space-y-4">
-                <p className="text-xs text-gray-700">
+                <p className="text-xs text-gray-600">
                   추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠
                   범위를 추가 기간에 다시 분할 배치합니다.
                   <br />
@@ -1769,7 +1769,7 @@ export function Step1BasicInfo({
                   <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                        <label className="mb-1 block text-xs font-medium text-gray-900">
                           추가 기간 시작일
                         </label>
                         <input
@@ -1829,7 +1829,7 @@ export function Step1BasicInfo({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                        <label className="mb-1 block text-xs font-medium text-gray-900">
                           추가 기간 종료일
                         </label>
                         <input
@@ -1915,7 +1915,7 @@ export function Step1BasicInfo({
                 )}
 
                 {isCampMode && !canStudentInputAdditionalPeriodReallocation && (
-                  <p className="text-xs text-gray-700">
+                  <p className="text-xs text-gray-600">
                     추가 기간 학습 범위 재배치는 템플릿에서 고정되어 수정할 수
                     없습니다.
                   </p>
@@ -1952,7 +1952,7 @@ export function Step1BasicInfo({
               } ${
                 data.scheduler_type === type.value
                   ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 text-gray-700"
+                  : "border-gray-200 text-gray-900"
               }`}
             >
               <input
@@ -1977,7 +1977,7 @@ export function Step1BasicInfo({
           ))}
         </div>
         {isCampMode && !canStudentInputSchedulerType && (
-          <p className="mb-2 text-xs text-gray-700">
+          <p className="mb-2 text-xs text-gray-600">
             스케줄러 유형은 템플릿에서 고정되어 수정할 수 없습니다.
           </p>
         )}
@@ -1989,12 +1989,12 @@ export function Step1BasicInfo({
               <button
                 type="button"
                 onClick={() => setShow1730Desc(!show1730Desc)}
-                className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
               >
                 <span>
                   1730 Timetable 동작 방식 {show1730Desc ? "숨기기" : "보기"}
                 </span>
-                <span className="text-gray-700">
+                <span className="text-gray-900">
                   {show1730Desc ? "▲" : "▼"}
                 </span>
               </button>
@@ -2068,7 +2068,7 @@ export function Step1BasicInfo({
                 }`}
               >
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700">
+                  <label className="mb-2 block text-xs font-medium text-gray-900">
                     학습일 수
                   </label>
                   <div className="flex items-center gap-3">
@@ -2101,11 +2101,11 @@ export function Step1BasicInfo({
                           6) <= 1 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       −
                     </button>
-                    <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900">
+                    <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-800">
                       {data.scheduler_options?.study_days ??
                         data.study_review_cycle?.study_days ??
                         6}
@@ -2140,14 +2140,14 @@ export function Step1BasicInfo({
                           6) >= 6 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       +
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700">
+                  <label className="mb-2 block text-xs font-medium text-gray-900">
                     복습일 수
                   </label>
                   <div className="flex items-center gap-3">
@@ -2183,11 +2183,11 @@ export function Step1BasicInfo({
                           1) <= 1 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       −
                     </button>
-                    <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900">
+                    <div className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-800">
                       {data.scheduler_options?.review_days ??
                         data.study_review_cycle?.review_days ??
                         1}
@@ -2225,12 +2225,12 @@ export function Step1BasicInfo({
                           1) >= 6 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
                       }
-                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       +
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-700">
+                  <p className="mt-1 text-xs text-gray-600">
                     학습일 + 복습일 = 7일로 고정됩니다. 복습일은 최소 1일이어야
                     합니다.
                   </p>
@@ -2252,7 +2252,7 @@ export function Step1BasicInfo({
                 e.stopPropagation();
                 setShowBlockSetDescDialog(true);
               }}
-              className="ml-1 inline-flex items-center text-gray-700 hover:text-gray-700"
+              className="ml-1 inline-flex items-center text-gray-800 hover:text-gray-900"
               title="블록 세트 설명"
             >
               <HelpCircle className="h-4 w-4" />
@@ -2272,7 +2272,7 @@ export function Step1BasicInfo({
               type="button"
               onClick={handleLoadBlockSets}
               disabled={isLoadingBlockSets}
-              className="flex items-center gap-1 rounded p-1.5 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-1 rounded p-1.5 text-xs text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
               title="목록 새로고침"
             >
               <RefreshCw
@@ -2291,8 +2291,8 @@ export function Step1BasicInfo({
                 disabled={isCampMode && !canStudentInputBlockSetId}
                 className={`flex items-center gap-1 rounded p-1.5 text-xs ${
                   isCampMode && !canStudentInputBlockSetId
-                    ? "cursor-not-allowed text-gray-700 opacity-50"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-700"
+                    ? "cursor-not-allowed text-gray-900 opacity-50"
+                    : "text-gray-800 hover:bg-gray-100 hover:text-gray-900"
                 }`}
                 title="새 블록 세트 만들기"
               >
@@ -2376,7 +2376,7 @@ export function Step1BasicInfo({
                                 <div className="text-sm font-medium text-gray-900">
                                   {set.name}
                                 </div>
-                                <div className="text-xs text-gray-700">
+                                <div className="text-xs text-gray-600">
                                   {blockCount > 0
                                     ? `${blockCount}개 블록`
                                     : "블록 없음"}
@@ -2398,8 +2398,8 @@ export function Step1BasicInfo({
                               }
                               className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
                                 isCampMode && !canStudentInputBlockSetId
-                                  ? "cursor-not-allowed text-gray-700 opacity-50"
-                                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                                  ? "cursor-not-allowed text-gray-900 opacity-50"
+                                  : "text-gray-800 hover:bg-gray-100 hover:text-gray-900"
                               }`}
                               title="수정"
                             >
@@ -2418,11 +2418,11 @@ export function Step1BasicInfo({
                               setCurrentPage((prev) => Math.max(1, prev - 1))
                             }
                             disabled={currentPage === 1}
-                            className="rounded px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded px-3 py-1 text-xs text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             이전
                           </button>
-                          <span className="text-xs text-gray-700">
+                          <span className="text-xs text-gray-900">
                             {currentPage} / {totalPages}
                           </span>
                           <button
@@ -2433,7 +2433,7 @@ export function Step1BasicInfo({
                               )
                             }
                             disabled={currentPage === totalPages}
-                            className="rounded px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded px-3 py-1 text-xs text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             다음
                           </button>
@@ -2444,12 +2444,12 @@ export function Step1BasicInfo({
                 })()}
               </>
             ) : (
-              <p className="text-xs text-gray-700">
+              <p className="text-xs text-gray-600">
                 등록된 블록 세트가 없습니다. "+" 버튼을 클릭하여 생성하세요.
               </p>
             )}
             {isCampMode && !canStudentInputBlockSetId && (
-              <p className="mt-2 text-xs text-gray-700">
+              <p className="mt-2 text-xs text-gray-600">
                 블록 세트는 템플릿에서 고정되어 수정할 수 없습니다.
               </p>
             )}
@@ -2462,12 +2462,12 @@ export function Step1BasicInfo({
             <div className="mb-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
               {/* 블록 세트 이름 */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-gray-900">
                   블록 세트 이름
                 </label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
                   placeholder="예: 평일 학습 블록"
                   value={newBlockSetName}
                   onChange={(e) => setNewBlockSetName(e.target.value)}
@@ -2481,28 +2481,28 @@ export function Step1BasicInfo({
                 </h3>
 
                 <div className="mb-4">
-                  <label className="mb-2 block text-xs font-medium text-gray-700">
+                  <label className="mb-2 block text-xs font-medium text-gray-900">
                     추가할 요일 선택
                   </label>
                   <div className="mb-2 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={selectAllWeekdays}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 transition hover:bg-gray-50"
                     >
                       전체 선택
                     </button>
                     <button
                       type="button"
                       onClick={selectWeekdays}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 transition hover:bg-gray-50"
                     >
                       평일
                     </button>
                     <button
                       type="button"
                       onClick={selectWeekends}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 transition hover:bg-gray-50"
                     >
                       주말
                     </button>
@@ -2524,7 +2524,7 @@ export function Step1BasicInfo({
                         className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                           selectedWeekdays.includes(day.value)
                             ? "bg-gray-900 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                         }`}
                       >
                         {day.label}요일
@@ -2536,7 +2536,7 @@ export function Step1BasicInfo({
                 {/* 시간 입력 */}
                 <div className="mb-4 grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">
+                    <label className="mb-1 block text-xs font-medium text-gray-900">
                       시작 시간
                     </label>
                     <input
@@ -2547,7 +2547,7 @@ export function Step1BasicInfo({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">
+                    <label className="mb-1 block text-xs font-medium text-gray-900">
                       종료 시간
                     </label>
                     <input
@@ -2596,7 +2596,7 @@ export function Step1BasicInfo({
                           key={index}
                           className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
                         >
-                          <span className="text-sm text-gray-700">
+                          <span className="text-sm text-gray-600">
                             {dayNames[block.day]}요일 {block.startTime} ~{" "}
                             {block.endTime}
                           </span>
@@ -2626,7 +2626,7 @@ export function Step1BasicInfo({
                     setBlockEndTime("");
                     setSelectedWeekdays([]);
                   }}
-                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
                 >
                   취소
                 </button>
@@ -2647,13 +2647,13 @@ export function Step1BasicInfo({
           <div className="mb-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             {/* 블록 세트 이름 수정 */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-gray-900">
                 블록 세트 이름
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
                   value={editingBlockSetName}
                   onChange={(e) => setEditingBlockSetName(e.target.value)}
                 />
@@ -2684,7 +2684,7 @@ export function Step1BasicInfo({
               if (blocks.length === 0) {
                 return (
                   <div className="rounded-lg border border-gray-200 bg-white p-4">
-                    <p className="text-xs text-gray-700">
+                    <p className="text-xs text-gray-600">
                       이 블록 세트에는 등록된 시간 블록이 없습니다. 아래에서
                       추가해주세요.
                     </p>
@@ -2714,10 +2714,10 @@ export function Step1BasicInfo({
                             className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
                           >
                             <div className="flex-1">
-                              <span className="text-xs font-medium text-gray-700">
+                              <span className="text-xs font-medium text-gray-900">
                                 {dayNames[Number(day)]}요일:
                               </span>{" "}
-                              <span className="text-xs text-gray-700">
+                              <span className="text-xs text-gray-600">
                                 {block.start_time} ~ {block.end_time}
                               </span>
                             </div>
@@ -2745,28 +2745,28 @@ export function Step1BasicInfo({
               </h3>
 
               <div className="mb-4">
-                <label className="mb-2 block text-xs font-medium text-gray-700">
+                <label className="mb-2 block text-xs font-medium text-gray-900">
                   추가할 요일 선택
                 </label>
                 <div className="mb-2 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={selectAllWeekdays}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition hover:bg-gray-50"
                   >
                     전체 선택
                   </button>
                   <button
                     type="button"
                     onClick={selectWeekdays}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition hover:bg-gray-50"
                   >
                     평일
                   </button>
                   <button
                     type="button"
                     onClick={selectWeekends}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-900 transition hover:bg-gray-50"
                   >
                     주말
                   </button>
@@ -2788,7 +2788,7 @@ export function Step1BasicInfo({
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                         selectedWeekdays.includes(day.value)
                           ? "bg-gray-900 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-gray-100 text-gray-900 hover:bg-gray-200"
                       }`}
                     >
                       {day.label}요일
@@ -2800,7 +2800,7 @@ export function Step1BasicInfo({
               {/* 시간 입력 */}
               <div className="mb-4 grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
+                  <label className="mb-1 block text-xs font-medium text-gray-900">
                     시작 시간
                   </label>
                   <input
@@ -2811,7 +2811,7 @@ export function Step1BasicInfo({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
+                  <label className="mb-1 block text-xs font-medium text-gray-900">
                     종료 시간
                   </label>
                   <input
@@ -2851,7 +2851,7 @@ export function Step1BasicInfo({
                   setBlockStartTime("");
                   setBlockEndTime("");
                 }}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
               >
                 수정 완료
               </button>
@@ -2867,7 +2867,7 @@ export function Step1BasicInfo({
         title="블록 세트란?"
         maxWidth="md"
       >
-        <div className="space-y-3 text-sm text-gray-700">
+        <div className="space-y-3 text-sm text-gray-600">
           <p>
             블록 세트는{" "}
             <strong>
@@ -2875,11 +2875,11 @@ export function Step1BasicInfo({
             </strong>
             을 정의합니다.
           </p>
-          <p className="text-xs text-gray-700">
+          <p className="text-xs text-gray-600">
             예를 들어, 평일 오후 3시~6시, 오후 7시~10시와 같이 규칙적인 학습
             시간대를 설정할 수 있습니다.
           </p>
-          <p className="text-xs text-gray-700">
+          <p className="text-xs text-gray-600">
             주의: 중간에 학원이나 점심 시간 등이 있는 경우, 이는 이후 입력하는
             항목에서 별도로 수집됩니다.
           </p>

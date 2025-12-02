@@ -69,7 +69,7 @@ export const ContentCard = React.memo(function ContentCard({
             </div>
 
             {/* 메타데이터 */}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
               {content.subject && (
                 <span className="rounded bg-gray-100 px-2 py-0.5">
                   {content.subject}
@@ -86,7 +86,7 @@ export const ContentCard = React.memo(function ContentCard({
                 </span>
               )}
               {content.publisher && (
-                <span className="text-gray-700">{content.publisher}</span>
+                <span className="text-gray-600">{content.publisher}</span>
               )}
               {content.platform && (
                 <span className="text-gray-700">{content.platform}</span>

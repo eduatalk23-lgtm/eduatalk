@@ -30,7 +30,7 @@ export type SummaryCardProps = {
 const variantStyles = {
   default: {
     container: "bg-gray-50 border-gray-200",
-    title: "text-gray-700",
+    title: "text-gray-800",
     value: "text-gray-900",
     icon: "text-gray-600",
   },
