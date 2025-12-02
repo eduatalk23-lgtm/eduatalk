@@ -43,8 +43,8 @@ export function RoleBasedLayout({
               </a>
             </div>
 
-            {/* 기관 정보 (Admin/Consultant인 경우) */}
-            {tenantInfo && (role === "admin" || role === "consultant") && (
+            {/* 기관 정보 (Superadmin 제외 모든 역할) */}
+            {tenantInfo && role !== "superadmin" && (
               <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">🏢</span>
@@ -97,8 +97,8 @@ export function RoleBasedLayout({
                   <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
                 </a>
               </div>
-              {/* 기관 정보 (모바일 - Admin/Consultant인 경우) */}
-              {tenantInfo && (role === "admin" || role === "consultant") && (
+              {/* 기관 정보 (모바일 - Superadmin 제외 모든 역할) */}
+              {tenantInfo && role !== "superadmin" && (
                 <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">🏢</span>
