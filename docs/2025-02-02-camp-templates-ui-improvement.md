@@ -1,130 +1,58 @@
-"use client";
+# 캠프 템플릿 목록 UI 개선
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { CampTemplate } from "@/lib/types/plan";
-import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
-import { useToast } from "@/components/ui/ToastProvider";
-import { Dialog, DialogFooter } from "@/components/ui/Dialog";
-import { MoreVertical } from "lucide-react";
+## 작업 일시
+2025-02-02
 
-type TemplateCardProps = {
-  template: CampTemplate;
-};
+## 작업 목표
+캠프 템플릿 목록 페이지(`/admin/camp-templates`)의 UI를 개선하여 본문 영역을 넓히고 가독성을 향상시킵니다.
 
-export function TemplateCard({ template }: TemplateCardProps) {
-  const router = useRouter();
-  const toast = useToast();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
-  const [isChangingStatus, setIsChangingStatus] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+## 문제점
+- 액션 버튼(상태 변경, 삭제)이 본문 영역을 차지하여 템플릿 정보(이름, 설명, 유형 등)를 보기 어려움
+- 그리드 레이아웃으로 인해 카드가 작게 표시됨
 
+## 해결 방안
+1. 그리드 레이아웃을 단일 컬럼 flex 레이아웃으로 변경 (1줄에 1개 템플릿)
+2. 템플릿 카드를 가로 긴 형태로 재구성
+3. 본문 정보를 가로로 나열 (이름 | 유형 | 설명 | 날짜)
+4. 액션 버튼을 드롭다운 메뉴로 통합하여 공간 효율성 향상
 
-  const confirmDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const result = await deleteCampTemplateAction(template.id);
-      if (result.success) {
-        toast.showSuccess("템플릿이 삭제되었습니다.");
-        setShowDeleteDialog(false); // 다이얼로그 먼저 닫기
-        setIsDeleting(false); // 상태 리셋
-        router.push("/admin/camp-templates"); // 목록 페이지로 이동
-      } else {
-        toast.showError(result.error || "템플릿 삭제에 실패했습니다.");
-        setIsDeleting(false);
-      }
-    } catch (error) {
-      console.error("템플릿 삭제 실패:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "템플릿 삭제에 실패했습니다.";
-      toast.showError(errorMessage);
-      setIsDeleting(false);
-    }
-  };
+## 변경 사항
 
-  // 외부 클릭 시 드롭다운 닫기
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    }
+### 1. 페이지 레이아웃 변경
+**파일**: `app/(admin)/admin/camp-templates/page.tsx`
 
-    if (showDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showDropdown]);
+- 그리드 레이아웃을 단일 컬럼으로 변경
+- `grid gap-4 md:grid-cols-2 lg:grid-cols-3` → `flex flex-col gap-4`
 
-  const handleStatusChange = async (newStatus: "draft" | "active" | "archived") => {
-    if (currentStatus === newStatus) {
-      setShowDropdown(false);
-      return;
-    }
-    
-    setIsChangingStatus(true);
-    setShowDropdown(false);
-    try {
-      const result = await updateCampTemplateStatusAction(template.id, newStatus);
-      if (result.success) {
-        setCurrentStatus(newStatus);
-        toast.showSuccess(
-          newStatus === "active" 
-            ? "템플릿이 활성화되었습니다." 
-            : newStatus === "archived"
-            ? "템플릿이 보관되었습니다."
-            : "템플릿이 초안 상태로 변경되었습니다."
-        );
-        router.refresh();
-      } else {
-        toast.showError(result.error || "상태 변경에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("상태 변경 실패:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "상태 변경에 실패했습니다.";
-      toast.showError(errorMessage);
-    } finally {
-      setIsChangingStatus(false);
-    }
-  };
+```180:184:app/(admin)/admin/camp-templates/page.tsx
+            <div className="flex flex-col gap-4">
+              {filteredTemplates.map((template) => (
+                <TemplateCard key={template.id} template={template} />
+              ))}
+            </div>
+```
 
-  const handleDeleteClick = () => {
-    setShowDropdown(false);
-    setShowDeleteDialog(true);
-  };
+### 2. TemplateCard 컴포넌트 재구성
+**파일**: `app/(admin)/admin/camp-templates/_components/TemplateCard.tsx`
 
-  const getStatusBadge = () => {
-    if (currentStatus === "draft") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800">
-          초안
-        </span>
-      );
-    }
-    if (currentStatus === "active") {
-      return (
-        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-800">
-          활성
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800">
-        보관
-      </span>
-    );
-  };
+#### 주요 변경사항
 
-  return (
-    <>
+1. **가로 긴 카드 형태로 재구성**
+   - 본문 정보를 가로로 나열
+   - 각 정보 항목 간 적절한 간격 유지
+
+2. **드롭다운 메뉴 구현**
+   - `MoreVertical` 아이콘 사용
+   - 클릭 시 메뉴 표시 (상태 변경 옵션, 삭제 옵션)
+   - 외부 클릭 시 자동으로 닫힘
+
+3. **반응형 대응**
+   - 모바일: 이름과 날짜만 표시
+   - 태블릿 이상: 유형과 설명 추가 표시
+
+#### 본문 정보 레이아웃
+
+```128:164:app/(admin)/admin/camp-templates/_components/TemplateCard.tsx
       <div className="group relative rounded-lg border border-gray-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-md">
         <div className="flex items-center gap-4 md:gap-6">
           {/* 본문 정보 - 가로 배치 */}
@@ -162,7 +90,11 @@ export function TemplateCard({ template }: TemplateCardProps) {
               </p>
             </div>
           </Link>
+```
 
+#### 드롭다운 메뉴 구현
+
+```166:260:app/(admin)/admin/camp-templates/_components/TemplateCard.tsx
           {/* 상태 배지 및 드롭다운 메뉴 */}
           <div className="flex items-center gap-3 flex-shrink-0">
             {getStatusBadge()}
@@ -260,39 +192,54 @@ export function TemplateCard({ template }: TemplateCardProps) {
           </div>
         </div>
       </div>
+```
 
-      {/* 삭제 확인 다이얼로그 */}
-      <Dialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title="템플릿 삭제 확인"
-        description={`정말로 "${template.name}" 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
-        variant="destructive"
-        maxWidth="md"
-      >
-        <div className="py-4">
-          <p className="text-sm text-gray-700">
-            이 템플릿을 삭제하면 관련된 모든 데이터가 함께 삭제됩니다. 삭제된 템플릿은 복구할 수 없습니다.
-          </p>
-        </div>
-        <DialogFooter>
-          <button
-            onClick={() => setShowDeleteDialog(false)}
-            disabled={isDeleting}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
-            onClick={confirmDelete}
-            disabled={isDeleting}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-          >
-            {isDeleting ? "삭제 중..." : "삭제"}
-          </button>
-        </DialogFooter>
-      </Dialog>
-    </>
-  );
-}
+#### 외부 클릭 감지 로직
+
+```49:64:app/(admin)/admin/camp-templates/_components/TemplateCard.tsx
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    }
+
+    if (showDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showDropdown]);
+```
+
+## 개선 효과
+
+1. **본문 영역 확대**: 액션 버튼을 드롭다운으로 통합하여 본문 영역이 넓어짐
+2. **가독성 향상**: 가로 긴 카드 형태로 템플릿 정보를 한눈에 확인 가능
+3. **공간 효율성**: 드롭다운 메뉴로 액션 버튼 공간 절약
+4. **반응형 대응**: 모바일/태블릿/데스크톱에 맞게 정보 표시 최적화
+
+## 기술적 세부사항
+
+- **드롭다운 메뉴**: `useRef`와 `useEffect`를 사용한 외부 클릭 감지
+- **상태 관리**: `useState`로 드롭다운 열림/닫힘 상태 관리
+- **이벤트 처리**: `preventDefault`와 `stopPropagation`으로 Link 클릭과 충돌 방지
+- **반응형 디자인**: Tailwind의 `hidden sm:block`, `md:block` 클래스 활용
+
+## 테스트 항목
+
+- [x] 템플릿 목록이 가로 긴 카드 형태로 표시되는지 확인
+- [x] 드롭다운 메뉴가 정상적으로 열리고 닫히는지 확인
+- [x] 외부 클릭 시 드롭다운이 닫히는지 확인
+- [x] 상태 변경 기능이 정상 작동하는지 확인
+- [x] 삭제 기능이 정상 작동하는지 확인
+- [x] 반응형 레이아웃이 올바르게 작동하는지 확인
+
+## 관련 파일
+
+- `app/(admin)/admin/camp-templates/page.tsx`
+- `app/(admin)/admin/camp-templates/_components/TemplateCard.tsx`
 

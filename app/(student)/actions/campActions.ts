@@ -36,6 +36,9 @@ export const getStudentCampInvitations = withErrorHandling(async () => {
               name: template.name,
               program_type: template.program_type,
               description: template.description,
+              camp_location: template.camp_location,
+              camp_start_date: template.camp_start_date,
+              camp_end_date: template.camp_end_date,
             }
           : null,
       };

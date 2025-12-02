@@ -18,6 +18,9 @@ type CampInvitationCardProps = {
       name?: string;
       program_type?: string;
       description?: string;
+      camp_location?: string | null;
+      camp_start_date?: string | null;
+      camp_end_date?: string | null;
     } | null;
   };
   detailLink: string;
@@ -59,6 +62,26 @@ export function CampInvitationCard({
           {invitation.template?.description && (
             <p className="mt-2 text-sm text-gray-500">
               {invitation.template.description}
+            </p>
+          )}
+          {/* 캠프 장소 */}
+          {invitation.template?.camp_location && (
+            <p className="mt-2 text-sm text-gray-500">
+              장소: {invitation.template.camp_location}
+            </p>
+          )}
+          {/* 캠프 기간 */}
+          {invitation.template?.camp_start_date && invitation.template?.camp_end_date && (
+            <p className="mt-2 text-sm text-gray-500">
+              기간: {new Date(invitation.template.camp_start_date).toLocaleDateString("ko-KR", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })} ~ {new Date(invitation.template.camp_end_date).toLocaleDateString("ko-KR", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
           )}
           {/* 플랜 상태 표시 */}
