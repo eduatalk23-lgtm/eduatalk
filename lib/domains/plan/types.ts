@@ -197,9 +197,14 @@ export type SchedulerOptions = {
  */
 export type SubjectConstraints = {
   required_subjects?: Array<{
+    subject_group_id: string;
     subject_category: string;
-    subject?: string;
     min_count: number;
+    subjects_by_curriculum?: Array<{
+      curriculum_revision_id: string;
+      subject_id?: string;
+      subject_name?: string;
+    }>;
   }>;
   excluded_subjects?: string[];
   constraint_handling: "strict" | "warning" | "auto_fix";

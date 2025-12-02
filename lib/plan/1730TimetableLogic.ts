@@ -402,6 +402,7 @@ export function calculateReviewDuration(
 
 /**
  * 교과 제약 조건 검증
+ * 개정교육과정별 세부 과목 검증 지원
  */
 export function validateSubjectConstraints(
   plans: Array<{ 
@@ -409,34 +410,60 @@ export function validateSubjectConstraints(
     subject_name?: string;
     detail_subject?: string; // 세부 과목 (선택사항)
   }>,
-  constraints: SubjectConstraints
+  constraints: SubjectConstraints,
+  studentCurriculumRevisionId?: string // 학생의 개정교육과정 ID (선택사항)
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  // 필수 교과 검증 (세부 과목 포함)
+  // 필수 교과 검증
   if (
     constraints.required_subjects &&
     constraints.required_subjects.length > 0
   ) {
     for (const req of constraints.required_subjects) {
-      if (req.subject) {
-        // 세부 과목까지 검증
-        const matchingCount = plans.filter(
-          p => (p.subject_name || p.subject_id) === req.subject_category && 
-               p.detail_subject === req.subject
-        ).length;
-        
-        if (matchingCount < req.min_count) {
-          errors.push(
-            `필수 교과 "${req.subject_category} - ${req.subject}"의 콘텐츠가 ${req.min_count}개 필요하지만 ${matchingCount}개만 선택되었습니다.`
-          );
+      // 개정교육과정별 세부 과목이 있는 경우
+      if (req.subjects_by_curriculum && req.subjects_by_curriculum.length > 0) {
+        // 학생의 개정교육과정에 해당하는 세부 과목 찾기
+        const curriculumSubject = studentCurriculumRevisionId
+          ? req.subjects_by_curriculum.find(
+              (s) => s.curriculum_revision_id === studentCurriculumRevisionId
+            )
+          : undefined;
+
+        if (curriculumSubject && curriculumSubject.subject_id) {
+          // 세부 과목까지 검증
+          const matchingCount = plans.filter(
+            (p) =>
+              p.subject_id === curriculumSubject.subject_id ||
+              (p.detail_subject === curriculumSubject.subject_name &&
+                (p.subject_name || "").toLowerCase().includes(req.subject_category.toLowerCase()))
+          ).length;
+
+          if (matchingCount < req.min_count) {
+            errors.push(
+              `필수 교과 "${req.subject_category} - ${curriculumSubject.subject_name}"의 콘텐츠가 ${req.min_count}개 필요하지만 ${matchingCount}개만 선택되었습니다.`
+            );
+          }
+        } else {
+          // 학생의 개정교육과정에 해당하는 세부 과목이 없으면 교과만 검증
+          const matchingCount = plans.filter(
+            (p) =>
+              (p.subject_name || "").toLowerCase().includes(req.subject_category.toLowerCase())
+          ).length;
+
+          if (matchingCount < req.min_count) {
+            errors.push(
+              `필수 교과 "${req.subject_category}"의 콘텐츠가 ${req.min_count}개 필요하지만 ${matchingCount}개만 선택되었습니다.`
+            );
+          }
         }
       } else {
-        // 교과만 검증 (기존 로직)
+        // 세부 과목 지정이 없으면 교과만 검증
         const matchingCount = plans.filter(
-          p => (p.subject_name || p.subject_id) === req.subject_category
+          (p) =>
+            (p.subject_name || "").toLowerCase().includes(req.subject_category.toLowerCase())
         ).length;
-        
+
         if (matchingCount < req.min_count) {
           errors.push(
             `필수 교과 "${req.subject_category}"의 콘텐츠가 ${req.min_count}개 필요하지만 ${matchingCount}개만 선택되었습니다.`

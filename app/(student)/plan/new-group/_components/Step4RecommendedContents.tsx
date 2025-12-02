@@ -5,10 +5,13 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { ProgressIndicator } from "./_shared/ProgressIndicator";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
+import { getCurriculumRevisionsAction, getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
+import type { SubjectGroup } from "@/lib/data/subjects";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 // Hooks
 import { useRecommendations } from "./Step4RecommendedContents/hooks/useRecommendations";
@@ -126,35 +129,71 @@ export default function Step4RecommendedContents({
   // ============================================================================
   // 필수 교과 설정 관리
   // ============================================================================
-  const [detailSubjects, setDetailSubjects] = useState<Map<string, string[]>>(
-    new Map()
-  );
-  const [loadingDetailSubjects, setLoadingDetailSubjects] = useState<
-    Set<string>
-  >(new Set());
+  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [loadingSubjectGroups, setLoadingSubjectGroups] = useState(false);
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+
+  // 교과 그룹 목록 조회
+  useEffect(() => {
+    setLoadingSubjectGroups(true);
+    getSubjectGroupsAction()
+      .then((groups) => {
+        setAvailableSubjectGroups(groups || []);
+      })
+      .catch((error) => {
+        console.error("교과 그룹 조회 실패:", error);
+      })
+      .finally(() => {
+        setLoadingSubjectGroups(false);
+      });
+  }, []);
+
+  // 개정교육과정 목록 조회
+  useEffect(() => {
+    setLoadingRevisions(true);
+    getCurriculumRevisionsAction()
+      .then((revisions) => {
+        setCurriculumRevisions(revisions || []);
+      })
+      .catch((error) => {
+        console.error("개정교육과정 조회 실패:", error);
+      })
+      .finally(() => {
+        setLoadingRevisions(false);
+      });
+  }, []);
 
   // ============================================================================
   // 필수 교과 핸들러
   // ============================================================================
-  const handleLoadDetailSubjects = useCallback(
-    async (category: string, curriculumRevisionId?: string) => {
-      if (detailSubjects.has(category)) return;
-
-      setLoadingDetailSubjects((prev) => new Set(prev).add(category));
+  const handleLoadSubjects = useCallback(
+    async (subjectGroupId: string, curriculumRevisionId: string): Promise<Array<{ id: string; name: string }>> => {
       try {
-        const subjects = await fetchDetailSubjects(category, curriculumRevisionId);
-        setDetailSubjects((prev) => new Map(prev).set(category, subjects));
+        // 해당 개정교육과정의 교과 그룹 찾기
+        const selectedGroup = availableSubjectGroups.find((g) => g.id === subjectGroupId);
+        if (!selectedGroup) {
+          return [];
+        }
+
+        // 같은 이름의 교과 그룹 중 해당 개정교육과정의 것 찾기
+        const curriculumGroup = availableSubjectGroups.find(
+          (g) => g.name === selectedGroup.name && g.curriculum_revision_id === curriculumRevisionId
+        );
+
+        if (!curriculumGroup) {
+          return [];
+        }
+
+        // 해당 교과 그룹의 과목 조회
+        const subjects = await getSubjectsByGroupAction(curriculumGroup.id);
+        return subjects.map((s) => ({ id: s.id, name: s.name }));
       } catch (error) {
         console.error("세부 과목 조회 실패:", error);
-      } finally {
-        setLoadingDetailSubjects((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(category);
-          return newSet;
-        });
+        return [];
       }
     },
-    [detailSubjects]
+    [availableSubjectGroups]
   );
 
   const handleAddRequiredSubject = useCallback(() => {
@@ -169,7 +208,7 @@ export default function Step4RecommendedContents({
         ...currentConstraints,
         required_subjects: [
           ...(currentConstraints.required_subjects || []),
-          { subject_category: "", min_count: 1 },
+          { subject_group_id: "", subject_category: "", min_count: 1 },
         ],
       },
     });
@@ -179,9 +218,14 @@ export default function Step4RecommendedContents({
     (
       index: number,
       updated: Partial<{
+        subject_group_id: string;
         subject_category: string;
-        subject?: string;
         min_count: number;
+        subjects_by_curriculum?: Array<{
+          curriculum_revision_id: string;
+          subject_id?: string;
+          subject_name?: string;
+        }>;
       }>
     ) => {
       if (!data.subject_constraints) return;
@@ -381,11 +425,10 @@ export default function Step4RecommendedContents({
       {!isCampMode && (
         <RequiredSubjectsSection
           data={data}
-          availableSubjects={Array.from(AVAILABLE_SUBJECTS)}
-          detailSubjects={detailSubjects}
-          loadingDetailSubjects={loadingDetailSubjects}
+          availableSubjectGroups={availableSubjectGroups}
+          curriculumRevisions={curriculumRevisions}
+          onLoadSubjects={handleLoadSubjects}
           onUpdate={onUpdate}
-          onLoadDetailSubjects={handleLoadDetailSubjects}
           onAddRequiredSubject={handleAddRequiredSubject}
           onUpdateRequiredSubject={handleRequiredSubjectUpdate}
           onRemoveRequiredSubject={handleRequiredSubjectRemove}

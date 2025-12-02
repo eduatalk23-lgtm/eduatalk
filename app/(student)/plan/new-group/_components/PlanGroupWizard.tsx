@@ -166,11 +166,16 @@ export type WizardData = {
   }>;
   subject_constraints?: {
     enable_required_subjects_validation?: boolean; // 필수 과목 검증 사용 여부 (템플릿 모드에서 설정)
-    curriculum_revision_id?: string; // 템플릿에서 사용할 개정교육과정 ID
     required_subjects?: Array<{
-      subject_category: string; // 교과 (예: 국어, 수학, 영어)
-      subject?: string; // 세부 과목 (선택사항)
+      subject_group_id: string; // subject_groups 테이블 ID
+      subject_category: string; // 표시용 이름 (subject_groups.name)
       min_count: number; // 최소 개수
+      // 개정교육과정별 세부 과목 (선택사항)
+      subjects_by_curriculum?: Array<{
+        curriculum_revision_id: string;
+        subject_id?: string; // subjects 테이블 ID
+        subject_name?: string; // 표시용 (subjects.name)
+      }>;
     }>; // 필수 교과/과목 목록 (위계 구조 + 개수)
     excluded_subjects?: string[];
     constraint_handling: "strict" | "warning" | "auto_fix";
