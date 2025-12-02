@@ -9,6 +9,8 @@ type AdminUser = {
   role: string;
   created_at: string;
   email: string;
+  tenant_id?: string | null;
+  tenant_name?: string | null;
 };
 
 export function AdminUsersList({ adminUsers }: { adminUsers: AdminUser[] }) {
@@ -66,6 +68,9 @@ export function AdminUsersList({ adminUsers }: { adminUsers: AdminUser[] }) {
               역할
             </th>
             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+              기관
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
               생성일
             </th>
             <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
@@ -98,6 +103,16 @@ export function AdminUsersList({ adminUsers }: { adminUsers: AdminUser[] }) {
                     ? "Super Admin"
                     : "컨설턴트"}
                 </span>
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {adminUser.tenant_name ? (
+                  <span className="inline-flex items-center gap-1">
+                    <span>🏢</span>
+                    <span>{adminUser.tenant_name}</span>
+                  </span>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
               </td>
               <td className="px-4 py-3 text-sm text-gray-600">
                 {new Date(adminUser.created_at).toLocaleDateString("ko-KR", {
