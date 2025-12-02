@@ -1637,7 +1637,7 @@ export function Step1BasicInfo({
               추가 기간 학습 범위 재배치 (선택사항)
             </h3>
             
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-end gap-4">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -1705,7 +1705,7 @@ export function Step1BasicInfo({
                       : "text-gray-700"
                   }`}
                 >
-                  추가 기간 학습 범위 재배치 사용
+                  재배치 사용
                 </label>
               </div>
               {isTemplateMode && (
