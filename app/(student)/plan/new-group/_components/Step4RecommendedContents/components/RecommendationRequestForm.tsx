@@ -73,7 +73,7 @@ export default function RecommendationRequestForm({
           <h3 className="mb-2 text-sm font-semibold text-gray-900">
             교과별 추천 개수 설정
           </h3>
-          <p className="mb-3 text-xs text-gray-500">
+          <p className="mb-3 text-xs text-gray-600">
             각 교과별로 몇 개의 콘텐츠를 추천 받을지 설정하세요.
           </p>
           <div className="space-y-2">

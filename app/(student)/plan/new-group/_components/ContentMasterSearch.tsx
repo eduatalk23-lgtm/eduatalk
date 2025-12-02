@@ -89,7 +89,7 @@ export function ContentMasterSearch({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
               placeholder="교재/강의 이름을 입력하세요"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -106,7 +106,7 @@ export function ContentMasterSearch({
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
               placeholder="예: 국어, 수학"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}

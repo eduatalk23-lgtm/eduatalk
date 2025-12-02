@@ -856,7 +856,7 @@ export function Step3Contents({
                               </label>
                               <input
                                 type="number"
-                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
+                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
                                 placeholder="예: 1"
                                 min={0}
                                 value={range?.start || ""}
@@ -1190,7 +1190,7 @@ export function Step3Contents({
                               </label>
                               <input
                                 type="number"
-                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
+                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
                                 placeholder="예: 1"
                                 min={0}
                                 value={range?.start || ""}

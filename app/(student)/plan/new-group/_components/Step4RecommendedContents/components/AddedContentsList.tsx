@@ -435,7 +435,7 @@ export default function AddedContentsList({
                                   onRangeChange(newStart, currentEnd);
                                 }
                               }}
-                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-900 placeholder:text-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                               placeholder="1"
                             />
                           </div>
@@ -455,7 +455,7 @@ export default function AddedContentsList({
                                   onRangeChange(currentStart, newEnd);
                                 }
                               }}
-                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-900 placeholder:text-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                               placeholder={contentTotals.get(editingRangeIndex!)?.toString() || "100"}
                             />
                           </div>

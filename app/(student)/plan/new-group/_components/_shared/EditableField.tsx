@@ -52,7 +52,7 @@ export const EditableField = React.memo(function EditableField({
             : displayValue}
         </dd>
         {description && (
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
+          <p className="mt-1 text-sm text-gray-600">{description}</p>
         )}
       </div>
     );
@@ -63,15 +63,15 @@ export const EditableField = React.memo(function EditableField({
     <div>
       <label
         className={cn(
-          "block text-sm font-medium text-gray-700",
+          "block text-sm font-medium text-gray-800",
           required && "after:ml-0.5 after:text-red-500 after:content-['*']"
         )}
       >
         {label}
       </label>
-      {description && (
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
-      )}
+        {description && (
+          <p className="mt-1 text-sm text-gray-600">{description}</p>
+        )}
       {type === "select" && options ? (
         <select
           value={value ?? ""}
