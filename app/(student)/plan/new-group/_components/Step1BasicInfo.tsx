@@ -204,27 +204,14 @@ export function Step1BasicInfo({
   const [weeksState, setWeeksState] = useState({ startDate: "", weeks: 4 });
 
   // 직접 선택: 연도/월/일을 각각 관리
-  const getTodayParts = () => {
-    const todayDate = new Date();
-    return {
-      year: todayDate.getFullYear(),
-      month: todayDate.getMonth() + 1,
-      day: todayDate.getDate(),
-    };
-  };
-
-  const parseDateString = (dateStr: string) => {
-    if (!dateStr) return getTodayParts();
-    const [year, month, day] = dateStr.split("-").map(Number);
-    return { year, month, day };
-  };
+  // 로컬 함수 제거 - import한 parseDateStringUtil 사용
 
   const [directState, setDirectState] = useState(() => {
     const startParts = data.period_start
-      ? parseDateString(data.period_start)
+      ? parseDateStringUtil(data.period_start)
       : getTodayParts();
     const endParts = data.period_end
-      ? parseDateString(data.period_end)
+      ? parseDateStringUtil(data.period_end)
       : getTodayParts();
     return {
       startYear: startParts.year,
@@ -290,10 +277,10 @@ export function Step1BasicInfo({
   useEffect(() => {
     if (data.period_start || data.period_end) {
       const startParts = data.period_start
-        ? parseDateString(data.period_start)
+        ? parseDateStringUtil(data.period_start)
         : getTodayParts();
       const endParts = data.period_end
-        ? parseDateString(data.period_end)
+        ? parseDateStringUtil(data.period_end)
         : getTodayParts();
 
       setDirectState((prev) => {
