@@ -168,7 +168,15 @@ export default function RecommendationRequestForm({
       <div className="flex justify-center">
         <button
           type="button"
-          onClick={onSubmit}
+          onClick={() => {
+            console.log("[RecommendationRequestForm] 추천받기 버튼 클릭:", {
+              selectedSubjects: Array.from(selectedSubjects),
+              recommendationCounts: Object.fromEntries(recommendationCounts),
+              autoAssignContents,
+              disabled,
+            });
+            onSubmit();
+          }}
           disabled={selectedSubjects.size === 0 || disabled}
           className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-400"
         >
