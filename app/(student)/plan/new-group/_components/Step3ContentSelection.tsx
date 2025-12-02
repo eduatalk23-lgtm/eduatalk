@@ -157,6 +157,15 @@ export function Step3ContentSelection({
 
   // 추천 받기 요청
   const handleRequestRecommendations = useCallback(async () => {
+    console.log("[Step3ContentSelection] 추천 받기 요청 시작:", {
+      recommendationSettings: {
+        selectedSubjects: Array.from(recommendationSettings.selectedSubjects),
+        recommendationCounts: Object.fromEntries(recommendationSettings.recommendationCounts),
+        autoAssignContents: recommendationSettings.autoAssignContents,
+      },
+      studentId,
+    });
+
     setRecommendationLoading(true);
 
     try {
