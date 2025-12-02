@@ -78,9 +78,9 @@ export const EditableField = React.memo(function EditableField({
           onChange={(e) => onChange?.(e.target.value)}
           disabled={locked}
           className={cn(
-            "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
+            "mt-1 block w-full rounded-md border-gray-300 text-gray-900 shadow-sm",
             "focus:border-blue-500 focus:ring-blue-500",
-            locked && "cursor-not-allowed bg-gray-100 text-gray-500"
+            locked && "cursor-not-allowed bg-gray-100 text-gray-600"
           )}
         >
           <option value="">{placeholder || "선택하세요"}</option>
@@ -98,9 +98,9 @@ export const EditableField = React.memo(function EditableField({
           disabled={locked}
           placeholder={placeholder}
           className={cn(
-            "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
+            "mt-1 block w-full rounded-md border-gray-300 text-gray-900 placeholder:text-gray-600 shadow-sm",
             "focus:border-blue-500 focus:ring-blue-500",
-            locked && "cursor-not-allowed bg-gray-100 text-gray-500"
+            locked && "cursor-not-allowed bg-gray-100 text-gray-600"
           )}
         />
       )}
