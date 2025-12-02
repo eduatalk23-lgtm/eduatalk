@@ -332,11 +332,25 @@ export function useRecommendations({
             trimmed: trimmed.length,
             excluded: toAdd - trimmed.length,
             newRecommendedContents: newRecommendedContents.length,
+            currentRecommendedContents: data.recommended_contents.length,
+            newContents: newRecommendedContents.map((c) => ({
+              content_id: c.content_id,
+              title: c.title,
+              content_type: c.content_type,
+            })),
+          });
+          
+          console.log("[useRecommendations] onUpdate 호출 전:", {
+            currentRecommendedContents: data.recommended_contents.length,
+            toAdd: trimmed.length,
+            newRecommendedContents: newRecommendedContents.length,
           });
           
           onUpdate({
             recommended_contents: newRecommendedContents,
           });
+          
+          console.log("[useRecommendations] onUpdate 호출 완료");
           alert(SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(trimmed.length) + 
             ` (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`);
         } else {
@@ -350,18 +364,28 @@ export function useRecommendations({
         ];
         console.log("[useRecommendations] 자동 배정 성공:", {
           added: contentsToAutoAdd.length,
+          currentRecommendedContents: data.recommended_contents.length,
           newRecommendedContents: newRecommendedContents.length,
           contents: newRecommendedContents.map((c) => ({
             content_id: c.content_id,
+            title: c.title,
             content_type: c.content_type,
             start_range: c.start_range,
             end_range: c.end_range,
           })),
         });
         
+        console.log("[useRecommendations] onUpdate 호출 전:", {
+          currentRecommendedContents: data.recommended_contents.length,
+          toAdd: contentsToAutoAdd.length,
+          newRecommendedContents: newRecommendedContents.length,
+        });
+        
         onUpdate({
           recommended_contents: newRecommendedContents,
         });
+        
+        console.log("[useRecommendations] onUpdate 호출 완료");
         alert(SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(contentsToAutoAdd.length));
       }
     },
@@ -573,7 +597,6 @@ export function useRecommendations({
           studentMasterIds
         );
 
-        setRecommendedContents(filteredRecommendations);
         setHasRequestedRecommendations(true);
 
         // 자동 배정
@@ -592,7 +615,28 @@ export function useRecommendations({
               contentType: r.contentType,
             })),
           });
+          
+          // 자동 배정 실행
           await autoAssignContents(filteredRecommendations);
+          
+          // 자동 배정 후 추천 목록에서 제거 (자동 배정된 콘텐츠는 목록에 표시하지 않음)
+          // autoAssignContents 내부에서 onUpdate를 호출하므로, 
+          // useEffect가 자동으로 recommendedContents에서 제거함
+          // 하지만 즉시 반영을 위해 여기서도 필터링
+          const autoAssignedIds = new Set(
+            filteredRecommendations.map((r) => r.id)
+          );
+          const remainingRecommendations = filteredRecommendations.filter(
+            (r) => !autoAssignedIds.has(r.id)
+          );
+          
+          console.log("[useRecommendations] 자동 배정 후 목록 업데이트:", {
+            before: filteredRecommendations.length,
+            after: remainingRecommendations.length,
+            autoAssigned: autoAssignedIds.size,
+          });
+          
+          setRecommendedContents(remainingRecommendations);
         } else {
           console.log("[useRecommendations] 자동 배정 스킵:", {
             autoAssign,
@@ -601,6 +645,9 @@ export function useRecommendations({
               ? "자동 배정 옵션이 비활성화됨"
               : "추천 콘텐츠가 없음",
           });
+          
+          // 자동 배정하지 않으면 추천 목록 표시
+          setRecommendedContents(filteredRecommendations);
         }
       } catch (error) {
         const planGroupError = toPlanGroupError(
