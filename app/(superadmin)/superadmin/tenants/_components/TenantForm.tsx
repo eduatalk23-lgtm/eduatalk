@@ -37,15 +37,22 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
         body: JSON.stringify({ name, type }),
       });
 
-      if (!response.ok) {
-        throw new Error("저장 실패");
+      const result = await response.json();
+
+      // API 응답 형식 확인: { success: true, data: ... } 또는 { success: false, error: ... }
+      if (!result.success) {
+        const errorMessage =
+          result.error?.message || "기관 정보 저장에 실패했습니다.";
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      onSuccess(data);
+      // 성공 시 data 필드에서 tenant 정보 추출
+      onSuccess(result.data);
     } catch (error) {
       console.error("[tenant] 저장 실패", error);
-      alert("기관 정보 저장에 실패했습니다.");
+      const errorMessage =
+        error instanceof Error ? error.message : "기관 정보 저장에 실패했습니다.";
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
