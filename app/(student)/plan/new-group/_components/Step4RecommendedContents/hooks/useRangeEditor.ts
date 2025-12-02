@@ -324,16 +324,40 @@ export function useRangeEditor({
   const saveEditingRange = useCallback(() => {
     if (editingRangeIndex === null || !editingRange) return;
 
+    const startNum = Number(editingRange.start);
+    const endNum = Number(editingRange.end);
+
+    // 유효성 검사
+    if (isNaN(startNum) || isNaN(endNum) || startNum <= 0 || endNum <= 0) {
+      alert("유효한 숫자 범위를 입력해주세요.");
+      return;
+    }
+
+    if (startNum > endNum) {
+      alert("시작 범위는 종료 범위보다 클 수 없습니다.");
+      return;
+    }
+
+    // 총 페이지수/회차 확인
+    const content = data.recommended_contents[editingRangeIndex];
+    const total = contentTotals.get(editingRangeIndex);
+    if (total && (startNum > total || endNum > total)) {
+      alert(
+        `범위는 최대 ${total}${content.content_type === "book" ? "페이지" : "회차"}까지 입력할 수 있습니다.`
+      );
+      return;
+    }
+
     const newContents = [...data.recommended_contents];
     newContents[editingRangeIndex] = {
       ...newContents[editingRangeIndex],
-      start_range: Number(editingRange.start),
-      end_range: Number(editingRange.end),
+      start_range: startNum,
+      end_range: endNum,
     };
     onUpdate({ recommended_contents: newContents });
     setEditingRangeIndex(null);
     setEditingRange(null);
-  }, [editingRangeIndex, editingRange, data.recommended_contents, onUpdate]);
+  }, [editingRangeIndex, editingRange, data.recommended_contents, contentTotals, onUpdate]);
 
   /**
    * 시작 범위 설정

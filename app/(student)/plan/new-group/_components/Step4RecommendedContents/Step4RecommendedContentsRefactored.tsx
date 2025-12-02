@@ -393,6 +393,9 @@ export default function Step4RecommendedContents({
           editingRangeIndex={editingRangeIndex}
           editingRange={editingRange}
           contentDetails={contentDetails}
+          onRangeChange={(start, end) => {
+            setEditingRange({ start, end });
+          }}
           startDetailId={startDetailId}
           endDetailId={endDetailId}
           loadingDetails={loadingDetails}

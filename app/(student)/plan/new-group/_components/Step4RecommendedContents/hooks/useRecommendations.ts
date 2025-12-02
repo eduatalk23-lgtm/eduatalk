@@ -53,6 +53,32 @@ export function useRecommendations({
     }
   }, [isEditMode, data.recommended_contents.length]);
 
+  // data.recommended_contents가 업데이트되면 recommendedContents에서 제거
+  useEffect(() => {
+    if (data.recommended_contents.length > 0) {
+      const addedContentIds = new Set(
+        data.recommended_contents.map((c) => c.content_id)
+      );
+      
+      setRecommendedContents((prev) => {
+        const filtered = prev.filter((c) => !addedContentIds.has(c.id));
+        
+        if (filtered.length !== prev.length) {
+          console.log("[useRecommendations] 추가된 콘텐츠를 추천 목록에서 제거:", {
+            before: prev.length,
+            after: filtered.length,
+            removed: prev.length - filtered.length,
+            removedIds: prev
+              .filter((c) => addedContentIds.has(c.id))
+              .map((c) => ({ id: c.id, title: c.title })),
+          });
+        }
+        
+        return filtered;
+      });
+    }
+  }, [data.recommended_contents]);
+
   /**
    * 학생 콘텐츠의 master_content_id 수집
    */
@@ -149,24 +175,29 @@ export function useRecommendations({
           let endRange = 100;
 
           // 상세 정보 조회
+          let detailsResult: any = null;
+          let hasDetails = false;
+          
           const detailsResponse = await fetch(
             `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
           );
 
           if (detailsResponse.ok) {
-            const detailsResult = await detailsResponse.json();
+            detailsResult = await detailsResponse.json();
 
             // API 응답 형식: { success: true, data: { details/episodes: [...] } }
             if (detailsResult.success && detailsResult.data) {
               if (r.contentType === "book") {
                 const details = detailsResult.data.details || [];
-                if (details.length > 0) {
+                hasDetails = details.length > 0;
+                if (hasDetails) {
                   startRange = details[0].page_number || 1;
                   endRange = details[details.length - 1].page_number || 100;
                 }
               } else if (r.contentType === "lecture") {
                 const episodes = detailsResult.data.episodes || [];
-                if (episodes.length > 0) {
+                hasDetails = episodes.length > 0;
+                if (hasDetails) {
                   startRange = episodes[0].episode_number || 1;
                   endRange = episodes[episodes.length - 1].episode_number || 100;
                 }
@@ -175,13 +206,15 @@ export function useRecommendations({
               // 레거시 응답 형식 지원 (하위 호환성)
               if (r.contentType === "book") {
                 const details = detailsResult.details || detailsResult.data?.details || [];
-                if (details.length > 0) {
+                hasDetails = details.length > 0;
+                if (hasDetails) {
                   startRange = details[0].page_number || 1;
                   endRange = details[details.length - 1].page_number || 100;
                 }
               } else if (r.contentType === "lecture") {
                 const episodes = detailsResult.episodes || detailsResult.data?.episodes || [];
-                if (episodes.length > 0) {
+                hasDetails = episodes.length > 0;
+                if (hasDetails) {
                   startRange = episodes[0].episode_number || 1;
                   endRange = episodes[episodes.length - 1].episode_number || 100;
                 }
@@ -189,8 +222,8 @@ export function useRecommendations({
             }
           }
 
-          // 상세 정보가 없을 때 총량 조회 (전체 범위 설정)
-          if (startRange === 1 && endRange === 100) {
+          // 상세 정보가 없거나 기본값일 때 총량 조회 (전체 범위 설정)
+          if (!hasDetails || (startRange === 1 && endRange === 100)) {
             try {
               const infoResponse = await fetch(
                 `/api/master-content-info?content_type=${r.contentType}&content_id=${r.id}`
@@ -201,8 +234,10 @@ export function useRecommendations({
                 if (infoResult.success && infoResult.data) {
                   if (r.contentType === "book" && infoResult.data.total_pages) {
                     endRange = infoResult.data.total_pages;
+                    console.log(`[useRecommendations] 자동 배정: ${r.title} 총 페이지수 ${endRange}로 설정`);
                   } else if (r.contentType === "lecture" && infoResult.data.total_episodes) {
                     endRange = infoResult.data.total_episodes;
+                    console.log(`[useRecommendations] 자동 배정: ${r.title} 총 회차 ${endRange}로 설정`);
                   }
                 }
               }
