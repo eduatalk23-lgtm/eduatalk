@@ -1248,12 +1248,13 @@ export function PlanGroupWizard({
             onNavigateToStep={setCurrentStep}
           />
         )}
-        {currentStep === 4 && !isTemplateMode && (
+        {currentStep === 4 && (
           <Step3ContentSelection
             data={wizardData}
             onUpdate={updateWizardData}
             contents={initialContents}
             isCampMode={isCampMode}
+            isTemplateMode={isTemplateMode}
             isEditMode={isEditMode}
             studentId={(initialData as any)?.student_id}
             editable={!isAdminContinueMode}

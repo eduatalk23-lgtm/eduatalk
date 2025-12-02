@@ -377,19 +377,21 @@ export default function Step4RecommendedContents({
   // ============================================================================
   return (
     <div className="space-y-6">
-      {/* 필수 교과 설정 섹션 */}
-      <RequiredSubjectsSection
-        data={data}
-        availableSubjects={Array.from(AVAILABLE_SUBJECTS)}
-        detailSubjects={detailSubjects}
-        loadingDetailSubjects={loadingDetailSubjects}
-        onUpdate={onUpdate}
-        onLoadDetailSubjects={handleLoadDetailSubjects}
-        onAddRequiredSubject={handleAddRequiredSubject}
-        onUpdateRequiredSubject={handleRequiredSubjectUpdate}
-        onRemoveRequiredSubject={handleRequiredSubjectRemove}
-        onConstraintHandlingChange={handleConstraintHandlingChange}
-      />
+      {/* 필수 교과 설정 섹션 - 캠프 모드가 아닐 때만 표시 */}
+      {!isCampMode && (
+        <RequiredSubjectsSection
+          data={data}
+          availableSubjects={Array.from(AVAILABLE_SUBJECTS)}
+          detailSubjects={detailSubjects}
+          loadingDetailSubjects={loadingDetailSubjects}
+          onUpdate={onUpdate}
+          onLoadDetailSubjects={handleLoadDetailSubjects}
+          onAddRequiredSubject={handleAddRequiredSubject}
+          onUpdateRequiredSubject={handleRequiredSubjectUpdate}
+          onRemoveRequiredSubject={handleRequiredSubjectRemove}
+          onConstraintHandlingChange={handleConstraintHandlingChange}
+        />
+      )}
 
       <div>
         <div className="mb-6">

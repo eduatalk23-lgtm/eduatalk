@@ -30,9 +30,10 @@ export function Step3ContentSelection({
   contents,
   isEditMode = false,
   isCampMode = false,
+  isTemplateMode = false,
   studentId,
   editable = true,
-}: Step3ContentSelectionProps) {
+}: Step3ContentSelectionProps & { isTemplateMode?: boolean }) {
   // 탭 상태
   const [activeTab, setActiveTab] = useState<"student" | "recommended" | "master">(
     "student"
@@ -653,8 +654,8 @@ export function Step3ContentSelection({
 
   return (
     <div className="space-y-6">
-      {/* 필수 교과 설정 섹션 - 캠프 모드에서만 표시 */}
-      {isCampMode && (
+      {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
+      {isTemplateMode && (
       <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-6 mb-6 shadow-md">
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
