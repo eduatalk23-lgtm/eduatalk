@@ -55,11 +55,11 @@ export function TimeRangeInput({
   return (
     <div className="space-y-2">
       <div>
-        <label className="text-xs font-medium text-gray-700">
+        <label className="text-xs font-medium text-gray-800">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {description && (
-          <p className="text-xs text-gray-800">{description}</p>
+          <p className="text-xs text-gray-600">{description}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -69,7 +69,7 @@ export function TimeRangeInput({
             value={start}
             onChange={(e) => handleStartChange(e.target.value)}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
           />
         </div>
         <div>
@@ -78,7 +78,7 @@ export function TimeRangeInput({
             value={end}
             onChange={(e) => handleEndChange(e.target.value)}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
           />
         </div>
       </div>
