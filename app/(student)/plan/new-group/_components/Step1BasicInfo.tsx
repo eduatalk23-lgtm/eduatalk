@@ -1295,7 +1295,7 @@ export function Step1BasicInfo({
                   </label>
                   <select
                     id="start_year"
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
@@ -1355,7 +1355,7 @@ export function Step1BasicInfo({
                   </label>
                   <select
                     id="start_month"
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
@@ -1415,7 +1415,7 @@ export function Step1BasicInfo({
                   </label>
                   <select
                     id="start_day"
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
@@ -1483,7 +1483,7 @@ export function Step1BasicInfo({
                   </label>
                   <select
                     id="end_year"
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
@@ -1540,7 +1540,7 @@ export function Step1BasicInfo({
                   </label>
                   <select
                     id="end_month"
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
@@ -1597,7 +1597,7 @@ export function Step1BasicInfo({
                   </label>
                   <select
                     id="end_day"
-                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none ${
+                    className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
