@@ -5,6 +5,7 @@ import {
   apiSuccess,
   apiNoContent,
   apiForbidden,
+  apiNotFound,
   apiValidationError,
   handleApiError,
 } from "@/lib/api";
@@ -50,18 +51,44 @@ export async function PUT(
     }
 
     const supabase = await createSupabaseServerClient();
+
+    // 먼저 테넌트 존재 여부 확인
+    const { data: existingTenant, error: checkError } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (checkError) {
+      return handleApiError(checkError, "[api/tenants] 테넌트 확인 실패");
+    }
+
+    if (!existingTenant) {
+      return apiNotFound("해당 기관을 찾을 수 없습니다.");
+    }
+
+    // 테넌트 업데이트
     const { data, error } = await supabase
       .from("tenants")
       .update({
         name: name.trim(),
         type: type || "academy",
+        updated_at: new Date().toISOString(),
       })
       .eq("id", id)
       .select()
       .single();
 
     if (error) {
+      // PGRST116 에러 처리: 결과가 0개 행일 때
+      if (error.code === "PGRST116") {
+        return apiNotFound("해당 기관을 찾을 수 없습니다.");
+      }
       return handleApiError(error, "[api/tenants] 수정 실패");
+    }
+
+    if (!data) {
+      return apiNotFound("기관 정보를 가져올 수 없습니다.");
     }
 
     return apiSuccess(data as Tenant);
@@ -92,6 +119,23 @@ export async function DELETE(
     }
 
     const supabase = await createSupabaseServerClient();
+
+    // 먼저 테넌트 존재 여부 확인
+    const { data: existingTenant, error: checkError } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (checkError) {
+      return handleApiError(checkError, "[api/tenants] 테넌트 확인 실패");
+    }
+
+    if (!existingTenant) {
+      return apiNotFound("해당 기관을 찾을 수 없습니다.");
+    }
+
+    // 테넌트 삭제
     const { error } = await supabase
       .from("tenants")
       .delete()

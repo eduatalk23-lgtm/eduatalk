@@ -231,6 +231,11 @@ export function handleApiError(
       return apiForbidden("접근 권한이 없습니다.");
     }
 
+    // PGRST116: 결과가 0개 행일 때 (single() 사용 시)
+    if (supabaseError.code === "PGRST116") {
+      return apiNotFound("요청한 리소스를 찾을 수 없습니다.");
+    }
+
     return apiDatabaseError(supabaseError.message || "데이터베이스 오류가 발생했습니다.");
   }
 
