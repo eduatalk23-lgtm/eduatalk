@@ -4,7 +4,7 @@ import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { SignOutButton } from "@/app/_components/SignOutButton";
 
 type RoleBasedLayoutProps = {
-  role: "student" | "admin" | "parent" | "consultant";
+  role: "student" | "admin" | "parent" | "consultant" | "superadmin";
   children: ReactNode;
   dashboardHref: string;
   roleLabel: string;
@@ -40,7 +40,7 @@ export function RoleBasedLayout({
 
             {/* 카테고리 네비게이션 */}
             <div className="p-4">
-              <CategoryNav role={role === "consultant" ? "admin" : role} />
+              <CategoryNav role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
             </div>
 
             {/* 하단 링크 */}
@@ -67,13 +67,13 @@ export function RoleBasedLayout({
                   <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
                 </a>
               </div>
-              <CategoryNav role={role === "consultant" ? "admin" : role} />
+              <CategoryNav role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
             </div>
           </nav>
         )}
 
         {/* Breadcrumbs */}
-        {showSidebar && <Breadcrumbs role={role === "consultant" ? "admin" : role} />}
+        {showSidebar && <Breadcrumbs role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />}
 
         {/* 페이지 콘텐츠 */}
         <div className="flex-1">{children}</div>

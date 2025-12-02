@@ -235,7 +235,7 @@ export function UnverifiedUsersList({
         <div className="flex items-center justify-center gap-2">
           {currentPage > 1 && (
             <a
-              href={`/admin/unverified-users?page=${currentPage - 1}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ""}`}
+              href={`/superadmin/unverified-users?page=${currentPage - 1}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ""}`}
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               이전
@@ -246,7 +246,7 @@ export function UnverifiedUsersList({
           </span>
           {currentPage < totalPages && (
             <a
-              href={`/admin/unverified-users?page=${currentPage + 1}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ""}`}
+              href={`/superadmin/unverified-users?page=${currentPage + 1}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ""}`}
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               다음

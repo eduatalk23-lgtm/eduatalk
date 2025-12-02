@@ -3,7 +3,7 @@
  * 역할별(학생/관리자/학부모) 카테고리 구조를 정의합니다.
  */
 
-export type NavigationRole = "student" | "admin" | "parent";
+export type NavigationRole = "student" | "admin" | "parent" | "superadmin";
 
 export type NavigationItem = {
   id: string;
@@ -355,26 +355,69 @@ const adminCategories: NavigationCategory[] = [
         href: "/admin/tools",
         icon: "🛠️",
       },
+    ],
+  },
+];
+
+/**
+ * Super Admin 영역 카테고리 설정
+ */
+const superadminCategories: NavigationCategory[] = [
+  {
+    id: "superadmin-dashboard",
+    label: "대시보드",
+    icon: "📊",
+    items: [
       {
-        id: "admin-users",
-        label: "관리자 계정",
-        href: "/admin/admin-users",
-        icon: "👤",
-        roles: ["admin"], // Super Admin만
+        id: "superadmin-dashboard-main",
+        label: "대시보드",
+        href: "/superadmin/dashboard",
+        icon: "📊",
       },
+    ],
+  },
+  {
+    id: "superadmin-tenants",
+    label: "기관 관리",
+    icon: "🏛️",
+    items: [
       {
-        id: "admin-unverified-users",
-        label: "미인증 가입 관리",
-        href: "/admin/unverified-users",
-        icon: "✉️",
-        roles: ["admin"], // Super Admin만
-      },
-      {
-        id: "admin-tenants",
+        id: "superadmin-tenants-main",
         label: "기관 관리",
-        href: "/admin/superadmin/tenants",
+        href: "/superadmin/tenants",
         icon: "🏛️",
-        roles: ["admin"], // Super Admin만 (추후 역할 체크 필요)
+      },
+    ],
+  },
+  {
+    id: "superadmin-users",
+    label: "사용자 관리",
+    icon: "👥",
+    items: [
+      {
+        id: "superadmin-admin-users",
+        label: "관리자 계정",
+        href: "/superadmin/admin-users",
+        icon: "👤",
+      },
+      {
+        id: "superadmin-unverified-users",
+        label: "미인증 가입 관리",
+        href: "/superadmin/unverified-users",
+        icon: "✉️",
+      },
+    ],
+  },
+  {
+    id: "superadmin-settings",
+    label: "설정",
+    icon: "⚙️",
+    items: [
+      {
+        id: "superadmin-settings-main",
+        label: "설정",
+        href: "/superadmin/settings",
+        icon: "⚙️",
       },
     ],
   },
@@ -463,6 +506,7 @@ export const categoryConfig: Record<NavigationRole, NavigationCategory[]> = {
   student: studentCategories,
   admin: adminCategories,
   parent: parentCategories,
+  superadmin: superadminCategories,
 };
 
 /**

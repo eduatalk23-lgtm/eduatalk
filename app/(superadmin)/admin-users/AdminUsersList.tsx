@@ -87,10 +87,16 @@ export function AdminUsersList({ adminUsers }: { adminUsers: AdminUser[] }) {
                   className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
                     adminUser.role === "admin"
                       ? "bg-indigo-100 text-indigo-800"
+                      : adminUser.role === "superadmin"
+                      ? "bg-orange-100 text-orange-800"
                       : "bg-green-100 text-green-800"
                   }`}
                 >
-                  {adminUser.role === "admin" ? "관리자" : "컨설턴트"}
+                  {adminUser.role === "admin"
+                    ? "관리자"
+                    : adminUser.role === "superadmin"
+                    ? "Super Admin"
+                    : "컨설턴트"}
                 </span>
               </td>
               <td className="px-4 py-3 text-sm text-gray-600">

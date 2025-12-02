@@ -19,11 +19,11 @@ export default async function UnverifiedUsersPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { role } = await getCurrentUserRole();
+  const { role, userId } = await getCurrentUserRole();
 
-  // 관리자만 접근 가능
-  if (role !== "admin") {
-    redirect("/admin/dashboard");
+  // Super Admin만 접근 가능
+  if (!userId || role !== "superadmin") {
+    redirect("/login");
   }
 
   const params = await searchParams;
@@ -45,7 +45,7 @@ export default async function UnverifiedUsersPage({
       const { data: usersData, error } = await adminClient.auth.admin.listUsers();
 
     if (error) {
-      console.error("[admin/unverified-users] 사용자 목록 조회 실패:", error);
+      console.error("[superadmin/unverified-users] 사용자 목록 조회 실패:", error);
     } else if (usersData?.users) {
       // 미인증 사용자 필터링 (email_confirmed_at이 null이거나 undefined)
       unverifiedUsers = usersData.users
@@ -83,7 +83,7 @@ export default async function UnverifiedUsersPage({
     }
     }
   } catch (error) {
-    console.error("[admin/unverified-users] 오류:", error);
+    console.error("[superadmin/unverified-users] 오류:", error);
   }
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -103,7 +103,7 @@ export default async function UnverifiedUsersPage({
             </p>
           </div>
           <Link
-            href="/admin/dashboard"
+            href="/superadmin/dashboard"
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
           >
             대시보드로

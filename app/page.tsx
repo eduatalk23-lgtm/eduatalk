@@ -30,8 +30,8 @@ export default async function Home() {
 
   // 역할에 따라 리다이렉트
   if (role === "superadmin") {
-    // Super Admin은 관리자 대시보드로 리다이렉트
-    redirect("/admin/dashboard");
+    // Super Admin은 Super Admin 대시보드로 리다이렉트
+    redirect("/superadmin/dashboard");
   } else if (role === "admin" || role === "consultant") {
     redirect("/admin/dashboard");
   } else if (role === "parent") {

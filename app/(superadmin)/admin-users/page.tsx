@@ -6,12 +6,12 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AdminUsersList } from "./AdminUsersList";
 import { CreateAdminUserForm } from "./CreateAdminUserForm";
 
-export default async function AdminUsersPage() {
+export default async function SuperAdminUsersPage() {
   const { role, userId } = await getCurrentUserRole();
 
-  // Super Admin만 접근 가능 (admin 역할만)
-  if (role !== "admin") {
-    redirect("/admin/dashboard");
+  // Super Admin만 접근 가능
+  if (!userId || role !== "superadmin") {
+    redirect("/login");
   }
 
   const supabase = await createSupabaseServerClient();
@@ -74,7 +74,7 @@ export default async function AdminUsersPage() {
             </p>
           </div>
           <Link
-            href="/admin/dashboard"
+            href="/superadmin/dashboard"
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
           >
             대시보드로

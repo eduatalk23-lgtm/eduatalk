@@ -104,15 +104,6 @@ export default async function AdminSettingsPage() {
               <div className="font-medium text-gray-900">도구</div>
               <div className="text-sm text-gray-600">관리자 도구 및 유틸리티</div>
             </Link>
-            {role === "admin" && (
-              <Link
-                href="/admin/superadmin/tenants"
-                className="block rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
-              >
-                <div className="font-medium text-gray-900">기관 관리 (Super Admin)</div>
-                <div className="text-sm text-gray-600">전체 기관 관리</div>
-              </Link>
-            )}
           </div>
         </div>
       </div>
