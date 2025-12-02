@@ -285,16 +285,16 @@ function calculateProgress(currentStep: WizardStep, wizardData: WizardData, isTe
 
   // 완료된 Step들의 가중치 합산
   for (let step = 1; step < currentStep; step++) {
-    // 템플릿 모드일 때 Step 4, 5, 6, 7 제외 (1, 2, 3만)
-    if (isTemplateMode && (step === 4 || step === 5 || step === 6 || step === 7)) {
+    // 템플릿 모드일 때 Step 5, 6, 7 제외 (1, 2, 3, 4만)
+    if (isTemplateMode && (step === 5 || step === 6 || step === 7)) {
       continue;
     }
     progress += stepWeights[step as WizardStep];
   }
 
   // 현재 Step의 부분 완료도 계산
-  // 템플릿 모드일 때 Step 4, 5, 6, 7은 가중치 0으로 처리
-  const currentStepWeight = (isTemplateMode && (currentStep === 4 || currentStep === 5 || currentStep === 6 || currentStep === 7)) ? 0 : stepWeights[currentStep];
+  // 템플릿 모드일 때 Step 5, 6, 7은 가중치 0으로 처리
+  const currentStepWeight = (isTemplateMode && (currentStep === 5 || currentStep === 6 || currentStep === 7)) ? 0 : stepWeights[currentStep];
   let currentStepProgress = 0;
 
   switch (currentStep) {
@@ -576,8 +576,8 @@ export function PlanGroupWizard({
       }
     }
 
-    // 템플릿 모드일 때 Step 2에서 바로 제출 (Step 3, 4, 5 건너뛰기)
-    if (isTemplateMode && currentStep === 2) {
+    // 템플릿 모드일 때 Step 4에서 템플릿 저장
+    if (isTemplateMode && currentStep === 4) {
       handleSubmit();
       return;
     }
@@ -598,9 +598,9 @@ export function PlanGroupWizard({
 
     if (currentStep < 5) {
       if (currentStep === 4) {
-        // 캠프 모드가 아닐 때만 Step 4에서 데이터만 저장하고 Step 5로 이동
-        // 캠프 모드일 때는 위에서 이미 handleSubmit()이 호출됨
-        if (!isCampMode || isAdminContinueMode) {
+        // 템플릿 모드나 캠프 모드가 아닐 때만 Step 4에서 데이터만 저장하고 Step 5로 이동
+        // 템플릿 모드나 캠프 모드일 때는 위에서 이미 handleSubmit()이 호출됨
+        if (!isTemplateMode && (!isCampMode || isAdminContinueMode)) {
           // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
           handleSubmit(false); // 플랜 생성하지 않음
         }
@@ -1339,7 +1339,7 @@ export function PlanGroupWizard({
         >
           {isPending
             ? "저장 중..."
-            : currentStep === 3 && isTemplateMode
+            : currentStep === 4 && isTemplateMode
             ? "템플릿 저장하기"
             : currentStep === 4 && isCampMode && !isAdminContinueMode
             ? "참여 제출하기"
