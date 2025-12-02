@@ -246,6 +246,51 @@ export const createCampTemplateDraftAction = withErrorHandling(
       );
     }
 
+    // 추가 필드 추출 및 검증
+    const description = String(formData.get("description") ?? "").trim() || null;
+    const campStartDate = String(formData.get("camp_start_date") ?? "").trim() || null;
+    const campEndDate = String(formData.get("camp_end_date") ?? "").trim() || null;
+    const campLocation = String(formData.get("camp_location") ?? "").trim() || null;
+
+    // 날짜 형식 검증 (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (campStartDate && !dateRegex.test(campStartDate)) {
+      throw new AppError(
+        "캠프 시작일 형식이 올바르지 않습니다. (YYYY-MM-DD 형식)",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+    if (campEndDate && !dateRegex.test(campEndDate)) {
+      throw new AppError(
+        "캠프 종료일 형식이 올바르지 않습니다. (YYYY-MM-DD 형식)",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // 종료일이 시작일보다 이후인지 검증
+    if (campStartDate && campEndDate && campEndDate < campStartDate) {
+      throw new AppError(
+        "캠프 종료일은 시작일보다 이후여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // 캠프 장소 길이 검증
+    if (campLocation && campLocation.length > 200) {
+      throw new AppError(
+        "캠프 장소는 200자 이하여야 합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
     // 빈 template_data로 템플릿 생성
     const emptyTemplateData: Partial<WizardData> = {
       name,
@@ -260,17 +305,17 @@ export const createCampTemplateDraftAction = withErrorHandling(
       recommended_contents: [],
     };
 
-    // 템플릿 생성 (최소 정보만)
+    // 템플릿 생성 (기본 정보 포함)
     const result = await createCampTemplate({
       tenant_id: tenantContext.tenantId,
       name,
-      description: undefined,
+      description,
       program_type: programType,
       template_data: emptyTemplateData,
       created_by: userId,
-      camp_start_date: undefined,
-      camp_end_date: undefined,
-      camp_location: undefined,
+      camp_start_date: campStartDate,
+      camp_end_date: campEndDate,
+      camp_location: campLocation,
     });
 
     if (!result.success || !result.templateId) {
