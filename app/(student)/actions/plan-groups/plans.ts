@@ -94,8 +94,26 @@ async function _generatePlansFromGroup(
     throw new AppError(errorMessage, ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  // schedulerOptions 변수 선언 (나중에 사용하기 위해)
-  const schedulerOptions = (group.scheduler_options as any) || {};
+  // 병합된 스케줄러 설정 사용 (전역 → 템플릿 → 플랜그룹)
+  const { getMergedSchedulerSettings } = await import(
+    "@/lib/data/schedulerSettings"
+  );
+  const mergedSettings = await getMergedSchedulerSettings(
+    group.tenant_id,
+    group.camp_template_id,
+    group.scheduler_options as Record<string, unknown>
+  );
+
+  // 기존 scheduler_options 형식으로 변환 (하위 호환성)
+  const schedulerOptions = {
+    study_days: mergedSettings.study_review_ratio.study_days,
+    review_days: mergedSettings.study_review_ratio.review_days,
+    weak_subject_focus: mergedSettings.weak_subject_focus,
+    review_scope: mergedSettings.review_scope,
+    lunch_time: mergedSettings.lunch_time,
+    camp_study_hours: mergedSettings.study_hours,
+    self_study_hours: mergedSettings.self_study_hours,
+  };
 
   // calculateAvailableDates 호출하여 Step 2.5 스케줄 결과 가져오기
   const scheduleResult = calculateAvailableDates(
