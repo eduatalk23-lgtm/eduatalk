@@ -7,6 +7,7 @@ type Tenant = {
   id: string;
   name: string;
   type: string;
+  status?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -57,10 +58,18 @@ export function TenantCard({ tenant, onUpdate, onDelete }: TenantCardProps) {
     );
   }
 
+  const statusLabel = tenant.status === "active" ? "활성" : tenant.status === "inactive" ? "비활성" : tenant.status === "suspended" ? "정지" : "활성";
+  const statusColor = tenant.status === "active" ? "bg-green-100 text-green-800" : tenant.status === "inactive" ? "bg-gray-100 text-gray-800" : tenant.status === "suspended" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800";
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-4">
-        <h3 className="text-xl font-semibold">{tenant.name}</h3>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-xl font-semibold">{tenant.name}</h3>
+          <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusColor}`}>
+            {statusLabel}
+          </span>
+        </div>
         <p className="text-sm text-gray-500">
           유형: {tenant.type === "academy" ? "학원" : tenant.type === "school" ? "학교" : tenant.type === "enterprise" ? "기업" : "기타"}
         </p>

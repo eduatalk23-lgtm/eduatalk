@@ -15,6 +15,7 @@ type Tenant = {
   id: string;
   name: string;
   type: string;
+  status?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -44,7 +45,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, type } = body;
+    const { name, type, status } = body;
 
     // 입력 검증
     if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -94,13 +95,20 @@ export async function PUT(
     }
 
     // 테넌트 업데이트
+    const updateData: { name: string; type: string; status?: string; updated_at: string } = {
+      name: name.trim(),
+      type: type || "academy",
+      updated_at: new Date().toISOString(),
+    };
+
+    // status가 제공된 경우에만 업데이트
+    if (status !== undefined) {
+      updateData.status = status;
+    }
+
     const { data, error } = await adminClient
       .from("tenants")
-      .update({
-        name: name.trim(),
-        type: type || "academy",
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();

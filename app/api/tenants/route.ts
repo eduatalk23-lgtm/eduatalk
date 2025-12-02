@@ -14,6 +14,7 @@ type Tenant = {
   id: string;
   name: string;
   type: string;
+  status?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -46,7 +47,7 @@ export async function GET() {
 
     const { data, error } = await adminClient
       .from("tenants")
-      .select("id, name, type, created_at, updated_at")
+      .select("id, name, type, status, created_at, updated_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -101,6 +102,7 @@ export async function POST(request: NextRequest) {
       .insert({
         name: name.trim(),
         type: type || "academy",
+        status: "active", // 기본값: active
       })
       .select()
       .single();

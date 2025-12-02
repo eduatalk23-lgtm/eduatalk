@@ -37,23 +37,35 @@ export async function getTenantStatistics(): Promise<TenantStatistics> {
     .from("tenants")
     .select("*", { count: "exact", head: true });
 
-  // 활성 기관 수
-  const { count: active } = await supabase
+  // 활성 기관 수 (status가 'active'이거나 null인 경우)
+  const { count: active, error: activeError } = await supabase
     .from("tenants")
     .select("*", { count: "exact", head: true })
-    .eq("status", "active");
+    .or("status.eq.active,status.is.null");
+
+  if (activeError) {
+    console.error("[superadminDashboard] 활성 기관 수 조회 실패:", activeError);
+  }
 
   // 비활성 기관 수
-  const { count: inactive } = await supabase
+  const { count: inactive, error: inactiveError } = await supabase
     .from("tenants")
     .select("*", { count: "exact", head: true })
     .eq("status", "inactive");
 
+  if (inactiveError) {
+    console.error("[superadminDashboard] 비활성 기관 수 조회 실패:", inactiveError);
+  }
+
   // 정지된 기관 수
-  const { count: suspended } = await supabase
+  const { count: suspended, error: suspendedError } = await supabase
     .from("tenants")
     .select("*", { count: "exact", head: true })
     .eq("status", "suspended");
+
+  if (suspendedError) {
+    console.error("[superadminDashboard] 정지된 기관 수 조회 실패:", suspendedError);
+  }
 
   return {
     total: total || 0,

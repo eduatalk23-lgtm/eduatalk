@@ -6,6 +6,7 @@ type Tenant = {
   id: string;
   name: string;
   type: string;
+  status?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -19,6 +20,7 @@ type TenantFormProps = {
 export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
   const [name, setName] = useState(tenant?.name ?? "");
   const [type, setType] = useState(tenant?.type ?? "academy");
+  const [status, setStatus] = useState(tenant?.status ?? "active");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,7 +45,7 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, type }),
+        body: JSON.stringify({ name, type, status }),
       });
 
       const result = await response.json();
@@ -111,6 +113,19 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
               <option value="school">학교</option>
               <option value="enterprise">기업</option>
               <option value="other">기타</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">상태</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+            >
+              <option value="active">활성</option>
+              <option value="inactive">비활성</option>
+              <option value="suspended">정지</option>
             </select>
           </div>
 

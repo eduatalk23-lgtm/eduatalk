@@ -28,7 +28,7 @@ export default async function SuperAdminTenantsPage() {
 
   const { data: tenants, error } = await adminClient
     .from("tenants")
-    .select("id, name, type, created_at, updated_at")
+    .select("id, name, type, status, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   console.log("[superadmin] tenants 조회 결과:", {
