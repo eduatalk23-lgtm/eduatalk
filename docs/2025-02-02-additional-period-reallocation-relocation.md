@@ -38,9 +38,16 @@
 
 - 템플릿 모드(`isTemplateMode`)에서만 표시되도록 조건 추가
 - 학습 기간 섹션 내부에 위치하도록 조정
+- "추가 기간 학습 범위 재배치 사용" 체크박스 뒤에 배치 (같은 줄)
 - `allow_student_additional_period_reallocation` 필드 사용 유지
 
-### 4. 스타일링 조정
+### 4. 체크박스 순서 개선 (추가 변경)
+
+- "추가 기간 학습 범위 재배치 사용" 체크박스를 학생 입력 허용 체크박스 앞으로 이동
+- 제목 바로 아래에 기능 활성화 체크박스를 배치하여 사용성 개선
+- 설명 텍스트는 체크박스 아래로 이동
+
+### 5. 스타일링 조정
 
 - 하위 항목 느낌의 스타일 적용:
   - `mt-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4`
@@ -57,16 +64,25 @@
    - 학습 기간 섹션 내부(1631라인 다음)에 추가
    - 스케줄러 타입이 `"1730_timetable"`일 때만 표시되는 조건 유지
 
-2. **학생 입력 허용 체크박스 조건 개선**
+2. **체크박스 순서 및 레이아웃 개선**
+   - 제목 바로 아래에 "추가 기간 학습 범위 재배치 사용" 체크박스 배치
+   - 학생 입력 허용 체크박스는 같은 줄 오른쪽에 배치
    ```tsx
-   {isTemplateMode && (
+   <div className="flex items-center justify-between gap-4">
      <div className="flex items-center gap-2">
-       {renderStudentInputCheckbox(
-         "allow_student_additional_period_reallocation"
-       )}
+       <input type="checkbox" id="enable_additional_period" ... />
+       <label htmlFor="enable_additional_period">추가 기간 학습 범위 재배치 사용</label>
      </div>
-   )}
+     {isTemplateMode && (
+       <div className="flex items-center gap-2">
+         {renderStudentInputCheckbox(
+           "allow_student_additional_period_reallocation"
+         )}
+       </div>
+     )}
+   </div>
    ```
+   - 설명 텍스트는 체크박스 아래로 이동
 
 3. **안내 메시지 위치**
    - 캠프 모드에서 학생 입력 허용이 아닐 때 표시되는 안내 메시지는 학습 기간 섹션 내부에 위치

@@ -1633,25 +1633,11 @@ export function Step1BasicInfo({
         {/* 추가 기간 학습 범위 재배치 (1730 Timetable) */}
         {data.scheduler_type === "1730_timetable" && (
           <div className="mt-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">
-                추가 기간 학습 범위 재배치 (선택사항)
-              </h3>
-              {isTemplateMode && (
-                <div className="flex items-center gap-2">
-                  {renderStudentInputCheckbox(
-                    "allow_student_additional_period_reallocation"
-                  )}
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-gray-600">
-              추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
-              <br />
-              학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
-            </p>
-
-            <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">
+              추가 기간 학습 범위 재배치 (선택사항)
+            </h3>
+            
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -1722,6 +1708,22 @@ export function Step1BasicInfo({
                   추가 기간 학습 범위 재배치 사용
                 </label>
               </div>
+              {isTemplateMode && (
+                <div className="flex items-center gap-2">
+                  {renderStudentInputCheckbox(
+                    "allow_student_additional_period_reallocation"
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <p className="text-xs text-gray-600">
+              추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
+              <br />
+              학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
+            </p>
+
+            <div className="space-y-4">
 
               {data.additional_period_reallocation && (
                 <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
