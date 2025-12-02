@@ -13,7 +13,7 @@ import { cn } from "@/lib/cn";
 
 export type CollapsibleSectionProps = {
   // 섹션 제목
-  title: string;
+  title: string | React.ReactNode;
   
   // 기본 펼침 상태
   defaultOpen?: boolean;
@@ -83,7 +83,9 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
           />
           
           {/* 제목 */}
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            {title}
+          </h3>
         </div>
 
         {/* 오른쪽 영역: 헤더 액션 + 학생 입력 허용 체크박스 + 수정 버튼 */}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { RefreshCw, Pencil, Plus, MessageCircle } from "lucide-react";
+import { RefreshCw, Pencil, Plus, HelpCircle } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { Dialog } from "@/components/ui/Dialog";
 import {
   createBlockSet,
   getBlockSets,
@@ -235,7 +236,7 @@ export function Step1BasicInfo({
   const [isPending, startTransition] = useTransition();
   const [isLoadingBlockSets, setIsLoadingBlockSets] = useState(false);
   const [show1730Desc, setShow1730Desc] = useState(false);
-  const [showBlockSetDesc, setShowBlockSetDesc] = useState(false);
+  const [showBlockSetDescDialog, setShowBlockSetDescDialog] = useState(false);
 
   // 페이징 상태
   const [currentPage, setCurrentPage] = useState(1);
@@ -2175,7 +2176,22 @@ export function Step1BasicInfo({
 
       {/* 블록 세트 생성/선택 */}
       <CollapsibleSection
-        title="블록 세트 *"
+        title={
+          <>
+            블록 세트 *
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBlockSetDescDialog(true);
+              }}
+              className="ml-1 inline-flex items-center text-gray-400 hover:text-gray-600"
+              title="블록 세트 설명"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+          </>
+        }
         defaultOpen={true}
         studentInputAllowed={lockedFields.allow_student_block_set_id === true}
         onStudentInputToggle={(enabled) =>
@@ -2183,15 +2199,7 @@ export function Step1BasicInfo({
         }
         showStudentInputToggle={isTemplateMode}
       >
-        <div className="mb-2 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setShowBlockSetDesc(!showBlockSetDesc)}
-            className="flex items-center rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            title="블록 세트 설명"
-          >
-            <MessageCircle className="h-4 w-4" />
-          </button>
+        <div className="mb-2 flex items-center justify-end">
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -2226,28 +2234,6 @@ export function Step1BasicInfo({
             )}
           </div>
         </div>
-
-        {/* 블록 세트 설명 */}
-        {showBlockSetDesc && (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-            <h4 className="mb-2 font-semibold text-blue-900">블록 세트란?</h4>
-            <p className="mb-2">
-              블록 세트는{" "}
-              <strong>
-                고정적인 학습 제외 시간을 제외한 요일별 학습 시작~끝 시간
-              </strong>
-              을 정의합니다.
-            </p>
-            <p className="text-xs text-blue-700">
-              예를 들어, 평일 오후 3시~6시, 오후 7시~10시와 같이 규칙적인 학습
-              시간대를 설정할 수 있습니다.
-            </p>
-            <p className="mt-2 text-xs text-blue-700">
-              주의: 중간에 학원이나 점심 시간 등이 있는 경우, 이는 이후 입력하는
-              항목에서 별도로 수집됩니다.
-            </p>
-          </div>
-        )}
 
         {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
         <div className="mb-4">
@@ -2810,6 +2796,32 @@ export function Step1BasicInfo({
           </div>
         )}
       </CollapsibleSection>
+
+      {/* 블록 세트 설명 다이얼로그 */}
+      <Dialog
+        open={showBlockSetDescDialog}
+        onOpenChange={setShowBlockSetDescDialog}
+        title="블록 세트란?"
+        maxWidth="md"
+      >
+        <div className="space-y-3 text-sm text-gray-700">
+          <p>
+            블록 세트는{" "}
+            <strong>
+              고정적인 학습 제외 시간을 제외한 요일별 학습 시작~끝 시간
+            </strong>
+            을 정의합니다.
+          </p>
+          <p className="text-xs text-gray-600">
+            예를 들어, 평일 오후 3시~6시, 오후 7시~10시와 같이 규칙적인 학습
+            시간대를 설정할 수 있습니다.
+          </p>
+          <p className="text-xs text-gray-600">
+            주의: 중간에 학원이나 점심 시간 등이 있는 경우, 이는 이후 입력하는
+            항목에서 별도로 수집됩니다.
+          </p>
+        </div>
+      </Dialog>
     </div>
   );
 }
