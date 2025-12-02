@@ -168,6 +168,7 @@ export function Step7ScheduleResult({
         groupId={groupId}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
+        isRegenerateMode={true}
         onPlansGenerated={() => {
           // 플랜 재생성 후 데이터 새로고침
           const fetchData = async () => {

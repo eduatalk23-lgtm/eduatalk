@@ -31,6 +31,7 @@ type PlanPreviewDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPlansGenerated?: () => void;
+  isRegenerateMode?: boolean; // 이미 플랜이 생성되어 있는 경우 true
 };
 
 const contentTypeLabels: Record<string, string> = {
@@ -134,6 +135,7 @@ export function PlanPreviewDialog({
   open,
   onOpenChange,
   onPlansGenerated,
+  isRegenerateMode = false,
 }: PlanPreviewDialogProps) {
   const [plans, setPlans] = useState<PlanPreview[]>([]);
   const [loading, setLoading] = useState(false);
@@ -158,11 +160,11 @@ export function PlanPreviewDialog({
   };
 
   const handleGenerate = () => {
-    if (
-      !confirm(
-        "플랜을 생성하시겠습니까? 기존 플랜이 있다면 삭제되고 새로 생성됩니다."
-      )
-    ) {
+    const message = isRegenerateMode
+      ? "플랜을 재생성하시겠습니까? 기존 플랜이 삭제되고 새로 생성됩니다."
+      : "플랜을 생성하시겠습니까? 기존 플랜이 있다면 삭제되고 새로 생성됩니다.";
+    
+    if (!confirm(message)) {
       return;
     }
 
@@ -249,7 +251,7 @@ export function PlanPreviewDialog({
               disabled={loading}
               className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
             >
-              {loading ? "로딩 중..." : "플랜 미리보기"}
+              {loading ? "로딩 중..." : "미리보기"}
             </button>
             {plans.length > 0 && (
               <button
@@ -258,7 +260,7 @@ export function PlanPreviewDialog({
                 disabled={isGenerating}
                 className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-green-400"
               >
-                {isGenerating ? "생성 중..." : "플랜 생성하기"}
+                {isGenerating ? "생성 중..." : isRegenerateMode ? "재생성하기" : "플랜 생성하기"}
               </button>
             )}
           </div>

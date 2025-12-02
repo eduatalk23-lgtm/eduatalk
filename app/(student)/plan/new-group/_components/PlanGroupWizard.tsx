@@ -1322,9 +1322,9 @@ export function PlanGroupWizard({
         <button
           type="button"
           onClick={handleNext}
-          disabled={isPending || currentStep === 7}
+          disabled={isPending || currentStep === 6 || currentStep === 7}
           className={`items-center justify-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400 ${
-            currentStep === 7 ? "hidden" : "inline-flex"
+            currentStep === 6 || currentStep === 7 ? "hidden" : "inline-flex"
           }`}
         >
           {isPending
@@ -1337,12 +1337,6 @@ export function PlanGroupWizard({
             ? isEditMode
               ? "수정 및 플랜 생성"
               : "플랜 생성하기"
-            : currentStep === 6
-            ? isEditMode
-              ? "수정 및 플랜 생성"
-              : "플랜 생성하기"
-            : currentStep === 7
-            ? "" // Step 7에서는 완료 버튼이 Step7ScheduleResult 내부에 있으므로 빈 문자열
             : "다음"}
         </button>
       </div>
