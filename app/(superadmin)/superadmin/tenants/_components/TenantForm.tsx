@@ -58,6 +58,13 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
       if (!result.success) {
         const errorMessage =
           result.error?.message || "기관 정보 저장에 실패했습니다.";
+        
+        // "해당 기관을 찾을 수 없습니다" 에러인 경우 추가 안내
+        if (errorMessage.includes("찾을 수 없습니다")) {
+          const fullMessage = `${errorMessage}\n\n페이지를 새로고침하여 최신 목록을 확인해주세요.`;
+          throw new Error(fullMessage);
+        }
+        
         throw new Error(errorMessage);
       }
 

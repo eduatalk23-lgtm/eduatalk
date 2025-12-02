@@ -19,6 +19,25 @@ type TenantListProps = {
 export function TenantList({ tenants: initialTenants }: TenantListProps) {
   const [tenants, setTenants] = useState(initialTenants);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshTenants = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch("/api/tenants");
+      const result = await response.json();
+      
+      if (result.success) {
+        setTenants(result.data);
+      } else {
+        console.error("[TenantList] 목록 조회 실패", result.error);
+      }
+    } catch (error) {
+      console.error("[TenantList] 목록 새로고침 실패", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const handleTenantCreated = (newTenant: Tenant) => {
     setTenants([newTenant, ...tenants]);
@@ -37,7 +56,14 @@ export function TenantList({ tenants: initialTenants }: TenantListProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={refreshTenants}
+          disabled={isRefreshing}
+          className="rounded bg-gray-100 px-4 py-2 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+        >
+          {isRefreshing ? "새로고침 중..." : "🔄 새로고침"}
+        </button>
         <button
           onClick={() => setIsFormOpen(true)}
           className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
