@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * CollapsibleSection - 접기/펼치기 섹션
- * 
+ *
  * Phase 4.2에서 구현
  * Step6Simplified에서 각 섹션을 접기/펼치기로 표시
  */
@@ -14,25 +14,25 @@ import { cn } from "@/lib/cn";
 export type CollapsibleSectionProps = {
   // 섹션 제목
   title: string | React.ReactNode;
-  
+
   // 기본 펼침 상태
   defaultOpen?: boolean;
-  
+
   // 수정 버튼
   onEdit?: () => void;
   editLabel?: string;
-  
+
   // 내용
   children: React.ReactNode;
-  
+
   // 비활성화
   disabled?: boolean;
-  
+
   // 학생 입력 허용 (템플릿 모드용)
   studentInputAllowed?: boolean;
   onStudentInputToggle?: (enabled: boolean) => void;
   showStudentInputToggle?: boolean; // 템플릿 모드일 때만 true
-  
+
   // 헤더 추가 액션 (체크박스 등)
   headerActions?: React.ReactNode;
 };
@@ -77,11 +77,11 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
           {/* 화살표 아이콘 */}
           <ChevronRight
             className={cn(
-              "h-5 w-5 text-gray-500 transition-transform duration-200",
+              "h-5 w-5 text-gray-700 transition-transform duration-200",
               isOpen && "rotate-90"
             )}
           />
-          
+
           {/* 제목 */}
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             {title}
@@ -92,15 +92,13 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
         <div className="flex items-center gap-3">
           {/* 헤더 추가 액션 (체크박스 등) */}
           {headerActions && (
-            <div onClick={(e) => e.stopPropagation()}>
-              {headerActions}
-            </div>
+            <div onClick={(e) => e.stopPropagation()}>{headerActions}</div>
           )}
 
           {/* 학생 입력 허용 체크박스 */}
           {showStudentInputToggle && onStudentInputToggle && (
             <label
-              className="flex items-center gap-2 text-xs text-gray-600"
+              className="flex items-center gap-2 text-xs text-gray-700"
               onClick={(e) => e.stopPropagation()}
             >
               <input
@@ -112,7 +110,13 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
                 }}
                 className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
               />
-              <span className={!showStudentInputToggle || disabled ? "text-gray-400" : ""}>학생 입력 허용</span>
+              <span
+                className={
+                  !showStudentInputToggle || disabled ? "text-gray-700" : ""
+                }
+              >
+                학생 입력 허용
+              </span>
             </label>
           )}
 
@@ -142,4 +146,3 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
     </div>
   );
 });
-

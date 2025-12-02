@@ -53,20 +53,20 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   editable = true,
 }: ExclusionsPanelProps) {
   const toast = useToast();
-  
+
   // 템플릿 고정 필드 확인
   const lockedFields = data.templateLockedFields?.step2 || {};
-  
+
   // 템플릿 모드에서 필드 제어 토글
   const toggleFieldControl = (fieldName: keyof typeof lockedFields) => {
     if (!isTemplateMode) return;
-    
+
     const currentLocked = data.templateLockedFields?.step2 || {};
     const newLocked = {
       ...currentLocked,
       [fieldName]: !currentLocked[fieldName],
     };
-    
+
     onUpdate({
       templateLockedFields: {
         ...data.templateLockedFields,
@@ -74,30 +74,35 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       },
     });
   };
-  
+
   // 학생 입력 가능 여부
-  const canStudentInputExclusions = campMode 
-    ? (lockedFields.allow_student_exclusions !== false)
+  const canStudentInputExclusions = campMode
+    ? lockedFields.allow_student_exclusions !== false
     : true;
 
   // 로컬 상태
-  const [exclusionInputType, setExclusionInputType] = useState<ExclusionInputType>("single");
+  const [exclusionInputType, setExclusionInputType] =
+    useState<ExclusionInputType>("single");
   const [newExclusionDate, setNewExclusionDate] = useState("");
   const [newExclusionStartDate, setNewExclusionStartDate] = useState("");
   const [newExclusionEndDate, setNewExclusionEndDate] = useState("");
   const [newExclusionDates, setNewExclusionDates] = useState<string[]>([]);
-  const [newExclusionType, setNewExclusionType] = useState<"휴가" | "개인사정" | "휴일지정" | "기타">("휴가");
+  const [newExclusionType, setNewExclusionType] = useState<
+    "휴가" | "개인사정" | "휴일지정" | "기타"
+  >("휴가");
   const [newExclusionReason, setNewExclusionReason] = useState("");
-  
+
   // 모달 상태
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [availableExclusions, setAvailableExclusions] = useState<Array<{
-    exclusion_date: string;
-    exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
-    reason?: string;
-    source?: "time_management";
-  }>>([]);
-  
+  const [availableExclusions, setAvailableExclusions] = useState<
+    Array<{
+      exclusion_date: string;
+      exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
+      reason?: string;
+      source?: "time_management";
+    }>
+  >([]);
+
   // 불러올 수 있는 제외일 개수 상태
   const [availableCount, setAvailableCount] = useState<number | null>(null);
   const [isLoadingCount, setIsLoadingCount] = useState(false);
@@ -127,7 +132,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
         periodEnd,
         undefined // studentId는 템플릿 모드에서 사용하지 않음
       );
-      
+
       if (result.exclusions && result.exclusions.length > 0) {
         // 기존 제외일과 중복되지 않는 항목만 카운트 (날짜+유형 조합)
         const existingKeys = new Set(data.exclusions.map(getExclusionKey));
@@ -158,7 +163,11 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
     // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
     const startParts = parseDateString(start);
     const endParts = parseDateString(end);
-    const startDate = new Date(startParts.year, startParts.month - 1, startParts.day);
+    const startDate = new Date(
+      startParts.year,
+      startParts.month - 1,
+      startParts.day
+    );
     const endDate = new Date(endParts.year, endParts.month - 1, endParts.day);
     const current = new Date(startDate);
 
@@ -188,7 +197,10 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
         toast.showError("시작일은 종료일보다 앞서야 합니다.");
         return;
       }
-      datesToAdd = generateDateRange(newExclusionStartDate, newExclusionEndDate);
+      datesToAdd = generateDateRange(
+        newExclusionStartDate,
+        newExclusionEndDate
+      );
     } else if (exclusionInputType === "multiple") {
       if (newExclusionDates.length === 0) {
         toast.showError("날짜를 최소 1개 이상 선택해주세요.");
@@ -199,12 +211,19 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
     // 기존 제외일과 중복 체크 (날짜+유형 조합)
     const existingKeys = new Set(data.exclusions.map(getExclusionKey));
-    const duplicates = datesToAdd.filter((date) => 
-      existingKeys.has(getExclusionKey({ exclusion_date: date, exclusion_type: newExclusionType }))
+    const duplicates = datesToAdd.filter((date) =>
+      existingKeys.has(
+        getExclusionKey({
+          exclusion_date: date,
+          exclusion_type: newExclusionType,
+        })
+      )
     );
 
     if (duplicates.length > 0) {
-      toast.showError(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
+      toast.showError(
+        `이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`
+      );
       return;
     }
 
@@ -231,13 +250,14 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
   const removeExclusion = (index: number) => {
     const exclusion = data.exclusions[index];
-    const isTemplateExclusion = exclusion.is_locked || exclusion.source === "template";
-    
+    const isTemplateExclusion =
+      exclusion.is_locked || exclusion.source === "template";
+
     if (campMode && isTemplateExclusion) {
       toast.showError("템플릿에서 지정된 제외일은 삭제할 수 없습니다.");
       return;
     }
-    
+
     onUpdate({
       exclusions: data.exclusions.filter((_, i) => i !== index),
     });
@@ -252,7 +272,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
         periodEnd,
         undefined // studentId는 템플릿 모드에서 사용하지 않음
       );
-      
+
       if (result.exclusions && result.exclusions.length > 0) {
         // 모달로 선택 등록 방식으로 변경
         setAvailableExclusions(result.exclusions);
@@ -269,23 +289,25 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
     }
   };
 
-  const handleImportExclusions = (selectedExclusions: Array<{
-    exclusion_date: string;
-    exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
-    reason?: string;
-    source?: "time_management";
-  }>) => {
+  const handleImportExclusions = (
+    selectedExclusions: Array<{
+      exclusion_date: string;
+      exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
+      reason?: string;
+      source?: "time_management";
+    }>
+  ) => {
     const newExclusions = selectedExclusions.map((e) => ({
       ...e,
       source: "time_management" as const,
     }));
-    
+
     onUpdate({
       exclusions: [...data.exclusions, ...newExclusions],
     });
-    
+
     toast.showSuccess(`${newExclusions.length}개의 제외일을 등록했습니다.`);
-    
+
     // 등록 후 개수 다시 조회
     loadAvailableCount();
   };
@@ -311,7 +333,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           disabled={!editable}
           className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <RefreshCw className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`}
+          />
           시간 관리에서 불러오기
         </button>
         {availableCount !== null && availableCount > 0 && (
@@ -420,8 +444,16 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                   // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
                   const startParts = parseDateString(periodStart);
                   const endParts = parseDateString(periodEnd);
-                  const start = new Date(startParts.year, startParts.month - 1, startParts.day);
-                  const end = new Date(endParts.year, endParts.month - 1, endParts.day);
+                  const start = new Date(
+                    startParts.year,
+                    startParts.month - 1,
+                    startParts.day
+                  );
+                  const end = new Date(
+                    endParts.year,
+                    endParts.month - 1,
+                    endParts.day
+                  );
                   const current = new Date(start);
 
                   while (current <= end) {
@@ -442,7 +474,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         disabled={isExcluded}
                         className={`w-full rounded px-2 py-1 text-left text-xs transition-colors ${
                           isExcluded
-                            ? "cursor-not-allowed bg-gray-100 text-gray-400 line-through"
+                            ? "cursor-not-allowed bg-gray-100 text-gray-700 line-through"
                             : isSelected
                             ? "bg-gray-900 text-white"
                             : "hover:bg-gray-100 text-gray-700"
@@ -455,7 +487,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 })()}
               </div>
               {newExclusionDates.length > 0 && (
-                <p className="mt-2 text-xs text-gray-600">
+                <p className="mt-2 text-xs text-gray-700">
                   {newExclusionDates.length}개 날짜 선택됨
                 </p>
               )}
@@ -471,19 +503,23 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 </label>
                 {data.scheduler_type === "1730_timetable" && (
                   <div className="group relative">
-                    <Info className="h-3.5 w-3.5 text-gray-400 hover:text-gray-600" />
+                    <Info className="h-3.5 w-3.5 text-gray-700 hover:text-gray-700" />
                     <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-700 shadow-lg group-hover:block">
                       <div className="space-y-1">
                         <div className="font-semibold">유형별 안내</div>
                         <div className="border-t border-gray-100 pt-1">
-                          <div className="font-medium text-gray-900">지정휴일:</div>
-                          <div className="text-gray-600">
+                          <div className="font-medium text-gray-900">
+                            지정휴일:
+                          </div>
+                          <div className="text-gray-700">
                             학습 분량은 배정되지 않지만, 자율 학습은 가능합니다.
                           </div>
                         </div>
                         <div className="border-t border-gray-100 pt-1">
-                          <div className="font-medium text-gray-900">휴가/개인사정:</div>
-                          <div className="text-gray-600">
+                          <div className="font-medium text-gray-900">
+                            휴가/개인사정:
+                          </div>
+                          <div className="text-gray-700">
                             학습이 불가능한 날입니다.
                           </div>
                         </div>
@@ -519,7 +555,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                           • 자율 학습은 가능합니다 (설정된 시간대)
                         </div>
                         <div className="text-blue-800">
-                          • 주차 계산에서 제외되어 7일 단위 학습 패턴에 영향을 주지 않습니다
+                          • 주차 계산에서 제외되어 7일 단위 학습 패턴에 영향을
+                          주지 않습니다
                         </div>
                       </div>
                     </div>
@@ -532,7 +569,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
                 placeholder="예: 가족 여행"
                 value={newExclusionReason}
                 onChange={(e) => setNewExclusionReason(e.target.value)}
@@ -548,7 +585,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               (exclusionInputType === "single" && !newExclusionDate) ||
               (exclusionInputType === "range" &&
                 (!newExclusionStartDate || !newExclusionEndDate)) ||
-              (exclusionInputType === "multiple" && newExclusionDates.length === 0)
+              (exclusionInputType === "multiple" &&
+                newExclusionDates.length === 0)
             }
             className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
@@ -583,7 +621,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         </span>
                       )}
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
                     <span>{exclusion.exclusion_type}</span>
                     {exclusion.reason && <span>· {exclusion.reason}</span>}
                     {exclusion.source === "template" && (
@@ -620,15 +658,19 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                   onClick={() => removeExclusion(index)}
                   disabled={
                     !editable ||
-                    (campMode && (exclusion.is_locked || exclusion.source === "template"))
+                    (campMode &&
+                      (exclusion.is_locked || exclusion.source === "template"))
                   }
                   className={`ml-4 text-sm ${
-                    !editable || (campMode && (exclusion.is_locked || exclusion.source === "template"))
-                      ? "cursor-not-allowed text-gray-400"
+                    !editable ||
+                    (campMode &&
+                      (exclusion.is_locked || exclusion.source === "template"))
+                      ? "cursor-not-allowed text-gray-700"
                       : "text-red-600 hover:text-red-800"
                   }`}
                   title={
-                    campMode && (exclusion.is_locked || exclusion.source === "template")
+                    campMode &&
+                    (exclusion.is_locked || exclusion.source === "template")
                       ? "템플릿에서 지정된 제외일은 삭제할 수 없습니다."
                       : "삭제"
                   }
@@ -640,9 +682,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-500">등록된 제외일이 없습니다.</p>
+        <p className="text-sm text-gray-700">등록된 제외일이 없습니다.</p>
       )}
     </>
   );
 });
-

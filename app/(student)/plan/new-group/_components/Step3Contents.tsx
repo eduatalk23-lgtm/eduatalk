@@ -4,15 +4,29 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WizardData } from "./PlanGroupWizard";
-import { PlanGroupError, toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import {
+  PlanGroupError,
+  toPlanGroupError,
+  PlanGroupErrorCodes,
+} from "@/lib/errors/planGroupErrors";
 import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 
 type Step3ContentsProps = {
   data: WizardData;
   onUpdate: (updates: Partial<WizardData>) => void;
   contents: {
-    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
+    books: Array<{
+      id: string;
+      title: string;
+      subtitle?: string | null;
+      master_content_id?: string | null;
+    }>;
+    lectures: Array<{
+      id: string;
+      title: string;
+      subtitle?: string | null;
+      master_content_id?: string | null;
+    }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   onSaveDraft?: () => Promise<void> | void;
@@ -140,7 +154,10 @@ export function Step3Contents({
             PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED,
             { contentId, contentType }
           );
-          console.error(`[Step3Contents] 콘텐츠 ${contentId} 상세 정보 조회 실패:`, planGroupError);
+          console.error(
+            `[Step3Contents] 콘텐츠 ${contentId} 상세 정보 조회 실패:`,
+            planGroupError
+          );
           // 에러가 발생해도 다른 콘텐츠 조회는 계속 진행
         } finally {
           newLoadingSet.delete(contentId);
@@ -374,7 +391,10 @@ export function Step3Contents({
           PlanGroupErrorCodes.CONTENT_FETCH_FAILED,
           { contentId, contentType }
         );
-        console.error("[Step3Contents] 콘텐츠 메타데이터 조회 실패:", planGroupError);
+        console.error(
+          "[Step3Contents] 콘텐츠 메타데이터 조회 실패:",
+          planGroupError
+        );
         // 에러 시 subtitle 사용 (fallback)
         subjectCategory = content?.subtitle || undefined;
       }
@@ -474,7 +494,9 @@ export function Step3Contents({
   const studentCount = data.student_contents.length;
   const recommendedCount = data.recommended_contents.length;
   // 캠프 모드일 때는 추천 콘텐츠를 제외하고 계산
-  const totalCount = isCampMode ? studentCount : studentCount + recommendedCount;
+  const totalCount = isCampMode
+    ? studentCount
+    : studentCount + recommendedCount;
   const canAddMore = totalCount < 9;
   const remainingSlots = 9 - totalCount;
 
@@ -486,7 +508,7 @@ export function Step3Contents({
             <h2 className="text-xl font-semibold text-gray-900">
               학습 대상 콘텐츠
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-700">
               플랜에 포함할 교재와 강의를 선택하고 학습 범위를 지정해주세요.
               (최대 9개)
             </p>
@@ -495,9 +517,11 @@ export function Step3Contents({
             <div className="text-2xl font-bold text-gray-900">
               {totalCount}/9
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-700">
               학생 {studentCount}개
-              {!isCampMode && recommendedCount > 0 && ` / 추천 ${recommendedCount}개`}
+              {!isCampMode &&
+                recommendedCount > 0 &&
+                ` / 추천 ${recommendedCount}개`}
             </div>
           </div>
         </div>
@@ -529,7 +553,8 @@ export function Step3Contents({
           <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
             <p className="text-sm text-blue-800">
               💡 {remainingSlots}개의 콘텐츠를 더 선택할 수 있습니다.{" "}
-              {!isCampMode && studentCount < 9 &&
+              {!isCampMode &&
+                studentCount < 9 &&
                 "다음 단계에서 추천 콘텐츠를 받을 수 있습니다."}
               {isCampMode &&
                 "제출 후 관리자가 전략과목/취약과목을 설정하고 플랜을 생성합니다."}
@@ -544,7 +569,7 @@ export function Step3Contents({
           <h3 className="text-sm font-semibold text-gray-900">
             📚 등록된 교재
           </h3>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-700">
             학습 중인 교재를 추가하고 싶다면{" "}
             <Link
               href="/contents"
@@ -564,8 +589,8 @@ export function Step3Contents({
         </div>
         {contents.books.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-500">등록된 교재가 없습니다.</p>
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="text-sm text-gray-700">등록된 교재가 없습니다.</p>
+            <p className="mt-2 text-xs text-gray-700">
               학습 중인 교재를 추가하고 싶다면{" "}
               <Link
                 href="/contents"
@@ -617,7 +642,7 @@ export function Step3Contents({
                         <div className="text-sm font-medium text-gray-900">
                           {book.title}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
                           <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                             📚 교재
                           </span>
@@ -664,26 +689,25 @@ export function Step3Contents({
                       </div>
                     </div>
 
-                      {/* 선택된 경우 상세 정보 표시 */}
-                      {isSelected && (
-                        <div className="mt-3 space-y-3">
-                          {isLoading ? (
-                            <div className="text-xs text-gray-500">
-                              상세 정보를 불러오는 중...
-                            </div>
-                          ) : contentInfo && contentInfo.details.length > 0 ? (
-                            <>
-                              <div className="space-y-3">
-                                {/* 시작 범위 선택 */}
-                                <div>
-                                  <div className="mb-2 text-xs font-medium text-gray-700">
-                                    시작 범위 선택
-                                  </div>
-                                  <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                                    <div className="space-y-1">
-                                      {(
-                                        contentInfo.details as BookDetail[]
-                                      ).map((detail) => {
+                    {/* 선택된 경우 상세 정보 표시 */}
+                    {isSelected && (
+                      <div className="mt-3 space-y-3">
+                        {isLoading ? (
+                          <div className="text-xs text-gray-700">
+                            상세 정보를 불러오는 중...
+                          </div>
+                        ) : contentInfo && contentInfo.details.length > 0 ? (
+                          <>
+                            <div className="space-y-3">
+                              {/* 시작 범위 선택 */}
+                              <div>
+                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                  시작 범위 선택
+                                </div>
+                                <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+                                  <div className="space-y-1">
+                                    {(contentInfo.details as BookDetail[]).map(
+                                      (detail) => {
                                         const isSelected =
                                           selectedStartId === detail.id;
                                         return (
@@ -713,7 +737,7 @@ export function Step3Contents({
                                                 페이지 {detail.page_number}
                                               </span>
                                               {detail.major_unit && (
-                                                <span className="ml-2 text-gray-500">
+                                                <span className="ml-2 text-gray-700">
                                                   · {detail.major_unit}
                                                   {detail.minor_unit &&
                                                     ` - ${detail.minor_unit}`}
@@ -722,21 +746,21 @@ export function Step3Contents({
                                             </div>
                                           </label>
                                         );
-                                      })}
-                                    </div>
+                                      }
+                                    )}
                                   </div>
                                 </div>
+                              </div>
 
-                                {/* 끝 범위 선택 */}
-                                <div>
-                                  <div className="mb-2 text-xs font-medium text-gray-700">
-                                    끝 범위 선택
-                                  </div>
-                                  <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                                    <div className="space-y-1">
-                                      {(
-                                        contentInfo.details as BookDetail[]
-                                      ).map((detail) => {
+                              {/* 끝 범위 선택 */}
+                              <div>
+                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                  끝 범위 선택
+                                </div>
+                                <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+                                  <div className="space-y-1">
+                                    {(contentInfo.details as BookDetail[]).map(
+                                      (detail) => {
                                         const isSelected =
                                           selectedEndId === detail.id;
                                         return (
@@ -763,7 +787,7 @@ export function Step3Contents({
                                                 페이지 {detail.page_number}
                                               </span>
                                               {detail.major_unit && (
-                                                <span className="ml-2 text-gray-500">
+                                                <span className="ml-2 text-gray-700">
                                                   · {detail.major_unit}
                                                   {detail.minor_unit &&
                                                     ` - ${detail.minor_unit}`}
@@ -772,103 +796,104 @@ export function Step3Contents({
                                             </div>
                                           </label>
                                         );
-                                      })}
-                                    </div>
+                                      }
+                                    )}
                                   </div>
                                 </div>
-                              </div>
-                              {range && (
-                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                  <div className="text-xs font-medium text-gray-700">
-                                    선택된 범위: {range.start} ~ {range.end}{" "}
-                                    페이지
-                                  </div>
-                                  {(() => {
-                                    // 범위에 해당하는 모든 상세정보 가져오기
-                                    const details =
-                                      contentInfo.details as BookDetail[];
-                                    const startPage = Number(range.start);
-                                    const endPage = Number(range.end);
-                                    const rangeDetails = details.filter(
-                                      (d) =>
-                                        d.page_number >= startPage &&
-                                        d.page_number <= endPage
-                                    );
-                                    if (rangeDetails.length > 0) {
-                                      return (
-                                        <div className="mt-2 text-xs text-gray-600">
-                                          <div className="font-medium">
-                                            포함된 단원:
-                                          </div>
-                                          <div className="mt-1 space-y-0.5">
-                                            {rangeDetails.map((d, idx) => (
-                                              <div key={idx}>
-                                                페이지 {d.page_number}
-                                                {d.major_unit && (
-                                                  <span className="text-gray-500">
-                                                    {" "}
-                                                    · {d.major_unit}
-                                                    {d.minor_unit &&
-                                                      ` - ${d.minor_unit}`}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                    }
-                                    return null;
-                                  })()}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="grid gap-2 md:grid-cols-2">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
-                                  시작 페이지
-                                </label>
-                                <input
-                                  type="number"
-                                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
-                                  placeholder="예: 1"
-                                  min={0}
-                                  value={range?.start || ""}
-                                  onChange={(e) =>
-                                    updateContentRange(
-                                      book.id,
-                                      "start",
-                                      e.target.value
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
-                                  종료 페이지
-                                </label>
-                                <input
-                                  type="number"
-                                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
-                                  placeholder="예: 150"
-                                  min={0}
-                                  value={range?.end || ""}
-                                  onChange={(e) =>
-                                    updateContentRange(
-                                      book.id,
-                                      "end",
-                                      e.target.value
-                                    )
-                                  }
-                                />
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </label>
+                            {range && (
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <div className="text-xs font-medium text-gray-700">
+                                  선택된 범위: {range.start} ~ {range.end}{" "}
+                                  페이지
+                                </div>
+                                {(() => {
+                                  // 범위에 해당하는 모든 상세정보 가져오기
+                                  const details =
+                                    contentInfo.details as BookDetail[];
+                                  const startPage = Number(range.start);
+                                  const endPage = Number(range.end);
+                                  const rangeDetails = details.filter(
+                                    (d) =>
+                                      d.page_number >= startPage &&
+                                      d.page_number <= endPage
+                                  );
+                                  if (rangeDetails.length > 0) {
+                                    return (
+                                      <div className="mt-2 text-xs text-gray-700">
+                                        <div className="font-medium">
+                                          포함된 단원:
+                                        </div>
+                                        <div className="mt-1 space-y-0.5">
+                                          {rangeDetails.map((d, idx) => (
+                                            <div key={idx}>
+                                              페이지 {d.page_number}
+                                              {d.major_unit && (
+                                                <span className="text-gray-700">
+                                                  {" "}
+                                                  · {d.major_unit}
+                                                  {d.minor_unit &&
+                                                    ` - ${d.minor_unit}`}
+                                                </span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                                시작 페이지
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
+                                placeholder="예: 1"
+                                min={0}
+                                value={range?.start || ""}
+                                onChange={(e) =>
+                                  updateContentRange(
+                                    book.id,
+                                    "start",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                                종료 페이지
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
+                                placeholder="예: 150"
+                                min={0}
+                                value={range?.end || ""}
+                                onChange={(e) =>
+                                  updateContentRange(
+                                    book.id,
+                                    "end",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
               );
             })}
           </div>
@@ -881,7 +906,7 @@ export function Step3Contents({
           <h3 className="text-sm font-semibold text-gray-900">
             🎧 등록된 강의
           </h3>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-700">
             학습 중인 강의를 추가하고 싶다면{" "}
             <Link
               href="/contents"
@@ -901,8 +926,8 @@ export function Step3Contents({
         </div>
         {contents.lectures.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <p className="text-sm text-gray-500">등록된 강의가 없습니다.</p>
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="text-sm text-gray-700">등록된 강의가 없습니다.</p>
+            <p className="mt-2 text-xs text-gray-700">
               학습 중인 강의를 추가하고 싶다면{" "}
               <Link
                 href="/contents"
@@ -955,7 +980,7 @@ export function Step3Contents({
                         <div className="text-sm font-medium text-gray-900">
                           {lecture.title}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
                           <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
                             🎧 강의
                           </span>
@@ -1002,208 +1027,207 @@ export function Step3Contents({
                       </div>
                     </div>
 
-                      {/* 선택된 경우 상세 정보 표시 */}
-                      {isSelected && (
-                        <div className="mt-3 space-y-3">
-                          {isLoading ? (
-                            <div className="text-xs text-gray-500">
-                              상세 정보를 불러오는 중...
-                            </div>
-                          ) : contentInfo && contentInfo.details.length > 0 ? (
-                            <>
-                              <div className="space-y-3">
-                                {/* 시작 범위 선택 */}
-                                <div>
-                                  <div className="mb-2 text-xs font-medium text-gray-700">
-                                    시작 범위 선택
-                                  </div>
-                                  <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                                    <div className="space-y-1">
-                                      {(
-                                        contentInfo.details as LectureEpisode[]
-                                      ).map((episode) => {
-                                        const isSelected =
-                                          selectedStartId === episode.id;
-                                        return (
-                                          <label
-                                            key={episode.id}
-                                            className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
-                                              isSelected
-                                                ? "border-blue-500 bg-blue-50"
-                                                : "border-gray-200 hover:bg-gray-50"
-                                            }`}
-                                          >
-                                            <input
-                                              type="radio"
-                                              name={`start-${lecture.id}`}
-                                              checked={isSelected}
-                                              onChange={() =>
-                                                setStartRange(
-                                                  lecture.id,
-                                                  episode.id
-                                                )
-                                              }
-                                              disabled={!editable}
-                                              className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                            />
-                                            <div className="flex-1 text-xs">
-                                              <span className="font-medium">
-                                                {episode.episode_number}회차
-                                              </span>
-                                              {episode.episode_title && (
-                                                <span className="ml-2 text-gray-500">
-                                                  · {episode.episode_title}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
+                    {/* 선택된 경우 상세 정보 표시 */}
+                    {isSelected && (
+                      <div className="mt-3 space-y-3">
+                        {isLoading ? (
+                          <div className="text-xs text-gray-700">
+                            상세 정보를 불러오는 중...
+                          </div>
+                        ) : contentInfo && contentInfo.details.length > 0 ? (
+                          <>
+                            <div className="space-y-3">
+                              {/* 시작 범위 선택 */}
+                              <div>
+                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                  시작 범위 선택
                                 </div>
-
-                                {/* 끝 범위 선택 */}
-                                <div>
-                                  <div className="mb-2 text-xs font-medium text-gray-700">
-                                    끝 범위 선택
-                                  </div>
-                                  <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                                    <div className="space-y-1">
-                                      {(
-                                        contentInfo.details as LectureEpisode[]
-                                      ).map((episode) => {
-                                        const isSelected =
-                                          selectedEndId === episode.id;
-                                        return (
-                                          <label
-                                            key={episode.id}
-                                            className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
-                                              isSelected
-                                                ? "border-green-500 bg-green-50"
-                                                : "border-gray-200 hover:bg-gray-50"
-                                            }`}
-                                          >
-                                            <input
-                                              type="radio"
-                                              name={`end-${lecture.id}`}
-                                              disabled={!editable}
-                                              checked={isSelected}
-                                              onChange={() =>
-                                                setEndRange(
-                                                  lecture.id,
-                                                  episode.id
-                                                )
-                                              }
-                                              className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                            />
-                                            <div className="flex-1 text-xs">
-                                              <span className="font-medium">
-                                                {episode.episode_number}회차
-                                              </span>
-                                              {episode.episode_title && (
-                                                <span className="ml-2 text-gray-500">
-                                                  · {episode.episode_title}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </label>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              {range && (
-                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                  <div className="text-xs font-medium text-gray-700">
-                                    선택된 범위: {range.start} ~ {range.end}{" "}
-                                    회차
-                                  </div>
-                                  {(() => {
-                                    // 범위에 해당하는 모든 상세정보 가져오기
-                                    const episodes =
-                                      contentInfo.details as LectureEpisode[];
-                                    const startNum = Number(range.start);
-                                    const endNum = Number(range.end);
-                                    const rangeEpisodes = episodes.filter(
-                                      (e) =>
-                                        e.episode_number >= startNum &&
-                                        e.episode_number <= endNum
-                                    );
-                                    if (rangeEpisodes.length > 0) {
+                                <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+                                  <div className="space-y-1">
+                                    {(
+                                      contentInfo.details as LectureEpisode[]
+                                    ).map((episode) => {
+                                      const isSelected =
+                                        selectedStartId === episode.id;
                                       return (
-                                        <div className="mt-2 text-xs text-gray-600">
-                                          <div className="font-medium">
-                                            포함된 회차:
+                                        <label
+                                          key={episode.id}
+                                          className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
+                                            isSelected
+                                              ? "border-blue-500 bg-blue-50"
+                                              : "border-gray-200 hover:bg-gray-50"
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`start-${lecture.id}`}
+                                            checked={isSelected}
+                                            onChange={() =>
+                                              setStartRange(
+                                                lecture.id,
+                                                episode.id
+                                              )
+                                            }
+                                            disabled={!editable}
+                                            className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                          />
+                                          <div className="flex-1 text-xs">
+                                            <span className="font-medium">
+                                              {episode.episode_number}회차
+                                            </span>
+                                            {episode.episode_title && (
+                                              <span className="ml-2 text-gray-700">
+                                                · {episode.episode_title}
+                                              </span>
+                                            )}
                                           </div>
-                                          <div className="mt-1 space-y-0.5">
-                                            {rangeEpisodes.map((e, idx) => (
-                                              <div key={idx}>
-                                                {e.episode_number}회차
-                                                {e.episode_title && (
-                                                  <span className="text-gray-500">
-                                                    {" "}
-                                                    · {e.episode_title}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
+                                        </label>
                                       );
-                                    }
-                                    return null;
-                                  })()}
+                                    })}
+                                  </div>
                                 </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="grid gap-2 md:grid-cols-2">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
-                                  시작 회차
-                                </label>
-                                <input
-                                  type="number"
-                                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
-                                  placeholder="예: 1"
-                                  min={0}
-                                  value={range?.start || ""}
-                                  onChange={(e) =>
-                                    updateContentRange(
-                                      lecture.id,
-                                      "start",
-                                      e.target.value
-                                    )
-                                  }
-                                />
                               </div>
+
+                              {/* 끝 범위 선택 */}
                               <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
-                                  종료 회차
-                                </label>
-                                <input
-                                  type="number"
-                                  className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
-                                  placeholder="예: 10"
-                                  min={0}
-                                  value={range?.end || ""}
-                                  onChange={(e) =>
-                                    updateContentRange(
-                                      lecture.id,
-                                      "end",
-                                      e.target.value
-                                    )
-                                  }
-                                />
+                                <div className="mb-2 text-xs font-medium text-gray-700">
+                                  끝 범위 선택
+                                </div>
+                                <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+                                  <div className="space-y-1">
+                                    {(
+                                      contentInfo.details as LectureEpisode[]
+                                    ).map((episode) => {
+                                      const isSelected =
+                                        selectedEndId === episode.id;
+                                      return (
+                                        <label
+                                          key={episode.id}
+                                          className={`flex cursor-pointer items-center gap-2 rounded border p-1.5 transition-colors ${
+                                            isSelected
+                                              ? "border-green-500 bg-green-50"
+                                              : "border-gray-200 hover:bg-gray-50"
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`end-${lecture.id}`}
+                                            disabled={!editable}
+                                            checked={isSelected}
+                                            onChange={() =>
+                                              setEndRange(
+                                                lecture.id,
+                                                episode.id
+                                              )
+                                            }
+                                            className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                          />
+                                          <div className="flex-1 text-xs">
+                                            <span className="font-medium">
+                                              {episode.episode_number}회차
+                                            </span>
+                                            {episode.episode_title && (
+                                              <span className="ml-2 text-gray-700">
+                                                · {episode.episode_title}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </label>
+                            {range && (
+                              <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                                <div className="text-xs font-medium text-gray-700">
+                                  선택된 범위: {range.start} ~ {range.end} 회차
+                                </div>
+                                {(() => {
+                                  // 범위에 해당하는 모든 상세정보 가져오기
+                                  const episodes =
+                                    contentInfo.details as LectureEpisode[];
+                                  const startNum = Number(range.start);
+                                  const endNum = Number(range.end);
+                                  const rangeEpisodes = episodes.filter(
+                                    (e) =>
+                                      e.episode_number >= startNum &&
+                                      e.episode_number <= endNum
+                                  );
+                                  if (rangeEpisodes.length > 0) {
+                                    return (
+                                      <div className="mt-2 text-xs text-gray-700">
+                                        <div className="font-medium">
+                                          포함된 회차:
+                                        </div>
+                                        <div className="mt-1 space-y-0.5">
+                                          {rangeEpisodes.map((e, idx) => (
+                                            <div key={idx}>
+                                              {e.episode_number}회차
+                                              {e.episode_title && (
+                                                <span className="text-gray-700">
+                                                  {" "}
+                                                  · {e.episode_title}
+                                                </span>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                                시작 회차
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
+                                placeholder="예: 1"
+                                min={0}
+                                value={range?.start || ""}
+                                onChange={(e) =>
+                                  updateContentRange(
+                                    lecture.id,
+                                    "start",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                                종료 회차
+                              </label>
+                              <input
+                                type="number"
+                                className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gray-900 focus:outline-none"
+                                placeholder="예: 10"
+                                min={0}
+                                value={range?.end || ""}
+                                onChange={(e) =>
+                                  updateContentRange(
+                                    lecture.id,
+                                    "end",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
               );
             })}
           </div>
@@ -1299,7 +1323,7 @@ export function Step3Contents({
                     학생 콘텐츠
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
                   <span>
                     {content.content_type === "book" && "📚 책"}
                     {content.content_type === "lecture" && "🎧 강의"}
@@ -1307,9 +1331,10 @@ export function Step3Contents({
                   {(() => {
                     const contentType = content.content_type;
                     const contentId = content.content_id;
-                    const foundContent = contentType === "book"
-                      ? contents.books.find((b) => b.id === contentId)
-                      : contents.lectures.find((l) => l.id === contentId);
+                    const foundContent =
+                      contentType === "book"
+                        ? contents.books.find((b) => b.id === contentId)
+                        : contents.lectures.find((l) => l.id === contentId);
                     return foundContent?.master_content_id ? (
                       <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
                         📦 마스터에서 가져옴
@@ -1342,7 +1367,7 @@ export function Step3Contents({
                 disabled={!editable}
                 className={`ml-4 text-sm ${
                   !editable
-                    ? "cursor-not-allowed text-gray-400"
+                    ? "cursor-not-allowed text-gray-700"
                     : "text-red-600 hover:text-red-800"
                 }`}
               >
@@ -1353,8 +1378,8 @@ export function Step3Contents({
         </div>
       ) : (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-500">추가된 콘텐츠가 없습니다.</p>
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="text-sm text-gray-700">추가된 콘텐츠가 없습니다.</p>
+          <p className="mt-1 text-xs text-gray-700">
             위 폼에서 콘텐츠를 선택하고 범위를 입력한 후 추가해주세요.
           </p>
         </div>

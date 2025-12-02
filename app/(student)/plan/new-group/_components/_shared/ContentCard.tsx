@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * ContentCard - 콘텐츠 카드 공통 컴포넌트
- * 
+ *
  * 학생 콘텐츠와 추천 콘텐츠 모두에서 사용
  * Phase 3에서 중복 코드 제거를 위해 생성
  */
@@ -69,7 +69,7 @@ export const ContentCard = React.memo(function ContentCard({
             </div>
 
             {/* 메타데이터 */}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
               {content.subject && (
                 <span className="rounded bg-gray-100 px-2 py-0.5">
                   {content.subject}
@@ -86,10 +86,10 @@ export const ContentCard = React.memo(function ContentCard({
                 </span>
               )}
               {content.publisher && (
-                <span className="text-gray-400">{content.publisher}</span>
+                <span className="text-gray-700">{content.publisher}</span>
               )}
               {content.platform && (
-                <span className="text-gray-400">{content.platform}</span>
+                <span className="text-gray-700">{content.platform}</span>
               )}
             </div>
 
@@ -97,7 +97,7 @@ export const ContentCard = React.memo(function ContentCard({
             {range && (
               <div className="mt-2 flex items-center gap-2 text-sm">
                 <span className="font-medium text-gray-700">범위:</span>
-                <span className="text-gray-600">
+                <span className="text-gray-700">
                   {range.start} ~ {range.end}
                 </span>
               </div>
@@ -107,7 +107,7 @@ export const ContentCard = React.memo(function ContentCard({
             {recommended && recommended.reason && (
               <div className="mt-2 rounded-lg bg-yellow-50 p-2 text-sm text-gray-700">
                 <p className="font-medium text-yellow-800">추천 이유:</p>
-                <p className="mt-0.5 text-gray-600">{recommended.reason}</p>
+                <p className="mt-0.5 text-gray-700">{recommended.reason}</p>
               </div>
             )}
 
@@ -158,7 +158,7 @@ export const ContentCard = React.memo(function ContentCard({
                 )}
                 title="범위 수정"
               >
-                <Edit className="h-4 w-4 text-gray-600" />
+                <Edit className="h-4 w-4 text-gray-700" />
               </button>
             )}
 
@@ -198,11 +198,10 @@ export const ContentCard = React.memo(function ContentCard({
 
       {/* 읽기 전용 표시 */}
       {readOnly && selected && (
-        <div className="mt-3 rounded bg-gray-100 px-3 py-2 text-xs text-gray-600">
+        <div className="mt-3 rounded bg-gray-100 px-3 py-2 text-xs text-gray-700">
           선택된 콘텐츠 (읽기 전용)
         </div>
       )}
     </div>
   );
 });
-

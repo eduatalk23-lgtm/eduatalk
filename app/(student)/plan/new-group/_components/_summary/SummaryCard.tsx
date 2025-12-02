@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * SummaryCard - 요약 정보 카드
- * 
+ *
  * Phase 4.2에서 구현
  * 숫자, 상태 등 요약 정보를 카드 형태로 표시
  */
@@ -13,16 +13,16 @@ import { cn } from "@/lib/cn";
 export type SummaryCardProps = {
   // 제목
   title: string;
-  
+
   // 값
   value: string | number;
-  
+
   // 부제목 (옵션)
   subtitle?: string;
-  
+
   // 아이콘 (옵션)
   icon?: React.ReactNode;
-  
+
   // 변형
   variant?: "default" | "primary" | "success" | "warning" | "danger";
 };
@@ -30,9 +30,9 @@ export type SummaryCardProps = {
 const variantStyles = {
   default: {
     container: "bg-gray-50 border-gray-200",
-    title: "text-gray-600",
+    title: "text-gray-700",
     value: "text-gray-900",
-    icon: "text-gray-500",
+    icon: "text-gray-600",
   },
   primary: {
     container: "bg-blue-50 border-blue-200",
@@ -71,23 +71,16 @@ export const SummaryCard = React.memo(function SummaryCard({
 
   return (
     <div
-      className={cn(
-        "rounded-lg border p-4 transition-all",
-        styles.container
-      )}
+      className={cn("rounded-lg border p-4 transition-all", styles.container)}
     >
       {/* 아이콘 (옵션) */}
-      {icon && (
-        <div className={cn("mb-2", styles.icon)}>{icon}</div>
-      )}
+      {icon && <div className={cn("mb-2", styles.icon)}>{icon}</div>}
 
       {/* 제목 */}
       <div className={cn("text-sm font-medium", styles.title)}>{title}</div>
 
       {/* 값 */}
-      <div className={cn("mt-1 text-2xl font-bold", styles.value)}>
-        {value}
-      </div>
+      <div className={cn("mt-1 text-2xl font-bold", styles.value)}>{value}</div>
 
       {/* 부제목 (옵션) */}
       {subtitle && (
@@ -96,4 +89,3 @@ export const SummaryCard = React.memo(function SummaryCard({
     </div>
   );
 });
-

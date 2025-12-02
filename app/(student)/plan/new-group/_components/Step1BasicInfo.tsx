@@ -24,7 +24,14 @@ import {
 } from "@/lib/errors/planGroupErrors";
 import { BlockSetTimeline } from "./_shared/BlockSetTimeline";
 import { CollapsibleSection } from "./_summary/CollapsibleSection";
-import { formatDateFromDate, parseDateString as parseDateStringUtil, getTodayParts, formatDateString, addDaysToDate, getDaysInMonth } from "@/lib/utils/date";
+import {
+  formatDateFromDate,
+  parseDateString as parseDateStringUtil,
+  getTodayParts,
+  formatDateString,
+  addDaysToDate,
+  getDaysInMonth,
+} from "@/lib/utils/date";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -87,7 +94,7 @@ export function Step1BasicInfo({
   isCampMode = false,
 }: Step1BasicInfoProps) {
   const { showError } = useToast();
-  
+
   // 템플릿 고정 필드 확인
   // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)
   const lockedFields = data.templateLockedFields?.step1 || {};
@@ -146,7 +153,7 @@ export function Step1BasicInfo({
     if (!isTemplateMode) return null;
 
     return (
-      <label className="flex items-center gap-2 text-xs text-gray-600">
+      <label className="flex items-center gap-2 text-xs text-gray-700">
         <input
           type="checkbox"
           checked={lockedFields[fieldName] === true}
@@ -197,7 +204,11 @@ export function Step1BasicInfo({
 
   // 오늘 날짜를 로컬 타임존 기준으로 가져오기 (타임존 문제 방지)
   const todayParts = getTodayParts();
-  const today = formatDateString(todayParts.year, todayParts.month, todayParts.day);
+  const today = formatDateString(
+    todayParts.year,
+    todayParts.month,
+    todayParts.day
+  );
   const [periodInputType, setPeriodInputType] =
     useState<PeriodInputType>("direct");
 
@@ -397,7 +408,11 @@ export function Step1BasicInfo({
 
     // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
     const startParts = parseDateStringUtil(startDate);
-    const start = new Date(startParts.year, startParts.month - 1, startParts.day);
+    const start = new Date(
+      startParts.year,
+      startParts.month - 1,
+      startParts.day
+    );
 
     const end = new Date(start);
     end.setDate(end.getDate() + weeks * 7);
@@ -416,7 +431,11 @@ export function Step1BasicInfo({
 
     // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
     const targetParts = parseDateStringUtil(dday);
-    const targetDate = new Date(targetParts.year, targetParts.month - 1, targetParts.day);
+    const targetDate = new Date(
+      targetParts.year,
+      targetParts.month - 1,
+      targetParts.day
+    );
 
     // D-day 기준으로 30일 전부터 시작
     const start = new Date(targetDate);
@@ -859,7 +878,7 @@ export function Step1BasicInfo({
         <h2 className="text-xl font-semibold text-gray-900">
           {isCampMode ? "캠프 기본 정보" : "플랜 기본 정보"}
         </h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-gray-700">
           {isCampMode
             ? "캠프의 목적과 기간, 스케줄러 유형을 설정해주세요."
             : "플랜의 목적과 기간, 스케줄러 유형을 설정해주세요."}
@@ -898,7 +917,7 @@ export function Step1BasicInfo({
           <input
             type="text"
             id="plan_name"
-            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none ${
+            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none ${
               (!editable && !isCampMode) ||
               isFieldLocked("name") ||
               (isCampMode && !canStudentInputName)
@@ -916,12 +935,12 @@ export function Step1BasicInfo({
             required
           />
           {isFieldLocked("name") && (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-700">
               이 필드는 템플릿에서 고정되어 있습니다.
             </p>
           )}
           {isCampMode && !canStudentInputName && (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-700">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
             </p>
           )}
@@ -939,7 +958,9 @@ export function Step1BasicInfo({
         showStudentInputToggle={isTemplateMode}
       >
         <div
-          className={!editable || !canStudentInputPlanPurpose ? "opacity-60" : ""}
+          className={
+            !editable || !canStudentInputPlanPurpose ? "opacity-60" : ""
+          }
         >
           <div className="grid gap-3 md:grid-cols-3">
             {planPurposes.map((purpose) => (
@@ -974,7 +995,7 @@ export function Step1BasicInfo({
             ))}
           </div>
           {isCampMode && !canStudentInputPlanPurpose && (
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-gray-700">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
             </p>
           )}
@@ -1069,12 +1090,12 @@ export function Step1BasicInfo({
           </button>
         </div>
         {(isFieldLocked("period_start") || isFieldLocked("period_end")) && (
-          <p className="mb-2 text-xs text-gray-500">
+          <p className="mb-2 text-xs text-gray-700">
             학습 기간은 템플릿에서 고정되어 있습니다.
           </p>
         )}
         {isCampMode && !canStudentInputPeriod && (
-          <p className="mb-2 text-xs text-gray-500">
+          <p className="mb-2 text-xs text-gray-700">
             학습 기간은 템플릿에서 고정되어 수정할 수 없습니다.
           </p>
         )}
@@ -1123,7 +1144,7 @@ export function Step1BasicInfo({
             />
             {ddayState.calculated && data.period_start && data.period_end && (
               <div className="mt-3 rounded-lg bg-white p-3">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-700">
                   <div className="font-medium text-gray-900">학습 기간</div>
                   <div className="mt-1">
                     시작일:{" "}
@@ -1238,7 +1259,7 @@ export function Step1BasicInfo({
 
             {weeksState.startDate && data.period_start && data.period_end && (
               <div className="mt-3 rounded-lg bg-white p-3">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-700">
                   <div className="font-medium text-gray-900">
                     {weeksState.weeks}주 학습 기간
                   </div>
@@ -1268,7 +1289,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="start_year"
-                    className="mb-1 block text-xs text-gray-600"
+                    className="mb-1 block text-xs text-gray-700"
                   >
                     연도
                   </label>
@@ -1328,7 +1349,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="start_month"
-                    className="mb-1 block text-xs text-gray-600"
+                    className="mb-1 block text-xs text-gray-700"
                   >
                     월
                   </label>
@@ -1388,7 +1409,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="start_day"
-                    className="mb-1 block text-xs text-gray-600"
+                    className="mb-1 block text-xs text-gray-700"
                   >
                     일
                   </label>
@@ -1456,7 +1477,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="end_year"
-                    className="mb-1 block text-xs text-gray-600"
+                    className="mb-1 block text-xs text-gray-700"
                   >
                     연도
                   </label>
@@ -1513,7 +1534,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="end_month"
-                    className="mb-1 block text-xs text-gray-600"
+                    className="mb-1 block text-xs text-gray-700"
                   >
                     월
                   </label>
@@ -1570,7 +1591,7 @@ export function Step1BasicInfo({
                 <div>
                   <label
                     htmlFor="end_day"
-                    className="mb-1 block text-xs text-gray-600"
+                    className="mb-1 block text-xs text-gray-700"
                   >
                     일
                   </label>
@@ -1637,19 +1658,26 @@ export function Step1BasicInfo({
             <CollapsibleSection
               title="추가 기간 학습 범위 재배치 (선택사항)"
               defaultOpen={!!data.additional_period_reallocation}
-              studentInputAllowed={lockedFields.allow_student_additional_period_reallocation === true}
+              studentInputAllowed={
+                lockedFields.allow_student_additional_period_reallocation ===
+                true
+              }
               onStudentInputToggle={(enabled) => {
                 // 재배치 사용이 체크되어 있을 때만 학생 입력 허용 토글 가능
                 if (!data.additional_period_reallocation && enabled) {
                   showError("재배치 사용을 먼저 체크해주세요.");
                   return;
                 }
-                toggleFieldControl("allow_student_additional_period_reallocation");
+                toggleFieldControl(
+                  "allow_student_additional_period_reallocation"
+                );
               }}
-              showStudentInputToggle={isTemplateMode && !!data.additional_period_reallocation}
+              showStudentInputToggle={
+                isTemplateMode && !!data.additional_period_reallocation
+              }
               headerActions={
                 <label
-                  className="flex items-center gap-2 text-xs text-gray-600"
+                  className="flex items-center gap-2 text-xs text-gray-700"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <input
@@ -1670,22 +1698,28 @@ export function Step1BasicInfo({
                           e.target.checked = false;
                           return;
                         }
-                        
+
                         // 4주 기간 계산 (원본 기간의 첫 4주)
                         // 날짜 유효성 검사
                         if (!data.period_start || !data.period_end) {
-                          showError("유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요.");
+                          showError(
+                            "유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요."
+                          );
                           e.target.checked = false;
                           return;
                         }
-                        
+
                         // 4주 후 날짜 계산 (타임존 문제 방지)
-                        const fourWeeksEndStr = addDaysToDate(data.period_start, 28); // 4주 = 28일
-                        
+                        const fourWeeksEndStr = addDaysToDate(
+                          data.period_start,
+                          28
+                        ); // 4주 = 28일
+
                         // 실제 종료일이 4주보다 짧으면 그 날짜 사용
-                        const originalEndStr = fourWeeksEndStr > data.period_end 
-                          ? data.period_end 
-                          : fourWeeksEndStr;
+                        const originalEndStr =
+                          fourWeeksEndStr > data.period_end
+                            ? data.period_end
+                            : fourWeeksEndStr;
 
                         onUpdate({
                           additional_period_reallocation: {
@@ -1702,7 +1736,8 @@ export function Step1BasicInfo({
                       }
                     }}
                     disabled={
-                      (isCampMode && !canStudentInputAdditionalPeriodReallocation) ||
+                      (isCampMode &&
+                        !canStudentInputAdditionalPeriodReallocation) ||
                       !data.period_start ||
                       !data.period_end ||
                       isNaN(new Date(data.period_start).getTime()) ||
@@ -1710,158 +1745,183 @@ export function Step1BasicInfo({
                     }
                     className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                   />
-                  <span className={isCampMode && !canStudentInputAdditionalPeriodReallocation ? "text-gray-500" : ""}>
+                  <span
+                    className={
+                      isCampMode && !canStudentInputAdditionalPeriodReallocation
+                        ? "text-gray-700"
+                        : ""
+                    }
+                  >
                     재배치 사용
                   </span>
                 </label>
               }
             >
               <div className="space-y-4">
-                <p className="text-xs text-gray-600">
-                  추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
+                <p className="text-xs text-gray-700">
+                  추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠
+                  범위를 추가 기간에 다시 분할 배치합니다.
                   <br />
                   학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
                 </p>
 
-              {data.additional_period_reallocation && (
-                <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700">
-                        추가 기간 시작일
-                      </label>
-                      <input
-                        type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                            ? "cursor-not-allowed bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                        value={data.additional_period_reallocation.period_start}
-                        min={
-                          data.period_end
-                            ? addDaysToDate(data.period_end, 1)
-                            : undefined
-                        }
-                        onChange={(e) => {
-                          if (
+                {data.additional_period_reallocation && (
+                  <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                          추가 기간 시작일
+                        </label>
+                        <input
+                          type="date"
+                          className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
                             isCampMode &&
                             !canStudentInputAdditionalPeriodReallocation
-                          )
-                            return;
-                          
-                          const newStartDate = e.target.value;
-                          const minDate = data.period_end
-                            ? addDaysToDate(data.period_end, 1)
-                            : null;
-                          
-                          if (minDate && newStartDate < minDate) {
-                            showError(
-                              "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
-                            );
-                            return;
+                              ? "cursor-not-allowed bg-gray-100 opacity-60"
+                              : ""
+                          }`}
+                          value={
+                            data.additional_period_reallocation.period_start
                           }
-                          
-                          // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
-                          let newEndDate = data.additional_period_reallocation.period_end;
-                          if (newEndDate && newEndDate < newStartDate) {
-                            newEndDate = addDaysToDate(newStartDate, 1);
+                          min={
+                            data.period_end
+                              ? addDaysToDate(data.period_end, 1)
+                              : undefined
                           }
-                          
-                          onUpdate({
-                            additional_period_reallocation: {
-                              ...data.additional_period_reallocation!,
-                              period_start: newStartDate,
-                              period_end: newEndDate,
-                            },
-                          });
-                        }}
-                        disabled={
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-700">
-                        추가 기간 종료일
-                      </label>
-                      <input
-                        type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                            ? "cursor-not-allowed bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                        value={data.additional_period_reallocation.period_end}
-                        min={
-                          data.additional_period_reallocation.period_start
-                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
-                            : undefined
-                        }
-                        onChange={(e) => {
-                          if (
-                            isCampMode &&
-                            !canStudentInputAdditionalPeriodReallocation
-                          )
-                            return;
-                          
-                          const newEndDate = e.target.value;
-                          const minDate = data.additional_period_reallocation.period_start
-                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
-                            : null;
-                          
-                          if (minDate && newEndDate < minDate) {
-                            showError(
-                              "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
-                            );
-                            return;
-                          }
-                          
-                          onUpdate({
-                            additional_period_reallocation: {
-                              ...data.additional_period_reallocation!,
-                              period_end: newEndDate,
-                            },
-                          });
-                        }}
-                        disabled={
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                        }
-                      />
-                    </div>
-                  </div>
+                          onChange={(e) => {
+                            if (
+                              isCampMode &&
+                              !canStudentInputAdditionalPeriodReallocation
+                            )
+                              return;
 
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                    <p className="text-xs text-blue-800">
-                      <strong>재배치 범위:</strong>{" "}
-                      {
-                        data.additional_period_reallocation
-                          .original_period_start
-                      }{" "}
-                      ~{" "}
-                      {data.additional_period_reallocation.original_period_end}
-                    </p>
-                    <p className="mt-1 text-xs text-blue-800">
-                      학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을 진행합니다.
-                    </p>
-                    <p className="mt-1 text-xs text-blue-800">
-                      복습 소요시간은 원본 학습 소요시간의 25%로 자동 계산됩니다.
-                    </p>
+                            const newStartDate = e.target.value;
+                            const minDate = data.period_end
+                              ? addDaysToDate(data.period_end, 1)
+                              : null;
+
+                            if (minDate && newStartDate < minDate) {
+                              showError(
+                                "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
+                              );
+                              return;
+                            }
+
+                            // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
+                            let newEndDate =
+                              data.additional_period_reallocation.period_end;
+                            if (newEndDate && newEndDate < newStartDate) {
+                              newEndDate = addDaysToDate(newStartDate, 1);
+                            }
+
+                            onUpdate({
+                              additional_period_reallocation: {
+                                ...data.additional_period_reallocation!,
+                                period_start: newStartDate,
+                                period_end: newEndDate,
+                              },
+                            });
+                          }}
+                          disabled={
+                            isCampMode &&
+                            !canStudentInputAdditionalPeriodReallocation
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                          추가 기간 종료일
+                        </label>
+                        <input
+                          type="date"
+                          className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
+                            isCampMode &&
+                            !canStudentInputAdditionalPeriodReallocation
+                              ? "cursor-not-allowed bg-gray-100 opacity-60"
+                              : ""
+                          }`}
+                          value={data.additional_period_reallocation.period_end}
+                          min={
+                            data.additional_period_reallocation.period_start
+                              ? addDaysToDate(
+                                  data.additional_period_reallocation
+                                    .period_start,
+                                  1
+                                )
+                              : undefined
+                          }
+                          onChange={(e) => {
+                            if (
+                              isCampMode &&
+                              !canStudentInputAdditionalPeriodReallocation
+                            )
+                              return;
+
+                            const newEndDate = e.target.value;
+                            const minDate = data.additional_period_reallocation
+                              .period_start
+                              ? addDaysToDate(
+                                  data.additional_period_reallocation
+                                    .period_start,
+                                  1
+                                )
+                              : null;
+
+                            if (minDate && newEndDate < minDate) {
+                              showError(
+                                "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
+                              );
+                              return;
+                            }
+
+                            onUpdate({
+                              additional_period_reallocation: {
+                                ...data.additional_period_reallocation!,
+                                period_end: newEndDate,
+                              },
+                            });
+                          }}
+                          disabled={
+                            isCampMode &&
+                            !canStudentInputAdditionalPeriodReallocation
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-xs text-blue-800">
+                        <strong>재배치 범위:</strong>{" "}
+                        {
+                          data.additional_period_reallocation
+                            .original_period_start
+                        }{" "}
+                        ~{" "}
+                        {
+                          data.additional_period_reallocation
+                            .original_period_end
+                        }
+                      </p>
+                      <p className="mt-1 text-xs text-blue-800">
+                        학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을
+                        진행합니다.
+                      </p>
+                      <p className="mt-1 text-xs text-blue-800">
+                        복습 소요시간은 원본 학습 소요시간의 25%로 자동
+                        계산됩니다.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {isCampMode && !canStudentInputAdditionalPeriodReallocation && (
-                <p className="text-xs text-gray-500">
-                  추가 기간 학습 범위 재배치는 템플릿에서 고정되어 수정할 수 없습니다.
-                </p>
-              )}
-            </div>
-          </CollapsibleSection>
+                )}
+
+                {isCampMode && !canStudentInputAdditionalPeriodReallocation && (
+                  <p className="text-xs text-gray-700">
+                    추가 기간 학습 범위 재배치는 템플릿에서 고정되어 수정할 수
+                    없습니다.
+                  </p>
+                )}
+              </div>
+            </CollapsibleSection>
           </div>
         )}
       </CollapsibleSection>
@@ -1917,7 +1977,7 @@ export function Step1BasicInfo({
           ))}
         </div>
         {isCampMode && !canStudentInputSchedulerType && (
-          <p className="mb-2 text-xs text-gray-500">
+          <p className="mb-2 text-xs text-gray-700">
             스케줄러 유형은 템플릿에서 고정되어 수정할 수 없습니다.
           </p>
         )}
@@ -1934,7 +1994,7 @@ export function Step1BasicInfo({
                 <span>
                   1730 Timetable 동작 방식 {show1730Desc ? "숨기기" : "보기"}
                 </span>
-                <span className="text-gray-400">
+                <span className="text-gray-700">
                   {show1730Desc ? "▲" : "▼"}
                 </span>
               </button>
@@ -2100,7 +2160,10 @@ export function Step1BasicInfo({
                           data.scheduler_options?.review_days ??
                           data.study_review_cycle?.review_days ??
                           1;
-                        const newReviewDays = Math.max(1, currentReviewDays - 1);
+                        const newReviewDays = Math.max(
+                          1,
+                          currentReviewDays - 1
+                        );
                         const newStudyDays = 7 - newReviewDays;
                         onUpdate({
                           scheduler_options: {
@@ -2139,7 +2202,10 @@ export function Step1BasicInfo({
                           data.scheduler_options?.review_days ??
                           data.study_review_cycle?.review_days ??
                           1;
-                        const newReviewDays = Math.min(6, currentReviewDays + 1);
+                        const newReviewDays = Math.min(
+                          6,
+                          currentReviewDays + 1
+                        );
                         const newStudyDays = 7 - newReviewDays;
                         onUpdate({
                           scheduler_options: {
@@ -2164,8 +2230,9 @@ export function Step1BasicInfo({
                       +
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    학습일 + 복습일 = 7일로 고정됩니다. 복습일은 최소 1일이어야 합니다.
+                  <p className="mt-1 text-xs text-gray-700">
+                    학습일 + 복습일 = 7일로 고정됩니다. 복습일은 최소 1일이어야
+                    합니다.
                   </p>
                 </div>
               </div>
@@ -2185,7 +2252,7 @@ export function Step1BasicInfo({
                 e.stopPropagation();
                 setShowBlockSetDescDialog(true);
               }}
-              className="ml-1 inline-flex items-center text-gray-400 hover:text-gray-600"
+              className="ml-1 inline-flex items-center text-gray-700 hover:text-gray-700"
               title="블록 세트 설명"
             >
               <HelpCircle className="h-4 w-4" />
@@ -2205,7 +2272,7 @@ export function Step1BasicInfo({
               type="button"
               onClick={handleLoadBlockSets}
               disabled={isLoadingBlockSets}
-              className="flex items-center gap-1 rounded p-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-1 rounded p-1.5 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               title="목록 새로고침"
             >
               <RefreshCw
@@ -2224,8 +2291,8 @@ export function Step1BasicInfo({
                 disabled={isCampMode && !canStudentInputBlockSetId}
                 className={`flex items-center gap-1 rounded p-1.5 text-xs ${
                   isCampMode && !canStudentInputBlockSetId
-                    ? "cursor-not-allowed text-gray-400 opacity-50"
-                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    ? "cursor-not-allowed text-gray-700 opacity-50"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-700"
                 }`}
                 title="새 블록 세트 만들기"
               >
@@ -2238,18 +2305,14 @@ export function Step1BasicInfo({
         {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
         <div className="mb-4">
           {(() => {
-            const selectedSet = data.block_set_id && blockSets
-              ? blockSets.find((set) => set.id === data.block_set_id)
-              : null;
+            const selectedSet =
+              data.block_set_id && blockSets
+                ? blockSets.find((set) => set.id === data.block_set_id)
+                : null;
             const blocks = selectedSet?.blocks ?? [];
             const name = selectedSet?.name || "블록 세트를 선택해주세요";
 
-            return (
-              <BlockSetTimeline 
-                blocks={blocks} 
-                name={name} 
-              />
-            );
+            return <BlockSetTimeline blocks={blocks} name={name} />;
           })()}
         </div>
 
@@ -2313,7 +2376,7 @@ export function Step1BasicInfo({
                                 <div className="text-sm font-medium text-gray-900">
                                   {set.name}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-700">
                                   {blockCount > 0
                                     ? `${blockCount}개 블록`
                                     : "블록 없음"}
@@ -2335,8 +2398,8 @@ export function Step1BasicInfo({
                               }
                               className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
                                 isCampMode && !canStudentInputBlockSetId
-                                  ? "cursor-not-allowed text-gray-400 opacity-50"
-                                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                  ? "cursor-not-allowed text-gray-700 opacity-50"
+                                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                               }`}
                               title="수정"
                             >
@@ -2355,11 +2418,11 @@ export function Step1BasicInfo({
                               setCurrentPage((prev) => Math.max(1, prev - 1))
                             }
                             disabled={currentPage === 1}
-                            className="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             이전
                           </button>
-                          <span className="text-xs text-gray-600">
+                          <span className="text-xs text-gray-700">
                             {currentPage} / {totalPages}
                           </span>
                           <button
@@ -2370,7 +2433,7 @@ export function Step1BasicInfo({
                               )
                             }
                             disabled={currentPage === totalPages}
-                            className="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded px-3 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             다음
                           </button>
@@ -2381,12 +2444,12 @@ export function Step1BasicInfo({
                 })()}
               </>
             ) : (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-700">
                 등록된 블록 세트가 없습니다. "+" 버튼을 클릭하여 생성하세요.
               </p>
             )}
             {isCampMode && !canStudentInputBlockSetId && (
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-gray-700">
                 블록 세트는 템플릿에서 고정되어 수정할 수 없습니다.
               </p>
             )}
@@ -2404,7 +2467,7 @@ export function Step1BasicInfo({
                 </label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
                   placeholder="예: 평일 학습 블록"
                   value={newBlockSetName}
                   onChange={(e) => setNewBlockSetName(e.target.value)}
@@ -2590,7 +2653,7 @@ export function Step1BasicInfo({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
                   value={editingBlockSetName}
                   onChange={(e) => setEditingBlockSetName(e.target.value)}
                 />
@@ -2621,7 +2684,7 @@ export function Step1BasicInfo({
               if (blocks.length === 0) {
                 return (
                   <div className="rounded-lg border border-gray-200 bg-white p-4">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-700">
                       이 블록 세트에는 등록된 시간 블록이 없습니다. 아래에서
                       추가해주세요.
                     </p>
@@ -2654,7 +2717,7 @@ export function Step1BasicInfo({
                               <span className="text-xs font-medium text-gray-700">
                                 {dayNames[Number(day)]}요일:
                               </span>{" "}
-                              <span className="text-xs text-gray-600">
+                              <span className="text-xs text-gray-700">
                                 {block.start_time} ~ {block.end_time}
                               </span>
                             </div>
@@ -2812,11 +2875,11 @@ export function Step1BasicInfo({
             </strong>
             을 정의합니다.
           </p>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-700">
             예를 들어, 평일 오후 3시~6시, 오후 7시~10시와 같이 규칙적인 학습
             시간대를 설정할 수 있습니다.
           </p>
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-700">
             주의: 중간에 학원이나 점심 시간 등이 있는 경우, 이는 이후 입력하는
             항목에서 별도로 수집됩니다.
           </p>

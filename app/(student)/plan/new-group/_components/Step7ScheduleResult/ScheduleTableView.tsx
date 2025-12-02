@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, Fragment } from "react";
-import { ChevronDown, ChevronUp, Clock, School, MapPin, Utensils, XCircle, Calendar } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  School,
+  MapPin,
+  Utensils,
+  XCircle,
+  Calendar,
+} from "lucide-react";
 import type { BlockData, ContentData } from "../utils/scheduleTransform";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { TimelineBar } from "./TimelineBar";
@@ -53,65 +62,69 @@ type ScheduleTableViewProps = {
 // 전체 플랜에서 회차 계산을 위한 헬퍼
 // 저장된 sequence가 있으면 사용하고, 없으면 계산
 // 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
-function calculateSequenceForPlan(
-  plan: Plan,
-  allPlans: Plan[]
-): number {
+function calculateSequenceForPlan(plan: Plan, allPlans: Plan[]): number {
   // 저장된 sequence가 있으면 사용
   if (plan.sequence !== null && plan.sequence !== undefined) {
     return plan.sequence;
   }
-  
+
   // 같은 content_id를 가진 플랜들 필터링
-  const sameContentPlans = allPlans.filter((p) => p.content_id === plan.content_id);
-  
+  const sameContentPlans = allPlans.filter(
+    (p) => p.content_id === plan.content_id
+  );
+
   // plan_number가 null이 아닌 경우, 같은 plan_number를 가진 첫 번째 플랜의 회차를 사용
   if (plan.plan_number !== null) {
     const firstPlanWithSameNumber = sameContentPlans.find(
-      (p) => p.plan_number === plan.plan_number && p.sequence !== null && p.sequence !== undefined
+      (p) =>
+        p.plan_number === plan.plan_number &&
+        p.sequence !== null &&
+        p.sequence !== undefined
     );
-    
+
     if (firstPlanWithSameNumber) {
       // 같은 plan_number를 가진 플랜의 저장된 회차 사용
       return firstPlanWithSameNumber.sequence!;
     }
-    
+
     // 저장된 회차가 없으면 계산
     const firstPlanWithSameNumberForCalc = sameContentPlans.find(
       (p) => p.plan_number === plan.plan_number
     );
-    
-    if (firstPlanWithSameNumberForCalc && firstPlanWithSameNumberForCalc.id !== plan.id) {
+
+    if (
+      firstPlanWithSameNumberForCalc &&
+      firstPlanWithSameNumberForCalc.id !== plan.id
+    ) {
       // 같은 plan_number를 가진 첫 번째 플랜의 회차 계산 (재귀 호출)
       return calculateSequenceForPlan(firstPlanWithSameNumberForCalc, allPlans);
     }
   }
-  
+
   // plan_number가 null이거나 같은 plan_number를 가진 첫 번째 플랜인 경우
   // 날짜와 planned_start_page_or_time 순으로 정렬하여 회차 계산
-  const sortedPlans = sameContentPlans
-    .sort((a, b) => {
-      // 날짜 순
-      if (a.plan_date !== b.plan_date) {
-        return a.plan_date.localeCompare(b.plan_date);
-      }
-      // 같은 날짜면 planned_start_page_or_time 순
-      const aStart = a.planned_start_page_or_time || 0;
-      const bStart = b.planned_start_page_or_time || 0;
-      return aStart - bStart;
-    });
-  
+  const sortedPlans = sameContentPlans.sort((a, b) => {
+    // 날짜 순
+    if (a.plan_date !== b.plan_date) {
+      return a.plan_date.localeCompare(b.plan_date);
+    }
+    // 같은 날짜면 planned_start_page_or_time 순
+    const aStart = a.planned_start_page_or_time || 0;
+    const bStart = b.planned_start_page_or_time || 0;
+    return aStart - bStart;
+  });
+
   // plan_number를 고려하여 회차 계산
   const seenPlanNumbers = new Set<number | null>();
   let sequence = 1;
-  
+
   for (const p of sortedPlans) {
     if (p.id === plan.id) {
       break;
     }
-    
+
     const pn = p.plan_number;
-    
+
     // plan_number가 null이면 개별 카운트
     if (pn === null) {
       sequence++;
@@ -123,7 +136,7 @@ function calculateSequenceForPlan(
       }
     }
   }
-  
+
   return sequence;
 }
 
@@ -171,7 +184,7 @@ export function ScheduleTableView({
   if (!dailySchedule || dailySchedule.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-        <p className="text-sm text-gray-500">표시할 데이터가 없습니다.</p>
+        <p className="text-sm text-gray-700">표시할 데이터가 없습니다.</p>
       </div>
     );
   }
@@ -211,7 +224,9 @@ export function ScheduleTableView({
         ) : (
           // 주차 정보가 없으면 날짜 순으로 정렬하여 표시
           [...(dailySchedule || [])]
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            )
             .map((schedule) => {
               const datePlans = plansByDate.get(schedule.date) || [];
               return (
@@ -259,13 +274,16 @@ function ScheduleItem({
 
   const hasDetails =
     schedule.academy_schedules && schedule.academy_schedules.length > 0;
-  const hasExclusion = schedule.exclusion !== null && schedule.exclusion !== undefined;
+  const hasExclusion =
+    schedule.exclusion !== null && schedule.exclusion !== undefined;
   const hasTimeSlots = schedule.time_slots && schedule.time_slots.length > 0;
 
   return (
     <div className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
       <div
-        className={`w-full px-4 py-3 ${hasDetails || hasExclusion || hasTimeSlots ? "cursor-pointer" : ""}`}
+        className={`w-full px-4 py-3 ${
+          hasDetails || hasExclusion || hasTimeSlots ? "cursor-pointer" : ""
+        }`}
         onClick={() => {
           if (hasDetails || hasExclusion || hasTimeSlots) {
             onToggle();
@@ -288,12 +306,16 @@ function ScheduleItem({
             </div>
             {/* 시간 슬롯에서 각 타입별 시간 계산 (시간 단위) */}
             {(() => {
-              const calculateTimeFromSlots = (type: "학습시간" | "자율학습" | "이동시간" | "학원일정"): number => {
+              const calculateTimeFromSlots = (
+                type: "학습시간" | "자율학습" | "이동시간" | "학원일정"
+              ): number => {
                 if (!schedule.time_slots) return 0;
                 const minutes = schedule.time_slots
                   .filter((slot) => slot.type === type)
                   .reduce((sum, slot) => {
-                    const [startHour, startMin] = slot.start.split(":").map(Number);
+                    const [startHour, startMin] = slot.start
+                      .split(":")
+                      .map(Number);
                     const [endHour, endMin] = slot.end.split(":").map(Number);
                     const startMinutes = startHour * 60 + startMin;
                     const endMinutes = endHour * 60 + endMin;
@@ -304,17 +326,17 @@ function ScheduleItem({
 
               // 지정휴일인 경우 study_hours가 자율학습 시간이므로 별도 계산 불필요
               const isDesignatedHoliday = schedule.day_type === "지정휴일";
-              
+
               // 순수 학습 시간: time_slots에서 "학습시간" 타입만 계산
               const studyHours = calculateTimeFromSlots("학습시간");
-              const selfStudyHours = isDesignatedHoliday 
-                ? schedule.study_hours 
+              const selfStudyHours = isDesignatedHoliday
+                ? schedule.study_hours
                 : calculateTimeFromSlots("자율학습");
               const travelHours = calculateTimeFromSlots("이동시간");
               const academyHours = calculateTimeFromSlots("학원일정");
 
               return (
-                <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600">
+                <div className="mt-2 flex flex-col gap-1 text-xs text-gray-700">
                   {isDesignatedHoliday ? (
                     // 지정휴일인 경우 자율학습 시간만 표기
                     <div className="flex items-center gap-4">
@@ -341,36 +363,42 @@ function ScheduleItem({
                       {(travelHours > 0 || academyHours > 0) && (
                         <div className="flex items-center gap-4">
                           {travelHours > 0 && (
-                            <span>이동시간: {formatNumber(travelHours)}시간</span>
+                            <span>
+                              이동시간: {formatNumber(travelHours)}시간
+                            </span>
                           )}
                           {academyHours > 0 && (
-                            <span>학원 시간: {formatNumber(academyHours)}시간</span>
+                            <span>
+                              학원 시간: {formatNumber(academyHours)}시간
+                            </span>
                           )}
                         </div>
                       )}
                     </>
                   )}
-                  
+
                   {/* 타임라인 바 그래프 */}
                   {schedule.time_slots && schedule.time_slots.length > 0 && (
-                    <TimelineBar 
+                    <TimelineBar
                       timeSlots={schedule.time_slots}
-                      totalHours={studyHours + selfStudyHours + travelHours + academyHours}
+                      totalHours={
+                        studyHours + selfStudyHours + travelHours + academyHours
+                      }
                     />
                   )}
                 </div>
               );
             })()}
             {schedule.note && (
-              <div className="mt-1 text-xs text-gray-500">{schedule.note}</div>
+              <div className="mt-1 text-xs text-gray-700">{schedule.note}</div>
             )}
           </div>
           {(hasDetails || hasExclusion || hasTimeSlots) && (
             <div className="flex-shrink-0">
               {isExpanded ? (
-                <ChevronUp className="h-5 w-5 text-gray-400" />
+                <ChevronUp className="h-5 w-5 text-gray-700" />
               ) : (
-                <ChevronDown className="h-5 w-5 text-gray-400" />
+                <ChevronDown className="h-5 w-5 text-gray-700" />
               )}
             </div>
           )}
@@ -385,8 +413,10 @@ function ScheduleItem({
             {hasTimeSlots && schedule.time_slots && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-500" />
-                  <div className="text-xs font-medium text-gray-700">시간 구성</div>
+                  <Clock className="h-4 w-4 text-gray-700" />
+                  <div className="text-xs font-medium text-gray-700">
+                    시간 구성
+                  </div>
                 </div>
                 <div className="ml-6 space-y-1.5">
                   <TimeSlotsWithPlans
@@ -406,19 +436,19 @@ function ScheduleItem({
             {/* 제외일 정보 */}
             {hasExclusion && schedule.exclusion && (
               <div className="flex items-start gap-2">
-                <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-500" />
+                <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-700" />
                 <div className="flex-1">
                   <div className="text-xs font-medium text-gray-700">
                     {schedule.exclusion.exclusion_type === "휴가"
                       ? "휴가"
                       : schedule.exclusion.exclusion_type === "개인사정"
-                        ? "개인사정"
-                        : schedule.exclusion.exclusion_type === "휴일지정"
-                          ? "지정휴일"
-                          : "제외일"}
+                      ? "개인사정"
+                      : schedule.exclusion.exclusion_type === "휴일지정"
+                      ? "지정휴일"
+                      : "제외일"}
                   </div>
                   {schedule.exclusion.reason && (
-                    <div className="mt-1 text-xs text-gray-600">
+                    <div className="mt-1 text-xs text-gray-700">
                       {schedule.exclusion.reason}
                     </div>
                   )}
@@ -430,7 +460,7 @@ function ScheduleItem({
             {hasDetails && schedule.academy_schedules && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <Calendar className="h-4 w-4 text-gray-700" />
                   <div className="text-xs font-medium text-gray-700">
                     학원일정 ({schedule.academy_schedules.length}개)
                   </div>
@@ -445,12 +475,12 @@ function ScheduleItem({
                         <div className="font-medium text-gray-900">
                           {academy.academy_name || "학원"}
                           {academy.subject && (
-                            <span className="ml-1 text-gray-600">
+                            <span className="ml-1 text-gray-700">
                               ({academy.subject})
                             </span>
                           )}
                         </div>
-                        <div className="text-gray-600">
+                        <div className="text-gray-700">
                           {academy.start_time} ~ {academy.end_time}
                         </div>
                       </div>
@@ -517,10 +547,17 @@ function TimeSlotsWithPlans({
 
   // 복습일이고 예상 소요시간이 총 학습시간보다 큰 경우 평균 시간으로 조정
   const isReviewDay = dayType === "복습일";
-  const totalEstimatedTime = plansWithInfo.reduce((sum, p) => sum + p.originalEstimatedTime, 0);
+  const totalEstimatedTime = plansWithInfo.reduce(
+    (sum, p) => sum + p.originalEstimatedTime,
+    0
+  );
   const totalStudyMinutes = totalStudyHours * 60;
 
-  if (isReviewDay && totalEstimatedTime > totalStudyMinutes && datePlans.length > 0) {
+  if (
+    isReviewDay &&
+    totalEstimatedTime > totalStudyMinutes &&
+    datePlans.length > 0
+  ) {
     // 평균 시간 계산
     const averageTime = Math.floor(totalStudyMinutes / datePlans.length);
     plansWithInfo.forEach((p) => {
@@ -541,14 +578,17 @@ function TimeSlotsWithPlans({
   });
 
   // 각 학습시간 블록에 플랜 배치
-  const slotPlansMap = new Map<number, Array<{
-    plan: Plan;
-    start: string;
-    end: string;
-    isPartial: boolean;
-    isContinued: boolean; // 이전 블록에서 이어지는지
-    originalEstimatedTime: number; // 원래 예상 소요시간
-  }>>();
+  const slotPlansMap = new Map<
+    number,
+    Array<{
+      plan: Plan;
+      start: string;
+      end: string;
+      isPartial: boolean;
+      isContinued: boolean; // 이전 블록에서 이어지는지
+      originalEstimatedTime: number; // 원래 예상 소요시간
+    }>
+  >();
 
   // 각 슬롯에 플랜 배치 (같은 날 모든 플랜 우선 배치)
   studyTimeSlots.forEach((slot, slotIdx) => {
@@ -574,12 +614,16 @@ function TimeSlotsWithPlans({
         // 플랜이 이 슬롯과 겹치는지 확인
         if (planStart < slotEnd && planEnd > slotStart) {
           const slotAvailableStart = Math.max(planStart, slotStart);
-          const slotAvailableEnd = Math.min(planStart + planInfo.remainingTime, slotEnd);
+          const slotAvailableEnd = Math.min(
+            planStart + planInfo.remainingTime,
+            slotEnd
+          );
 
           if (slotAvailableStart < slotAvailableEnd) {
             const timeUsed = slotAvailableEnd - slotAvailableStart;
-            const wasPartial = planInfo.remainingTime < planInfo.originalEstimatedTime;
-            
+            const wasPartial =
+              planInfo.remainingTime < planInfo.originalEstimatedTime;
+
             plansInSlot.push({
               plan: planInfo.plan,
               start: minutesToTime(slotAvailableStart),
@@ -602,9 +646,10 @@ function TimeSlotsWithPlans({
 
       const timeToUse = Math.min(planInfo.remainingTime, slotEnd - currentTime);
       if (timeToUse > 0) {
-        const wasPartial = planInfo.remainingTime < planInfo.originalEstimatedTime;
+        const wasPartial =
+          planInfo.remainingTime < planInfo.originalEstimatedTime;
         const willBePartial = planInfo.remainingTime > timeToUse;
-        
+
         plansInSlot.push({
           plan: planInfo.plan,
           start: minutesToTime(currentTime),
@@ -629,11 +674,14 @@ function TimeSlotsWithPlans({
   });
 
   // 각 학습시간 슬롯에서 남은 시간 영역 계산
-  const remainingTimeSlotsMap = new Map<number, Array<{
-    start: string;
-    end: string;
-    type: "학습시간" | "자율학습";
-  }>>();
+  const remainingTimeSlotsMap = new Map<
+    number,
+    Array<{
+      start: string;
+      end: string;
+      type: "학습시간" | "자율학습";
+    }>
+  >();
 
   studyTimeSlots.forEach((slot, slotIdx) => {
     const slotStart = timeToMinutes(slot.start);
@@ -676,22 +724,28 @@ function TimeSlotsWithPlans({
     }
 
     if (remainingRanges.length > 0) {
-      remainingTimeSlotsMap.set(slotIdx, remainingRanges.map(range => ({
-        ...range,
-        type: slot.type as "학습시간" | "자율학습",
-      })));
+      remainingTimeSlotsMap.set(
+        slotIdx,
+        remainingRanges.map((range) => ({
+          ...range,
+          type: slot.type as "학습시간" | "자율학습",
+        }))
+      );
     }
   });
 
   // 이동시간/학원일정 슬롯에 커스텀 플랜 배치
-  const travelAndAcademyPlansMap = new Map<number, Array<{
-    plan: Plan;
-    start: string;
-    end: string;
-    isPartial: boolean;
-    isContinued: boolean;
-    originalEstimatedTime: number;
-  }>>();
+  const travelAndAcademyPlansMap = new Map<
+    number,
+    Array<{
+      plan: Plan;
+      start: string;
+      end: string;
+      isPartial: boolean;
+      isContinued: boolean;
+      originalEstimatedTime: number;
+    }>
+  >();
 
   // 커스텀 플랜만 별도로 처리 (이동시간/학원일정 슬롯에 배치)
   const customPlansWithInfo = plansWithInfo.filter(
@@ -805,21 +859,27 @@ function TimeSlotsWithPlans({
 
         // 학습시간 블록인 경우 해당 인덱스로 플랜 찾기
         const studySlotIdx = studySlotIndexMap.get(idx);
-        const plansInStudySlot = slot.type === "학습시간" && studySlotIdx !== undefined 
-          ? slotPlansMap.get(studySlotIdx) || [] 
-          : [];
+        const plansInStudySlot =
+          slot.type === "학습시간" && studySlotIdx !== undefined
+            ? slotPlansMap.get(studySlotIdx) || []
+            : [];
 
         // 이동시간/학원일정 슬롯인 경우 커스텀 플랜 찾기
         const travelAndAcademySlotIdx = travelAndAcademySlotIndexMap.get(idx);
-        const plansInTravelAndAcademySlot = 
-          (slot.type === "이동시간" || slot.type === "학원일정") && travelAndAcademySlotIdx !== undefined
+        const plansInTravelAndAcademySlot =
+          (slot.type === "이동시간" || slot.type === "학원일정") &&
+          travelAndAcademySlotIdx !== undefined
             ? travelAndAcademyPlansMap.get(travelAndAcademySlotIdx) || []
             : [];
 
         // 학습시간 슬롯에는 커스텀이 아닌 플랜만 표시
-        const nonCustomPlans = datePlans.filter(p => p.content_type !== "custom");
+        const nonCustomPlans = datePlans.filter(
+          (p) => p.content_type !== "custom"
+        );
         // 이동시간/학원일정 슬롯에는 커스텀 플랜만 표시
-        const customPlans = datePlans.filter(p => p.content_type === "custom");
+        const customPlans = datePlans.filter(
+          (p) => p.content_type === "custom"
+        );
         // 배치되지 않은 커스텀 플랜만 필터링
         const unplacedCustomPlans = customPlans.filter(
           (p) => !placedPlanIds.has(p.id)
@@ -827,13 +887,15 @@ function TimeSlotsWithPlans({
 
         return (
           <div key={idx} className="space-y-1.5">
-            <div className={`rounded border px-3 py-2 text-xs ${getSlotColor()}`}>
+            <div
+              className={`rounded border px-3 py-2 text-xs ${getSlotColor()}`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{idx + 1}.</span>
                   <span className="font-medium">{slot.label || slot.type}</span>
                 </div>
-                <span className="text-gray-600">
+                <span className="text-gray-700">
                   {slot.start} ~ {slot.end}
                 </span>
               </div>
@@ -857,12 +919,13 @@ function TimeSlotsWithPlans({
                   if (plansInStudySlot.length === 0) {
                     return null;
                   }
-                  
+
                   const studySlotIdx = studySlotIndexMap.get(idx);
-                  const remainingRanges = studySlotIdx !== undefined 
-                    ? remainingTimeSlotsMap.get(studySlotIdx) || []
-                    : [];
-                  
+                  const remainingRanges =
+                    studySlotIdx !== undefined
+                      ? remainingTimeSlotsMap.get(studySlotIdx) || []
+                      : [];
+
                   // 플랜이 일부만 배치되어 남은 영역이 있을 때만 표시
                   return remainingRanges.length > 0 ? (
                     <div className="ml-4 space-y-1.5">
@@ -876,18 +939,24 @@ function TimeSlotsWithPlans({
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className={`font-medium ${
-                              range.type === "학습시간"
-                                ? "text-blue-800"
-                                : "text-green-800"
-                            }`}>
-                              {range.type === "학습시간" ? "학습 시간" : "자율 학습 시간"}
+                            <span
+                              className={`font-medium ${
+                                range.type === "학습시간"
+                                  ? "text-blue-800"
+                                  : "text-green-800"
+                              }`}
+                            >
+                              {range.type === "학습시간"
+                                ? "학습 시간"
+                                : "자율 학습 시간"}
                             </span>
-                            <span className={`${
-                              range.type === "학습시간"
-                                ? "text-blue-800"
-                                : "text-green-600"
-                            }`}>
+                            <span
+                              className={`${
+                                range.type === "학습시간"
+                                  ? "text-blue-800"
+                                  : "text-green-600"
+                              }`}
+                            >
                               {range.start} ~ {range.end}
                             </span>
                           </div>
@@ -911,8 +980,9 @@ function TimeSlotsWithPlans({
                     />
                   </div>
                 ) : unplacedCustomPlans.length > 0 ? (
-                  <div className="ml-4 text-xs text-gray-500 italic">
-                    (커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보 없음)
+                  <div className="ml-4 text-xs text-gray-700 italic">
+                    (커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보
+                    없음)
                   </div>
                 ) : null}
               </>
@@ -1009,9 +1079,13 @@ function PlanTable({
       <tbody>
         {plans.map((planTime, planIdx) => {
           const content = contents.get(planTime.plan.content_id);
-          const duration = timeToMinutes(planTime.end) - timeToMinutes(planTime.start);
+          const duration =
+            timeToMinutes(planTime.end) - timeToMinutes(planTime.start);
           const isReviewDay = dayType === "복습일";
-          const showOriginalTime = isReviewDay && planTime.originalEstimatedTime && planTime.originalEstimatedTime > duration;
+          const showOriginalTime =
+            isReviewDay &&
+            planTime.originalEstimatedTime &&
+            planTime.originalEstimatedTime > duration;
           const sequence = sequenceMap.get(planTime.plan.id) || 1;
 
           return (
@@ -1024,7 +1098,9 @@ function PlanTable({
               <td className="px-3 py-2 border border-blue-200 text-blue-800">
                 <div className="flex items-center gap-1">
                   {planTime.isContinued && (
-                    <span className="text-blue-800 font-semibold text-[10px]">[이어서]</span>
+                    <span className="text-blue-800 font-semibold text-[10px]">
+                      [이어서]
+                    </span>
                   )}
                   <span className="font-medium">
                     {planTime.start} ~ {planTime.end}
@@ -1052,12 +1128,18 @@ function PlanTable({
                 {planTime.plan.content_type === "book" ? "교재" : "강의"}
               </td>
               <td className="px-3 py-2 border border-blue-200 text-blue-800">
-                <div className="max-w-[200px] truncate" title={content?.title || ""}>
+                <div
+                  className="max-w-[200px] truncate"
+                  title={content?.title || ""}
+                >
                   {content?.title || "-"}
                 </div>
               </td>
               <td className="px-3 py-2 border border-blue-200 text-blue-800">
-                <div className="max-w-[200px] truncate" title={planTime.plan.chapter || ""}>
+                <div
+                  className="max-w-[200px] truncate"
+                  title={planTime.plan.chapter || ""}
+                >
                   {planTime.plan.chapter || "-"}
                 </div>
               </td>
@@ -1095,7 +1177,11 @@ function minutesToTime(minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-function getPlanStartTime(plan: Plan, date: string, blocks: BlockData[]): string | null {
+function getPlanStartTime(
+  plan: Plan,
+  date: string,
+  blocks: BlockData[]
+): string | null {
   if (plan.block_index !== null && plan.block_index !== undefined) {
     const planDate = new Date(date + "T00:00:00");
     const dayOfWeek = planDate.getDay();
@@ -1109,7 +1195,9 @@ function getPlanStartTime(plan: Plan, date: string, blocks: BlockData[]): string
     if (!block) {
       const dayBlocks = blocks.filter((b) => b.day_of_week === dayOfWeek);
       if (dayBlocks.length > 0) {
-        const sortedBlocks = [...dayBlocks].sort((a, b) => a.block_index - b.block_index);
+        const sortedBlocks = [...dayBlocks].sort(
+          (a, b) => a.block_index - b.block_index
+        );
         // block_index가 범위 내에 있으면 해당 블록 사용
         if (plan.block_index > 0 && plan.block_index <= sortedBlocks.length) {
           block = sortedBlocks[plan.block_index - 1];
@@ -1148,7 +1236,7 @@ function ScheduleListByWeek({
 }) {
   // 주차별로 그룹화
   const schedulesByWeek = new Map<number | undefined, DailySchedule[]>();
-  
+
   for (const schedule of schedules) {
     const weekNum = schedule.week_number;
     if (!schedulesByWeek.has(weekNum)) {
@@ -1239,11 +1327,16 @@ function WeekSection({
   };
 
   const weekStudyDays = schedules.filter((s) => s.day_type === "학습일").length;
-  const weekReviewDays = schedules.filter((s) => s.day_type === "복습일").length;
-  const weekExclusionDays = schedules.filter((s) => 
-    s.day_type === "휴가" || s.day_type === "개인일정" || s.day_type === "지정휴일"
+  const weekReviewDays = schedules.filter(
+    (s) => s.day_type === "복습일"
   ).length;
-  
+  const weekExclusionDays = schedules.filter(
+    (s) =>
+      s.day_type === "휴가" ||
+      s.day_type === "개인일정" ||
+      s.day_type === "지정휴일"
+  ).length;
+
   // 주차별 순수 학습 시간 계산 (time_slots에서 "학습시간" 타입만)
   const weekTotalHours = schedules.reduce((sum, s) => {
     // 지정휴일은 학습 시간이 없으므로 제외
@@ -1260,7 +1353,7 @@ function WeekSection({
       }, 0);
     return sum + studyMinutes / 60;
   }, 0);
-  
+
   // 주차별 자율학습 시간 계산
   // 지정휴일의 경우 study_hours가 이미 자율학습 시간을 포함하므로 중복 계산 방지
   const weekSelfStudyHours = schedules.reduce((sum, s) => {
@@ -1283,8 +1376,8 @@ function WeekSection({
   }, 0);
 
   // 날짜 순으로 정렬
-  const sortedSchedules = [...schedules].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
+  const sortedSchedules = [...schedules].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
   return (
@@ -1296,30 +1389,40 @@ function WeekSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5 text-gray-400" />
+              <ChevronUp className="h-5 w-5 text-gray-700" />
             ) : (
-              <ChevronDown className="h-5 w-5 text-gray-400" />
+              <ChevronDown className="h-5 w-5 text-gray-700" />
             )}
             <div>
               <div className="text-sm font-semibold text-gray-900">
                 {weekNum}주차 {formatDateRange()}
               </div>
               <div className="mt-1 flex flex-col gap-1">
-                <div className="flex items-center gap-3 text-xs text-gray-600">
+                <div className="flex items-center gap-3 text-xs text-gray-700">
                   <span>
                     학습일 {weekStudyDays}일
                     {weekReviewDays > 0 && <> + 복습일 {weekReviewDays}일</>}
                   </span>
                   <span>학습시간 {formatNumber(weekTotalHours)}시간</span>
                   {weekSelfStudyHours > 0 && (
-                    <span>자율학습시간 {formatNumber(weekSelfStudyHours)}시간</span>
+                    <span>
+                      자율학습시간 {formatNumber(weekSelfStudyHours)}시간
+                    </span>
                   )}
-                  <span>총시간 {formatNumber(weekTotalHours + weekSelfStudyHours)}시간</span>
+                  <span>
+                    총시간 {formatNumber(weekTotalHours + weekSelfStudyHours)}
+                    시간
+                  </span>
                 </div>
                 {weekStudyDays + weekReviewDays > 0 && (
-                  <div className="text-xs text-gray-400">
-                    평균: {formatNumber((weekTotalHours + weekSelfStudyHours) / (weekStudyDays + weekReviewDays))}시간/일
-                    ({formatNumber(weekTotalHours + weekSelfStudyHours)}시간 ÷ {weekStudyDays + weekReviewDays}일)
+                  <div className="text-xs text-gray-700">
+                    평균:{" "}
+                    {formatNumber(
+                      (weekTotalHours + weekSelfStudyHours) /
+                        (weekStudyDays + weekReviewDays)
+                    )}
+                    시간/일 ({formatNumber(weekTotalHours + weekSelfStudyHours)}
+                    시간 ÷ {weekStudyDays + weekReviewDays}일)
                   </div>
                 )}
               </div>
@@ -1350,7 +1453,11 @@ function WeekSection({
   );
 }
 
-function calculateEstimatedTime(plan: Plan, contents: Map<string, ContentData>, dayType?: string): number {
+function calculateEstimatedTime(
+  plan: Plan,
+  contents: Map<string, ContentData>,
+  dayType?: string
+): number {
   const content = contents.get(plan.content_id);
 
   if (
@@ -1362,7 +1469,8 @@ function calculateEstimatedTime(plan: Plan, contents: Map<string, ContentData>, 
     return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
   }
 
-  const amount = plan.planned_end_page_or_time - plan.planned_start_page_or_time;
+  const amount =
+    plan.planned_end_page_or_time - plan.planned_start_page_or_time;
   if (amount <= 0) {
     const baseTime = 60;
     return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
@@ -1399,4 +1507,3 @@ function calculateEstimatedTime(plan: Plan, contents: Map<string, ContentData>, 
 
   return baseTime;
 }
-

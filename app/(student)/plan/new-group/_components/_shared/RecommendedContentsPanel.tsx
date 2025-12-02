@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 
 /**
  * RecommendedContentsPanel - 추천 콘텐츠 선택 패널
- * 
+ *
  * Phase 3.4에서 구현
  * Step4RecommendedContents.tsx의 로직을 분리하여 재사용 가능하게 구현
  */
@@ -112,7 +112,7 @@ export function RecommendedContentsPanel({
       // contentType 검증 (서버에서 보장되지만 방어 코드)
       if (!content.contentType) {
         const errorMessage = `[RecommendedContentsPanel] contentType이 없습니다. contentId: ${content.id}, title: ${content.title}`;
-        console.error(errorMessage, { 
+        console.error(errorMessage, {
           content,
           allKeys: Object.keys(content),
           contentType: content.contentType,
@@ -161,7 +161,9 @@ export function RecommendedContentsPanel({
   // 추천 콘텐츠 삭제
   const handleRecommendedRemove = useCallback(
     (contentId: string) => {
-      const updated = selectedContents.filter((c) => c.content_id !== contentId);
+      const updated = selectedContents.filter(
+        (c) => c.content_id !== contentId
+      );
       onUpdate(updated);
     },
     [selectedContents, onUpdate]
@@ -354,7 +356,7 @@ export function RecommendedContentsPanel({
                     }
                     className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
                   />
-                  <span className="text-sm text-gray-500">개</span>
+                  <span className="text-sm text-gray-700">개</span>
                 </div>
               ))}
             </div>
@@ -378,7 +380,7 @@ export function RecommendedContentsPanel({
                 추천 콘텐츠 자동 배정 (전체 범위)
               </span>
             </label>
-            <p className="ml-6 mt-1 text-xs text-gray-500">
+            <p className="ml-6 mt-1 text-xs text-gray-700">
               체크하면 추천받은 콘텐츠가 자동으로 추가됩니다 (범위: 전체)
             </p>
           </div>
@@ -419,7 +421,7 @@ export function RecommendedContentsPanel({
                 추천 콘텐츠
               </h3>
             </div>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-700">
               {recommendedContents.length}개
             </span>
           </div>
@@ -458,8 +460,9 @@ export function RecommendedContentsPanel({
           <p className="mt-3 text-sm font-medium text-gray-900">
             추천할 콘텐츠가 없습니다
           </p>
-          <p className="mt-1 text-sm text-gray-500">
-            이미 모든 추천 콘텐츠를 선택하셨거나,<br />
+          <p className="mt-1 text-sm text-gray-700">
+            이미 모든 추천 콘텐츠를 선택하셨거나,
+            <br />
             현재 조건에 맞는 추천이 없습니다.
           </p>
         </div>
@@ -472,7 +475,7 @@ export function RecommendedContentsPanel({
             <h3 className="text-lg font-semibold text-gray-900">
               선택된 추천 콘텐츠
             </h3>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-700">
               {selectedContents.length}개
             </span>
           </div>
@@ -499,4 +502,3 @@ export function RecommendedContentsPanel({
     </div>
   );
 }
-

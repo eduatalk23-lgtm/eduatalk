@@ -16,14 +16,18 @@ import { BookOpen, Sparkles, Package } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getRecommendedMasterContentsAction } from "@/app/(student)/actions/getRecommendedMasterContents";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
-import { getCurriculumRevisionsAction, getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
+import {
+  getCurriculumRevisionsAction,
+  getSubjectGroupsAction,
+  getSubjectsByGroupAction,
+} from "@/app/(student)/actions/contentMetadataActions";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import RequiredSubjectItem from "./Step4RecommendedContents/components/RequiredSubjectItem";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
- * 
+ *
  * Phase 3.5에서 구현
  * 기존 Step3Contents + Step4RecommendedContents를 통합
  * 탭 UI로 학생 콘텐츠와 추천 콘텐츠를 한 화면에서 관리
@@ -39,9 +43,9 @@ export function Step3ContentSelection({
   editable = true,
 }: Step3ContentSelectionProps & { isTemplateMode?: boolean }) {
   // 탭 상태
-  const [activeTab, setActiveTab] = useState<"student" | "recommended" | "master">(
-    "student"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "student" | "recommended" | "master"
+  >("student");
 
   // 추천 콘텐츠 상태
   const [recommendedContents, setRecommendedContents] = useState<
@@ -67,8 +71,12 @@ export function Step3ContentSelection({
     });
 
   // 필수 교과 설정 관련 상태
-  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
-  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<
+    SubjectGroup[]
+  >([]);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<
+    CurriculumRevision[]
+  >([]);
   const [loadingSubjectGroups, setLoadingSubjectGroups] = useState(false);
   const [loadingRevisions, setLoadingRevisions] = useState(false);
 
@@ -120,9 +128,9 @@ export function Step3ContentSelection({
 
     // 필수 교과 설정에서 지정한 과목 가져오기
     const requiredSubjectCategories =
-      data.subject_constraints?.required_subjects?.map(
-        (req) => req.subject_category
-      ).filter(Boolean) || [];
+      data.subject_constraints?.required_subjects
+        ?.map((req) => req.subject_category)
+        .filter(Boolean) || [];
 
     // 필수 교과가 설정되지 않았으면 빈 배열 반환
     if (requiredSubjectCategories.length === 0) {
@@ -134,9 +142,7 @@ export function Step3ContentSelection({
       ...data.recommended_contents,
     ];
     const subjectSet = new Set(
-      allContents
-        .map((c) => c.subject_category)
-        .filter((s): s is string => !!s)
+      allContents.map((c) => c.subject_category).filter((s): s is string => !!s)
     );
 
     // 필수 교과 설정에 따라 동적으로 생성
@@ -170,7 +176,13 @@ export function Step3ContentSelection({
       return `필수 과목 (${missing.join(", ")})을 선택해주세요.`;
     }
     return undefined;
-  }, [currentTotal, allRequiredSelected, requiredSubjects, isCampMode, maxContents]);
+  }, [
+    currentTotal,
+    allRequiredSelected,
+    requiredSubjects,
+    isCampMode,
+    maxContents,
+  ]);
 
   // 학생 콘텐츠 업데이트
   const handleStudentContentsUpdate = useCallback(
@@ -184,7 +196,7 @@ export function Step3ContentSelection({
   const handleRecommendedContentsUpdate = useCallback(
     (contents: typeof data.recommended_contents) => {
       onUpdate({ recommended_contents: contents });
-      
+
       // 선택된 ID 업데이트
       setSelectedRecommendedIds(new Set(contents.map((c) => c.content_id)));
     },
@@ -196,7 +208,9 @@ export function Step3ContentSelection({
     console.log("[Step3ContentSelection] 추천 받기 요청 시작:", {
       recommendationSettings: {
         selectedSubjects: Array.from(recommendationSettings.selectedSubjects),
-        recommendationCounts: Object.fromEntries(recommendationSettings.recommendationCounts),
+        recommendationCounts: Object.fromEntries(
+          recommendationSettings.recommendationCounts
+        ),
         autoAssignContents: recommendationSettings.autoAssignContents,
       },
       studentId,
@@ -226,59 +240,64 @@ export function Step3ContentSelection({
       const rawRecommendations = result.data.recommendations || [];
 
       // API 응답을 RecommendedContent로 변환 (contentType 보장)
-      const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
-        // contentType 결정: camelCase 우선, 없으면 snake_case, 없으면 추정
-        let contentType = r.contentType || r.content_type;
-        
-        if (!contentType) {
-          // publisher가 있으면 book, platform이 있으면 lecture로 추정
-          if (r.publisher) {
-            contentType = "book";
-          } else if (r.platform) {
-            contentType = "lecture";
-          } else {
-            // 기본값: book
+      const recommendations: RecommendedContent[] = rawRecommendations.map(
+        (r: any) => {
+          // contentType 결정: camelCase 우선, 없으면 snake_case, 없으면 추정
+          let contentType = r.contentType || r.content_type;
+
+          if (!contentType) {
+            // publisher가 있으면 book, platform이 있으면 lecture로 추정
+            if (r.publisher) {
+              contentType = "book";
+            } else if (r.platform) {
+              contentType = "lecture";
+            } else {
+              // 기본값: book
+              contentType = "book";
+            }
+
+            console.warn(
+              "[Step3ContentSelection] contentType이 없어 추정값 사용:",
+              {
+                id: r.id,
+                title: r.title,
+                estimatedContentType: contentType,
+                publisher: r.publisher,
+                platform: r.platform,
+                allKeys: Object.keys(r),
+              }
+            );
+          }
+
+          // 타입 검증
+          if (contentType !== "book" && contentType !== "lecture") {
+            console.error("[Step3ContentSelection] 잘못된 contentType:", {
+              id: r.id,
+              title: r.title,
+              contentType,
+              rawData: r,
+            });
+            // 잘못된 타입은 기본값으로 변경
             contentType = "book";
           }
-          
-          console.warn("[Step3ContentSelection] contentType이 없어 추정값 사용:", {
+
+          return {
             id: r.id,
+            contentType: contentType as "book" | "lecture",
             title: r.title,
-            estimatedContentType: contentType,
+            subject_category: r.subject_category,
+            subject: r.subject,
+            semester: r.semester,
+            revision: r.revision,
             publisher: r.publisher,
             platform: r.platform,
-            allKeys: Object.keys(r),
-          });
+            difficulty_level: r.difficulty_level,
+            reason: r.reason || "",
+            priority: r.priority || 0,
+            scoreDetails: r.scoreDetails,
+          };
         }
-
-        // 타입 검증
-        if (contentType !== "book" && contentType !== "lecture") {
-          console.error("[Step3ContentSelection] 잘못된 contentType:", {
-            id: r.id,
-            title: r.title,
-            contentType,
-            rawData: r,
-          });
-          // 잘못된 타입은 기본값으로 변경
-          contentType = "book";
-        }
-
-        return {
-          id: r.id,
-          contentType: contentType as "book" | "lecture",
-          title: r.title,
-          subject_category: r.subject_category,
-          subject: r.subject,
-          semester: r.semester,
-          revision: r.revision,
-          publisher: r.publisher,
-          platform: r.platform,
-          difficulty_level: r.difficulty_level,
-          reason: r.reason || "",
-          priority: r.priority || 0,
-          scoreDetails: r.scoreDetails,
-        };
-      });
+      );
 
       // 성적 데이터 유무 확인
       const hasDetailedReasons = recommendations.some(
@@ -341,7 +360,9 @@ export function Step3ContentSelection({
       console.log("[Step3ContentSelection] 자동 배정 체크:", {
         autoAssign: recommendationSettings.autoAssignContents,
         filteredRecommendationsCount: filteredRecommendations.length,
-        willAutoAssign: recommendationSettings.autoAssignContents && filteredRecommendations.length > 0,
+        willAutoAssign:
+          recommendationSettings.autoAssignContents &&
+          filteredRecommendations.length > 0,
       });
 
       if (
@@ -375,7 +396,7 @@ export function Step3ContentSelection({
             // 상세 정보 조회
             let detailsResult: any = null;
             let hasDetails = false;
-            
+
             const detailsResponse = await fetch(
               `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
             );
@@ -396,7 +417,8 @@ export function Step3ContentSelection({
                   hasDetails = episodes.length > 0;
                   if (hasDetails) {
                     startRange = episodes[0].episode_number || 1;
-                    endRange = episodes[episodes.length - 1].episode_number || 100;
+                    endRange =
+                      episodes[episodes.length - 1].episode_number || 100;
                   }
                 }
               }
@@ -412,9 +434,15 @@ export function Step3ContentSelection({
                 if (infoResponse.ok) {
                   const infoResult = await infoResponse.json();
                   if (infoResult.success && infoResult.data) {
-                    if (r.contentType === "book" && infoResult.data.total_pages) {
+                    if (
+                      r.contentType === "book" &&
+                      infoResult.data.total_pages
+                    ) {
                       endRange = infoResult.data.total_pages;
-                    } else if (r.contentType === "lecture" && infoResult.data.total_episodes) {
+                    } else if (
+                      r.contentType === "lecture" &&
+                      infoResult.data.total_episodes
+                    ) {
                       endRange = infoResult.data.total_episodes;
                     }
                   }
@@ -450,15 +478,18 @@ export function Step3ContentSelection({
         }
 
         // 함수형 업데이트를 사용하여 최신 상태 보장
-        console.log("[Step3ContentSelection] 자동 배정 실행 - 함수형 업데이트 호출:", {
-          contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
-            content_id: c.content_id,
-            content_type: c.content_type,
-            start_range: c.start_range,
-            end_range: c.end_range,
-            title: c.title,
-          })),
-        });
+        console.log(
+          "[Step3ContentSelection] 자동 배정 실행 - 함수형 업데이트 호출:",
+          {
+            contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
+              content_id: c.content_id,
+              content_type: c.content_type,
+              start_range: c.start_range,
+              end_range: c.end_range,
+              title: c.title,
+            })),
+          }
+        );
 
         try {
           onUpdate((prev) => {
@@ -466,12 +497,15 @@ export function Step3ContentSelection({
               prev.student_contents.length + prev.recommended_contents.length;
             const toAdd = contentsToAutoAdd.length;
 
-            console.log("[Step3ContentSelection] 자동 배정 실행 (함수형 업데이트 내부):", {
-              currentTotal,
-              toAdd,
-              currentRecommendedContents: prev.recommended_contents.length,
-              currentStudentContents: prev.student_contents.length,
-            });
+            console.log(
+              "[Step3ContentSelection] 자동 배정 실행 (함수형 업데이트 내부):",
+              {
+                currentTotal,
+                toAdd,
+                currentRecommendedContents: prev.recommended_contents.length,
+                currentStudentContents: prev.student_contents.length,
+              }
+            );
 
             if (currentTotal + toAdd > 9) {
               const maxToAdd = 9 - currentTotal;
@@ -488,7 +522,11 @@ export function Step3ContentSelection({
                 });
                 setTimeout(() => {
                   alert(
-                    `추천 콘텐츠 ${trimmed.length}개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`
+                    `추천 콘텐츠 ${
+                      trimmed.length
+                    }개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${
+                      toAdd - trimmed.length
+                    }개 제외됨)`
                   );
                 }, 0);
                 return {
@@ -510,7 +548,9 @@ export function Step3ContentSelection({
                 newRecommendedContents: newRecommendedContents.length,
               });
               setTimeout(() => {
-                alert(`추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`);
+                alert(
+                  `추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`
+                );
               }, 0);
               return {
                 recommended_contents: newRecommendedContents,
@@ -534,7 +574,10 @@ export function Step3ContentSelection({
             return filtered;
           });
         } catch (error) {
-          console.error("[Step3ContentSelection] 자동 배정 중 오류 발생:", error);
+          console.error(
+            "[Step3ContentSelection] 자동 배정 중 오류 발생:",
+            error
+          );
           alert("자동 배정 중 오류가 발생했습니다. 다시 시도해주세요.");
         }
       } else {
@@ -565,17 +608,24 @@ export function Step3ContentSelection({
   // 필수 교과 설정 핸들러
   // 개정교육과정별 세부 과목 불러오기
   const handleLoadSubjects = useCallback(
-    async (subjectGroupId: string, curriculumRevisionId: string): Promise<Array<{ id: string; name: string }>> => {
+    async (
+      subjectGroupId: string,
+      curriculumRevisionId: string
+    ): Promise<Array<{ id: string; name: string }>> => {
       try {
         // 해당 개정교육과정의 교과 그룹 찾기
-        const selectedGroup = availableSubjectGroups.find((g) => g.id === subjectGroupId);
+        const selectedGroup = availableSubjectGroups.find(
+          (g) => g.id === subjectGroupId
+        );
         if (!selectedGroup) {
           return [];
         }
 
         // 같은 이름의 교과 그룹 중 해당 개정교육과정의 것 찾기
         const curriculumGroup = availableSubjectGroups.find(
-          (g) => g.name === selectedGroup.name && g.curriculum_revision_id === curriculumRevisionId
+          (g) =>
+            g.name === selectedGroup.name &&
+            g.curriculum_revision_id === curriculumRevisionId
         );
 
         if (!curriculumGroup) {
@@ -704,94 +754,97 @@ export function Step3ContentSelection({
     <div className="space-y-6">
       {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
       {isTemplateMode && (
-      <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-6 mb-6 shadow-md">
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <h2 className="text-lg font-semibold text-gray-900">
-              필수 교과 설정
-            </h2>
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-              필수
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-gray-600">
-            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어,
-            수학, 영어)
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 개정교육과정별로
-            세부 과목을 지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
-          </p>
-
-          {/* 필수 교과 목록 */}
-          {(data.subject_constraints?.required_subjects || []).length > 0 && (
-            <div className="space-y-3">
-              {(data.subject_constraints?.required_subjects || []).map(
-                (req, index) => (
-                  <RequiredSubjectItem
-                    key={index}
-                    requirement={req}
-                    index={index}
-                    availableSubjectGroups={availableSubjectGroups}
-                    curriculumRevisions={curriculumRevisions}
-                    onLoadSubjects={handleLoadSubjects}
-                    onUpdate={(updated) =>
-                      handleRequiredSubjectUpdate(index, updated)
-                    }
-                    onRemove={() => handleRequiredSubjectRemove(index)}
-                  />
-                )
-              )}
+        <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-6 mb-6 shadow-md">
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                필수 교과 설정
+              </h2>
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                필수
+              </span>
             </div>
-          )}
-
-          {/* 교과 추가 버튼 */}
-          <button
-            type="button"
-            onClick={handleAddRequiredSubject}
-            className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors"
-          >
-            + 필수 교과 추가
-          </button>
-
-          {/* 제약 조건 처리 방식 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              제약 조건 처리 방식
-            </label>
-            <select
-              value={data.subject_constraints?.constraint_handling || "warning"}
-              onChange={(e) =>
-                handleConstraintHandlingChange(
-                  e.target.value as "strict" | "warning" | "auto_fix"
-                )
-              }
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            >
-              <option value="warning">
-                경고 (권장) - 경고만 표시하고 진행
-              </option>
-              <option value="strict">
-                엄격 (필수) - 조건 미충족 시 진행 불가
-              </option>
-              <option value="auto_fix">
-                자동 보정 - 시스템이 자동으로 보정
-              </option>
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              {data.subject_constraints?.constraint_handling === "warning" &&
-                "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
-              {data.subject_constraints?.constraint_handling === "strict" &&
-                "조건을 반드시 충족해야 다음 단계로 진행할 수 있습니다."}
-              {data.subject_constraints?.constraint_handling === "auto_fix" &&
-                "시스템이 자동으로 필요한 콘텐츠를 추천합니다."}
+            <p className="mt-1 text-sm text-gray-700">
+              플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어,
+              수학, 영어)
             </p>
           </div>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다.
+              개정교육과정별로 세부 과목을 지정하여 더 정확한 제약 조건을 설정할
+              수 있습니다.
+            </p>
+
+            {/* 필수 교과 목록 */}
+            {(data.subject_constraints?.required_subjects || []).length > 0 && (
+              <div className="space-y-3">
+                {(data.subject_constraints?.required_subjects || []).map(
+                  (req, index) => (
+                    <RequiredSubjectItem
+                      key={index}
+                      requirement={req}
+                      index={index}
+                      availableSubjectGroups={availableSubjectGroups}
+                      curriculumRevisions={curriculumRevisions}
+                      onLoadSubjects={handleLoadSubjects}
+                      onUpdate={(updated) =>
+                        handleRequiredSubjectUpdate(index, updated)
+                      }
+                      onRemove={() => handleRequiredSubjectRemove(index)}
+                    />
+                  )
+                )}
+              </div>
+            )}
+
+            {/* 교과 추가 버튼 */}
+            <button
+              type="button"
+              onClick={handleAddRequiredSubject}
+              className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-700 hover:border-gray-400 hover:text-gray-700 transition-colors"
+            >
+              + 필수 교과 추가
+            </button>
+
+            {/* 제약 조건 처리 방식 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                제약 조건 처리 방식
+              </label>
+              <select
+                value={
+                  data.subject_constraints?.constraint_handling || "warning"
+                }
+                onChange={(e) =>
+                  handleConstraintHandlingChange(
+                    e.target.value as "strict" | "warning" | "auto_fix"
+                  )
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              >
+                <option value="warning">
+                  경고 (권장) - 경고만 표시하고 진행
+                </option>
+                <option value="strict">
+                  엄격 (필수) - 조건 미충족 시 진행 불가
+                </option>
+                <option value="auto_fix">
+                  자동 보정 - 시스템이 자동으로 보정
+                </option>
+              </select>
+              <p className="mt-1 text-xs text-gray-700">
+                {data.subject_constraints?.constraint_handling === "warning" &&
+                  "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
+                {data.subject_constraints?.constraint_handling === "strict" &&
+                  "조건을 반드시 충족해야 다음 단계로 진행할 수 있습니다."}
+                {data.subject_constraints?.constraint_handling === "auto_fix" &&
+                  "시스템이 자동으로 필요한 콘텐츠를 추천합니다."}
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
       )}
 
       {/* 진행률 표시 */}
@@ -812,7 +865,7 @@ export function Step3ContentSelection({
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "student"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              : "border-transparent text-gray-700 hover:text-gray-900"
           )}
         >
           <BookOpen className="h-4 w-4" />
@@ -822,7 +875,7 @@ export function Step3ContentSelection({
               "rounded-full px-2 py-0.5 text-xs",
               activeTab === "student"
                 ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-600"
+                : "bg-gray-100 text-gray-700"
             )}
           >
             {data.student_contents.length}
@@ -836,7 +889,7 @@ export function Step3ContentSelection({
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "recommended"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              : "border-transparent text-gray-700 hover:text-gray-900"
           )}
         >
           <Sparkles className="h-4 w-4" />
@@ -846,7 +899,7 @@ export function Step3ContentSelection({
               "rounded-full px-2 py-0.5 text-xs",
               activeTab === "recommended"
                 ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-600"
+                : "bg-gray-100 text-gray-700"
             )}
           >
             {data.recommended_contents.length}
@@ -860,7 +913,7 @@ export function Step3ContentSelection({
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "master"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              : "border-transparent text-gray-700 hover:text-gray-900"
           )}
         >
           <Package className="h-4 w-4" />
@@ -913,5 +966,3 @@ export function Step3ContentSelection({
     </div>
   );
 }
-
-

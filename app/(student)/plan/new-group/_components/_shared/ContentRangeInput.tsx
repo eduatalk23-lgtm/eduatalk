@@ -2,12 +2,16 @@
 
 import React, { useMemo } from "react";
 import { AlertCircle, BookOpen, Video } from "lucide-react";
-import { ContentRangeInputProps, BookDetail, LectureEpisode } from "@/lib/types/content-selection";
+import {
+  ContentRangeInputProps,
+  BookDetail,
+  LectureEpisode,
+} from "@/lib/types/content-selection";
 import { cn } from "@/lib/cn";
 
 /**
  * ContentRangeInput - 콘텐츠 범위 선택 입력
- * 
+ *
  * - 책: 페이지 번호 선택
  * - 강의: 에피소드 번호 선택
  * - 시작/끝 범위 검증
@@ -42,7 +46,8 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   }, [details, endDetailId]);
 
   // 범위 검증
-  const isValidRange = startIndex !== -1 && endIndex !== -1 && startIndex <= endIndex;
+  const isValidRange =
+    startIndex !== -1 && endIndex !== -1 && startIndex <= endIndex;
 
   // 선택 가능한 종료 옵션 (시작점 이후만)
   const availableEndDetails = useMemo(() => {
@@ -69,7 +74,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
     return (
       <div className="flex items-center justify-center py-8">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        <span className="ml-3 text-sm text-gray-600">상세 정보 로딩 중...</span>
+        <span className="ml-3 text-sm text-gray-700">상세 정보 로딩 중...</span>
       </div>
     );
   }
@@ -96,7 +101,8 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         type: "NO_DETAILS",
         contentType: type,
         detailsLength: details.length,
-        reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
+        reason:
+          "해당 콘텐츠에 목차/회차 정보가 없습니다. 사용자가 범위를 직접 입력해야 합니다.",
       });
     }
 
@@ -118,7 +124,9 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           </p>
           {maxValue && (
             <p className="mt-1 text-xs text-blue-800">
-              {isBook ? `총 페이지수: ${maxValue}페이지` : `총 회차: ${maxValue}회차`}
+              {isBook
+                ? `총 페이지수: ${maxValue}페이지`
+                : `총 회차: ${maxValue}회차`}
             </p>
           )}
         </div>
@@ -166,32 +174,39 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         </div>
 
         {/* 범위 요약 */}
-        {currentStart && currentEnd && Number(currentStart) > 0 && Number(currentEnd) > 0 && (
-          <div className="rounded-lg bg-blue-50 p-3">
-            <p className="text-sm font-medium text-blue-800">선택된 범위</p>
-            <p className="mt-1 text-sm text-blue-800">
-              {isBook
-                ? `${currentStart}페이지 ~ ${currentEnd}페이지`
-                : `${currentStart}회차 ~ ${currentEnd}회차`}
-            </p>
-            {Number(currentStart) && Number(currentEnd) && (
-              <p className="mt-1 text-xs text-blue-800">
-                총 {Number(currentEnd) - Number(currentStart) + 1}
-                {isBook ? "페이지" : "회차"}
+        {currentStart &&
+          currentEnd &&
+          Number(currentStart) > 0 &&
+          Number(currentEnd) > 0 && (
+            <div className="rounded-lg bg-blue-50 p-3">
+              <p className="text-sm font-medium text-blue-800">선택된 범위</p>
+              <p className="mt-1 text-sm text-blue-800">
+                {isBook
+                  ? `${currentStart}페이지 ~ ${currentEnd}페이지`
+                  : `${currentStart}회차 ~ ${currentEnd}회차`}
               </p>
-            )}
-          </div>
-        )}
+              {Number(currentStart) && Number(currentEnd) && (
+                <p className="mt-1 text-xs text-blue-800">
+                  총 {Number(currentEnd) - Number(currentStart) + 1}
+                  {isBook ? "페이지" : "회차"}
+                </p>
+              )}
+            </div>
+          )}
 
         {/* 범위 검증 */}
-        {currentStart && currentEnd && Number(currentStart) > 0 && Number(currentEnd) > 0 && Number(currentStart) > Number(currentEnd) && (
-          <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
-            <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-600" />
-            <p className="text-sm text-red-800">
-              시작이 종료보다 뒤에 있습니다. 범위를 다시 입력해주세요.
-            </p>
-          </div>
-        )}
+        {currentStart &&
+          currentEnd &&
+          Number(currentStart) > 0 &&
+          Number(currentEnd) > 0 &&
+          Number(currentStart) > Number(currentEnd) && (
+            <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
+              <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-600" />
+              <p className="text-sm text-red-800">
+                시작이 종료보다 뒤에 있습니다. 범위를 다시 입력해주세요.
+              </p>
+            </div>
+          )}
       </div>
     );
   }
@@ -199,7 +214,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   return (
     <div className="space-y-4">
       {/* 타입 표시 */}
-      <div className="flex items-center gap-2 text-sm text-gray-600">
+      <div className="flex items-center gap-2 text-sm text-gray-700">
         {isBook ? (
           <>
             <BookOpen className="h-4 w-4" />
@@ -224,7 +239,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           className={cn(
             "mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors",
             "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
-            !startDetailId && "text-gray-400"
+            !startDetailId && "text-gray-700"
           )}
         >
           <option value="" disabled>
@@ -250,7 +265,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           className={cn(
             "mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors",
             "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
-            !endDetailId && "text-gray-400",
+            !endDetailId && "text-gray-700",
             !startDetailId && "cursor-not-allowed opacity-50"
           )}
         >
@@ -264,7 +279,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           ))}
         </select>
         {!startDetailId && (
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-700">
             먼저 시작 {isBook ? "페이지" : "강"}를 선택하세요
           </p>
         )}
@@ -311,4 +326,3 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
     </div>
   );
 });
-
