@@ -32,6 +32,9 @@ export type CollapsibleSectionProps = {
   studentInputAllowed?: boolean;
   onStudentInputToggle?: (enabled: boolean) => void;
   showStudentInputToggle?: boolean; // 템플릿 모드일 때만 true
+  
+  // 헤더 추가 액션 (체크박스 등)
+  headerActions?: React.ReactNode;
 };
 
 export const CollapsibleSection = React.memo(function CollapsibleSection({
@@ -44,6 +47,7 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
   studentInputAllowed = false,
   onStudentInputToggle,
   showStudentInputToggle = false,
+  headerActions,
 }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -82,8 +86,15 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
 
-        {/* 오른쪽 영역: 학생 입력 허용 체크박스 + 수정 버튼 */}
+        {/* 오른쪽 영역: 헤더 액션 + 학생 입력 허용 체크박스 + 수정 버튼 */}
         <div className="flex items-center gap-3">
+          {/* 헤더 추가 액션 (체크박스 등) */}
+          {headerActions && (
+            <div onClick={(e) => e.stopPropagation()}>
+              {headerActions}
+            </div>
+          )}
+
           {/* 학생 입력 허용 체크박스 */}
           {showStudentInputToggle && onStudentInputToggle && (
             <label

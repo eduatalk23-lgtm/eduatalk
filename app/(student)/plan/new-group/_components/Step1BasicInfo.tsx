@@ -1632,18 +1632,20 @@ export function Step1BasicInfo({
 
         {/* 추가 기간 학습 범위 재배치 (1730 Timetable) */}
         {data.scheduler_type === "1730_timetable" && (
-          <CollapsibleSection
-            title="추가 기간 학습 범위 재배치 (선택사항)"
-            defaultOpen={!!data.additional_period_reallocation}
-            studentInputAllowed={lockedFields.allow_student_additional_period_reallocation === true}
-            onStudentInputToggle={(enabled) =>
-              toggleFieldControl("allow_student_additional_period_reallocation")
-            }
-            showStudentInputToggle={isTemplateMode}
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-end gap-4">
-                <div className="flex items-center gap-2">
+          <div className="mt-6">
+            <CollapsibleSection
+              title="추가 기간 학습 범위 재배치 (선택사항)"
+              defaultOpen={!!data.additional_period_reallocation}
+              studentInputAllowed={lockedFields.allow_student_additional_period_reallocation === true}
+              onStudentInputToggle={(enabled) =>
+                toggleFieldControl("allow_student_additional_period_reallocation")
+              }
+              showStudentInputToggle={isTemplateMode}
+              headerActions={
+                <label
+                  className="flex items-center gap-2 text-xs text-gray-600"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <input
                     type="checkbox"
                     id="enable_additional_period"
@@ -1702,24 +1704,18 @@ export function Step1BasicInfo({
                     }
                     className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                   />
-                  <label
-                    htmlFor="enable_additional_period"
-                    className={`text-sm ${
-                      isCampMode && !canStudentInputAdditionalPeriodReallocation
-                        ? "text-gray-500"
-                        : "text-gray-700"
-                    }`}
-                  >
+                  <span className={isCampMode && !canStudentInputAdditionalPeriodReallocation ? "text-gray-500" : ""}>
                     재배치 사용
-                  </label>
-                </div>
-              </div>
-              
-              <p className="text-xs text-gray-600">
-                추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
-                <br />
-                학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
-              </p>
+                  </span>
+                </label>
+              }
+            >
+              <div className="space-y-4">
+                <p className="text-xs text-gray-600">
+                  추가 기간은 복습일로 계산되며, 학습 기간에 배정된 콘텐츠 범위를 추가 기간에 다시 분할 배치합니다.
+                  <br />
+                  학습 기간 + 추가 기간이 전체 학습 기간이 됩니다.
+                </p>
 
               {data.additional_period_reallocation && (
                 <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
