@@ -166,6 +166,7 @@ export type WizardData = {
   }>;
   subject_constraints?: {
     enable_required_subjects_validation?: boolean; // 필수 과목 검증 사용 여부 (템플릿 모드에서 설정)
+    curriculum_revision_id?: string; // 템플릿에서 사용할 개정교육과정 ID
     required_subjects?: Array<{
       subject_category: string; // 교과 (예: 국어, 수학, 영어)
       subject?: string; // 세부 과목 (선택사항)

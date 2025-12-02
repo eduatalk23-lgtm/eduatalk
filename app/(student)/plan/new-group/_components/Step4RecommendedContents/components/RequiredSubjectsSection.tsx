@@ -5,8 +5,12 @@
 
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { WizardData } from "../../PlanGroupWizard";
 import RequiredSubjectItem from "./RequiredSubjectItem";
+import { getCurriculumRevisionsAction } from "@/app/(student)/actions/contentMetadataActions";
+import { getCurrentStudent } from "@/app/(student)/actions/studentActions";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 type RequiredSubjectsSectionProps = {
   data: WizardData;
@@ -14,7 +18,7 @@ type RequiredSubjectsSectionProps = {
   detailSubjects: Map<string, string[]>;
   loadingDetailSubjects: Set<string>;
   onUpdate: (updates: Partial<WizardData>) => void;
-  onLoadDetailSubjects: (category: string) => void;
+  onLoadDetailSubjects: (category: string, curriculumRevisionId?: string) => void;
   onAddRequiredSubject: () => void;
   onUpdateRequiredSubject: (
     index: number,
@@ -26,6 +30,9 @@ type RequiredSubjectsSectionProps = {
   ) => void;
   onRemoveRequiredSubject: (index: number) => void;
   onConstraintHandlingChange: (handling: "strict" | "warning" | "auto_fix") => void;
+  isTemplateMode?: boolean;
+  isCampMode?: boolean;
+  studentId?: string;
 };
 
 export default function RequiredSubjectsSection({
@@ -38,7 +45,100 @@ export default function RequiredSubjectsSection({
   onUpdateRequiredSubject,
   onRemoveRequiredSubject,
   onConstraintHandlingChange,
+  isTemplateMode = false,
+  isCampMode = false,
+  studentId,
 }: RequiredSubjectsSectionProps) {
+  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+  const [studentCurriculumRevision, setStudentCurriculumRevision] = useState<string | null>(null);
+  const [loadingStudentCurriculum, setLoadingStudentCurriculum] = useState(false);
+
+  // 개정교육과정 목록 조회 (템플릿 모드 또는 캠프 모드일 때)
+  useEffect(() => {
+    if (isTemplateMode || isCampMode) {
+      setLoadingRevisions(true);
+      getCurriculumRevisionsAction()
+        .then((revisions) => {
+          setCurriculumRevisions(revisions || []);
+        })
+        .catch((error) => {
+          console.error("개정교육과정 조회 실패:", error);
+        })
+        .finally(() => {
+          setLoadingRevisions(false);
+        });
+    }
+  }, [isTemplateMode, isCampMode]);
+
+  // 학생의 개정교육과정 확인 (캠프 모드일 때만)
+  useEffect(() => {
+    if (isCampMode && studentId) {
+      setLoadingStudentCurriculum(true);
+      getCurrentStudent()
+        .then((student) => {
+          if (student?.curriculum_revision) {
+            setStudentCurriculumRevision(student.curriculum_revision);
+          }
+        })
+        .catch((error) => {
+          console.error("학생 개정교육과정 조회 실패:", error);
+        })
+        .finally(() => {
+          setLoadingStudentCurriculum(false);
+        });
+    }
+  }, [isCampMode, studentId]);
+
+  const currentCurriculumRevisionId = data.subject_constraints?.curriculum_revision_id;
+
+  // 템플릿의 개정교육과정과 학생의 개정교육과정 비교
+  const curriculumMismatch = useMemo(() => {
+    if (!isCampMode || !currentCurriculumRevisionId || !studentCurriculumRevision) {
+      return null;
+    }
+
+    const templateRevision = curriculumRevisions.find(
+      (r) => r.id === currentCurriculumRevisionId
+    );
+
+    if (!templateRevision) {
+      return null;
+    }
+
+    // 학생의 curriculum_revision 텍스트와 템플릿의 name 비교
+    // 예: "2022 개정" vs "2022개정교육과정"
+    const templateNameNormalized = templateRevision.name.replace(/교육과정/g, "").trim();
+    const studentRevisionNormalized = studentCurriculumRevision.trim();
+
+    // 연도 추출하여 비교
+    const templateYear = templateRevision.year;
+    const studentYear = studentRevisionNormalized.match(/\d{4}/)?.[0];
+
+    if (templateYear && studentYear) {
+      return templateYear.toString() !== studentYear;
+    }
+
+    // 연도가 없으면 이름으로 비교
+    return !templateNameNormalized.includes(studentRevisionNormalized) &&
+           !studentRevisionNormalized.includes(templateNameNormalized);
+  }, [isCampMode, currentCurriculumRevisionId, studentCurriculumRevision, curriculumRevisions]);
+
+  const handleCurriculumRevisionChange = (revisionId: string) => {
+    // 개정교육과정 변경 시 세부 과목 목록 초기화를 위해 subject_constraints 업데이트
+    onUpdate({
+      subject_constraints: {
+        ...data.subject_constraints,
+        curriculum_revision_id: revisionId || undefined,
+        // 개정교육과정이 변경되면 기존 세부 과목 정보는 무효하므로 초기화
+        required_subjects: data.subject_constraints?.required_subjects?.map((req) => ({
+          ...req,
+          subject: undefined, // 세부 과목 초기화
+        })),
+      },
+    });
+  };
+
   return (
     <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-6 mb-6 shadow-md">
       <div className="mb-4">
@@ -57,6 +157,60 @@ export default function RequiredSubjectsSection({
       </div>
 
       <div className="space-y-4">
+        {/* 개정교육과정 선택 (템플릿 모드일 때만) */}
+        {isTemplateMode && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              개정교육과정 <span className="text-red-500">*</span>
+            </label>
+            {loadingRevisions ? (
+              <p className="text-xs text-gray-500">개정교육과정 불러오는 중...</p>
+            ) : (
+              <select
+                value={currentCurriculumRevisionId || ""}
+                onChange={(e) => handleCurriculumRevisionChange(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                required={isTemplateMode}
+              >
+                <option value="">개정교육과정 선택</option>
+                {curriculumRevisions.map((revision) => (
+                  <option key={revision.id} value={revision.id}>
+                    {revision.name} {revision.year ? `(${revision.year})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              세부 과목을 지정하려면 개정교육과정을 먼저 선택하세요.
+            </p>
+          </div>
+        )}
+
+        {/* 학생 개정교육과정 불일치 경고 (캠프 모드일 때만) */}
+        {isCampMode && curriculumMismatch && (
+          <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-600">⚠️</span>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800">
+                  개정교육과정 불일치
+                </p>
+                <p className="mt-1 text-xs text-amber-700">
+                  템플릿의 개정교육과정과 학생의 개정교육과정이 다릅니다.{" "}
+                  {studentCurriculumRevision && (
+                    <>
+                      학생: {studentCurriculumRevision}, 템플릿:{" "}
+                      {curriculumRevisions.find(
+                        (r) => r.id === currentCurriculumRevisionId
+                      )?.name || "알 수 없음"}
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <p className="text-sm text-gray-600">
           플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 세부 과목까지
           지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
@@ -82,7 +236,9 @@ export default function RequiredSubjectsSection({
                     onUpdateRequiredSubject(index, updated)
                   }
                   onRemove={() => onRemoveRequiredSubject(index)}
-                  onLoadDetailSubjects={onLoadDetailSubjects}
+                  onLoadDetailSubjects={(category) =>
+                    onLoadDetailSubjects(category, currentCurriculumRevisionId)
+                  }
                 />
               )
             )}

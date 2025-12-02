@@ -137,12 +137,12 @@ export default function Step4RecommendedContents({
   // 필수 교과 핸들러
   // ============================================================================
   const handleLoadDetailSubjects = useCallback(
-    async (category: string) => {
+    async (category: string, curriculumRevisionId?: string) => {
       if (detailSubjects.has(category)) return;
 
       setLoadingDetailSubjects((prev) => new Set(prev).add(category));
       try {
-        const subjects = await fetchDetailSubjects(category);
+        const subjects = await fetchDetailSubjects(category, curriculumRevisionId);
         setDetailSubjects((prev) => new Map(prev).set(category, subjects));
       } catch (error) {
         console.error("세부 과목 조회 실패:", error);
@@ -390,6 +390,9 @@ export default function Step4RecommendedContents({
           onUpdateRequiredSubject={handleRequiredSubjectUpdate}
           onRemoveRequiredSubject={handleRequiredSubjectRemove}
           onConstraintHandlingChange={handleConstraintHandlingChange}
+          isTemplateMode={false}
+          isCampMode={isCampMode}
+          studentId={studentId}
         />
       )}
 

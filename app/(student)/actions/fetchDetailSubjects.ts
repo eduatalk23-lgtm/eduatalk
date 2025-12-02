@@ -1,15 +1,31 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSubjectsByGroupName } from "@/lib/data/subjects";
 
 /**
  * 특정 교과의 세부 과목 목록 조회
  * 
  * @param subjectCategory - 교과명 (예: "국어", "수학", "영어")
+ * @param curriculumRevisionId - 개정교육과정 ID (선택사항, 있으면 subjects 테이블에서 조회)
  * @returns 세부 과목 목록 (중복 제거 및 정렬됨)
  */
-export async function fetchDetailSubjects(subjectCategory: string): Promise<string[]> {
+export async function fetchDetailSubjects(
+  subjectCategory: string,
+  curriculumRevisionId?: string
+): Promise<string[]> {
   try {
+    // 개정교육과정 ID가 있으면 subjects 테이블에서 조회 (정규화된 구조)
+    if (curriculumRevisionId) {
+      const subjects = await getSubjectsByGroupName(
+        subjectCategory,
+        curriculumRevisionId
+      );
+      return subjects.map((s) => s.name).sort();
+    }
+
+    // 개정교육과정 ID가 없으면 기존 방식 (master_books, master_lectures에서 조회)
+    // 하위 호환성을 위해 유지
     const supabase = await createSupabaseServerClient();
     
     // master_books에서 조회

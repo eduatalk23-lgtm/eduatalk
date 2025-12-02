@@ -136,7 +136,7 @@ export type RequiredSubjectsSectionProps = {
   detailSubjects: Map<string, string[]>;
   loadingDetailSubjects: Set<string>;
   onUpdate: (updates: Partial<WizardData>) => void;
-  onLoadDetailSubjects: (category: string) => Promise<void>;
+  onLoadDetailSubjects: (category: string, curriculumRevisionId?: string) => void;
   onAddRequiredSubject: () => void;
   onUpdateRequiredSubject: (
     index: number,
@@ -147,6 +147,10 @@ export type RequiredSubjectsSectionProps = {
     }>
   ) => void;
   onRemoveRequiredSubject: (index: number) => void;
+  onConstraintHandlingChange?: (handling: "strict" | "warning" | "auto_fix") => void;
+  isTemplateMode?: boolean;
+  isCampMode?: boolean;
+  studentId?: string;
 };
 
 export type RecommendationRequestFormProps = {

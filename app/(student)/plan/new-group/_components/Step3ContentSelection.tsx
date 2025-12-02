@@ -16,6 +16,8 @@ import { BookOpen, Sparkles, Package } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getRecommendedMasterContentsAction } from "@/app/(student)/actions/getRecommendedMasterContents";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
+import { getCurriculumRevisionsAction } from "@/app/(student)/actions/contentMetadataActions";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -70,6 +72,25 @@ export function Step3ContentSelection({
   const [loadingDetailSubjects, setLoadingDetailSubjects] = useState<
     Set<string>
   >(new Set());
+  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+
+  // 개정교육과정 목록 조회 (템플릿 모드일 때만)
+  useEffect(() => {
+    if (isTemplateMode) {
+      setLoadingRevisions(true);
+      getCurriculumRevisionsAction()
+        .then((revisions) => {
+          setCurriculumRevisions(revisions || []);
+        })
+        .catch((error) => {
+          console.error("개정교육과정 조회 실패:", error);
+        })
+        .finally(() => {
+          setLoadingRevisions(false);
+        });
+    }
+  }, [isTemplateMode]);
 
   // 최대 콘텐츠 개수
   const maxContents = 9;
@@ -530,13 +551,13 @@ export function Step3ContentSelection({
   // 필수 교과 설정 핸들러
   // 세부 과목 불러오기
   const handleLoadDetailSubjects = useCallback(
-    async (category: string) => {
+    async (category: string, curriculumRevisionId?: string) => {
       if (detailSubjects.has(category)) return;
 
       setLoadingDetailSubjects((prev) => new Set([...prev, category]));
 
       try {
-        const subjects = await fetchDetailSubjects(category);
+        const subjects = await fetchDetailSubjects(category, curriculumRevisionId);
         setDetailSubjects((prev) => new Map([...prev, [category, subjects]]));
       } catch (error) {
         console.error("Error loading detail subjects:", error);
@@ -673,6 +694,50 @@ export function Step3ContentSelection({
         </div>
 
         <div className="space-y-4">
+          {/* 개정교육과정 선택 (템플릿 모드일 때만) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              개정교육과정 <span className="text-red-500">*</span>
+            </label>
+            {loadingRevisions ? (
+              <p className="text-xs text-gray-500">개정교육과정 불러오는 중...</p>
+            ) : (
+              <select
+                value={data.subject_constraints?.curriculum_revision_id || ""}
+                onChange={(e) => {
+                  const currentConstraints = data.subject_constraints || {
+                    enable_required_subjects_validation: true,
+                    required_subjects: [],
+                    constraint_handling: "warning",
+                  };
+                  onUpdate({
+                    subject_constraints: {
+                      ...currentConstraints,
+                      curriculum_revision_id: e.target.value || undefined,
+                      // 개정교육과정이 변경되면 기존 세부 과목 정보는 무효하므로 초기화
+                      required_subjects: currentConstraints.required_subjects?.map((req) => ({
+                        ...req,
+                        subject: undefined, // 세부 과목 초기화
+                      })),
+                    },
+                  });
+                }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                required={isTemplateMode}
+              >
+                <option value="">개정교육과정 선택</option>
+                {curriculumRevisions.map((revision) => (
+                  <option key={revision.id} value={revision.id}>
+                    {revision.name} {revision.year ? `(${revision.year})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="mt-1 text-xs text-gray-500">
+              세부 과목을 지정하려면 개정교육과정을 먼저 선택하세요.
+            </p>
+          </div>
+
           <p className="text-sm text-gray-600">
             플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 세부 과목까지
             지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
@@ -698,7 +763,12 @@ export function Step3ContentSelection({
                       handleRequiredSubjectUpdate(index, updated)
                     }
                     onRemove={() => handleRequiredSubjectRemove(index)}
-                    onLoadDetailSubjects={handleLoadDetailSubjects}
+                    onLoadDetailSubjects={(category) =>
+                      handleLoadDetailSubjects(
+                        category,
+                        data.subject_constraints?.curriculum_revision_id
+                      )
+                    }
                   />
                 )
               )}
