@@ -30,7 +30,7 @@ function CardComponent({
   return (
     <div
       className={cn(
-        "rounded-xl border border-gray-200 bg-white shadow-sm",
+        "rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm",
         hover && "transition-shadow hover:shadow-md",
         paddingClasses[padding],
         className
@@ -61,9 +61,9 @@ export function CardHeader({
   return (
     <div className={cn("flex items-start justify-between gap-4", className)}>
       <div className="flex flex-col gap-1">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
         {description && (
-          <p className="text-sm text-gray-500">{description}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
         )}
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
@@ -97,7 +97,7 @@ export function CardFooter({ children, className }: CardFooterProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-2 border-t border-gray-100 pt-4",
+        "flex items-center justify-end gap-2 border-t border-gray-100 dark:border-gray-700 pt-4",
         className
       )}
     >

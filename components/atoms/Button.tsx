@@ -22,16 +22,16 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-900 border-transparent",
+    "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 focus:ring-gray-900 dark:focus:ring-gray-100 border-transparent",
   secondary:
-    "bg-gray-100 text-gray-900 hover:bg-gray-200 focus:ring-gray-500 border-transparent",
+    "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 focus:ring-gray-500 dark:focus:ring-gray-400 border-transparent",
   destructive:
-    "bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 border-transparent",
+    "bg-red-600 dark:bg-red-700 text-white hover:bg-red-700 dark:hover:bg-red-800 focus:ring-red-600 dark:focus:ring-red-700 border-transparent",
   outline:
-    "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 focus:ring-gray-500",
+    "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-600 focus:ring-gray-500 dark:focus:ring-gray-400",
   ghost:
-    "bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500 border-transparent",
-  link: "bg-transparent text-gray-900 hover:underline focus:ring-gray-500 border-transparent p-0",
+    "bg-transparent text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500 dark:focus:ring-gray-400 border-transparent",
+  link: "bg-transparent text-gray-900 dark:text-gray-100 hover:underline focus:ring-gray-500 dark:focus:ring-gray-400 border-transparent p-0",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

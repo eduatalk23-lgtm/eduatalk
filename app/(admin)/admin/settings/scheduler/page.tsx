@@ -11,8 +11,8 @@ export default function SchedulerSettingsPage() {
     <div className="p-6 md:p-8">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6">
-          <h1 className="text-h1 text-gray-900">스케줄러 설정</h1>
-          <p className="mt-2 text-body-2 text-gray-600">
+          <h1 className="text-h1 text-gray-900 dark:text-gray-100">스케줄러 설정</h1>
+          <p className="mt-2 text-body-2 text-gray-600 dark:text-gray-400">
             기관 전체의 기본 스케줄러 설정을 관리합니다. 이 설정은 모든 플랜
             그룹에 기본값으로 적용됩니다.
           </p>

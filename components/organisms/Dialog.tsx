@@ -82,7 +82,7 @@ function DialogComponent({
       <div
         ref={dialogRef}
         className={cn(
-          "relative w-full rounded-xl border border-gray-200 bg-white shadow-xl",
+          "relative w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-xl",
           "animate-in fade-in-0 zoom-in-95 duration-200",
           sizeClasses[size]
         )}
@@ -92,7 +92,7 @@ function DialogComponent({
         {showCloseButton && (
           <button
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200"
             aria-label="닫기"
           >
             <svg
@@ -113,19 +113,19 @@ function DialogComponent({
 
         {/* Header */}
         {(title || description) && (
-          <div className="border-b border-gray-200 px-6 py-4">
+          <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             {title && (
               <h2
                 className={cn(
                   "text-lg font-semibold",
-                  variant === "destructive" ? "text-red-900" : "text-gray-900"
+                  variant === "destructive" ? "text-red-900 dark:text-red-400" : "text-gray-900 dark:text-gray-100"
                 )}
               >
                 {title}
               </h2>
             )}
             {description && (
-              <p className="mt-1.5 text-sm text-gray-700">{description}</p>
+              <p className="mt-1.5 text-sm text-gray-700 dark:text-gray-300">{description}</p>
             )}
           </div>
         )}
