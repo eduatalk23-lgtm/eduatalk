@@ -109,6 +109,7 @@ const signUpSchema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다.").min(1, "이메일을 입력해주세요."),
   password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
   displayName: z.string().min(1, "이름을 입력해주세요.").max(100, "이름은 100자 이하여야 합니다."),
+  tenantId: z.string().min(1, "기관을 선택해주세요.").optional(),
 });
 
 export async function signUp(
@@ -118,9 +119,10 @@ export async function signUp(
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
   const displayName = String(formData.get("displayName") ?? "").trim();
+  const tenantId = String(formData.get("tenant_id") ?? "").trim();
 
   // 입력 검증
-  const validation = signUpSchema.safeParse({ email, password, displayName });
+  const validation = signUpSchema.safeParse({ email, password, displayName, tenantId });
   if (!validation.success) {
     const firstError = validation.error.issues[0];
     return { error: firstError?.message || "모든 필드를 올바르게 입력해주세요." };
@@ -132,7 +134,10 @@ export async function signUp(
       email: validation.data.email,
       password: validation.data.password,
       options: {
-        data: { display_name: validation.data.displayName },
+        data: {
+          display_name: validation.data.displayName,
+          tenant_id: validation.data.tenantId || null, // 기관 ID를 user_metadata에 저장
+        },
       },
     });
 

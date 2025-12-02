@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { signUp } from "@/app/actions/auth";
+import { getTenantOptionsForSignup } from "@/app/actions/tenants";
+import type { TenantOption } from "@/app/actions/tenants";
 import FormInput from "@/components/ui/FormInput";
 import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
@@ -23,6 +25,26 @@ export default function SignupPage() {
     signUp,
     initialState
   );
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [loadingTenants, setLoadingTenants] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTenantId, setSelectedTenantId] = useState("");
+
+  // 기관 목록 로드
+  useEffect(() => {
+    const loadTenants = async () => {
+      try {
+        const data = await getTenantOptionsForSignup();
+        setTenants(data);
+      } catch (error) {
+        console.error("Failed to load tenants:", error);
+      } finally {
+        setLoadingTenants(false);
+      }
+    };
+
+    loadTenants();
+  }, []);
 
   // 회원가입 성공 시 리다이렉트
   useEffect(() => {
@@ -33,6 +55,11 @@ export default function SignupPage() {
       return () => clearTimeout(timer);
     }
   }, [state, router]);
+
+  // 검색 필터링
+  const filteredTenants = tenants.filter((tenant) =>
+    tenant.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
@@ -71,6 +98,67 @@ export default function SignupPage() {
           required
           placeholder="최소 6자 이상"
         />
+
+        {/* 기관 선택 */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="tenant_id" className="text-sm font-medium text-gray-700">
+            소속 기관 <span className="text-red-500">*</span>
+          </label>
+          {loadingTenants ? (
+            <div className="text-sm text-gray-500">기관 목록을 불러오는 중...</div>
+          ) : tenants.length === 0 ? (
+            <div className="text-sm text-red-500">
+              등록된 기관이 없습니다. 관리자에게 문의하세요.
+            </div>
+          ) : (
+            <>
+              <input
+                type="text"
+                placeholder="기관명으로 검색... (선택사항)"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  // 검색 시 선택 해제
+                  if (e.target.value && !filteredTenants.find(t => t.id === selectedTenantId)) {
+                    setSelectedTenantId("");
+                  }
+                }}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+              />
+              <select
+                id="tenant_id"
+                name="tenant_id"
+                required
+                value={selectedTenantId}
+                onChange={(e) => setSelectedTenantId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+              >
+                <option value="">기관을 선택하세요</option>
+                {filteredTenants.length === 0 ? (
+                  <option value="" disabled>
+                    {searchQuery ? "검색 결과가 없습니다" : "기관이 없습니다"}
+                  </option>
+                ) : (
+                  filteredTenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name} {tenant.type ? `(${tenant.type})` : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+              {searchQuery && filteredTenants.length === 0 && (
+                <p className="text-xs text-gray-500">
+                  검색 결과가 없습니다. 검색어를 지우고 다시 시도해보세요.
+                </p>
+              )}
+              {tenants.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  총 {tenants.length}개의 기관이 등록되어 있습니다.
+                </p>
+              )}
+            </>
+          )}
+        </div>
 
         {state?.error && <FormMessage type="error" message={state.error} />}
 

@@ -38,9 +38,12 @@ export async function saveStudentInfo(formData: FormData): Promise<void> {
     }
   }
 
+  // user_metadata에서 tenant_id 가져오기 (회원가입 시 선택한 기관)
+  const tenantIdFromMetadata = user.user_metadata?.tenant_id as string | null | undefined;
+
   const result = await upsertStudent({
     id: user.id,
-    tenant_id: null, // null이면 upsertStudent에서 기본 tenant 자동 할당
+    tenant_id: tenantIdFromMetadata || null, // 회원가입 시 선택한 기관 사용, 없으면 기본 tenant 자동 할당
     name,
     grade,
     class: klass,
@@ -79,9 +82,12 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
       return { success: false, error: "필수 정보(이름, 학년, 생년월일)를 입력해주세요." };
     }
     
+    // user_metadata에서 tenant_id 가져오기 (회원가입 시 선택한 기관)
+    const tenantIdFromMetadata = user.user_metadata?.tenant_id as string | null | undefined;
+
     const createResult = await upsertStudent({
       id: user.id,
-      tenant_id: null, // null이면 upsertStudent에서 기본 tenant 자동 할당
+      tenant_id: tenantIdFromMetadata || null, // 회원가입 시 선택한 기관 사용, 없으면 기본 tenant 자동 할당
       name,
       grade,
       class: "",
