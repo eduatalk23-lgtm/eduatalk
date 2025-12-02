@@ -103,7 +103,13 @@ const { count: active } = await supabase
    - 새로 생성되는 기관은 자동으로 'active' 상태로 설정
 
 3. **데이터 마이그레이션**
-   - 기존 기관의 status가 null인 경우, 필요시 마이그레이션 스크립트 실행 고려
+   - 마이그레이션 파일: `supabase/migrations/20251202172406_add_tenant_status_column.sql`
+   - 마이그레이션이 적용되어 status 컬럼이 추가됨
+   - 기존 데이터는 자동으로 'active'로 설정됨
+
+4. **Fallback 처리**
+   - status 컬럼이 없을 때를 대비한 fallback 처리 추가
+   - 컬럼이 없어도 에러 없이 작동 (전체를 활성으로 간주)
 
 ---
 
