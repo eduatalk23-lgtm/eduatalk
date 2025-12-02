@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { updateCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
 import {
   PlanGroupWizard,
@@ -13,9 +15,7 @@ import {
 } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BlockSetWithBlocks } from "@/lib/data/blockSets";
-import { TemplateFormChecklist } from "../../_components/TemplateFormChecklist";
 import { CampTemplateImpactSummary } from "@/lib/data/campTemplates";
-import Link from "next/link";
 
 type CampTemplateEditFormProps = {
   template: CampTemplate;
@@ -85,6 +85,9 @@ export function CampTemplateEditForm({
   const [campLocation, setCampLocation] = useState(
     template.camp_location || ""
   );
+  const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
+  const [wizardSaveFunction, setWizardSaveFunction] = useState<(() => Promise<void>) | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleTemplateUpdate = async (wizardData: WizardData) => {
     const finalWizardData: WizardData = {
@@ -218,15 +221,69 @@ export function CampTemplateEditForm({
         </div>
       )}
 
-      {/* 기본 정보 체크리스트 */}
-      <TemplateFormChecklist name={templateName} programType={programType} />
+      {/* 액션 버튼 - PlanGroupWizard의 액션 바와 동일한 스타일 */}
+      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+        <Link
+          href="/admin/camp-templates"
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          템플릿 목록
+        </Link>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
+                router.push("/admin/camp-templates");
+              }
+            }}
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!wizardSaveFunction) return;
+              setIsSaving(true);
+              try {
+                await wizardSaveFunction();
+              } catch (error) {
+                console.error("템플릿 저장 실패:", error);
+              } finally {
+                setIsSaving(false);
+              }
+            }}
+            disabled={isSaving || !wizardSaveFunction || !templateName}
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSaving ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      </div>
 
       {/* 템플릿 메타 정보 입력 섹션 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">
-          템플릿 기본 정보
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => setIsBasicInfoOpen(!isBasicInfoOpen)}
+          className="flex w-full items-center justify-between p-6 text-left"
+        >
+          <h2 className="text-lg font-semibold text-gray-900">
+            템플릿 기본 정보
+          </h2>
+          {isBasicInfoOpen ? (
+            <ChevronUp className="h-5 w-5 text-gray-500" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-gray-500" />
+          )}
+        </button>
+        {isBasicInfoOpen && (
+          <div className="border-t border-gray-200 p-6">
+            <div className="grid gap-4 md:grid-cols-2">
           {/* 템플릿 이름 */}
           <div className="md:col-span-2">
             <label
@@ -343,7 +400,9 @@ export function CampTemplateEditForm({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
             />
           </div>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 플랜 그룹 위저드 */}
@@ -357,6 +416,7 @@ export function CampTemplateEditForm({
         }}
         isTemplateMode={true}
         onTemplateSave={handleTemplateUpdate}
+        onSaveRequest={(saveFn) => setWizardSaveFunction(() => saveFn)}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo, useCallback } from "react";
+import { useState, useTransition, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
@@ -27,7 +27,6 @@ import { Step3SchedulePreview } from "./Step3SchedulePreview";
 import { Step3ContentSelection } from "./Step3ContentSelection";
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./Step7ScheduleResult";
-import { TemplateWizardChecklist } from "@/app/(admin)/admin/camp-templates/_components/TemplateWizardChecklist";
 
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -269,6 +268,7 @@ type PlanGroupWizardProps = {
   isAdminMode?: boolean; // 관리자 모드 (관리자용)
   isAdminContinueMode?: boolean; // 관리자 남은 단계 진행 모드 (1~4단계 읽기 전용, 5~7단계만 편집)
   onTemplateSave?: (wizardData: WizardData) => Promise<void>; // 템플릿 저장 콜백
+  onSaveRequest?: (saveFn: () => Promise<void>) => void; // 저장 함수를 외부에 노출
 };
 
 
@@ -378,6 +378,7 @@ export function PlanGroupWizard({
   isAdminMode = false,
   isAdminContinueMode = false,
   onTemplateSave,
+  onSaveRequest,
 }: PlanGroupWizardProps) {
   const router = useRouter();
   const toast = useToast();
@@ -649,21 +650,8 @@ export function PlanGroupWizard({
           } as WizardData;
 
           try {
-            if (templateId) {
-              const formData = new FormData();
-              formData.append("name", wizardData.name);
-              formData.append("program_type", templateProgramType);
-              formData.append("description", "");
-              formData.append("status", templateStatus);
-              formData.append("template_data", JSON.stringify(templateWizardData));
-
-              const result = await updateCampTemplateAction(templateId, formData);
-              if (!result.success) {
-                throw new Error(result.error || "템플릿 저장에 실패했습니다.");
-              }
-            } else {
-              await onTemplateSave(templateWizardData);
-            }
+            // 템플릿 저장은 항상 onTemplateSave를 통해 처리 (기본 정보 포함)
+            await onTemplateSave(templateWizardData);
 
             if (!silent) {
               toast.showSuccess("저장되었습니다.");
@@ -1110,68 +1098,63 @@ export function PlanGroupWizard({
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
 
+  // 저장 함수를 외부에 노출 (템플릿 모드일 때만)
+  useEffect(() => {
+    if (isTemplateMode && onSaveRequest) {
+      onSaveRequest(() => handleSaveDraft(false));
+    }
+  }, [isTemplateMode, onSaveRequest, handleSaveDraft]);
+
   return (
     <div className="mx-auto w-full max-w-4xl">
-      {/* 상단 액션 바 */}
-      <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2">
-          {/* 캠프 모드일 때는 버튼 숨김 (상위 페이지의 '목록으로 돌아가기' 버튼 사용) */}
-          {!isCampMode && (
-            <Link
-              href={
-                isTemplateMode
-                  ? "/admin/camp-templates"
-                  : isEditMode
-                  ? `/plan/group/${draftGroupId}`
-                  : "/plan"
-              }
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              {isTemplateMode
-                ? "템플릿 목록"
-                : isEditMode
-                ? "상세 보기"
-                : "플랜 목록"}
-            </Link>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
-                if (isTemplateMode) {
-                  router.push("/admin/camp-templates");
-                } else {
+      {/* 상단 액션 바 - 템플릿 모드일 때는 숨김 (CampTemplateEditForm에서 처리) */}
+      {!isTemplateMode && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            {/* 캠프 모드일 때는 버튼 숨김 (상위 페이지의 '목록으로 돌아가기' 버튼 사용) */}
+            {!isCampMode && (
+              <Link
+                href={
+                  isEditMode
+                    ? `/plan/group/${draftGroupId}`
+                    : "/plan"
+                }
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                {isEditMode
+                  ? "상세 보기"
+                  : "플랜 목록"}
+              </Link>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
                   router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan");
                 }
-              }
-            }}
-            disabled={isPending}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSaveDraft(false)}
-            disabled={isPending || !wizardData.name}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPending ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-
-      {/* 템플릿 모드 체크리스트 */}
-      {isTemplateMode && (
-        <div className="mb-6">
-          <TemplateWizardChecklist wizardData={wizardData} />
+              }}
+              disabled={isPending}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSaveDraft(false)}
+              disabled={isPending || !wizardData.name}
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? "저장 중..." : "저장"}
+            </button>
+          </div>
         </div>
       )}
+
 
       {/* 에러 및 경고 메시지 */}
       {validationErrors.length > 0 && (
