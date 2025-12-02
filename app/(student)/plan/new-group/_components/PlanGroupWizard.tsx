@@ -569,11 +569,6 @@ export function PlanGroupWizard({
   };
 
   const handleNext = () => {
-    // Step 5에서는 완료 버튼이 Step7ScheduleResult 내부에 있으므로 여기서는 아무것도 하지 않음
-    if (currentStep === 5) {
-      return;
-    }
-
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
     if (currentStep !== 3) {
       if (!validateStep(currentStep)) {
@@ -591,6 +586,12 @@ export function PlanGroupWizard({
     // 단, 관리자 남은 단계 진행 모드일 때는 Step 4-5를 진행해야 하므로 제출하지 않음
     if (isCampMode && currentStep === 3 && !isAdminContinueMode) {
       handleSubmit();
+      return;
+    }
+
+    // Step 5 (최종 확인)에서 다음 버튼 클릭 시 플랜 생성 및 Step 6으로 이동
+    if (currentStep === 5) {
+      handleSubmit(true); // 플랜 생성
       return;
     }
 
@@ -1007,6 +1008,12 @@ export function PlanGroupWizard({
           console.warn("[PlanGroupWizard] 플랜 그룹 상태 변경 실패:", planGroupError);
         }
 
+        // Step 5에서 호출된 경우 플랜 생성 후 Step 6으로 이동
+        if (currentStep === 5 && generatePlans) {
+          // 플랜 생성은 아래에서 처리됨
+          // Step 6으로 이동은 플랜 생성 후에 처리
+        }
+
         // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
         if (currentStep === 6) {
           setDraftGroupId(finalGroupId);
@@ -1015,7 +1022,7 @@ export function PlanGroupWizard({
           return;
         }
 
-        // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 6에서)
+        // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
         if (currentStep === 4 && !generatePlans) {
           setDraftGroupId(finalGroupId);
           setCurrentStep(5);
@@ -1023,13 +1030,18 @@ export function PlanGroupWizard({
           return;
         }
 
-        // 플랜 생성 (Step 7로 이동하기 전에, 템플릿 모드가 아닐 때만, generatePlans가 true일 때만)
+        // 플랜 생성 (템플릿 모드가 아닐 때만, generatePlans가 true일 때만)
         if (!isTemplateMode && generatePlans) {
           try {
             await generatePlansFromGroupAction(finalGroupId);
-            // Step 7로 이동
             setDraftGroupId(finalGroupId);
-            setCurrentStep(7);
+            
+            // Step 5에서 호출된 경우 Step 6으로 이동, 그 외에는 Step 7로 이동
+            if (currentStep === 5) {
+              setCurrentStep(6);
+            } else {
+              setCurrentStep(7);
+            }
           
           // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
           // (자동 활성화는 하지 않음 - 사용자가 완료 버튼을 눌렀을 때만 활성화)
@@ -1321,6 +1333,10 @@ export function PlanGroupWizard({
             ? "템플릿 저장하기"
             : currentStep === 4 && isCampMode && !isAdminContinueMode
             ? "참여 제출하기"
+            : currentStep === 5
+            ? isEditMode
+              ? "수정 및 플랜 생성"
+              : "플랜 생성하기"
             : currentStep === 6
             ? isEditMode
               ? "수정 및 플랜 생성"
