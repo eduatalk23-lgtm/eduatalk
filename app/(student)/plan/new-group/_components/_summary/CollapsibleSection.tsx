@@ -27,6 +27,11 @@ export type CollapsibleSectionProps = {
   
   // 비활성화
   disabled?: boolean;
+  
+  // 학생 입력 허용 (템플릿 모드용)
+  studentInputAllowed?: boolean;
+  onStudentInputToggle?: (enabled: boolean) => void;
+  showStudentInputToggle?: boolean; // 템플릿 모드일 때만 true
 };
 
 export const CollapsibleSection = React.memo(function CollapsibleSection({
@@ -36,6 +41,9 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
   editLabel = "수정",
   children,
   disabled = false,
+  studentInputAllowed = false,
+  onStudentInputToggle,
+  showStudentInputToggle = false,
 }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -74,20 +82,42 @@ export const CollapsibleSection = React.memo(function CollapsibleSection({
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
 
-        {/* 수정 버튼 */}
-        {onEdit && !disabled && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="flex items-center gap-2 rounded-lg border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50"
-          >
-            <Edit className="h-4 w-4" />
-            {editLabel}
-          </button>
-        )}
+        {/* 오른쪽 영역: 학생 입력 허용 체크박스 + 수정 버튼 */}
+        <div className="flex items-center gap-3">
+          {/* 학생 입력 허용 체크박스 */}
+          {showStudentInputToggle && onStudentInputToggle && (
+            <label
+              className="flex items-center gap-2 text-xs text-gray-600"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                checked={studentInputAllowed}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onStudentInputToggle(e.target.checked);
+                }}
+                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              />
+              <span>학생 입력 허용</span>
+            </label>
+          )}
+
+          {/* 수정 버튼 */}
+          {onEdit && !disabled && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="flex items-center gap-2 rounded-lg border border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50"
+            >
+              <Edit className="h-4 w-4" />
+              {editLabel}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 내용 */}

@@ -7,6 +7,7 @@ import { ExclusionsPanel } from "./ExclusionsPanel";
 import { AcademySchedulePanel } from "./AcademySchedulePanel";
 import { TimeConfigPanel } from "./TimeConfigPanel";
 import { NonStudyTimeBlocksPanel } from "./NonStudyTimeBlocksPanel";
+import { CollapsibleSection } from "../_summary/CollapsibleSection";
 
 type TimeSettingsPanelProps = {
   data: WizardData;
@@ -72,47 +73,127 @@ export const TimeSettingsPanel = React.memo(function TimeSettingsPanel({
       </div>
 
       {/* 학습 제외일 */}
-      <ExclusionsPanel
-        data={data}
-        onUpdate={onUpdate}
-        periodStart={periodStart}
-        periodEnd={periodEnd}
-        groupId={groupId}
-        onNavigateToStep={onNavigateToStep}
-        campMode={campMode}
-        isTemplateMode={isTemplateMode}
-        templateExclusions={templateExclusions}
-        editable={editable}
-      />
+      <CollapsibleSection
+        title="학습 제외일"
+        defaultOpen={true}
+        studentInputAllowed={data.templateLockedFields?.step2?.allow_student_exclusions === true}
+        onStudentInputToggle={(enabled) => {
+          if (!isTemplateMode) return;
+          const currentLocked = data.templateLockedFields?.step2 || {};
+          onUpdate({
+            templateLockedFields: {
+              ...data.templateLockedFields,
+              step2: {
+                ...currentLocked,
+                allow_student_exclusions: enabled,
+              },
+            },
+          });
+        }}
+        showStudentInputToggle={isTemplateMode}
+      >
+        <ExclusionsPanel
+          data={data}
+          onUpdate={onUpdate}
+          periodStart={periodStart}
+          periodEnd={periodEnd}
+          groupId={groupId}
+          onNavigateToStep={onNavigateToStep}
+          campMode={campMode}
+          isTemplateMode={isTemplateMode}
+          templateExclusions={templateExclusions}
+          editable={editable}
+        />
+      </CollapsibleSection>
 
       {/* 학원 일정 */}
-      <AcademySchedulePanel
-        data={data}
-        onUpdate={onUpdate}
-        groupId={groupId}
-        campMode={campMode}
-        isTemplateMode={isTemplateMode}
-        editable={editable}
-        studentId={studentId}
-        isAdminMode={isAdminMode}
-        isAdminContinueMode={isAdminContinueMode}
-      />
+      <CollapsibleSection
+        title="학원 일정"
+        defaultOpen={true}
+        studentInputAllowed={data.templateLockedFields?.step2?.allow_student_academy_schedules === true}
+        onStudentInputToggle={(enabled) => {
+          if (!isTemplateMode) return;
+          const currentLocked = data.templateLockedFields?.step2 || {};
+          onUpdate({
+            templateLockedFields: {
+              ...data.templateLockedFields,
+              step2: {
+                ...currentLocked,
+                allow_student_academy_schedules: enabled,
+              },
+            },
+          });
+        }}
+        showStudentInputToggle={isTemplateMode}
+      >
+        <AcademySchedulePanel
+          data={data}
+          onUpdate={onUpdate}
+          groupId={groupId}
+          campMode={campMode}
+          isTemplateMode={isTemplateMode}
+          editable={editable}
+          studentId={studentId}
+          isAdminMode={isAdminMode}
+          isAdminContinueMode={isAdminContinueMode}
+        />
+      </CollapsibleSection>
 
       {/* 시간 설정 */}
-      <TimeConfigPanel
-        data={data}
-        onUpdate={onUpdate}
-        campMode={campMode}
-        isTemplateMode={isTemplateMode}
-      />
+      <CollapsibleSection
+        title="시간 설정"
+        defaultOpen={true}
+        studentInputAllowed={data.templateLockedFields?.step2?.allow_student_time_settings === true}
+        onStudentInputToggle={(enabled) => {
+          if (!isTemplateMode) return;
+          const currentLocked = data.templateLockedFields?.step2 || {};
+          onUpdate({
+            templateLockedFields: {
+              ...data.templateLockedFields,
+              step2: {
+                ...currentLocked,
+                allow_student_time_settings: enabled,
+              },
+            },
+          });
+        }}
+        showStudentInputToggle={isTemplateMode}
+      >
+        <TimeConfigPanel
+          data={data}
+          onUpdate={onUpdate}
+          campMode={campMode}
+          isTemplateMode={isTemplateMode}
+        />
+      </CollapsibleSection>
 
       {/* 학습 시간 제외 항목 */}
-      <NonStudyTimeBlocksPanel
-        data={data}
-        onUpdate={onUpdate}
-        campMode={campMode}
-        isTemplateMode={isTemplateMode}
-      />
+      <CollapsibleSection
+        title="학습 시간 제외 항목"
+        defaultOpen={true}
+        studentInputAllowed={data.templateLockedFields?.step2?.allow_student_non_study_time_blocks === true}
+        onStudentInputToggle={(enabled) => {
+          if (!isTemplateMode) return;
+          const currentLocked = data.templateLockedFields?.step2 || {};
+          onUpdate({
+            templateLockedFields: {
+              ...data.templateLockedFields,
+              step2: {
+                ...currentLocked,
+                allow_student_non_study_time_blocks: enabled,
+              },
+            },
+          });
+        }}
+        showStudentInputToggle={isTemplateMode}
+      >
+        <NonStudyTimeBlocksPanel
+          data={data}
+          onUpdate={onUpdate}
+          campMode={campMode}
+          isTemplateMode={isTemplateMode}
+        />
+      </CollapsibleSection>
     </div>
   );
 });

@@ -22,6 +22,7 @@ import {
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import { BlockSetTimeline } from "./_shared/BlockSetTimeline";
+import { CollapsibleSection } from "./_summary/CollapsibleSection";
 import { formatDateFromDate, parseDateString as parseDateStringUtil, getTodayParts, formatDateString, addDaysToDate, getDaysInMonth } from "@/lib/utils/date";
 
 type Step1BasicInfoProps = {
@@ -876,107 +877,119 @@ export function Step1BasicInfo({
       )}
 
       {/* 플랜/캠프 이름 (필수) */}
-      <div>
-        <div className="mb-1 flex items-center justify-between">
+      <CollapsibleSection
+        title={`${isCampMode ? "캠프 이름" : "플랜 이름"} *`}
+        defaultOpen={true}
+        studentInputAllowed={lockedFields.allow_student_name === true}
+        onStudentInputToggle={(enabled) =>
+          toggleFieldControl("allow_student_name")
+        }
+        showStudentInputToggle={isTemplateMode}
+      >
+        <div>
           <label
             htmlFor="plan_name"
-            className="block text-sm font-medium text-gray-700"
+            className="mb-2 block text-sm font-medium text-gray-700"
           >
             {isCampMode ? "캠프 이름" : "플랜 이름"}{" "}
             <span className="text-red-500">*</span>
           </label>
-          {renderStudentInputCheckbox("allow_student_name")}
+          <input
+            type="text"
+            id="plan_name"
+            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none ${
+              (!editable && !isCampMode) ||
+              isFieldLocked("name") ||
+              (isCampMode && !canStudentInputName)
+                ? "cursor-not-allowed bg-gray-100 opacity-60"
+                : ""
+            }`}
+            placeholder="예: 1학기 중간고사 대비"
+            value={data.name || ""}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            disabled={
+              (!editable && !isCampMode) ||
+              isFieldLocked("name") ||
+              (isCampMode && !canStudentInputName)
+            }
+            required
+          />
+          {isFieldLocked("name") && (
+            <p className="mt-1 text-xs text-gray-500">
+              이 필드는 템플릿에서 고정되어 있습니다.
+            </p>
+          )}
+          {isCampMode && !canStudentInputName && (
+            <p className="mt-1 text-xs text-gray-500">
+              이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
+            </p>
+          )}
         </div>
-        <input
-          type="text"
-          id="plan_name"
-          className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gray-900 focus:outline-none ${
-            (!editable && !isCampMode) ||
-            isFieldLocked("name") ||
-            (isCampMode && !canStudentInputName)
-              ? "cursor-not-allowed bg-gray-100 opacity-60"
-              : ""
-          }`}
-          placeholder="예: 1학기 중간고사 대비"
-          value={data.name || ""}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-          disabled={
-            (!editable && !isCampMode) ||
-            isFieldLocked("name") ||
-            (isCampMode && !canStudentInputName)
-          }
-          required
-        />
-        {isFieldLocked("name") && (
-          <p className="mt-1 text-xs text-gray-500">
-            이 필드는 템플릿에서 고정되어 있습니다.
-          </p>
-        )}
-        {isCampMode && !canStudentInputName && (
-          <p className="mt-1 text-xs text-gray-500">
-            이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
-          </p>
-        )}
-      </div>
+      </CollapsibleSection>
 
       {/* 플랜 목적 */}
-      <div
-        className={!editable || !canStudentInputPlanPurpose ? "opacity-60" : ""}
+      <CollapsibleSection
+        title="플랜 목적 *"
+        defaultOpen={true}
+        studentInputAllowed={lockedFields.allow_student_plan_purpose === true}
+        onStudentInputToggle={(enabled) =>
+          toggleFieldControl("allow_student_plan_purpose")
+        }
+        showStudentInputToggle={isTemplateMode}
       >
-        <div className="mb-2 flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
-            플랜 목적 <span className="text-red-500">*</span>
-          </label>
-          {renderStudentInputCheckbox("allow_student_plan_purpose")}
+        <div
+          className={!editable || !canStudentInputPlanPurpose ? "opacity-60" : ""}
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            {planPurposes.map((purpose) => (
+              <label
+                key={purpose.value}
+                className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                  !editable || !canStudentInputPlanPurpose
+                    ? "cursor-not-allowed bg-gray-100"
+                    : "cursor-pointer hover:border-gray-300"
+                } ${
+                  data.plan_purpose === purpose.value
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-200 bg-white text-gray-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="plan_purpose"
+                  value={purpose.value}
+                  checked={data.plan_purpose === purpose.value}
+                  onChange={() =>
+                    onUpdate({ plan_purpose: purpose.value as any })
+                  }
+                  disabled={
+                    (!editable && !isCampMode) ||
+                    (isCampMode && !canStudentInputPlanPurpose)
+                  }
+                  className="hidden"
+                />
+                {purpose.label}
+              </label>
+            ))}
+          </div>
+          {isCampMode && !canStudentInputPlanPurpose && (
+            <p className="mt-2 text-xs text-gray-500">
+              이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
+            </p>
+          )}
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          {planPurposes.map((purpose) => (
-            <label
-              key={purpose.value}
-              className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
-                !editable || !canStudentInputPlanPurpose
-                  ? "cursor-not-allowed bg-gray-100"
-                  : "cursor-pointer hover:border-gray-300"
-              } ${
-                data.plan_purpose === purpose.value
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <input
-                type="radio"
-                name="plan_purpose"
-                value={purpose.value}
-                checked={data.plan_purpose === purpose.value}
-                onChange={() =>
-                  onUpdate({ plan_purpose: purpose.value as any })
-                }
-                disabled={
-                  (!editable && !isCampMode) ||
-                  (isCampMode && !canStudentInputPlanPurpose)
-                }
-                className="hidden"
-              />
-              {purpose.label}
-            </label>
-          ))}
-        </div>
-        {isCampMode && !canStudentInputPlanPurpose && (
-          <p className="mt-1 text-xs text-gray-500">
-            이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
-          </p>
-        )}
-      </div>
+      </CollapsibleSection>
 
       {/* 학습 기간 (스케줄러 유형보다 먼저) */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
-            학습 기간 <span className="text-red-500">*</span>
-          </label>
-          {renderStudentInputCheckbox("allow_student_period")}
-        </div>
-
+      <CollapsibleSection
+        title="학습 기간 *"
+        defaultOpen={true}
+        studentInputAllowed={lockedFields.allow_student_period === true}
+        onStudentInputToggle={(enabled) =>
+          toggleFieldControl("allow_student_period")
+        }
+        showStudentInputToggle={isTemplateMode}
+      >
         {/* 기간 입력 유형 선택 */}
         <div
           className={`mb-4 flex flex-wrap gap-2 ${
@@ -1616,17 +1629,18 @@ export function Step1BasicInfo({
             </div>
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* 스케줄러 유형 */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
-            스케줄러 유형 <span className="text-red-500">*</span>
-          </label>
-          {renderStudentInputCheckbox("allow_student_scheduler_type")}
-        </div>
-
+      <CollapsibleSection
+        title="스케줄러 유형 *"
+        defaultOpen={false}
+        studentInputAllowed={lockedFields.allow_student_scheduler_type === true}
+        onStudentInputToggle={(enabled) =>
+          toggleFieldControl("allow_student_scheduler_type")
+        }
+        showStudentInputToggle={isTemplateMode}
+      >
         {/* 스케줄러 유형 선택 (한 줄) */}
         <div
           className={`mb-4 flex gap-2 ${
@@ -1923,26 +1937,19 @@ export function Step1BasicInfo({
             </div>
           </div>
         )}
-      </div>
+      </CollapsibleSection>
 
       {/* 블록 세트 생성/선택 */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <label className="block text-sm font-medium text-gray-700">
-              블록 세트 <span className="text-red-500">*</span>
-            </label>
-            {renderStudentInputCheckbox("allow_student_block_set_id")}
-            <button
-              type="button"
-              onClick={() => setShowBlockSetDesc(!showBlockSetDesc)}
-              className="flex items-center rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              title="블록 세트 설명"
-            >
-              <MessageCircle className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex items-center gap-1">
+      <CollapsibleSection
+        title="블록 세트 *"
+        defaultOpen={true}
+        studentInputAllowed={lockedFields.allow_student_block_set_id === true}
+        onStudentInputToggle={(enabled) =>
+          toggleFieldControl("allow_student_block_set_id")
+        }
+        showStudentInputToggle={isTemplateMode}
+      >
+        <div className="mb-2 flex items-center justify-end gap-1">
             <button
               type="button"
               onClick={handleLoadBlockSets}
@@ -2794,7 +2801,7 @@ export function Step1BasicInfo({
             추가 기간 학습 범위 재배치는 템플릿에서 고정되어 수정할 수 없습니다.
           </p>
         )}
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }
