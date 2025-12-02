@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { getAdminById, listAdminsByTenant } from "@/lib/data/admins";
@@ -9,7 +10,7 @@ import { getAdminById, listAdminsByTenant } from "@/lib/data/admins";
 export default async function AdminSettingsPage() {
   const { userId, role } = await getCurrentUserRole();
 
-  if (!userId || (role !== "admin" && role !== "consultant")) {
+  if (!userId || !isAdminRole(role)) {
     redirect("/login");
   }
 

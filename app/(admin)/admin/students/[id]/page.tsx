@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
@@ -27,7 +28,7 @@ export default async function AdminStudentDetailPage({
 }) {
   const { userId, role } = await getCurrentUserRole();
 
-  if (!userId || (role !== "admin" && role !== "consultant")) {
+  if (!userId || !isAdminRole(role)) {
     redirect("/login");
   }
 

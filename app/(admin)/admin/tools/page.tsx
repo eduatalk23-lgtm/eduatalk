@@ -2,11 +2,12 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { isAdminRole } from "@/lib/auth/isAdminRole";
 
 export default async function AdminToolsPage() {
   const { userId, role } = await getCurrentUserRole();
 
-  if (!userId || (role !== "admin" && role !== "consultant")) {
+  if (!userId || !isAdminRole(role)) {
     redirect("/login");
   }
 

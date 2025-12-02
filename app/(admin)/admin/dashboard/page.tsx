@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { getWeeklyStudyTimeSummary } from "@/lib/reports/weekly";
@@ -448,7 +449,7 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
 export default async function AdminDashboardPage() {
   const { userId, role } = await getCurrentUserRole();
 
-  if (!userId || (role !== "admin" && role !== "consultant")) {
+  if (!userId || !isAdminRole(role)) {
     redirect("/login");
   }
 
