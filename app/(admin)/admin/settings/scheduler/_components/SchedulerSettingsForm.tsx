@@ -264,7 +264,7 @@ export function SchedulerSettingsForm() {
         <button
           type="submit"
           disabled={saving}
-          className="rounded-lg bg-gray-900 px-6 py-3 text-body-2-bold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+          className="rounded-lg bg-gray-900 dark:bg-gray-100 px-6 py-3 text-body-2-bold text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-gray-600"
         >
           {saving ? "저장 중..." : "설정 저장"}
         </button>
