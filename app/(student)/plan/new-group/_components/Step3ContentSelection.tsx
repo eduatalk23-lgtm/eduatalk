@@ -16,8 +16,10 @@ import { BookOpen, Sparkles, Package } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { getRecommendedMasterContentsAction } from "@/app/(student)/actions/getRecommendedMasterContents";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
-import { getCurriculumRevisionsAction } from "@/app/(student)/actions/contentMetadataActions";
+import { getCurriculumRevisionsAction, getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
+import type { SubjectGroup } from "@/lib/data/subjects";
+import RequiredSubjectItem from "../Step4RecommendedContents/components/RequiredSubjectItem";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -65,15 +67,27 @@ export function Step3ContentSelection({
     });
 
   // 필수 교과 설정 관련 상태
-  const availableSubjects = ["국어", "수학", "영어", "과학", "사회"];
-  const [detailSubjects, setDetailSubjects] = useState<Map<string, string[]>>(
-    new Map()
-  );
-  const [loadingDetailSubjects, setLoadingDetailSubjects] = useState<
-    Set<string>
-  >(new Set());
+  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
   const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [loadingSubjectGroups, setLoadingSubjectGroups] = useState(false);
   const [loadingRevisions, setLoadingRevisions] = useState(false);
+
+  // 교과 그룹 목록 조회
+  useEffect(() => {
+    if (isTemplateMode) {
+      setLoadingSubjectGroups(true);
+      getSubjectGroupsAction()
+        .then((groups) => {
+          setAvailableSubjectGroups(groups || []);
+        })
+        .catch((error) => {
+          console.error("교과 그룹 조회 실패:", error);
+        })
+        .finally(() => {
+          setLoadingSubjectGroups(false);
+        });
+    }
+  }, [isTemplateMode]);
 
   // 개정교육과정 목록 조회 (템플릿 모드일 때만)
   useEffect(() => {
@@ -108,7 +122,7 @@ export function Step3ContentSelection({
     const requiredSubjectCategories =
       data.subject_constraints?.required_subjects?.map(
         (req) => req.subject_category
-      ) || [];
+      ).filter(Boolean) || [];
 
     // 필수 교과가 설정되지 않았으면 빈 배열 반환
     if (requiredSubjectCategories.length === 0) {
@@ -549,27 +563,34 @@ export function Step3ContentSelection({
   ]);
 
   // 필수 교과 설정 핸들러
-  // 세부 과목 불러오기
-  const handleLoadDetailSubjects = useCallback(
-    async (category: string, curriculumRevisionId?: string) => {
-      if (detailSubjects.has(category)) return;
-
-      setLoadingDetailSubjects((prev) => new Set([...prev, category]));
-
+  // 개정교육과정별 세부 과목 불러오기
+  const handleLoadSubjects = useCallback(
+    async (subjectGroupId: string, curriculumRevisionId: string): Promise<Array<{ id: string; name: string }>> => {
       try {
-        const subjects = await fetchDetailSubjects(category, curriculumRevisionId);
-        setDetailSubjects((prev) => new Map([...prev, [category, subjects]]));
+        // 해당 개정교육과정의 교과 그룹 찾기
+        const selectedGroup = availableSubjectGroups.find((g) => g.id === subjectGroupId);
+        if (!selectedGroup) {
+          return [];
+        }
+
+        // 같은 이름의 교과 그룹 중 해당 개정교육과정의 것 찾기
+        const curriculumGroup = availableSubjectGroups.find(
+          (g) => g.name === selectedGroup.name && g.curriculum_revision_id === curriculumRevisionId
+        );
+
+        if (!curriculumGroup) {
+          return [];
+        }
+
+        // 해당 교과 그룹의 과목 조회
+        const subjects = await getSubjectsByGroupAction(curriculumGroup.id);
+        return subjects.map((s) => ({ id: s.id, name: s.name }));
       } catch (error) {
-        console.error("Error loading detail subjects:", error);
-      } finally {
-        setLoadingDetailSubjects((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(category);
-          return newSet;
-        });
+        console.error("세부 과목 조회 실패:", error);
+        return [];
       }
     },
-    [detailSubjects]
+    [availableSubjectGroups]
   );
 
   // 필수 교과 추가
@@ -582,6 +603,7 @@ export function Step3ContentSelection({
     };
 
     const newRequirement = {
+      subject_group_id: "",
       subject_category: "",
       min_count: 1,
     };
@@ -603,9 +625,14 @@ export function Step3ContentSelection({
     (
       index: number,
       updated: Partial<{
+        subject_group_id: string;
         subject_category: string;
-        subject?: string;
         min_count: number;
+        subjects_by_curriculum?: Array<{
+          curriculum_revision_id: string;
+          subject_id?: string;
+          subject_name?: string;
+        }>;
       }>
     ) => {
       if (!data.subject_constraints) return;
@@ -694,53 +721,9 @@ export function Step3ContentSelection({
         </div>
 
         <div className="space-y-4">
-          {/* 개정교육과정 선택 (템플릿 모드일 때만) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              개정교육과정 <span className="text-red-500">*</span>
-            </label>
-            {loadingRevisions ? (
-              <p className="text-xs text-gray-500">개정교육과정 불러오는 중...</p>
-            ) : (
-              <select
-                value={data.subject_constraints?.curriculum_revision_id || ""}
-                onChange={(e) => {
-                  const currentConstraints = data.subject_constraints || {
-                    enable_required_subjects_validation: true,
-                    required_subjects: [],
-                    constraint_handling: "warning",
-                  };
-                  onUpdate({
-                    subject_constraints: {
-                      ...currentConstraints,
-                      curriculum_revision_id: e.target.value || undefined,
-                      // 개정교육과정이 변경되면 기존 세부 과목 정보는 무효하므로 초기화
-                      required_subjects: currentConstraints.required_subjects?.map((req) => ({
-                        ...req,
-                        subject: undefined, // 세부 과목 초기화
-                      })),
-                    },
-                  });
-                }}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-                required={isTemplateMode}
-              >
-                <option value="">개정교육과정 선택</option>
-                {curriculumRevisions.map((revision) => (
-                  <option key={revision.id} value={revision.id}>
-                    {revision.name} {revision.year ? `(${revision.year})` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-            <p className="mt-1 text-xs text-gray-500">
-              세부 과목을 지정하려면 개정교육과정을 먼저 선택하세요.
-            </p>
-          </div>
-
           <p className="text-sm text-gray-600">
-            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 세부 과목까지
-            지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
+            플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. 개정교육과정별로
+            세부 과목을 지정하여 더 정확한 제약 조건을 설정할 수 있습니다.
           </p>
 
           {/* 필수 교과 목록 */}
@@ -752,23 +735,13 @@ export function Step3ContentSelection({
                     key={index}
                     requirement={req}
                     index={index}
-                    availableSubjects={availableSubjects}
-                    availableDetailSubjects={
-                      detailSubjects.get(req.subject_category) || []
-                    }
-                    loadingDetailSubjects={loadingDetailSubjects.has(
-                      req.subject_category
-                    )}
+                    availableSubjectGroups={availableSubjectGroups}
+                    curriculumRevisions={curriculumRevisions}
+                    onLoadSubjects={handleLoadSubjects}
                     onUpdate={(updated) =>
                       handleRequiredSubjectUpdate(index, updated)
                     }
                     onRemove={() => handleRequiredSubjectRemove(index)}
-                    onLoadDetailSubjects={(category) =>
-                      handleLoadDetailSubjects(
-                        category,
-                        data.subject_constraints?.curriculum_revision_id
-                      )
-                    }
                   />
                 )
               )}
@@ -941,153 +914,4 @@ export function Step3ContentSelection({
   );
 }
 
-// RequiredSubjectItem 컴포넌트
-type RequiredSubjectItemProps = {
-  requirement: {
-    subject_category: string;
-    subject?: string;
-    min_count: number;
-  };
-  index: number;
-  availableSubjects: string[];
-  availableDetailSubjects: string[];
-  loadingDetailSubjects: boolean;
-  onUpdate: (
-    updated: Partial<{
-      subject_category: string;
-      subject?: string;
-      min_count: number;
-    }>
-  ) => void;
-  onRemove: () => void;
-  onLoadDetailSubjects: (category: string) => void;
-};
-
-function RequiredSubjectItem({
-  requirement,
-  index,
-  availableSubjects,
-  availableDetailSubjects,
-  loadingDetailSubjects,
-  onUpdate,
-  onRemove,
-  onLoadDetailSubjects,
-}: RequiredSubjectItemProps) {
-  const [showDetailSubjects, setShowDetailSubjects] = useState(false);
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <div className="flex items-start gap-3">
-        {/* 교과 선택 */}
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            교과
-          </label>
-          <select
-            value={requirement.subject_category}
-            onChange={(e) =>
-              onUpdate({ subject_category: e.target.value, subject: undefined })
-            }
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          >
-            <option value="">교과 선택</option>
-            {availableSubjects.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 최소 개수 */}
-        <div className="w-24">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            최소 개수
-          </label>
-          <input
-            type="number"
-            min="1"
-            max="9"
-            value={requirement.min_count}
-            onChange={(e) =>
-              onUpdate({ min_count: parseInt(e.target.value) || 1 })
-            }
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
-        </div>
-
-        {/* 삭제 버튼 */}
-        <button
-          type="button"
-          onClick={onRemove}
-          className="mt-6 text-gray-400 hover:text-red-600 transition-colors"
-          aria-label="필수 교과 삭제"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-
-      {/* 세부 과목 선택 (선택사항) */}
-      {requirement.subject_category && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => {
-              setShowDetailSubjects(!showDetailSubjects);
-              if (!showDetailSubjects && availableDetailSubjects.length === 0) {
-                onLoadDetailSubjects(requirement.subject_category);
-              }
-            }}
-            className="text-xs text-blue-600 hover:text-blue-700 transition-colors"
-          >
-            {showDetailSubjects
-              ? "세부 과목 숨기기"
-              : "세부 과목 지정 (선택사항)"}
-          </button>
-
-          {showDetailSubjects && (
-            <div className="mt-2">
-              {loadingDetailSubjects ? (
-                <p className="text-xs text-gray-500">
-                  세부 과목 불러오는 중...
-                </p>
-              ) : availableDetailSubjects.length > 0 ? (
-                <select
-                  value={requirement.subject || ""}
-                  onChange={(e) =>
-                    onUpdate({ subject: e.target.value || undefined })
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-                >
-                  <option value="">세부 과목 선택 (전체)</option>
-                  {availableDetailSubjects.map((subject) => (
-                    <option key={subject} value={subject}>
-                      {subject}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-xs text-gray-500">
-                  세부 과목 정보가 없습니다.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
