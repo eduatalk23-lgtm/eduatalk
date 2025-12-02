@@ -224,13 +224,25 @@ export type ContentRangeInputProps = {
   // 상세 정보
   details: ContentDetail[];
   
-  // 현재 선택
+  // 현재 선택 (상세 정보가 있을 때)
   startDetailId?: string | null;
   endDetailId?: string | null;
+  
+  // 직접 입력 값 (상세 정보가 없을 때)
+  startRange?: string | null;
+  endRange?: string | null;
+  
+  // 총 페이지수/회차 (직접 입력 시 최대값 제한용)
+  totalPages?: number | null;
+  totalEpisodes?: number | null;
   
   // 변경 핸들러
   onStartChange: (detailId: string) => void;
   onEndChange: (detailId: string) => void;
+  
+  // 직접 입력 변경 핸들러
+  onStartRangeChange?: (range: string) => void;
+  onEndRangeChange?: (range: string) => void;
   
   // 상태
   loading?: boolean;

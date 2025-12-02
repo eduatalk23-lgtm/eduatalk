@@ -30,6 +30,16 @@ export function RangeSettingModal({
   const [endDetailId, setEndDetailId] = useState<string | null>(
     currentRange?.end_detail_id || null
   );
+  // 직접 입력 값 (상세 정보가 없을 때)
+  const [startRange, setStartRange] = useState<string | null>(
+    currentRange?.start ? currentRange.start.replace(/[^\d]/g, "") : null
+  );
+  const [endRange, setEndRange] = useState<string | null>(
+    currentRange?.end ? currentRange.end.replace(/[^\d]/g, "") : null
+  );
+  // 총 페이지수/회차
+  const [totalPages, setTotalPages] = useState<number | null>(null);
+  const [totalEpisodes, setTotalEpisodes] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -37,9 +47,20 @@ export function RangeSettingModal({
   // 캐시 참조
   const cacheRef = useRef<Map<string, ContentDetail[]>>(new Map());
 
-  // 상세 정보 조회
+  // 모달이 열릴 때 상태 초기화
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // 모달이 닫혔을 때 상태 초기화
+      setStartDetailId(null);
+      setEndDetailId(null);
+      setStartRange(null);
+      setEndRange(null);
+      setTotalPages(null);
+      setTotalEpisodes(null);
+      setError(null);
+      setHasChanges(false);
+      return;
+    }
 
     const fetchDetails = async () => {
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
@@ -248,6 +269,32 @@ export function RangeSettingModal({
         
         // 캐시 저장
         cacheRef.current.set(content.id, detailsData);
+
+        // 상세 정보가 없을 때 총 페이지수/회차 조회
+        if (detailsData.length === 0) {
+          try {
+            const infoApiPath = isRecommendedContent
+              ? `/api/master-content-info?content_type=${content.type}&content_id=${content.id}`
+              : `/api/student-content-info?content_type=${content.type}&content_id=${content.id}`;
+            
+            const infoResponse = await fetch(infoApiPath);
+            if (infoResponse.ok) {
+              const infoResult = await infoResponse.json();
+              if (infoResult.success && infoResult.data) {
+                if (content.type === "book") {
+                  setTotalPages(infoResult.data.total_pages || null);
+                } else {
+                  setTotalEpisodes(infoResult.data.total_episodes || null);
+                }
+              }
+            }
+          } catch (infoError) {
+            // 총량 조회 실패는 무시 (직접 입력은 여전히 가능)
+            if (process.env.NODE_ENV === "development") {
+              console.debug("[RangeSettingModal] 총량 조회 실패 (무시 가능):", infoError);
+            }
+          }
+        }
       } catch (err) {
         const errorMessage = err instanceof Error
           ? err.message
@@ -292,50 +339,119 @@ export function RangeSettingModal({
     if (open && currentRange) {
       setStartDetailId(currentRange.start_detail_id || null);
       setEndDetailId(currentRange.end_detail_id || null);
+      
+      // 직접 입력 값 초기화 (상세 정보가 없을 때)
+      if (!currentRange.start_detail_id && !currentRange.end_detail_id) {
+        const startMatch = currentRange.start?.match(/\d+/);
+        const endMatch = currentRange.end?.match(/\d+/);
+        setStartRange(startMatch ? startMatch[0] : "1");
+        setEndRange(endMatch ? endMatch[0] : null);
+      } else {
+        setStartRange(null);
+        setEndRange(null);
+      }
+      
       setHasChanges(false);
     }
   }, [open, currentRange]);
 
   // 변경 감지
   useEffect(() => {
-    const changed =
-      startDetailId !== (currentRange?.start_detail_id || null) ||
-      endDetailId !== (currentRange?.end_detail_id || null);
+    const hasDetails = details.length > 0;
+    let changed = false;
+    
+    if (hasDetails) {
+      // 상세 정보가 있을 때
+      changed =
+        startDetailId !== (currentRange?.start_detail_id || null) ||
+        endDetailId !== (currentRange?.end_detail_id || null);
+    } else {
+      // 상세 정보가 없을 때 (직접 입력)
+      const currentStart = currentRange?.start ? currentRange.start.replace(/[^\d]/g, "") : null;
+      const currentEnd = currentRange?.end ? currentRange.end.replace(/[^\d]/g, "") : null;
+      changed =
+        startRange !== (currentStart || "1") ||
+        endRange !== (currentEnd || null);
+    }
+    
     setHasChanges(changed);
-  }, [startDetailId, endDetailId, currentRange]);
+  }, [startDetailId, endDetailId, startRange, endRange, currentRange, details.length]);
 
   // 저장 처리
   const handleSave = () => {
-    if (!startDetailId || !endDetailId) {
-      setError("시작과 종료 범위를 모두 선택해주세요.");
-      return;
+    const hasDetails = details.length > 0;
+
+    if (hasDetails) {
+      // 상세 정보가 있을 때
+      if (!startDetailId || !endDetailId) {
+        setError("시작과 종료 범위를 모두 선택해주세요.");
+        return;
+      }
+
+      const startDetail = details.find((d) => d.id === startDetailId);
+      const endDetail = details.find((d) => d.id === endDetailId);
+
+      if (!startDetail || !endDetail) {
+        setError("선택한 범위 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      // 범위 문자열 생성
+      const startStr =
+        content.type === "book"
+          ? `p.${(startDetail as any).page_number}`
+          : `${(startDetail as any).episode_number}강`;
+      const endStr =
+        content.type === "book"
+          ? `p.${(endDetail as any).page_number}`
+          : `${(endDetail as any).episode_number}강`;
+
+      onSave({
+        start: startStr,
+        end: endStr,
+        start_detail_id: startDetailId,
+        end_detail_id: endDetailId,
+      });
+    } else {
+      // 상세 정보가 없을 때 (직접 입력)
+      if (!startRange || !endRange) {
+        setError("시작과 종료 범위를 모두 입력해주세요.");
+        return;
+      }
+
+      const startNum = Number(startRange);
+      const endNum = Number(endRange);
+
+      if (isNaN(startNum) || isNaN(endNum)) {
+        setError("올바른 숫자를 입력해주세요.");
+        return;
+      }
+
+      if (startNum > endNum) {
+        setError("시작 범위가 종료 범위보다 클 수 없습니다.");
+        return;
+      }
+
+      // 최대값 검증
+      const maxValue = content.type === "book" ? totalPages : totalEpisodes;
+      if (maxValue && (startNum > maxValue || endNum > maxValue)) {
+        setError(
+          `범위는 최대 ${maxValue}${content.type === "book" ? "페이지" : "회차"}까지 입력할 수 있습니다.`
+        );
+        return;
+      }
+
+      // 범위 문자열 생성
+      const startStr = content.type === "book" ? `p.${startNum}` : `${startNum}강`;
+      const endStr = content.type === "book" ? `p.${endNum}` : `${endNum}강`;
+
+      onSave({
+        start: startStr,
+        end: endStr,
+        start_detail_id: null,
+        end_detail_id: null,
+      });
     }
-
-    // 범위 정보 생성
-    const startDetail = details.find((d) => d.id === startDetailId);
-    const endDetail = details.find((d) => d.id === endDetailId);
-
-    if (!startDetail || !endDetail) {
-      setError("선택한 범위 정보를 찾을 수 없습니다.");
-      return;
-    }
-
-    // 범위 문자열 생성
-    const startStr =
-      content.type === "book"
-        ? `p.${(startDetail as any).page_number}`
-        : `${(startDetail as any).episode_number}강`;
-    const endStr =
-      content.type === "book"
-        ? `p.${(endDetail as any).page_number}`
-        : `${(endDetail as any).episode_number}강`;
-
-    onSave({
-      start: startStr,
-      end: endStr,
-      start_detail_id: startDetailId,
-      end_detail_id: endDetailId,
-    });
 
     onClose();
   };
@@ -351,6 +467,17 @@ export function RangeSettingModal({
         return;
       }
     }
+    
+    // 상태 초기화
+    setStartDetailId(null);
+    setEndDetailId(null);
+    setStartRange(null);
+    setEndRange(null);
+    setTotalPages(null);
+    setTotalEpisodes(null);
+    setError(null);
+    setHasChanges(false);
+    
     onClose();
   };
 
@@ -368,7 +495,10 @@ export function RangeSettingModal({
 
   if (!open) return null;
 
-  const isValid = startDetailId && endDetailId;
+  const hasDetails = details.length > 0;
+  const isValid = hasDetails
+    ? startDetailId && endDetailId
+    : startRange && endRange && Number(startRange) > 0 && Number(endRange) > 0 && Number(startRange) <= Number(endRange);
   const isSaving = externalLoading;
 
   return (
@@ -415,8 +545,14 @@ export function RangeSettingModal({
                 details={details}
                 startDetailId={startDetailId}
                 endDetailId={endDetailId}
+                startRange={startRange}
+                endRange={endRange}
+                totalPages={totalPages}
+                totalEpisodes={totalEpisodes}
                 onStartChange={setStartDetailId}
                 onEndChange={setEndDetailId}
+                onStartRangeChange={setStartRange}
+                onEndRangeChange={setEndRange}
                 loading={loading}
                 error={error}
               />

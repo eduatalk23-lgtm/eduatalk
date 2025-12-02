@@ -17,12 +17,20 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   details,
   startDetailId,
   endDetailId,
+  startRange,
+  endRange,
+  totalPages,
+  totalEpisodes,
   onStartChange,
   onEndChange,
+  onStartRangeChange,
+  onEndRangeChange,
   loading = false,
   error = null,
 }: ContentRangeInputProps) {
   const isBook = type === "book";
+  const hasDetails = details.length > 0;
+  const maxValue = isBook ? totalPages : totalEpisodes;
 
   // 시작/끝 인덱스
   const startIndex = useMemo(() => {
@@ -80,7 +88,8 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
     );
   }
 
-  if (details.length === 0) {
+  // 상세 정보가 없을 때 직접 입력 모드
+  if (!hasDetails) {
     // 상세정보가 없는 경우 로깅 (개발 환경에서만)
     if (process.env.NODE_ENV === "development") {
       console.debug("[ContentRangeInput] 상세정보 없음 (정상):", {
@@ -91,11 +100,95 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
       });
     }
 
+    const currentStart = startRange || "1";
+    const currentEnd = endRange || (maxValue ? String(maxValue) : "100");
+
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-        <p className="text-sm text-gray-600">
-          상세 정보를 불러올 수 없습니다.
-        </p>
+      <div className="space-y-4">
+        {/* 안내 메시지 */}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm font-medium text-blue-900">
+            상세 정보가 없습니다
+          </p>
+          <p className="mt-1 text-xs text-blue-700">
+            {isBook
+              ? "페이지 범위를 직접 입력해주세요."
+              : "회차 범위를 직접 입력해주세요."}
+          </p>
+          {maxValue && (
+            <p className="mt-1 text-xs text-blue-600">
+              {isBook ? `총 페이지수: ${maxValue}페이지` : `총 회차: ${maxValue}회차`}
+            </p>
+          )}
+        </div>
+
+        {/* 시작 범위 입력 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            시작 {isBook ? "페이지" : "회차"}
+          </label>
+          <input
+            type="number"
+            min="1"
+            max={maxValue || undefined}
+            value={currentStart}
+            onChange={(e) => {
+              if (onStartRangeChange) {
+                onStartRangeChange(e.target.value);
+              }
+            }}
+            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="1"
+          />
+        </div>
+
+        {/* 종료 범위 입력 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            종료 {isBook ? "페이지" : "회차"}
+          </label>
+          <input
+            type="number"
+            min="1"
+            max={maxValue || undefined}
+            value={currentEnd}
+            onChange={(e) => {
+              if (onEndRangeChange) {
+                onEndRangeChange(e.target.value);
+              }
+            }}
+            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder={maxValue ? String(maxValue) : "100"}
+          />
+        </div>
+
+        {/* 범위 요약 */}
+        {currentStart && currentEnd && (
+          <div className="rounded-lg bg-blue-50 p-3">
+            <p className="text-sm font-medium text-blue-900">선택된 범위</p>
+            <p className="mt-1 text-sm text-blue-700">
+              {isBook
+                ? `${currentStart}페이지 ~ ${currentEnd}페이지`
+                : `${currentStart}회차 ~ ${currentEnd}회차`}
+            </p>
+            {Number(currentStart) && Number(currentEnd) && (
+              <p className="mt-1 text-xs text-blue-600">
+                총 {Number(currentEnd) - Number(currentStart) + 1}
+                {isBook ? "페이지" : "회차"}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 범위 검증 */}
+        {currentStart && currentEnd && Number(currentStart) > Number(currentEnd) && (
+          <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
+            <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-600" />
+            <p className="text-sm text-red-800">
+              시작이 종료보다 뒤에 있습니다. 범위를 다시 입력해주세요.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
