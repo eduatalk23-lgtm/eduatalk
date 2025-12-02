@@ -106,14 +106,23 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
 
     // admin_users에 레코드가 있으면 admin/consultant/superadmin 반환
     if (admin) {
+      // 디버깅: admin_users에서 조회된 role 값 확인
+      console.log("[getCurrentUserRole] admin_users 조회 결과:", {
+        id: admin.id,
+        role: admin.role,
+        tenant_id: (admin as { tenant_id?: string | null })?.tenant_id,
+      });
+      
       // superadmin인 경우 tenant_id는 null이어야 함
       if (admin.role === "superadmin") {
+        console.log("[getCurrentUserRole] superadmin으로 인식");
         return {
           userId: user.id,
           role: "superadmin",
           tenantId: null,
         };
       }
+      console.log("[getCurrentUserRole] admin/consultant로 인식:", admin.role);
       return {
         userId: user.id,
         role: admin.role === "admin" || admin.role === "consultant" ? admin.role : "admin",

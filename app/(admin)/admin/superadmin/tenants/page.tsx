@@ -8,8 +8,14 @@ import { TenantList } from "./_components/TenantList";
 export default async function SuperAdminTenantsPage() {
   const { userId, role } = await getCurrentUserRole();
 
+  // 디버깅: 실제 role 값 확인
+  console.log("[superadmin/tenants] userId:", userId);
+  console.log("[superadmin/tenants] role:", role);
+  console.log("[superadmin/tenants] role === 'superadmin':", role === "superadmin");
+
   // Super Admin만 접근 가능
   if (!userId || role !== "superadmin") {
+    console.log("[superadmin/tenants] 권한 없음 - 리다이렉트");
     redirect("/admin/dashboard");
   }
 
