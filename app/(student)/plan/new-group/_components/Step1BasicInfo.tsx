@@ -1697,19 +1697,7 @@ export function Step1BasicInfo({
                           },
                         });
                       } else {
-                        // 재배치 사용이 해제되면 학생 입력 허용도 자동으로 해제
-                        const currentLocked = data.templateLockedFields?.step1 || {};
-                        const newLocked = {
-                          ...currentLocked,
-                          allow_student_additional_period_reallocation: false,
-                        };
-                        onUpdate({ 
-                          additional_period_reallocation: undefined,
-                          templateLockedFields: {
-                            ...data.templateLockedFields,
-                            step1: newLocked,
-                          },
-                        });
+                        onUpdate({ additional_period_reallocation: undefined });
                       }
                     }}
                     disabled={
