@@ -61,7 +61,7 @@ export default async function AdminStudentDetailPage({
       
       <div className="p-6 md:p-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-h1 text-gray-900">
           {student.name ?? "이름 없음"} 학생 상세
         </h1>
       </div>

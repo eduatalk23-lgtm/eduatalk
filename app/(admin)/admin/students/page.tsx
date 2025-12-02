@@ -264,7 +264,7 @@ export default async function AdminStudentsPage({
   return (
     <div className="p-6 md:p-10">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">학생 관리</h1>
+        <h1 className="text-h1 text-gray-900">학생 관리</h1>
       </div>
 
       {/* 검색 및 필터 바 */}

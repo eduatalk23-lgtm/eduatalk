@@ -13,7 +13,7 @@ export default async function AdminToolsPage() {
 
   return (
     <div className="p-6 md:p-10">
-      <h1 className="mb-8 text-3xl font-bold text-gray-900">관리 도구</h1>
+      <h1 className="mb-8 text-h1 text-gray-900">관리 도구</h1>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* 플랜 대량 생성 */}

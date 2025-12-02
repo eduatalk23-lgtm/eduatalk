@@ -77,8 +77,8 @@ export default async function AdminReportsPage({
     <div className="p-6 md:p-10">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">리포트 관리</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-h1 text-gray-900">리포트 관리</h1>
+          <p className="mt-2 text-body-2 text-gray-600">
             학생별 주간/월간 리포트를 생성하고 조회할 수 있습니다.
           </p>
         </div>

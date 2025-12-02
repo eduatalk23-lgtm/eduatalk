@@ -29,14 +29,14 @@ export default async function AdminSettingsPage() {
   return (
     <div className="p-6 md:p-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">설정</h1>
-        <p className="mt-2 text-sm text-gray-600">기관 및 계정 관리 설정</p>
+        <h1 className="text-h1 text-gray-900">설정</h1>
+        <p className="mt-2 text-body-2 text-gray-600">기관 및 계정 관리 설정</p>
       </div>
 
       <div className="space-y-6">
         {/* 현재 계정 정보 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">현재 계정 정보</h2>
+          <h2 className="mb-4 text-h2 text-gray-900">현재 계정 정보</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <div className="text-sm text-gray-500">역할</div>
@@ -56,7 +56,7 @@ export default async function AdminSettingsPage() {
           <>
             <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">기관 설정</h2>
+                <h2 className="text-h2 text-gray-900">기관 설정</h2>
                 <Link
                   href="/admin/tenant/settings"
                   className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
@@ -70,7 +70,7 @@ export default async function AdminSettingsPage() {
             {/* 스케줄러 설정 */}
             <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">스케줄러 설정</h2>
+                <h2 className="text-h2 text-gray-900">스케줄러 설정</h2>
                 <Link
                   href="/admin/settings/scheduler"
                   className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
@@ -88,7 +88,7 @@ export default async function AdminSettingsPage() {
         {/* 코치 계정 관리 */}
         {role === "admin" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900">코치 계정 관리</h2>
+            <h2 className="mb-4 text-h2 text-gray-900">코치 계정 관리</h2>
             {allAdmins.length === 0 ? (
               <p className="text-sm text-gray-500">등록된 코치 계정이 없습니다.</p>
             ) : (
@@ -113,7 +113,7 @@ export default async function AdminSettingsPage() {
 
         {/* 기타 설정 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">기타 설정</h2>
+          <h2 className="mb-4 text-h2 text-gray-900">기타 설정</h2>
           <div className="space-y-3">
             <Link
               href="/admin/tools"

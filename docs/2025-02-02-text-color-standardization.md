@@ -134,10 +134,17 @@ Tailwind의 표준 gray 색상은 다음과 같습니다:
 // ✅ 좋은 예
 <div className="border border-gray-300">내용</div>
 <input className="border border-gray-300" />
+// 테이블 행 구분선 (매우 연한 구분선)
+<tr className="border-b border-gray-100">...</tr>
 
 // ❌ 나쁜 예
 <div className="border border-gray-30">내용</div> // 정의되지 않은 클래스
 ```
+
+**테두리 색상 가이드**:
+- `border-gray-300`: 일반 테두리 (기본)
+- `border-gray-200`: 연한 테두리
+- `border-gray-100`: 매우 연한 구분선 (테이블 행 구분 등)
 
 ### 타이포그래피 클래스
 
@@ -157,11 +164,18 @@ Tailwind의 표준 gray 색상은 다음과 같습니다:
 ```jsx
 // ✅ 좋은 예
 <h1 className="text-h1 text-gray-900">제목</h1>
+<h2 className="text-h2 text-gray-900">부제목</h2>
 <p className="text-body-2 text-gray-600">본문</p>
 
 // ❌ 나쁜 예
 <h1 className="text-h1">제목</h1> // 색상이 없으면 기본 색상 사용
+<h1 className="text-3xl font-bold text-gray-900">제목</h1> // 커스텀 클래스 대신 일반 Tailwind 사용
 ```
+
+**타이포그래피 매핑 규칙**:
+- `text-3xl font-bold` → `text-h1` (페이지 제목)
+- `text-xl font-semibold` → `text-h2` (섹션 제목)
+- `text-sm` → `text-body-2` (본문, 설명) - 선택적
 
 ### 입력 필드
 
