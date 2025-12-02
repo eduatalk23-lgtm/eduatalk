@@ -75,16 +75,17 @@ export async function changeUserRole(
 
       // 2. students 테이블에 레코드 생성 (기본 정보만)
       // 학생 정보는 /settings에서 입력하도록 안내
+      const displayName = (user.user_metadata?.display_name as string) || "이름 없음";
       const { error: createStudentError } = await supabase
         .from("students")
         .upsert({
           id: userId,
           user_id: userId,
           tenant_id: tenantId,
-          name: (user.user_metadata?.display_name as string) || null,
+          name: displayName, // name은 필수 필드
           grade: null,
-          class: null,
-          birth_date: null,
+          school_id: null,
+          school_type: null,
         });
 
       if (createStudentError) {
@@ -103,12 +104,24 @@ export async function changeUserRole(
       });
     } else {
       // 학생 → 학부모 전환
-      // 1. students 테이블에서 레코드 삭제
-      const { error: deleteStudentError } = await supabase
+      // 1. students 테이블에서 레코드 삭제 (id 또는 user_id로 조회)
+      let deleteStudentError = null;
+      
+      // id로 먼저 시도
+      const { error: error1 } = await supabase
         .from("students")
         .delete()
-        .eq("id", userId)
-        .or(`user_id.eq.${userId}`);
+        .eq("id", userId);
+      
+      if (error1) {
+        // user_id로 시도
+        const { error: error2 } = await supabase
+          .from("students")
+          .delete()
+          .eq("user_id", userId);
+        
+        deleteStudentError = error2;
+      }
 
       if (deleteStudentError && deleteStudentError.code !== "PGRST116") {
         console.error("[userRole] 학생 레코드 삭제 실패:", deleteStudentError);
