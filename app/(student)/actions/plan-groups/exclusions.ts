@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
-import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   getPlanGroupById,
+  getPlanGroupByIdForAdmin,
   createPlanExclusions,
   getStudentExclusions,
 } from "@/lib/data/planGroups";
@@ -13,11 +14,13 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 
 /**
  * 시간 관리 데이터 반영 (제외일)
+ * 관리자/컨설턴트 모드에서도 사용 가능하도록 수정
  */
 async function _syncTimeManagementExclusions(
   groupId: string | null,
   periodStart: string,
-  periodEnd: string
+  periodEnd: string,
+  studentId?: string
 ): Promise<{
   count: number;
   exclusions: Array<{
@@ -27,33 +30,97 @@ async function _syncTimeManagementExclusions(
     source?: "time_management";
   }>;
 }> {
-  const user = await requireStudentAuth();
-  const tenantContext = await requireTenantContext();
+  const { role, userId } = await getCurrentUserRole();
+  const tenantContext = await getTenantContext();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (!tenantContext?.tenantId) {
+    throw new AppError(
+      "기관 정보를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  // 관리자/컨설턴트 모드일 때는 studentId 파라미터 필수
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  let targetStudentId: string;
 
   const supabase = await createSupabaseServerClient();
 
   // 플랜 그룹 조회 (groupId가 있는 경우만)
   if (groupId) {
-    const group = await getPlanGroupById(
-      groupId,
-      user.userId,
-      tenantContext.tenantId
-    );
-    if (!group) {
-      throw new AppError(
-        "플랜 그룹을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
+    let group;
+    if (isAdminOrConsultant) {
+      // 관리자 모드: getPlanGroupByIdForAdmin 사용
+      group = await getPlanGroupByIdForAdmin(groupId, tenantContext.tenantId);
+      if (!group) {
+        throw new AppError(
+          "플랜 그룹을 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+      // 관리자 모드에서 studentId가 없으면 플랜 그룹에서 student_id 가져오기
+      targetStudentId = studentId || group.student_id;
+      if (!targetStudentId) {
+        throw new AppError(
+          "학생 ID를 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+    } else {
+      // 학생 모드: 기존 로직
+      group = await getPlanGroupById(
+        groupId,
+        userId,
+        tenantContext.tenantId
       );
+      if (!group) {
+        throw new AppError(
+          "플랜 그룹을 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+      targetStudentId = userId;
+      // 기존 플랜 그룹인 경우 revalidate
+      revalidatePath(`/plan/group/${groupId}/edit`);
     }
-    // 기존 플랜 그룹인 경우 revalidate
-    revalidatePath(`/plan/group/${groupId}/edit`);
+  } else {
+    // groupId가 없는 경우
+    if (isAdminOrConsultant) {
+      // 관리자 모드: studentId 파라미터 필수
+      if (!studentId) {
+        // 템플릿 모드에서는 빈 결과 반환
+        return {
+          count: 0,
+          exclusions: [],
+        };
+      }
+      targetStudentId = studentId;
+    } else {
+      // 학생 모드: 현재 사용자 ID 사용
+      targetStudentId = userId;
+    }
   }
 
   // 학생의 모든 제외일 조회 (시간 관리에 등록된 모든 제외일)
   const allExclusions = await getStudentExclusions(
-    user.userId,
+    targetStudentId,
     tenantContext.tenantId
   );
 

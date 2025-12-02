@@ -107,12 +107,11 @@ async function _syncTimeManagementAcademySchedules(
     if (isAdminOrConsultant) {
       // 관리자 모드: studentId 파라미터 필수
       if (!studentId) {
-        throw new AppError(
-          "학생 ID가 필요합니다.",
-          ErrorCode.VALIDATION_ERROR,
-          400,
-          true
-        );
+        // 템플릿 모드에서는 빈 결과 반환
+        return {
+          count: 0,
+          academySchedules: [],
+        };
       }
       targetStudentId = studentId;
     } else {

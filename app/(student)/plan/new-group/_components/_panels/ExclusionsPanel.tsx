@@ -120,10 +120,12 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   const loadAvailableCount = async () => {
     try {
       setIsLoadingCount(true);
+      // 템플릿 모드일 때는 studentId 없이 호출 (빈 결과 반환)
       const result = await syncTimeManagementExclusionsAction(
         groupId || null,
         periodStart,
-        periodEnd
+        periodEnd,
+        undefined // studentId는 템플릿 모드에서 사용하지 않음
       );
       
       if (result.exclusions && result.exclusions.length > 0) {
@@ -243,10 +245,12 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
   const syncFromTimeManagement = async () => {
     try {
+      // 템플릿 모드일 때는 studentId 없이 호출 (빈 결과 반환)
       const result = await syncTimeManagementExclusionsAction(
         groupId || null,
         periodStart,
-        periodEnd
+        periodEnd,
+        undefined // studentId는 템플릿 모드에서 사용하지 않음
       );
       
       if (result.exclusions && result.exclusions.length > 0) {
