@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export type TenantStatistics = {
   total: number;
@@ -27,7 +28,9 @@ export type RecentTenant = {
  * 기관 통계 조회
  */
 export async function getTenantStatistics(): Promise<TenantStatistics> {
-  const supabase = await createSupabaseServerClient();
+  // Admin Client를 우선 사용 (RLS 우회)
+  const adminClient = createSupabaseAdminClient();
+  const supabase = adminClient || (await createSupabaseServerClient());
 
   // 전체 기관 수
   const { count: total } = await supabase
@@ -62,46 +65,87 @@ export async function getTenantStatistics(): Promise<TenantStatistics> {
 
 /**
  * 사용자 통계 조회
+ * Super Admin은 모든 테넌트의 사용자를 볼 수 있어야 하므로 Admin Client 사용
  */
 export async function getUserStatistics(): Promise<UserStatistics> {
-  const supabase = await createSupabaseServerClient();
+  // Admin Client를 우선 사용 (RLS 우회하여 모든 테넌트의 데이터 조회)
+  const adminClient = createSupabaseAdminClient();
+  const supabase = adminClient || (await createSupabaseServerClient());
 
-  // 학생 수
-  const { count: students } = await supabase
-    .from("students")
-    .select("*", { count: "exact", head: true });
+  if (!adminClient) {
+    console.warn(
+      "[superadminDashboard] Admin Client를 사용할 수 없어 서버 클라이언트로 조회합니다. RLS 정책으로 인해 일부 데이터가 누락될 수 있습니다."
+    );
+  }
 
-  // 학부모 수
-  const { count: parents } = await supabase
-    .from("parent_users")
-    .select("*", { count: "exact", head: true });
+  try {
+    // 학생 수 (모든 테넌트의 학생)
+    const { count: students, error: studentsError } = await supabase
+      .from("students")
+      .select("*", { count: "exact", head: true });
 
-  // 관리자 수 (admin)
-  const { count: admins } = await supabase
-    .from("admin_users")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "admin");
+    if (studentsError) {
+      console.error("[superadminDashboard] 학생 수 조회 실패:", studentsError);
+    }
 
-  // 컨설턴트 수
-  const { count: consultants } = await supabase
-    .from("admin_users")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "consultant");
+    // 학부모 수 (모든 테넌트의 학부모)
+    const { count: parents, error: parentsError } = await supabase
+      .from("parent_users")
+      .select("*", { count: "exact", head: true });
 
-  // Super Admin 수
-  const { count: superadmins } = await supabase
-    .from("admin_users")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "superadmin");
+    if (parentsError) {
+      console.error("[superadminDashboard] 학부모 수 조회 실패:", parentsError);
+    }
 
-  return {
-    students: students || 0,
-    parents: parents || 0,
-    admins: admins || 0,
-    consultants: consultants || 0,
-    superadmins: superadmins || 0,
-    total: (students || 0) + (parents || 0) + (admins || 0) + (consultants || 0) + (superadmins || 0),
-  };
+    // 관리자 수 (admin)
+    const { count: admins, error: adminsError } = await supabase
+      .from("admin_users")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "admin");
+
+    if (adminsError) {
+      console.error("[superadminDashboard] 관리자 수 조회 실패:", adminsError);
+    }
+
+    // 컨설턴트 수
+    const { count: consultants, error: consultantsError } = await supabase
+      .from("admin_users")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "consultant");
+
+    if (consultantsError) {
+      console.error("[superadminDashboard] 컨설턴트 수 조회 실패:", consultantsError);
+    }
+
+    // Super Admin 수
+    const { count: superadmins, error: superadminsError } = await supabase
+      .from("admin_users")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "superadmin");
+
+    if (superadminsError) {
+      console.error("[superadminDashboard] Super Admin 수 조회 실패:", superadminsError);
+    }
+
+    return {
+      students: students || 0,
+      parents: parents || 0,
+      admins: admins || 0,
+      consultants: consultants || 0,
+      superadmins: superadmins || 0,
+      total: (students || 0) + (parents || 0) + (admins || 0) + (consultants || 0) + (superadmins || 0),
+    };
+  } catch (error) {
+    console.error("[superadminDashboard] 사용자 통계 조회 중 오류:", error);
+    return {
+      students: 0,
+      parents: 0,
+      admins: 0,
+      consultants: 0,
+      superadmins: 0,
+      total: 0,
+    };
+  }
 }
 
 /**
