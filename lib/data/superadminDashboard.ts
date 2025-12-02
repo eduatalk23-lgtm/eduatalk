@@ -37,34 +37,64 @@ export async function getTenantStatistics(): Promise<TenantStatistics> {
     .from("tenants")
     .select("*", { count: "exact", head: true });
 
-  // 활성 기관 수 (status가 'active'이거나 null인 경우)
-  const { count: active, error: activeError } = await supabase
-    .from("tenants")
-    .select("*", { count: "exact", head: true })
-    .or("status.eq.active,status.is.null");
-
-  if (activeError) {
-    console.error("[superadminDashboard] 활성 기관 수 조회 실패:", activeError);
+  // status 컬럼이 있는지 확인
+  let hasStatusColumn = false;
+  try {
+    const { error: testError } = await supabase
+      .from("tenants")
+      .select("status")
+      .limit(1);
+    
+    if (!testError) {
+      hasStatusColumn = true;
+    }
+  } catch (e) {
+    // status 컬럼이 없으면 무시
   }
 
-  // 비활성 기관 수
-  const { count: inactive, error: inactiveError } = await supabase
-    .from("tenants")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "inactive");
+  let active = 0;
+  let inactive = 0;
+  let suspended = 0;
 
-  if (inactiveError) {
-    console.error("[superadminDashboard] 비활성 기관 수 조회 실패:", inactiveError);
-  }
+  if (hasStatusColumn) {
+    // 활성 기관 수 (status가 'active'이거나 null인 경우)
+    const { count: activeCount, error: activeError } = await supabase
+      .from("tenants")
+      .select("*", { count: "exact", head: true })
+      .or("status.eq.active,status.is.null");
 
-  // 정지된 기관 수
-  const { count: suspended, error: suspendedError } = await supabase
-    .from("tenants")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "suspended");
+    if (activeError) {
+      console.error("[superadminDashboard] 활성 기관 수 조회 실패:", activeError);
+    } else {
+      active = activeCount || 0;
+    }
 
-  if (suspendedError) {
-    console.error("[superadminDashboard] 정지된 기관 수 조회 실패:", suspendedError);
+    // 비활성 기관 수
+    const { count: inactiveCount, error: inactiveError } = await supabase
+      .from("tenants")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "inactive");
+
+    if (inactiveError) {
+      console.error("[superadminDashboard] 비활성 기관 수 조회 실패:", inactiveError);
+    } else {
+      inactive = inactiveCount || 0;
+    }
+
+    // 정지된 기관 수
+    const { count: suspendedCount, error: suspendedError } = await supabase
+      .from("tenants")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "suspended");
+
+    if (suspendedError) {
+      console.error("[superadminDashboard] 정지된 기관 수 조회 실패:", suspendedError);
+    } else {
+      suspended = suspendedCount || 0;
+    }
+  } else {
+    // status 컬럼이 없으면 전체를 활성으로 간주
+    active = total || 0;
   }
 
   return {

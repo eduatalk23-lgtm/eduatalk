@@ -101,9 +101,18 @@ export async function PUT(
       updated_at: new Date().toISOString(),
     };
 
-    // status가 제공된 경우에만 업데이트
-    if (status !== undefined) {
-      updateData.status = status;
+    // status 컬럼이 있는지 확인 후 업데이트
+    try {
+      const { error: testError } = await adminClient
+        .from("tenants")
+        .select("status")
+        .limit(1);
+      
+      if (!testError && status !== undefined) {
+        updateData.status = status;
+      }
+    } catch (e) {
+      // status 컬럼이 없으면 무시
     }
 
     const { data, error } = await adminClient

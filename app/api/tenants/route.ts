@@ -45,10 +45,28 @@ export async function GET() {
       );
     }
 
-    const { data, error } = await adminClient
+    // status 컬럼이 없을 수 있으므로 안전하게 처리
+    let selectQuery = adminClient
       .from("tenants")
-      .select("id, name, type, status, created_at, updated_at")
-      .order("created_at", { ascending: false });
+      .select("id, name, type, created_at, updated_at");
+
+    // status 컬럼이 있는지 확인 후 추가
+    try {
+      const { error: testError } = await adminClient
+        .from("tenants")
+        .select("status")
+        .limit(1);
+      
+      if (!testError) {
+        selectQuery = adminClient
+          .from("tenants")
+          .select("id, name, type, status, created_at, updated_at");
+      }
+    } catch (e) {
+      // status 컬럼이 없으면 무시
+    }
+
+    const { data, error } = await selectQuery.order("created_at", { ascending: false });
 
     if (error) {
       return handleApiError(error, "[api/tenants] 목록 조회 실패");
@@ -97,13 +115,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // status 컬럼이 있는지 확인
+    let insertData: { name: string; type: string; status?: string } = {
+      name: name.trim(),
+      type: type || "academy",
+    };
+
+    try {
+      const { error: testError } = await adminClient
+        .from("tenants")
+        .select("status")
+        .limit(1);
+      
+      if (!testError) {
+        insertData.status = "active"; // 기본값: active
+      }
+    } catch (e) {
+      // status 컬럼이 없으면 무시
+    }
+
     const { data, error } = await adminClient
       .from("tenants")
-      .insert({
-        name: name.trim(),
-        type: type || "academy",
-        status: "active", // 기본값: active
-      })
+      .insert(insertData)
       .select()
       .single();
 

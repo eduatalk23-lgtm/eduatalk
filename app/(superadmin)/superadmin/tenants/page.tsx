@@ -26,10 +26,28 @@ export default async function SuperAdminTenantsPage() {
     );
   }
 
-  const { data: tenants, error } = await adminClient
+  // status 컬럼이 없을 수 있으므로 안전하게 처리
+  let selectQuery = adminClient
     .from("tenants")
-    .select("id, name, type, status, created_at, updated_at")
-    .order("created_at", { ascending: false });
+    .select("id, name, type, created_at, updated_at");
+
+  // status 컬럼이 있는지 확인 후 추가
+  try {
+    const { error: testError } = await adminClient
+      .from("tenants")
+      .select("status")
+      .limit(1);
+    
+    if (!testError) {
+      selectQuery = adminClient
+        .from("tenants")
+        .select("id, name, type, status, created_at, updated_at");
+    }
+  } catch (e) {
+    // status 컬럼이 없으면 무시
+  }
+
+  const { data: tenants, error } = await selectQuery.order("created_at", { ascending: false });
 
   console.log("[superadmin] tenants 조회 결과:", {
     count: tenants?.length ?? 0,
