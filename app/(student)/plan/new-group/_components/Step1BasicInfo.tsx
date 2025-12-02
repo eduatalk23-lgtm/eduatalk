@@ -22,7 +22,7 @@ import {
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import { BlockSetTimeline } from "./_shared/BlockSetTimeline";
-import { formatDateFromDate, parseDateString as parseDateStringUtil, getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
+import { formatDateFromDate, parseDateString as parseDateStringUtil, getTodayParts, formatDateString, addDaysToDate, getDaysInMonth } from "@/lib/utils/date";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -204,7 +204,7 @@ export function Step1BasicInfo({
   const [weeksState, setWeeksState] = useState({ startDate: "", weeks: 4 });
 
   // 직접 선택: 연도/월/일을 각각 관리
-  // 로컬 함수 제거 - import한 parseDateStringUtil 사용
+  // 로컬 함수 제거 - import한 함수들 사용
 
   const [directState, setDirectState] = useState(() => {
     const startParts = data.period_start
@@ -350,21 +350,7 @@ export function Step1BasicInfo({
     Array<{ day: number; startTime: string; endTime: string }>
   >([]);
 
-  // 날짜 조합 헬퍼 함수
-  const formatDateString = (
-    year: number,
-    month: number,
-    day: number
-  ): string => {
-    const monthStr = String(month).padStart(2, "0");
-    const dayStr = String(day).padStart(2, "0");
-    return `${year}-${monthStr}-${dayStr}`;
-  };
-
-  // 해당 월의 마지막 일 계산 (윤년 고려)
-  const getDaysInMonth = (year: number, month: number): number => {
-    return new Date(year, month, 0).getDate();
-  };
+  // 로컬 함수 제거 - import한 formatDateString, getDaysInMonth 사용
 
   // 유형 전환 시 다른 유형의 값 초기화
   const handlePeriodTypeChange = (type: PeriodInputType) => {
