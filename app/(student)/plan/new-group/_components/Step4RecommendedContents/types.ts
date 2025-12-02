@@ -51,7 +51,9 @@ export type RecommendedContent = {
 
 export type Step4RecommendedContentsProps = {
   data: WizardData;
-  onUpdate: (updates: Partial<WizardData>) => void;
+  onUpdate: (
+    updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)
+  ) => void;
   isEditMode?: boolean;
   isCampMode?: boolean;
   studentId?: string; // 관리자 모드에서 다른 학생의 추천 콘텐츠 조회 시 사용

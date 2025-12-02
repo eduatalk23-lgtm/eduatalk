@@ -17,7 +17,9 @@ type UseRecommendationsProps = {
   data: WizardData;
   isEditMode: boolean;
   studentId?: string;
-  onUpdate: (updates: Partial<WizardData>) => void;
+  onUpdate: (
+    updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)
+  ) => void;
 };
 
 export function useRecommendations({
@@ -306,106 +308,103 @@ export function useRecommendations({
       }
 
       // 함수형 업데이트를 사용하여 최신 상태 보장
-      onUpdate((prev) => {
-        const currentTotal =
-          prev.student_contents.length + prev.recommended_contents.length;
-        const toAdd = contentsToAutoAdd.length;
+      console.log("[useRecommendations] 자동 배정 시작 - 함수형 업데이트 호출");
+      
+      try {
+        onUpdate((prev) => {
+          const currentTotal =
+            prev.student_contents.length + prev.recommended_contents.length;
+          const toAdd = contentsToAutoAdd.length;
 
-        console.log("[useRecommendations] 자동 배정 실행:", {
-          currentTotal,
-          toAdd,
-          contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
-            content_id: c.content_id,
-            content_type: c.content_type,
-            start_range: c.start_range,
-            end_range: c.end_range,
-            title: c.title,
-          })),
-        });
+          console.log("[useRecommendations] 자동 배정 실행 (함수형 업데이트 내부):", {
+            currentTotal,
+            toAdd,
+            currentRecommendedContents: prev.recommended_contents.length,
+            currentStudentContents: prev.student_contents.length,
+            contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
+              content_id: c.content_id,
+              content_type: c.content_type,
+              start_range: c.start_range,
+              end_range: c.end_range,
+              title: c.title,
+            })),
+          });
 
-        if (currentTotal + toAdd > 9) {
-          const maxToAdd = 9 - currentTotal;
-          const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
+          if (currentTotal + toAdd > 9) {
+            const maxToAdd = 9 - currentTotal;
+            const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
 
-          if (trimmed.length > 0) {
+            if (trimmed.length > 0) {
+              const newRecommendedContents = [
+                ...prev.recommended_contents,
+                ...trimmed,
+              ];
+              console.log("[useRecommendations] 자동 배정 (제한 적용):", {
+                trimmed: trimmed.length,
+                excluded: toAdd - trimmed.length,
+                newRecommendedContents: newRecommendedContents.length,
+                currentRecommendedContents: prev.recommended_contents.length,
+                newContents: newRecommendedContents.map((c) => ({
+                  content_id: c.content_id,
+                  title: c.title,
+                  content_type: c.content_type,
+                })),
+              });
+
+              // 비동기로 알림 표시 (상태 업데이트 후)
+              setTimeout(() => {
+                alert(
+                  SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(trimmed.length) +
+                    ` (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`
+                );
+              }, 0);
+
+              return {
+                recommended_contents: newRecommendedContents,
+              };
+            } else {
+              console.warn(
+                "[useRecommendations] 자동 배정 실패: 추가할 수 있는 콘텐츠가 없음 (최대 9개 제한)"
+              );
+              setTimeout(() => {
+                alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
+              }, 0);
+              return {};
+            }
+          } else {
             const newRecommendedContents = [
               ...prev.recommended_contents,
-              ...trimmed,
+              ...contentsToAutoAdd,
             ];
-            console.log("[useRecommendations] 자동 배정 (제한 적용):", {
-              trimmed: trimmed.length,
-              excluded: toAdd - trimmed.length,
-              newRecommendedContents: newRecommendedContents.length,
+            console.log("[useRecommendations] 자동 배정 성공:", {
+              added: contentsToAutoAdd.length,
               currentRecommendedContents: prev.recommended_contents.length,
-              newContents: newRecommendedContents.map((c) => ({
+              newRecommendedContents: newRecommendedContents.length,
+              contents: newRecommendedContents.map((c) => ({
                 content_id: c.content_id,
                 title: c.title,
                 content_type: c.content_type,
+                start_range: c.start_range,
+                end_range: c.end_range,
               })),
-            });
-
-            console.log("[useRecommendations] onUpdate 호출 전:", {
-              currentRecommendedContents: prev.recommended_contents.length,
-              toAdd: trimmed.length,
-              newRecommendedContents: newRecommendedContents.length,
             });
 
             // 비동기로 알림 표시 (상태 업데이트 후)
             setTimeout(() => {
-              alert(
-                SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(trimmed.length) +
-                  ` (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`
-              );
+              alert(SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(contentsToAutoAdd.length));
             }, 0);
 
             return {
               recommended_contents: newRecommendedContents,
             };
-          } else {
-            console.warn(
-              "[useRecommendations] 자동 배정 실패: 추가할 수 있는 콘텐츠가 없음 (최대 9개 제한)"
-            );
-            setTimeout(() => {
-              alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
-            }, 0);
-            return {};
           }
-        } else {
-          const newRecommendedContents = [
-            ...prev.recommended_contents,
-            ...contentsToAutoAdd,
-          ];
-          console.log("[useRecommendations] 자동 배정 성공:", {
-            added: contentsToAutoAdd.length,
-            currentRecommendedContents: prev.recommended_contents.length,
-            newRecommendedContents: newRecommendedContents.length,
-            contents: newRecommendedContents.map((c) => ({
-              content_id: c.content_id,
-              title: c.title,
-              content_type: c.content_type,
-              start_range: c.start_range,
-              end_range: c.end_range,
-            })),
-          });
+        });
 
-          console.log("[useRecommendations] onUpdate 호출 전:", {
-            currentRecommendedContents: prev.recommended_contents.length,
-            toAdd: contentsToAutoAdd.length,
-            newRecommendedContents: newRecommendedContents.length,
-          });
-
-          // 비동기로 알림 표시 (상태 업데이트 후)
-          setTimeout(() => {
-            alert(SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(contentsToAutoAdd.length));
-          }, 0);
-
-          return {
-            recommended_contents: newRecommendedContents,
-          };
-        }
-      });
-
-      console.log("[useRecommendations] onUpdate 호출 완료");
+        console.log("[useRecommendations] onUpdate 호출 완료");
+      } catch (error) {
+        console.error("[useRecommendations] 자동 배정 중 오류 발생:", error);
+        alert("자동 배정 중 오류가 발생했습니다. 다시 시도해주세요.");
+      }
     },
     [onUpdate]
   );
@@ -637,25 +636,39 @@ export function useRecommendations({
           // 자동 배정 실행
           await autoAssignContents(filteredRecommendations);
           
-          // 자동 배정 후 추천 목록에서 제거
-          // autoAssignContents 내부에서 onUpdate를 호출하므로,
-          // useEffect가 자동으로 recommendedContents에서 제거함
-          // 상태 업데이트가 완료될 때까지 약간의 지연을 두고 목록 업데이트
-          // (useEffect가 먼저 실행되도록 함)
-          setTimeout(() => {
-            const autoAssignedIds = new Set(
-              filteredRecommendations.map((r) => r.id)
-            );
-            setRecommendedContents((prev) => {
-              const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
-              console.log("[useRecommendations] 자동 배정 후 목록 업데이트:", {
+          // 자동 배정된 콘텐츠 ID 수집
+          const autoAssignedIds = new Set(
+            filteredRecommendations.map((r) => r.id)
+          );
+          
+          // 자동 배정 후 추천 목록에서 즉시 제거
+          // useEffect가 data.recommended_contents 변경을 감지하여 제거하지만,
+          // 즉시 반영을 위해 여기서도 제거
+          setRecommendedContents((prev) => {
+            const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
+            console.log("[useRecommendations] 자동 배정 후 목록 업데이트 (즉시):", {
+              before: prev.length,
+              after: filtered.length,
+              autoAssigned: autoAssignedIds.size,
+              removedIds: prev
+                .filter((r) => autoAssignedIds.has(r.id))
+                .map((r) => ({ id: r.id, title: r.title })),
+            });
+            return filtered;
+          });
+          
+          // allRecommendedContents에서도 제거
+          setAllRecommendedContents((prev) => {
+            const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
+            if (filtered.length !== prev.length) {
+              console.log("[useRecommendations] 자동 배정 후 전체 목록 업데이트:", {
                 before: prev.length,
                 after: filtered.length,
-                autoAssigned: autoAssignedIds.size,
+                removed: prev.length - filtered.length,
               });
-              return filtered;
-            });
-          }, 0);
+            }
+            return filtered;
+          });
         } else {
           console.log("[useRecommendations] 자동 배정 스킵:", {
             autoAssign,
