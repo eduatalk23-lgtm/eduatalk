@@ -27,25 +27,26 @@
 CREATE TABLE tenant_scheduler_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  
+
   -- 학습일/복습일 비율
   default_study_days INTEGER NOT NULL DEFAULT 6,
   default_review_days INTEGER NOT NULL DEFAULT 1,
-  
+
   -- 기타 기본 옵션
   default_weak_subject_focus TEXT DEFAULT 'medium',
   default_review_scope TEXT DEFAULT 'full',
-  
+
   -- 시간 설정 기본값
   default_lunch_time JSONB,
   default_study_hours JSONB,
   default_self_study_hours JSONB,
-  
+
   UNIQUE(tenant_id)
 );
 ```
 
 **특징**:
+
 - 기관별 전역 스케줄러 설정 저장
 - 학습일/복습일 비율 (1-7일)
 - 취약과목 집중 모드 (low, medium, high)
@@ -67,6 +68,7 @@ CREATE TABLE tenant_scheduler_settings (
 **파일**: `lib/types/schedulerSettings.ts`
 
 주요 타입:
+
 - `SchedulerSettings`: 전체 스케줄러 설정
 - `PartialSchedulerSettings`: 부분 설정 (오버라이드용)
 - `TenantSchedulerSettings`: DB 스키마 타입
@@ -83,12 +85,13 @@ export function mergeSchedulerSettings(
   globalSettings: PartialSchedulerSettings | null,
   templateSettings: PartialSchedulerSettings | null,
   groupSettings: PartialSchedulerSettings | null
-): SchedulerSettings
+): SchedulerSettings;
 ```
 
 **병합 순서**: 기본값 → 전역 → 템플릿 → 플랜그룹
 
 **변환 함수**:
+
 - `dbToPartialSettings`: DB 레코드 → 부분 설정
 - `planGroupOptionsToPartialSettings`: 플랜그룹 옵션 → 부분 설정
 - `settingsToPlanGroupOptions`: 설정 → 플랜그룹 옵션
@@ -104,6 +107,7 @@ export function mergeSchedulerSettings(
 **경로**: `/admin/settings/scheduler`
 
 **기능**:
+
 - 기관 전체 기본 스케줄러 설정 관리
 - 학습일/복습일 비율 설정
 - 취약과목 집중 모드 설정
@@ -115,6 +119,7 @@ export function mergeSchedulerSettings(
 **파일**: `app/(admin)/admin/settings/scheduler/_components/SchedulerSettingsForm.tsx`
 
 **특징**:
+
 - React 상태 관리
 - Toast 알림 통합
 - 유효성 검증 (1-7일)
@@ -141,11 +146,13 @@ export function mergeSchedulerSettings(
 **파일**: `app/(student)/actions/plan-groups/plans.ts`
 
 **변경 전**:
+
 ```typescript
 const schedulerOptions = (group.scheduler_options as any) || {};
 ```
 
 **변경 후**:
+
 ```typescript
 const mergedSettings = await getMergedSchedulerSettings(
   group.tenant_id,
@@ -162,6 +169,7 @@ const schedulerOptions = {
 ```
 
 **효과**:
+
 - 전역 → 템플릿 → 플랜그룹 순으로 설정 상속
 - 일관된 스케줄러 옵션 적용
 - 하위 레벨에서 오버라이드 가능
@@ -180,10 +188,12 @@ const schedulerOptions = {
 ### 5.1. 설정 병합 최적화
 
 **기존 문제**:
+
 - 플랜 생성 시마다 설정 조회
 - 중복 데이터베이스 쿼리
 
 **개선 방안**:
+
 1. **병합 로직 최적화**: 한 번의 함수 호출로 전체 병합
 2. **타입 안전성**: TypeScript로 타입 보장
 3. **기본값 처리**: 설정이 없어도 기본값으로 대체
@@ -191,6 +201,7 @@ const schedulerOptions = {
 ### 5.2. 캐싱 전략
 
 **향후 구현 예정**:
+
 - React Query로 전역 설정 캐싱 (staleTime: 5분)
 - 템플릿 설정은 플랜 그룹 생성 시 한 번만 조회
 - 콘텐츠 소요시간 사전 계산 및 캐싱
@@ -198,10 +209,12 @@ const schedulerOptions = {
 ### 5.3. 제외일 처리 최적화
 
 **현재 상태**:
+
 - `calculateAvailableDates`에서 제외일 필터링
 - 날짜별 반복 처리에서 제외일 체크
 
 **향후 개선**:
+
 - 제외일 필터링 로직 통합
 - 날짜별 메타데이터 일괄 처리
 
@@ -210,18 +223,22 @@ const schedulerOptions = {
 ## 📊 예상 효과
 
 ### 1. 관리 편의성
+
 - 전역/템플릿/플랜그룹 레벨에서 일관된 설정 관리
 - UI를 통한 직관적인 설정 변경
 
 ### 2. 일관성
+
 - 설정 상속으로 일관된 학습 계획 생성
 - 기관 전체에 동일한 기본값 적용
 
 ### 3. 유연성
+
 - 필요 시 하위 레벨에서 오버라이드 가능
 - 캠프별, 플랜그룹별 커스터마이징 지원
 
 ### 4. 성능
+
 - 병합 로직 최적화로 불필요한 쿼리 감소
 - 타입 안전성으로 런타임 에러 방지
 
@@ -250,6 +267,7 @@ const schedulerOptions = {
 ## 📂 파일 변경 목록
 
 ### 신규 파일
+
 - `supabase/migrations/20250202000000_create_tenant_scheduler_settings.sql`
 - `lib/types/schedulerSettings.ts`
 - `lib/utils/schedulerSettingsMerge.ts`
@@ -259,6 +277,7 @@ const schedulerOptions = {
 - `app/(admin)/admin/settings/scheduler/_components/SchedulerSettingsForm.tsx`
 
 ### 수정 파일
+
 - `app/(student)/actions/plan-groups/plans.ts`
   - 병합된 설정 사용하도록 수정
 
@@ -267,18 +286,22 @@ const schedulerOptions = {
 ## 🔜 향후 개선 사항
 
 ### 1. 템플릿 스케줄러 설정 UI
+
 - 캠프 템플릿 편집 페이지에 스케줄러 설정 패널 추가
 - 전역 설정 상속 또는 오버라이드 선택
 
 ### 2. 플랜 그룹 위저드 설정 개선
+
 - Step 1에서 학습일/복습일 비율 설정 UI 추가
 - 상위 레벨 설정 표시 (읽기 전용)
 
 ### 3. 캐싱 전략 구현
+
 - React Query로 전역 설정 캐싱
 - 템플릿 설정 캐싱
 
 ### 4. 성능 최적화
+
 - 콘텐츠 소요시간 사전 계산
 - 날짜별 메타데이터 일괄 처리
 - 제외일 필터링 로직 통합
@@ -288,23 +311,27 @@ const schedulerOptions = {
 ## ✅ 테스트 체크리스트
 
 ### 데이터베이스
+
 - [ ] 마이그레이션 실행 확인
 - [ ] RLS 정책 테스트
 - [ ] unique constraint 테스트
 
 ### 설정 병합
+
 - [ ] 전역 설정만 있을 때
 - [ ] 템플릿 설정이 전역 오버라이드
 - [ ] 플랜그룹 설정이 전체 오버라이드
 - [ ] 부분 오버라이드 (study_days만)
 
 ### UI
+
 - [ ] 관리자 설정 페이지 렌더링
 - [ ] 설정 저장 기능
 - [ ] 유효성 검증 (1-7일)
 - [ ] Toast 알림 표시
 
 ### 플랜 생성
+
 - [ ] 병합된 설정으로 플랜 생성
 - [ ] 학습일/복습일 비율 적용
 - [ ] 취약과목 집중 모드 적용
@@ -313,4 +340,3 @@ const schedulerOptions = {
 
 **완료 일시**: 2025-02-02  
 **관련 커밋**: `feat: 플랜 배치 기능 세분화 및 관리자 옵션 설정 (Phase 1-4)`
-

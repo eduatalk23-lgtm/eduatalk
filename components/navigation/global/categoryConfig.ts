@@ -343,6 +343,13 @@ const adminCategories: NavigationCategory[] = [
         roles: ["admin"], // admin만 접근
       },
       {
+        id: "admin-tenant-users",
+        label: "기관별 사용자 관리",
+        href: "/admin/tenant/users",
+        icon: "👥",
+        roles: ["admin"], // admin만 접근
+      },
+      {
         id: "admin-tools",
         label: "도구",
         href: "/admin/tools",
