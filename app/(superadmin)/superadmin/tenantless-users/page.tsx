@@ -1,0 +1,142 @@
+import { redirect } from "next/navigation";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getTenantlessUsers } from "@/app/(superadmin)/actions/tenantlessUserActions";
+import { TenantlessUsersList } from "./_components/TenantlessUsersList";
+import Link from "next/link";
+
+export const dynamic = "force-dynamic";
+
+export default async function TenantlessUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const { role, userId } = await getCurrentUserRole();
+
+  // Super Admin만 접근 가능
+  if (!userId || role !== "superadmin") {
+    redirect("/login");
+  }
+
+  const params = await searchParams;
+  const searchQuery = params.search?.trim() ?? "";
+  const userTypeFilter = (params.type as "student" | "parent" | "admin" | "all") || "all";
+  const page = parseInt(params.page || "1", 10);
+  const pageSize = 20;
+
+  // 테넌트 미할당 사용자 조회
+  const result = await getTenantlessUsers(userTypeFilter === "all" ? undefined : userTypeFilter);
+
+  if (!result.success || !result.data) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">시스템 관리</p>
+              <h1 className="text-3xl font-semibold text-gray-900">테넌트 미할당 사용자 관리</h1>
+              <p className="text-sm text-gray-500">
+                테넌트가 할당되지 않은 사용자들을 조회하고 관리할 수 있습니다.
+              </p>
+            </div>
+            <Link
+              href="/superadmin/dashboard"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              대시보드로
+            </Link>
+          </div>
+
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
+            <h3 className="mb-2 text-lg font-semibold text-red-900">오류 발생</h3>
+            <p className="text-sm text-red-800">{result.error || "사용자 목록을 조회할 수 없습니다."}</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  let users = result.data;
+
+  // 검색 필터 적용
+  if (searchQuery) {
+    users = users.filter(
+      (user) =>
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
+
+  const totalCount = users.length;
+
+  // 페이지네이션
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize;
+  const paginatedUsers = users.slice(from, to);
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // 통계 계산
+  const stats = {
+    total: users.length,
+    students: users.filter((u) => u.userType === "student").length,
+    parents: users.filter((u) => u.userType === "parent").length,
+    admins: users.filter((u) => u.userType === "admin").length,
+  };
+
+  return (
+    <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <div className="flex flex-col gap-8">
+        {/* Header */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">시스템 관리</p>
+            <h1 className="text-3xl font-semibold text-gray-900">테넌트 미할당 사용자 관리</h1>
+            <p className="text-sm text-gray-500">
+              테넌트가 할당되지 않은 사용자들을 조회하고 관리할 수 있습니다.
+            </p>
+          </div>
+          <Link
+            href="/superadmin/dashboard"
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            대시보드로
+          </Link>
+        </div>
+
+        {/* 통계 */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-medium text-gray-500">전체 사용자</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{stats.total}</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-medium text-gray-500">학생</div>
+            <div className="mt-2 text-3xl font-bold text-blue-600">{stats.students}</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-medium text-gray-500">학부모</div>
+            <div className="mt-2 text-3xl font-bold text-purple-600">{stats.parents}</div>
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="text-sm font-medium text-gray-500">관리자</div>
+            <div className="mt-2 text-3xl font-bold text-indigo-600">{stats.admins}</div>
+          </div>
+        </div>
+
+        {/* 사용자 목록 */}
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">테넌트 미할당 사용자 목록</h2>
+          <TenantlessUsersList
+            users={paginatedUsers}
+            searchQuery={searchQuery}
+            userTypeFilter={userTypeFilter}
+            currentPage={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+

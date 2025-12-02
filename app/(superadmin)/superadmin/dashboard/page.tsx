@@ -130,7 +130,7 @@ export default async function SuperAdminDashboardPage() {
       {/* 빠른 액션 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">빠른 액션</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/superadmin/tenants"
             className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
@@ -151,6 +151,13 @@ export default async function SuperAdminDashboardPage() {
           >
             <div className="font-medium text-gray-900">미인증 가입 관리</div>
             <div className="mt-1 text-sm text-gray-600">미인증 사용자 확인 및 처리</div>
+          </Link>
+          <Link
+            href="/superadmin/tenantless-users"
+            className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+          >
+            <div className="font-medium text-gray-900">테넌트 미할당 사용자</div>
+            <div className="mt-1 text-sm text-gray-600">테넌트가 할당되지 않은 사용자 관리</div>
           </Link>
         </div>
       </div>
