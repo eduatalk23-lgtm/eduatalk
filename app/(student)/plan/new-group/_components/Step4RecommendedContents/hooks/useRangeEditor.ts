@@ -139,10 +139,28 @@ export function useRangeEditor({
             }
 
             // 상세정보가 없고 총 페이지수/회차가 있는 경우, 전체 범위로 자동 설정
+            // 단, 이미 편집 중인 범위가 있으면 유지
             if (total && total > 0) {
-              setEditingRange({
-                start: "1",
-                end: String(total),
+              setEditingRange((prev) => {
+                // 이미 편집 중인 범위가 있으면 유지, 없으면 전체 범위로 설정
+                if (prev) {
+                  return prev;
+                }
+                return {
+                  start: "1",
+                  end: String(total),
+                };
+              });
+            } else {
+              // 총량도 없으면 현재 범위로 초기화 (없으면 기본값)
+              setEditingRange((prev) => {
+                if (prev) {
+                  return prev;
+                }
+                return {
+                  start: String(content.start_range || 1),
+                  end: String(content.end_range || 100),
+                };
               });
             }
           } else {
@@ -195,11 +213,26 @@ export function useRangeEditor({
           cachedDetailsRef.current.set(content.content_id, detailData);
           setContentDetails(new Map([[editingRangeIndex, detailData]]));
         } else {
-          // API 호출 실패 시에도 총 페이지수/회차가 있으면 범위 자동 설정
+          // API 호출 실패 시에도 빈 배열로 저장하여 직접 입력 UI 표시
+          const emptyDetailData: ContentDetail =
+            content.content_type === "book"
+              ? { details: [], type: "book" as const }
+              : { details: [], type: "lecture" as const };
+          
+          cachedDetailsRef.current.set(content.content_id, emptyDetailData);
+          setContentDetails(new Map([[editingRangeIndex, emptyDetailData]]));
+          
+          // 총 페이지수/회차가 있으면 범위 자동 설정
           if (total && total > 0) {
             setEditingRange({
               start: "1",
               end: String(total),
+            });
+          } else {
+            // 총량도 없으면 현재 범위 유지
+            setEditingRange({
+              start: String(content.start_range),
+              end: String(content.end_range),
             });
           }
         }
@@ -219,6 +252,39 @@ export function useRangeEditor({
             reason: "API 호출 실패 또는 네트워크 에러",
           }
         );
+        
+        // 에러 발생 시에도 빈 배열로 저장하여 직접 입력 UI 표시
+        const emptyDetailData: ContentDetail =
+          content.content_type === "book"
+            ? { details: [], type: "book" as const }
+            : { details: [], type: "lecture" as const };
+        
+        cachedDetailsRef.current.set(content.content_id, emptyDetailData);
+        setContentDetails(new Map([[editingRangeIndex, emptyDetailData]]));
+        
+        // 총 페이지수/회차 조회 시도
+        try {
+          const total = await fetchContentTotal(content.content_type, content.content_id);
+          if (total) {
+            setContentTotals(new Map([[editingRangeIndex, total]]));
+            setEditingRange({
+              start: "1",
+              end: String(total),
+            });
+          } else {
+            // 총량도 없으면 현재 범위 유지
+            setEditingRange({
+              start: String(content.start_range),
+              end: String(content.end_range),
+            });
+          }
+        } catch (totalError) {
+          // 총량 조회 실패 시 현재 범위 유지
+          setEditingRange({
+            start: String(content.start_range),
+            end: String(content.end_range),
+          });
+        }
       } finally {
         setLoadingDetails((prev) => {
           const newSet = new Set(prev);
