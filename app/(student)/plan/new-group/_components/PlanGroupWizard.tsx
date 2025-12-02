@@ -475,8 +475,17 @@ export function PlanGroupWizard({
   const [activationDialogOpen, setActivationDialogOpen] = useState(false);
   const [activeGroupNames, setActiveGroupNames] = useState<string[]>([]);
 
-  const updateWizardData = (updates: Partial<WizardData>) => {
-    setWizardData((prev) => ({ ...prev, ...updates }));
+  const updateWizardData = (
+    updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)
+  ) => {
+    if (typeof updates === "function") {
+      setWizardData((prev) => {
+        const partialUpdates = updates(prev);
+        return { ...prev, ...partialUpdates };
+      });
+    } else {
+      setWizardData((prev) => ({ ...prev, ...updates }));
+    }
     setValidationErrors([]);
     setValidationWarnings([]);
   };
