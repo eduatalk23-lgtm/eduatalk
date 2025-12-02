@@ -268,23 +268,21 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
         onImport={handleImportSchedules}
       />
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
       {/* 헤더 */}
       <div className="mb-4 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={syncFromTimeManagement}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <RefreshCw className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`} />
-            시간 관리에서 불러오기
-          </button>
-          {availableCount !== null && availableCount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-              {availableCount}개
-            </span>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={syncFromTimeManagement}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`} />
+          시간 관리에서 불러오기
+        </button>
+        {availableCount !== null && availableCount > 0 && (
+          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+            {availableCount}개
+          </span>
+        )}
       </div>
 
       {/* 학원 일정 추가 폼 */}
@@ -481,7 +479,6 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       ) : (
         <p className="text-sm text-gray-500">등록된 학원 일정이 없습니다.</p>
       )}
-      </div>
     </>
   );
 });

@@ -9,7 +9,7 @@ import {
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Step1BasicInfo } from "@/app/(student)/plan/new-group/_components/Step1BasicInfo";
-import { Step2TimeSettingsWithPreview } from "@/app/(student)/plan/new-group/_components/Step2TimeSettingsWithPreview";
+import { Step2TimeSettings } from "@/app/(student)/plan/new-group/_components/Step2TimeSettings";
 import { Step3ContentSelection } from "@/app/(student)/plan/new-group/_components/Step3ContentSelection";
 import { planGroupToWizardData } from "@/lib/utils/planGroupAdapters";
 import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
@@ -384,7 +384,7 @@ export function CampPlanGroupReviewForm({
 
         {currentTab === "step2" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <Step2TimeSettingsWithPreview
+            <Step2TimeSettings
               data={wizardData}
               onUpdate={() => {}} // readonly 모드에서는 업데이트 불필요
               periodStart={group.period_start}

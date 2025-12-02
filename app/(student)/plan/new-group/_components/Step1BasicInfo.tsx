@@ -1949,7 +1949,16 @@ export function Step1BasicInfo({
         }
         showStudentInputToggle={isTemplateMode}
       >
-        <div className="mb-2 flex items-center justify-end gap-1">
+        <div className="mb-2 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setShowBlockSetDesc(!showBlockSetDesc)}
+            className="flex items-center rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            title="블록 세트 설명"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </button>
+          <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={handleLoadBlockSets}

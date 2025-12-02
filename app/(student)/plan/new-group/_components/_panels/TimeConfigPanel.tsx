@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { WizardData } from "../PlanGroupWizard";
 import { TimeRangeInput } from "@/components/ui/TimeRangeInput";
 
@@ -23,8 +23,6 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
   campMode = false,
   isTemplateMode = false,
 }: TimeConfigPanelProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  
   // 템플릿 고정 필드 확인
   const lockedFields = data.templateLockedFields?.step2 || {};
   
@@ -64,28 +62,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex flex-1 items-center justify-between text-left transition-colors hover:bg-gray-50 rounded-lg p-2 -m-2"
-        >
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">시간 설정</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              점심시간 및 학습 시간대를 조정할 수 있습니다.
-            </p>
-          </div>
-          <span className="text-gray-400">
-            {isOpen ? "▲" : "▼"}
-          </span>
-        </button>
-      </div>
-
-      {isOpen && (
-        <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+    <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           {/* 점심시간 */}
           {(!campMode || canStudentInputTimeSettings) && (
             <TimeRangeInput
@@ -193,8 +170,6 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
               )}
             </div>
           )}
-        </div>
-      )}
     </div>
   );
 });

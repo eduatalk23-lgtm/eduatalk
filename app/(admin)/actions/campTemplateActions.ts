@@ -309,13 +309,13 @@ export const createCampTemplateDraftAction = withErrorHandling(
     const result = await createCampTemplate({
       tenant_id: tenantContext.tenantId,
       name,
-      description,
+      description: description || undefined,
       program_type: programType,
       template_data: emptyTemplateData,
       created_by: userId,
-      camp_start_date: campStartDate,
-      camp_end_date: campEndDate,
-      camp_location: campLocation,
+      camp_start_date: campStartDate || undefined,
+      camp_end_date: campEndDate || undefined,
+      camp_location: campLocation || undefined,
     });
 
     if (!result.success || !result.templateId) {

@@ -25,7 +25,6 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
   isTemplateMode = false,
 }: NonStudyTimeBlocksPanelProps) {
   const toast = useToast();
-  const [isOpen, setIsOpen] = useState(false);
   
   // 템플릿 고정 필드 확인
   const lockedFields = data.templateLockedFields?.step2 || {};
@@ -105,24 +104,14 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
+    <>
       {/* 헤더 */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-gray-900">학습 시간 제외 항목</h3>
-          <Info className="h-4 w-4 text-gray-400" />
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          <span className="text-gray-400">{isOpen ? "▲" : "▼"}</span>
-        </button>
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-gray-900">학습 시간 제외 항목</h3>
+        <Info className="h-4 w-4 text-gray-400" />
       </div>
 
-      {isOpen && (
-        <div className="border-t border-gray-200 pt-4">
+      <div>
           <p className="mb-4 text-xs text-gray-600">
             학습 시간 내에서 플랜 배정을 제외할 시간대를 설정합니다. (식사 시간, 수면 시간 등)
           </p>
@@ -261,9 +250,8 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               </button>
             </div>
           )}
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 });
 
