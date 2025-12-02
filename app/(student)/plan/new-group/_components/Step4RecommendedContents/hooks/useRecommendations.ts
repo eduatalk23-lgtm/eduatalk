@@ -3,7 +3,7 @@
  * 추천 콘텐츠 조회 및 관리
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { WizardData } from "../../PlanGroupWizard";
 import {
   PlanGroupError,
@@ -53,13 +53,20 @@ export function useRecommendations({
     }
   }, [isEditMode, data.recommended_contents.length]);
 
-  // data.recommended_contents가 업데이트되면 recommendedContents에서 제거
+  // data.recommended_contents가 업데이트되면 recommendedContents와 allRecommendedContents에서 제거
+  // 의존성을 content_id 배열로 변경하여 정확한 변경 감지
+  const recommendedContentIds = useMemo(
+    () => data.recommended_contents.map((c) => c.content_id).sort().join(","),
+    [data.recommended_contents]
+  );
+
   useEffect(() => {
     if (data.recommended_contents.length > 0) {
       const addedContentIds = new Set(
         data.recommended_contents.map((c) => c.content_id)
       );
       
+      // recommendedContents에서 제거
       setRecommendedContents((prev) => {
         const filtered = prev.filter((c) => !addedContentIds.has(c.id));
         
@@ -76,8 +83,29 @@ export function useRecommendations({
         
         return filtered;
       });
+      
+      // allRecommendedContents에서도 제거
+      setAllRecommendedContents((prev) => {
+        const filtered = prev.filter((c) => !addedContentIds.has(c.id));
+        
+        if (filtered.length !== prev.length) {
+          console.log("[useRecommendations] 추가된 콘텐츠를 전체 추천 목록에서 제거:", {
+            before: prev.length,
+            after: filtered.length,
+            removed: prev.length - filtered.length,
+            removedIds: prev
+              .filter((c) => addedContentIds.has(c.id))
+              .map((c) => ({ id: c.id, title: c.title })),
+          });
+        }
+        
+        return filtered;
+      });
+    } else {
+      // recommended_contents가 비어있으면 필터링하지 않음 (초기 상태)
+      // 하지만 이미 추가된 콘텐츠는 제거된 상태를 유지
     }
-  }, [data.recommended_contents]);
+  }, [recommendedContentIds]);
 
   /**
    * 학생 콘텐츠의 master_content_id 수집
