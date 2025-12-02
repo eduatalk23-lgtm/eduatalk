@@ -81,15 +81,20 @@
    - 각 패널을 CollapsibleSection으로 감싸기
    - 학생 입력 허용 체크박스를 헤더에 통합
 
-## 남은 작업
+## 완료된 추가 작업
 
-### 1. Step 3-5: 섹션 구조 확인 및 개선
-- Step3ContentSelection, Step4RecommendedContents 등의 주요 섹션이 있는지 확인
-- 필요시 CollapsibleSection 적용
+### 1. Step 3-5: 섹션 구조 확인
+- Step3ContentSelection, Step4RecommendedContents 등은 이미 탭 구조로 잘 정리되어 있음
+- 추가 CollapsibleSection 적용 불필요
 
 ### 2. 학생 입력 허용 체크박스 위치 통일
-- 각 패널 내부의 학생 입력 허용 체크박스 제거
+- 각 패널 내부의 학생 입력 허용 체크박스 제거 완료
 - CollapsibleSection 헤더의 체크박스만 사용하도록 통일
+- 수정된 패널:
+  - ExclusionsPanel
+  - AcademySchedulePanel
+  - TimeConfigPanel
+  - NonStudyTimeBlocksPanel
 
 ## 예상 효과
 
