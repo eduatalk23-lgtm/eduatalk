@@ -61,6 +61,7 @@ export function CampTemplateDetail({
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
+  // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
   const loadInvitations = useCallback(async () => {
     // 삭제 중이면 실행하지 않음
     if (isDeleting) {
@@ -92,14 +93,16 @@ export function CampTemplateDetail({
     } finally {
       setLoadingInvitations(false);
     }
-  }, [template.id, toast, isDeleting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.id, isDeleting]);
 
-  // 초기 로드 (삭제 중이 아닐 때만 실행)
+  // 초기 로드 (template.id와 isDeleting만 의존하여 불필요한 재호출 방지)
   useEffect(() => {
     if (!isDeleting) {
       loadInvitations();
     }
-  }, [loadInvitations, isDeleting]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.id, isDeleting]);
 
   // 초대 발송 후 목록 새로고침 (useCallback으로 메모이제이션)
   const handleInvitationSent = useCallback(() => {
