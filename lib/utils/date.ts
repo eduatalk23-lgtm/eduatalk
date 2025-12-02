@@ -66,9 +66,13 @@ export function getWeeksDifference(startDate: string, endDate: string): number {
 
 /**
  * 시작 날짜와 주 수로 종료 날짜 계산
+ * 타임존 문제를 방지하기 위해 YYYY-MM-DD 문자열을 직접 파싱합니다.
  */
 export function calculateEndDate(startDate: string, weeks: number): string {
-  const start = new Date(startDate);
+  // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
+  const startParts = parseDateString(startDate);
+  const start = new Date(startParts.year, startParts.month - 1, startParts.day);
+  
   const end = new Date(start);
   end.setDate(start.getDate() + weeks * 7);
   return formatDateFromDate(end);
@@ -82,6 +86,19 @@ export function formatDateFromDate(date: Date): string {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   return formatDateString(year, month, day);
+}
+
+/**
+ * 날짜 문자열에 일수를 더하거나 빼기 (타임존 문제 방지)
+ * @param dateStr YYYY-MM-DD 형식의 날짜 문자열
+ * @param days 더하거나 빼고 싶은 일수 (음수 가능)
+ * @returns YYYY-MM-DD 형식의 날짜 문자열
+ */
+export function addDaysToDate(dateStr: string, days: number): string {
+  const parts = parseDateString(dateStr);
+  const date = new Date(parts.year, parts.month - 1, parts.day);
+  date.setDate(date.getDate() + days);
+  return formatDateFromDate(date);
 }
 
 /**

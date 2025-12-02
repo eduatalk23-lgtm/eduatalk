@@ -22,6 +22,7 @@ import {
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import { BlockSetTimeline } from "./_shared/BlockSetTimeline";
+import { formatDateFromDate, parseDateString as parseDateStringUtil, getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -192,7 +193,9 @@ export function Step1BasicInfo({
     "allow_student_additional_period_reallocation"
   );
 
-  const today = new Date().toISOString().split("T")[0];
+  // 오늘 날짜를 로컬 타임존 기준으로 가져오기 (타임존 문제 방지)
+  const todayParts = getTodayParts();
+  const today = formatDateString(todayParts.year, todayParts.month, todayParts.day);
   const [periodInputType, setPeriodInputType] =
     useState<PeriodInputType>("direct");
 
@@ -417,15 +420,16 @@ export function Step1BasicInfo({
       return;
     }
 
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
+    // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
+    const startParts = parseDateStringUtil(startDate);
+    const start = new Date(startParts.year, startParts.month - 1, startParts.day);
 
     const end = new Date(start);
     end.setDate(end.getDate() + weeks * 7);
 
     onUpdate({
-      period_start: start.toISOString().split("T")[0],
-      period_end: end.toISOString().split("T")[0],
+      period_start: formatDateFromDate(start),
+      period_end: formatDateFromDate(end),
     });
   };
 
@@ -435,17 +439,17 @@ export function Step1BasicInfo({
       return;
     }
 
-    const targetDate = new Date(dday);
-    targetDate.setHours(0, 0, 0, 0);
+    // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
+    const targetParts = parseDateStringUtil(dday);
+    const targetDate = new Date(targetParts.year, targetParts.month - 1, targetParts.day);
 
     // D-day 기준으로 30일 전부터 시작
     const start = new Date(targetDate);
     start.setDate(start.getDate() - 30);
-    start.setHours(0, 0, 0, 0);
 
     onUpdate({
-      period_start: start.toISOString().split("T")[0],
-      period_end: targetDate.toISOString().split("T")[0],
+      period_start: formatDateFromDate(start),
+      period_end: formatDateFromDate(targetDate),
       target_date: dday,
     });
   };
@@ -2628,29 +2632,20 @@ export function Step1BasicInfo({
                       }
                       
                       // 4주 기간 계산 (원본 기간의 첫 4주)
-                      const periodStart = new Date(data.period_start);
-                      const periodEnd = new Date(data.period_end);
-                      
                       // 날짜 유효성 검사
-                      if (isNaN(periodStart.getTime()) || isNaN(periodEnd.getTime())) {
+                      if (!data.period_start || !data.period_end) {
                         showError("유효하지 않은 날짜 형식입니다. 학습 기간을 다시 확인해주세요.");
                         e.target.checked = false;
                         return;
                       }
                       
-                      const fourWeeksEnd = new Date(periodStart);
-                      fourWeeksEnd.setDate(fourWeeksEnd.getDate() + 28); // 4주 = 28일
-
+                      // 4주 후 날짜 계산 (타임존 문제 방지)
+                      const fourWeeksEndStr = addDaysToDate(data.period_start, 28); // 4주 = 28일
+                      
                       // 실제 종료일이 4주보다 짧으면 그 날짜 사용
-                      const originalEnd =
-                        fourWeeksEnd > periodEnd ? periodEnd : fourWeeksEnd;
-
-                      // originalEnd 유효성 검사
-                      if (isNaN(originalEnd.getTime())) {
-                        showError("날짜 계산 중 오류가 발생했습니다.");
-                        e.target.checked = false;
-                        return;
-                      }
+                      const originalEndStr = fourWeeksEndStr > data.period_end 
+                        ? data.period_end 
+                        : fourWeeksEndStr;
 
                       onUpdate({
                         additional_period_reallocation: {
@@ -2658,9 +2653,7 @@ export function Step1BasicInfo({
                           period_end: "",
                           type: "additional_review",
                           original_period_start: data.period_start,
-                          original_period_end: originalEnd
-                            .toISOString()
-                            .split("T")[0],
+                          original_period_end: originalEndStr,
                           review_of_review_factor: 0.25,
                         },
                       });
@@ -2707,11 +2700,7 @@ export function Step1BasicInfo({
                         value={data.additional_period_reallocation.period_start}
                         min={
                           data.period_end
-                            ? new Date(
-                                new Date(data.period_end).getTime() + 86400000
-                              )
-                                .toISOString()
-                                .split("T")[0]
+                            ? addDaysToDate(data.period_end, 1)
                             : undefined
                         }
                         onChange={(e) => {
@@ -2723,11 +2712,7 @@ export function Step1BasicInfo({
                           
                           const newStartDate = e.target.value;
                           const minDate = data.period_end
-                            ? new Date(
-                                new Date(data.period_end).getTime() + 86400000
-                              )
-                                .toISOString()
-                                .split("T")[0]
+                            ? addDaysToDate(data.period_end, 1)
                             : null;
                           
                           if (minDate && newStartDate < minDate) {
@@ -2740,12 +2725,7 @@ export function Step1BasicInfo({
                           // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
                           let newEndDate = data.additional_period_reallocation.period_end;
                           if (newEndDate && newEndDate < newStartDate) {
-                            const adjustedEndDate = new Date(
-                              new Date(newStartDate).getTime() + 86400000
-                            )
-                              .toISOString()
-                              .split("T")[0];
-                            newEndDate = adjustedEndDate;
+                            newEndDate = addDaysToDate(newStartDate, 1);
                           }
                           
                           onUpdate({
@@ -2777,11 +2757,7 @@ export function Step1BasicInfo({
                         value={data.additional_period_reallocation.period_end}
                         min={
                           data.additional_period_reallocation.period_start
-                            ? new Date(
-                                new Date(data.additional_period_reallocation.period_start).getTime() + 86400000
-                              )
-                                .toISOString()
-                                .split("T")[0]
+                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
                             : undefined
                         }
                         onChange={(e) => {
@@ -2793,11 +2769,7 @@ export function Step1BasicInfo({
                           
                           const newEndDate = e.target.value;
                           const minDate = data.additional_period_reallocation.period_start
-                            ? new Date(
-                                new Date(data.additional_period_reallocation.period_start).getTime() + 86400000
-                              )
-                                .toISOString()
-                                .split("T")[0]
+                            ? addDaysToDate(data.additional_period_reallocation.period_start, 1)
                             : null;
                           
                           if (minDate && newEndDate < minDate) {

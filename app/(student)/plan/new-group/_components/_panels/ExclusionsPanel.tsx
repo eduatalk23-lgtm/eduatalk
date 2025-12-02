@@ -6,6 +6,7 @@ import { WizardData } from "../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementExclusionsAction } from "@/app/(student)/actions/planGroupActions";
 import { ExclusionImportModal } from "./_modals/ExclusionImportModal";
+import { formatDateFromDate, parseDateString } from "@/lib/utils/date";
 
 type ExclusionsPanelProps = {
   data: WizardData;
@@ -152,12 +153,15 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
   const generateDateRange = (start: string, end: string): string[] => {
     const dates: string[] = [];
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
+    const startParts = parseDateString(start);
+    const endParts = parseDateString(end);
+    const startDate = new Date(startParts.year, startParts.month - 1, startParts.day);
+    const endDate = new Date(endParts.year, endParts.month - 1, endParts.day);
     const current = new Date(startDate);
 
     while (current <= endDate) {
-      dates.push(current.toISOString().split("T")[0]);
+      dates.push(formatDateFromDate(current));
       current.setDate(current.getDate() + 1);
     }
 
@@ -426,12 +430,15 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
                 {(() => {
                   const dates: string[] = [];
-                  const start = new Date(periodStart);
-                  const end = new Date(periodEnd);
+                  // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
+                  const startParts = parseDateString(periodStart);
+                  const endParts = parseDateString(periodEnd);
+                  const start = new Date(startParts.year, startParts.month - 1, startParts.day);
+                  const end = new Date(endParts.year, endParts.month - 1, endParts.day);
                   const current = new Date(start);
 
                   while (current <= end) {
-                    dates.push(current.toISOString().split("T")[0]);
+                    dates.push(formatDateFromDate(current));
                     current.setDate(current.getDate() + 1);
                   }
 
