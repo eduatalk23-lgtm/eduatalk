@@ -764,14 +764,14 @@ export function Step3ContentSelection({
                 필수
               </span>
             </div>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-600">
               플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어,
               수학, 영어)
             </p>
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-gray-600">
               플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다.
               개정교육과정별로 세부 과목을 지정하여 더 정확한 제약 조건을 설정할
               수 있습니다.
@@ -803,14 +803,14 @@ export function Step3ContentSelection({
             <button
               type="button"
               onClick={handleAddRequiredSubject}
-              className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-700 hover:border-gray-400 hover:text-gray-700 transition-colors"
+              className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-600 transition-colors"
             >
               + 필수 교과 추가
             </button>
 
             {/* 제약 조건 처리 방식 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-600 mb-2">
                 제약 조건 처리 방식
               </label>
               <select
@@ -834,7 +834,7 @@ export function Step3ContentSelection({
                   자동 보정 - 시스템이 자동으로 보정
                 </option>
               </select>
-              <p className="mt-1 text-xs text-gray-700">
+              <p className="mt-1 text-xs text-gray-600">
                 {data.subject_constraints?.constraint_handling === "warning" &&
                   "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
                 {data.subject_constraints?.constraint_handling === "strict" &&
@@ -865,7 +865,7 @@ export function Step3ContentSelection({
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "student"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-700 hover:text-gray-900"
+              : "border-transparent text-gray-600 hover:text-gray-900"
           )}
         >
           <BookOpen className="h-4 w-4" />
@@ -875,7 +875,7 @@ export function Step3ContentSelection({
               "rounded-full px-2 py-0.5 text-xs",
               activeTab === "student"
                 ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-700"
+                : "bg-gray-100 text-gray-600"
             )}
           >
             {data.student_contents.length}
@@ -889,7 +889,7 @@ export function Step3ContentSelection({
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "recommended"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-700 hover:text-gray-900"
+              : "border-transparent text-gray-600 hover:text-gray-900"
           )}
         >
           <Sparkles className="h-4 w-4" />
@@ -899,7 +899,7 @@ export function Step3ContentSelection({
               "rounded-full px-2 py-0.5 text-xs",
               activeTab === "recommended"
                 ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-700"
+                : "bg-gray-100 text-gray-600"
             )}
           >
             {data.recommended_contents.length}
@@ -913,7 +913,7 @@ export function Step3ContentSelection({
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "master"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-700 hover:text-gray-900"
+              : "border-transparent text-gray-600 hover:text-gray-900"
           )}
         >
           <Package className="h-4 w-4" />

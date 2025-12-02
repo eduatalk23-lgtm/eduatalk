@@ -335,7 +335,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-          <span className="ml-3 text-sm text-gray-700">스케줄 계산 중...</span>
+          <span className="ml-3 text-sm text-gray-600">스케줄 계산 중...</span>
         </div>
       </div>
     );
@@ -360,10 +360,10 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
         <div className="text-center py-8">
           <Calendar className="mx-auto h-12 w-12 text-gray-600" />
-          <p className="mt-3 text-sm font-medium text-gray-700">
+          <p className="mt-3 text-sm font-medium text-gray-600">
             스케줄 미리보기
           </p>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="mt-1 text-xs text-gray-600">
             기본 정보와 시간 설정을 완료하면 스케줄이 표시됩니다.
           </p>
         </div>
@@ -376,7 +376,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       {/* 헤더 */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900">스케줄 미리보기</h2>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="mt-1 text-sm text-gray-600">
           설정한 내용을 바탕으로 계산된 스케줄 정보입니다.
         </p>
       </div>
@@ -410,25 +410,25 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-gray-600" />
-            <span className="text-xs font-medium text-gray-700">총 기간</span>
+            <span className="text-xs font-medium text-gray-600">총 기간</span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
             {result.summary.total_days}
           </p>
-          <p className="text-xs text-gray-700">일</p>
+          <p className="text-xs text-gray-600">일</p>
         </div>
 
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2">
             <XCircle className="h-5 w-5 text-red-400" />
-            <span className="text-xs font-medium text-gray-700">제외일</span>
+            <span className="text-xs font-medium text-gray-600">제외일</span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
             {result.summary.total_exclusion_days.휴가 +
               result.summary.total_exclusion_days.개인사정 +
               result.summary.total_exclusion_days.지정휴일}
           </p>
-          <p className="text-xs text-gray-700">일</p>
+          <p className="text-xs text-gray-600">일</p>
         </div>
 
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -456,14 +456,14 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-blue-400" />
-            <span className="text-xs font-medium text-gray-700">
+            <span className="text-xs font-medium text-gray-600">
               총 학습 시간
             </span>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900">
             {formatNumber(Math.round(result.summary.total_study_hours))}
           </p>
-          <p className="text-xs text-gray-700">시간</p>
+          <p className="text-xs text-gray-600">시간</p>
         </div>
       </div>
 
@@ -490,11 +490,11 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                   className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-gray-700" />
+                    <Calendar className="h-4 w-4 text-gray-600" />
                     <span className="text-sm font-medium text-gray-900">
                       {weekIndex + 1}주차
                     </span>
-                    <span className="text-xs text-gray-700">
+                    <span className="text-xs text-gray-600">
                       {weekStart} ~ {weekEnd}
                     </span>
                   </div>
@@ -579,7 +579,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-700">
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
                               <Clock className="h-3 w-3" />
                               <span>
                                 {day.study_hours > 0

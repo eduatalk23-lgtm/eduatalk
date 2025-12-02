@@ -299,7 +299,7 @@ export function MasterContentsPanel({
       {/* 검색 폼 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="mb-4 flex items-center gap-2">
-          <Package className="h-5 w-5 text-gray-700" />
+          <Package className="h-5 w-5 text-gray-800" />
           <h3 className="text-lg font-semibold text-gray-900">
             마스터 콘텐츠 검색
           </h3>
@@ -308,7 +308,7 @@ export function MasterContentsPanel({
         <div className="space-y-4">
           {/* 콘텐츠 타입 선택 */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-800">
               콘텐츠 타입
             </label>
             <div className="flex gap-2">
@@ -319,7 +319,7 @@ export function MasterContentsPanel({
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                   selectedContentType === "all"
                     ? "border-blue-600 bg-blue-50 text-blue-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
                 )}
               >
                 전체
@@ -331,7 +331,7 @@ export function MasterContentsPanel({
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                   selectedContentType === "book"
                     ? "border-blue-600 bg-blue-50 text-blue-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
                 )}
               >
                 <BookOpen className="h-4 w-4" />
@@ -344,7 +344,7 @@ export function MasterContentsPanel({
                   "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                   selectedContentType === "lecture"
                     ? "border-blue-600 bg-blue-50 text-blue-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
                 )}
               >
                 <Headphones className="h-4 w-4" />
@@ -355,12 +355,12 @@ export function MasterContentsPanel({
 
           {/* 제목 검색 */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-800">
               제목 검색
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-800 focus:border-gray-900 focus:outline-none"
               placeholder="교재/강의 이름을 입력하세요"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -375,12 +375,12 @@ export function MasterContentsPanel({
 
           {/* 과목 선택 */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-800">
               과목 (선택사항)
             </label>
             <input
               type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-700 focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-800 focus:border-gray-900 focus:outline-none"
               placeholder="예: 국어, 수학"
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
@@ -424,7 +424,7 @@ export function MasterContentsPanel({
           </h3>
 
           {isSearching ? (
-            <div className="py-8 text-center text-sm text-gray-700">
+            <div className="py-8 text-center text-sm text-gray-800">
               검색 중...
             </div>
           ) : filteredSearchResults.length > 0 ? (
@@ -450,7 +450,7 @@ export function MasterContentsPanel({
                         {result.content_type === "book" ? "📚 교재" : "🎧 강의"}
                       </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-700">
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-800">
                       {result.publisher_or_academy && (
                         <span>{result.publisher_or_academy}</span>
                       )}
@@ -486,7 +486,7 @@ export function MasterContentsPanel({
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-sm text-gray-700">
+            <div className="py-8 text-center text-sm text-gray-800">
               검색 결과가 없습니다.
             </div>
           )}
@@ -500,7 +500,7 @@ export function MasterContentsPanel({
             <h3 className="text-lg font-semibold text-gray-900">
               추가된 마스터 콘텐츠
             </h3>
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-gray-800">
               {masterContentsAdded.length}개
             </span>
           </div>

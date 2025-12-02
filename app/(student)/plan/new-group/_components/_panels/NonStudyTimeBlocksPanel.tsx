@@ -156,7 +156,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               <h4 className="text-sm font-semibold text-gray-900">새 제외 항목 추가</h4>
               
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">제외 항목 유형</label>
+                <label className="mb-1 block text-xs font-medium text-gray-800">제외 항목 유형</label>
                 <select
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
                   value={newNonStudyTimeBlock.type}
@@ -176,7 +176,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">시작 시간</label>
+                  <label className="mb-1 block text-xs font-medium text-gray-800">시작 시간</label>
                   <input
                     type="time"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
@@ -190,7 +190,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">종료 시간</label>
+                  <label className="mb-1 block text-xs font-medium text-gray-800">종료 시간</label>
                   <input
                     type="time"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
@@ -206,7 +206,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">적용 요일 (선택사항, 없으면 매일)</label>
+                <label className="mb-1 block text-xs font-medium text-gray-800">적용 요일 (선택사항, 없으면 매일)</label>
                 <div className="flex flex-wrap gap-2">
                   {weekdayLabels.map((label, day) => (
                     <button
@@ -216,7 +216,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                       className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                         (newNonStudyTimeBlock.day_of_week || []).includes(day)
                           ? "bg-gray-900 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                       }`}
                     >
                       {label}
@@ -226,7 +226,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">설명 (선택사항)</label>
+                <label className="mb-1 block text-xs font-medium text-gray-800">설명 (선택사항)</label>
                 <input
                   type="text"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"

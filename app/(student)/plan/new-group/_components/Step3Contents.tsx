@@ -569,7 +569,7 @@ export function Step3Contents({
           <h3 className="text-sm font-semibold text-gray-900">
             📚 등록된 교재
           </h3>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="mt-1 text-xs text-gray-600">
             학습 중인 교재를 추가하고 싶다면{" "}
             <Link
               href="/contents"
@@ -642,7 +642,7 @@ export function Step3Contents({
                         <div className="text-sm font-medium text-gray-900">
                           {book.title}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                           <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                             📚 교재
                           </span>
@@ -693,7 +693,7 @@ export function Step3Contents({
                     {isSelected && (
                       <div className="mt-3 space-y-3">
                         {isLoading ? (
-                          <div className="text-xs text-gray-700">
+                          <div className="text-xs text-gray-600">
                             상세 정보를 불러오는 중...
                           </div>
                         ) : contentInfo && contentInfo.details.length > 0 ? (
@@ -821,7 +821,7 @@ export function Step3Contents({
                                   );
                                   if (rangeDetails.length > 0) {
                                     return (
-                                      <div className="mt-2 text-xs text-gray-700">
+                                      <div className="mt-2 text-xs text-gray-600">
                                         <div className="font-medium">
                                           포함된 단원:
                                         </div>
@@ -830,7 +830,7 @@ export function Step3Contents({
                                             <div key={idx}>
                                               페이지 {d.page_number}
                                               {d.major_unit && (
-                                                <span className="text-gray-700">
+                                                <span className="text-gray-600">
                                                   {" "}
                                                   · {d.major_unit}
                                                   {d.minor_unit &&
@@ -906,7 +906,7 @@ export function Step3Contents({
           <h3 className="text-sm font-semibold text-gray-900">
             🎧 등록된 강의
           </h3>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="mt-1 text-xs text-gray-600">
             학습 중인 강의를 추가하고 싶다면{" "}
             <Link
               href="/contents"
@@ -980,7 +980,7 @@ export function Step3Contents({
                         <div className="text-sm font-medium text-gray-900">
                           {lecture.title}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                           <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
                             🎧 강의
                           </span>
@@ -1031,7 +1031,7 @@ export function Step3Contents({
                     {isSelected && (
                       <div className="mt-3 space-y-3">
                         {isLoading ? (
-                          <div className="text-xs text-gray-700">
+                          <div className="text-xs text-gray-600">
                             상세 정보를 불러오는 중...
                           </div>
                         ) : contentInfo && contentInfo.details.length > 0 ? (
@@ -1076,7 +1076,7 @@ export function Step3Contents({
                                               {episode.episode_number}회차
                                             </span>
                                             {episode.episode_title && (
-                                              <span className="ml-2 text-gray-700">
+                                              <span className="ml-2 text-gray-600">
                                                 · {episode.episode_title}
                                               </span>
                                             )}
@@ -1127,7 +1127,7 @@ export function Step3Contents({
                                               {episode.episode_number}회차
                                             </span>
                                             {episode.episode_title && (
-                                              <span className="ml-2 text-gray-700">
+                                              <span className="ml-2 text-gray-600">
                                                 · {episode.episode_title}
                                               </span>
                                             )}
@@ -1141,7 +1141,7 @@ export function Step3Contents({
                             </div>
                             {range && (
                               <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                <div className="text-xs font-medium text-gray-700">
+                                <div className="text-xs font-medium text-gray-600">
                                   선택된 범위: {range.start} ~ {range.end} 회차
                                 </div>
                                 {(() => {
@@ -1157,7 +1157,7 @@ export function Step3Contents({
                                   );
                                   if (rangeEpisodes.length > 0) {
                                     return (
-                                      <div className="mt-2 text-xs text-gray-700">
+                                      <div className="mt-2 text-xs text-gray-600">
                                         <div className="font-medium">
                                           포함된 회차:
                                         </div>
@@ -1166,7 +1166,7 @@ export function Step3Contents({
                                             <div key={idx}>
                                               {e.episode_number}회차
                                               {e.episode_title && (
-                                                <span className="text-gray-700">
+                                                <span className="text-gray-600">
                                                   {" "}
                                                   · {e.episode_title}
                                                 </span>
@@ -1238,7 +1238,7 @@ export function Step3Contents({
       {selectedContentIds.size > 0 && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-600">
               선택된 콘텐츠: {selectedContentIds.size}개
             </span>
             {!canAddMore && !isCampMode && (
@@ -1306,7 +1306,7 @@ export function Step3Contents({
       {/* 추가된 학생 콘텐츠 목록 */}
       {data.student_contents.length > 0 ? (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+          <div className="flex items-center justify-between text-sm font-medium text-gray-600">
             <span>추가된 학생 콘텐츠 ({data.student_contents.length}개)</span>
           </div>
           {data.student_contents.map((content, index) => (
@@ -1323,7 +1323,7 @@ export function Step3Contents({
                     학생 콘텐츠
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
+                <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
                   <span>
                     {content.content_type === "book" && "📚 책"}
                     {content.content_type === "lecture" && "🎧 강의"}
@@ -1367,7 +1367,7 @@ export function Step3Contents({
                 disabled={!editable}
                 className={`ml-4 text-sm ${
                   !editable
-                    ? "cursor-not-allowed text-gray-700"
+                    ? "cursor-not-allowed text-gray-600"
                     : "text-red-600 hover:text-red-800"
                 }`}
               >
@@ -1378,8 +1378,8 @@ export function Step3Contents({
         </div>
       ) : (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-700">추가된 콘텐츠가 없습니다.</p>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="text-sm text-gray-600">추가된 콘텐츠가 없습니다.</p>
+          <p className="mt-1 text-xs text-gray-600">
             위 폼에서 콘텐츠를 선택하고 범위를 입력한 후 추가해주세요.
           </p>
         </div>

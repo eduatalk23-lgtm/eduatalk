@@ -100,7 +100,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                 />
                 <label
                   htmlFor="enable_self_study_for_holidays"
-                  className="flex-1 cursor-pointer text-sm text-gray-700"
+                  className="flex-1 cursor-pointer text-sm text-gray-600"
                 >
                   <div className="font-medium">지정휴일 자율학습 시간 배정하기</div>
                   <div className="mt-1 text-xs text-gray-500">
@@ -146,7 +146,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                 />
                 <label
                   htmlFor="enable_self_study_for_study_days"
-                  className="flex-1 cursor-pointer text-sm text-gray-700"
+                  className="flex-1 cursor-pointer text-sm text-gray-600"
                 >
                   <div className="font-medium">학습일/복습일 자율학습 시간 배정하기</div>
                   <div className="mt-1 text-xs text-gray-500">

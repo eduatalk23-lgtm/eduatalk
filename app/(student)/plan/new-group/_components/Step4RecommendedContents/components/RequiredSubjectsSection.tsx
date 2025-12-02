@@ -188,14 +188,14 @@ export default function RequiredSubjectsSection({
         <button
           type="button"
           onClick={onAddRequiredSubject}
-          className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors"
+          className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
         >
           + 필수 교과 추가
         </button>
 
         {/* 제약 조건 처리 방식 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-800 mb-2">
             제약 조건 처리 방식
           </label>
           <select

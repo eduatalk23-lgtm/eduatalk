@@ -25,7 +25,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
         </div>
         <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
           <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-          <p className="text-sm font-medium text-gray-700">
+          <p className="text-sm font-medium text-gray-800">
             블록 세트를 선택해주세요
           </p>
           <p className="text-xs text-gray-500 mt-1">
@@ -82,7 +82,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
         <p className="text-sm font-semibold text-gray-900">
           {name || "선택된 블록 세트"}
         </p>
-        <p className="text-xs font-medium text-gray-700">
+        <p className="text-xs font-medium text-gray-800">
           등록된 시간 블록 ({blocks.length}개)
         </p>
       </div>

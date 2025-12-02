@@ -273,7 +273,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
         <button
           type="button"
           onClick={syncFromTimeManagement}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-50"
         >
           <RefreshCw className={`h-3 w-3 ${isLoadingCount ? "animate-spin" : ""}`} />
           시간 관리에서 불러오기
@@ -290,7 +290,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
         <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           {/* 요일 선택 */}
           <div className="mb-4">
-            <label className="mb-2 block text-xs font-medium text-gray-700">
+            <label className="mb-2 block text-xs font-medium text-gray-800">
               요일 선택 (다중 선택 가능) <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -302,7 +302,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                     newAcademyDays.includes(index)
                       ? "bg-gray-900 text-white"
-                      : "bg-white text-gray-700 hover:bg-gray-100"
+                      : "bg-white text-gray-800 hover:bg-gray-100"
                   }`}
                 >
                   {label}
@@ -319,7 +319,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
           {/* 시간 설정 */}
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-800">
                 시작 시간 <span className="text-red-500">*</span>
               </label>
               <input
@@ -330,7 +330,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-800">
                 종료 시간 <span className="text-red-500">*</span>
               </label>
               <input
@@ -345,7 +345,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
           {/* 학원 정보 */}
           <div className="mb-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-800">
                 학원 이름 <span className="text-red-500">*</span>
               </label>
               <input
@@ -357,7 +357,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-800">
                 과목 <span className="text-red-500">*</span>
               </label>
               <input
@@ -372,7 +372,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
 
           {/* 이동시간 */}
           <div className="mb-4">
-            <label className="mb-1 block text-xs font-medium text-gray-700">
+            <label className="mb-1 block text-xs font-medium text-gray-800">
               이동시간 (분) <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-2">

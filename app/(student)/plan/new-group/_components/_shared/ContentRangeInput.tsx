@@ -74,7 +74,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
     return (
       <div className="flex items-center justify-center py-8">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-        <span className="ml-3 text-sm text-gray-700">상세 정보 로딩 중...</span>
+        <span className="ml-3 text-sm text-gray-800">상세 정보 로딩 중...</span>
       </div>
     );
   }
@@ -133,7 +133,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
 
         {/* 시작 범위 입력 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-800">
             시작 {isBook ? "페이지" : "회차"}
           </label>
           <input
@@ -154,7 +154,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
 
         {/* 종료 범위 입력 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-800">
             종료 {isBook ? "페이지" : "회차"}
           </label>
           <input
@@ -214,7 +214,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   return (
     <div className="space-y-4">
       {/* 타입 표시 */}
-      <div className="flex items-center gap-2 text-sm text-gray-700">
+      <div className="flex items-center gap-2 text-sm text-gray-800">
         {isBook ? (
           <>
             <BookOpen className="h-4 w-4" />
@@ -230,7 +230,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
 
       {/* 시작 범위 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-800">
           시작 {isBook ? "페이지" : "강"}
         </label>
         <select
@@ -239,7 +239,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           className={cn(
             "mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors",
             "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
-            !startDetailId && "text-gray-700"
+            !startDetailId && "text-gray-800"
           )}
         >
           <option value="" disabled>
@@ -255,7 +255,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
 
       {/* 종료 범위 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-gray-800">
           종료 {isBook ? "페이지" : "강"}
         </label>
         <select
@@ -265,7 +265,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           className={cn(
             "mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors",
             "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
-            !endDetailId && "text-gray-700",
+            !endDetailId && "text-gray-800",
             !startDetailId && "cursor-not-allowed opacity-50"
           )}
         >
@@ -279,7 +279,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
           ))}
         </select>
         {!startDetailId && (
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="mt-1 text-xs text-gray-800">
             먼저 시작 {isBook ? "페이지" : "강"}를 선택하세요
           </p>
         )}

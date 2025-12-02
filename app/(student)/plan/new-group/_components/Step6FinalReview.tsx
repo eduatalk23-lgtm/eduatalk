@@ -1582,7 +1582,7 @@ export function Step6FinalReview({
                                   : "회차"}
                                 )
                               </div>
-                              <div className="mt-1 text-xs text-gray-700">
+                              <div className="mt-1 text-xs text-gray-600">
                                 {recommended.reason}
                               </div>
                             </>
@@ -1615,7 +1615,7 @@ export function Step6FinalReview({
                               <span className="text-gray-600">-</span>
                             )
                           ) : (
-                            <span className="text-gray-700">-</span>
+                            <span className="text-gray-600">-</span>
                           )}
                         </td>
                         <td className="px-3 py-2 text-center">
@@ -1666,7 +1666,7 @@ export function Step6FinalReview({
                               적용
                             </button>
                           ) : (
-                            <span className="text-xs text-gray-700">-</span>
+                            <span className="text-xs text-gray-600">-</span>
                           )}
                         </td>
                       </tr>
@@ -1718,7 +1718,7 @@ export function Step6FinalReview({
                         학생 콘텐츠
                       </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                       {content.content_type === "book" && (
                         <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                           📚 교재
@@ -1794,7 +1794,7 @@ export function Step6FinalReview({
                                     ? "text-red-600"
                                     : difference < 0
                                     ? "text-green-600"
-                                    : "text-gray-700"
+                                    : "text-gray-600"
                                 }
                               >
                                 추천: {recommendedRange.start} ~{" "}
@@ -1862,7 +1862,7 @@ export function Step6FinalReview({
                                 <div className="space-y-3">
                                   {/* 시작 범위 선택 */}
                                   <div>
-                                    <div className="mb-2 text-xs font-medium text-gray-700">
+                                    <div className="mb-2 text-xs font-medium text-gray-600">
                                       시작 범위 선택
                                     </div>
                                     <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -1897,7 +1897,7 @@ export function Step6FinalReview({
                                                       {detail.page_number}
                                                     </span>
                                                     {detail.major_unit && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         · {detail.major_unit}
                                                         {detail.minor_unit &&
                                                           ` - ${detail.minor_unit}`}
@@ -1936,7 +1936,7 @@ export function Step6FinalReview({
                                                       회차
                                                     </span>
                                                     {episode.episode_title && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         ·{" "}
                                                         {episode.episode_title}
                                                       </span>
@@ -1951,7 +1951,7 @@ export function Step6FinalReview({
 
                                   {/* 끝 범위 선택 */}
                                   <div>
-                                    <div className="mb-2 text-xs font-medium text-gray-700">
+                                    <div className="mb-2 text-xs font-medium text-gray-600">
                                       끝 범위 선택
                                     </div>
                                     <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -1986,7 +1986,7 @@ export function Step6FinalReview({
                                                       {detail.page_number}
                                                     </span>
                                                     {detail.major_unit && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         · {detail.major_unit}
                                                         {detail.minor_unit &&
                                                           ` - ${detail.minor_unit}`}
@@ -2025,7 +2025,7 @@ export function Step6FinalReview({
                                                       회차
                                                     </span>
                                                     {episode.episode_title && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         ·{" "}
                                                         {episode.episode_title}
                                                       </span>
@@ -2041,7 +2041,7 @@ export function Step6FinalReview({
                                   {/* 선택된 범위 및 포함된 상세정보 표시 */}
                                   {editingRange && (
                                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                      <div className="text-xs font-medium text-gray-700">
+                                      <div className="text-xs font-medium text-gray-600">
                                         선택된 범위: {editingRange.start} ~{" "}
                                         {editingRange.end}
                                         {content.content_type === "book"
@@ -2064,7 +2064,7 @@ export function Step6FinalReview({
                                           );
                                           if (rangeDetails.length > 0) {
                                             return (
-                                              <div className="mt-2 text-xs text-gray-700">
+                                              <div className="mt-2 text-xs text-gray-600">
                                                 <div className="font-medium">
                                                   포함된 단원:
                                                 </div>
@@ -2074,7 +2074,7 @@ export function Step6FinalReview({
                                                       <div key={idx}>
                                                         페이지 {d.page_number}
                                                         {d.major_unit && (
-                                                          <span className="text-gray-700">
+                                                          <span className="text-gray-600">
                                                             {" "}
                                                             · {d.major_unit}
                                                             {d.minor_unit &&
@@ -2098,7 +2098,7 @@ export function Step6FinalReview({
                                           );
                                           if (rangeEpisodes.length > 0) {
                                             return (
-                                              <div className="mt-2 text-xs text-gray-700">
+                                              <div className="mt-2 text-xs text-gray-600">
                                                 <div className="font-medium">
                                                   포함된 회차:
                                                 </div>
@@ -2108,7 +2108,7 @@ export function Step6FinalReview({
                                                       <div key={idx}>
                                                         {e.episode_number}회차
                                                         {e.episode_title && (
-                                                          <span className="text-gray-700">
+                                                          <span className="text-gray-600">
                                                             {" "}
                                                             · {e.episode_title}
                                                           </span>
@@ -2234,7 +2234,7 @@ export function Step6FinalReview({
                                       return newMap;
                                     });
                                   }}
-                                  className="rounded bg-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-400"
+                                  className="rounded bg-gray-300 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-400"
                                 >
                                   취소
                                 </button>
@@ -2299,10 +2299,10 @@ export function Step6FinalReview({
                             </div>
                           ) : unavailableReason ? (
                             <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs">
-                              <div className="text-gray-700">
+                              <div className="text-gray-600">
                                 추천 범위 없음
                               </div>
-                              <div className="mt-0.5 text-gray-700">
+                              <div className="mt-0.5 text-gray-600">
                                 ({unavailableReason})
                               </div>
                             </div>
@@ -2381,7 +2381,7 @@ export function Step6FinalReview({
                         추천 콘텐츠
                       </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-700">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
                       {content.content_type === "book" && (
                         <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                           📚 교재
@@ -2486,7 +2486,7 @@ export function Step6FinalReview({
                                 <div className="space-y-3">
                                   {/* 시작 범위 선택 */}
                                   <div>
-                                    <div className="mb-2 text-xs font-medium text-gray-700">
+                                    <div className="mb-2 text-xs font-medium text-gray-600">
                                       시작 범위 선택
                                     </div>
                                     <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -2521,7 +2521,7 @@ export function Step6FinalReview({
                                                       {detail.page_number}
                                                     </span>
                                                     {detail.major_unit && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         · {detail.major_unit}
                                                         {detail.minor_unit &&
                                                           ` - ${detail.minor_unit}`}
@@ -2560,7 +2560,7 @@ export function Step6FinalReview({
                                                       회차
                                                     </span>
                                                     {episode.episode_title && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         ·{" "}
                                                         {episode.episode_title}
                                                       </span>
@@ -2575,7 +2575,7 @@ export function Step6FinalReview({
 
                                   {/* 끝 범위 선택 */}
                                   <div>
-                                    <div className="mb-2 text-xs font-medium text-gray-700">
+                                    <div className="mb-2 text-xs font-medium text-gray-600">
                                       끝 범위 선택
                                     </div>
                                     <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -2610,7 +2610,7 @@ export function Step6FinalReview({
                                                       {detail.page_number}
                                                     </span>
                                                     {detail.major_unit && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         · {detail.major_unit}
                                                         {detail.minor_unit &&
                                                           ` - ${detail.minor_unit}`}
@@ -2649,7 +2649,7 @@ export function Step6FinalReview({
                                                       회차
                                                     </span>
                                                     {episode.episode_title && (
-                                                      <span className="ml-2 text-gray-700">
+                                                      <span className="ml-2 text-gray-600">
                                                         ·{" "}
                                                         {episode.episode_title}
                                                       </span>
@@ -2665,7 +2665,7 @@ export function Step6FinalReview({
                                   {/* 선택된 범위 및 포함된 상세정보 표시 */}
                                   {editingRange && (
                                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                      <div className="text-xs font-medium text-gray-700">
+                                      <div className="text-xs font-medium text-gray-600">
                                         선택된 범위: {editingRange.start} ~{" "}
                                         {editingRange.end}
                                         {content.content_type === "book"
@@ -2688,7 +2688,7 @@ export function Step6FinalReview({
                                           );
                                           if (rangeDetails.length > 0) {
                                             return (
-                                              <div className="mt-2 text-xs text-gray-700">
+                                              <div className="mt-2 text-xs text-gray-600">
                                                 <div className="font-medium">
                                                   포함된 단원:
                                                 </div>
@@ -2698,7 +2698,7 @@ export function Step6FinalReview({
                                                       <div key={idx}>
                                                         페이지 {d.page_number}
                                                         {d.major_unit && (
-                                                          <span className="text-gray-700">
+                                                          <span className="text-gray-600">
                                                             {" "}
                                                             · {d.major_unit}
                                                             {d.minor_unit &&
@@ -2722,7 +2722,7 @@ export function Step6FinalReview({
                                           );
                                           if (rangeEpisodes.length > 0) {
                                             return (
-                                              <div className="mt-2 text-xs text-gray-700">
+                                              <div className="mt-2 text-xs text-gray-600">
                                                 <div className="font-medium">
                                                   포함된 회차:
                                                 </div>
@@ -2732,7 +2732,7 @@ export function Step6FinalReview({
                                                       <div key={idx}>
                                                         {e.episode_number}회차
                                                         {e.episode_title && (
-                                                          <span className="text-gray-700">
+                                                          <span className="text-gray-600">
                                                             {" "}
                                                             · {e.episode_title}
                                                           </span>
@@ -2860,7 +2860,7 @@ export function Step6FinalReview({
                                       return newMap;
                                     });
                                   }}
-                                  className="rounded bg-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-400"
+                                  className="rounded bg-gray-300 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-400"
                                 >
                                   취소
                                 </button>
@@ -2925,10 +2925,10 @@ export function Step6FinalReview({
                             </div>
                           ) : unavailableReason ? (
                             <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs">
-                              <div className="text-gray-700">
+                              <div className="text-gray-600">
                                 추천 범위 없음
                               </div>
-                              <div className="mt-0.5 text-gray-700">
+                              <div className="mt-0.5 text-gray-600">
                                 ({unavailableReason})
                               </div>
                             </div>
@@ -3003,7 +3003,7 @@ export function Step6FinalReview({
                     {isRequired && !hasRequired && (
                       <span className="text-xs text-red-600">(미선택)</span>
                     )}
-                    <span className="ml-auto text-xs text-gray-700">
+                    <span className="ml-auto text-xs text-gray-600">
                       {contents.length}개
                     </span>
                   </div>
@@ -3017,7 +3017,7 @@ export function Step6FinalReview({
                           <div className="text-xs font-medium text-gray-900">
                             {content.title}
                           </div>
-                          <div className="mt-1 text-xs text-gray-700">
+                          <div className="mt-1 text-xs text-gray-600">
                             {content.content_type === "book" && "📚"}
                             {content.content_type === "lecture" && "🎧"}
                             <span className="ml-1">
@@ -3046,8 +3046,8 @@ export function Step6FinalReview({
       {/* 콘텐츠가 없는 경우 */}
       {totalCount === 0 && (
         <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-700">선택된 콘텐츠가 없습니다.</p>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="text-sm text-gray-600">선택된 콘텐츠가 없습니다.</p>
+          <p className="mt-1 text-xs text-gray-600">
             이전 단계에서 콘텐츠를 선택해주세요.
           </p>
         </div>
@@ -3072,7 +3072,7 @@ export function Step6FinalReview({
                   className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                     (data.allocation_mode || "subject") === "subject"
                       ? "bg-gray-900 text-white"
-                      : "text-gray-700 hover:text-gray-900"
+                      : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   교과별 설정
@@ -3083,7 +3083,7 @@ export function Step6FinalReview({
                   className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                     data.allocation_mode === "content"
                       ? "bg-gray-900 text-white"
-                      : "text-gray-700 hover:text-gray-900"
+                      : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
                   콘텐츠별 설정
@@ -3091,7 +3091,7 @@ export function Step6FinalReview({
               </div>
             </div>
 
-            <p className="mb-6 text-sm text-gray-700">
+            <p className="mb-6 text-sm text-gray-600">
               {(data.allocation_mode || "subject") === "subject"
                 ? "교과 단위로 전략/취약과목을 설정합니다. 같은 교과의 모든 콘텐츠에 동일하게 적용됩니다."
                 : "개별 콘텐츠마다 전략/취약과목을 설정합니다. 더 세밀한 조절이 가능합니다."}
@@ -3150,7 +3150,7 @@ function SubjectAllocationUI({
   if (subjects.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-        <p className="text-sm text-gray-700">콘텐츠의 과목 정보가 없습니다.</p>
+        <p className="text-sm text-gray-600">콘텐츠의 과목 정보가 없습니다.</p>
       </div>
     );
   }
@@ -3192,14 +3192,14 @@ function SubjectAllocationUI({
           >
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900">{subject}</h3>
-              <span className="text-xs text-gray-700">
+              <span className="text-xs text-gray-600">
                 {subjectContentCount}개 콘텐츠
               </span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="mb-2 block text-xs font-medium text-gray-700">
+                <label className="mb-2 block text-xs font-medium text-gray-600">
                   과목 유형
                 </label>
                 <div className="flex gap-3">
@@ -3224,7 +3224,7 @@ function SubjectAllocationUI({
                       <div className="text-sm font-medium text-gray-900">
                         취약과목
                       </div>
-                      <div className="text-xs text-gray-700">
+                      <div className="text-xs text-gray-600">
                         전체 학습일에 플랜 배정
                       </div>
                     </div>
@@ -3251,7 +3251,7 @@ function SubjectAllocationUI({
                       <div className="text-sm font-medium text-gray-900">
                         전략과목
                       </div>
-                      <div className="text-xs text-gray-700">
+                      <div className="text-xs text-gray-600">
                         주당 배정 일수에 따라 배정
                       </div>
                     </div>
@@ -3261,7 +3261,7 @@ function SubjectAllocationUI({
 
               {subjectType === "strategy" && (
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700">
+                  <label className="mb-2 block text-xs font-medium text-gray-600">
                     주당 배정 일수
                   </label>
                   <select
@@ -3280,7 +3280,7 @@ function SubjectAllocationUI({
                     <option value="3">주 3일</option>
                     <option value="4">주 4일</option>
                   </select>
-                  <p className="mt-1 text-xs text-gray-700">
+                  <p className="mt-1 text-xs text-gray-600">
                     선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
                   </p>
                 </div>
@@ -3327,7 +3327,7 @@ function ContentAllocationUI({
   if (subjects.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-        <p className="text-sm text-gray-700">콘텐츠의 과목 정보가 없습니다.</p>
+        <p className="text-sm text-gray-600">콘텐츠의 과목 정보가 없습니다.</p>
       </div>
     );
   }
@@ -3426,7 +3426,7 @@ function ContentAllocationUI({
                           {content.title}
                         </div>
                         {source !== "content" && (
-                          <div className="mt-1 text-xs text-gray-700">
+                          <div className="mt-1 text-xs text-gray-600">
                             {source === "subject" && "교과별 설정 적용 중"}
                             {source === "default" && "기본값 (취약과목)"}
                           </div>

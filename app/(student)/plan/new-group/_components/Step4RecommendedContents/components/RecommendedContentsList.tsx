@@ -82,7 +82,7 @@ export default function RecommendedContentsList({
           type="button"
           onClick={onRefresh}
           disabled={loading || selectedSubjects.size === 0}
-          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RefreshCw className="h-4 w-4" />
           추천 다시 받기
@@ -161,7 +161,7 @@ export default function RecommendedContentsList({
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
         <div className="mb-3 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-700">
+            <div className="text-sm font-medium text-gray-800">
               선택된 추천 콘텐츠: {selectedContentIds.size}개
               {totalCount > 0 && (
                 <span className="ml-2 text-gray-500">

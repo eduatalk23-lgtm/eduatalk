@@ -184,7 +184,7 @@ export function ScheduleTableView({
   if (!dailySchedule || dailySchedule.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-        <p className="text-sm text-gray-700">표시할 데이터가 없습니다.</p>
+        <p className="text-sm text-gray-600">표시할 데이터가 없습니다.</p>
       </div>
     );
   }
@@ -336,7 +336,7 @@ function ScheduleItem({
               const academyHours = calculateTimeFromSlots("학원일정");
 
               return (
-                <div className="mt-2 flex flex-col gap-1 text-xs text-gray-700">
+                <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600">
                   {isDesignatedHoliday ? (
                     // 지정휴일인 경우 자율학습 시간만 표기
                     <div className="flex items-center gap-4">
@@ -390,15 +390,15 @@ function ScheduleItem({
               );
             })()}
             {schedule.note && (
-              <div className="mt-1 text-xs text-gray-700">{schedule.note}</div>
+              <div className="mt-1 text-xs text-gray-600">{schedule.note}</div>
             )}
           </div>
           {(hasDetails || hasExclusion || hasTimeSlots) && (
             <div className="flex-shrink-0">
               {isExpanded ? (
-                <ChevronUp className="h-5 w-5 text-gray-700" />
+                <ChevronUp className="h-5 w-5 text-gray-600" />
               ) : (
-                <ChevronDown className="h-5 w-5 text-gray-700" />
+                <ChevronDown className="h-5 w-5 text-gray-600" />
               )}
             </div>
           )}
@@ -413,8 +413,8 @@ function ScheduleItem({
             {hasTimeSlots && schedule.time_slots && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-700" />
-                  <div className="text-xs font-medium text-gray-700">
+                  <Clock className="h-4 w-4 text-gray-600" />
+                  <div className="text-xs font-medium text-gray-600">
                     시간 구성
                   </div>
                 </div>
@@ -436,9 +436,9 @@ function ScheduleItem({
             {/* 제외일 정보 */}
             {hasExclusion && schedule.exclusion && (
               <div className="flex items-start gap-2">
-                <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-700" />
+                <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-600" />
                 <div className="flex-1">
-                  <div className="text-xs font-medium text-gray-700">
+                  <div className="text-xs font-medium text-gray-600">
                     {schedule.exclusion.exclusion_type === "휴가"
                       ? "휴가"
                       : schedule.exclusion.exclusion_type === "개인사정"
@@ -448,7 +448,7 @@ function ScheduleItem({
                       : "제외일"}
                   </div>
                   {schedule.exclusion.reason && (
-                    <div className="mt-1 text-xs text-gray-700">
+                    <div className="mt-1 text-xs text-gray-600">
                       {schedule.exclusion.reason}
                     </div>
                   )}
@@ -460,8 +460,8 @@ function ScheduleItem({
             {hasDetails && schedule.academy_schedules && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-700" />
-                  <div className="text-xs font-medium text-gray-700">
+                  <Calendar className="h-4 w-4 text-gray-600" />
+                  <div className="text-xs font-medium text-gray-600">
                     학원일정 ({schedule.academy_schedules.length}개)
                   </div>
                 </div>
@@ -475,12 +475,12 @@ function ScheduleItem({
                         <div className="font-medium text-gray-900">
                           {academy.academy_name || "학원"}
                           {academy.subject && (
-                            <span className="ml-1 text-gray-700">
+                            <span className="ml-1 text-gray-600">
                               ({academy.subject})
                             </span>
                           )}
                         </div>
-                        <div className="text-gray-700">
+                        <div className="text-gray-600">
                           {academy.start_time} ~ {academy.end_time}
                         </div>
                       </div>
@@ -895,7 +895,7 @@ function TimeSlotsWithPlans({
                   <span className="font-semibold">{idx + 1}.</span>
                   <span className="font-medium">{slot.label || slot.type}</span>
                 </div>
-                <span className="text-gray-700">
+                <span className="text-gray-600">
                   {slot.start} ~ {slot.end}
                 </span>
               </div>
@@ -980,7 +980,7 @@ function TimeSlotsWithPlans({
                     />
                   </div>
                 ) : unplacedCustomPlans.length > 0 ? (
-                  <div className="ml-4 text-xs text-gray-700 italic">
+                  <div className="ml-4 text-xs text-gray-600 italic">
                     (커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보
                     없음)
                   </div>
@@ -1389,16 +1389,16 @@ function WeekSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5 text-gray-700" />
+              <ChevronUp className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronDown className="h-5 w-5 text-gray-700" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             )}
             <div>
               <div className="text-sm font-semibold text-gray-900">
                 {weekNum}주차 {formatDateRange()}
               </div>
               <div className="mt-1 flex flex-col gap-1">
-                <div className="flex items-center gap-3 text-xs text-gray-700">
+                <div className="flex items-center gap-3 text-xs text-gray-600">
                   <span>
                     학습일 {weekStudyDays}일
                     {weekReviewDays > 0 && <> + 복습일 {weekReviewDays}일</>}
@@ -1415,7 +1415,7 @@ function WeekSection({
                   </span>
                 </div>
                 {weekStudyDays + weekReviewDays > 0 && (
-                  <div className="text-xs text-gray-700">
+                  <div className="text-xs text-gray-600">
                     평균:{" "}
                     {formatNumber(
                       (weekTotalHours + weekSelfStudyHours) /

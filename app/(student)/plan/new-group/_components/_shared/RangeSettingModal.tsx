@@ -573,7 +573,7 @@ export function RangeSettingModal({
               onClick={handleClose}
               disabled={isSaving}
               className={cn(
-                "rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50",
+                "rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50",
                 isSaving && "cursor-not-allowed opacity-50"
               )}
             >

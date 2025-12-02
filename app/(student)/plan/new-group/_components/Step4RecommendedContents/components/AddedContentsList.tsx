@@ -59,7 +59,7 @@ export default function AddedContentsList({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+      <div className="flex items-center justify-between text-sm font-medium text-gray-800">
         <span>추가된 추천 콘텐츠 ({contents.length}개)</span>
       </div>
       {contents.map((content, index) => {
@@ -175,7 +175,7 @@ export default function AddedContentsList({
                       <div className="space-y-3">
                         {/* 시작 범위 선택 */}
                         <div>
-                          <div className="mb-2 text-xs font-medium text-gray-700">
+                          <div className="mb-2 text-xs font-medium text-gray-800">
                             시작 범위 선택
                           </div>
                           <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -261,7 +261,7 @@ export default function AddedContentsList({
 
                         {/* 끝 범위 선택 */}
                         <div>
-                          <div className="mb-2 text-xs font-medium text-gray-700">
+                          <div className="mb-2 text-xs font-medium text-gray-800">
                             끝 범위 선택
                           </div>
                           <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -368,7 +368,7 @@ export default function AddedContentsList({
                           <button
                             type="button"
                             onClick={onCancelEditing}
-                            className="flex items-center gap-1 rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-300"
+                            className="flex items-center gap-1 rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-300"
                           >
                             <X className="h-3 w-3" />
                             취소
@@ -420,7 +420,7 @@ export default function AddedContentsList({
                         {/* 범위 직접 입력 */}
                         <div className="space-y-2">
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-800">
                               시작 범위
                             </label>
                             <input
@@ -440,7 +440,7 @@ export default function AddedContentsList({
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-800">
                               끝 범위
                             </label>
                             <input
@@ -483,7 +483,7 @@ export default function AddedContentsList({
                             <button
                               type="button"
                               onClick={onCancelEditing}
-                              className="flex items-center gap-1 rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-300"
+                              className="flex items-center gap-1 rounded bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-gray-300"
                             >
                               <X className="h-3 w-3" />
                               취소

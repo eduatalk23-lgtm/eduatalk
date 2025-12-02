@@ -174,7 +174,7 @@ export default function RequiredSubjectItem({
       <div className="flex items-start gap-3">
         {/* 교과 선택 */}
         <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-800 mb-1">
             교과
           </label>
           <select
@@ -193,7 +193,7 @@ export default function RequiredSubjectItem({
 
         {/* 최소 개수 */}
         <div className="w-24">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-800 mb-1">
             최소 개수
           </label>
           <input
@@ -261,12 +261,12 @@ export default function RequiredSubjectItem({
                     key={revision.id}
                     className="rounded border border-gray-200 bg-white p-3"
                   >
-                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-800 mb-2">
                       {revision.name}{" "}
                       {revision.year ? `(${revision.year})` : ""}
                     </label>
                     {isLoading ? (
-                      <p className="text-xs text-gray-700">
+                      <p className="text-xs text-gray-800">
                         세부 과목 불러오는 중...
                       </p>
                     ) : subjects.length > 0 ? (
@@ -296,7 +296,7 @@ export default function RequiredSubjectItem({
                         ))}
                       </select>
                     ) : (
-                      <p className="text-xs text-gray-700">
+                      <p className="text-xs text-gray-800">
                         세부 과목 정보가 없습니다.
                       </p>
                     )}

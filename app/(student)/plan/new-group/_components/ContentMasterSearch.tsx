@@ -84,7 +84,7 @@ export function ContentMasterSearch({
         {/* 검색 폼 */}
         <div className="mb-4 space-y-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-800">
               제목 검색
             </label>
             <input
@@ -101,7 +101,7 @@ export function ContentMasterSearch({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-800">
               과목 (선택사항)
             </label>
             <input

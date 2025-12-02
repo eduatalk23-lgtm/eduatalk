@@ -39,7 +39,7 @@ export function Step6Simplified({
       {/* 헤더 */}
       <div>
         <h2 className="text-xl font-semibold text-gray-900">최종 확인</h2>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="mt-1 text-sm text-gray-600">
           플랜을 생성하기 전 마지막으로 확인해주세요. 수정이 필요하면 해당
           단계로 돌아갈 수 있습니다.
         </p>

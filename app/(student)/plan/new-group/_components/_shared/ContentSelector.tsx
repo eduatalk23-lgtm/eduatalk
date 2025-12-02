@@ -103,7 +103,7 @@ export const ContentSelector = React.memo(function ContentSelector({
             "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "book"
               ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+              : "bg-gray-100 text-gray-800 hover:bg-gray-200",
             disabled && "cursor-not-allowed opacity-50"
           )}
         >
@@ -129,7 +129,7 @@ export const ContentSelector = React.memo(function ContentSelector({
             "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "lecture"
               ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+              : "bg-gray-100 text-gray-800 hover:bg-gray-200",
             disabled && "cursor-not-allowed opacity-50"
           )}
         >
@@ -155,7 +155,7 @@ export const ContentSelector = React.memo(function ContentSelector({
             "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "custom"
               ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+              : "bg-gray-100 text-gray-800 hover:bg-gray-200",
             disabled && "cursor-not-allowed opacity-50"
           )}
         >
