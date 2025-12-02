@@ -385,15 +385,17 @@ export default function AddedContentsList({
                           );
                           const total = contentTotals.get(editingRangeIndex!);
                           
-                          console.warn("[AddedContentsList] 상세정보 없음 (정상):", {
-                            type: "NO_DETAILS",
-                            contentType: content.content_type,
-                            contentId: content.content_id,
-                            title: originalContent?.title || "제목 없음",
-                            editingRangeIndex,
-                            total: total || "없음",
-                            reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 총 페이지수/회차를 바탕으로 범위를 직접 입력할 수 있습니다.",
-                          });
+                          if (process.env.NODE_ENV === "development") {
+                            console.debug("[AddedContentsList] 상세정보 없음 (정상):", {
+                              type: "NO_DETAILS",
+                              contentType: content.content_type,
+                              contentId: content.content_id,
+                              title: originalContent?.title || "제목 없음",
+                              editingRangeIndex,
+                              total: total || "없음",
+                              reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 총 페이지수/회차를 바탕으로 범위를 직접 입력할 수 있습니다.",
+                            });
+                          }
                           return null;
                         })()}
                         

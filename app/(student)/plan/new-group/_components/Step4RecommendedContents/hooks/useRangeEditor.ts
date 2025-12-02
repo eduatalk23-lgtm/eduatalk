@@ -125,16 +125,18 @@ export function useRangeEditor({
               ? { details: result.details || [], type: "book" as const }
               : { details: result.episodes || [], type: "lecture" as const };
 
-          // 상세정보가 없는 경우 로깅 (정상 케이스)
+          // 상세정보가 없는 경우 로깅 (개발 환경에서만)
           if (detailData.details.length === 0) {
-            console.warn("[useRangeEditor] 상세정보 없음 (정상):", {
-              type: "NO_DETAILS",
-              contentType: content.content_type,
-              contentId: content.content_id,
-              title: content.title,
-              total: total || "없음",
-              reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 총 페이지수/회차를 바탕으로 범위를 설정할 수 있습니다.",
-            });
+            if (process.env.NODE_ENV === "development") {
+              console.debug("[useRangeEditor] 상세정보 없음 (정상):", {
+                type: "NO_DETAILS",
+                contentType: content.content_type,
+                contentId: content.content_id,
+                title: content.title,
+                total: total || "없음",
+                reason: "해당 콘텐츠에 목차/회차 정보가 없습니다. 총 페이지수/회차를 바탕으로 범위를 설정할 수 있습니다.",
+              });
+            }
 
             // 상세정보가 없고 총 페이지수/회차가 있는 경우, 전체 범위로 자동 설정
             if (total && total > 0) {
