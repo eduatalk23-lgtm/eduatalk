@@ -12,6 +12,7 @@ import {
   statusLabels,
   statusColors,
 } from "@/lib/constants/planLabels";
+import { getCampTemplateImpactSummary } from "@/lib/data/campTemplates";
 
 type AdminPlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -235,6 +236,22 @@ export default async function AdminPlanGroupDetailPage({
     .eq("id", group.student_id)
     .maybeSingle();
 
+  // 캠프 템플릿 통계 조회 (camp_template_id가 있을 때만)
+  let templateImpactSummary = null;
+  if (isCampMode && group.camp_template_id) {
+    try {
+      templateImpactSummary = await getCampTemplateImpactSummary(
+        group.camp_template_id,
+        tenantContext.tenantId
+      );
+    } catch (error) {
+      console.error(
+        "[AdminPlanGroupDetailPage] 템플릿 통계 조회 실패:",
+        error
+      );
+    }
+  }
+
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
       <div className="flex flex-col gap-6">
@@ -368,6 +385,35 @@ export default async function AdminPlanGroupDetailPage({
             </div>
           </div>
         </div>
+
+        {/* 템플릿 통계 (캠프 모드일 때만 표시) */}
+        {isCampMode && group.camp_template_id && templateImpactSummary && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+            <div className="flex flex-wrap items-center gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-amber-700">
+                  초대 현황
+                </p>
+                <p className="text-base font-semibold">
+                  대기 {templateImpactSummary.invitationStats.pending} · 참여{" "}
+                  {templateImpactSummary.invitationStats.accepted} · 거절{" "}
+                  {templateImpactSummary.invitationStats.declined}
+                </p>
+              </div>
+              <div className="h-6 w-px bg-amber-200" aria-hidden="true" />
+              <div>
+                <p className="text-xs uppercase tracking-wide text-amber-700">
+                  플랜 진행
+                </p>
+                <p className="text-base font-semibold">
+                  작성 중 {templateImpactSummary.planGroupStats.draft} · 검토 중{" "}
+                  {templateImpactSummary.planGroupStats.saved} · 활성{" "}
+                  {templateImpactSummary.planGroupStats.active}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 진행 상황 카드 */}
         {hasPlans && (

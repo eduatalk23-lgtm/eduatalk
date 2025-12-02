@@ -12,7 +12,6 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { StudentInvitationForm } from "./StudentInvitationForm";
 import { CampInvitationList } from "./CampInvitationList";
-import { TemplateChecklist } from "../_components/TemplateChecklist";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { Trash2 } from "lucide-react";
 import {
@@ -279,9 +278,6 @@ export function CampTemplateDetail({
             </button>
           </div>
         </div>
-
-        {/* 필수요소 점검 */}
-        <TemplateChecklist template={template} />
 
         {/* 템플릿 정보 */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
