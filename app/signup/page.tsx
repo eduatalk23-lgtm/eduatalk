@@ -29,6 +29,7 @@ export default function SignupPage() {
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [selectedRole, setSelectedRole] = useState<"student" | "parent" | "">("");
 
   // 기관 목록 로드
   useEffect(() => {
@@ -158,6 +159,28 @@ export default function SignupPage() {
               )}
             </>
           )}
+        </div>
+
+        {/* 권한 선택 */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="role" className="text-sm font-medium text-gray-700">
+            회원 유형 <span className="text-red-500">*</span>
+          </label>
+          <select
+            id="role"
+            name="role"
+            required
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value as "student" | "parent")}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm"
+          >
+            <option value="">회원 유형을 선택하세요</option>
+            <option value="student">학생</option>
+            <option value="parent">학부모</option>
+          </select>
+          <p className="text-xs text-gray-500">
+            학생: 학습 계획 및 성적 관리를 사용합니다. 학부모: 자녀의 학습 현황을 확인합니다.
+          </p>
         </div>
 
         {state?.error && <FormMessage type="error" message={state.error} />}

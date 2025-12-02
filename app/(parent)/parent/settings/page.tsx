@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents } from "../../_utils";
 import Link from "next/link";
+import { RoleChangeSection } from "./_components/RoleChangeSection";
 
 export default async function ParentSettingsPage() {
   const supabase = await createSupabaseServerClient();
@@ -113,6 +114,9 @@ export default async function ParentSettingsPage() {
             자녀 연결 추가 기능은 추후 업데이트 예정입니다. 현재는 관리자에게 직접 요청해주세요.
           </p>
         </div>
+
+        {/* 권한 변경 섹션 */}
+        <RoleChangeSection />
       </div>
     </section>
   );

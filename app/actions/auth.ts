@@ -110,6 +110,7 @@ const signUpSchema = z.object({
   password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
   displayName: z.string().min(1, "이름을 입력해주세요.").max(100, "이름은 100자 이하여야 합니다."),
   tenantId: z.string().min(1, "기관을 선택해주세요.").optional(),
+  role: z.enum(["student", "parent"]).optional(),
 });
 
 export async function signUp(
@@ -120,9 +121,10 @@ export async function signUp(
   const password = String(formData.get("password") ?? "").trim();
   const displayName = String(formData.get("displayName") ?? "").trim();
   const tenantId = String(formData.get("tenant_id") ?? "").trim();
+  const role = String(formData.get("role") ?? "").trim() as "student" | "parent" | "";
 
   // 입력 검증
-  const validation = signUpSchema.safeParse({ email, password, displayName, tenantId });
+  const validation = signUpSchema.safeParse({ email, password, displayName, tenantId, role: role || undefined });
   if (!validation.success) {
     const firstError = validation.error.issues[0];
     return { error: firstError?.message || "모든 필드를 올바르게 입력해주세요." };
@@ -137,6 +139,7 @@ export async function signUp(
         data: {
           display_name: validation.data.displayName,
           tenant_id: validation.data.tenantId || null, // 기관 ID를 user_metadata에 저장
+          signup_role: validation.data.role || null, // 회원가입 시 선택한 권한 저장
         },
       },
     });

@@ -36,7 +36,16 @@ export default async function Home() {
   } else if (role === "student") {
     redirect("/dashboard");
   } else {
-    // role이 null이면 마이페이지로 (초기 설정)
-    redirect("/settings");
+    // role이 null이면 user_metadata에서 signup_role 확인하여 초기 설정 페이지로 리다이렉트
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user?.user_metadata?.signup_role === "parent") {
+      // 학부모 초기 설정 페이지로 리다이렉트 (향후 구현)
+      redirect("/parent/settings");
+    } else {
+      // 학생 초기 설정 페이지로 리다이렉트 (기본값)
+      redirect("/settings");
+    }
   }
 }

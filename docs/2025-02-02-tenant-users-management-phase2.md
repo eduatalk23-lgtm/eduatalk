@@ -20,7 +20,7 @@
 **파일**: `app/actions/tenants.ts`
 
 ```typescript
-export async function getTenantOptionsForSignup(): Promise<TenantOption[]>
+export async function getTenantOptionsForSignup(): Promise<TenantOption[]>;
 ```
 
 - 활성화된 기관 목록 조회
@@ -28,6 +28,7 @@ export async function getTenantOptionsForSignup(): Promise<TenantOption[]>
 - 회원가입 페이지에서 사용
 
 **반환 타입**:
+
 ```typescript
 type TenantOption = {
   id: string;
@@ -43,14 +44,17 @@ type TenantOption = {
 **주요 기능**:
 
 1. **기관 목록 로드**
+
    - 페이지 로드 시 기관 목록 자동 조회
    - 로딩 상태 표시
 
 2. **검색 기능**
+
    - 기관명으로 실시간 검색
    - 검색어 입력 시 select 옵션 필터링
 
 3. **기관 선택**
+
    - 필수 필드로 설정
    - 기관명과 유형 표시 (예: "서울학원 (academy)")
    - 검색 결과가 없을 때 안내 메시지
@@ -65,6 +69,7 @@ type TenantOption = {
 **파일**: `app/actions/auth.ts`
 
 **변경 사항**:
+
 - `signUpSchema`에 `tenantId` 필드 추가 (선택사항)
 - `signUp` 함수에서 `tenant_id` 폼 데이터 읽기
 - `user_metadata`에 `tenant_id` 저장
@@ -83,12 +88,16 @@ options: {
 **파일**: `app/(student)/actions/studentActions.ts`
 
 **변경 사항**:
+
 - `saveStudentInfo`: user_metadata에서 tenant_id 가져오기
 - `updateStudentProfile`: user_metadata에서 tenant_id 가져오기
 - 회원가입 시 선택한 기관이 있으면 사용, 없으면 기본 tenant 자동 할당
 
 ```typescript
-const tenantIdFromMetadata = user.user_metadata?.tenant_id as string | null | undefined;
+const tenantIdFromMetadata = user.user_metadata?.tenant_id as
+  | string
+  | null
+  | undefined;
 
 const result = await upsertStudent({
   id: user.id,
@@ -147,11 +156,13 @@ students 테이블에 tenant_id와 함께 저장
 ## UI 개선 사항
 
 ### 검색 기능
+
 - 실시간 필터링
 - 검색어 입력 시 select 옵션 자동 필터링
 - 검색 결과가 없을 때 안내 메시지
 
 ### 사용자 경험
+
 - 기관 목록 로딩 상태 표시
 - 총 기관 수 표시
 - 기관이 없을 때 안내 메시지
@@ -162,10 +173,12 @@ students 테이블에 tenant_id와 함께 저장
 ## 향후 개선 사항
 
 ### Phase 3: 권한 선택 기능
+
 - 회원가입 시 학생/학부모 선택
 - 가입 후 권한 변경 기능
 
 ### 추가 개선 사항
+
 - 기관 검색 자동완성
 - 최근 선택한 기관 표시
 - 기관별 가입 코드 시스템
@@ -176,9 +189,11 @@ students 테이블에 tenant_id와 함께 저장
 ## 파일 변경 목록
 
 ### 신규 파일
+
 - `app/actions/tenants.ts`
 
 ### 수정 파일
+
 - `app/signup/page.tsx`
   - 기관 선택 UI 추가
   - 검색 기능 구현
@@ -204,10 +219,12 @@ students 테이블에 tenant_id와 함께 저장
 ## 주의사항
 
 1. **기관 선택은 필수**
+
    - 현재는 필수 필드로 설정되어 있지만, 선택사항으로 변경 가능
    - 선택하지 않으면 기본 tenant에 할당
 
 2. **user_metadata 저장**
+
    - Supabase Auth의 user_metadata에 저장
    - 데이터 크기 제한 고려 필요
 
@@ -219,4 +236,3 @@ students 테이블에 tenant_id와 함께 저장
 
 **완료 일시**: 2025-02-02  
 **관련 커밋**: `feat: 회원가입 시 기관 선택 기능 구현 (Phase 2)`
-

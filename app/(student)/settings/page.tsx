@@ -39,6 +39,7 @@ import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
+import { changeUserRole } from "@/app/actions/userRole";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -1016,6 +1017,54 @@ export default function SettingsPage() {
                 </select>
               </div>
           </SectionCard>
+
+          {/* 권한 변경 섹션 */}
+          {!isInitialSetup && (
+            <SectionCard
+              title="회원 유형 변경"
+              description="학부모 계정으로 전환할 수 있습니다"
+            >
+              <div className="flex flex-col gap-4">
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>주의:</strong> 학부모 계정으로 전환하면 현재 학생 정보가 삭제되고, 학부모 기능만 사용할 수 있습니다. 다시 학생으로 전환하려면 학생 정보를 다시 입력해야 합니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (
+                      !confirm(
+                        "학부모 계정으로 전환하시겠습니까? 현재 학생 정보가 삭제됩니다."
+                      )
+                    ) {
+                      return;
+                    }
+
+                    try {
+                      setSaving(true);
+                      const result = await changeUserRole("parent");
+                      if (result.success) {
+                        showSuccess("학부모 계정으로 전환되었습니다.");
+                        router.push("/parent/settings");
+                      } else {
+                        showError(result.error || "권한 변경에 실패했습니다.");
+                      }
+                    } catch (error) {
+                      console.error("권한 변경 실패:", error);
+                      showError("권한 변경 중 오류가 발생했습니다.");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? "전환 중..." : "학부모 계정으로 전환"}
+                </button>
+              </div>
+            </SectionCard>
+          )}
 
           {/* 저장 버튼 */}
           <StickySaveButton
