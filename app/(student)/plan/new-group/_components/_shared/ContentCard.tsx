@@ -89,15 +89,15 @@ export const ContentCard = React.memo(function ContentCard({
                 <span className="text-gray-600">{content.publisher}</span>
               )}
               {content.platform && (
-                <span className="text-gray-700">{content.platform}</span>
+                <span className="text-gray-600">{content.platform}</span>
               )}
             </div>
 
             {/* 범위 정보 */}
             {range && (
               <div className="mt-2 flex items-center gap-2 text-sm">
-                <span className="font-medium text-gray-700">범위:</span>
-                <span className="text-gray-700">
+                <span className="font-medium text-gray-800">범위:</span>
+                <span className="text-gray-600">
                   {range.start} ~ {range.end}
                 </span>
               </div>
@@ -105,7 +105,7 @@ export const ContentCard = React.memo(function ContentCard({
 
             {/* 추천 사유 */}
             {recommended && recommended.reason && (
-              <div className="mt-2 rounded-lg bg-yellow-50 p-2 text-sm text-gray-700">
+              <div className="mt-2 rounded-lg bg-yellow-50 p-2 text-sm text-gray-600">
                 <p className="font-medium text-yellow-800">추천 이유:</p>
                 <p className="mt-0.5 text-gray-700">{recommended.reason}</p>
               </div>
