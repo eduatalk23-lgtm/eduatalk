@@ -103,7 +103,7 @@ export function NewCampTemplateForm() {
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
               placeholder="템플릿 이름을 입력하세요"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
               required
               disabled={isSubmitting}
             />
@@ -121,7 +121,7 @@ export function NewCampTemplateForm() {
               id="program_type"
               value={programType}
               onChange={(e) => setProgramType(e.target.value as CampProgramType)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
               required
               disabled={isSubmitting}
             >
@@ -147,7 +147,7 @@ export function NewCampTemplateForm() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="템플릿에 대한 설명을 입력하세요. (선택사항)"
               rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
               disabled={isSubmitting}
             />
           </div>
@@ -165,7 +165,7 @@ export function NewCampTemplateForm() {
               id="camp_start_date"
               value={campStartDate}
               onChange={(e) => setCampStartDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
               disabled={isSubmitting}
             />
           </div>
@@ -183,7 +183,7 @@ export function NewCampTemplateForm() {
               value={campEndDate}
               onChange={(e) => setCampEndDate(e.target.value)}
               min={campStartDate || undefined}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
               disabled={isSubmitting}
             />
           </div>
@@ -203,7 +203,7 @@ export function NewCampTemplateForm() {
               onChange={(e) => setCampLocation(e.target.value)}
               placeholder="캠프 장소를 입력하세요. (선택사항)"
               maxLength={200}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
               disabled={isSubmitting}
             />
           </div>

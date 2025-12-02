@@ -13,7 +13,7 @@ export default async function NewCampTemplatePage() {
       <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">캠프 템플릿 생성</h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-700">
             템플릿 기본 정보를 입력하고 템플릿 생성을 시작하세요.
           </p>
         </div>
