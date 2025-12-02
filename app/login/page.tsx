@@ -79,6 +79,9 @@ export default async function LoginPage() {
           console.error("[LoginPage] 학생 정보 조회 중 예외 (무시됨)", queryError);
         }
       }
+    } else if (userRole.role === "superadmin") {
+      // Super Admin은 관리자 대시보드로 리다이렉트
+      redirect("/admin/dashboard");
     } else if (userRole.role === "admin" || userRole.role === "consultant") {
       redirect("/admin/dashboard");
     } else if (userRole.role === "parent") {
