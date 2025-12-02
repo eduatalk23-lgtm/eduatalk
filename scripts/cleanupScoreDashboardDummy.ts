@@ -5,9 +5,11 @@
  * npx tsx scripts/cleanupScoreDashboardDummy.ts
  * 
  * 삭제 순서:
- * 1. student_school_scores (더미학생% 이름의 학생들)
- * 2. student_mock_scores (더미학생% 이름의 학생들)
- * 3. students (이름이 '더미학생%'인 학생들)
+ * 1. student_internal_scores (더미학생% 이름의 학생들)
+ * 2. student_school_scores (더미학생% 이름의 학생들)
+ * 3. student_mock_scores (더미학생% 이름의 학생들)
+ * 4. student_terms (더미학생% 이름의 학생들)
+ * 5. students (이름이 '더미학생%'인 학생들)
  * 
  * 주의: 마스터 테이블(curriculum_revisions, subject_groups, subjects 등)은 삭제하지 않습니다.
  */
@@ -67,17 +69,45 @@ async function main() {
     console.log(`📋 발견된 더미 학생: ${dummyStudents.length}명`);
     console.log(`   ${dummyStudents.map((s) => s.name).join(", ")}\n`);
 
-    // 1. student_school_scores 삭제
-    console.log("1️⃣ student_school_scores 삭제 중...");
-    const { data: internalScores, error: internalError } = await supabase
+    // 1. student_internal_scores 삭제
+    console.log("1️⃣ student_internal_scores 삭제 중...");
+    const { data: internalScores, error: internalScoresError } = await supabase
+      .from("student_internal_scores")
+      .select("id")
+      .in("student_id", studentIds);
+
+    if (internalScoresError) {
+      console.error("❌ 내신 성적 조회 실패:", internalScoresError.message);
+    } else {
+      const count = internalScores?.length || 0;
+      if (count > 0) {
+        const { error: deleteError } = await supabase
+          .from("student_internal_scores")
+          .delete()
+          .in("student_id", studentIds);
+
+        if (deleteError) {
+          console.error("❌ 내신 성적 삭제 실패:", deleteError.message);
+        } else {
+          console.log(`✅ 내신 성적 ${count}개 삭제 완료`);
+        }
+      } else {
+        console.log("ℹ️  삭제할 내신 성적이 없습니다.");
+      }
+    }
+
+    // 2. student_school_scores 삭제
+    console.log("\n2️⃣ student_school_scores 삭제 중...");
+    const { data: schoolScores, error: schoolError } = await supabase
       .from("student_school_scores")
       .select("id")
       .in("student_id", studentIds);
 
-    if (internalError) {
-      console.error("❌ 내신 성적 조회 실패:", internalError.message);
+    if (schoolError) {
+      // 테이블이 없을 수 있으므로 에러를 무시
+      console.log("ℹ️  student_school_scores 테이블이 없거나 조회 실패:", schoolError.message);
     } else {
-      const count = internalScores?.length || 0;
+      const count = schoolScores?.length || 0;
       if (count > 0) {
         const { error: deleteError } = await supabase
           .from("student_school_scores")
@@ -94,8 +124,8 @@ async function main() {
       }
     }
 
-    // 2. student_mock_scores 삭제
-    console.log("\n2️⃣ student_mock_scores 삭제 중...");
+    // 3. student_mock_scores 삭제
+    console.log("\n3️⃣ student_mock_scores 삭제 중...");
     const { data: mockScores, error: mockError } = await supabase
       .from("student_mock_scores")
       .select("id")
@@ -121,8 +151,35 @@ async function main() {
       }
     }
 
-    // 3. students 삭제
-    console.log("\n4️⃣ students 삭제 중...");
+    // 4. student_terms 삭제
+    console.log("\n4️⃣ student_terms 삭제 중...");
+    const { data: studentTerms, error: termsError } = await supabase
+      .from("student_terms")
+      .select("id")
+      .in("student_id", studentIds);
+
+    if (termsError) {
+      console.error("❌ 학기 정보 조회 실패:", termsError.message);
+    } else {
+      const count = studentTerms?.length || 0;
+      if (count > 0) {
+        const { error: deleteError } = await supabase
+          .from("student_terms")
+          .delete()
+          .in("student_id", studentIds);
+
+        if (deleteError) {
+          console.error("❌ 학기 정보 삭제 실패:", deleteError.message);
+        } else {
+          console.log(`✅ 학기 정보 ${count}개 삭제 완료`);
+        }
+      } else {
+        console.log("ℹ️  삭제할 학기 정보가 없습니다.");
+      }
+    }
+
+    // 5. students 삭제
+    console.log("\n5️⃣ students 삭제 중...");
     const { error: deleteError } = await supabase
       .from("students")
       .delete()
