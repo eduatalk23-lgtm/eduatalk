@@ -560,12 +560,15 @@ export function PlanGroupWizard({
 
     if (step === 4) {
       // Step 4: 콘텐츠 선택 단계
-      // 최소 1개 이상의 콘텐츠 필요
-      const totalContents =
-        wizardData.student_contents.length +
-        wizardData.recommended_contents.length;
-      if (totalContents === 0) {
-        errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
+      // 템플릿 모드에서는 콘텐츠 선택 검증 건너뛰기 (필수 교과 설정만 진행)
+      if (!isTemplateMode) {
+        // 최소 1개 이상의 콘텐츠 필요
+        const totalContents =
+          wizardData.student_contents.length +
+          wizardData.recommended_contents.length;
+        if (totalContents === 0) {
+          errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
+        }
       }
     }
 
