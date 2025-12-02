@@ -145,26 +145,27 @@ export function useRecommendations({
 
       for (const r of recommendations) {
         try {
-          const response = await fetch(
-            `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
-          );
-
           let startRange = 1;
           let endRange = 100;
 
-          if (response.ok) {
-            const result = await response.json();
+          // 상세 정보 조회
+          const detailsResponse = await fetch(
+            `/api/master-content-details?contentType=${r.contentType}&contentId=${r.id}`
+          );
+
+          if (detailsResponse.ok) {
+            const detailsResult = await detailsResponse.json();
 
             // API 응답 형식: { success: true, data: { details/episodes: [...] } }
-            if (result.success && result.data) {
+            if (detailsResult.success && detailsResult.data) {
               if (r.contentType === "book") {
-                const details = result.data.details || [];
+                const details = detailsResult.data.details || [];
                 if (details.length > 0) {
                   startRange = details[0].page_number || 1;
                   endRange = details[details.length - 1].page_number || 100;
                 }
               } else if (r.contentType === "lecture") {
-                const episodes = result.data.episodes || [];
+                const episodes = detailsResult.data.episodes || [];
                 if (episodes.length > 0) {
                   startRange = episodes[0].episode_number || 1;
                   endRange = episodes[episodes.length - 1].episode_number || 100;
@@ -173,17 +174,45 @@ export function useRecommendations({
             } else {
               // 레거시 응답 형식 지원 (하위 호환성)
               if (r.contentType === "book") {
-                const details = result.details || result.data?.details || [];
+                const details = detailsResult.details || detailsResult.data?.details || [];
                 if (details.length > 0) {
                   startRange = details[0].page_number || 1;
                   endRange = details[details.length - 1].page_number || 100;
                 }
               } else if (r.contentType === "lecture") {
-                const episodes = result.episodes || result.data?.episodes || [];
+                const episodes = detailsResult.episodes || detailsResult.data?.episodes || [];
                 if (episodes.length > 0) {
                   startRange = episodes[0].episode_number || 1;
                   endRange = episodes[episodes.length - 1].episode_number || 100;
                 }
+              }
+            }
+          }
+
+          // 상세 정보가 없을 때 총량 조회 (전체 범위 설정)
+          if (startRange === 1 && endRange === 100) {
+            try {
+              const infoResponse = await fetch(
+                `/api/master-content-info?content_type=${r.contentType}&content_id=${r.id}`
+              );
+
+              if (infoResponse.ok) {
+                const infoResult = await infoResponse.json();
+                if (infoResult.success && infoResult.data) {
+                  if (r.contentType === "book" && infoResult.data.total_pages) {
+                    endRange = infoResult.data.total_pages;
+                  } else if (r.contentType === "lecture" && infoResult.data.total_episodes) {
+                    endRange = infoResult.data.total_episodes;
+                  }
+                }
+              }
+            } catch (infoError) {
+              // 총량 조회 실패는 무시 (기본값 100 사용)
+              if (process.env.NODE_ENV === "development") {
+                console.debug(
+                  `[useRecommendations] 콘텐츠 ${r.id} 총량 조회 실패 (기본값 사용):`,
+                  infoError
+                );
               }
             }
           }
@@ -218,25 +247,57 @@ export function useRecommendations({
         data.student_contents.length + data.recommended_contents.length;
       const toAdd = contentsToAutoAdd.length;
 
+      console.log("[useRecommendations] 자동 배정 실행:", {
+        currentTotal,
+        toAdd,
+        contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
+          content_id: c.content_id,
+          content_type: c.content_type,
+          start_range: c.start_range,
+          end_range: c.end_range,
+          title: c.title,
+        })),
+      });
+
       if (currentTotal + toAdd > 9) {
         const maxToAdd = 9 - currentTotal;
         const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
 
         if (trimmed.length > 0) {
+          const newRecommendedContents = [...data.recommended_contents, ...trimmed];
+          console.log("[useRecommendations] 자동 배정 (제한 적용):", {
+            trimmed: trimmed.length,
+            excluded: toAdd - trimmed.length,
+            newRecommendedContents: newRecommendedContents.length,
+          });
+          
           onUpdate({
-            recommended_contents: [...data.recommended_contents, ...trimmed],
+            recommended_contents: newRecommendedContents,
           });
           alert(SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(trimmed.length) + 
             ` (최대 9개 제한으로 ${toAdd - trimmed.length}개 제외됨)`);
         } else {
+          console.warn("[useRecommendations] 자동 배정 실패: 추가할 수 있는 콘텐츠가 없음 (최대 9개 제한)");
           alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
         }
       } else {
+        const newRecommendedContents = [
+          ...data.recommended_contents,
+          ...contentsToAutoAdd,
+        ];
+        console.log("[useRecommendations] 자동 배정 성공:", {
+          added: contentsToAutoAdd.length,
+          newRecommendedContents: newRecommendedContents.length,
+          contents: newRecommendedContents.map((c) => ({
+            content_id: c.content_id,
+            content_type: c.content_type,
+            start_range: c.start_range,
+            end_range: c.end_range,
+          })),
+        });
+        
         onUpdate({
-          recommended_contents: [
-            ...data.recommended_contents,
-            ...contentsToAutoAdd,
-          ],
+          recommended_contents: newRecommendedContents,
         });
         alert(SUCCESS_MESSAGES.RECOMMENDATIONS_ADDED(contentsToAutoAdd.length));
       }
@@ -453,8 +514,30 @@ export function useRecommendations({
         setHasRequestedRecommendations(true);
 
         // 자동 배정
+        console.log("[useRecommendations] 자동 배정 체크:", {
+          autoAssign,
+          filteredRecommendationsCount: filteredRecommendations.length,
+          willAutoAssign: autoAssign && filteredRecommendations.length > 0,
+        });
+
         if (autoAssign && filteredRecommendations.length > 0) {
+          console.log("[useRecommendations] 자동 배정 시작:", {
+            recommendationsCount: filteredRecommendations.length,
+            recommendations: filteredRecommendations.map((r) => ({
+              id: r.id,
+              title: r.title,
+              contentType: r.contentType,
+            })),
+          });
           await autoAssignContents(filteredRecommendations);
+        } else {
+          console.log("[useRecommendations] 자동 배정 스킵:", {
+            autoAssign,
+            filteredRecommendationsCount: filteredRecommendations.length,
+            reason: !autoAssign
+              ? "자동 배정 옵션이 비활성화됨"
+              : "추천 콘텐츠가 없음",
+          });
         }
       } catch (error) {
         const planGroupError = toPlanGroupError(
