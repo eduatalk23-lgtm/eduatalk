@@ -35,6 +35,8 @@ export async function PUT(
     const { id } = await params;
     const { userId, role } = await getCurrentUserRole();
 
+    console.log("[api/tenants] 수정 요청:", { id, userId, role });
+
     // Super Admin만 접근 가능
     if (!userId || role !== "superadmin") {
       return apiForbidden("Super Admin만 기관을 수정할 수 있습니다.");
@@ -59,11 +61,27 @@ export async function PUT(
       .eq("id", id)
       .maybeSingle();
 
+    console.log("[api/tenants] 테넌트 확인 결과:", {
+      id,
+      existingTenant,
+      checkError: checkError ? {
+        code: checkError.code,
+        message: checkError.message,
+        details: checkError.details,
+      } : null,
+    });
+
     if (checkError) {
+      console.error("[api/tenants] 테넌트 확인 에러:", checkError);
       return handleApiError(checkError, "[api/tenants] 테넌트 확인 실패");
     }
 
     if (!existingTenant) {
+      // 모든 테넌트 ID 확인 (디버깅용)
+      const { data: allTenants } = await supabase
+        .from("tenants")
+        .select("id, name");
+      console.log("[api/tenants] 현재 존재하는 테넌트:", allTenants);
       return apiNotFound("해당 기관을 찾을 수 없습니다.");
     }
 

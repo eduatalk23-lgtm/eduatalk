@@ -12,6 +12,7 @@
 ## 🐛 문제 상황
 
 ### 에러 메시지
+
 ```
 해당 기관을 찾을 수 없습니다.
     at handleSubmit (app/(superadmin)/superadmin/tenants/_components/TenantForm.tsx:46:15)
@@ -20,6 +21,7 @@
 ### 원인 분석
 
 1. **테넌트가 실제로 존재하지 않음**
+
    - 다른 사용자가 삭제했을 수 있음
    - 페이지를 새로고침하지 않아서 목록에 남아있지만 실제로는 삭제된 경우
    - ID가 잘못 전달된 경우
@@ -35,6 +37,7 @@
 ### 수정 내용
 
 1. **테넌트 목록 조회 API 추가**
+
    ```typescript
    /**
     * 테넌트 목록 조회 API
@@ -81,16 +84,19 @@
 ### 추가된 API 엔드포인트
 
 **app/api/tenants/route.ts**:
+
 - `GET /api/tenants` - 테넌트 목록 조회 (Super Admin만)
 
 ### 기존 동작 (정상)
 
 **app/api/tenants/[id]/route.ts**:
+
 - `PUT /api/tenants/[id]` - 테넌트 수정
   - 테넌트 존재 여부 확인 후 수정
   - 존재하지 않으면 `apiNotFound` 반환
 
-**app/(superadmin)/superadmin/tenants/_components/TenantForm.tsx**:
+**app/(superadmin)/superadmin/tenants/\_components/TenantForm.tsx**:
+
 - API 응답의 `success` 필드 확인
 - 에러 메시지를 사용자에게 표시
 
@@ -99,17 +105,20 @@
 ## 🔍 에러 발생 시나리오
 
 ### 시나리오 1: 테넌트가 삭제됨
+
 1. 사용자 A가 테넌트 목록을 조회
 2. 사용자 B가 해당 테넌트를 삭제
 3. 사용자 A가 수정 시도
 4. → "해당 기관을 찾을 수 없습니다" 에러 발생
 
 ### 시나리오 2: 잘못된 ID
+
 1. 잘못된 테넌트 ID가 전달됨
 2. 수정 시도
 3. → "해당 기관을 찾을 수 없습니다" 에러 발생
 
 ### 시나리오 3: 데이터베이스에 테넌트가 없음
+
 1. 테이블이 비어있거나 초기화됨
 2. 수정 시도
 3. → "해당 기관을 찾을 수 없습니다" 에러 발생
@@ -121,6 +130,7 @@
 ### API 응답 형식
 
 **성공 응답**:
+
 ```json
 {
   "success": true,
@@ -137,6 +147,7 @@
 ```
 
 **에러 응답**:
+
 ```json
 {
   "success": false,
@@ -174,4 +185,3 @@
 ---
 
 **작업 완료**: 2025-02-02
-

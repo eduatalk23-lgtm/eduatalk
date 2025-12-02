@@ -19,6 +19,16 @@ export default async function SuperAdminTenantsPage() {
     .select("id, name, type, created_at, updated_at")
     .order("created_at", { ascending: false });
 
+  console.log("[superadmin] tenants 조회 결과:", {
+    count: tenants?.length ?? 0,
+    tenants: tenants,
+    error: error ? {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    } : null,
+  });
+
   if (error) {
     console.error("[superadmin] tenants 조회 실패", error);
   }

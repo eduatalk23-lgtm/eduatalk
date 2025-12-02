@@ -29,6 +29,15 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
       const url = tenant ? `/api/tenants/${tenant.id}` : "/api/tenants";
       const method = tenant ? "PUT" : "POST";
 
+      console.log("[TenantForm] 수정 요청:", {
+        url,
+        method,
+        tenantId: tenant?.id,
+        tenant: tenant,
+        name,
+        type,
+      });
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -38,6 +47,12 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
       });
 
       const result = await response.json();
+
+      console.log("[TenantForm] API 응답:", {
+        url,
+        status: response.status,
+        result,
+      });
 
       // API 응답 형식 확인: { success: true, data: ... } 또는 { success: false, error: ... }
       if (!result.success) {
