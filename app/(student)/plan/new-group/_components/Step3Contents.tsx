@@ -101,71 +101,149 @@ export function Step3Contents({
     >
   >(new Map());
 
-  // 선택된 콘텐츠의 상세 정보 조회
+  // 선택된 콘텐츠의 상세 정보 조회 (배치 API로 최적화)
   useEffect(() => {
     const fetchAllDetails = async () => {
       const newDetails = new Map<
         string,
         { details: BookDetail[] | LectureEpisode[]; type: "book" | "lecture" }
       >();
-      const newLoadingSet = new Set<string>();
-
+      
+      // 1. 캐시된 콘텐츠 먼저 처리
+      const contentIdsToFetch: string[] = [];
       for (const contentId of selectedContentIds) {
-        // 이미 조회한 경우 캐시에서 가져오기
         if (cachedDetailsRef.current.has(contentId)) {
           newDetails.set(contentId, cachedDetailsRef.current.get(contentId)!);
-          continue;
-        }
-
-        // 콘텐츠 타입 확인
-        const isBook = contents.books.some((b) => b.id === contentId);
-        const contentType = isBook ? "book" : "lecture";
-
-        newLoadingSet.add(contentId);
-        setLoadingDetails(new Set(newLoadingSet));
-
-        try {
-          const response = await fetch(
-            `/api/student-content-details?contentType=${contentType}&contentId=${contentId}&includeMetadata=true`
-          );
-          if (response.ok) {
-            const result = await response.json();
-            const detailData =
-              contentType === "book"
-                ? { details: result.details || [], type: "book" as const }
-                : { details: result.episodes || [], type: "lecture" as const };
-
-            // 캐시에 저장
-            cachedDetailsRef.current.set(contentId, detailData);
-            newDetails.set(contentId, detailData);
-
-            // 메타데이터 저장
-            if (result.metadata) {
-              setContentMetadata((prev) => {
-                const newMap = new Map(prev);
-                newMap.set(contentId, result.metadata);
-                return newMap;
-              });
-            }
-          }
-        } catch (error) {
-          const planGroupError = toPlanGroupError(
-            error,
-            PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED,
-            { contentId, contentType }
-          );
-          console.error(
-            `[Step3Contents] 콘텐츠 ${contentId} 상세 정보 조회 실패:`,
-            planGroupError
-          );
-          // 에러가 발생해도 다른 콘텐츠 조회는 계속 진행
-        } finally {
-          newLoadingSet.delete(contentId);
-          setLoadingDetails(new Set(newLoadingSet));
+        } else {
+          contentIdsToFetch.push(contentId);
         }
       }
 
-      setContentDetails(newDetails);
+      // 캐시된 데이터가 있으면 먼저 업데이트
+      if (newDetails.size > 0) {
+        setContentDetails(new Map(newDetails));
+      }
+
+      // 2. 나머지 콘텐츠들을 배치 API로 조회
+      if (contentIdsToFetch.length === 0) {
+        return;
+      }
+
+      // 모든 콘텐츠를 로딩 상태로 설정
+      const initialLoadingSet = new Set(contentIdsToFetch);
+      setLoadingDetails(new Set(initialLoadingSet));
+
+      try {
+        // 콘텐츠 타입 정보 수집
+        const contentsToFetch = contentIdsToFetch.map((contentId) => {
+          const isBook = contents.books.some((b) => b.id === contentId);
+          return {
+            contentId,
+            contentType: isBook ? ("book" as const) : ("lecture" as const),
+          };
+        });
+
+        // 배치 API 호출
+        const response = await fetch("/api/student-content-details/batch", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: contentsToFetch,
+            includeMetadata: true,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const batchData = result.data;
+
+          // 배치 응답 결과 처리
+          contentIdsToFetch.forEach((contentId) => {
+            const contentType = contentsToFetch.find((c) => c.contentId === contentId)?.contentType;
+            const contentData = batchData[contentId];
+
+            if (contentData) {
+              const detailData =
+                contentType === "book"
+                  ? {
+                      details: (contentData.details || []) as BookDetail[],
+                      type: "book" as const,
+                    }
+                  : {
+                      details: (contentData.episodes || []) as LectureEpisode[],
+                      type: "lecture" as const,
+                    };
+
+              // 캐시에 저장
+              cachedDetailsRef.current.set(contentId, detailData);
+              newDetails.set(contentId, detailData);
+
+              // 메타데이터 저장
+              if (contentData.metadata) {
+                setContentMetadata((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.set(contentId, contentData.metadata);
+                  return newMap;
+                });
+              }
+            }
+          });
+        } else {
+          // 배치 API 실패 시 개별 API로 폴백 (하위 호환성)
+          console.warn("[Step3Contents] 배치 API 실패, 개별 API로 폴백");
+          
+          const fetchPromises = contentIdsToFetch.map(async (contentId) => {
+            const contentType = contentsToFetch.find((c) => c.contentId === contentId)?.contentType || "book";
+
+            try {
+              const response = await fetch(
+                `/api/student-content-details?contentType=${contentType}&contentId=${contentId}&includeMetadata=true`
+              );
+              
+              if (response.ok) {
+                const result = await response.json();
+                const detailData =
+                  contentType === "book"
+                    ? { details: result.details || [], type: "book" as const }
+                    : { details: result.episodes || [], type: "lecture" as const };
+
+                cachedDetailsRef.current.set(contentId, detailData);
+
+                if (result.metadata) {
+                  setContentMetadata((prev) => {
+                    const newMap = new Map(prev);
+                    newMap.set(contentId, result.metadata);
+                    return newMap;
+                  });
+                }
+
+                return { contentId, success: true, detailData };
+              }
+            } catch (error) {
+              console.error(`[Step3Contents] 콘텐츠 ${contentId} 조회 실패:`, error);
+            }
+            return { contentId, success: false, detailData: null };
+          });
+
+          const results = await Promise.all(fetchPromises);
+          results.forEach((result) => {
+            if (result.success && result.detailData) {
+              newDetails.set(result.contentId, result.detailData);
+            }
+          });
+        }
+      } catch (error) {
+        console.error("[Step3Contents] 배치 조회 실패:", error);
+        // 에러 발생 시에도 로딩 상태는 해제
+      } finally {
+        // 모든 로딩 상태 해제
+        setLoadingDetails(new Set());
+      }
+
+      // 최종 결과 업데이트
+      setContentDetails(new Map(newDetails));
     };
 
     if (selectedContentIds.size > 0) {

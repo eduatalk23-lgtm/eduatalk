@@ -3,9 +3,10 @@ import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { searchMasterBooks } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import ExcelActions from "./_components/ExcelActions";
+import { HierarchicalFilter } from "@/app/(student)/contents/master-books/_components/HierarchicalFilter";
 
 export default async function MasterBooksPage({
   searchParams,
@@ -24,9 +25,10 @@ export default async function MasterBooksPage({
 
   // 검색 필터 구성
   const filters: MasterBookFilters = {
+    curriculum_revision_id: params.curriculum_revision_id,
+    subject_group_id: params.subject_group_id,
     subject_id: params.subject_id,
     semester: params.semester,
-    revision: params.revision,
     search: params.search,
     tenantId, // 테넌트 ID 추가
     limit: 50,
@@ -50,17 +52,13 @@ export default async function MasterBooksPage({
     return query;
   };
 
-  const [semestersRes, revisionsRes] = await Promise.all([
+  const [semestersRes, curriculumRevisions] = await Promise.all([
     buildFilterQuery("semester"),
-    buildFilterQuery("revision"),
+    getCurriculumRevisions(),
   ]);
   
   const semesters = Array.from(
     new Set((semestersRes.data || []).map((item: any) => item.semester).filter(Boolean))
-  ).sort();
-  
-  const revisions = Array.from(
-    new Set((revisionsRes.data || []).map((item: any) => item.revision).filter(Boolean))
   ).sort();
 
   return (
@@ -92,91 +90,16 @@ export default async function MasterBooksPage({
 
         {/* 검색 필터 */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <form
-            action="/admin/master-books"
-            method="get"
-            className="flex flex-wrap items-end gap-4"
-          >
-            {/* 개정교육과정 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">
-                개정교육과정
-              </label>
-              <select
-                name="revision"
-                defaultValue={params.revision || ""}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                {revisions.map((rev) => (
-                  <option key={rev} value={rev}>
-                    {rev}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 학년/학기 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">
-                학년/학기
-              </label>
-              <select
-                name="semester"
-                defaultValue={params.semester || ""}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                {semesters.map((sem) => (
-                  <option key={sem} value={sem}>
-                    {sem}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 과목 ID */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">과목 ID</label>
-              <input
-                name="subject_id"
-                type="text"
-                defaultValue={params.subject_id || ""}
-                placeholder="과목 UUID"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* 제목 검색 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">
-                제목 검색
-              </label>
-              <input
-                type="text"
-                name="search"
-                defaultValue={params.search || ""}
-                placeholder="교재명 입력"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* 검색 버튼 */}
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              검색
-            </button>
-
-            {/* 초기화 버튼 */}
-            <Link
-              href="/admin/master-books"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              초기화
-            </Link>
-          </form>
+          <HierarchicalFilter
+            curriculumRevisions={curriculumRevisions}
+            initialCurriculumRevisionId={params.curriculum_revision_id}
+            initialSubjectGroupId={params.subject_group_id}
+            initialSubjectId={params.subject_id}
+            semesters={semesters}
+            initialSemester={params.semester}
+            searchQuery={params.search}
+            basePath="/admin/master-books"
+          />
         </div>
 
         {/* 결과 개수 */}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { SelectedContent, ContentRange } from "@/lib/types/content-selection";
 import { ContentMaster } from "@/lib/types/plan";
 import { ContentCard } from "./ContentCard";
@@ -36,10 +36,17 @@ export function MasterContentsPanel({
   const [selectedContentType, setSelectedContentType] = useState<
     "book" | "lecture" | "all"
   >("all");
-  const [selectedSubject, setSelectedSubject] = useState("");
+  const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
+  const [subjectGroupId, setSubjectGroupId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
   const [searchResults, setSearchResults] = useState<ContentMaster[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<Array<{ id: string; name: string }>>([]);
+  const [subjectGroups, setSubjectGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
 
   // 범위 설정 모달
   const [rangeModalOpen, setRangeModalOpen] = useState(false);
@@ -67,14 +74,80 @@ export function MasterContentsPanel({
     return ids;
   }, [selectedContents]);
 
+  // 개정교육과정 목록 로드
+  useEffect(() => {
+    fetch("/api/curriculum-revisions")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setCurriculumRevisions(data.data || []);
+        }
+      })
+      .catch((err) => {
+        console.error("개정교육과정 목록 로드 실패:", err);
+      });
+  }, []);
+
+  // 개정교육과정 변경 시 교과 목록 로드
+  useEffect(() => {
+    if (curriculumRevisionId) {
+      setLoadingGroups(true);
+      fetch(`/api/subject-groups?curriculum_revision_id=${curriculumRevisionId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setSubjectGroups(data.data || []);
+          }
+          setLoadingGroups(false);
+          setSubjectGroupId("");
+          setSubjectId("");
+          setSubjects([]);
+        })
+        .catch((err) => {
+          console.error("교과 목록 로드 실패:", err);
+          setLoadingGroups(false);
+        });
+    } else {
+      setSubjectGroups([]);
+      setSubjectGroupId("");
+      setSubjectId("");
+      setSubjects([]);
+    }
+  }, [curriculumRevisionId]);
+
+  // 교과 변경 시 과목 목록 로드
+  useEffect(() => {
+    if (subjectGroupId) {
+      setLoadingSubjects(true);
+      fetch(`/api/subjects?subject_group_id=${subjectGroupId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setSubjects(data.data || []);
+          }
+          setLoadingSubjects(false);
+          setSubjectId("");
+        })
+        .catch((err) => {
+          console.error("과목 목록 로드 실패:", err);
+          setLoadingSubjects(false);
+        });
+    } else {
+      setSubjects([]);
+      setSubjectId("");
+    }
+  }, [subjectGroupId]);
+
   // 마스터 콘텐츠 검색
   const handleSearch = useCallback(async () => {
     if (
       !searchQuery.trim() &&
-      !selectedSubject &&
+      !curriculumRevisionId &&
+      !subjectGroupId &&
+      !subjectId &&
       selectedContentType === "all"
     ) {
-      alert("검색어, 과목, 또는 콘텐츠 타입을 선택해주세요.");
+      alert("검색어, 필터, 또는 콘텐츠 타입을 선택해주세요.");
       return;
     }
 
@@ -92,8 +165,10 @@ export function MasterContentsPanel({
         searchPromises.push(
           searchContentMastersAction({
             content_type: "book",
+            curriculum_revision_id: curriculumRevisionId || undefined,
+            subject_group_id: subjectGroupId || undefined,
+            subject_id: subjectId || undefined,
             search: searchQuery.trim() || undefined,
-            subject: selectedSubject || undefined,
             limit: 20,
           })
         );
@@ -103,8 +178,10 @@ export function MasterContentsPanel({
         searchPromises.push(
           searchContentMastersAction({
             content_type: "lecture",
+            curriculum_revision_id: curriculumRevisionId || undefined,
+            subject_group_id: subjectGroupId || undefined,
+            subject_id: subjectId || undefined,
             search: searchQuery.trim() || undefined,
-            subject: selectedSubject || undefined,
             limit: 20,
           })
         );
@@ -157,7 +234,7 @@ export function MasterContentsPanel({
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, selectedSubject, selectedContentType]);
+  }, [searchQuery, curriculumRevisionId, subjectGroupId, subjectId, selectedContentType]);
 
   // 마스터 콘텐츠 선택
   const handleMasterContentSelect = useCallback(
@@ -373,19 +450,79 @@ export function MasterContentsPanel({
             />
           </div>
 
+          {/* 개정교육과정 선택 */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-800">
+              개정교육과정
+            </label>
+            <select
+              value={curriculumRevisionId}
+              onChange={(e) => {
+                setCurriculumRevisionId(e.target.value);
+                setSubjectGroupId("");
+                setSubjectId("");
+              }}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+              disabled={!editable || isSearching}
+            >
+              <option value="">전체</option>
+              {curriculumRevisions.map((rev) => (
+                <option key={rev.id} value={rev.id}>
+                  {rev.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 교과 선택 */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-800">
+              교과
+            </label>
+            <select
+              value={subjectGroupId}
+              onChange={(e) => {
+                setSubjectGroupId(e.target.value);
+                setSubjectId("");
+              }}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={!editable || isSearching || !curriculumRevisionId || loadingGroups}
+            >
+              <option value="">전체</option>
+              {loadingGroups ? (
+                <option value="">로딩 중...</option>
+              ) : (
+                subjectGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
           {/* 과목 선택 */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800">
-              과목 (선택사항)
+              과목
             </label>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
-              placeholder="예: 국어, 수학"
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              disabled={!editable || isSearching}
-            />
+            <select
+              value={subjectId}
+              onChange={(e) => setSubjectId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={!editable || isSearching || !subjectGroupId || loadingSubjects}
+            >
+              <option value="">전체</option>
+              {loadingSubjects ? (
+                <option value="">로딩 중...</option>
+              ) : (
+                subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           {/* 검색 버튼 */}
@@ -396,7 +533,9 @@ export function MasterContentsPanel({
               !editable ||
               isSearching ||
               (!searchQuery.trim() &&
-                !selectedSubject &&
+                !curriculumRevisionId &&
+                !subjectGroupId &&
+                !subjectId &&
                 selectedContentType === "all")
             }
             className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { searchContentMastersAction, copyMasterToStudentContentAction } from "@/app/(student)/actions/contentMasterActions";
 import { ContentMaster } from "@/lib/types/plan";
 
@@ -16,13 +16,84 @@ export function ContentMasterSearch({
   onClose,
 }: ContentMasterSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [subject, setSubject] = useState("");
+  const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
+  const [subjectGroupId, setSubjectGroupId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
   const [results, setResults] = useState<ContentMaster[]>([]);
   const [isSearching, startSearch] = useTransition();
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<Array<{ id: string; name: string }>>([]);
+  const [subjectGroups, setSubjectGroups] = useState<Array<{ id: string; name: string }>>([]);
+  const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  // 개정교육과정 목록 로드
+  useEffect(() => {
+    fetch("/api/curriculum-revisions")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setCurriculumRevisions(data.data || []);
+        }
+      })
+      .catch((err) => {
+        console.error("개정교육과정 목록 로드 실패:", err);
+      });
+  }, []);
+
+  // 개정교육과정 변경 시 교과 목록 로드
+  useEffect(() => {
+    if (curriculumRevisionId) {
+      setLoadingGroups(true);
+      fetch(`/api/subject-groups?curriculum_revision_id=${curriculumRevisionId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setSubjectGroups(data.data || []);
+          }
+          setLoadingGroups(false);
+          setSubjectGroupId("");
+          setSubjectId("");
+          setSubjects([]);
+        })
+        .catch((err) => {
+          console.error("교과 목록 로드 실패:", err);
+          setLoadingGroups(false);
+        });
+    } else {
+      setSubjectGroups([]);
+      setSubjectGroupId("");
+      setSubjectId("");
+      setSubjects([]);
+    }
+  }, [curriculumRevisionId]);
+
+  // 교과 변경 시 과목 목록 로드
+  useEffect(() => {
+    if (subjectGroupId) {
+      setLoadingSubjects(true);
+      fetch(`/api/subjects?subject_group_id=${subjectGroupId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setSubjects(data.data || []);
+          }
+          setLoadingSubjects(false);
+          setSubjectId("");
+        })
+        .catch((err) => {
+          console.error("과목 목록 로드 실패:", err);
+          setLoadingSubjects(false);
+        });
+    } else {
+      setSubjects([]);
+      setSubjectId("");
+    }
+  }, [subjectGroupId]);
 
   const handleSearch = () => {
-    if (!searchQuery.trim() && !subject) {
+    if (!searchQuery.trim() && !curriculumRevisionId && !subjectGroupId && !subjectId) {
       return;
     }
 
@@ -30,8 +101,10 @@ export function ContentMasterSearch({
       try {
         const result = await searchContentMastersAction({
           content_type: contentType,
+          curriculum_revision_id: curriculumRevisionId || undefined,
+          subject_group_id: subjectGroupId || undefined,
+          subject_id: subjectId || undefined,
           search: searchQuery.trim() || undefined,
-          subject: subject || undefined,
           limit: 20,
         });
         setResults(result.data);
@@ -100,17 +173,75 @@ export function ContentMasterSearch({
               }}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
-              과목 (선택사항)
-            </label>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
-              placeholder="예: 국어, 수학"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-800">
+                개정교육과정
+              </label>
+              <select
+                value={curriculumRevisionId}
+                onChange={(e) => {
+                  setCurriculumRevisionId(e.target.value);
+                  setSubjectGroupId("");
+                  setSubjectId("");
+                }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+              >
+                <option value="">전체</option>
+                {curriculumRevisions.map((rev) => (
+                  <option key={rev.id} value={rev.id}>
+                    {rev.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-800">
+                교과
+              </label>
+              <select
+                value={subjectGroupId}
+                onChange={(e) => {
+                  setSubjectGroupId(e.target.value);
+                  setSubjectId("");
+                }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={!curriculumRevisionId || loadingGroups}
+              >
+                <option value="">전체</option>
+                {loadingGroups ? (
+                  <option value="">로딩 중...</option>
+                ) : (
+                  subjectGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-800">
+                과목
+              </label>
+              <select
+                value={subjectId}
+                onChange={(e) => setSubjectId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={!subjectGroupId || loadingSubjects}
+              >
+                <option value="">전체</option>
+                {loadingSubjects ? (
+                  <option value="">로딩 중...</option>
+                ) : (
+                  subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
           <button
             type="button"

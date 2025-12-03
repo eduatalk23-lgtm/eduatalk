@@ -4,6 +4,12 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
+import { 
+  getSubjectGroups, 
+  getSubjectsByGroup,
+  type SubjectGroup,
+  type Subject 
+} from "@/lib/data/subjects";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -11,10 +17,10 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient
  * 교재 검색 필터
  */
 export type MasterBookFilters = {
+  curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
+  subject_group_id?: string; // 교과 그룹 ID로 필터링
   subject_id?: string; // 과목 ID로 필터링
-  subject_category?: string; // 교과 카테고리로 필터링 (예: "국어", "수학", "영어")
   semester?: string;
-  revision?: string;
   search?: string; // 제목 검색
   tenantId?: string | null;
   limit?: number;
@@ -25,17 +31,14 @@ export type MasterBookFilters = {
  * 강의 검색 필터
  */
 export type MasterLectureFilters = {
+  curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
+  subject_group_id?: string; // 교과 그룹 ID로 필터링
   subject_id?: string; // 과목 ID로 필터링
-  subject_category?: string; // 교과 카테고리로 필터링 (예: "국어", "수학", "영어")
   semester?: string;
-  revision?: string;
   search?: string; // 제목 검색
   tenantId?: string | null;
   limit?: number;
   offset?: number;
-  
-  // 레거시 필드 (호환성)
-  subject?: string; // @deprecated subject_id 사용 권장
 };
 
 /**
@@ -44,9 +47,10 @@ export type MasterLectureFilters = {
  */
 export type ContentMasterFilters = {
   content_type?: "book" | "lecture";
+  curriculum_revision_id?: string;
+  subject_group_id?: string;
   subject_id?: string;
   semester?: string;
-  revision?: string;
   search?: string;
   tenantId?: string | null;
   limit?: number;
@@ -73,17 +77,17 @@ export async function searchMasterBooks(
     .select("*", { count: "exact" });
 
   // 필터 적용
+  if (filters.curriculum_revision_id) {
+    query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
+  }
+  if (filters.subject_group_id) {
+    query = query.eq("subject_group_id", filters.subject_group_id);
+  }
   if (filters.subject_id) {
     query = query.eq("subject_id", filters.subject_id);
   }
-  if (filters.subject_category) {
-    query = query.eq("subject_category", filters.subject_category);
-  }
   if (filters.semester) {
     query = query.eq("semester", filters.semester);
-  }
-  if (filters.revision) {
-    query = query.eq("revision", filters.revision);
   }
   if (filters.search) {
     query = query.ilike("title", `%${filters.search}%`);
@@ -120,8 +124,9 @@ export async function searchMasterBooks(
   // 로그: 서비스 마스터 교재 조회 결과
   console.log("[data/contentMasters] 서비스 마스터 교재 조회:", {
     filters: {
-      subject: filters.subject,
-      subject_category: filters.subject_category,
+      curriculum_revision_id: filters.curriculum_revision_id,
+      subject_group_id: filters.subject_group_id,
+      subject_id: filters.subject_id,
       semester: filters.semester,
       tenantId: filters.tenantId,
       limit: filters.limit,
@@ -335,17 +340,17 @@ export async function searchMasterLectures(
     .select("*", { count: "exact" });
 
   // 필터 적용
+  if (filters.curriculum_revision_id) {
+    query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
+  }
+  if (filters.subject_group_id) {
+    query = query.eq("subject_group_id", filters.subject_group_id);
+  }
   if (filters.subject_id) {
     query = query.eq("subject_id", filters.subject_id);
   }
-  if (filters.subject_category) {
-    query = query.eq("subject_category", filters.subject_category);
-  }
   if (filters.semester) {
     query = query.eq("semester", filters.semester);
-  }
-  if (filters.revision) {
-    query = query.eq("revision", filters.revision);
   }
   if (filters.search) {
     query = query.ilike("title", `%${filters.search}%`);
@@ -382,8 +387,9 @@ export async function searchMasterLectures(
   // 로그: 서비스 마스터 강의 조회 결과
   console.log("[data/contentMasters] 서비스 마스터 강의 조회:", {
     filters: {
-      subject: filters.subject,
-      subject_category: filters.subject_category,
+      curriculum_revision_id: filters.curriculum_revision_id,
+      subject_group_id: filters.subject_group_id,
+      subject_id: filters.subject_id,
       semester: filters.semester,
       tenantId: filters.tenantId,
       limit: filters.limit,
@@ -735,6 +741,67 @@ export async function copyMasterToStudentContent(
     const result = await copyMasterLectureToStudent(masterId, studentId, tenantId);
     return { lectureId: result.lectureId };
   }
+}
+
+// ============================================
+// 필터 옵션 조회 함수
+// ============================================
+
+/**
+ * 개정교육과정 목록 조회 (필터 옵션용)
+ */
+export async function getCurriculumRevisions(): Promise<Array<{ id: string; name: string }>> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("curriculum_revisions")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[data/contentMasters] 개정교육과정 목록 조회 실패", error);
+    return [];
+  }
+
+  return (data as Array<{ id: string; name: string }> | null) ?? [];
+}
+
+/**
+ * 교과 목록 조회 (필터 옵션용)
+ * @param curriculumRevisionId 개정교육과정 ID (선택사항)
+ */
+export async function getSubjectGroupsForFilter(
+  curriculumRevisionId?: string
+): Promise<SubjectGroup[]> {
+  return await getSubjectGroups(curriculumRevisionId);
+}
+
+/**
+ * 과목 목록 조회 (필터 옵션용)
+ * @param subjectGroupId 교과 그룹 ID (선택사항, 없으면 모든 과목 조회)
+ */
+export async function getSubjectsForFilter(
+  subjectGroupId?: string
+): Promise<Subject[]> {
+  if (!subjectGroupId) {
+    // 모든 과목 조회 (성능 고려하여 제한)
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("subjects")
+      .select("*")
+      .order("name", { ascending: true })
+      .limit(500); // 최대 500개 제한
+
+    if (error) {
+      console.error("[data/contentMasters] 과목 목록 조회 실패", error);
+      return [];
+    }
+
+    return (data as Subject[] | null) ?? [];
+  }
+
+  return await getSubjectsByGroup(subjectGroupId);
 }
 
 // ============================================
@@ -1315,4 +1382,111 @@ export async function getStudentLectureEpisodes(
   }
 
   return (data as Array<{ id: string; episode_number: number; title: string | null }> | null) ?? [];  // 변경: episode_title → title
+}
+
+/**
+ * 여러 교재의 상세 정보를 배치로 조회 (성능 최적화)
+ * @param bookIds 조회할 교재 ID 배열
+ * @param studentId 학생 ID
+ * @returns Map<bookId, BookDetail[]> 형태로 반환
+ */
+export async function getStudentBookDetailsBatch(
+  bookIds: string[],
+  studentId: string
+): Promise<Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>> {
+  if (bookIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("student_book_details")
+    .select("id, book_id, page_number, major_unit, minor_unit")
+    .in("book_id", bookIds)
+    .order("book_id", { ascending: true })
+    .order("page_number", { ascending: true });
+
+  if (error) {
+    console.error("[data/contentMasters] 학생 교재 상세 정보 배치 조회 실패", error);
+    return new Map();
+  }
+
+  // 결과를 bookId별로 그룹화하여 Map으로 반환
+  const resultMap = new Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>();
+  
+  (data || []).forEach((detail: { id: string; book_id: string; page_number: number; major_unit: string | null; minor_unit: string | null }) => {
+    const existing = resultMap.get(detail.book_id) || [];
+    resultMap.set(detail.book_id, [
+      ...existing,
+      {
+        id: detail.id,
+        page_number: detail.page_number,
+        major_unit: detail.major_unit,
+        minor_unit: detail.minor_unit,
+      },
+    ]);
+  });
+
+  // 조회 결과가 없는 bookId들도 빈 배열로 초기화
+  bookIds.forEach((bookId) => {
+    if (!resultMap.has(bookId)) {
+      resultMap.set(bookId, []);
+    }
+  });
+
+  return resultMap;
+}
+
+/**
+ * 여러 강의의 episode 정보를 배치로 조회 (성능 최적화)
+ * @param lectureIds 조회할 강의 ID 배열
+ * @param studentId 학생 ID
+ * @returns Map<lectureId, Episode[]> 형태로 반환
+ */
+export async function getStudentLectureEpisodesBatch(
+  lectureIds: string[],
+  studentId: string
+): Promise<Map<string, Array<{ id: string; episode_number: number; title: string | null }>>> {
+  if (lectureIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("student_lecture_episodes")
+    .select("id, lecture_id, episode_number, title")
+    .in("lecture_id", lectureIds)
+    .order("lecture_id", { ascending: true })
+    .order("episode_number", { ascending: true });
+
+  if (error) {
+    console.error("[data/contentMasters] 학생 강의 episode 배치 조회 실패", error);
+    return new Map();
+  }
+
+  // 결과를 lectureId별로 그룹화하여 Map으로 반환
+  const resultMap = new Map<string, Array<{ id: string; episode_number: number; title: string | null }>>();
+  
+  (data || []).forEach((episode: { id: string; lecture_id: string; episode_number: number; title: string | null }) => {
+    const existing = resultMap.get(episode.lecture_id) || [];
+    resultMap.set(episode.lecture_id, [
+      ...existing,
+      {
+        id: episode.id,
+        episode_number: episode.episode_number,
+        title: episode.title,
+      },
+    ]);
+  });
+
+  // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
+  lectureIds.forEach((lectureId) => {
+    if (!resultMap.has(lectureId)) {
+      resultMap.set(lectureId, []);
+    }
+  });
+
+  return resultMap;
 }

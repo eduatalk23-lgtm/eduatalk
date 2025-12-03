@@ -125,9 +125,7 @@ export function CampTemplateDetail({
           newStatus === "active"
             ? "템플릿이 활성화되었습니다."
             : newStatus === "draft"
-            ? currentStatus === "archived"
-              ? "템플릿이 초안 상태로 복원되었습니다."
-              : "템플릿이 초안 상태로 변경되었습니다."
+            ? "템플릿이 비활성화되었습니다."
             : "템플릿이 보관되었습니다."
         );
         router.refresh();
@@ -170,112 +168,80 @@ export function CampTemplateDetail({
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-8">
         {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-700">캠프 관리</p>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-semibold text-gray-900">
-                {template.name}
-              </h1>
-              {/* 상태 배지 */}
-              {currentStatus === "draft" && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
-                  초안
-                </span>
-              )}
-              {currentStatus === "active" && (
-                <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
-                  활성
-                </span>
-              )}
-              {currentStatus === "archived" && (
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
-                  보관
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-gray-700">{template.program_type}</p>
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="text-sm font-medium text-gray-500">캠프 관리</p>
+            <h1 className="text-3xl font-semibold text-gray-900">
+              캠프 템플릿 관리
+            </h1>
+            <p className="mt-2 text-sm text-gray-500">
+              캠프 템플릿을 확인하고 관리하세요.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            {/* 상태 변경 버튼 */}
-            {currentStatus === "draft" && (
-              <button
-                onClick={() => handleStatusChange("active")}
-                disabled={isChangingStatus}
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isChangingStatus ? "변경 중..." : "활성화"}
-              </button>
-            )}
-            {currentStatus === "active" && (
-              <>
-                <button
-                  onClick={() => handleStatusChange("draft")}
-                  disabled={isChangingStatus}
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isChangingStatus ? "변경 중..." : "초안으로 변경"}
-                </button>
-                <button
-                  onClick={() => handleStatusChange("archived")}
-                  disabled={isChangingStatus}
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isChangingStatus ? "변경 중..." : "보관"}
-                </button>
-              </>
-            )}
-            {currentStatus === "archived" && (
-              <button
-                onClick={() => handleStatusChange("draft")}
-                disabled={isChangingStatus}
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isChangingStatus ? "변경 중..." : "초안으로 복원"}
-              </button>
-            )}
+
+          {/* 버튼 영역 */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* 좌측: 목록으로 버튼 */}
             <Link
               href="/admin/camp-templates"
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               목록으로
             </Link>
-            <Link
-              href={`/admin/camp-templates/${template.id}/time-management`}
-              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              시간 관리
-            </Link>
-            <Link
-              href={`/admin/camp-templates/${template.id}/participants`}
-              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              참여자 목록
-            </Link>
-            {currentStatus !== "active" && (
+
+            {/* 우측: 나머지 버튼들 */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* 상태 변경 드롭다운 */}
+              <div className="flex items-center gap-2">
+                <label htmlFor="status-select" className="text-sm font-medium text-gray-700">
+                  상태:
+                </label>
+                <select
+                  id="status-select"
+                  value={currentStatus}
+                  onChange={(e) => {
+                    const newStatus = e.target.value as "draft" | "active" | "archived";
+                    handleStatusChange(newStatus);
+                  }}
+                  disabled={isChangingStatus}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="active">활성</option>
+                  <option value="draft">비활성</option>
+                  <option value="archived">보관</option>
+                </select>
+              </div>
               <Link
-                href={`/admin/camp-templates/${template.id}/edit`}
-                className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                href={`/admin/camp-templates/${template.id}/participants`}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
-                수정하기
+                참여자 목록
               </Link>
-            )}
-            {currentStatus === "active" && (
+              {currentStatus !== "active" && (
+                <Link
+                  href={`/admin/camp-templates/${template.id}/edit`}
+                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                >
+                  수정하기
+                </Link>
+              )}
+              {currentStatus === "active" && (
+                <button
+                  disabled
+                  className="inline-flex items-center justify-center rounded-lg bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-500 cursor-not-allowed"
+                  title="활성 상태의 템플릿은 수정할 수 없습니다"
+                >
+                  수정하기
+                </button>
+              )}
               <button
-                disabled
-                className="inline-flex items-center justify-center rounded-lg bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-500 cursor-not-allowed"
-                title="활성 상태의 템플릿은 수정할 수 없습니다"
+                onClick={() => setShowDeleteDialog(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
               >
-                수정하기
+                <Trash2 className="h-4 w-4" />
+                삭제
               </button>
-            )}
-            <button
-              onClick={() => setShowDeleteDialog(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4" />
-              삭제
-            </button>
+            </div>
           </div>
         </div>
 
@@ -285,6 +251,40 @@ export function CampTemplateDetail({
             템플릿 정보
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                템플릿 이름
+              </label>
+              <p className="mt-1 text-sm text-gray-700">{template.name}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                프로그램 유형
+              </label>
+              <p className="mt-1 text-sm text-gray-700">{template.program_type}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700">
+                상태
+              </label>
+              <p className="mt-1">
+                {currentStatus === "draft" && (
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
+                    비활성
+                  </span>
+                )}
+                {currentStatus === "active" && (
+                  <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
+                    활성
+                  </span>
+                )}
+                {currentStatus === "archived" && (
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
+                    보관
+                  </span>
+                )}
+              </p>
+            </div>
             <div>
               <label className="text-sm font-medium text-gray-700">
                 생성일

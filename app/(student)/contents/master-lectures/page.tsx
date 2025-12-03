@@ -3,45 +3,27 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterLectures } from "@/lib/data/contentMasters";
+import { searchMasterLectures, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { secondsToMinutes } from "@/lib/utils/duration";
+import { HierarchicalFilter } from "../master-books/_components/HierarchicalFilter";
 
 // 필터 옵션 조회 함수 (캐싱 적용)
 async function getCachedFilterOptions() {
-  const cookieStore = await cookies();
-  const supabase = await createSupabaseServerClient(cookieStore);
-
   const getCached = unstable_cache(
     async () => {
-      // 학생은 공개 콘텐츠(tenant_id IS NULL)만 조회 가능
-      const [subjectsRes, semestersRes, revisionsRes] = await Promise.all([
-        supabase
-          .from("master_lectures")
-          .select("subject")
-          .is("tenant_id", null)
-          .not("subject", "is", null),
+      const supabase = createSupabasePublicClient();
+      
+      const [semestersRes, curriculumRevisions] = await Promise.all([
         supabase
           .from("master_lectures")
           .select("semester")
           .is("tenant_id", null)
           .not("semester", "is", null),
-        supabase
-          .from("master_lectures")
-          .select("revision")
-          .is("tenant_id", null)
-          .not("revision", "is", null),
+        getCurriculumRevisions(),
       ]);
-
-      const subjects = Array.from(
-        new Set(
-          (subjectsRes.data || [])
-            .map((item) => item.subject)
-            .filter(Boolean)
-        )
-      ).sort() as string[];
 
       const semesters = Array.from(
         new Set(
@@ -51,15 +33,7 @@ async function getCachedFilterOptions() {
         )
       ).sort() as string[];
 
-      const revisions = Array.from(
-        new Set(
-          (revisionsRes.data || [])
-            .map((item) => item.revision)
-            .filter(Boolean)
-        )
-      ).sort() as string[];
-
-      return { subjects, semesters, revisions };
+      return { semesters, curriculumRevisions };
     },
     ["master-lectures-filter-options"],
     {
@@ -74,15 +48,15 @@ async function getCachedFilterOptions() {
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterLectureFilters) {
   // 안정적인 캐시 키 생성
-  const cacheKey = [
-    "master-lectures-search",
-    filters.subject || "",
-    filters.subject_category || "",
-    filters.semester || "",
-    filters.revision || "",
-    filters.search || "",
-    filters.limit || 50,
-  ].join("-");
+      const cacheKey = [
+        "master-lectures-search",
+        filters.curriculum_revision_id || "",
+        filters.subject_group_id || "",
+        filters.subject_id || "",
+        filters.semester || "",
+        filters.search || "",
+        filters.limit || 50,
+      ].join("-");
   
   const getCached = unstable_cache(
     async (filters: MasterLectureFilters) => {
@@ -124,122 +98,25 @@ function FilterOptionsSkeleton() {
   );
 }
 
-async function FilterForm({
+function FilterFormWrapper({
   params,
   filterOptions,
 }: {
   params: Record<string, string | undefined>;
-  filterOptions: { subjects: string[]; semesters: string[]; revisions: string[] };
+  filterOptions: { semesters: string[]; curriculumRevisions: Array<{ id: string; name: string }> };
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <form
-        action="/contents/master-lectures"
-        method="get"
-        className="flex flex-wrap items-end gap-4"
-      >
-        {/* 개정교육과정 */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">
-            개정교육과정
-          </label>
-          <select
-            name="revision"
-            defaultValue={params.revision || ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">전체</option>
-            {filterOptions.revisions.map((rev) => (
-              <option key={rev} value={rev}>
-                {rev}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 학년/학기 */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">
-            학년/학기
-          </label>
-          <select
-            name="semester"
-            defaultValue={params.semester || ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">전체</option>
-            {filterOptions.semesters.map((sem) => (
-              <option key={sem} value={sem}>
-                {sem}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 교과 */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">교과</label>
-          <select
-            name="subject_category"
-            defaultValue={params.subject_category || ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">전체</option>
-            <option value="국어">국어</option>
-            <option value="수학">수학</option>
-            <option value="영어">영어</option>
-            <option value="사회">사회</option>
-            <option value="과학">과학</option>
-          </select>
-        </div>
-
-        {/* 과목 */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">과목</label>
-          <select
-            name="subject"
-            defaultValue={params.subject || ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">전체</option>
-            {filterOptions.subjects.map((subj) => (
-              <option key={subj} value={subj}>
-                {subj}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 제목 검색 */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">
-            제목 검색
-          </label>
-          <input
-            type="text"
-            name="search"
-            defaultValue={params.search || ""}
-            placeholder="강의명 입력"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
-        </div>
-
-        {/* 검색 버튼 */}
-        <button
-          type="submit"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-        >
-          검색
-        </button>
-
-        {/* 초기화 버튼 */}
-        <Link
-          href="/contents/master-lectures"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-        >
-          초기화
-        </Link>
-      </form>
+      <HierarchicalFilter
+        curriculumRevisions={filterOptions.curriculumRevisions}
+        initialCurriculumRevisionId={params.curriculum_revision_id}
+        initialSubjectGroupId={params.subject_group_id}
+        initialSubjectId={params.subject_id}
+        semesters={filterOptions.semesters}
+        initialSemester={params.semester}
+        searchQuery={params.search}
+        basePath="/contents/master-lectures"
+      />
     </div>
   );
 }
@@ -256,10 +133,10 @@ export default async function StudentMasterLecturesPage({
 
   // 검색 필터 구성
   const filters: MasterLectureFilters = {
-    subject: params.subject,
-    subject_category: params.subject_category,
+    curriculum_revision_id: params.curriculum_revision_id,
+    subject_group_id: params.subject_group_id,
+    subject_id: params.subject_id,
     semester: params.semester,
-    revision: params.revision,
     search: params.search,
     limit: 50,
   };
@@ -294,7 +171,7 @@ export default async function StudentMasterLecturesPage({
 
         {/* 검색 필터 */}
         <Suspense fallback={<FilterOptionsSkeleton />}>
-          <FilterForm params={params} filterOptions={filterOptions} />
+          <FilterFormWrapper params={params} filterOptions={filterOptions} />
         </Suspense>
 
         {/* 결과 개수 */}

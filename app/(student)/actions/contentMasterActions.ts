@@ -10,6 +10,7 @@ import {
   getSemesterList,
   type ContentMasterFilters,
 } from "@/lib/data/contentMasters";
+import { searchMasterBooks, searchMasterLectures } from "@/lib/data/contentMasters";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 
 /**
@@ -25,12 +26,69 @@ async function _searchContentMasters(
 
   const tenantContext = await getTenantContext();
 
-  const result = await searchContentMasters({
-    ...filters,
-    tenantId: tenantContext?.tenantId || null,
-  });
-
-  return result;
+  // content_type에 따라 적절한 함수 호출
+  if (filters.content_type === "book") {
+    const result = await searchMasterBooks({
+      curriculum_revision_id: filters.curriculum_revision_id,
+      subject_group_id: filters.subject_group_id,
+      subject_id: filters.subject_id,
+      semester: filters.semester,
+      search: filters.search,
+      tenantId: tenantContext?.tenantId || null,
+      limit: filters.limit,
+      offset: filters.offset,
+    });
+    return {
+      data: result.data.map((book) => ({ ...book, content_type: "book" as const })),
+      total: result.total,
+    };
+  } else if (filters.content_type === "lecture") {
+    const result = await searchMasterLectures({
+      curriculum_revision_id: filters.curriculum_revision_id,
+      subject_group_id: filters.subject_group_id,
+      subject_id: filters.subject_id,
+      semester: filters.semester,
+      search: filters.search,
+      tenantId: tenantContext?.tenantId || null,
+      limit: filters.limit,
+      offset: filters.offset,
+    });
+    return {
+      data: result.data.map((lecture) => ({ ...lecture, content_type: "lecture" as const })),
+      total: result.total,
+    };
+  } else {
+    // 둘 다 검색
+    const [booksResult, lecturesResult] = await Promise.all([
+      searchMasterBooks({
+        curriculum_revision_id: filters.curriculum_revision_id,
+        subject_group_id: filters.subject_group_id,
+        subject_id: filters.subject_id,
+        semester: filters.semester,
+        search: filters.search,
+        tenantId: tenantContext?.tenantId || null,
+        limit: filters.limit,
+        offset: filters.offset,
+      }),
+      searchMasterLectures({
+        curriculum_revision_id: filters.curriculum_revision_id,
+        subject_group_id: filters.subject_group_id,
+        subject_id: filters.subject_id,
+        semester: filters.semester,
+        search: filters.search,
+        tenantId: tenantContext?.tenantId || null,
+        limit: filters.limit,
+        offset: filters.offset,
+      }),
+    ]);
+    return {
+      data: [
+        ...booksResult.data.map((book) => ({ ...book, content_type: "book" as const })),
+        ...lecturesResult.data.map((lecture) => ({ ...lecture, content_type: "lecture" as const })),
+      ],
+      total: booksResult.total + lecturesResult.total,
+    };
+  }
 }
 
 export const searchContentMastersAction = withErrorHandling(_searchContentMasters);
