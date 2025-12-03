@@ -41,7 +41,7 @@ export default async function MasterLecturesPage({
   // 필터 옵션 조회 (드롭다운용)
   const [curriculumRevisions, platforms, difficulties] = await Promise.all([
     getCurriculumRevisions(),
-    getPlatformsForFilter(),
+    getPlatformsForFilter(tenantId),
     getDifficultiesForMasterLectures(tenantId),
   ]);
 

@@ -961,15 +961,53 @@ export async function getSemesterList(): Promise<string[]> {
 
 /**
  * 출판사 목록 조회 (필터 옵션용)
- * 활성화된 출판사만 반환
+ * master_books 테이블에서 실제로 사용된 publisher_id를 기반으로 조회
+ * @param tenantId 테넌트 ID (선택적, 없으면 공개 콘텐츠만)
  */
-export async function getPublishersForFilter(): Promise<Array<{ id: string; name: string }>> {
-  const supabase = await createSupabaseServerClient();
+export async function getPublishersForFilter(
+  tenantId?: string | null
+): Promise<Array<{ id: string; name: string }>> {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
 
+  // master_books에서 실제로 사용된 publisher_id 조회
+  let publisherQuery = supabase
+    .from("master_books")
+    .select("publisher_id")
+    .not("publisher_id", "is", null);
+
+  // tenantId가 있으면 해당 테넌트 + 공개 콘텐츠만, 없으면 공개 콘텐츠만
+  if (tenantId) {
+    publisherQuery = publisherQuery.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+  } else {
+    publisherQuery = publisherQuery.is("tenant_id", null);
+  }
+
+  const { data: booksData, error: booksError } = await publisherQuery;
+
+  if (booksError) {
+    console.error("[data/contentMasters] 출판사 ID 조회 실패", booksError);
+    return [];
+  }
+
+  // 사용된 publisher_id 추출 (중복 제거)
+  const publisherIds = Array.from(
+    new Set(
+      (booksData || [])
+        .map((book: { publisher_id: string | null }) => book.publisher_id)
+        .filter((id): id is string => id !== null)
+    )
+  );
+
+  if (publisherIds.length === 0) {
+    return [];
+  }
+
+  // publishers 테이블에서 해당 출판사 정보 조회
   const { data, error } = await supabase
     .from("publishers")
     .select("id, name")
-    .eq("is_active", true)
+    .in("id", publisherIds)
     .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
@@ -983,17 +1021,53 @@ export async function getPublishersForFilter(): Promise<Array<{ id: string; name
 
 /**
  * 플랫폼 목록 조회 (필터 옵션용)
- * 활성화된 플랫폼만 반환
- * unstable_cache 내부에서 호출 가능하도록 createSupabasePublicClient 사용
+ * master_lectures 테이블에서 실제로 사용된 platform_id를 기반으로 조회
+ * @param tenantId 테넌트 ID (선택적, 없으면 공개 콘텐츠만)
  */
-export async function getPlatformsForFilter(): Promise<Array<{ id: string; name: string }>> {
-  // unstable_cache 내부에서 호출될 수 있으므로 쿠키가 필요 없는 public client 사용
-  const supabase = createSupabasePublicClient();
+export async function getPlatformsForFilter(
+  tenantId?: string | null
+): Promise<Array<{ id: string; name: string }>> {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
 
+  // master_lectures에서 실제로 사용된 platform_id 조회
+  let platformQuery = supabase
+    .from("master_lectures")
+    .select("platform_id")
+    .not("platform_id", "is", null);
+
+  // tenantId가 있으면 해당 테넌트 + 공개 콘텐츠만, 없으면 공개 콘텐츠만
+  if (tenantId) {
+    platformQuery = platformQuery.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+  } else {
+    platformQuery = platformQuery.is("tenant_id", null);
+  }
+
+  const { data: lecturesData, error: lecturesError } = await platformQuery;
+
+  if (lecturesError) {
+    console.error("[data/contentMasters] 플랫폼 ID 조회 실패", lecturesError);
+    return [];
+  }
+
+  // 사용된 platform_id 추출 (중복 제거)
+  const platformIds = Array.from(
+    new Set(
+      (lecturesData || [])
+        .map((lecture: { platform_id: string | null }) => lecture.platform_id)
+        .filter((id): id is string => id !== null)
+    )
+  );
+
+  if (platformIds.length === 0) {
+    return [];
+  }
+
+  // platforms 테이블에서 해당 플랫폼 정보 조회
   const { data, error } = await supabase
     .from("platforms")
     .select("id, name")
-    .eq("is_active", true)
+    .in("id", platformIds)
     .order("display_order", { ascending: true })
     .order("name", { ascending: true });
 
