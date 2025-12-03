@@ -119,6 +119,38 @@ export function MasterContentsPanel({
     }
   }, [curriculumRevisionId]);
 
+  // 교과 변경 시 과목 초기화 (이미 로드된 데이터 사용)
+  useEffect(() => {
+    // 교과가 변경되었는데 해당 교과의 과목이 subjectsMap에 없는 경우 개별 로드
+    if (
+      subjectGroupId &&
+      !subjectsMap.has(subjectGroupId)
+    ) {
+      // 모든 과목이 이미 로드되어야 하는데 없는 경우에만 개별 로드
+      setLoadingSubjects(true);
+      fetch(`/api/subjects?subject_group_id=${subjectGroupId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const newSubjects = data.data || [];
+          setSubjectsMap((prev) => {
+            const next = new Map(prev);
+            next.set(subjectGroupId, newSubjects);
+            return next;
+          });
+          setLoadingSubjects(false);
+        })
+        .catch((err) => {
+          console.error("과목 목록 로드 실패:", err);
+          setLoadingSubjects(false);
+        });
+    }
+
+    // 교과 변경 시 과목 초기화
+    if (subjectGroupId) {
+      setSubjectId("");
+    }
+  }, [subjectGroupId, subjectsMap]);
+
   // 계층 구조 데이터 로드 (병렬 처리)
   const loadHierarchyData = async (curriculumRevisionId: string) => {
     setLoadingGroups(true);
