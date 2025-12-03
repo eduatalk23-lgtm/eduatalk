@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSubjectsForFilter } from "@/lib/data/contentMasters";
+import { getSubjectsByGroup } from "@/lib/data/subjects";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +16,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const subjects = await getSubjectsForFilter(subjectGroupId);
+    const subjects = await getSubjectsByGroup(subjectGroupId);
+
+    console.log("[api/subjects] 과목 조회 결과:", {
+      subjectGroupId,
+      count: subjects.length,
+      subjects: subjects.map((s) => ({ id: s.id, name: s.name })),
+    });
 
     return NextResponse.json({
       success: true,
