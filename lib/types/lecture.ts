@@ -62,7 +62,7 @@ export interface MasterLecture {
   // ⑧ 레거시 컬럼 (호환성 유지)
   revision?: string | null;
   content_category?: string | null;
-  semester?: string | null;
+  // semester?: string | null; // 제거됨 (2025-02-04)
   subject?: string | null;           // TODO: subject_id 우선 사용
   subject_category?: string | null;
 

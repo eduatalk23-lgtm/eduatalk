@@ -313,7 +313,7 @@ export type CommonContentFields = {
   tenant_id: string | null; // NULL이면 전체 기관 공통
   revision: string | null; // 개정 (2015개정 등)
   content_category: string | null; // 유형
-  semester: string | null; // 학기 (고3-1 등)
+  semester: string | null; // 학기 (고3-1 등) - 학생 콘텐츠용
   title: string;
   difficulty_level: string | null; // 난이도
   notes: string | null; // 비고/메모
@@ -322,9 +322,14 @@ export type CommonContentFields = {
 };
 
 /**
+ * 마스터 콘텐츠 공통 필드 (semester 제외)
+ */
+export type MasterContentFields = Omit<CommonContentFields, "semester">;
+
+/**
  * 서비스 마스터 교재
  */
-export type MasterBook = CommonContentFields & {
+export type MasterBook = MasterContentFields & {
   // 기본 상태
   is_active: boolean; // 활성화 상태
   
@@ -379,7 +384,7 @@ export type MasterBook = CommonContentFields & {
 /**
  * 서비스 마스터 강의
  */
-export type MasterLecture = CommonContentFields & {
+export type MasterLecture = MasterContentFields & {
   platform_name: string | null; // 플랫폼명 (레거시, platform → platform_name 변경)
   platform_id?: string | null; // 플랫폼 ID (우선 사용, FK to platforms)
   total_episodes: number; // 총 회차 (필수)
@@ -418,7 +423,7 @@ export type ContentMaster = {
   content_type: "book" | "lecture";
   revision: string | null; // 개정
   content_category: string | null; // 유형
-  semester: string | null; // 학기
+  // semester: string | null; // 학기 - 제거됨 (2025-02-04)
   subject_category: string | null; // 교과
   subject: string | null; // 과목
   title: string;

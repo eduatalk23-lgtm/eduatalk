@@ -178,7 +178,6 @@ export async function getMasterBookById(
         tenant_id,
         revision,
         content_category,
-        semester,
         title,
         total_pages,
         difficulty_level,
@@ -568,7 +567,7 @@ export async function copyMasterBookToStudent(
       student_id: studentId,
       title: book.title,
       revision: book.revision,
-      semester: book.semester,
+      semester: null, // 마스터 콘텐츠에서 semester 필드 제거됨
       subject_category: book.subject_category,
       subject: book.subject,
       publisher: book.publisher,
@@ -667,7 +666,7 @@ export async function copyMasterLectureToStudent(
       student_id: studentId,
       title: lecture.title,
       revision: lecture.revision,
-      semester: lecture.semester,
+      semester: null, // 마스터 콘텐츠에서 semester 필드 제거됨
       subject_category: lecture.subject_category,
       subject: lecture.subject,
       platform: lecture.platform_name,  // 변경: platform → platform_name
@@ -887,17 +886,24 @@ export async function getSubjectList(
  * 학기 목록 조회
  * @deprecated 학년/학기 필터는 더 이상 사용하지 않습니다.
  */
+/**
+ * 학기 목록 조회 (학생 콘텐츠용)
+ * @deprecated 마스터 콘텐츠에서 semester 필드가 제거됨 (2025-02-04)
+ * 학생 콘텐츠(books, lectures)에서만 사용 가능
+ */
 export async function getSemesterList(): Promise<string[]> {
   const supabase = await createSupabaseServerClient();
 
+  // 마스터 콘텐츠에서 semester 필드 제거됨
+  // 학생 콘텐츠(books, lectures)에서만 조회
   const [booksResult, lecturesResult] = await Promise.all([
-    supabase.from("master_books").select("semester").not("semester", "is", null),
-    supabase.from("master_lectures").select("semester").not("semester", "is", null),
+    supabase.from("books").select("semester").not("semester", "is", null),
+    supabase.from("lectures").select("semester").not("semester", "is", null),
   ]);
 
   const allSemesters = [
-    ...(booksResult.data || []).map((item) => item.semester),
-    ...(lecturesResult.data || []).map((item) => item.semester),
+    ...(booksResult.data || []).map((item: { semester: string }) => item.semester),
+    ...(lecturesResult.data || []).map((item: { semester: string }) => item.semester),
   ];
 
   const semesters = Array.from(new Set(allSemesters.filter(Boolean))).sort();
@@ -978,7 +984,7 @@ export async function createMasterBook(
       school_type: data.school_type,
       revision: data.revision,
       content_category: data.content_category,
-      semester: data.semester,
+      // semester 필드 제거됨 (2025-02-04)
       title: data.title,
       subtitle: data.subtitle,
       series_name: data.series_name,
@@ -1041,7 +1047,7 @@ export async function updateMasterBook(
   if (data.school_type !== undefined) updateFields.school_type = data.school_type;
   if (data.revision !== undefined) updateFields.revision = data.revision;
   if (data.content_category !== undefined) updateFields.content_category = data.content_category;
-  if (data.semester !== undefined) updateFields.semester = data.semester;
+  // semester 필드 제거됨 (2025-02-04)
   if (data.title !== undefined) updateFields.title = data.title;
   if (data.subtitle !== undefined) updateFields.subtitle = data.subtitle;
   if (data.series_name !== undefined) updateFields.series_name = data.series_name;
@@ -1115,7 +1121,7 @@ export async function createMasterLecture(
       tenant_id: data.tenant_id,
       revision: data.revision,
       content_category: data.content_category,
-      semester: data.semester,
+      // semester 필드 제거됨 (2025-02-04)
       subject_category: data.subject_category,
       subject: data.subject,
       title: data.title,
@@ -1155,7 +1161,7 @@ export async function updateMasterLecture(
     .update({
       revision: data.revision,
       content_category: data.content_category,
-      semester: data.semester,
+      // semester 필드 제거됨 (2025-02-04)
       subject_category: data.subject_category,
       subject: data.subject,
       title: data.title,
