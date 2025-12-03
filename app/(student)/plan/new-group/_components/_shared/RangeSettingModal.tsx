@@ -46,6 +46,8 @@ export function RangeSettingModal({
 
   // 캐시 참조
   const cacheRef = useRef<Map<string, ContentDetail[]>>(new Map());
+  // 중복 로그 방지를 위한 ref
+  const hasLoggedNoDetails = useRef(false);
 
   // 모달이 열릴 때 상태 초기화
   useEffect(() => {
@@ -59,6 +61,7 @@ export function RangeSettingModal({
       setTotalEpisodes(null);
       setError(null);
       setHasChanges(false);
+      hasLoggedNoDetails.current = false; // 로그 플래그 리셋
       return;
     }
 
@@ -239,9 +242,10 @@ export function RangeSettingModal({
             ? responseData.data.details || []
             : responseData.data.episodes || [];
         
-        // 상세정보가 없는 경우 로깅 (개발 환경에서만)
+        // 상세정보가 없는 경우 로깅 (개발 환경에서만, 한 번만)
         if (detailsData.length === 0) {
-          if (process.env.NODE_ENV === "development") {
+          if (process.env.NODE_ENV === "development" && !hasLoggedNoDetails.current) {
+            hasLoggedNoDetails.current = true;
             console.debug("[RangeSettingModal] 상세정보 없음 (정상):", {
               type: "NO_DETAILS",
               contentType: content.type,
@@ -255,6 +259,8 @@ export function RangeSettingModal({
             });
           }
         } else {
+          // 상세정보가 있으면 로그 플래그 리셋 (다음에 다시 없을 때 로그 출력 가능)
+          hasLoggedNoDetails.current = false;
           console.log("[RangeSettingModal] 상세정보 조회 성공:", {
             type: "SUCCESS",
             contentType: content.type,

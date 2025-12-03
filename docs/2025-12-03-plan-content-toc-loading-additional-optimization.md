@@ -202,6 +202,8 @@
 
 - `app/(student)/plan/new-group/_components/Step3Contents.tsx` (Phase 5, 6, 8, 9)
 - `lib/data/contentMasters.ts` (Phase 7, 9)
+- `app/(student)/plan/new-group/_components/_shared/ContentRangeInput.tsx` (Phase 10)
+- `app/(student)/plan/new-group/_components/_shared/RangeSettingModal.tsx` (Phase 10)
 
 ### Phase 9: 상세정보 없음 디버깅 로그 추가 (우선순위 5)
 
@@ -231,6 +233,33 @@
 - 데이터베이스 쿼리 결과에서 빈 배열인 콘텐츠 ID 목록 로깅
 - 개발 환경에서만 활성화하여 프로덕션 성능에 영향 없음
 
+### Phase 10: 중복 로그 방지 (우선순위 6)
+
+**파일**: `app/(student)/plan/new-group/_components/_shared/ContentRangeInput.tsx`, `app/(student)/plan/new-group/_components/_shared/RangeSettingModal.tsx`
+
+**문제점**:
+
+- `ContentRangeInput`과 `RangeSettingModal`에서 상세정보 없음 로그가 리렌더링마다 반복 출력
+- 동일한 콘텐츠에 대해 여러 번 로그가 출력되어 콘솔이 지저분해짐
+- 불필요한 로그로 인해 실제 중요한 로그를 찾기 어려움
+
+**해결방안**:
+
+- `useRef`를 사용하여 각 컴포넌트 인스턴스당 한 번만 로그 출력
+- `details`가 변경되면 로그 플래그 리셋하여 새로운 콘텐츠 로드 시 다시 로그 출력 가능
+- 모달이 닫히면 로그 플래그 리셋
+
+**변경사항**:
+
+- `ContentRangeInput`: `useRef`로 중복 로그 방지, `details.length` 변경 시 플래그 리셋
+- `RangeSettingModal`: `useRef`로 중복 로그 방지, 모달 닫힐 때 플래그 리셋
+
+**주요 변경사항**:
+
+- 각 컴포넌트 인스턴스당 한 번만 "상세정보 없음" 로그 출력
+- 콘텐츠가 변경되면 다시 로그 출력 가능 (새로운 콘텐츠 확인)
+- 개발 환경에서만 활성화
+
 ## 완료 상태
 
 - ✅ Phase 5: 메타데이터 조회 제거
@@ -238,3 +267,4 @@
 - ✅ Phase 7: 데이터베이스 쿼리 최적화 확인
 - ✅ Phase 8: 네트워크 요청 최적화 확인
 - ✅ Phase 9: 상세정보 없음 디버깅 로그 추가
+- ✅ Phase 10: 중복 로그 방지

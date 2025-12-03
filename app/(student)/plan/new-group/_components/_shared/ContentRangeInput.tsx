@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { AlertCircle, BookOpen, Video } from "lucide-react";
 import {
   ContentRangeInputProps,
@@ -35,6 +35,16 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   const isBook = type === "book";
   const hasDetails = details.length > 0;
   const maxValue = isBook ? totalPages : totalEpisodes;
+  
+  // 중복 로그 방지를 위한 ref (details가 변경될 때마다 리셋)
+  const hasLoggedNoDetails = useRef(false);
+  const prevDetailsLength = useRef(details.length);
+  
+  // details가 변경되면 로그 플래그 리셋
+  if (prevDetailsLength.current !== details.length) {
+    prevDetailsLength.current = details.length;
+    hasLoggedNoDetails.current = false;
+  }
 
   // 시작/끝 인덱스
   const startIndex = useMemo(() => {
@@ -95,8 +105,9 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
 
   // 상세 정보가 없을 때 직접 입력 모드
   if (!hasDetails) {
-    // 상세정보가 없는 경우 로깅 (개발 환경에서만)
-    if (process.env.NODE_ENV === "development") {
+    // 상세정보가 없는 경우 로깅 (개발 환경에서만, 한 번만)
+    if (process.env.NODE_ENV === "development" && !hasLoggedNoDetails.current) {
+      hasLoggedNoDetails.current = true;
       console.debug("[ContentRangeInput] 상세정보 없음 (정상):", {
         type: "NO_DETAILS",
         contentType: type,
