@@ -113,9 +113,15 @@ export async function createSupabaseServerClient(
   } catch (error) {
     // Supabase 클라이언트 생성 실패 시 에러 로깅
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorName = error instanceof Error ? error.name : undefined;
+    
     console.error("[supabase/server] 클라이언트 생성 실패", {
       message: errorMessage,
-      error,
+      name: errorName,
+      stack: errorStack,
+      errorType: error?.constructor?.name,
+      errorString: String(error),
     });
     // 에러가 발생해도 기본 클라이언트를 반환 (사용 시 에러 발생 가능)
     // 이렇게 하면 서버 컴포넌트 렌더링이 중단되지 않음

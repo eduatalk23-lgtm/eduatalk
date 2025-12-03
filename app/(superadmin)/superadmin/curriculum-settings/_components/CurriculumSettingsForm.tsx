@@ -32,7 +32,9 @@ export function CurriculumSettingsForm() {
           setError(result.error || "설정을 불러오는데 실패했습니다.");
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "설정을 불러오는데 실패했습니다.");
+        setError(
+          err instanceof Error ? err.message : "설정을 불러오는데 실패했습니다."
+        );
       } finally {
         setIsLoading(false);
       }
@@ -58,7 +60,9 @@ export function CurriculumSettingsForm() {
         setError(result.error || "설정 저장에 실패했습니다.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "설정 저장에 실패했습니다.");
+      setError(
+        err instanceof Error ? err.message : "설정 저장에 실패했습니다."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -67,7 +71,9 @@ export function CurriculumSettingsForm() {
   if (isLoading) {
     return (
       <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <div className="text-center text-gray-600 dark:text-gray-400">설정을 불러오는 중...</div>
+        <div className="text-center text-gray-600 dark:text-gray-400">
+          설정을 불러오는 중...
+        </div>
       </div>
     );
   }
@@ -87,10 +93,15 @@ export function CurriculumSettingsForm() {
       )}
 
       <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">2022개정 교육과정</h3>
+        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+          2022개정 교육과정
+        </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="middle_2022" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="middle_2022"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               중학교 시작년도
             </label>
             <input
@@ -99,7 +110,10 @@ export function CurriculumSettingsForm() {
               name="middle_2022"
               value={settings.middle_2022}
               onChange={(e) =>
-                setSettings({ ...settings, middle_2022: parseInt(e.target.value, 10) || 2025 })
+                setSettings({
+                  ...settings,
+                  middle_2022: parseInt(e.target.value, 10) || 2025,
+                })
               }
               min="2000"
               max="2100"
@@ -108,7 +122,10 @@ export function CurriculumSettingsForm() {
             />
           </div>
           <div>
-            <label htmlFor="high_2022" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="high_2022"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               고등학교 시작년도
             </label>
             <input
@@ -117,7 +134,10 @@ export function CurriculumSettingsForm() {
               name="high_2022"
               value={settings.high_2022}
               onChange={(e) =>
-                setSettings({ ...settings, high_2022: parseInt(e.target.value, 10) || 2025 })
+                setSettings({
+                  ...settings,
+                  high_2022: parseInt(e.target.value, 10) || 2025,
+                })
               }
               min="2000"
               max="2100"
@@ -129,10 +149,15 @@ export function CurriculumSettingsForm() {
       </div>
 
       <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">2015개정 교육과정</h3>
+        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+          2015개정 교육과정
+        </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="middle_2015" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="middle_2015"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               중학교 시작년도
             </label>
             <input
@@ -141,7 +166,10 @@ export function CurriculumSettingsForm() {
               name="middle_2015"
               value={settings.middle_2015}
               onChange={(e) =>
-                setSettings({ ...settings, middle_2015: parseInt(e.target.value, 10) || 2018 })
+                setSettings({
+                  ...settings,
+                  middle_2015: parseInt(e.target.value, 10) || 2018,
+                })
               }
               min="2000"
               max="2100"
@@ -150,7 +178,10 @@ export function CurriculumSettingsForm() {
             />
           </div>
           <div>
-            <label htmlFor="high_2015" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="high_2015"
+              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
               고등학교 시작년도
             </label>
             <input
@@ -159,7 +190,10 @@ export function CurriculumSettingsForm() {
               name="high_2015"
               value={settings.high_2015}
               onChange={(e) =>
-                setSettings({ ...settings, high_2015: parseInt(e.target.value, 10) || 2018 })
+                setSettings({
+                  ...settings,
+                  high_2015: parseInt(e.target.value, 10) || 2018,
+                })
               }
               min="2000"
               max="2100"
@@ -182,4 +216,3 @@ export function CurriculumSettingsForm() {
     </form>
   );
 }
-

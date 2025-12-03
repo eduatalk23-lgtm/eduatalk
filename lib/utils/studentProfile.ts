@@ -133,17 +133,17 @@ export function calculateCurriculumRevision(
 
   // 중학교 개정교육과정 판단
   if (grade.includes("중")) {
-    // 2022 개정: 2024년 중1부터
-    if (schoolStartYear >= 2024) return "2022 개정";
-    // 2015 개정: 2015년 중1부터
-    if (schoolStartYear >= 2015) return "2015 개정";
+    // 2022 개정: 2025년 중1부터
+    if (schoolStartYear >= 2025) return "2022 개정";
+    // 2015 개정: 2018년 중1부터
+    if (schoolStartYear >= 2018) return "2015 개정";
     return "2009 개정";
   }
 
   // 고등학교 개정교육과정 판단
-  // 2022 개정: 2027년 고1부터 (2024년 중1이 2027년 고1)
-  if (schoolStartYear >= 2027) return "2022 개정";
-  // 2015 개정: 2018년 고1부터 (2015년 중1이 2018년 고1)
+  // 2022 개정: 2025년 고1부터
+  if (schoolStartYear >= 2025) return "2022 개정";
+  // 2015 개정: 2018년 고1부터
   if (schoolStartYear >= 2018) return "2015 개정";
   return "2009 개정";
 }

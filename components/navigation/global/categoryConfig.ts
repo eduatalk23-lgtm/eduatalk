@@ -432,6 +432,12 @@ const superadminCategories: NavigationCategory[] = [
         href: "/superadmin/settings",
         icon: "⚙️",
       },
+      {
+        id: "superadmin-curriculum-settings",
+        label: "교육과정 설정",
+        href: "/superadmin/curriculum-settings",
+        icon: "📚",
+      },
     ],
   },
 ];

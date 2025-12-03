@@ -1,7 +1,7 @@
 // 콘텐츠 마스터 데이터 액세스 레이어
 // master_books, master_lectures 테이블 사용
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
 import { 
@@ -923,9 +923,11 @@ export async function getPublishersForFilter(): Promise<Array<{ id: string; name
 /**
  * 플랫폼 목록 조회 (필터 옵션용)
  * 활성화된 플랫폼만 반환
+ * unstable_cache 내부에서 호출 가능하도록 createSupabasePublicClient 사용
  */
 export async function getPlatformsForFilter(): Promise<Array<{ id: string; name: string }>> {
-  const supabase = await createSupabaseServerClient();
+  // unstable_cache 내부에서 호출될 수 있으므로 쿠키가 필요 없는 public client 사용
+  const supabase = createSupabasePublicClient();
 
   const { data, error } = await supabase
     .from("platforms")
