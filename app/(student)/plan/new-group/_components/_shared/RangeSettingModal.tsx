@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { X } from "lucide-react";
 import { RangeSettingModalProps, ContentDetail } from "@/lib/types/content-selection";
 import { ContentRangeInput } from "./ContentRangeInput";
@@ -44,15 +44,18 @@ export function RangeSettingModal({
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // 캐시 참조
-  const cacheRef = useRef<Map<string, ContentDetail[]>>(new Map());
+  // 캐시 참조 (총량 정보도 함께 저장)
+  const cacheRef = useRef<Map<string, {
+    details: ContentDetail[];
+    totalPages?: number | null;
+    totalEpisodes?: number | null;
+  }>>(new Map());
   // 중복 로그 방지를 위한 ref
   const hasLoggedNoDetails = useRef(false);
 
-  // 모달이 열릴 때 상태 초기화
+  // 모달이 닫혔을 때 상태 초기화
   useEffect(() => {
     if (!open) {
-      // 모달이 닫혔을 때 상태 초기화
       setStartDetailId(null);
       setEndDetailId(null);
       setStartRange(null);
@@ -76,8 +79,14 @@ export function RangeSettingModal({
       }
 
       // 캐시 확인
-      if (cacheRef.current.has(content.id)) {
-        setDetails(cacheRef.current.get(content.id)!);
+      const cached = cacheRef.current.get(content.id);
+      if (cached) {
+        setDetails(cached.details);
+        if (content.type === "book") {
+          setTotalPages(cached.totalPages ?? null);
+        } else {
+          setTotalEpisodes(cached.totalEpisodes ?? null);
+        }
         return;
       }
 
@@ -193,15 +202,26 @@ export function RangeSettingModal({
         
         setDetails(detailsData);
         
-        // 캐시 저장
-        cacheRef.current.set(content.id, detailsData);
-
         // 총량 정보를 상세 정보 API 응답에서 직접 사용
+        const totalPagesValue = content.type === "book" 
+          ? (responseData.data.total_pages || null)
+          : null;
+        const totalEpisodesValue = content.type === "lecture"
+          ? (responseData.data.total_episodes || null)
+          : null;
+
         if (content.type === "book") {
-          setTotalPages(responseData.data.total_pages || null);
+          setTotalPages(totalPagesValue);
         } else {
-          setTotalEpisodes(responseData.data.total_episodes || null);
+          setTotalEpisodes(totalEpisodesValue);
         }
+
+        // 캐시 저장 (총량 정보도 함께 저장)
+        cacheRef.current.set(content.id, {
+          details: detailsData,
+          totalPages: totalPagesValue,
+          totalEpisodes: totalEpisodesValue,
+        });
       } catch (err) {
         const errorMessage = err instanceof Error
           ? err.message
@@ -227,10 +247,12 @@ export function RangeSettingModal({
           errorDetails.error = String(err);
         }
 
-        console.error(
-          "[RangeSettingModal] 상세 정보 조회 실패:",
-          errorDetails
-        );
+        if (process.env.NODE_ENV === "development") {
+          console.error(
+            "[RangeSettingModal] 상세 정보 조회 실패:",
+            errorDetails
+          );
+        }
         
         setError(errorMessage);
       } finally {
@@ -241,7 +263,7 @@ export function RangeSettingModal({
     fetchDetails();
   }, [open, content.id, content.type, isRecommendedContent]);
 
-  // 현재 범위로 초기화
+  // 현재 범위로 초기화 (모달이 열리고 currentRange가 변경될 때만)
   useEffect(() => {
     if (open && currentRange) {
       setStartDetailId(currentRange.start_detail_id || null);
@@ -287,7 +309,7 @@ export function RangeSettingModal({
   }, [startDetailId, endDetailId, startRange, endRange, currentRange, details.length]);
 
   // 저장 처리
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const hasDetails = details.length > 0;
 
     if (hasDetails) {
@@ -364,10 +386,10 @@ export function RangeSettingModal({
     }
 
     onClose();
-  };
+  }, [details, startDetailId, endDetailId, startRange, endRange, totalPages, totalEpisodes, content.type, onSave, onClose]);
 
   // 모달 닫기
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (hasChanges) {
       if (
         !confirm(
@@ -389,7 +411,7 @@ export function RangeSettingModal({
     setHasChanges(false);
     
     onClose();
-  };
+  }, [hasChanges, onClose]);
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -401,18 +423,21 @@ export function RangeSettingModal({
 
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [open, hasChanges]);
+  }, [open, handleClose]);
 
   if (!open) return null;
 
   const hasDetails = details.length > 0;
-  const isValid = hasDetails
-    ? startDetailId && endDetailId
-    : startRange && startRange.trim() !== "" && 
+  const isValid = useMemo(() => {
+    if (hasDetails) {
+      return startDetailId && endDetailId;
+    }
+    return startRange && startRange.trim() !== "" && 
       endRange && endRange.trim() !== "" && 
       Number(startRange) > 0 && 
       Number(endRange) > 0 && 
       Number(startRange) <= Number(endRange);
+  }, [hasDetails, startDetailId, endDetailId, startRange, endRange]);
   const isSaving = externalLoading;
 
   return (
