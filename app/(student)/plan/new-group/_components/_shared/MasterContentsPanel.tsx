@@ -5,7 +5,7 @@ import { SelectedContent, ContentRange } from "@/lib/types/content-selection";
 import { ContentMaster } from "@/lib/types/plan";
 import { ContentCard } from "./ContentCard";
 import { RangeSettingModal } from "./RangeSettingModal";
-import { searchContentMastersAction } from "@/app/(student)/actions/contentMasterActions";
+import { searchContentMastersAction, getSemesterListAction } from "@/app/(student)/actions/contentMasterActions";
 import { Package, Search, BookOpen, Headphones } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -39,6 +39,7 @@ export function MasterContentsPanel({
   const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
   const [subjectGroupId, setSubjectGroupId] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [semester, setSemester] = useState("");
   const [searchResults, setSearchResults] = useState<ContentMaster[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -46,6 +47,7 @@ export function MasterContentsPanel({
   const [subjectGroups, setSubjectGroups] = useState<Array<{ id: string; name: string }>>([]);
   // 교과별 과목을 Map으로 관리 (교과 ID → 과목 목록)
   const [subjectsMap, setSubjectsMap] = useState<Map<string, Array<{ id: string; name: string }>>>(new Map());
+  const [semesters, setSemesters] = useState<string[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
@@ -91,6 +93,17 @@ export function MasterContentsPanel({
       })
       .catch((err) => {
         console.error("개정교육과정 목록 로드 실패:", err);
+      });
+  }, []);
+
+  // 학년/학기 목록 로드
+  useEffect(() => {
+    getSemesterListAction()
+      .then((semesterList) => {
+        setSemesters(semesterList || []);
+      })
+      .catch((err) => {
+        console.error("학년/학기 목록 로드 실패:", err);
       });
   }, []);
 
@@ -160,6 +173,7 @@ export function MasterContentsPanel({
       !curriculumRevisionId &&
       !subjectGroupId &&
       !subjectId &&
+      !semester &&
       selectedContentType === "all"
     ) {
       alert("검색어, 필터, 또는 콘텐츠 타입을 선택해주세요.");
@@ -183,6 +197,7 @@ export function MasterContentsPanel({
             curriculum_revision_id: curriculumRevisionId || undefined,
             subject_group_id: subjectGroupId || undefined,
             subject_id: subjectId || undefined,
+            semester: semester || undefined,
             search: searchQuery.trim() || undefined,
             limit: 20,
           })
@@ -196,6 +211,7 @@ export function MasterContentsPanel({
             curriculum_revision_id: curriculumRevisionId || undefined,
             subject_group_id: subjectGroupId || undefined,
             subject_id: subjectId || undefined,
+            semester: semester || undefined,
             search: searchQuery.trim() || undefined,
             limit: 20,
           })
@@ -249,7 +265,7 @@ export function MasterContentsPanel({
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, curriculumRevisionId, subjectGroupId, subjectId, selectedContentType]);
+  }, [searchQuery, curriculumRevisionId, subjectGroupId, subjectId, semester, selectedContentType]);
 
   // 마스터 콘텐츠 선택
   const handleMasterContentSelect = useCallback(
@@ -540,6 +556,26 @@ export function MasterContentsPanel({
               </select>
           </div>
 
+          {/* 학년/학기 선택 */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-800">
+              학년/학기
+            </label>
+            <select
+              value={semester}
+              onChange={(e) => setSemester(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+              disabled={!editable || isSearching}
+            >
+              <option value="">전체</option>
+              {semesters.map((sem) => (
+                <option key={sem} value={sem}>
+                  {sem}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* 검색 버튼 */}
           <button
             type="button"
@@ -551,6 +587,7 @@ export function MasterContentsPanel({
                 !curriculumRevisionId &&
                 !subjectGroupId &&
                 !subjectId &&
+                !semester &&
                 selectedContentType === "all")
             }
             className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
