@@ -10,12 +10,11 @@ type PaginationProps = {
   activeTab: "books" | "lectures";
   filters: {
     search?: string;
-    subject?: string;
-    subject_category?: string;
-    semester?: string;
-    revision?: string;
-    publisher?: string;
-    platform?: string;
+    curriculum_revision_id?: string;
+    subject_group_id?: string;
+    subject_id?: string;
+    publisher_id?: string;
+    platform_id?: string;
     difficulty?: string;
   };
   sortBy: string;
@@ -39,12 +38,11 @@ export function Pagination({
     }
     
     if (filters.search) params.set("search", filters.search);
-    if (filters.subject) params.set("subject", filters.subject);
-    if (filters.subject_category) params.set("subject_category", filters.subject_category);
-    if (filters.semester) params.set("semester", filters.semester);
-    if (filters.revision) params.set("revision", filters.revision);
-    if (filters.publisher) params.set("publisher", filters.publisher);
-    if (filters.platform) params.set("platform", filters.platform);
+    if (filters.curriculum_revision_id) params.set("curriculum_revision_id", filters.curriculum_revision_id);
+    if (filters.subject_group_id) params.set("subject_group_id", filters.subject_group_id);
+    if (filters.subject_id) params.set("subject_id", filters.subject_id);
+    if (filters.publisher_id) params.set("publisher_id", filters.publisher_id);
+    if (filters.platform_id) params.set("platform_id", filters.platform_id);
     if (filters.difficulty) params.set("difficulty", filters.difficulty);
     if (sortBy) params.set("sort", sortBy);
     if (page > 1) params.set("page", String(page));

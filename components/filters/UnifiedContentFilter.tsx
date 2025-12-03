@@ -199,6 +199,13 @@ export function UnifiedContentFilter({
     e.preventDefault();
     const params = new URLSearchParams();
     
+    // 기존 searchParams에서 tab 등 유지해야 할 파라미터 보존
+    const currentParams = new URLSearchParams(searchParams.toString());
+    const tabParam = currentParams.get("tab");
+    if (tabParam) {
+      params.set("tab", tabParam);
+    }
+    
     if (values.curriculum_revision_id) {
       params.set("curriculum_revision_id", values.curriculum_revision_id);
     }
@@ -228,7 +235,15 @@ export function UnifiedContentFilter({
   };
 
   const handleReset = () => {
-    router.push(basePath);
+    const params = new URLSearchParams();
+    // 기존 searchParams에서 tab 등 유지해야 할 파라미터 보존
+    const currentParams = new URLSearchParams(searchParams.toString());
+    const tabParam = currentParams.get("tab");
+    if (tabParam) {
+      params.set("tab", tabParam);
+    }
+    const queryString = params.toString();
+    router.push(`${basePath}${queryString ? `?${queryString}` : ""}`);
   };
 
   return (

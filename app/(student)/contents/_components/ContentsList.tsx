@@ -21,12 +21,11 @@ type ContentsListProps = {
   studentId: string;
   filters: {
     search?: string;
-    subject?: string;
-    subject_category?: string;
-    semester?: string;
-    revision?: string;
-    publisher?: string;
-    platform?: string;
+    curriculum_revision_id?: string;
+    subject_group_id?: string;
+    subject_id?: string;
+    publisher_id?: string;
+    platform_id?: string;
     difficulty?: string;
   };
   sortBy: string;
@@ -181,12 +180,11 @@ type Row = { label: string; value: string | number | null };
 
 type ContentFilters = {
   search?: string;
-  subject?: string;
-  subject_category?: string;
-  semester?: string;
-  revision?: string;
-  publisher?: string;
-  platform?: string;
+  curriculum_revision_id?: string;
+  subject_group_id?: string;
+  subject_id?: string;
+  publisher_id?: string;
+  platform_id?: string;
   difficulty?: string;
 };
 
@@ -205,27 +203,24 @@ async function fetchContentsByTab(
         let query = supabase
           .from("books")
           .select(
-            "id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,master_content_id,created_at"
+            "id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,master_content_id,curriculum_revision_id,subject_group_id,subject_id,publisher_id,created_at"
           );
 
         // 필터 적용
         if (filters.search) {
           query = query.ilike("title", `%${filters.search}%`);
         }
-        if (filters.revision) {
-          query = query.eq("revision", filters.revision);
+        if (filters.curriculum_revision_id) {
+          query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
         }
-        if (filters.semester) {
-          query = query.eq("semester", filters.semester);
+        if (filters.subject_group_id) {
+          query = query.eq("subject_group_id", filters.subject_group_id);
         }
-        if (filters.subject_category) {
-          query = query.eq("subject_category", filters.subject_category);
+        if (filters.subject_id) {
+          query = query.eq("subject_id", filters.subject_id);
         }
-        if (filters.subject) {
-          query = query.eq("subject", filters.subject);
-        }
-        if (filters.publisher) {
-          query = query.eq("publisher", filters.publisher);
+        if (filters.publisher_id) {
+          query = query.eq("publisher_id", filters.publisher_id);
         }
         if (filters.difficulty) {
           query = query.eq("difficulty_level", filters.difficulty);
@@ -287,27 +282,24 @@ async function fetchContentsByTab(
         let query = supabase
           .from("lectures")
           .select(
-            "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,linked_book_id,master_content_id,created_at"
+            "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,linked_book_id,master_content_id,curriculum_revision_id,subject_group_id,subject_id,platform_id,created_at"
           );
 
         // 필터 적용
         if (filters.search) {
           query = query.ilike("title", `%${filters.search}%`);
         }
-        if (filters.revision) {
-          query = query.eq("revision", filters.revision);
+        if (filters.curriculum_revision_id) {
+          query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
         }
-        if (filters.semester) {
-          query = query.eq("semester", filters.semester);
+        if (filters.subject_group_id) {
+          query = query.eq("subject_group_id", filters.subject_group_id);
         }
-        if (filters.subject_category) {
-          query = query.eq("subject_category", filters.subject_category);
+        if (filters.subject_id) {
+          query = query.eq("subject_id", filters.subject_id);
         }
-        if (filters.subject) {
-          query = query.eq("subject", filters.subject);
-        }
-        if (filters.platform) {
-          query = query.eq("platform", filters.platform);
+        if (filters.platform_id) {
+          query = query.eq("platform_id", filters.platform_id);
         }
         if (filters.difficulty) {
           query = query.eq("difficulty_level", filters.difficulty);
@@ -376,7 +368,6 @@ export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
   if (tab === "books") {
     return [
       { label: "개정교육과정", value: item.revision },
-      { label: "학년/학기", value: item.semester },
       { label: "교과", value: item.subject_category },
       { label: "과목", value: item.subject },
       { label: "출판사", value: item.publisher },
@@ -391,7 +382,6 @@ export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
   if (tab === "lectures") {
     return [
       { label: "개정교육과정", value: item.revision },
-      { label: "학년/학기", value: item.semester },
       { label: "교과", value: item.subject_category },
       { label: "과목", value: item.subject },
       { label: "플랫폼", value: item.platform },

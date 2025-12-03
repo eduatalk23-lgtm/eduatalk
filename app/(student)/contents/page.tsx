@@ -1,12 +1,15 @@
 // app/contents/page.tsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ContentTabs } from "./_components/ContentTabs";
-import { FilterOptions } from "./_components/FilterOptions";
 import { ContentsListWrapper } from "./_components/ContentsListWrapper";
 import { ContentsList } from "./_components/ContentsList";
 import { ContentStats } from "./_components/ContentStats";
+import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
+import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
+import { getPublishersForFilter, getPlatformsForFilter, getDifficultiesForMasterBooks, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 
 type TabKey = "books" | "lectures";
 
@@ -29,24 +32,22 @@ export default async function ContentsPage({
     tabParam === "lectures" ? "lectures" : "books";
 
   const searchQuery = params.search;
-  const subjectFilter = params.subject;
-  const subjectCategoryFilter = params.subject_category;
-  const semesterFilter = params.semester;
-  const revisionFilter = params.revision;
-  const publisherFilter = params.publisher;
-  const platformFilter = params.platform;
+  const curriculumRevisionId = params.curriculum_revision_id;
+  const subjectGroupId = params.subject_group_id;
+  const subjectId = params.subject_id;
+  const publisherId = params.publisher_id;
+  const platformId = params.platform_id;
   const difficultyFilter = params.difficulty;
   const sortBy = params.sort || "created_at_desc";
   const page = Number(params.page) || 1;
 
   const filters = {
     search: searchQuery,
-    subject: subjectFilter,
-    subject_category: subjectCategoryFilter,
-    semester: semesterFilter,
-    revision: revisionFilter,
-    publisher: publisherFilter,
-    platform: platformFilter,
+    curriculum_revision_id: curriculumRevisionId,
+    subject_group_id: subjectGroupId,
+    subject_id: subjectId,
+    publisher_id: publisherId,
+    platform_id: platformId,
     difficulty: difficultyFilter,
   };
 
@@ -96,13 +97,12 @@ export default async function ContentsPage({
         />
 
         {/* Filters and Sort */}
-        <FilterOptions
-          activeTab={activeTab}
-          studentId={user.id}
-          filters={filters}
-          sortBy={sortBy}
-          searchQuery={searchQuery}
-        />
+        <Suspense fallback={<div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"><div className="h-10 bg-gray-200 rounded animate-pulse"></div></div>}>
+          <StudentContentFilterWrapper
+            activeTab={activeTab}
+            params={params}
+          />
+        </Suspense>
 
         {/* List */}
         <ContentsListWrapper activeTab={activeTab}>
@@ -116,6 +116,58 @@ export default async function ContentsPage({
         </ContentsListWrapper>
       </div>
     </section>
+  );
+}
+
+async function StudentContentFilterWrapper({
+  activeTab,
+  params,
+}: {
+  activeTab: TabKey;
+  params: Record<string, string | undefined>;
+}) {
+  // 필터 옵션 조회
+  const [curriculumRevisions, publishers, platforms, difficulties] = await Promise.all([
+    getCurriculumRevisions(),
+    activeTab === "books" ? getPublishersForFilter() : Promise.resolve([]),
+    activeTab === "lectures" ? getPlatformsForFilter() : Promise.resolve([]),
+    activeTab === "books" ? getDifficultiesForMasterBooks() : getDifficultiesForMasterLectures(),
+  ]);
+
+  const filterOptions = {
+    curriculumRevisions: curriculumRevisions.map((rev) => ({
+      id: rev.id,
+      name: rev.name,
+    })),
+    publishers: activeTab === "books" ? publishers : undefined,
+    platforms: activeTab === "lectures" ? platforms : undefined,
+    difficulties,
+  };
+
+  const basePath = "/contents";
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <UnifiedContentFilter
+        context="student"
+        contentType={activeTab}
+        basePath={basePath}
+        initialValues={{
+          curriculum_revision_id: params.curriculum_revision_id,
+          subject_group_id: params.subject_group_id,
+          subject_id: params.subject_id,
+          publisher_id: params.publisher_id,
+          platform_id: params.platform_id,
+          search: params.search,
+          difficulty: params.difficulty,
+          sort: params.sort,
+        }}
+        filterOptions={filterOptions}
+        showDifficulty={true}
+        showSort={true}
+        defaultSort="created_at_desc"
+      />
+    </div>
   );
 }
 
