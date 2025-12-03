@@ -24,9 +24,15 @@ export function ContentMasterSearch({
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [curriculumRevisions, setCurriculumRevisions] = useState<Array<{ id: string; name: string }>>([]);
   const [subjectGroups, setSubjectGroups] = useState<Array<{ id: string; name: string }>>([]);
-  const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([]);
+  // 교과별 과목을 Map으로 관리 (교과 ID → 과목 목록)
+  const [subjectsMap, setSubjectsMap] = useState<Map<string, Array<{ id: string; name: string }>>>(new Map());
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  // 현재 선택된 교과의 과목 목록
+  const currentSubjects = subjectGroupId 
+    ? subjectsMap.get(subjectGroupId) || []
+    : [];
 
   // 개정교육과정 목록 로드
   useEffect(() => {
@@ -42,55 +48,64 @@ export function ContentMasterSearch({
       });
   }, []);
 
-  // 개정교육과정 변경 시 교과 목록 로드
+  // 개정교육과정 변경 시 교과와 과목 목록 병렬 로드
   useEffect(() => {
     if (curriculumRevisionId) {
-      setLoadingGroups(true);
-      fetch(`/api/subject-groups?curriculum_revision_id=${curriculumRevisionId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setSubjectGroups(data.data || []);
-          }
-          setLoadingGroups(false);
-          setSubjectGroupId("");
-          setSubjectId("");
-          setSubjects([]);
-        })
-        .catch((err) => {
-          console.error("교과 목록 로드 실패:", err);
-          setLoadingGroups(false);
-        });
+      loadHierarchyData(curriculumRevisionId);
     } else {
       setSubjectGroups([]);
+      setSubjectsMap(new Map());
       setSubjectGroupId("");
       setSubjectId("");
-      setSubjects([]);
     }
   }, [curriculumRevisionId]);
 
-  // 교과 변경 시 과목 목록 로드
-  useEffect(() => {
-    if (subjectGroupId) {
-      setLoadingSubjects(true);
-      fetch(`/api/subjects?subject_group_id=${subjectGroupId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setSubjects(data.data || []);
-          }
-          setLoadingSubjects(false);
-          setSubjectId("");
+  // 계층 구조 데이터 로드 (병렬 처리)
+  const loadHierarchyData = async (curriculumRevisionId: string) => {
+    setLoadingGroups(true);
+    setLoadingSubjects(true);
+
+    try {
+      // 교과와 과목을 함께 조회 (병렬 처리)
+      const response = await fetch(
+        `/api/subject-groups?curriculum_revision_id=${curriculumRevisionId}&include_subjects=true`
+      );
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "데이터 로드 실패");
+      }
+
+      const groupsWithSubjects = result.data || [];
+      const groups: Array<{ id: string; name: string }> = groupsWithSubjects.map(
+        (group: { id: string; name: string; subjects?: Array<{ id: string; name: string }> }) => ({
+          id: group.id,
+          name: group.name,
         })
-        .catch((err) => {
-          console.error("과목 목록 로드 실패:", err);
-          setLoadingSubjects(false);
-        });
-    } else {
-      setSubjects([]);
+      );
+
+      // 교과별 과목을 Map으로 변환
+      const newSubjectsMap = new Map<string, Array<{ id: string; name: string }>>();
+      groupsWithSubjects.forEach((group: { id: string; name: string; subjects?: Array<{ id: string; name: string }> }) => {
+        if (group.subjects && group.subjects.length > 0) {
+          newSubjectsMap.set(group.id, group.subjects);
+        }
+      });
+
+      setSubjectGroups(groups);
+      setSubjectsMap(newSubjectsMap);
+      setSubjectGroupId("");
       setSubjectId("");
+      setLoadingGroups(false);
+      setLoadingSubjects(false);
+    } catch (err) {
+      console.error("계층 구조 데이터 로드 실패:", err);
+      setLoadingGroups(false);
+      setLoadingSubjects(false);
+      setSubjectGroups([]);
+      setSubjectsMap(new Map());
     }
-  }, [subjectGroupId]);
+  };
 
   const handleSearch = () => {
     if (!searchQuery.trim() && !curriculumRevisionId && !subjectGroupId && !subjectId) {
@@ -234,7 +249,7 @@ export function ContentMasterSearch({
                 {loadingSubjects ? (
                   <option value="">로딩 중...</option>
                 ) : (
-                  subjects.map((subject) => (
+                  currentSubjects.map((subject) => (
                     <option key={subject.id} value={subject.id}>
                       {subject.name}
                     </option>

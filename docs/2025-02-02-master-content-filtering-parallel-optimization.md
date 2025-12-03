@@ -113,11 +113,18 @@ const loadHierarchyData = async (curriculumRevisionId: string) => {
 
 ## 적용 범위
 
+### HierarchicalFilter 컴포넌트
 다음 페이지에서 동일한 `HierarchicalFilter` 컴포넌트를 사용하므로 모든 곳에 적용됩니다:
 
 1. ✅ `app/(student)/contents/master-books/page.tsx` - 학생 교재 검색
 2. ✅ `app/(student)/contents/master-lectures/page.tsx` - 학생 강의 검색
 3. ✅ `app/(admin)/admin/master-books/page.tsx` - 관리자 교재 목록
+
+### 플랜 그룹 생성 단계
+플랜 그룹 생성 과정에서 사용하는 마스터 콘텐츠 검색 컴포넌트에도 동일한 병렬화 로직을 적용했습니다:
+
+1. ✅ `app/(student)/plan/new-group/_components/ContentMasterSearch.tsx` - 콘텐츠 마스터 검색 다이얼로그
+2. ✅ `app/(student)/plan/new-group/_components/_shared/MasterContentsPanel.tsx` - 마스터 콘텐츠 패널
 
 ## 기술적 세부사항
 
@@ -160,10 +167,23 @@ const loadHierarchyData = async (curriculumRevisionId: string) => {
 4. ✅ API 호출 횟수가 감소했는지 확인 (Network 탭)
 5. ✅ 에러 발생 시 적절한 처리 확인
 
+### 플랜 그룹 생성 컴포넌트 병렬화
+
+#### `app/(student)/plan/new-group/_components/ContentMasterSearch.tsx`
+- 개정교육과정 변경 시 교과와 과목을 병렬로 로드
+- 교과별 과목을 Map으로 관리
+- 동일한 `include_subjects` 파라미터 활용
+
+#### `app/(student)/plan/new-group/_components/_shared/MasterContentsPanel.tsx`
+- 동일한 병렬화 로직 적용
+- 플랜 그룹 생성 Step 3에서 마스터 콘텐츠 검색 시 성능 향상
+
 ## 참고 파일
 
 - `app/api/subject-groups/route.ts`: API Route 최적화
 - `app/(student)/contents/master-books/_components/HierarchicalFilter.tsx`: 병렬화된 필터 컴포넌트
+- `app/(student)/plan/new-group/_components/ContentMasterSearch.tsx`: 플랜 그룹 생성용 마스터 콘텐츠 검색
+- `app/(student)/plan/new-group/_components/_shared/MasterContentsPanel.tsx`: 마스터 콘텐츠 패널
 - `lib/data/subjects.ts`: `getSubjectGroupsWithSubjects` 함수 활용
 - `docs/2025-02-02-master-content-filtering-improvement.md`: 이전 필터링 개선 작업
 
