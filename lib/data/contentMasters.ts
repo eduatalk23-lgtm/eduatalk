@@ -752,7 +752,9 @@ export async function copyMasterToStudentContent(
  * 개정교육과정 목록 조회 (필터 옵션용)
  */
 export async function getCurriculumRevisions(): Promise<Array<{ id: string; name: string }>> {
-  const supabase = await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회), 없으면 일반 서버 클라이언트 사용
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("curriculum_revisions")
