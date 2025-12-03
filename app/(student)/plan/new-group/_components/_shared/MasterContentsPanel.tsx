@@ -5,7 +5,7 @@ import { SelectedContent, ContentRange } from "@/lib/types/content-selection";
 import { ContentMaster } from "@/lib/types/plan";
 import { ContentCard } from "./ContentCard";
 import { RangeSettingModal } from "./RangeSettingModal";
-import { searchContentMastersAction, getSemesterListAction } from "@/app/(student)/actions/contentMasterActions";
+import { searchContentMastersAction } from "@/app/(student)/actions/contentMasterActions";
 import { Package, Search, BookOpen, Headphones } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -39,7 +39,6 @@ export function MasterContentsPanel({
   const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
   const [subjectGroupId, setSubjectGroupId] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [semester, setSemester] = useState("");
   const [searchResults, setSearchResults] = useState<ContentMaster[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -47,7 +46,6 @@ export function MasterContentsPanel({
   const [subjectGroups, setSubjectGroups] = useState<Array<{ id: string; name: string }>>([]);
   // 교과별 과목을 Map으로 관리 (교과 ID → 과목 목록)
   const [subjectsMap, setSubjectsMap] = useState<Map<string, Array<{ id: string; name: string }>>>(new Map());
-  const [semesters, setSemesters] = useState<string[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
@@ -96,16 +94,6 @@ export function MasterContentsPanel({
       });
   }, []);
 
-  // 학년/학기 목록 로드
-  useEffect(() => {
-    getSemesterListAction()
-      .then((semesterList) => {
-        setSemesters(semesterList || []);
-      })
-      .catch((err) => {
-        console.error("학년/학기 목록 로드 실패:", err);
-      });
-  }, []);
 
   // 개정교육과정 변경 시 교과와 과목 목록 병렬 로드
   useEffect(() => {
@@ -205,7 +193,6 @@ export function MasterContentsPanel({
       !curriculumRevisionId &&
       !subjectGroupId &&
       !subjectId &&
-      !semester &&
       selectedContentType === "all"
     ) {
       alert("검색어, 필터, 또는 콘텐츠 타입을 선택해주세요.");
@@ -229,7 +216,6 @@ export function MasterContentsPanel({
             curriculum_revision_id: curriculumRevisionId || undefined,
             subject_group_id: subjectGroupId || undefined,
             subject_id: subjectId || undefined,
-            semester: semester || undefined,
             search: searchQuery.trim() || undefined,
             limit: 20,
           })
@@ -243,7 +229,6 @@ export function MasterContentsPanel({
             curriculum_revision_id: curriculumRevisionId || undefined,
             subject_group_id: subjectGroupId || undefined,
             subject_id: subjectId || undefined,
-            semester: semester || undefined,
             search: searchQuery.trim() || undefined,
             limit: 20,
           })
@@ -297,7 +282,7 @@ export function MasterContentsPanel({
     } finally {
       setIsSearching(false);
     }
-  }, [searchQuery, curriculumRevisionId, subjectGroupId, subjectId, semester, selectedContentType]);
+  }, [searchQuery, curriculumRevisionId, subjectGroupId, subjectId, selectedContentType]);
 
   // 마스터 콘텐츠 선택
   const handleMasterContentSelect = useCallback(
@@ -493,86 +478,88 @@ export function MasterContentsPanel({
             </div>
           </div>
 
-          {/* 제목 검색 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
-              제목 검색
-            </label>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
-              placeholder="교재/강의 이름을 입력하세요"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSearch();
-                }
-              }}
-              disabled={!editable || isSearching}
-            />
-          </div>
+          {/* 필터 항목 (가로형) */}
+          <div className="flex flex-wrap items-end gap-4">
+            {/* 제목 검색 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-700">
+                제목 검색
+              </label>
+              <input
+                type="text"
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                placeholder="교재/강의 이름을 입력하세요"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+                disabled={!editable || isSearching}
+              />
+            </div>
 
-          {/* 개정교육과정 선택 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
-              개정교육과정
-            </label>
-            <select
-              value={curriculumRevisionId}
-              onChange={(e) => {
-                setCurriculumRevisionId(e.target.value);
-                setSubjectGroupId("");
-                setSubjectId("");
-              }}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
-              disabled={!editable || isSearching}
-            >
-              <option value="">전체</option>
-              {curriculumRevisions.map((rev) => (
-                <option key={rev.id} value={rev.id}>
-                  {rev.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 교과 선택 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
-              교과
-            </label>
-            <select
-              value={subjectGroupId}
-              onChange={(e) => {
-                setSubjectGroupId(e.target.value);
-                setSubjectId("");
-              }}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-              disabled={!editable || isSearching || !curriculumRevisionId || loadingGroups}
-            >
-              <option value="">전체</option>
-              {loadingGroups ? (
-                <option value="">로딩 중...</option>
-              ) : (
-                subjectGroups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
+            {/* 개정교육과정 선택 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-700">
+                개정교육과정
+              </label>
+              <select
+                value={curriculumRevisionId}
+                onChange={(e) => {
+                  setCurriculumRevisionId(e.target.value);
+                  setSubjectGroupId("");
+                  setSubjectId("");
+                }}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={!editable || isSearching}
+              >
+                <option value="">전체</option>
+                {curriculumRevisions.map((rev) => (
+                  <option key={rev.id} value={rev.id}>
+                    {rev.name}
                   </option>
-                ))
-              )}
-            </select>
-          </div>
+                ))}
+              </select>
+            </div>
 
-          {/* 과목 선택 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
-              과목
-            </label>
+            {/* 교과 선택 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-700">
+                교과
+              </label>
+              <select
+                value={subjectGroupId}
+                onChange={(e) => {
+                  setSubjectGroupId(e.target.value);
+                  setSubjectId("");
+                }}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                disabled={!editable || isSearching || !curriculumRevisionId || loadingGroups}
+              >
+                <option value="">전체</option>
+                {loadingGroups ? (
+                  <option value="">로딩 중...</option>
+                ) : (
+                  subjectGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {/* 과목 선택 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-700">
+                과목
+              </label>
               <select
                 value={subjectId}
                 onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                 disabled={!editable || isSearching || !subjectGroupId || loadingSubjects}
               >
                 <option value="">전체</option>
@@ -586,56 +573,36 @@ export function MasterContentsPanel({
                   ))
                 )}
               </select>
-          </div>
+            </div>
 
-          {/* 학년/학기 선택 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
-              학년/학기
-            </label>
-            <select
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-              disabled={!editable || isSearching}
+            {/* 검색 버튼 */}
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={
+                !editable ||
+                isSearching ||
+                (!searchQuery.trim() &&
+                  !curriculumRevisionId &&
+                  !subjectGroupId &&
+                  !subjectId &&
+                  selectedContentType === "all")
+              }
+              className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              <option value="">전체</option>
-              {semesters.map((sem) => (
-                <option key={sem} value={sem}>
-                  {sem}
-                </option>
-              ))}
-            </select>
+              {isSearching ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  검색 중...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <Search className="h-4 w-4" />
+                  검색
+                </span>
+              )}
+            </button>
           </div>
-
-          {/* 검색 버튼 */}
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={
-              !editable ||
-              isSearching ||
-              (!searchQuery.trim() &&
-                !curriculumRevisionId &&
-                !subjectGroupId &&
-                !subjectId &&
-                !semester &&
-                selectedContentType === "all")
-            }
-            className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
-          >
-            {isSearching ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                검색 중...
-              </span>
-            ) : (
-              <span className="flex items-center justify-center gap-2">
-                <Search className="h-4 w-4" />
-                검색
-              </span>
-            )}
-          </button>
         </div>
       </div>
 
