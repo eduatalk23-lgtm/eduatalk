@@ -150,7 +150,7 @@ async function StudentContentFilterWrapper({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <UnifiedContentFilter
         context="student"
-        contentType={activeTab}
+        contentType={activeTab === "books" ? "book" : "lecture"}
         basePath={basePath}
         initialValues={{
           curriculum_revision_id: params.curriculum_revision_id,
