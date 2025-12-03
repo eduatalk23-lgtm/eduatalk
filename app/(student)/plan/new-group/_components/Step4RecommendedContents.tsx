@@ -455,6 +455,38 @@ export default function Step4RecommendedContents({
       )}
 
       <div>
+        {/* 학생 콘텐츠 섹션 (관리자 모드에서만 표시) */}
+        {isCampMode && data.student_contents && data.student_contents.length > 0 && (
+          <div className="mb-8">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                학생이 등록한 콘텐츠
+              </h2>
+              <p className="text-sm text-gray-500">
+                학생이 등록한 콘텐츠를 확인하고 관리하세요.
+              </p>
+            </div>
+            <AddedContentsList
+              contents={data.student_contents}
+              allRecommendedContents={[]} // 학생 콘텐츠는 추천 콘텐츠 목록이 없음
+              editingRangeIndex={editingRangeIndex}
+              editingRange={editingRange}
+              contentDetails={contentDetails}
+              startDetailId={startDetailId}
+              endDetailId={endDetailId}
+              contentTotals={contentTotals}
+              loadingDetails={loadingDetails}
+              onStartEditing={(index) => startEditingRange(index, "student")}
+              onSaveRange={saveEditingRange}
+              onCancelEditing={cancelEditingRange}
+              onRemove={(index) => removeContent(index, "student")}
+              onStartDetailChange={setStartRange}
+              onEndDetailChange={setEndRange}
+              onRangeChange={(start, end) => setEditingRange({ start, end })}
+            />
+          </div>
+        )}
+
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
             서비스 추천 콘텐츠
@@ -496,10 +528,10 @@ export default function Step4RecommendedContents({
           endDetailId={endDetailId}
           contentTotals={contentTotals}
           loadingDetails={loadingDetails}
-          onStartEditing={startEditingRange}
+          onStartEditing={(index) => startEditingRange(index, "recommended")}
           onSaveRange={saveEditingRange}
           onCancelEditing={cancelEditingRange}
-          onRemove={removeContent}
+          onRemove={(index) => removeContent(index, "recommended")}
           onStartDetailChange={setStartRange}
           onEndDetailChange={setEndRange}
           onRangeChange={(start, end) => setEditingRange({ start, end })}

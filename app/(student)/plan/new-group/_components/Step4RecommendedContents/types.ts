@@ -83,7 +83,7 @@ export type UseContentSelectionReturn = {
   selectedContentIds: Set<string>;
   toggleContentSelection: (contentId: string) => void;
   addSelectedContents: () => Promise<void>;
-  removeContent: (index: number) => void;
+  removeContent: (index: number, type?: "recommended" | "student") => void;
   setSelectedContentIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 };
 
@@ -98,7 +98,7 @@ export type UseRangeEditorReturn = {
   endDetailId: Map<number, string>;
   contentTotals: Map<number, number>;
   loadingDetails: Set<number>;
-  startEditingRange: (index: number) => void;
+  startEditingRange: (index: number, type?: "recommended" | "student") => void;
   saveEditingRange: () => void;
   cancelEditingRange: () => void;
   setStartRange: (index: number, detailId: string) => void;

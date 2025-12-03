@@ -22,6 +22,7 @@ export function useRangeEditor({
   onUpdate,
 }: UseRangeEditorProps): UseRangeEditorReturn {
   const [editingRangeIndex, setEditingRangeIndex] = useState<number | null>(null);
+  const [editingContentType, setEditingContentType] = useState<"recommended" | "student">("recommended");
   const [editingRange, setEditingRange] = useState<{
     start: string;
     end: string;
@@ -85,7 +86,10 @@ export function useRangeEditor({
       return;
     }
 
-    const content = data.recommended_contents[editingRangeIndex];
+    const contents = editingContentType === "recommended" 
+      ? data.recommended_contents 
+      : data.student_contents;
+    const content = contents[editingRangeIndex];
     if (!content) return;
 
     const fetchDetails = async () => {
@@ -178,8 +182,8 @@ export function useRangeEditor({
 
             // 현재 범위에 해당하는 항목 자동 선택
             const currentRange = {
-              start: content.start_range,
-              end: content.end_range,
+              start: content.start_range || 1,
+              end: content.end_range || 1,
             };
 
             if (detailData.type === "book") {
@@ -304,7 +308,10 @@ export function useRangeEditor({
   useEffect(() => {
     if (editingRangeIndex === null) return;
 
-    const content = data.recommended_contents[editingRangeIndex];
+    const contents = editingContentType === "recommended" 
+      ? data.recommended_contents 
+      : data.student_contents;
+    const content = contents[editingRangeIndex];
     if (!content) return;
 
     const contentInfo = contentDetails.get(editingRangeIndex);
@@ -361,26 +368,35 @@ export function useRangeEditor({
     endDetailId,
     contentDetails,
     editingRangeIndex,
+    editingContentType,
     data.recommended_contents,
+    data.student_contents,
   ]);
 
   /**
    * 범위 편집 시작
    */
-  const startEditingRange = useCallback((index: number) => {
-    const content = data.recommended_contents[index];
+  const startEditingRange = useCallback((index: number, type: "recommended" | "student" = "recommended") => {
+    const contents = type === "recommended" 
+      ? data.recommended_contents 
+      : data.student_contents;
+    const content = contents[index];
+    if (!content) return;
+    
+    setEditingContentType(type);
     setEditingRangeIndex(index);
     setEditingRange({
-      start: String(content.start_range),
-      end: String(content.end_range),
+      start: String(content.start_range || 1),
+      end: String(content.end_range || 1),
     });
-  }, [data.recommended_contents]);
+  }, [data.recommended_contents, data.student_contents]);
 
   /**
    * 범위 편집 취소
    */
   const cancelEditingRange = useCallback(() => {
     setEditingRangeIndex(null);
+    setEditingContentType("recommended");
     setEditingRange(null);
   }, []);
 
@@ -405,7 +421,12 @@ export function useRangeEditor({
     }
 
     // 총 페이지수/회차 확인
-    const content = data.recommended_contents[editingRangeIndex];
+    const contents = editingContentType === "recommended" 
+      ? data.recommended_contents 
+      : data.student_contents;
+    const content = contents[editingRangeIndex];
+    if (!content) return;
+    
     const total = contentTotals.get(editingRangeIndex);
     if (total && (startNum > total || endNum > total)) {
       alert(
@@ -414,16 +435,27 @@ export function useRangeEditor({
       return;
     }
 
-    const newContents = [...data.recommended_contents];
-    newContents[editingRangeIndex] = {
-      ...newContents[editingRangeIndex],
-      start_range: startNum,
-      end_range: endNum,
-    };
-    onUpdate({ recommended_contents: newContents });
+    if (editingContentType === "recommended") {
+      const newContents = [...data.recommended_contents];
+      newContents[editingRangeIndex] = {
+        ...newContents[editingRangeIndex],
+        start_range: startNum,
+        end_range: endNum,
+      };
+      onUpdate({ recommended_contents: newContents });
+    } else {
+      const newContents = [...data.student_contents];
+      newContents[editingRangeIndex] = {
+        ...newContents[editingRangeIndex],
+        start_range: startNum,
+        end_range: endNum,
+      };
+      onUpdate({ student_contents: newContents });
+    }
     setEditingRangeIndex(null);
+    setEditingContentType("recommended");
     setEditingRange(null);
-  }, [editingRangeIndex, editingRange, data.recommended_contents, contentTotals, onUpdate]);
+  }, [editingRangeIndex, editingContentType, editingRange, data.recommended_contents, data.student_contents, contentTotals, onUpdate]);
 
   /**
    * 시작 범위 설정

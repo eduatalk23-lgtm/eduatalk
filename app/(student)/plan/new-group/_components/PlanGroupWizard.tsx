@@ -592,6 +592,12 @@ export function PlanGroupWizard({
       }
     }
 
+    // isAdminContinueMode일 때 Step 3에서 Step 4로 이동 가능하도록 추가
+    if (isAdminContinueMode && currentStep === 3) {
+      setCurrentStep(4);
+      return;
+    }
+
     // 템플릿 모드일 때 Step 4에서 템플릿 저장
     if (isTemplateMode && currentStep === 4) {
       handleSubmit();
@@ -628,8 +634,15 @@ export function PlanGroupWizard({
 
   const handleBack = () => {
     if (currentStep > 1) {
-      // 템플릿 모드에서는 Step 1, 2, 3만 있으므로 일반적인 뒤로가기
-      setCurrentStep((prev) => (prev - 1) as WizardStep);
+      // isAdminContinueMode일 때는 Step 4부터 시작하므로 Step 4 이상에서만 뒤로가기 가능
+      if (isAdminContinueMode) {
+        if (currentStep > 4) {
+          setCurrentStep((prev) => (prev - 1) as WizardStep);
+        }
+      } else {
+        // 템플릿 모드에서는 Step 1, 2, 3만 있으므로 일반적인 뒤로가기
+        setCurrentStep((prev) => (prev - 1) as WizardStep);
+      }
     }
   };
 

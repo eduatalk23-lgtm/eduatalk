@@ -183,15 +183,21 @@ export function useContentSelection({
   ]);
 
   /**
-   * 콘텐츠 제거
+   * 콘텐츠 제거 (추천 콘텐츠와 학생 콘텐츠 모두 지원)
    */
   const removeContent = useCallback(
-    (index: number) => {
-      const newContents = [...data.recommended_contents];
-      newContents.splice(index, 1);
-      onUpdate({ recommended_contents: newContents });
+    (index: number, type: "recommended" | "student" = "recommended") => {
+      if (type === "recommended") {
+        const newContents = [...data.recommended_contents];
+        newContents.splice(index, 1);
+        onUpdate({ recommended_contents: newContents });
+      } else {
+        const newContents = [...data.student_contents];
+        newContents.splice(index, 1);
+        onUpdate({ student_contents: newContents });
+      }
     },
-    [data.recommended_contents, onUpdate]
+    [data.recommended_contents, data.student_contents, onUpdate]
   );
 
   return {

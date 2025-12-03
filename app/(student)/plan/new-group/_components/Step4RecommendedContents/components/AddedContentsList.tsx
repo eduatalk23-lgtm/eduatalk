@@ -60,7 +60,11 @@ export default function AddedContentsList({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm font-medium text-gray-800">
-        <span>추가된 추천 콘텐츠 ({contents.length}개)</span>
+        <span>
+          {allRecommendedContents.length > 0
+            ? `추가된 추천 콘텐츠 (${contents.length}개)`
+            : `등록된 콘텐츠 (${contents.length}개)`}
+        </span>
       </div>
       {contents.map((content, index) => {
         // 제목 및 과목 정보 조회
@@ -102,9 +106,16 @@ export default function AddedContentsList({
                     <div className="text-sm font-medium text-gray-900">
                       {title}
                     </div>
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                      추천 콘텐츠
-                    </span>
+                    {allRecommendedContents.length > 0 && (
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        추천 콘텐츠
+                      </span>
+                    )}
+                    {allRecommendedContents.length === 0 && (
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                        학생 콘텐츠
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                     {content.content_type === "book" && (

@@ -231,14 +231,14 @@ export default async function CampContinuePage({
     );
   }
 
-  // Step 5부터 시작하도록 설정
+  // Step 4부터 시작하도록 설정 (콘텐츠 추가하기 단계)
   const initialData = {
     ...wizardData,
     templateId: templateId, // URL의 templateId 사용 (관리자 페이지로 돌아가기 위해)
     groupId: group.id,
     // 템플릿 블록 세트 ID 설정 (Step1BasicInfo에서 자동 선택하기 위해)
     block_set_id: templateBlockSet?.id || wizardData.block_set_id || "",
-    _startStep: 5, // Step 5부터 시작
+    _startStep: 4, // Step 4 (콘텐츠 추가하기)부터 시작
     student_id: studentId, // Step6FinalReview에서 API 호출 시 사용
   };
 
@@ -252,7 +252,7 @@ export default async function CampContinuePage({
               남은 단계 진행하기
             </h1>
             <p className="mt-2 text-sm text-gray-500">
-              추천 콘텐츠 선택, 최종 확인, 스케줄 결과 단계를 진행하세요.
+              학생이 등록한 콘텐츠를 확인하고, 추천 콘텐츠를 선택하여 조율하세요.
             </p>
           </div>
           <Link
@@ -281,7 +281,7 @@ export default async function CampContinuePage({
           </div>
           <div className="text-right">
             <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
-              Step 5-7 진행 중
+              Step 4-7 진행 중
             </span>
           </div>
         </div>
