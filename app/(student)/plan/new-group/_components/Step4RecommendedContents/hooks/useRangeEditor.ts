@@ -15,11 +15,13 @@ type ContentDetail =
 type UseRangeEditorProps = {
   data: WizardData;
   onUpdate: (updates: Partial<WizardData>) => void;
+  studentId?: string; // 관리자 모드에서 필요
 };
 
 export function useRangeEditor({
   data,
   onUpdate,
+  studentId,
 }: UseRangeEditorProps): UseRangeEditorReturn {
   const [editingRangeIndex, setEditingRangeIndex] = useState<number | null>(null);
   const [editingContentType, setEditingContentType] = useState<"recommended" | "student">("recommended");
@@ -43,17 +45,26 @@ export function useRangeEditor({
    */
   const fetchContentTotal = useCallback(async (
     contentType: "book" | "lecture",
-    contentId: string
+    contentId: string,
+    studentId?: string,
+    isStudentContent?: boolean
   ): Promise<number | null> => {
-    // 캐시 확인
-    if (cachedTotalsRef.current.has(contentId)) {
-      return cachedTotalsRef.current.get(contentId) ?? null;
+    // 캐시 확인 (학생 콘텐츠의 경우 studentId를 포함한 키 사용)
+    const cacheKey = isStudentContent && studentId 
+      ? `${contentId}_${studentId}` 
+      : contentId;
+    
+    if (cachedTotalsRef.current.has(cacheKey)) {
+      return cachedTotalsRef.current.get(cacheKey) ?? null;
     }
 
     try {
-      const response = await fetch(
-        `/api/master-content-info?content_type=${contentType}&content_id=${contentId}`
-      );
+      // 학생 콘텐츠의 경우 student-content-info API 사용
+      const apiEndpoint = isStudentContent && studentId
+        ? `/api/student-content-info?content_type=${contentType}&content_id=${contentId}&student_id=${studentId}`
+        : `/api/master-content-info?content_type=${contentType}&content_id=${contentId}`;
+      
+      const response = await fetch(apiEndpoint);
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.data) {
@@ -62,7 +73,7 @@ export function useRangeEditor({
             : result.data.total_episodes;
           
           if (total && total > 0) {
-            cachedTotalsRef.current.set(contentId, total);
+            cachedTotalsRef.current.set(cacheKey, total);
             return total;
           }
         }
@@ -72,6 +83,8 @@ export function useRangeEditor({
       console.error("[useRangeEditor] 총 페이지수/회차 조회 실패:", {
         contentType,
         contentId,
+        studentId,
+        isStudentContent,
         error,
       });
       return null;
@@ -109,12 +122,15 @@ export function useRangeEditor({
       setLoadingDetails(new Set([editingRangeIndex]));
 
       try {
+        // 콘텐츠 타입에 따라 올바른 API 엔드포인트 선택
+        const apiEndpoint = editingContentType === "recommended"
+          ? `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`
+          : `/api/student-content-details?contentType=${content.content_type}&contentId=${content.content_id}${studentId ? `&student_id=${studentId}` : ""}`;
+
         // 상세정보와 총 페이지수/회차를 동시에 조회
         const [detailsResponse, total] = await Promise.all([
-          fetch(
-            `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`
-          ),
-          fetchContentTotal(content.content_type, content.content_id),
+          fetch(apiEndpoint),
+          fetchContentTotal(content.content_type, content.content_id, studentId, editingContentType === "student"),
         ]);
 
         // 총 페이지수/회차 정보 저장
@@ -142,31 +158,26 @@ export function useRangeEditor({
               });
             }
 
-            // 상세정보가 없고 총 페이지수/회차가 있는 경우, 전체 범위로 자동 설정
-            // 단, 이미 편집 중인 범위가 있으면 유지
-            if (total && total > 0) {
-              setEditingRange((prev) => {
-                // 이미 편집 중인 범위가 있으면 유지, 없으면 전체 범위로 설정
-                if (prev) {
-                  return prev;
-                }
+            // 상세정보가 없을 때 현재 범위를 기본값으로 사용
+            setEditingRange((prev) => {
+              // 이미 편집 중인 범위가 있으면 유지
+              if (prev) {
+                return prev;
+              }
+              // 총 페이지수/회차가 있으면 전체 범위로 설정, 없으면 현재 범위 사용
+              if (total && total > 0) {
                 return {
                   start: "1",
                   end: String(total),
                 };
-              });
-            } else {
-              // 총량도 없으면 현재 범위로 초기화 (없으면 기본값)
-              setEditingRange((prev) => {
-                if (prev) {
-                  return prev;
-                }
+              } else {
+                // 현재 범위를 기본값으로 사용
                 return {
                   start: String(content.start_range || 1),
                   end: String(content.end_range || 100),
                 };
-              });
-            }
+              }
+            });
           } else {
             console.log("[useRangeEditor] 상세정보 조회 성공:", {
               type: "SUCCESS",
@@ -268,7 +279,7 @@ export function useRangeEditor({
         
         // 총 페이지수/회차 조회 시도
         try {
-          const total = await fetchContentTotal(content.content_type, content.content_id);
+          const total = await fetchContentTotal(content.content_type, content.content_id, studentId, editingContentType === "student");
           if (total) {
             setContentTotals(new Map([[editingRangeIndex, total]]));
             setEditingRange({
@@ -278,15 +289,15 @@ export function useRangeEditor({
           } else {
             // 총량도 없으면 현재 범위 유지
             setEditingRange({
-              start: String(content.start_range),
-              end: String(content.end_range),
+              start: String(content.start_range || 1),
+              end: String(content.end_range || 100),
             });
           }
         } catch (totalError) {
           // 총량 조회 실패 시 현재 범위 유지
           setEditingRange({
-            start: String(content.start_range),
-            end: String(content.end_range),
+            start: String(content.start_range || 1),
+            end: String(content.end_range || 100),
           });
         }
       } finally {
@@ -371,6 +382,7 @@ export function useRangeEditor({
     editingContentType,
     data.recommended_contents,
     data.student_contents,
+    studentId,
   ]);
 
   /**

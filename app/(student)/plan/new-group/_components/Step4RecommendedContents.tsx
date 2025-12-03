@@ -100,6 +100,7 @@ export default function Step4RecommendedContents({
   } = useRangeEditor({
     data,
     onUpdate,
+    studentId,
   });
 
   // ============================================================================

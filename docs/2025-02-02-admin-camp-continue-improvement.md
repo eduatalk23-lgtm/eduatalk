@@ -9,6 +9,8 @@
 2. **이전으로 단계를 돌리면 다음 버튼이 작동하지 않음**: `isAdminContinueMode`일 때 단계 이동 로직 문제
 3. **콘텐츠 삭제가 안됨**: 추천 콘텐츠와 학생 콘텐츠 모두에서 삭제 기능이 제대로 작동하지 않음
 4. **학습 범위 수정 기능 부재**: 학생 콘텐츠의 범위 수정 기능이 없음
+5. **관리자 모드에서 편집 불가**: `editable` prop이 잘못 설정되어 관리자 모드에서 콘텐츠 추가/삭제/범위 수정이 안 됨
+6. **다음 버튼이 저장만 하고 단계를 넘어가지 않음**: `isAdminContinueMode`일 때 Step 4에서 `setCurrentStep(5)`가 호출되지 않음
 
 ## 해결 방안
 
@@ -164,6 +166,16 @@ const saveEditingRange = useCallback(() => {
 | Phase 2 | 단계 이동 로직 수정 | 이전/다음 버튼 정상 작동 |
 | Phase 3 | 콘텐츠 삭제 기능 개선 | 추천/학생 콘텐츠 모두 삭제 가능 |
 | Phase 4 | 학습 범위 수정 기능 확장 | 추천/학생 콘텐츠 모두 범위 수정 가능 |
+
+## 추가 수정 사항 (2025-02-02 후속)
+
+### editable prop 수정
+- **문제**: `editable={!isAdminContinueMode}`로 설정되어 관리자 모드에서 편집 불가
+- **해결**: `editable={isAdminContinueMode || !isCampMode}`로 수정하여 관리자 모드에서 편집 가능하도록 변경
+
+### 다음 버튼 동작 수정
+- **문제**: `isAdminContinueMode`일 때 Step 4에서 `handleSubmit(false)` 호출 후 `setCurrentStep(5)`가 호출되지 않음
+- **해결**: `continueCampStepsForAdmin` 성공 후 Step 4에서 `setCurrentStep(5)` 호출 추가
 
 ## 주의사항
 
