@@ -53,57 +53,138 @@ export function HierarchicalFilter({
   const [search, setSearch] = useState(searchQuery);
 
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  // 교과별 과목을 Map으로 관리 (교과 ID → 과목 목록)
+  const [subjectsMap, setSubjectsMap] = useState<Map<string, Subject[]>>(new Map());
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
-  // 개정교육과정 변경 시 교과 목록 로드
+  // 현재 선택된 교과의 과목 목록
+  const currentSubjects = selectedSubjectGroupId 
+    ? subjectsMap.get(selectedSubjectGroupId) || []
+    : [];
+
+  // 초기 마운트 시 초기값이 있을 경우 병렬로 데이터 로드
   useEffect(() => {
-    if (selectedCurriculumRevisionId) {
-      setLoadingGroups(true);
-      fetch(`/api/subject-groups?curriculum_revision_id=${selectedCurriculumRevisionId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setSubjectGroups(data.data || []);
-          setLoadingGroups(false);
-          // 교과가 변경되면 과목 초기화
-          setSelectedSubjectGroupId("");
-          setSelectedSubjectId("");
-          setSubjects([]);
-        })
-        .catch((err) => {
-          console.error("교과 목록 로드 실패:", err);
-          setLoadingGroups(false);
-        });
-    } else {
+    if (initialCurriculumRevisionId) {
+      // 초기값이 있으면 즉시 로드
+      loadHierarchyData(initialCurriculumRevisionId, initialSubjectGroupId, initialSubjectId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 개정교육과정 변경 시 교과와 과목 목록 병렬 로드 (초기 로드 제외)
+  useEffect(() => {
+    // 초기값과 다른 경우에만 로드 (중복 로딩 방지)
+    if (
+      selectedCurriculumRevisionId &&
+      selectedCurriculumRevisionId !== initialCurriculumRevisionId
+    ) {
+      loadHierarchyData(selectedCurriculumRevisionId);
+    } else if (!selectedCurriculumRevisionId) {
       setSubjectGroups([]);
+      setSubjectsMap(new Map());
       setSelectedSubjectGroupId("");
       setSelectedSubjectId("");
-      setSubjects([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCurriculumRevisionId]);
 
-  // 교과 변경 시 과목 목록 로드
+  // 교과 변경 시 과목 초기화 (이미 로드된 데이터 사용)
   useEffect(() => {
-    if (selectedSubjectGroupId) {
+    // 교과가 변경되고 초기값과 다르면 과목 초기화
+    if (
+      selectedSubjectGroupId &&
+      selectedSubjectGroupId !== initialSubjectGroupId &&
+      !subjectsMap.has(selectedSubjectGroupId)
+    ) {
+      // 모든 과목이 이미 로드되어야 하는데 없는 경우에만 개별 로드
       setLoadingSubjects(true);
       fetch(`/api/subjects?subject_group_id=${selectedSubjectGroupId}`)
         .then((res) => res.json())
         .then((data) => {
-          setSubjects(data.data || []);
+          const newSubjects = data.data || [];
+          setSubjectsMap((prev) => {
+            const next = new Map(prev);
+            next.set(selectedSubjectGroupId, newSubjects);
+            return next;
+          });
           setLoadingSubjects(false);
-          // 교과가 변경되면 과목 초기화
-          setSelectedSubjectId("");
         })
         .catch((err) => {
           console.error("과목 목록 로드 실패:", err);
           setLoadingSubjects(false);
         });
-    } else {
-      setSubjects([]);
+    }
+
+    // 교과 변경 시 과목 초기화 (초기값이 아닌 경우)
+    if (selectedSubjectGroupId !== initialSubjectGroupId) {
       setSelectedSubjectId("");
     }
-  }, [selectedSubjectGroupId]);
+  }, [selectedSubjectGroupId, initialSubjectGroupId, subjectsMap]);
+
+  // 계층 구조 데이터 로드 (병렬 처리)
+  const loadHierarchyData = async (
+    curriculumRevisionId: string,
+    preserveSubjectGroupId?: string,
+    preserveSubjectId?: string
+  ) => {
+    setLoadingGroups(true);
+    setLoadingSubjects(true);
+
+    try {
+      // 교과와 과목을 함께 조회 (병렬 처리)
+      const response = await fetch(
+        `/api/subject-groups?curriculum_revision_id=${curriculumRevisionId}&include_subjects=true`
+      );
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "데이터 로드 실패");
+      }
+
+      const groupsWithSubjects = result.data || [];
+      const groups: SubjectGroup[] = groupsWithSubjects.map(
+        (group: SubjectGroup & { subjects?: Subject[] }) => ({
+          id: group.id,
+          name: group.name,
+        })
+      );
+
+      // 교과별 과목을 Map으로 변환
+      const newSubjectsMap = new Map<string, Subject[]>();
+      groupsWithSubjects.forEach((group: SubjectGroup & { subjects?: Subject[] }) => {
+        if (group.subjects && group.subjects.length > 0) {
+          newSubjectsMap.set(group.id, group.subjects);
+        }
+      });
+
+      setSubjectGroups(groups);
+      setSubjectsMap(newSubjectsMap);
+
+      // 초기값 보존
+      if (preserveSubjectGroupId && newSubjectsMap.has(preserveSubjectGroupId)) {
+        setSelectedSubjectGroupId(preserveSubjectGroupId);
+        // 해당 교과의 과목 목록이 있고 preserveSubjectId가 있으면 설정
+        const subjects = newSubjectsMap.get(preserveSubjectGroupId) || [];
+        if (preserveSubjectId && subjects.some((s) => s.id === preserveSubjectId)) {
+          setSelectedSubjectId(preserveSubjectId);
+        }
+      } else if (!preserveSubjectGroupId) {
+        // 초기값이 없으면 초기화
+        setSelectedSubjectGroupId("");
+        setSelectedSubjectId("");
+      }
+
+      setLoadingGroups(false);
+      setLoadingSubjects(false);
+    } catch (err) {
+      console.error("계층 구조 데이터 로드 실패:", err);
+      setLoadingGroups(false);
+      setLoadingSubjects(false);
+      setSubjectGroups([]);
+      setSubjectsMap(new Map());
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +272,7 @@ export function HierarchicalFilter({
           {loadingSubjects ? (
             <option value="">로딩 중...</option>
           ) : (
-            subjects.map((subject) => (
+            currentSubjects.map((subject) => (
               <option key={subject.id} value={subject.id}>
                 {subject.name}
               </option>
