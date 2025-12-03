@@ -40,6 +40,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
 import { changeUserRole } from "@/app/actions/userRole";
+import { Info } from "lucide-react";
+import { CalculationInfoModal } from "./_components/CalculationInfoModal";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -73,6 +75,10 @@ export default function SettingsPage() {
   // 자동 계산 플래그
   const [autoCalculateExamYear, setAutoCalculateExamYear] = useState(true);
   const [autoCalculateCurriculum, setAutoCalculateCurriculum] = useState(true);
+
+  // 계산 방법 설명 모달 상태
+  const [examYearModalOpen, setExamYearModalOpen] = useState(false);
+  const [curriculumModalOpen, setCurriculumModalOpen] = useState(false);
 
   // 저장 후 자동 계산 방지 플래그
   const isSavingRef = useRef(false);
@@ -294,12 +300,11 @@ export default function SettingsPage() {
     if (
       autoCalculateCurriculum &&
       formData.grade &&
-      formData.birth_date &&
       initialFormDataRef.current
     ) {
       const calculated = calculateCurriculumRevision(
         formData.grade,
-        formData.birth_date,
+        formData.birth_date || null,
         schoolType || undefined
       );
 
@@ -335,7 +340,6 @@ export default function SettingsPage() {
     }
   }, [
     formData.grade,
-    formData.birth_date,
     schoolType,
     autoCalculateCurriculum,
   ]);
@@ -514,12 +518,11 @@ export default function SettingsPage() {
 
           if (
             autoCalculateCurriculum &&
-            formData.grade &&
-            formData.birth_date
+            formData.grade
           ) {
             const calculated = calculateCurriculumRevision(
               formData.grade,
-              formData.birth_date,
+              formData.birth_date || null,
               schoolType || undefined
             );
             savedFormData.curriculum_revision = calculated;
@@ -886,9 +889,19 @@ export default function SettingsPage() {
           >
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-700">
-                    입시년도
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      입시년도
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setExamYearModalOpen(true)}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      aria-label="입시년도 계산 방법 보기"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </div>
                   <label className="flex items-center gap-2 text-xs text-gray-500">
                     <input
                       type="checkbox"
@@ -925,9 +938,19 @@ export default function SettingsPage() {
 
               <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-gray-700">
-                    개정교육과정
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      개정교육과정
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setCurriculumModalOpen(true)}
+                      className="text-gray-400 hover:text-indigo-600 transition-colors"
+                      aria-label="개정교육과정 계산 방법 보기"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </div>
                   <label className="flex items-center gap-2 text-xs text-gray-500">
                     <input
                       type="checkbox"
@@ -1113,6 +1136,18 @@ export default function SettingsPage() {
           </form>
         </div>
       </div>
+
+      {/* 계산 방법 설명 모달 */}
+      <CalculationInfoModal
+        open={examYearModalOpen}
+        onOpenChange={setExamYearModalOpen}
+        type="exam_year"
+      />
+      <CalculationInfoModal
+        open={curriculumModalOpen}
+        onOpenChange={setCurriculumModalOpen}
+        type="curriculum_revision"
+      />
     </div>
   );
 }

@@ -55,8 +55,6 @@ export function calculateExamYear(grade: string | null | undefined, schoolType?:
   // 고2 → 현재년도 + 2년
   // 고3 → 현재년도 + 1년
   return currentYear + (4 - gradeNumber);
-
-  return currentYear + 1; // 기본값
 }
 
 /**
@@ -76,8 +74,10 @@ export function calculateEntranceYear(birthDate: string | null | undefined): num
 
 /**
  * 개정교육과정 자동 계산
+ * 학년 정보를 우선시하여 계산합니다. (개인 사정: 유급, 조기입학 등 반영)
  * @param grade 현재 학년 (예: "중3", "고1")
- * @param birthDate 생년월일 (YYYY-MM-DD 형식, 선택사항)
+ * @param birthDate 생년월일 (YYYY-MM-DD 형식, 선택사항 - 참고용)
+ * @param schoolType 학교 유형 (중학교 또는 고등학교)
  * @returns 개정교육과정 ("2009 개정", "2015 개정", "2022 개정")
  */
 export function calculateCurriculumRevision(
@@ -90,9 +90,6 @@ export function calculateCurriculumRevision(
   if (!grade || typeof grade !== "string" || grade.trim() === "") {
     return "2022 개정"; // 기본값
   }
-  
-  // 숫자만 있는 경우 schoolType으로 판단
-  const isMiddleSchool = schoolType === "중학교" || grade.includes("중");
 
   const gradeNumber = extractGradeNumber(grade);
 
@@ -100,36 +97,54 @@ export function calculateCurriculumRevision(
     return "2022 개정"; // 기본값
   }
 
-  let entranceYear: number;
-
-  if (birthDate) {
-    entranceYear = calculateEntranceYear(birthDate);
+  // 학년 정보를 우선시하여 입학년도 계산 (개인 사정 반영)
+  let schoolStartYear: number;
+  
+  if (grade.includes("중")) {
+    // 중학교 입학년도 = 현재년도 - (학년 - 1)
+    // 예: 2025년 중3 → 2025 - (3 - 1) = 2023년 중1 입학
+    schoolStartYear = currentYear - (gradeNumber - 1);
+  } else if (grade.includes("고")) {
+    // 고등학교 입학년도 = 현재년도 - (학년 - 1)
+    // 예: 2025년 고2 → 2025 - (2 - 1) = 2024년 고1 입학
+    schoolStartYear = currentYear - (gradeNumber - 1);
   } else {
-    // 생년월일이 없으면 현재 학년 기준으로 역산
-    if (grade.includes("중")) {
-      entranceYear = currentYear - (gradeNumber - 1) - 3; // 중학교 입학년도
-    } else if (grade.includes("고")) {
-      entranceYear = currentYear - (gradeNumber - 1) - 6; // 고등학교 입학년도
-    } else {
-      return "2022 개정"; // 기본값
+    return "2022 개정"; // 기본값
+  }
+
+  // 생년월일이 있으면 검증 (참고용)
+  if (birthDate) {
+    const birthYear = parseInt(birthDate.split("-")[0], 10);
+    const expectedEntranceYear = birthYear + 6; // 만 6세 입학 기준
+    const expectedSchoolStartYear = grade.includes("중") 
+      ? expectedEntranceYear + 6  // 초등학교 6년 후
+      : expectedEntranceYear + 9; // 초등학교 6년 + 중학교 3년 후
+    
+    // 차이가 2년 이상이면 경고 (개인 사정 가능성)
+    const diff = Math.abs(schoolStartYear - expectedSchoolStartYear);
+    if (diff >= 2) {
+      console.warn(
+        `[calculateCurriculumRevision] 학년과 생년월일이 크게 다릅니다. ` +
+        `학년 기준: ${schoolStartYear}년, 생년월일 기준: ${expectedSchoolStartYear}년 ` +
+        `(차이: ${diff}년). 학년 정보를 우선 사용합니다.`
+      );
     }
   }
 
+  // 중학교 개정교육과정 판단
   if (grade.includes("중")) {
-    const middleSchoolStartYear = entranceYear + 6; // 초등학교 6년 후
     // 2022 개정: 2024년 중1부터
-    if (middleSchoolStartYear >= 2024) return "2022 개정";
+    if (schoolStartYear >= 2024) return "2022 개정";
     // 2015 개정: 2015년 중1부터
-    if (middleSchoolStartYear >= 2015) return "2015 개정";
+    if (schoolStartYear >= 2015) return "2015 개정";
     return "2009 개정";
   }
 
-  // 고등학교 (기본값)
-  const highSchoolStartYear = entranceYear + 9; // 초등학교 6년 + 중학교 3년 후
-  // 2022 개정: 2027년 고1부터 (예상, 실제로는 2024년 중1이 2027년 고1)
-  if (highSchoolStartYear >= 2027) return "2022 개정";
+  // 고등학교 개정교육과정 판단
+  // 2022 개정: 2027년 고1부터 (2024년 중1이 2027년 고1)
+  if (schoolStartYear >= 2027) return "2022 개정";
   // 2015 개정: 2018년 고1부터 (2015년 중1이 2018년 고1)
-  if (highSchoolStartYear >= 2018) return "2015 개정";
+  if (schoolStartYear >= 2018) return "2015 개정";
   return "2009 개정";
 }
 
