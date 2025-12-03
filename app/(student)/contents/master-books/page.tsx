@@ -3,12 +3,12 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterBooks, getPublishersForFilter } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getPublishersForFilter, getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
-import { HierarchicalFilter } from "./_components/HierarchicalFilter";
+import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
 
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterBookFilters) {
@@ -20,6 +20,8 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
         filters.subject_id || "",
         filters.publisher_id || "",
         filters.search || "",
+        filters.difficulty || "",
+        filters.sort || "",
         filters.limit || 50,
       ].join("-");
   
@@ -49,6 +51,9 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
       if (filters.search) {
         query = query.ilike("title", `%${filters.search}%`);
       }
+      if (filters.difficulty) {
+        query = query.eq("difficulty_level", filters.difficulty);
+      }
       if (filters.tenantId) {
         query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
       } else {
@@ -56,7 +61,23 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
       }
 
       // 정렬
-      query = query.order("updated_at", { ascending: false });
+      const sortBy = filters.sort || "updated_at_desc";
+      if (sortBy === "title_asc") {
+        query = query.order("title", { ascending: true });
+      } else if (sortBy === "title_desc") {
+        query = query.order("title", { ascending: false });
+      } else if (sortBy === "difficulty_level_asc") {
+        query = query.order("difficulty_level", { ascending: true });
+      } else if (sortBy === "difficulty_level_desc") {
+        query = query.order("difficulty_level", { ascending: false });
+      } else if (sortBy === "created_at_asc") {
+        query = query.order("created_at", { ascending: true });
+      } else if (sortBy === "created_at_desc") {
+        query = query.order("created_at", { ascending: false });
+      } else {
+        // 기본값: updated_at_desc
+        query = query.order("updated_at", { ascending: false });
+      }
 
       // 페이지네이션
       if (filters.limit) {
@@ -108,19 +129,31 @@ function FilterFormWrapper({
   filterOptions,
 }: {
   params: Record<string, string | undefined>;
-  filterOptions: { curriculumRevisions: Array<{ id: string; name: string }>; publishers: Array<{ id: string; name: string }> };
+  filterOptions: { 
+    curriculumRevisions: Array<{ id: string; name: string }>; 
+    publishers: Array<{ id: string; name: string }>;
+    difficulties: string[];
+  };
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <HierarchicalFilter
-        curriculumRevisions={filterOptions.curriculumRevisions}
-        initialCurriculumRevisionId={params.curriculum_revision_id}
-        initialSubjectGroupId={params.subject_group_id}
-        initialSubjectId={params.subject_id}
-        publishers={filterOptions.publishers}
-        initialPublisherId={params.publisher_id}
+      <UnifiedContentFilter
+        context="master"
         contentType="book"
-        searchQuery={params.search}
+        basePath="/contents/master-books"
+        initialValues={{
+          curriculum_revision_id: params.curriculum_revision_id,
+          subject_group_id: params.subject_group_id,
+          subject_id: params.subject_id,
+          publisher_id: params.publisher_id,
+          search: params.search,
+          difficulty: params.difficulty,
+          sort: params.sort,
+        }}
+        filterOptions={filterOptions}
+        showDifficulty={true}
+        showSort={true}
+        defaultSort="updated_at_desc"
       />
     </div>
   );
@@ -143,13 +176,16 @@ export default async function StudentMasterBooksPage({
     subject_id: params.subject_id,
     publisher_id: params.publisher_id,
     search: params.search,
+    difficulty: params.difficulty,
+    sort: params.sort || "updated_at_desc",
     limit: 50,
   };
 
   // 필터 옵션 조회 (드롭다운용) - 캐시 없이 직접 조회
-  const [curriculumRevisions, publishers] = await Promise.all([
+  const [curriculumRevisions, publishers, difficulties] = await Promise.all([
     getCurriculumRevisions(),
     getPublishersForFilter(),
+    getDifficultiesForMasterBooks(),
   ]);
 
   // 검색 결과 조회 (캐싱 적용)
@@ -162,6 +198,7 @@ export default async function StudentMasterBooksPage({
       name: rev.name,
     })),
     publishers,
+    difficulties,
   };
 
   console.log("[student/master-books] 개정교육과정 조회 결과:", {

@@ -21,6 +21,8 @@ export function ContentMasterSearch({
   const [subjectId, setSubjectId] = useState("");
   const [publisherId, setPublisherId] = useState("");
   const [platformId, setPlatformId] = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [sort, setSort] = useState("updated_at_desc");
   const [results, setResults] = useState<ContentMaster[]>([]);
   const [isSearching, startSearch] = useTransition();
   const [copyingId, setCopyingId] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function ContentMasterSearch({
   const [subjectsMap, setSubjectsMap] = useState<Map<string, Array<{ id: string; name: string }>>>(new Map());
   const [publishers, setPublishers] = useState<Array<{ id: string; name: string }>>([]);
   const [platforms, setPlatforms] = useState<Array<{ id: string; name: string }>>([]);
+  const [difficulties, setDifficulties] = useState<string[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
@@ -38,7 +41,7 @@ export function ContentMasterSearch({
     ? subjectsMap.get(subjectGroupId) || []
     : [];
 
-  // 개정교육과정, 출판사, 플랫폼 목록 로드
+  // 개정교육과정, 출판사, 플랫폼, 난이도 목록 로드
   useEffect(() => {
     Promise.all([
       fetch("/api/curriculum-revisions").then((res) => res.json()),
@@ -48,8 +51,11 @@ export function ContentMasterSearch({
       contentType === "lecture"
         ? fetch("/api/platforms").then((res) => res.json())
         : Promise.resolve({ success: true, data: [] }),
+      contentType === "book"
+        ? fetch("/api/master-books/difficulties").then((res) => res.json()).catch(() => ({ success: true, data: [] }))
+        : fetch("/api/master-lectures/difficulties").then((res) => res.json()).catch(() => ({ success: true, data: [] })),
     ])
-      .then(([revisionsRes, publishersRes, platformsRes]) => {
+      .then(([revisionsRes, publishersRes, platformsRes, difficultiesRes]) => {
         if (revisionsRes.success) {
           setCurriculumRevisions(revisionsRes.data || []);
         }
@@ -58,6 +64,9 @@ export function ContentMasterSearch({
         }
         if (platformsRes.success) {
           setPlatforms(platformsRes.data || []);
+        }
+        if (difficultiesRes.success) {
+          setDifficulties(difficultiesRes.data || []);
         }
       })
       .catch((err) => {
@@ -125,7 +134,7 @@ export function ContentMasterSearch({
   };
 
   const handleSearch = () => {
-    if (!searchQuery.trim() && !curriculumRevisionId && !subjectGroupId && !subjectId && !publisherId && !platformId) {
+    if (!searchQuery.trim() && !curriculumRevisionId && !subjectGroupId && !subjectId && !publisherId && !platformId && !difficulty) {
       return;
     }
 
@@ -139,6 +148,8 @@ export function ContentMasterSearch({
           publisher_id: contentType === "book" ? (publisherId || undefined) : undefined,
           platform_id: contentType === "lecture" ? (platformId || undefined) : undefined,
           search: searchQuery.trim() || undefined,
+          difficulty: difficulty || undefined,
+          sort: sort || undefined,
           limit: 20,
         });
         setResults(result.data);
@@ -316,6 +327,45 @@ export function ContentMasterSearch({
                 </select>
               </div>
             )}
+            {/* 난이도 */}
+            {difficulties.length > 0 && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  난이도
+                </label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                >
+                  <option value="">전체</option>
+                  {difficulties.map((diff) => (
+                    <option key={diff} value={diff}>
+                      {diff}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* 정렬 */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-800">
+                정렬
+              </label>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+              >
+                <option value="updated_at_desc">최신순</option>
+                <option value="created_at_desc">최신순</option>
+                <option value="created_at_asc">오래된순</option>
+                <option value="title_asc">제목 가나다순</option>
+                <option value="title_desc">제목 역순</option>
+                <option value="difficulty_level_asc">난이도 낮은순</option>
+                <option value="difficulty_level_desc">난이도 높은순</option>
+              </select>
+            </div>
           </div>
           <button
             type="button"

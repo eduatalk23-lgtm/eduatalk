@@ -22,6 +22,8 @@ export type MasterBookFilters = {
   subject_id?: string; // 과목 ID로 필터링
   publisher_id?: string; // 출판사 ID로 필터링
   search?: string; // 제목 검색
+  difficulty?: string; // 난이도 필터링
+  sort?: string; // 정렬 옵션
   tenantId?: string | null;
   limit?: number;
   offset?: number;
@@ -36,6 +38,8 @@ export type MasterLectureFilters = {
   subject_id?: string; // 과목 ID로 필터링
   platform_id?: string; // 플랫폼 ID로 필터링
   search?: string; // 제목 검색
+  difficulty?: string; // 난이도 필터링
+  sort?: string; // 정렬 옵션
   tenantId?: string | null;
   limit?: number;
   offset?: number;
@@ -53,6 +57,8 @@ export type ContentMasterFilters = {
   publisher_id?: string; // 교재용
   platform_id?: string; // 강의용
   search?: string;
+  difficulty?: string; // 난이도 필터링
+  sort?: string; // 정렬 옵션
   tenantId?: string | null;
   limit?: number;
   offset?: number;
@@ -93,6 +99,9 @@ export async function searchMasterBooks(
   if (filters.search) {
     query = query.ilike("title", `%${filters.search}%`);
   }
+  if (filters.difficulty) {
+    query = query.eq("difficulty_level", filters.difficulty);
+  }
   if (filters.tenantId) {
     query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
   } else {
@@ -100,7 +109,23 @@ export async function searchMasterBooks(
   }
 
   // 정렬
-  query = query.order("updated_at", { ascending: false });
+  const sortBy = filters.sort || "updated_at_desc";
+  if (sortBy === "title_asc") {
+    query = query.order("title", { ascending: true });
+  } else if (sortBy === "title_desc") {
+    query = query.order("title", { ascending: false });
+  } else if (sortBy === "difficulty_level_asc") {
+    query = query.order("difficulty_level", { ascending: true });
+  } else if (sortBy === "difficulty_level_desc") {
+    query = query.order("difficulty_level", { ascending: false });
+  } else if (sortBy === "created_at_asc") {
+    query = query.order("created_at", { ascending: true });
+  } else if (sortBy === "created_at_desc") {
+    query = query.order("created_at", { ascending: false });
+  } else {
+    // 기본값: updated_at_desc
+    query = query.order("updated_at", { ascending: false });
+  }
 
   // 페이지네이션
   if (filters.limit) {
@@ -129,6 +154,8 @@ export async function searchMasterBooks(
       subject_group_id: filters.subject_group_id,
       subject_id: filters.subject_id,
       publisher_id: filters.publisher_id,
+      difficulty: filters.difficulty,
+      sort: filters.sort,
       tenantId: filters.tenantId,
       limit: filters.limit,
     },
@@ -355,6 +382,9 @@ export async function searchMasterLectures(
   if (filters.search) {
     query = query.ilike("title", `%${filters.search}%`);
   }
+  if (filters.difficulty) {
+    query = query.eq("difficulty_level", filters.difficulty);
+  }
   if (filters.tenantId) {
     query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
   } else {
@@ -362,7 +392,23 @@ export async function searchMasterLectures(
   }
 
   // 정렬
-  query = query.order("updated_at", { ascending: false });
+  const sortBy = filters.sort || "updated_at_desc";
+  if (sortBy === "title_asc") {
+    query = query.order("title", { ascending: true });
+  } else if (sortBy === "title_desc") {
+    query = query.order("title", { ascending: false });
+  } else if (sortBy === "difficulty_level_asc") {
+    query = query.order("difficulty_level", { ascending: true });
+  } else if (sortBy === "difficulty_level_desc") {
+    query = query.order("difficulty_level", { ascending: false });
+  } else if (sortBy === "created_at_asc") {
+    query = query.order("created_at", { ascending: true });
+  } else if (sortBy === "created_at_desc") {
+    query = query.order("created_at", { ascending: false });
+  } else {
+    // 기본값: updated_at_desc
+    query = query.order("updated_at", { ascending: false });
+  }
 
   // 페이지네이션
   if (filters.limit) {
@@ -391,6 +437,8 @@ export async function searchMasterLectures(
       subject_group_id: filters.subject_group_id,
       subject_id: filters.subject_id,
       platform_id: filters.platform_id,
+      difficulty: filters.difficulty,
+      sort: filters.sort,
       tenantId: filters.tenantId,
       limit: filters.limit,
     },
@@ -955,6 +1003,82 @@ export async function getPlatformsForFilter(): Promise<Array<{ id: string; name:
   }
 
   return (data as Array<{ id: string; name: string }> | null) ?? [];
+}
+
+/**
+ * 마스터 교재 난이도 목록 조회 (필터 옵션용)
+ */
+export async function getDifficultiesForMasterBooks(
+  tenantId?: string | null
+): Promise<string[]> {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
+
+  let query = supabase
+    .from("master_books")
+    .select("difficulty_level")
+    .not("difficulty_level", "is", null);
+
+  // tenantId가 있으면 해당 테넌트 + 공개 콘텐츠만, 없으면 공개 콘텐츠만
+  if (tenantId) {
+    query = query.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+  } else {
+    query = query.is("tenant_id", null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[data/contentMasters] 마스터 교재 난이도 목록 조회 실패", error);
+    return [];
+  }
+
+  const difficulties = new Set<string>();
+  (data ?? []).forEach((item: { difficulty_level: string | null }) => {
+    if (item.difficulty_level) {
+      difficulties.add(item.difficulty_level);
+    }
+  });
+
+  return Array.from(difficulties).sort();
+}
+
+/**
+ * 마스터 강의 난이도 목록 조회 (필터 옵션용)
+ */
+export async function getDifficultiesForMasterLectures(
+  tenantId?: string | null
+): Promise<string[]> {
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
+
+  let query = supabase
+    .from("master_lectures")
+    .select("difficulty_level")
+    .not("difficulty_level", "is", null);
+
+  // tenantId가 있으면 해당 테넌트 + 공개 콘텐츠만, 없으면 공개 콘텐츠만
+  if (tenantId) {
+    query = query.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+  } else {
+    query = query.is("tenant_id", null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[data/contentMasters] 마스터 강의 난이도 목록 조회 실패", error);
+    return [];
+  }
+
+  const difficulties = new Set<string>();
+  (data ?? []).forEach((item: { difficulty_level: string | null }) => {
+    if (item.difficulty_level) {
+      difficulties.add(item.difficulty_level);
+    }
+  });
+
+  return Array.from(difficulties).sort();
 }
 
 // ============================================

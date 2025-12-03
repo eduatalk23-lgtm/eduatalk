@@ -3,10 +3,10 @@ import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { searchMasterBooks, getCurriculumRevisions, getPublishersForFilter } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getCurriculumRevisions, getPublishersForFilter, getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import ExcelActions from "./_components/ExcelActions";
-import { HierarchicalFilter } from "@/app/(student)/contents/master-books/_components/HierarchicalFilter";
+import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
 
 export default async function MasterBooksPage({
   searchParams,
@@ -30,6 +30,8 @@ export default async function MasterBooksPage({
     subject_id: params.subject_id,
     publisher_id: params.publisher_id,
     search: params.search,
+    difficulty: params.difficulty,
+    sort: params.sort || "updated_at_desc",
     tenantId, // 테넌트 ID 추가
     limit: 50,
   };
@@ -37,9 +39,10 @@ export default async function MasterBooksPage({
   const { data: books, total } = await searchMasterBooks(filters);
 
   // 필터 옵션 조회 (드롭다운용)
-  const [curriculumRevisions, publishers] = await Promise.all([
+  const [curriculumRevisions, publishers, difficulties] = await Promise.all([
     getCurriculumRevisions(),
     getPublishersForFilter(),
+    getDifficultiesForMasterBooks(tenantId),
   ]);
 
   return (
@@ -71,16 +74,27 @@ export default async function MasterBooksPage({
 
         {/* 검색 필터 */}
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <HierarchicalFilter
-            curriculumRevisions={curriculumRevisions}
-            initialCurriculumRevisionId={params.curriculum_revision_id}
-            initialSubjectGroupId={params.subject_group_id}
-            initialSubjectId={params.subject_id}
-            publishers={publishers}
-            initialPublisherId={params.publisher_id}
+          <UnifiedContentFilter
+            context="admin"
             contentType="book"
-            searchQuery={params.search}
             basePath="/admin/master-books"
+            initialValues={{
+              curriculum_revision_id: params.curriculum_revision_id,
+              subject_group_id: params.subject_group_id,
+              subject_id: params.subject_id,
+              publisher_id: params.publisher_id,
+              search: params.search,
+              difficulty: params.difficulty,
+              sort: params.sort,
+            }}
+            filterOptions={{
+              curriculumRevisions,
+              publishers,
+              difficulties,
+            }}
+            showDifficulty={true}
+            showSort={true}
+            defaultSort="updated_at_desc"
           />
         </div>
 

@@ -2,13 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterLectures, getPlatformsForFilter } from "@/lib/data/contentMasters";
+import { searchMasterLectures, getPlatformsForFilter, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { secondsToMinutes } from "@/lib/utils/duration";
-import { HierarchicalFilter } from "../master-books/_components/HierarchicalFilter";
+import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
 
 
 // 검색 결과 조회 함수 (캐싱 적용)
@@ -21,6 +21,8 @@ async function getCachedSearchResults(filters: MasterLectureFilters) {
         filters.subject_id || "",
         filters.platform_id || "",
         filters.search || "",
+        filters.difficulty || "",
+        filters.sort || "",
         filters.limit || 50,
       ].join("-");
   
@@ -69,20 +71,31 @@ function FilterFormWrapper({
   filterOptions,
 }: {
   params: Record<string, string | undefined>;
-  filterOptions: { curriculumRevisions: Array<{ id: string; name: string }>; platforms: Array<{ id: string; name: string }> };
+  filterOptions: { 
+    curriculumRevisions: Array<{ id: string; name: string }>; 
+    platforms: Array<{ id: string; name: string }>;
+    difficulties: string[];
+  };
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <HierarchicalFilter
-        curriculumRevisions={filterOptions.curriculumRevisions}
-        initialCurriculumRevisionId={params.curriculum_revision_id}
-        initialSubjectGroupId={params.subject_group_id}
-        initialSubjectId={params.subject_id}
-        platforms={filterOptions.platforms}
-        initialPlatformId={params.platform_id}
+      <UnifiedContentFilter
+        context="master"
         contentType="lecture"
-        searchQuery={params.search}
         basePath="/contents/master-lectures"
+        initialValues={{
+          curriculum_revision_id: params.curriculum_revision_id,
+          subject_group_id: params.subject_group_id,
+          subject_id: params.subject_id,
+          platform_id: params.platform_id,
+          search: params.search,
+          difficulty: params.difficulty,
+          sort: params.sort,
+        }}
+        filterOptions={filterOptions}
+        showDifficulty={true}
+        showSort={true}
+        defaultSort="updated_at_desc"
       />
     </div>
   );
@@ -105,13 +118,16 @@ export default async function StudentMasterLecturesPage({
     subject_id: params.subject_id,
     platform_id: params.platform_id,
     search: params.search,
+    difficulty: params.difficulty,
+    sort: params.sort || "updated_at_desc",
     limit: 50,
   };
 
   // 필터 옵션 조회 (드롭다운용) - 캐시 없이 직접 조회
-  const [curriculumRevisions, platforms] = await Promise.all([
+  const [curriculumRevisions, platforms, difficulties] = await Promise.all([
     getCurriculumRevisions(),
     getPlatformsForFilter(),
+    getDifficultiesForMasterLectures(),
   ]);
 
   // 검색 결과 조회 (캐싱 적용)
@@ -124,6 +140,7 @@ export default async function StudentMasterLecturesPage({
       name: rev.name,
     })),
     platforms,
+    difficulties,
   };
 
   return (
