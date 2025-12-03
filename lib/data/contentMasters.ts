@@ -766,6 +766,12 @@ export async function getCurriculumRevisions(): Promise<Array<{ id: string; name
     return [];
   }
 
+  console.log("[data/contentMasters] 개정교육과정 조회 결과:", {
+    count: data?.length || 0,
+    data: data || [],
+    hasAdminClient: !!supabaseAdmin,
+  });
+
   return (data as Array<{ id: string; name: string }> | null) ?? [];
 }
 

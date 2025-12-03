@@ -2,39 +2,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterBooks, getPublishersForFilter, getCurriculumRevisions } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getPublishersForFilter } from "@/lib/data/contentMasters";
+import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
+import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { HierarchicalFilter } from "./_components/HierarchicalFilter";
-
-// 필터 옵션 조회 함수 (캐싱 적용)
-async function getCachedFilterOptions() {
-  const getCached = unstable_cache(
-    async () => {
-      const [curriculumRevisions, publishers] = await Promise.all([
-        getCurriculumRevisions(),
-        getPublishersForFilter(),
-      ]);
-
-      return { 
-        curriculumRevisions: curriculumRevisions.map((rev) => ({
-          id: rev.id,
-          name: rev.name,
-        })), 
-        publishers 
-      };
-    },
-    ["master-books-filter-options"],
-    {
-      revalidate: 3600, // 1시간 캐시
-      tags: ["master-books-filter-options"],
-    }
-  );
-
-  return getCached();
-}
 
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterBookFilters) {
@@ -172,13 +146,33 @@ export default async function StudentMasterBooksPage({
     limit: 50,
   };
 
-  // 병렬로 데이터 페칭
-  const [searchResult, filterOptions] = await Promise.all([
-    getCachedSearchResults(filters),
-    getCachedFilterOptions(),
+  // 필터 옵션 조회 (드롭다운용) - 캐시 없이 직접 조회
+  const [curriculumRevisions, publishers] = await Promise.all([
+    getCurriculumRevisions(),
+    getPublishersForFilter(),
   ]);
 
+  // 검색 결과 조회 (캐싱 적용)
+  const searchResult = await getCachedSearchResults(filters);
   const { data: books, total } = searchResult;
+
+  const filterOptions = {
+    curriculumRevisions: curriculumRevisions.map((rev) => ({
+      id: rev.id,
+      name: rev.name,
+    })),
+    publishers,
+  };
+
+  console.log("[student/master-books] 개정교육과정 조회 결과:", {
+    count: curriculumRevisions.length,
+    revisions: curriculumRevisions.map((r) => ({ id: r.id, name: r.name })),
+  });
+
+  console.log("[student/master-books] 개정교육과정 조회 결과:", {
+    count: curriculumRevisions.length,
+    revisions: curriculumRevisions.map((r) => ({ id: r.id, name: r.name })),
+  });
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">

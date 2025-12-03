@@ -2,38 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterLectures, getPlatformsForFilter, getCurriculumRevisions } from "@/lib/data/contentMasters";
+import { searchMasterLectures, getPlatformsForFilter } from "@/lib/data/contentMasters";
+import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
+import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { secondsToMinutes } from "@/lib/utils/duration";
 import { HierarchicalFilter } from "../master-books/_components/HierarchicalFilter";
 
-// 필터 옵션 조회 함수 (캐싱 적용)
-async function getCachedFilterOptions() {
-  const getCached = unstable_cache(
-    async () => {
-      const [curriculumRevisions, platforms] = await Promise.all([
-        getCurriculumRevisions(),
-        getPlatformsForFilter(),
-      ]);
-
-      return { 
-        curriculumRevisions: curriculumRevisions.map((rev) => ({
-          id: rev.id,
-          name: rev.name,
-        })), 
-        platforms 
-      };
-    },
-    ["master-lectures-filter-options"],
-    {
-      revalidate: 3600, // 1시간 캐시
-      tags: ["master-lectures-filter-options"],
-    }
-  );
-
-  return getCached();
-}
 
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterLectureFilters) {
@@ -132,13 +108,23 @@ export default async function StudentMasterLecturesPage({
     limit: 50,
   };
 
-  // 병렬로 데이터 페칭
-  const [searchResult, filterOptions] = await Promise.all([
-    getCachedSearchResults(filters),
-    getCachedFilterOptions(),
+  // 필터 옵션 조회 (드롭다운용) - 캐시 없이 직접 조회
+  const [curriculumRevisions, platforms] = await Promise.all([
+    getCurriculumRevisions(),
+    getPlatformsForFilter(),
   ]);
 
+  // 검색 결과 조회 (캐싱 적용)
+  const searchResult = await getCachedSearchResults(filters);
   const { data: lectures, total } = searchResult;
+
+  const filterOptions = {
+    curriculumRevisions: curriculumRevisions.map((rev) => ({
+      id: rev.id,
+      name: rev.name,
+    })),
+    platforms,
+  };
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
