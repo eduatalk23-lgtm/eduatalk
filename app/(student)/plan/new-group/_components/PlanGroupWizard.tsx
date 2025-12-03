@@ -942,20 +942,36 @@ export function PlanGroupWizard({
           // 캠프 참여 제출 (초기 참여 시 - 학생만)
           if (campInvitationId && !isAdminMode) {
             const { submitCampParticipation } = await import("@/app/(student)/actions/campActions");
-            const result = await submitCampParticipation(campInvitationId, wizardData);
+            
+            try {
+              const result = await submitCampParticipation(campInvitationId, wizardData);
 
-            if (result.success && result.groupId) {
-              toast.showSuccess("캠프 참여가 완료되었습니다.");
-              // 제출 완료 상세 페이지로 이동
-              if (result.invitationId || campInvitationId) {
-                router.push(`/camp/${result.invitationId || campInvitationId}/submitted`, { scroll: true });
+              if (result.success && result.groupId) {
+                toast.showSuccess("캠프 참여가 완료되었습니다.");
+                // 제출 완료 상세 페이지로 이동
+                const targetInvitationId = result.invitationId || campInvitationId;
+                const targetPath = targetInvitationId 
+                  ? `/camp/${targetInvitationId}/submitted`
+                  : `/plan/group/${result.groupId}`;
+                
+                // startTransition 내부에서 직접 라우팅 (Next.js router.push는 클라이언트 사이드 네비게이션)
+                router.push(targetPath, { scroll: true });
               } else {
-                // 안전장치: invitationId가 없으면 기존 경로로 이동
-                router.push(`/plan/group/${result.groupId}`, { scroll: true });
+                const errorMessage = result.error || "캠프 참여에 실패했습니다.";
+                const planGroupError = toPlanGroupError(
+                  new Error(errorMessage),
+                  PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
+                );
+                setValidationErrors([planGroupError.userMessage]);
+                toast.showError(planGroupError.userMessage);
               }
-            } else {
+            } catch (error) {
+              // submitCampParticipation에서 에러가 발생한 경우
+              const errorMessage = error instanceof Error 
+                ? error.message 
+                : "캠프 참여 중 오류가 발생했습니다.";
               const planGroupError = toPlanGroupError(
-                new Error(result.error || "캠프 참여에 실패했습니다."),
+                error instanceof Error ? error : new Error(errorMessage),
                 PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
               );
               setValidationErrors([planGroupError.userMessage]);
