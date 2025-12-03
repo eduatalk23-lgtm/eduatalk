@@ -188,7 +188,7 @@ export function BookDetailsManager({
       </div>
 
       {groupedDetails.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-500">
+        <p className="py-4 text-center text-sm text-gray-900">
           목차가 없습니다. "+ 대단원 추가" 버튼을 클릭하여 추가하세요.
         </p>
       ) : (
@@ -221,10 +221,10 @@ export function BookDetailsManager({
                       }}
                       onClick={(e) => e.stopPropagation()}
                       placeholder="대단원명을 입력하세요"
-                      className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                      className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                     />
                     {hasMinorUnits && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-900">
                         ({group.items.filter((i) => i.minor_unit).length}개 중단원)
                       </span>
                     )}
@@ -260,7 +260,7 @@ export function BookDetailsManager({
                 {isExpanded && (
                   <div className="divide-y divide-gray-100">
                     {group.items.length === 0 ? (
-                      <div className="px-3 py-4 text-center text-sm text-gray-500">
+                      <div className="px-3 py-4 text-center text-sm text-gray-900">
                         중단원이 없습니다. "+ 중단원" 버튼을 클릭하여 추가하세요.
                       </div>
                     ) : (
@@ -283,7 +283,7 @@ export function BookDetailsManager({
                                   )
                                 }
                                 placeholder="중단원명을 입력하세요"
-                                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                               />
                             </div>
                             <div className="w-24">
@@ -299,10 +299,10 @@ export function BookDetailsManager({
                                 }
                                 min="0"
                                 placeholder="페이지"
-                                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                               />
                             </div>
-                            <div className="text-xs text-gray-500 min-w-[40px]">
+                            <div className="text-xs text-gray-900 min-w-[40px]">
                               {item.page_number ? `${item.page_number}p` : ""}
                             </div>
                           </div>

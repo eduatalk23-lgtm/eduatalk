@@ -180,7 +180,7 @@ export function MasterBookEditForm({
             name="title"
             required
             defaultValue={book.title}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -193,7 +193,7 @@ export function MasterBookEditForm({
             name="revision"
             value={curriculumRevisions.find(r => r.id === selectedRevisionId)?.name || book.revision || ""}
             onChange={handleCurriculumRevisionChange}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
             {curriculumRevisions.map((revision) => (
@@ -214,7 +214,7 @@ export function MasterBookEditForm({
           <input
             name="semester"
             defaultValue={book.semester || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -227,7 +227,7 @@ export function MasterBookEditForm({
             value={selectedGroupId}
             onChange={handleSubjectGroupChange}
             disabled={!selectedRevisionId || loadingGroups}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600"
           >
             <option value="">
               {loadingGroups
@@ -258,7 +258,7 @@ export function MasterBookEditForm({
             value={selectedSubjects.find(s => s.id === selectedSubjectId)?.name || ""}
             onChange={handleSubjectChange}
             disabled={!selectedGroupId || loadingGroups}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-600"
           >
             <option value="">선택하세요</option>
             {selectedSubjects.map((subject) => (
@@ -294,7 +294,7 @@ export function MasterBookEditForm({
                 publisherNameInput.value = selectedPublisher.name;
               }
             }}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
             {publishers.map((publisher) => (
@@ -317,7 +317,7 @@ export function MasterBookEditForm({
             name="author"
             defaultValue={book.author || ""}
             placeholder="저자명을 입력하세요"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -329,7 +329,7 @@ export function MasterBookEditForm({
           <select
             name="school_type"
             defaultValue={book.school_type || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
             <option value="MIDDLE">중학교</option>
@@ -346,7 +346,7 @@ export function MasterBookEditForm({
           <select
             name="grade_min"
             defaultValue={book.grade_min || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
             <option value="1">1학년</option>
@@ -363,7 +363,7 @@ export function MasterBookEditForm({
           <select
             name="grade_max"
             defaultValue={book.grade_max || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
             <option value="1">1학년</option>
@@ -382,7 +382,7 @@ export function MasterBookEditForm({
             type="number"
             min="1"
             defaultValue={book.total_pages || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -394,7 +394,7 @@ export function MasterBookEditForm({
           <select
             name="difficulty_level"
             defaultValue={book.difficulty_level || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="">선택하세요</option>
             <option value="개념">개념</option>
@@ -417,7 +417,7 @@ export function MasterBookEditForm({
                 defaultChecked={book.target_exam_type?.includes("수능")}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">수능</span>
+              <span className="text-sm text-gray-900">수능</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -427,7 +427,7 @@ export function MasterBookEditForm({
                 defaultChecked={book.target_exam_type?.includes("내신")}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">내신</span>
+              <span className="text-sm text-gray-900">내신</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -437,7 +437,7 @@ export function MasterBookEditForm({
                 defaultChecked={book.target_exam_type?.includes("모의고사")}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">모의고사</span>
+              <span className="text-sm text-gray-900">모의고사</span>
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -447,7 +447,7 @@ export function MasterBookEditForm({
                 defaultChecked={book.target_exam_type?.includes("특목고입시")}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">특목고입시</span>
+              <span className="text-sm text-gray-900">특목고입시</span>
             </label>
           </div>
           <p className="mt-1 text-xs text-gray-900">
@@ -464,7 +464,7 @@ export function MasterBookEditForm({
             name="tags"
             defaultValue={book.tags?.join(", ") || ""}
             placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <p className="mt-1 text-xs text-gray-900">
             쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다
@@ -481,7 +481,7 @@ export function MasterBookEditForm({
             type="url"
             defaultValue={book.cover_image_url || ""}
             placeholder="https://example.com/image.jpg"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           {book.cover_image_url && (
             <div className="mt-3">
@@ -511,7 +511,7 @@ export function MasterBookEditForm({
             name="notes"
             rows={3}
             defaultValue={book.notes || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
