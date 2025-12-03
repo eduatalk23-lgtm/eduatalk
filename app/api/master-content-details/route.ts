@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     if (contentType === "book") {
       try {
         const result = await getMasterBookById(contentId);
-        const { details } = result;
+        const { details, book } = result;
 
         if (includeMetadata) {
           const { data: bookData } = await supabase
@@ -65,11 +65,15 @@ export async function GET(request: NextRequest) {
 
           return apiSuccess({
             details: details || [],
+            total_pages: book?.total_pages || null,
             metadata: bookData || null,
           });
         }
 
-        return apiSuccess({ details: details || [] });
+        return apiSuccess({ 
+          details: details || [],
+          total_pages: book?.total_pages || null,
+        });
       } catch (error) {
         console.error("[api/master-content-details] 교재 조회 실패:", {
           contentId,
@@ -83,7 +87,7 @@ export async function GET(request: NextRequest) {
     } else if (contentType === "lecture") {
       try {
         const result = await getMasterLectureById(contentId);
-        const { episodes } = result;
+        const { episodes, lecture } = result;
 
         if (includeMetadata) {
           const { data: lectureData } = await supabase
@@ -94,11 +98,15 @@ export async function GET(request: NextRequest) {
 
           return apiSuccess({
             episodes: episodes || [],
+            total_episodes: lecture?.total_episodes || null,
             metadata: lectureData || null,
           });
         }
 
-        return apiSuccess({ episodes: episodes || [] });
+        return apiSuccess({ 
+          episodes: episodes || [],
+          total_episodes: lecture?.total_episodes || null,
+        });
       } catch (error) {
         console.error("[api/master-content-details] 강의 조회 실패:", {
           contentId,

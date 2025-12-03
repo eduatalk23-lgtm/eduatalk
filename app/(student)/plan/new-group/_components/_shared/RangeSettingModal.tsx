@@ -90,20 +90,6 @@ export function RangeSettingModal({
           ? "/api/master-content-details"
           : "/api/student-content-details";
 
-      // content.type 검증
-      if (content.type !== "book" && content.type !== "lecture") {
-        const errorMessage = `[RangeSettingModal] 잘못된 content.type: ${content.type}. contentId: ${content.id}, title: ${content.title}`;
-        console.error(errorMessage, {
-          contentType: content.type,
-          contentId: content.id,
-          title: content.title,
-          expectedValues: ["book", "lecture"],
-        });
-        setError(`지원하지 않는 콘텐츠 타입입니다. (${content.type})`);
-        setLoading(false);
-        return;
-      }
-
       // URL 파라미터 안전하게 생성
       const params = new URLSearchParams({
         contentType: content.type,
@@ -111,60 +97,21 @@ export function RangeSettingModal({
       });
       const url = `${apiPath}?${params.toString()}`;
 
-      // API 호출 전 로깅
-      console.log("[RangeSettingModal] API 호출 시작:", {
-        apiPath,
-        url,
-        contentType: content.type,
-        contentId: content.id,
-        isRecommendedContent,
-        content: {
-          id: content.id,
-          type: content.type,
-          title: content.title,
-        },
-      });
-
         const response = await fetch(url);
 
-        // 응답 상태 로깅
-        console.log("[RangeSettingModal] API 응답 상태:", {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok,
-          contentType: response.headers.get("content-type"),
-        });
-
-        // 응답 본문 읽기 (에러 처리 전에)
-        const responseText = await response.text();
-        let responseData: any = null;
-        
-        // 빈 응답 체크
-        if (!responseText || responseText.trim() === "") {
-          console.error("[RangeSettingModal] 빈 응답 수신:", {
-            status: response.status,
-            statusText: response.statusText,
-            url,
-            contentType: content.type,
-            contentId: content.id,
-          });
-          throw new Error(
-            response.status >= 500
-              ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-              : `서버에서 빈 응답을 받았습니다. (${response.status})`
-          );
-        }
-
+        // 응답 처리 단순화: .json() 직접 사용
+        let responseData: any;
         try {
-          responseData = JSON.parse(responseText);
+          responseData = await response.json();
         } catch (e) {
-          console.error("[RangeSettingModal] 응답 파싱 실패:", {
-            responseText: responseText.substring(0, 500),
-            error: e,
-            status: response.status,
-            statusText: response.statusText,
-            url,
-          });
+          if (process.env.NODE_ENV === "development") {
+            console.error("[RangeSettingModal] 응답 파싱 실패:", {
+              status: response.status,
+              statusText: response.statusText,
+              url,
+              error: e,
+            });
+          }
           throw new Error(
             response.status >= 500
               ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
@@ -181,19 +128,17 @@ export function RangeSettingModal({
               ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
               : `서버 오류가 발생했습니다. (${response.status})`);
           
-          console.error(
-            `[RangeSettingModal] API 호출 실패: ${apiPath}`,
-            {
+          if (process.env.NODE_ENV === "development") {
+            console.error(`[RangeSettingModal] API 호출 실패: ${apiPath}`, {
               status: response.status,
               statusText: response.statusText,
               contentType: content.type,
               contentId: content.id,
               isRecommendedContent,
               url,
-              responseData: responseData || null,
-              responseText: responseText.substring(0, 500), // 처음 500자만
-            }
-          );
+              responseData,
+            });
+          }
           throw new Error(errorMessage);
         }
         
@@ -205,36 +150,19 @@ export function RangeSettingModal({
               responseData.error?.code ||
               "상세 정보를 불러올 수 없습니다.";
             
-            console.error(
-              `[RangeSettingModal] API 응답 실패: ${apiPath}`,
-              {
+            if (process.env.NODE_ENV === "development") {
+              console.error(`[RangeSettingModal] API 응답 실패: ${apiPath}`, {
                 contentType: content.type,
                 contentId: content.id,
                 isRecommendedContent,
                 url,
                 error: responseData.error || {},
                 responseData,
-              }
-            );
+              });
+            }
             throw new Error(errorMessage);
           }
-        } else {
-          // 레거시 응답 형식 지원 (success 필드가 없는 경우)
-          console.warn("[RangeSettingModal] 레거시 응답 형식 감지:", {
-            url,
-            hasSuccess: 'success' in (responseData || {}),
-            responseDataKeys: responseData ? Object.keys(responseData) : [],
-          });
         }
-
-        console.log("[RangeSettingModal] API 응답 성공:", {
-          contentType: content.type,
-          contentId: content.id,
-          hasDetails: !!responseData.data?.details,
-          hasEpisodes: !!responseData.data?.episodes,
-          detailsCount: responseData.data?.details?.length || 0,
-          episodesCount: responseData.data?.episodes?.length || 0,
-        });
 
         // 콘텐츠 타입에 따라 details 또는 episodes 사용
         const detailsData = 
@@ -261,14 +189,6 @@ export function RangeSettingModal({
         } else {
           // 상세정보가 있으면 로그 플래그 리셋 (다음에 다시 없을 때 로그 출력 가능)
           hasLoggedNoDetails.current = false;
-          console.log("[RangeSettingModal] 상세정보 조회 성공:", {
-            type: "SUCCESS",
-            contentType: content.type,
-            contentId: content.id,
-            title: content.title,
-            detailsCount: detailsData.length,
-            isRecommendedContent,
-          });
         }
         
         setDetails(detailsData);
@@ -276,30 +196,11 @@ export function RangeSettingModal({
         // 캐시 저장
         cacheRef.current.set(content.id, detailsData);
 
-        // 상세 정보가 없을 때 총 페이지수/회차 조회
-        if (detailsData.length === 0) {
-          try {
-            const infoApiPath = isRecommendedContent
-              ? `/api/master-content-info?content_type=${content.type}&content_id=${content.id}`
-              : `/api/student-content-info?content_type=${content.type}&content_id=${content.id}`;
-            
-            const infoResponse = await fetch(infoApiPath);
-            if (infoResponse.ok) {
-              const infoResult = await infoResponse.json();
-              if (infoResult.success && infoResult.data) {
-                if (content.type === "book") {
-                  setTotalPages(infoResult.data.total_pages || null);
-                } else {
-                  setTotalEpisodes(infoResult.data.total_episodes || null);
-                }
-              }
-            }
-          } catch (infoError) {
-            // 총량 조회 실패는 무시 (직접 입력은 여전히 가능)
-            if (process.env.NODE_ENV === "development") {
-              console.debug("[RangeSettingModal] 총량 조회 실패 (무시 가능):", infoError);
-            }
-          }
+        // 총량 정보를 상세 정보 API 응답에서 직접 사용
+        if (content.type === "book") {
+          setTotalPages(responseData.data.total_pages || null);
+        } else {
+          setTotalEpisodes(responseData.data.total_episodes || null);
         }
       } catch (err) {
         const errorMessage = err instanceof Error

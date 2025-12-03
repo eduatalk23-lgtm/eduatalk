@@ -48,6 +48,26 @@ export async function GET(request: NextRequest) {
     if (contentType === "book") {
       const details = await getStudentBookDetails(contentId, targetStudentId);
 
+      // 총 페이지수 조회
+      const { data: studentBook } = await supabase
+        .from("books")
+        .select("total_pages, master_content_id")
+        .eq("id", contentId)
+        .eq("student_id", targetStudentId)
+        .maybeSingle();
+
+      let totalPages: number | null = studentBook?.total_pages || null;
+
+      // master_content_id가 있으면 마스터에서도 조회 (fallback)
+      if (!totalPages && studentBook?.master_content_id) {
+        const { data: masterBook } = await supabase
+          .from("master_books")
+          .select("total_pages")
+          .eq("id", studentBook.master_content_id)
+          .maybeSingle();
+        totalPages = masterBook?.total_pages || null;
+      }
+
       if (includeMetadata) {
         const { data: bookData } = await supabase
           .from("books")
@@ -58,13 +78,37 @@ export async function GET(request: NextRequest) {
 
         return apiSuccess({
           details,
+          total_pages: totalPages,
           metadata: bookData || null,
         });
       }
 
-      return apiSuccess({ details });
+      return apiSuccess({ 
+        details,
+        total_pages: totalPages,
+      });
     } else if (contentType === "lecture") {
       const episodes = await getStudentLectureEpisodes(contentId, targetStudentId);
+
+      // 총 회차 조회
+      const { data: studentLecture } = await supabase
+        .from("lectures")
+        .select("master_content_id")
+        .eq("id", contentId)
+        .eq("student_id", targetStudentId)
+        .maybeSingle();
+
+      let totalEpisodes: number | null = null;
+
+      // master_content_id가 있으면 마스터에서 조회
+      if (studentLecture?.master_content_id) {
+        const { data: masterLecture } = await supabase
+          .from("master_lectures")
+          .select("total_episodes")
+          .eq("id", studentLecture.master_content_id)
+          .maybeSingle();
+        totalEpisodes = masterLecture?.total_episodes || null;
+      }
 
       if (includeMetadata) {
         const { data: lectureData } = await supabase
@@ -76,11 +120,15 @@ export async function GET(request: NextRequest) {
 
         return apiSuccess({
           episodes,
+          total_episodes: totalEpisodes,
           metadata: lectureData || null,
         });
       }
 
-      return apiSuccess({ episodes });
+      return apiSuccess({ 
+        episodes,
+        total_episodes: totalEpisodes,
+      });
     } else {
       return apiBadRequest("지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요.");
     }
