@@ -315,7 +315,7 @@ export function UnifiedContentFilter({
       </div>
 
       {/* 출판사 (교재용) */}
-      {contentType === "book" && filterOptions.publishers && filterOptions.publishers.length > 0 && (
+      {contentType === "book" && (
         <div className="flex flex-col gap-1 min-w-[140px]">
           <label className="text-xs font-medium text-gray-700">출판사</label>
           <select
@@ -324,7 +324,7 @@ export function UnifiedContentFilter({
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.publishers.map((publisher) => (
+            {filterOptions.publishers?.map((publisher) => (
               <option key={publisher.id} value={publisher.id}>
                 {publisher.name}
               </option>
@@ -334,7 +334,7 @@ export function UnifiedContentFilter({
       )}
 
       {/* 플랫폼 (강의용) */}
-      {contentType === "lecture" && filterOptions.platforms && filterOptions.platforms.length > 0 && (
+      {contentType === "lecture" && (
         <div className="flex flex-col gap-1 min-w-[140px]">
           <label className="text-xs font-medium text-gray-700">플랫폼</label>
           <select
@@ -343,7 +343,7 @@ export function UnifiedContentFilter({
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.platforms.map((platform) => (
+            {filterOptions.platforms?.map((platform) => (
               <option key={platform.id} value={platform.id}>
                 {platform.name}
               </option>
@@ -367,7 +367,7 @@ export function UnifiedContentFilter({
       </div>
 
       {/* 난이도 */}
-      {showDifficulty && filterOptions.difficulties && filterOptions.difficulties.length > 0 && (
+      {showDifficulty && (
         <div className="flex flex-col gap-1 min-w-[120px]">
           <label className="text-xs font-medium text-gray-700">난이도</label>
           <select
@@ -376,7 +376,7 @@ export function UnifiedContentFilter({
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.difficulties.map((diff) => (
+            {filterOptions.difficulties?.map((diff) => (
               <option key={diff} value={diff}>
                 {diff}
               </option>
