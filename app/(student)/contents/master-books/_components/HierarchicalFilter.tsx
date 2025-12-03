@@ -236,17 +236,17 @@ export function HierarchicalFilter({
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-wrap items-end gap-4"
+      className="flex flex-wrap items-end gap-4 sm:gap-4"
     >
       {/* 개정교육과정 */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-[160px]">
         <label className="text-xs font-medium text-gray-700">
           개정교육과정
         </label>
         <select
           value={selectedCurriculumRevisionId}
           onChange={(e) => setSelectedCurriculumRevisionId(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         >
           <option value="">전체</option>
           {curriculumRevisions.map((rev) => (
@@ -258,12 +258,12 @@ export function HierarchicalFilter({
       </div>
 
       {/* 교과 */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-[140px]">
         <label className="text-xs font-medium text-gray-700">교과</label>
         <select
           value={selectedSubjectGroupId}
           onChange={(e) => setSelectedSubjectGroupId(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
           disabled={!selectedCurriculumRevisionId || loadingGroups}
         >
           <option value="">전체</option>
@@ -280,12 +280,12 @@ export function HierarchicalFilter({
       </div>
 
       {/* 과목 */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-[140px]">
         <label className="text-xs font-medium text-gray-700">과목</label>
         <select
           value={selectedSubjectId}
           onChange={(e) => setSelectedSubjectId(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
           disabled={!selectedSubjectGroupId || loadingSubjects}
         >
           <option value="">전체</option>
@@ -303,12 +303,12 @@ export function HierarchicalFilter({
 
       {/* 출판사 (교재용) */}
       {contentType === "book" && publishers.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 min-w-[140px]">
           <label className="text-xs font-medium text-gray-700">출판사</label>
           <select
             value={selectedPublisherId}
             onChange={(e) => setSelectedPublisherId(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
             {publishers.map((publisher) => (
@@ -322,12 +322,12 @@ export function HierarchicalFilter({
 
       {/* 플랫폼 (강의용) */}
       {contentType === "lecture" && platforms.length > 0 && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 min-w-[140px]">
           <label className="text-xs font-medium text-gray-700">플랫폼</label>
           <select
             value={selectedPlatformId}
             onChange={(e) => setSelectedPlatformId(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
             {platforms.map((platform) => (
@@ -340,7 +340,7 @@ export function HierarchicalFilter({
       )}
 
       {/* 제목 검색 */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 min-w-[200px] flex-1 max-w-[300px]">
         <label className="text-xs font-medium text-gray-700">
           제목 검색
         </label>
@@ -349,7 +349,7 @@ export function HierarchicalFilter({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
