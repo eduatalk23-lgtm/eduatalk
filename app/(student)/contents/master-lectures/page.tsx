@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterLectures, getPlatformsForFilter } from "@/lib/data/contentMasters";
+import { searchMasterLectures, getPlatformsForFilter, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { secondsToMinutes } from "@/lib/utils/duration";
@@ -14,21 +13,17 @@ async function getCachedFilterOptions() {
   const getCached = unstable_cache(
     async () => {
       const [curriculumRevisions, platforms] = await Promise.all([
-        (async () => {
-          const supabase = createSupabasePublicClient();
-          const { data } = await supabase
-            .from("curriculum_revisions")
-            .select("id, name")
-            .order("name", { ascending: true });
-          return (data || []).map((item) => ({
-            id: item.id,
-            name: item.name,
-          }));
-        })(),
+        getCurriculumRevisions(),
         getPlatformsForFilter(),
       ]);
 
-      return { curriculumRevisions, platforms };
+      return { 
+        curriculumRevisions: curriculumRevisions.map((rev) => ({
+          id: rev.id,
+          name: rev.name,
+        })), 
+        platforms 
+      };
     },
     ["master-lectures-filter-options"],
     {

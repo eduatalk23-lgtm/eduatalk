@@ -2,9 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
+import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterBooks, getPublishersForFilter } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getPublishersForFilter, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { HierarchicalFilter } from "./_components/HierarchicalFilter";
@@ -14,21 +14,17 @@ async function getCachedFilterOptions() {
   const getCached = unstable_cache(
     async () => {
       const [curriculumRevisions, publishers] = await Promise.all([
-        (async () => {
-          const supabase = createSupabasePublicClient();
-          const { data } = await supabase
-            .from("curriculum_revisions")
-            .select("id, name")
-            .order("name", { ascending: true });
-          return (data || []).map((item) => ({
-            id: item.id,
-            name: item.name,
-          }));
-        })(),
+        getCurriculumRevisions(),
         getPublishersForFilter(),
       ]);
 
-      return { curriculumRevisions, publishers };
+      return { 
+        curriculumRevisions: curriculumRevisions.map((rev) => ({
+          id: rev.id,
+          name: rev.name,
+        })), 
+        publishers 
+      };
     },
     ["master-books-filter-options"],
     {
