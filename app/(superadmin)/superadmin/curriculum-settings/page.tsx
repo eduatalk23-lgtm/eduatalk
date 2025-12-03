@@ -13,7 +13,7 @@ export default async function CurriculumSettingsPage() {
   }
 
   return (
-    <div className="p-6 md:p-10">
+    <div className="bg-white dark:bg-gray-900 p-6 md:p-10">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">교육과정 설정</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
