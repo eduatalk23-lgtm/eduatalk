@@ -210,4 +210,3 @@ const episodesMap = await getStudentLectureEpisodesBatch(lectureIds, studentId);
 - ✅ Phase 2: 배치 조회 함수 추가
 - ✅ Phase 3: 배치 API 엔드포인트 생성 및 통합
 - ⏸️ Phase 4: React Query 도입 (선택적, 미구현)
-

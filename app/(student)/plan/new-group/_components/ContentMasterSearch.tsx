@@ -19,6 +19,8 @@ export function ContentMasterSearch({
   const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
   const [subjectGroupId, setSubjectGroupId] = useState("");
   const [subjectId, setSubjectId] = useState("");
+  const [publisherId, setPublisherId] = useState("");
+  const [platformId, setPlatformId] = useState("");
   const [results, setResults] = useState<ContentMaster[]>([]);
   const [isSearching, startSearch] = useTransition();
   const [copyingId, setCopyingId] = useState<string | null>(null);
@@ -26,6 +28,8 @@ export function ContentMasterSearch({
   const [subjectGroups, setSubjectGroups] = useState<Array<{ id: string; name: string }>>([]);
   // 교과별 과목을 Map으로 관리 (교과 ID → 과목 목록)
   const [subjectsMap, setSubjectsMap] = useState<Map<string, Array<{ id: string; name: string }>>>(new Map());
+  const [publishers, setPublishers] = useState<Array<{ id: string; name: string }>>([]);
+  const [platforms, setPlatforms] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
 
@@ -34,19 +38,32 @@ export function ContentMasterSearch({
     ? subjectsMap.get(subjectGroupId) || []
     : [];
 
-  // 개정교육과정 목록 로드
+  // 개정교육과정, 출판사, 플랫폼 목록 로드
   useEffect(() => {
-    fetch("/api/curriculum-revisions")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setCurriculumRevisions(data.data || []);
+    Promise.all([
+      fetch("/api/curriculum-revisions").then((res) => res.json()),
+      contentType === "book" 
+        ? fetch("/api/publishers").then((res) => res.json())
+        : Promise.resolve({ success: true, data: [] }),
+      contentType === "lecture"
+        ? fetch("/api/platforms").then((res) => res.json())
+        : Promise.resolve({ success: true, data: [] }),
+    ])
+      .then(([revisionsRes, publishersRes, platformsRes]) => {
+        if (revisionsRes.success) {
+          setCurriculumRevisions(revisionsRes.data || []);
+        }
+        if (publishersRes.success) {
+          setPublishers(publishersRes.data || []);
+        }
+        if (platformsRes.success) {
+          setPlatforms(platformsRes.data || []);
         }
       })
       .catch((err) => {
-        console.error("개정교육과정 목록 로드 실패:", err);
+        console.error("필터 옵션 로드 실패:", err);
       });
-  }, []);
+  }, [contentType]);
 
   // 개정교육과정 변경 시 교과와 과목 목록 병렬 로드
   useEffect(() => {
@@ -108,7 +125,7 @@ export function ContentMasterSearch({
   };
 
   const handleSearch = () => {
-    if (!searchQuery.trim() && !curriculumRevisionId && !subjectGroupId && !subjectId) {
+    if (!searchQuery.trim() && !curriculumRevisionId && !subjectGroupId && !subjectId && !publisherId && !platformId) {
       return;
     }
 
@@ -119,6 +136,8 @@ export function ContentMasterSearch({
           curriculum_revision_id: curriculumRevisionId || undefined,
           subject_group_id: subjectGroupId || undefined,
           subject_id: subjectId || undefined,
+          publisher_id: contentType === "book" ? (publisherId || undefined) : undefined,
+          platform_id: contentType === "lecture" ? (platformId || undefined) : undefined,
           search: searchQuery.trim() || undefined,
           limit: 20,
         });
@@ -257,6 +276,46 @@ export function ContentMasterSearch({
                 )}
               </select>
             </div>
+            {/* 출판사 (교재용) */}
+            {contentType === "book" && publishers.length > 0 && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  출판사
+                </label>
+                <select
+                  value={publisherId}
+                  onChange={(e) => setPublisherId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                >
+                  <option value="">전체</option>
+                  {publishers.map((publisher) => (
+                    <option key={publisher.id} value={publisher.id}>
+                      {publisher.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* 플랫폼 (강의용) */}
+            {contentType === "lecture" && platforms.length > 0 && (
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-800">
+                  플랫폼
+                </label>
+                <select
+                  value={platformId}
+                  onChange={(e) => setPlatformId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                >
+                  <option value="">전체</option>
+                  {platforms.map((platform) => (
+                    <option key={platform.id} value={platform.id}>
+                      {platform.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <button
             type="button"

@@ -18,13 +18,26 @@ type Subject = {
   name: string;
 };
 
+type Publisher = {
+  id: string;
+  name: string;
+};
+
+type Platform = {
+  id: string;
+  name: string;
+};
+
 type HierarchicalFilterProps = {
   curriculumRevisions: CurriculumRevision[];
   initialCurriculumRevisionId?: string;
   initialSubjectGroupId?: string;
   initialSubjectId?: string;
-  semesters: string[];
-  initialSemester?: string;
+  publishers?: Publisher[]; // 교재용
+  platforms?: Platform[]; // 강의용
+  initialPublisherId?: string; // 교재용
+  initialPlatformId?: string; // 강의용
+  contentType?: "book" | "lecture"; // 교재/강의 구분
   searchQuery?: string;
   basePath?: string;
 };
@@ -34,8 +47,11 @@ export function HierarchicalFilter({
   initialCurriculumRevisionId,
   initialSubjectGroupId,
   initialSubjectId,
-  semesters,
-  initialSemester,
+  publishers = [],
+  platforms = [],
+  initialPublisherId,
+  initialPlatformId,
+  contentType = "book",
   searchQuery = "",
   basePath = "/contents/master-books",
 }: HierarchicalFilterProps) {
@@ -49,7 +65,8 @@ export function HierarchicalFilter({
     initialSubjectGroupId || ""
   );
   const [selectedSubjectId, setSelectedSubjectId] = useState(initialSubjectId || "");
-  const [selectedSemester, setSelectedSemester] = useState(initialSemester || "");
+  const [selectedPublisherId, setSelectedPublisherId] = useState(initialPublisherId || "");
+  const [selectedPlatformId, setSelectedPlatformId] = useState(initialPlatformId || "");
   const [search, setSearch] = useState(searchQuery);
 
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
@@ -199,8 +216,11 @@ export function HierarchicalFilter({
     if (selectedSubjectId) {
       params.set("subject_id", selectedSubjectId);
     }
-    if (selectedSemester) {
-      params.set("semester", selectedSemester);
+    if (contentType === "book" && selectedPublisherId) {
+      params.set("publisher_id", selectedPublisherId);
+    }
+    if (contentType === "lecture" && selectedPlatformId) {
+      params.set("platform_id", selectedPlatformId);
     }
     if (search.trim()) {
       params.set("search", search.trim());
@@ -281,24 +301,43 @@ export function HierarchicalFilter({
         </select>
       </div>
 
-      {/* 학년/학기 */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">
-          학년/학기
-        </label>
-        <select
-          value={selectedSemester}
-          onChange={(e) => setSelectedSemester(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">전체</option>
-          {semesters.map((sem) => (
-            <option key={sem} value={sem}>
-              {sem}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* 출판사 (교재용) */}
+      {contentType === "book" && publishers.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-700">출판사</label>
+          <select
+            value={selectedPublisherId}
+            onChange={(e) => setSelectedPublisherId(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">전체</option>
+            {publishers.map((publisher) => (
+              <option key={publisher.id} value={publisher.id}>
+                {publisher.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* 플랫폼 (강의용) */}
+      {contentType === "lecture" && platforms.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-700">플랫폼</label>
+          <select
+            value={selectedPlatformId}
+            onChange={(e) => setSelectedPlatformId(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">전체</option>
+            {platforms.map((platform) => (
+              <option key={platform.id} value={platform.id}>
+                {platform.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* 제목 검색 */}
       <div className="flex flex-col gap-1">
@@ -309,7 +348,7 @@ export function HierarchicalFilter({
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="교재명 입력"
+          placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>

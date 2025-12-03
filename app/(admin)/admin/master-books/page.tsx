@@ -3,7 +3,7 @@ import Image from "next/image";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { searchMasterBooks, getCurriculumRevisions } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getCurriculumRevisions, getPublishersForFilter } from "@/lib/data/contentMasters";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import ExcelActions from "./_components/ExcelActions";
 import { HierarchicalFilter } from "@/app/(student)/contents/master-books/_components/HierarchicalFilter";
@@ -28,7 +28,7 @@ export default async function MasterBooksPage({
     curriculum_revision_id: params.curriculum_revision_id,
     subject_group_id: params.subject_group_id,
     subject_id: params.subject_id,
-    semester: params.semester,
+    publisher_id: params.publisher_id,
     search: params.search,
     tenantId, // 테넌트 ID 추가
     limit: 50,
@@ -36,30 +36,11 @@ export default async function MasterBooksPage({
 
   const { data: books, total } = await searchMasterBooks(filters);
 
-  // 필터 옵션 조회 (드롭다운용) - tenantId 고려
-  const buildFilterQuery = (column: string) => {
-    let query = supabase
-      .from("master_books")
-      .select(column)
-      .not(column, "is", null);
-    
-    if (tenantId) {
-      query = query.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
-    } else {
-      query = query.is("tenant_id", null);
-    }
-    
-    return query;
-  };
-
-  const [semestersRes, curriculumRevisions] = await Promise.all([
-    buildFilterQuery("semester"),
+  // 필터 옵션 조회 (드롭다운용)
+  const [curriculumRevisions, publishers] = await Promise.all([
     getCurriculumRevisions(),
+    getPublishersForFilter(),
   ]);
-  
-  const semesters = Array.from(
-    new Set((semestersRes.data || []).map((item: any) => item.semester).filter(Boolean))
-  ).sort();
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -95,8 +76,9 @@ export default async function MasterBooksPage({
             initialCurriculumRevisionId={params.curriculum_revision_id}
             initialSubjectGroupId={params.subject_group_id}
             initialSubjectId={params.subject_id}
-            semesters={semesters}
-            initialSemester={params.semester}
+            publishers={publishers}
+            initialPublisherId={params.publisher_id}
+            contentType="book"
             searchQuery={params.search}
             basePath="/admin/master-books"
           />

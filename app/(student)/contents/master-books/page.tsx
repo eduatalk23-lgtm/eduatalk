@@ -4,36 +4,32 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { searchMasterBooks, getCurriculumRevisions } from "@/lib/data/contentMasters";
+import { searchMasterBooks, getPublishersForFilter } from "@/lib/data/contentMasters";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
-import { cookies } from "next/headers";
 import { HierarchicalFilter } from "./_components/HierarchicalFilter";
 
 // 필터 옵션 조회 함수 (캐싱 적용)
 async function getCachedFilterOptions() {
   const getCached = unstable_cache(
     async () => {
-      const supabase = createSupabasePublicClient();
-      
-      const [semestersRes, curriculumRevisions] = await Promise.all([
-        supabase
-          .from("master_books")
-          .select("semester")
-          .is("tenant_id", null)
-          .not("semester", "is", null),
-        getCurriculumRevisions(),
+      const [curriculumRevisions, publishers] = await Promise.all([
+        (async () => {
+          const supabase = createSupabasePublicClient();
+          const { data } = await supabase
+            .from("curriculum_revisions")
+            .select("id, name")
+            .eq("is_active", true)
+            .order("name", { ascending: true });
+          return (data || []).map((item) => ({
+            id: item.id,
+            name: item.name,
+          }));
+        })(),
+        getPublishersForFilter(),
       ]);
 
-      const semesters = Array.from(
-        new Set(
-          (semestersRes.data || [])
-            .map((item) => item.semester)
-            .filter(Boolean)
-        )
-      ).sort() as string[];
-
-      return { semesters, curriculumRevisions };
+      return { curriculumRevisions, publishers };
     },
     ["master-books-filter-options"],
     {
@@ -53,7 +49,7 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
         filters.curriculum_revision_id || "",
         filters.subject_group_id || "",
         filters.subject_id || "",
-        filters.semester || "",
+        filters.publisher_id || "",
         filters.search || "",
         filters.limit || 50,
       ].join("-");
@@ -78,8 +74,8 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
       if (filters.subject_id) {
         query = query.eq("subject_id", filters.subject_id);
       }
-      if (filters.semester) {
-        query = query.eq("semester", filters.semester);
+      if (filters.publisher_id) {
+        query = query.eq("publisher_id", filters.publisher_id);
       }
       if (filters.search) {
         query = query.ilike("title", `%${filters.search}%`);
@@ -143,7 +139,7 @@ function FilterFormWrapper({
   filterOptions,
 }: {
   params: Record<string, string | undefined>;
-  filterOptions: { semesters: string[]; curriculumRevisions: Array<{ id: string; name: string }> };
+  filterOptions: { curriculumRevisions: Array<{ id: string; name: string }>; publishers: Array<{ id: string; name: string }> };
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -152,8 +148,9 @@ function FilterFormWrapper({
         initialCurriculumRevisionId={params.curriculum_revision_id}
         initialSubjectGroupId={params.subject_group_id}
         initialSubjectId={params.subject_id}
-        semesters={filterOptions.semesters}
-        initialSemester={params.semester}
+        publishers={filterOptions.publishers}
+        initialPublisherId={params.publisher_id}
+        contentType="book"
         searchQuery={params.search}
       />
     </div>
@@ -175,7 +172,7 @@ export default async function StudentMasterBooksPage({
     curriculum_revision_id: params.curriculum_revision_id,
     subject_group_id: params.subject_group_id,
     subject_id: params.subject_id,
-    semester: params.semester,
+    publisher_id: params.publisher_id,
     search: params.search,
     limit: 50,
   };

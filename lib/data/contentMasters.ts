@@ -20,7 +20,7 @@ export type MasterBookFilters = {
   curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
   subject_group_id?: string; // 교과 그룹 ID로 필터링
   subject_id?: string; // 과목 ID로 필터링
-  semester?: string;
+  publisher_id?: string; // 출판사 ID로 필터링
   search?: string; // 제목 검색
   tenantId?: string | null;
   limit?: number;
@@ -34,7 +34,7 @@ export type MasterLectureFilters = {
   curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
   subject_group_id?: string; // 교과 그룹 ID로 필터링
   subject_id?: string; // 과목 ID로 필터링
-  semester?: string;
+  platform_id?: string; // 플랫폼 ID로 필터링
   search?: string; // 제목 검색
   tenantId?: string | null;
   limit?: number;
@@ -50,7 +50,8 @@ export type ContentMasterFilters = {
   curriculum_revision_id?: string;
   subject_group_id?: string;
   subject_id?: string;
-  semester?: string;
+  publisher_id?: string; // 교재용
+  platform_id?: string; // 강의용
   search?: string;
   tenantId?: string | null;
   limit?: number;
@@ -86,8 +87,8 @@ export async function searchMasterBooks(
   if (filters.subject_id) {
     query = query.eq("subject_id", filters.subject_id);
   }
-  if (filters.semester) {
-    query = query.eq("semester", filters.semester);
+  if (filters.publisher_id) {
+    query = query.eq("publisher_id", filters.publisher_id);
   }
   if (filters.search) {
     query = query.ilike("title", `%${filters.search}%`);
@@ -127,7 +128,7 @@ export async function searchMasterBooks(
       curriculum_revision_id: filters.curriculum_revision_id,
       subject_group_id: filters.subject_group_id,
       subject_id: filters.subject_id,
-      semester: filters.semester,
+      publisher_id: filters.publisher_id,
       tenantId: filters.tenantId,
       limit: filters.limit,
     },
@@ -349,8 +350,8 @@ export async function searchMasterLectures(
   if (filters.subject_id) {
     query = query.eq("subject_id", filters.subject_id);
   }
-  if (filters.semester) {
-    query = query.eq("semester", filters.semester);
+  if (filters.platform_id) {
+    query = query.eq("platform_id", filters.platform_id);
   }
   if (filters.search) {
     query = query.ilike("title", `%${filters.search}%`);
@@ -390,7 +391,7 @@ export async function searchMasterLectures(
       curriculum_revision_id: filters.curriculum_revision_id,
       subject_group_id: filters.subject_group_id,
       subject_id: filters.subject_id,
-      semester: filters.semester,
+      platform_id: filters.platform_id,
       tenantId: filters.tenantId,
       limit: filters.limit,
     },
@@ -877,6 +878,7 @@ export async function getSubjectList(
 
 /**
  * 학기 목록 조회
+ * @deprecated 학년/학기 필터는 더 이상 사용하지 않습니다.
  */
 export async function getSemesterList(): Promise<string[]> {
   const supabase = await createSupabaseServerClient();
@@ -894,6 +896,50 @@ export async function getSemesterList(): Promise<string[]> {
   const semesters = Array.from(new Set(allSemesters.filter(Boolean))).sort();
 
   return semesters as string[];
+}
+
+/**
+ * 출판사 목록 조회 (필터 옵션용)
+ * 활성화된 출판사만 반환
+ */
+export async function getPublishersForFilter(): Promise<Array<{ id: string; name: string }>> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("publishers")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[data/contentMasters] 출판사 목록 조회 실패", error);
+    return [];
+  }
+
+  return (data as Array<{ id: string; name: string }> | null) ?? [];
+}
+
+/**
+ * 플랫폼 목록 조회 (필터 옵션용)
+ * 활성화된 플랫폼만 반환
+ */
+export async function getPlatformsForFilter(): Promise<Array<{ id: string; name: string }>> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("platforms")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[data/contentMasters] 플랫폼 목록 조회 실패", error);
+    return [];
+  }
+
+  return (data as Array<{ id: string; name: string }> | null) ?? [];
 }
 
 // ============================================
