@@ -1419,12 +1419,26 @@ export async function getStudentBookDetailsBatch(
 
   // 성능 로깅 (개발 환경에서만)
   if (process.env.NODE_ENV === "development") {
+    const resultCount = data?.length || 0;
+    const emptyBookIds = bookIds.filter((bookId) => !resultMap.has(bookId) || resultMap.get(bookId)!.length === 0);
+    
     console.log("[getStudentBookDetailsBatch] 쿼리 성능:", {
       bookCount: bookIds.length,
-      resultCount: data?.length || 0,
+      resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
       avgTimePerBook: bookIds.length > 0 ? `${(queryTime / bookIds.length).toFixed(2)}ms` : "N/A",
+      emptyBookCount: emptyBookIds.length,
+      emptyBookIds: emptyBookIds.length > 0 ? emptyBookIds : undefined,
     });
+    
+    // 목차가 없는 교재가 있는 경우 추가 로깅
+    if (emptyBookIds.length > 0) {
+      console.debug("[getStudentBookDetailsBatch] 목차가 없는 교재:", {
+        count: emptyBookIds.length,
+        bookIds: emptyBookIds,
+        reason: "student_book_details 테이블에 해당 교재의 목차 정보가 없습니다.",
+      });
+    }
   }
 
   // 결과를 bookId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
@@ -1487,12 +1501,26 @@ export async function getStudentLectureEpisodesBatch(
 
   // 성능 로깅 (개발 환경에서만)
   if (process.env.NODE_ENV === "development") {
+    const resultCount = data?.length || 0;
+    const emptyLectureIds = lectureIds.filter((lectureId) => !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0);
+    
     console.log("[getStudentLectureEpisodesBatch] 쿼리 성능:", {
       lectureCount: lectureIds.length,
-      resultCount: data?.length || 0,
+      resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
       avgTimePerLecture: lectureIds.length > 0 ? `${(queryTime / lectureIds.length).toFixed(2)}ms` : "N/A",
+      emptyLectureCount: emptyLectureIds.length,
+      emptyLectureIds: emptyLectureIds.length > 0 ? emptyLectureIds : undefined,
     });
+    
+    // 회차가 없는 강의가 있는 경우 추가 로깅
+    if (emptyLectureIds.length > 0) {
+      console.debug("[getStudentLectureEpisodesBatch] 회차가 없는 강의:", {
+        count: emptyLectureIds.length,
+        lectureIds: emptyLectureIds,
+        reason: "student_lecture_episodes 테이블에 해당 강의의 회차 정보가 없습니다.",
+      });
+    }
   }
 
   // 결과를 lectureId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)

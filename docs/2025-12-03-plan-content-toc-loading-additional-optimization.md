@@ -15,11 +15,13 @@
 **파일**: `app/(student)/plan/new-group/_components/Step3Contents.tsx` (164줄, 212줄)
 
 **변경사항**:
+
 - `includeMetadata: true` → `false`로 변경
 - 목차 로딩에 불필요한 메타데이터 조회 제거
 - 추가 쿼리 2개(books, lectures 테이블) 제거
 
 **주요 변경사항**:
+
 - 배치 API 호출 시 `includeMetadata: false` 설정
 - 폴백 개별 API 호출 시에도 `includeMetadata=false` 설정
 
@@ -30,6 +32,7 @@
 **파일**: `app/(student)/plan/new-group/_components/Step3Contents.tsx`
 
 **변경사항**:
+
 - 배치 API 호출 전후 시간 측정
 - 각 단계별 소요 시간 기록:
   - 타입 확인 시간
@@ -40,6 +43,7 @@
 - 개발 환경에서만 콘솔 로그 출력
 
 **주요 변경사항**:
+
 - `performance.now()`를 사용한 정밀 시간 측정
 - 배치 API 성공/실패 시 각각 다른 로깅
 - 콘텐츠 개수별 평균 시간 계산
@@ -51,11 +55,13 @@
 **파일**: `lib/data/contentMasters.ts` (1403-1413줄, 1457-1467줄)
 
 **변경사항**:
+
 - 쿼리 실행 시간 측정 추가
 - 개발 환경에서 쿼리 성능 로깅
 - 결과 개수 및 평균 시간 계산
 
 **주요 변경사항**:
+
 - `getStudentBookDetailsBatch()` 함수에 성능 로깅 추가
 - `getStudentLectureEpisodesBatch()` 함수에 성능 로깅 추가
 - 쿼리 실행 시간, 결과 개수, 콘텐츠당 평균 시간 로깅
@@ -67,11 +73,13 @@
 **파일**: `app/(student)/plan/new-group/_components/Step3Contents.tsx`
 
 **변경사항**:
+
 - 배치 API 사용 여부 명확히 표시
 - 폴백 발생 시 상세 정보 로깅
 - 응답 상태 코드 및 상태 텍스트 로깅
 
 **주요 변경사항**:
+
 - 배치 API 성공 시 `apiUsed: "batch"` 표시
 - 폴백 발생 시 응답 상태 코드 및 상태 텍스트 로깅
 - 콘텐츠당 평균 시간 계산
@@ -81,6 +89,7 @@
 ## 성능 로깅 예시
 
 ### 배치 API 성공 시
+
 ```
 [Step3Contents] 배치 API 성능 측정: {
   contentCount: 1,
@@ -95,6 +104,7 @@
 ```
 
 ### 데이터베이스 쿼리 성능
+
 ```
 [getStudentBookDetailsBatch] 쿼리 성능: {
   bookCount: 1,
@@ -105,6 +115,7 @@
 ```
 
 ### 폴백 발생 시
+
 ```
 [Step3Contents] 배치 API 실패, 개별 API로 폴백 {
   status: 500,
@@ -117,14 +128,15 @@
 
 ### 예상 성능 지표
 
-| 단계 | 현재 (1개) | 개선 후 | 절감 |
-|------|-----------|---------|------|
-| Phase 5 | 3-5초 | 2.85-4.85초 | 50-150ms |
+| 단계    | 현재 (1개)  | 개선 후     | 절감      |
+| ------- | ----------- | ----------- | --------- |
+| Phase 5 | 3-5초       | 2.85-4.85초 | 50-150ms  |
 | Phase 6 | 2.85-4.85초 | 2.85-4.85초 | 측정 가능 |
-| Phase 7 | 2.85-4.85초 | 2.85-4.85초 | 모니터링 |
+| Phase 7 | 2.85-4.85초 | 2.85-4.85초 | 모니터링  |
 | Phase 8 | 2.85-4.85초 | 2.85-4.85초 | 분석 가능 |
 
 **주요 개선 사항**:
+
 1. **메타데이터 조회 제거**: 불필요한 쿼리 2개 제거
 2. **성능 모니터링**: 실제 병목 지점 파악 가능
 3. **쿼리 성능 측정**: 데이터베이스 쿼리 성능 확인 가능
@@ -168,11 +180,13 @@
 성능 로깅 결과를 기반으로 추가 최적화 방향 결정:
 
 1. **네트워크 지연이 주요 원인인 경우**:
+
    - API 응답 압축
    - CDN 활용
    - 캐싱 전략 개선
 
 2. **데이터베이스 쿼리가 주요 원인인 경우**:
+
    - 쿼리 실행 계획 분석 (EXPLAIN)
    - 인덱스 최적화
    - 쿼리 구조 개선
@@ -186,8 +200,36 @@
 
 ### 수정된 파일
 
-- `app/(student)/plan/new-group/_components/Step3Contents.tsx` (Phase 5, 6, 8)
-- `lib/data/contentMasters.ts` (Phase 7)
+- `app/(student)/plan/new-group/_components/Step3Contents.tsx` (Phase 5, 6, 8, 9)
+- `lib/data/contentMasters.ts` (Phase 7, 9)
+
+### Phase 9: 상세정보 없음 디버깅 로그 추가 (우선순위 5)
+
+**파일**: `app/(student)/plan/new-group/_components/Step3Contents.tsx`, `lib/data/contentMasters.ts`
+
+**문제점**:
+
+- 목차 정보가 없는 경우 원인 파악 어려움
+- 데이터베이스에 실제로 데이터가 없는지, 조회가 실패했는지 구분 불가
+- 배치 API 응답에서 contentData가 없는 경우 추적 어려움
+
+**해결방안**:
+
+- 배치 API 응답 처리 시 상세정보가 없는 경우 상세 로깅 추가
+- 데이터베이스 쿼리 결과에서 목차/회차가 없는 콘텐츠 ID 목록 로깅
+- contentData가 없는 경우 경고 로깅 추가
+
+**변경사항**:
+
+- `Step3Contents.tsx`: 배치 API 응답 처리 시 상세정보 없음 로깅 추가
+- `getStudentBookDetailsBatch()`: 목차가 없는 교재 ID 목록 로깅 추가
+- `getStudentLectureEpisodesBatch()`: 회차가 없는 강의 ID 목록 로깅 추가
+
+**주요 변경사항**:
+
+- 배치 API 응답에서 `details.length === 0`인 경우 상세 정보 로깅
+- 데이터베이스 쿼리 결과에서 빈 배열인 콘텐츠 ID 목록 로깅
+- 개발 환경에서만 활성화하여 프로덕션 성능에 영향 없음
 
 ## 완료 상태
 
@@ -195,4 +237,4 @@
 - ✅ Phase 6: 성능 로깅 추가
 - ✅ Phase 7: 데이터베이스 쿼리 최적화 확인
 - ✅ Phase 8: 네트워크 요청 최적화 확인
-
+- ✅ Phase 9: 상세정보 없음 디버깅 로그 추가

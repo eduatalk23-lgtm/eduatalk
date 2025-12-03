@@ -198,6 +198,21 @@ export function Step3Contents({
                       type: "lecture" as const,
                     };
 
+              // 상세정보가 없는 경우 로깅 (개발 환경에서만)
+              if (process.env.NODE_ENV === "development" && detailData.details.length === 0) {
+                console.debug("[Step3Contents] 배치 API 응답: 상세정보 없음", {
+                  type: "NO_DETAILS",
+                  contentType,
+                  contentId,
+                  hasContentData: !!contentData,
+                  hasDetails: !!contentData.details,
+                  hasEpisodes: !!contentData.episodes,
+                  detailsLength: contentData.details?.length || 0,
+                  episodesLength: contentData.episodes?.length || 0,
+                  reason: "배치 API 응답에서 목차/회차 정보가 비어있습니다.",
+                });
+              }
+
               // 캐시에 저장
               cachedDetailsRef.current.set(contentId, detailData);
               newDetails.set(contentId, detailData);
@@ -208,6 +223,16 @@ export function Step3Contents({
                   const newMap = new Map(prev);
                   newMap.set(contentId, contentData.metadata);
                   return newMap;
+                });
+              }
+            } else {
+              // contentData가 없는 경우 로깅
+              if (process.env.NODE_ENV === "development") {
+                console.warn("[Step3Contents] 배치 API 응답: contentData 없음", {
+                  contentType,
+                  contentId,
+                  batchDataKeys: Object.keys(batchData || {}),
+                  hasContentData: !!batchData[contentId],
                 });
               }
             }
