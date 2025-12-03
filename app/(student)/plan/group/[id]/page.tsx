@@ -15,6 +15,7 @@ import {
   statusLabels,
   statusColors,
 } from "@/lib/constants/planLabels";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -358,8 +359,10 @@ export default async function PlanGroupDetailPage({
   }
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
-      <div className="flex flex-col gap-6">
+    <>
+      <ScrollToTop />
+      <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
+        <div className="flex flex-col gap-6">
         {/* 상단 액션 바 */}
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <Link
@@ -536,5 +539,6 @@ export default async function PlanGroupDetailPage({
         </div>
       </div>
     </section>
+    </>
   );
 }

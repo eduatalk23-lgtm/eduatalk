@@ -56,7 +56,7 @@ export function PlanGroupDeleteDialog({
         toast.showSuccess("플랜 그룹이 삭제되었습니다.");
         onOpenChange(false);
         // 삭제 후 목록 페이지로 이동 및 새로고침
-        router.push("/plan");
+        router.push("/plan", { scroll: true });
         router.refresh();
       } catch (error) {
         toast.showError(

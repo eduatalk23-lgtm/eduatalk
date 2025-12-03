@@ -43,7 +43,7 @@ export function PlanGroupActivationDialog({
         onOpenChange(false);
         router.refresh();
         // 활성화 후 플랜 그룹 상세 페이지로 이동
-        router.push(`/plan/group/${groupId}`);
+        router.push(`/plan/group/${groupId}`, { scroll: true });
       } catch (error) {
         toast.showError(
           error instanceof Error
@@ -63,7 +63,7 @@ export function PlanGroupActivationDialog({
         onOpenChange(false);
         router.refresh();
         // 저장 후 플랜 그룹 상세 페이지로 이동
-        router.push(`/plan/group/${groupId}`);
+        router.push(`/plan/group/${groupId}`, { scroll: true });
       } catch (error) {
         toast.showError(
           error instanceof Error

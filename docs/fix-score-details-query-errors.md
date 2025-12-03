@@ -112,3 +112,4 @@ if (handleQueryError(error, {
 - `app/(student)/scores/analysis/page.tsx`: 에러가 발생한 페이지
 - `lib/data/scoreQueries.ts`: 참고한 관계 조회 패턴
 
+

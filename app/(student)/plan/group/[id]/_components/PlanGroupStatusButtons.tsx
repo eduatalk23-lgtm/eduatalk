@@ -70,7 +70,7 @@ export function PlanGroupStatusButtons({
         router.refresh();
         // 활성화 성공 시 플랜 그룹 상세 페이지로 리다이렉트
         if (newStatus === "active") {
-          router.push(`/plan/group/${groupId}`);
+          router.push(`/plan/group/${groupId}`, { scroll: true });
         }
       } catch (error) {
         alert(

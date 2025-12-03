@@ -4,6 +4,7 @@ import { PlanGroupWizard } from "@/app/(student)/plan/new-group/_components/Plan
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { fetchAllStudentContents } from "@/lib/data/planContents";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 type EditPlanGroupPageProps = {
   params: Promise<{ id: string }>;
@@ -54,8 +55,10 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   );
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-10">
-      <div className="mb-8">
+    <>
+      <ScrollToTop />
+      <section className="mx-auto w-full max-w-4xl px-4 py-10">
+        <div className="mb-8">
         <div>
           <p className="text-sm font-medium text-gray-800">학습 플랜</p>
           <h1 className="text-h1 text-gray-900">
@@ -78,6 +81,7 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
         isEditMode={true}
       />
     </section>
+    </>
   );
 }
 

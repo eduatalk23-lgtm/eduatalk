@@ -24,7 +24,7 @@ export function PlanGroupDeleteButton({ groupId }: PlanGroupDeleteButtonProps) {
     startTransition(async () => {
       try {
         await deletePlanGroupAction(groupId);
-        router.push("/plan");
+        router.push("/plan", { scroll: true });
       } catch (error) {
         alert(
           error instanceof Error ? error.message : "플랜 그룹 삭제에 실패했습니다."

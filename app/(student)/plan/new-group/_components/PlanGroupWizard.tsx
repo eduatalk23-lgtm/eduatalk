@@ -887,9 +887,9 @@ export function PlanGroupWizard({
                   // templateId를 initialData에서 가져오기
                   const templateId = initialData?.templateId;
                   if (templateId) {
-                    router.push(`/admin/camp-templates/${templateId}/participants`);
+                    router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
                   } else {
-                    router.push(`/admin/camp-templates`);
+                    router.push(`/admin/camp-templates`, { scroll: true });
                   }
                 }
               } else {
@@ -917,7 +917,7 @@ export function PlanGroupWizard({
                 toast.showSuccess("저장되었습니다.");
                 // Step 7에서 플랜 생성 후 상세 페이지로 이동
                 if (currentStep === 7) {
-                  router.push(`/plan/group/${draftGroupId}`);
+                  router.push(`/plan/group/${draftGroupId}`, { scroll: true });
                 }
               } else {
                 const errorMessage = result.error || "저장에 실패했습니다.";
@@ -942,10 +942,10 @@ export function PlanGroupWizard({
               toast.showSuccess("캠프 참여가 완료되었습니다.");
               // 제출 완료 상세 페이지로 이동
               if (result.invitationId || campInvitationId) {
-                router.push(`/camp/${result.invitationId || campInvitationId}/submitted`);
+                router.push(`/camp/${result.invitationId || campInvitationId}/submitted`, { scroll: true });
               } else {
                 // 안전장치: invitationId가 없으면 기존 경로로 이동
-                router.push(`/plan/group/${result.groupId}`);
+                router.push(`/plan/group/${result.groupId}`, { scroll: true });
               }
             } else {
               const planGroupError = toPlanGroupError(
@@ -1141,7 +1141,7 @@ export function PlanGroupWizard({
               type="button"
               onClick={() => {
                 if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
-                  router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan");
+                  router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan", { scroll: true });
                 }
               }}
               disabled={isPending}
@@ -1302,12 +1302,12 @@ export function PlanGroupWizard({
                   // saved 상태에서 active로 전이
                   await updatePlanGroupStatus(draftGroupId, "active");
                   router.refresh(); // 캐시 갱신
-                  router.push(`/plan/group/${draftGroupId}`);
+                  router.push(`/plan/group/${draftGroupId}`, { scroll: true });
                 } catch (statusError) {
                   // 활성화 실패 시에도 리다이렉트 (경고만)
                   console.warn("플랜 그룹 활성화 실패:", statusError);
                   router.refresh(); // 캐시 갱신
-                  router.push(`/plan/group/${draftGroupId}`);
+                  router.push(`/plan/group/${draftGroupId}`, { scroll: true });
                 }
               }
             }}

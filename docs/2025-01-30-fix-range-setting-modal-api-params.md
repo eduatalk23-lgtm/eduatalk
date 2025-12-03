@@ -131,3 +131,4 @@ at RangeSettingModal.useEffect.fetchDetails (app/(student)/plan/new-group/_compo
 - `app/(student)/plan/new-group/_components/Step3Contents.tsx`
 - `app/(student)/plan/new-group/_components/Step6FinalReview.tsx`
 
+

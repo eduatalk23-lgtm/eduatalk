@@ -53,7 +53,7 @@ export function FilterBar({
       onFilterChange(filterName, value);
     }
     
-    router.push(newPath);
+    router.push(newPath, { scroll: true });
   };
 
   const getCurrentValue = (filterName: string) => {

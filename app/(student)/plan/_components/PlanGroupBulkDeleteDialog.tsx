@@ -47,7 +47,7 @@ export function PlanGroupBulkDeleteDialog({
         }
 
         onOpenChange(false);
-        router.push("/plan");
+        router.push("/plan", { scroll: true });
         router.refresh();
       } catch (error) {
         toast.showError(

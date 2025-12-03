@@ -157,7 +157,7 @@ export function PlanGroupListItem({
     ) {
       return;
     }
-    router.push(`/plan/group/${group.id}`);
+    router.push(`/plan/group/${group.id}`, { scroll: true });
   };
 
   return (

@@ -69,3 +69,4 @@ export const getSubjectsByGroupAction = withErrorHandling(_getSubjectsByGroup);
 - 관리자 액션과 달리 권한 체크가 로그인 여부만 확인하므로, 학생도 교과 그룹과 과목 목록을 조회할 수 있습니다.
 - 데이터 조회는 읽기 전용 작업이므로 학생에게도 허용되는 것이 적절합니다.
 
+

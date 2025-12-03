@@ -45,7 +45,7 @@ export function PlanGroupActionButtons({
       try {
         const result = await copyPlanGroupAction(groupId);
         toast.showSuccess("플랜 그룹이 복사되었습니다.");
-        router.push(`/plan/group/${result.groupId}/edit`);
+        router.push(`/plan/group/${result.groupId}/edit`, { scroll: true });
       } catch (error) {
         toast.showError(
           error instanceof Error

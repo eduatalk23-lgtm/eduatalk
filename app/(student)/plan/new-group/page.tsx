@@ -6,6 +6,7 @@ import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { fetchAllStudentContents } from "@/lib/data/planContents";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -62,8 +63,10 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
   const { books, lectures, custom } = await fetchAllStudentContents(user.id);
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-10">
-      <div className="mb-8">
+    <>
+      <ScrollToTop />
+      <section className="mx-auto w-full max-w-4xl px-4 py-10">
+        <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <p className="text-sm font-medium text-gray-500">학습 플랜</p>
@@ -93,5 +96,6 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
         initialData={initialData}
       />
     </section>
+    </>
   );
 }

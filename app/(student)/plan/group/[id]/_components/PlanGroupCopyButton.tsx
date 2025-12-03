@@ -27,7 +27,7 @@ export function PlanGroupCopyButton({ groupId }: PlanGroupCopyButtonProps) {
     startTransition(async () => {
       try {
         const result = await copyPlanGroupAction(groupId);
-        router.push(`/plan/group/${result.groupId}/edit`);
+        router.push(`/plan/group/${result.groupId}/edit`, { scroll: true });
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "플랜 그룹 복사에 실패했습니다."
