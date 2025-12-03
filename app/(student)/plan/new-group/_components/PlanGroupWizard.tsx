@@ -624,7 +624,9 @@ export function PlanGroupWizard({
         // 템플릿 모드나 캠프 모드일 때는 위에서 이미 handleSubmit()이 호출됨
         if (!isTemplateMode && (!isCampMode || isAdminContinueMode)) {
           // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
+          // handleSubmit 내부에서 setCurrentStep(5)를 호출하므로 여기서는 호출만 함
           handleSubmit(false); // 플랜 생성하지 않음
+          return; // handleSubmit 내부에서 단계 이동 처리
         }
       } else {
         setCurrentStep((prev) => (prev + 1) as WizardStep);
@@ -896,6 +898,12 @@ export function PlanGroupWizard({
 
               if (result.success) {
                 toast.showSuccess("저장되었습니다.");
+                // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
+                if (currentStep === 4 && !generatePlans) {
+                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
+                  setCurrentStep(5);
+                  return;
+                }
                 // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
                 if (currentStep === 6) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
@@ -1290,7 +1298,7 @@ export function PlanGroupWizard({
             isTemplateMode={isTemplateMode}
             isEditMode={isEditMode}
             studentId={(initialData as any)?.student_id}
-            editable={!isAdminContinueMode}
+            editable={isAdminContinueMode || !isCampMode}
           />
         )}
         {currentStep === 5 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
