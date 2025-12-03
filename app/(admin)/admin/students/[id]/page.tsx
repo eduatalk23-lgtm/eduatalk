@@ -1,4 +1,5 @@
 import { redirect, notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -57,7 +58,9 @@ export default async function AdminStudentDetailPage({
   return (
     <>
       {/* Breadcrumbs */}
-      <Breadcrumbs role="admin" dynamicLabels={dynamicLabels} />
+      <Suspense fallback={null}>
+        <Breadcrumbs role="admin" dynamicLabels={dynamicLabels} />
+      </Suspense>
       
       <div className="p-6 md:p-10">
       <div className="mb-8">

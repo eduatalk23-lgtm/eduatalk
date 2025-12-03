@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 import { CategoryNav } from "@/components/navigation/global/CategoryNav";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { SignOutButton } from "@/app/_components/SignOutButton";
@@ -105,7 +105,11 @@ export function RoleBasedLayout({
         )}
 
         {/* Breadcrumbs */}
-        {showSidebar && <Breadcrumbs role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />}
+        {showSidebar && (
+          <Suspense fallback={null}>
+            <Breadcrumbs role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
+          </Suspense>
+        )}
 
         {/* 페이지 콘텐츠 */}
         <div className="flex-1">{children}</div>
