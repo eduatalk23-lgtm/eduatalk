@@ -60,7 +60,7 @@ export async function addMasterBook(formData: FormData) {
     school_type: formData.get("school_type")?.toString() || null,
     revision: formData.get("revision")?.toString() || null,
     content_category: formData.get("content_category")?.toString() || null,
-    semester: formData.get("semester")?.toString() || null,
+    // semester 필드 제거됨 (2025-02-04)
     title: formData.get("title")?.toString() || "",
     subtitle: formData.get("subtitle")?.toString() || null,
     series_name: formData.get("series_name")?.toString() || null,
@@ -183,7 +183,7 @@ export async function updateMasterBookAction(
     school_type: getFormValue("school_type") || undefined,
     revision: getFormValue("revision") || undefined,
     content_category: getFormValue("content_category") || undefined,
-    semester: getFormValue("semester") || undefined,
+    // semester 필드 제거됨 (2025-02-04)
     subtitle: getFormValue("subtitle"),
     series_name: getFormValue("series_name"),
     author: getFormValue("author"),
@@ -298,7 +298,7 @@ export async function addMasterLecture(formData: FormData) {
         tenant_id: student?.tenant_id || null,
         revision: formData.get("book_revision")?.toString() || null,
         content_category: null,
-        semester: formData.get("book_semester")?.toString() || null,
+        // semester 필드 제거됨 (2025-02-04)
         subject_category: formData.get("book_subject_category")?.toString() || null,
         subject: formData.get("book_subject")?.toString() || null,
         title: bookTitle,

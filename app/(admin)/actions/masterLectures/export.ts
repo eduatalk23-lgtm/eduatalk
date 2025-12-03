@@ -36,7 +36,7 @@ export async function exportMasterLecturesToExcel(): Promise<Buffer> {
       linked_book_id: lecture.linked_book_id ?? "",
       revision: lecture.revision ?? "",
       content_category: lecture.content_category ?? "",
-      semester: lecture.semester ?? "",
+      // semester 필드 제거됨 (2025-02-04)
       subject_category: lecture.subject_category ?? "",
       subject: lecture.subject ?? "",
       title: lecture.title,
@@ -71,7 +71,7 @@ export async function downloadMasterLecturesTemplate(): Promise<Buffer> {
       "linked_book_id",
       "revision",
       "content_category",
-      "semester",
+      // "semester", // 제거됨 (2025-02-04)
       "subject_category",
       "subject",
       "title",

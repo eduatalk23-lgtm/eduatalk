@@ -42,7 +42,6 @@ export default async function MasterBookDetailPage({
         <ContentDetailTable
           rows={[
             { label: "개정교육과정", value: book.revision },
-            { label: "학년/학기", value: book.semester },
             { label: "교과", value: book.subject_category },
             { label: "과목", value: book.subject },
             { label: "출판사", value: book.publisher },

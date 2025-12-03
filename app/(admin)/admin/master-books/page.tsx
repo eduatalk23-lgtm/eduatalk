@@ -140,10 +140,6 @@ export default async function MasterBooksPage({
                         <dd>{book.revision || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-700">학년/학기</dt>
-                        <dd>{book.semester || "—"}</dd>
-                      </div>
-                      <div className="flex justify-between">
                         <dt className="font-medium text-gray-700">과목 ID</dt>
                         <dd className="truncate max-w-[150px]">{book.subject_id || "—"}</dd>
                       </div>

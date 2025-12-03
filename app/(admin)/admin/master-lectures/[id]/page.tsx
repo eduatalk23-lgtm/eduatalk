@@ -58,7 +58,6 @@ export default async function MasterLectureDetailPage({
         <ContentDetailTable
           rows={[
             { label: "개정교육과정", value: lecture.revision },
-            { label: "학년/학기", value: lecture.semester },
             { label: "교과", value: lecture.subject_category },
             { label: "과목", value: lecture.subject },
             { label: "플랫폼", value: lecture.platform_name || lecture.platform },

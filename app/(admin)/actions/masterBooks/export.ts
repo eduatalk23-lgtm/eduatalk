@@ -41,7 +41,7 @@ export async function exportMasterBooksToExcel(): Promise<Buffer> {
       school_type: book.school_type ?? "",
       revision: book.revision ?? "",
       content_category: book.content_category ?? "",
-      semester: book.semester ?? "",
+      // semester 필드 제거됨 (2025-02-04)
       title: book.title,
       subtitle: book.subtitle ?? "",
       series_name: book.series_name ?? "",
@@ -95,7 +95,7 @@ export async function downloadMasterBooksTemplate(): Promise<Buffer> {
       "school_type",
       "revision",
       "content_category",
-      "semester",
+      // "semester", // 제거됨 (2025-02-04)
       "title",
       "subtitle",
       "series_name",

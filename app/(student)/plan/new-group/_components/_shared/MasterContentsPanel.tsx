@@ -645,7 +645,6 @@ export function MasterContentsPanel({
                         <span>{result.publisher_or_academy}</span>
                       )}
                       {result.subject && <span>· {result.subject}</span>}
-                      {result.semester && <span>· {result.semester}</span>}
                       {result.revision && <span>· {result.revision}</span>}
                       {result.total_pages && (
                         <span>· {result.total_pages}페이지</span>

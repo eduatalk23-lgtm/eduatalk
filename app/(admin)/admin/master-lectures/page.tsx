@@ -129,10 +129,6 @@ export default async function MasterLecturesPage({
                         <dd>{lecture.revision || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-700">학년/학기</dt>
-                        <dd>{lecture.semester || "—"}</dd>
-                      </div>
-                      <div className="flex justify-between">
                         <dt className="font-medium text-gray-700">교과</dt>
                         <dd>{lecture.subject_category || "—"}</dd>
                       </div>

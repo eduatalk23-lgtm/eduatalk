@@ -21,7 +21,6 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
   // 강의 입력값을 추적하여 교재 필드에 자동 채우기
   const [lectureValues, setLectureValues] = useState({
     revision: "",
-    semester: "",
     subject_category: "",
     subject: "",
   });
@@ -37,7 +36,6 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
     // 공통 필드를 교재 입력 필드에 자동 채우기
     if (linkBook) {
       formData.set("book_revision", lectureValues.revision);
-      formData.set("book_semester", lectureValues.semester);
       formData.set("book_subject_category", lectureValues.subject_category);
       formData.set("book_subject", lectureValues.subject);
     }
@@ -91,20 +89,6 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
               </option>
             ))}
           </select>
-        </div>
-
-        {/* 학년/학기 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            학년/학기
-          </label>
-          <input
-            name="semester"
-            placeholder="예: 고3-1"
-            value={lectureValues.semester}
-            onChange={(e) => handleLectureFieldChange("semester", e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
         </div>
 
         {/* 교과 */}
@@ -241,8 +225,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             연결된 교재 등록
           </h3>
           <p className="mb-4 text-sm text-gray-600">
-            공통 정보(개정교육과정, 학년/학기, 교과, 과목)는 강의 입력값을
-            참고합니다.
+            공통 정보(개정교육과정, 교과, 과목)는 강의 입력값을 참고합니다.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {/* 교재명 */}
@@ -267,24 +250,6 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 name="book_revision"
                 id="book_revision"
                 value={lectureValues.revision}
-                placeholder="강의 입력값 참고"
-                readOnly
-                className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
-              />
-              <p className="mt-1 text-xs text-gray-700">
-                강의 입력값을 참고합니다
-              </p>
-            </div>
-
-            {/* 학년/학기 - 강의 입력값 참고 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                학년/학기
-              </label>
-              <input
-                name="book_semester"
-                id="book_semester"
-                value={lectureValues.semester}
                 placeholder="강의 입력값 참고"
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"

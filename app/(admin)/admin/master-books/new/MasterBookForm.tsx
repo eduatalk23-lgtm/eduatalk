@@ -145,18 +145,6 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           <input type="hidden" name="curriculum_revision_id" value={selectedRevisionId} />
         </div>
 
-        {/* 학년/학기 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            학년/학기
-          </label>
-          <input
-            name="semester"
-            placeholder="예: 고3-1"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
-
         {/* 교과 그룹 선택 */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">

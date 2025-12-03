@@ -342,7 +342,6 @@ export function ContentMasterSearch({
                       <span>{master.publisher_or_academy}</span>
                     )}
                     {master.subject && <span>· {master.subject}</span>}
-                    {master.semester && <span>· {master.semester}</span>}
                     {master.revision && <span>· {master.revision}</span>}
                     {master.total_pages && (
                       <span>· {master.total_pages}페이지</span>

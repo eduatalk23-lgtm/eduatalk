@@ -30,41 +30,33 @@
   - `copyMasterLectureToStudent`: semester를 null로 설정
   - `getSemesterList`: 학생 콘텐츠(books, lectures)에서만 조회하도록 수정
 
-## 🔄 진행 중/남은 작업
-
 ### 4. UI 표시 부분 제거
-다음 파일들에서 semester 표시 제거 필요:
-
-#### 마스터 교재
-- `app/(student)/contents/master-books/page.tsx`: 목록에서 "학년/학기" 표시 제거
-- `app/(student)/contents/master-books/[id]/page.tsx`: 상세 페이지에서 semester 제거
-- `app/(admin)/admin/master-books/page.tsx`: 목록에서 "학년/학기" 표시 제거
-- `app/(admin)/admin/master-books/[id]/page.tsx`: 상세 페이지에서 semester 제거
-
-#### 마스터 강의
-- `app/(student)/contents/master-lectures/page.tsx`: 목록에서 "학년/학기" 표시 제거
-- `app/(student)/contents/master-lectures/[id]/page.tsx`: 상세 페이지에서 semester 제거
-- `app/(admin)/admin/master-lectures/page.tsx`: 목록에서 "학년/학기" 표시 제거
-- `app/(admin)/admin/master-lectures/[id]/page.tsx`: 상세 페이지에서 semester 제거
-
-#### 플랜 생성 과정
-- `app/(student)/plan/new-group/_components/ContentMasterSearch.tsx`: semester 표시 제거
-- `app/(student)/plan/new-group/_components/Step3Contents.tsx`: semester 표시 제거
-- `app/(student)/plan/new-group/_components/Step4RecommendedContents/`: semester 관련 코드 제거
-- `app/(student)/plan/new-group/_components/Step6FinalReview.tsx`: semester 표시 제거
-- `app/(student)/plan/new-group/_components/_shared/`: semester 관련 코드 제거
+- ✅ `app/(student)/contents/master-books/page.tsx`: 목록에서 "학년/학기" 표시 제거
+- ✅ `app/(student)/contents/master-books/[id]/page.tsx`: 상세 페이지에서 semester 제거
+- ✅ `app/(admin)/admin/master-books/page.tsx`: 목록에서 "학년/학기" 표시 제거
+- ✅ `app/(admin)/admin/master-books/[id]/page.tsx`: 상세 페이지에서 semester 제거
+- ✅ `app/(student)/contents/master-lectures/page.tsx`: 목록에서 "학년/학기" 표시 제거
+- ✅ `app/(student)/contents/master-lectures/[id]/page.tsx`: 상세 페이지에서 semester 제거
+- ✅ `app/(admin)/admin/master-lectures/page.tsx`: 목록에서 "학년/학기" 표시 제거
+- ✅ `app/(admin)/admin/master-lectures/[id]/page.tsx`: 상세 페이지에서 semester 제거
+- ✅ `app/(student)/plan/new-group/_components/ContentMasterSearch.tsx`: semester 표시 제거
+- ✅ `app/(student)/plan/new-group/_components/_shared/MasterContentsPanel.tsx`: semester 표시 제거
 
 ### 5. 입력 필드 제거
-- `app/(admin)/admin/master-books/[id]/edit/MasterBookEditForm.tsx`: semester 입력 필드 제거
-- `app/(admin)/admin/master-books/new/MasterBookForm.tsx`: semester 입력 필드 제거
-- `app/(admin)/admin/master-lectures/[id]/edit/MasterLectureEditForm.tsx`: semester 입력 필드 제거
-- `app/(admin)/admin/master-lectures/new/MasterLectureForm.tsx`: semester 입력 필드 제거
-- `app/(student)/actions/masterContentActions.ts`: semester 처리 코드 제거
+- ✅ `app/(admin)/admin/master-books/[id]/edit/MasterBookEditForm.tsx`: semester 입력 필드 제거
+- ✅ `app/(admin)/admin/master-books/new/MasterBookForm.tsx`: semester 입력 필드 제거
+- ✅ `app/(admin)/admin/master-lectures/[id]/edit/MasterLectureEditForm.tsx`: semester 입력 필드 제거
+- ✅ `app/(admin)/admin/master-lectures/new/MasterLectureForm.tsx`: semester 입력 필드 및 관련 코드 제거
+- ✅ `app/(student)/actions/masterContentActions.ts`: semester 처리 코드 제거
 
 ### 6. 기타
-- `lib/data/contentMetadata.ts`: `ContentMetadata` 타입에서 semester 제거 (선택사항)
-- `app/types/content.ts`: 관련 타입 확인 및 수정
-- 플랜 생성 관련 타입들 확인 및 수정
+- ✅ `app/(admin)/actions/masterBooks/export.ts`: Excel export에서 semester 제거
+- ✅ `app/(admin)/actions/masterLectures/export.ts`: Excel export에서 semester 제거
+
+### 7. 플랜 생성 과정
+플랜 생성 과정(Step3Contents, Step6FinalReview 등)에서는 semester를 조건부로 표시하고 있습니다.
+- 이 부분은 학생 콘텐츠의 semester도 표시할 수 있으므로 **유지**
+- 마스터 콘텐츠의 경우 semester가 null이므로 자동으로 표시되지 않음
 
 ## 📝 참고 사항
 
@@ -85,5 +77,5 @@ supabase db push
 ---
 
 **작성일**: 2025-02-04
-**상태**: 진행 중 (약 60% 완료)
+**상태**: 완료 ✅
 

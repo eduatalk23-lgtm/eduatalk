@@ -255,10 +255,6 @@ export default async function StudentMasterBooksPage({
                         <dd>{book.revision || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">학년/학기</dt>
-                        <dd>{book.semester || "—"}</dd>
-                      </div>
-                      <div className="flex justify-between">
                         <dt className="font-medium text-gray-500">교과</dt>
                         <dd>{book.subject_category || "—"}</dd>
                       </div>
