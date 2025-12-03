@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
+import { scrollToTop } from "@/lib/utils/scroll";
 import {
   createPlanGroupAction,
   savePlanGroupDraftAction,
@@ -481,6 +482,11 @@ export function PlanGroupWizard({
   // }
   const [activationDialogOpen, setActivationDialogOpen] = useState(false);
   const [activeGroupNames, setActiveGroupNames] = useState<string[]>([]);
+
+  // 단계 변경 시 스크롤을 상단으로 이동
+  useEffect(() => {
+    scrollToTop();
+  }, [currentStep]);
 
   const updateWizardData = (
     updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)

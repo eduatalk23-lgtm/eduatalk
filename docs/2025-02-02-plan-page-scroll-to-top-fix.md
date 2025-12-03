@@ -20,10 +20,13 @@
 - `app/(student)/plan/group/[id]/edit/page.tsx` - 플랜 그룹 편집 페이지
 
 ### 3. router.push 호출 시 scroll 옵션 명시
-플랜 관련 모든 `router.push()` 호출에 `scroll: true` 옵션을 명시적으로 추가:
+플랜 관련 모든 `router.push()` 호출에 `scroll: true` 옵션을 명시적으로 추가
+
+### 4. 위저드 단계 변경 시 스크롤 상단 이동
+`PlanGroupWizard` 컴포넌트에서 `currentStep`이 변경될 때마다 스크롤을 상단으로 이동시키는 `useEffect` 추가
 
 **수정된 파일들:**
-- `app/(student)/plan/new-group/_components/PlanGroupWizard.tsx` (8곳)
+- `app/(student)/plan/new-group/_components/PlanGroupWizard.tsx` (8곳 + 단계 변경 시 스크롤 로직 추가)
 - `app/(student)/plan/new-group/_components/PlanGroupActivationDialog.tsx` (2곳)
 - `app/(student)/plan/_components/PlanGroupBulkDeleteDialog.tsx` (1곳)
 - `app/(student)/plan/_components/PlanGroupDeleteDialog.tsx` (1곳)
@@ -61,8 +64,20 @@ router.push(`/plan/group/${groupId}`);
 router.push(`/plan/group/${groupId}`, { scroll: true });
 ```
 
+### 위저드 단계 변경 시 스크롤 로직
+```typescript
+// PlanGroupWizard.tsx
+import { scrollToTop } from "@/lib/utils/scroll";
+
+// 단계 변경 시 스크롤을 상단으로 이동
+useEffect(() => {
+  scrollToTop();
+}, [currentStep]);
+```
+
 ## 테스트
 - 플랜 목록 페이지에서 새 플랜 생성 버튼 클릭 시 상단으로 이동 확인
+- 플랜 생성 위저드에서 단계 진행(다음/이전) 시 상단으로 이동 확인
 - 플랜 생성 완료 후 상세 페이지로 이동 시 상단으로 이동 확인
 - 플랜 그룹 활성화/저장 후 상세 페이지로 이동 시 상단으로 이동 확인
 - 플랜 그룹 삭제 후 목록 페이지로 이동 시 상단으로 이동 확인
