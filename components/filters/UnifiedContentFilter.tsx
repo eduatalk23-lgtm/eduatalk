@@ -249,176 +249,182 @@ export function UnifiedContentFilter({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`flex flex-wrap items-end gap-4 ${className}`}
+      className={`grid grid-cols-1 md:grid-cols-3 gap-4 items-end ${className}`}
     >
-      {/* 개정교육과정 */}
-      <div className="flex flex-col gap-1 min-w-[160px]">
-        <label className="text-xs font-medium text-gray-700">
-          개정교육과정
-        </label>
-        <select
-          value={values.curriculum_revision_id || ""}
-          onChange={(e) => setValues((prev) => ({ ...prev, curriculum_revision_id: e.target.value }))}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">전체</option>
-          {filterOptions.curriculumRevisions.map((rev) => (
-            <option key={rev.id} value={rev.id}>
-              {rev.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* 교과 */}
-      <div className="flex flex-col gap-1 min-w-[140px]">
-        <label className="text-xs font-medium text-gray-700">교과</label>
-        <select
-          value={values.subject_group_id || ""}
-          onChange={(e) => setValues((prev) => ({ ...prev, subject_group_id: e.target.value }))}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-          disabled={!values.curriculum_revision_id || loadingGroups}
-        >
-          <option value="">전체</option>
-          {loadingGroups ? (
-            <option value="">로딩 중...</option>
-          ) : (
-            subjectGroups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))
-          )}
-        </select>
-      </div>
-
-      {/* 과목 */}
-      <div className="flex flex-col gap-1 min-w-[140px]">
-        <label className="text-xs font-medium text-gray-700">과목</label>
-        <select
-          value={values.subject_id || ""}
-          onChange={(e) => setValues((prev) => ({ ...prev, subject_id: e.target.value }))}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-          disabled={!values.subject_group_id || loadingSubjects}
-        >
-          <option value="">전체</option>
-          {loadingSubjects ? (
-            <option value="">로딩 중...</option>
-          ) : (
-            currentSubjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))
-          )}
-        </select>
-      </div>
-
-      {/* 출판사 (교재용) */}
-      {contentType === "book" && (
-        <div className="flex flex-col gap-1 min-w-[140px]">
-          <label className="text-xs font-medium text-gray-700">출판사</label>
+      {/* 1열: 개정교육과정, 교과, 과목 */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-700">
+            개정교육과정
+          </label>
           <select
-            value={values.publisher_id || ""}
-            onChange={(e) => setValues((prev) => ({ ...prev, publisher_id: e.target.value }))}
+            value={values.curriculum_revision_id || ""}
+            onChange={(e) => setValues((prev) => ({ ...prev, curriculum_revision_id: e.target.value }))}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
-            {filterOptions.publishers?.map((publisher) => (
-              <option key={publisher.id} value={publisher.id}>
-                {publisher.name}
+            {filterOptions.curriculumRevisions.map((rev) => (
+              <option key={rev.id} value={rev.id}>
+                {rev.name}
               </option>
             ))}
           </select>
         </div>
-      )}
 
-      {/* 플랫폼 (강의용) */}
-      {contentType === "lecture" && (
-        <div className="flex flex-col gap-1 min-w-[140px]">
-          <label className="text-xs font-medium text-gray-700">플랫폼</label>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-700">교과</label>
           <select
-            value={values.platform_id || ""}
-            onChange={(e) => setValues((prev) => ({ ...prev, platform_id: e.target.value }))}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            value={values.subject_group_id || ""}
+            onChange={(e) => setValues((prev) => ({ ...prev, subject_group_id: e.target.value }))}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+            disabled={!values.curriculum_revision_id || loadingGroups}
           >
             <option value="">전체</option>
-            {filterOptions.platforms?.map((platform) => (
-              <option key={platform.id} value={platform.id}>
-                {platform.name}
-              </option>
-            ))}
+            {loadingGroups ? (
+              <option value="">로딩 중...</option>
+            ) : (
+              subjectGroups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))
+            )}
           </select>
         </div>
-      )}
 
-      {/* 제목 검색 */}
-      <div className="flex flex-col gap-1 min-w-[200px] flex-1 max-w-[300px]">
-        <label className="text-xs font-medium text-gray-700">
-          제목 검색
-        </label>
-        <input
-          type="text"
-          value={values.search || ""}
-          onChange={(e) => setValues((prev) => ({ ...prev, search: e.target.value }))}
-          placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-        />
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-700">과목</label>
+          <select
+            value={values.subject_id || ""}
+            onChange={(e) => setValues((prev) => ({ ...prev, subject_id: e.target.value }))}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+            disabled={!values.subject_group_id || loadingSubjects}
+          >
+            <option value="">전체</option>
+            {loadingSubjects ? (
+              <option value="">로딩 중...</option>
+            ) : (
+              currentSubjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
       </div>
 
-      {/* 난이도 */}
-      {showDifficulty && (
-        <div className="flex flex-col gap-1 min-w-[120px]">
-          <label className="text-xs font-medium text-gray-700">난이도</label>
-          <select
-            value={values.difficulty || ""}
-            onChange={(e) => setValues((prev) => ({ ...prev, difficulty: e.target.value }))}
+      {/* 2열: 출판사/플랫폼, 난이도 */}
+      <div className="flex flex-col gap-4">
+        {/* 출판사 (교재용) */}
+        {contentType === "book" && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">출판사</label>
+            <select
+              value={values.publisher_id || ""}
+              onChange={(e) => setValues((prev) => ({ ...prev, publisher_id: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">전체</option>
+              {filterOptions.publishers?.map((publisher) => (
+                <option key={publisher.id} value={publisher.id}>
+                  {publisher.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* 플랫폼 (강의용) */}
+        {contentType === "lecture" && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">플랫폼</label>
+            <select
+              value={values.platform_id || ""}
+              onChange={(e) => setValues((prev) => ({ ...prev, platform_id: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">전체</option>
+              {filterOptions.platforms?.map((platform) => (
+                <option key={platform.id} value={platform.id}>
+                  {platform.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* 난이도 */}
+        {showDifficulty && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">난이도</label>
+            <select
+              value={values.difficulty || ""}
+              onChange={(e) => setValues((prev) => ({ ...prev, difficulty: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">전체</option>
+              {filterOptions.difficulties?.map((diff) => (
+                <option key={diff} value={diff}>
+                  {diff}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* 3열: 제목 검색, 정렬, 검색 버튼, 초기화 버튼 */}
+      <div className="flex flex-col gap-4">
+        {/* 제목 검색 */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-700">
+            제목 검색
+          </label>
+          <input
+            type="text"
+            value={values.search || ""}
+            onChange={(e) => setValues((prev) => ({ ...prev, search: e.target.value }))}
+            placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            <option value="">전체</option>
-            {filterOptions.difficulties?.map((diff) => (
-              <option key={diff} value={diff}>
-                {diff}
-              </option>
-            ))}
-          </select>
+          />
         </div>
-      )}
 
-      {/* 정렬 */}
-      {showSort && (
-        <div className="flex flex-col gap-1 min-w-[140px]">
-          <label className="text-xs font-medium text-gray-700">정렬</label>
-          <select
-            value={values.sort || defaultSort}
-            onChange={(e) => setValues((prev) => ({ ...prev, sort: e.target.value }))}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        {/* 정렬 */}
+        {showSort && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">정렬</label>
+            <select
+              value={values.sort || defaultSort}
+              onChange={(e) => setValues((prev) => ({ ...prev, sort: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* 검색 및 초기화 버튼 */}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
           >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            검색
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            초기화
+          </button>
         </div>
-      )}
-
-      {/* 검색 버튼 */}
-      <button
-        type="submit"
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-      >
-        검색
-      </button>
-
-      {/* 초기화 버튼 */}
-      <button
-        type="button"
-        onClick={handleReset}
-        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-      >
-        초기화
-      </button>
+      </div>
     </form>
   );
 }
