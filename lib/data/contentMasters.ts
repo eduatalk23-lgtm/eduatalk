@@ -1400,6 +1400,9 @@ export async function getStudentBookDetailsBatch(
 
   const supabase = await createSupabaseServerClient();
 
+  // 성능 측정 시작
+  const queryStart = performance.now();
+
   const { data, error } = await supabase
     .from("student_book_details")
     .select("id, book_id, page_number, major_unit, minor_unit")
@@ -1407,9 +1410,21 @@ export async function getStudentBookDetailsBatch(
     .order("book_id", { ascending: true })
     .order("page_number", { ascending: true });
 
+  const queryTime = performance.now() - queryStart;
+
   if (error) {
     console.error("[data/contentMasters] 학생 교재 상세 정보 배치 조회 실패", error);
     return new Map();
+  }
+
+  // 성능 로깅 (개발 환경에서만)
+  if (process.env.NODE_ENV === "development") {
+    console.log("[getStudentBookDetailsBatch] 쿼리 성능:", {
+      bookCount: bookIds.length,
+      resultCount: data?.length || 0,
+      queryTime: `${queryTime.toFixed(2)}ms`,
+      avgTimePerBook: bookIds.length > 0 ? `${(queryTime / bookIds.length).toFixed(2)}ms` : "N/A",
+    });
   }
 
   // 결과를 bookId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
@@ -1453,6 +1468,9 @@ export async function getStudentLectureEpisodesBatch(
 
   const supabase = await createSupabaseServerClient();
 
+  // 성능 측정 시작
+  const queryStart = performance.now();
+
   const { data, error } = await supabase
     .from("student_lecture_episodes")
     .select("id, lecture_id, episode_number, title, duration")
@@ -1460,9 +1478,21 @@ export async function getStudentLectureEpisodesBatch(
     .order("lecture_id", { ascending: true })
     .order("episode_number", { ascending: true });
 
+  const queryTime = performance.now() - queryStart;
+
   if (error) {
     console.error("[data/contentMasters] 학생 강의 episode 배치 조회 실패", error);
     return new Map();
+  }
+
+  // 성능 로깅 (개발 환경에서만)
+  if (process.env.NODE_ENV === "development") {
+    console.log("[getStudentLectureEpisodesBatch] 쿼리 성능:", {
+      lectureCount: lectureIds.length,
+      resultCount: data?.length || 0,
+      queryTime: `${queryTime.toFixed(2)}ms`,
+      avgTimePerLecture: lectureIds.length > 0 ? `${(queryTime / lectureIds.length).toFixed(2)}ms` : "N/A",
+    });
   }
 
   // 결과를 lectureId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)

@@ -144,6 +144,10 @@ export function Step3Contents({
       setLoadingDetails(new Set(initialLoadingSet));
 
       try {
+        // 성능 측정 시작
+        const performanceStart = performance.now();
+        const typeCheckStart = performance.now();
+
         // 콘텐츠 타입 정보 수집 (최적화: Set.has() 사용으로 O(1) 조회)
         const contentsToFetch = contentIdsToFetch.map((contentId) => {
           const isBook = bookIdSet.has(contentId);
@@ -153,6 +157,9 @@ export function Step3Contents({
           };
         });
 
+        const typeCheckTime = performance.now() - typeCheckStart;
+        const networkStart = performance.now();
+
         // 배치 API 호출
         const response = await fetch("/api/student-content-details/batch", {
           method: "POST",
@@ -161,12 +168,17 @@ export function Step3Contents({
           },
           body: JSON.stringify({
             contents: contentsToFetch,
-            includeMetadata: true,
+            includeMetadata: false, // 메타데이터 조회 제거 (목차 로딩에 불필요)
           }),
         });
 
+        const networkTime = performance.now() - networkStart;
+        const parseStart = performance.now();
+
         if (response.ok) {
           const result = await response.json();
+          const parseTime = performance.now() - parseStart;
+          const processStart = performance.now();
           const batchData = result.data;
 
           // 배치 응답 결과 처리
@@ -200,16 +212,43 @@ export function Step3Contents({
               }
             }
           });
+
+          const processTime = performance.now() - processStart;
+          const totalTime = performance.now() - performanceStart;
+
+          // 성능 로깅 (개발 환경에서만)
+          if (process.env.NODE_ENV === "development") {
+            console.log("[Step3Contents] 배치 API 성능 측정:", {
+              contentCount: contentsToFetch.length,
+              typeCheckTime: `${typeCheckTime.toFixed(2)}ms`,
+              networkTime: `${networkTime.toFixed(2)}ms`,
+              parseTime: `${parseTime.toFixed(2)}ms`,
+              processTime: `${processTime.toFixed(2)}ms`,
+              totalTime: `${totalTime.toFixed(2)}ms`,
+              avgTimePerContent: contentsToFetch.length > 0 
+                ? `${(totalTime / contentsToFetch.length).toFixed(2)}ms` 
+                : "N/A",
+              apiUsed: "batch",
+            });
+          }
         } else {
           // 배치 API 실패 시 개별 API로 폴백 (하위 호환성)
-          console.warn("[Step3Contents] 배치 API 실패, 개별 API로 폴백");
+          const fallbackStart = performance.now();
+          const responseStatus = response.status;
+          const responseStatusText = response.statusText;
+          
+          console.warn("[Step3Contents] 배치 API 실패, 개별 API로 폴백", {
+            status: responseStatus,
+            statusText: responseStatusText,
+            contentCount: contentsToFetch.length,
+          });
           
           const fetchPromises = contentIdsToFetch.map(async (contentId) => {
             const contentType = contentsToFetch.find((c) => c.contentId === contentId)?.contentType || "book";
 
             try {
               const response = await fetch(
-                `/api/student-content-details?contentType=${contentType}&contentId=${contentId}&includeMetadata=true`
+                `/api/student-content-details?contentType=${contentType}&contentId=${contentId}&includeMetadata=false`
               );
               
               if (response.ok) {
@@ -243,9 +282,29 @@ export function Step3Contents({
               newDetails.set(result.contentId, result.detailData);
             }
           });
+
+          const fallbackTime = performance.now() - fallbackStart;
+          const totalTime = performance.now() - performanceStart;
+
+          // 성능 로깅 (개발 환경에서만)
+          if (process.env.NODE_ENV === "development") {
+            console.log("[Step3Contents] 폴백 성능 측정:", {
+              contentCount: contentsToFetch.length,
+              fallbackTime: `${fallbackTime.toFixed(2)}ms`,
+              totalTime: `${totalTime.toFixed(2)}ms`,
+              avgTimePerContent: contentsToFetch.length > 0 
+                ? `${(fallbackTime / contentsToFetch.length).toFixed(2)}ms` 
+                : "N/A",
+              batchApiStatus: responseStatus,
+            });
+          }
         }
       } catch (error) {
+        const errorTime = performance.now() - performanceStart;
         console.error("[Step3Contents] 배치 조회 실패:", error);
+        if (process.env.NODE_ENV === "development") {
+          console.error("[Step3Contents] 에러 발생 시간:", `${errorTime.toFixed(2)}ms`);
+        }
         // 에러 발생 시에도 로딩 상태는 해제
       } finally {
         // 모든 로딩 상태 해제
