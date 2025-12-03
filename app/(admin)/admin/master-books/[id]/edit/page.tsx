@@ -36,12 +36,12 @@ export default async function EditMasterBookPage({
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-700">서비스 마스터</p>
+            <p className="text-sm font-medium text-gray-900">서비스 마스터</p>
             <h1 className="text-h1 text-gray-900">교재 수정</h1>
           </div>
           <Link
             href={`/admin/master-books/${id}`}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 transition hover:bg-gray-50"
           >
             취소
           </Link>
