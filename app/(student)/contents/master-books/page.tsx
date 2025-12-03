@@ -19,7 +19,6 @@ async function getCachedFilterOptions() {
           const { data } = await supabase
             .from("curriculum_revisions")
             .select("id, name")
-            .eq("is_active", true)
             .order("name", { ascending: true });
           return (data || []).map((item) => ({
             id: item.id,

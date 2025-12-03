@@ -757,7 +757,6 @@ export async function getCurriculumRevisions(): Promise<Array<{ id: string; name
   const { data, error } = await supabase
     .from("curriculum_revisions")
     .select("id, name")
-    .eq("is_active", true)
     .order("name", { ascending: true });
 
   if (error) {
