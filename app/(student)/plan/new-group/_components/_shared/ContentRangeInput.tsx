@@ -159,7 +159,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
               }
             }}
             className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder="1"
+            placeholder="예: 1"
           />
         </div>
 
@@ -180,7 +180,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
               }
             }}
             className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder={maxValue ? String(maxValue) : "100"}
+            placeholder={maxValue ? `예: ${maxValue}` : "예: 100"}
           />
         </div>
 
