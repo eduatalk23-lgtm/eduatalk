@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { WizardData } from "./PlanGroupWizard";
@@ -101,6 +101,16 @@ export function Step3Contents({
     >
   >(new Map());
 
+  // 콘텐츠 타입 확인 최적화: O(n×m) → O(n)으로 개선
+  const bookIdSet = useMemo(
+    () => new Set(contents.books.map((b) => b.id)),
+    [contents.books]
+  );
+  const lectureIdSet = useMemo(
+    () => new Set(contents.lectures.map((l) => l.id)),
+    [contents.lectures]
+  );
+
   // 선택된 콘텐츠의 상세 정보 조회 (배치 API로 최적화)
   useEffect(() => {
     const fetchAllDetails = async () => {
@@ -134,9 +144,9 @@ export function Step3Contents({
       setLoadingDetails(new Set(initialLoadingSet));
 
       try {
-        // 콘텐츠 타입 정보 수집
+        // 콘텐츠 타입 정보 수집 (최적화: Set.has() 사용으로 O(1) 조회)
         const contentsToFetch = contentIdsToFetch.map((contentId) => {
-          const isBook = contents.books.some((b) => b.id === contentId);
+          const isBook = bookIdSet.has(contentId);
           return {
             contentId,
             contentType: isBook ? ("book" as const) : ("lecture" as const),
@@ -254,7 +264,7 @@ export function Step3Contents({
       setEndDetailId(new Map());
       setContentRanges(new Map());
     }
-  }, [selectedContentIds, contents.books, contents.lectures]);
+  }, [selectedContentIds, bookIdSet, lectureIdSet]);
 
   // 시작/끝 범위 선택 시 범위 자동 계산 및 범위 내 상세정보 포함
   useEffect(() => {

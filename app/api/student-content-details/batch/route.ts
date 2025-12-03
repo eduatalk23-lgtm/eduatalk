@@ -35,6 +35,7 @@ type BatchResponse = {
       id: string;
       episode_number: number;
       title: string | null;
+      duration?: number | null;
     }>;
     metadata?: {
       subject?: string | null;
@@ -181,6 +182,7 @@ export async function POST(request: NextRequest) {
             id: e.id,
             episode_number: e.episode_number,
             title: e.title,
+            duration: e.duration ?? null,
           })),
           metadata,
         };

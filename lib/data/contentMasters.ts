@@ -1412,20 +1412,19 @@ export async function getStudentBookDetailsBatch(
     return new Map();
   }
 
-  // 결과를 bookId별로 그룹화하여 Map으로 반환
+  // 결과를 bookId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
   const resultMap = new Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>();
   
   (data || []).forEach((detail: { id: string; book_id: string; page_number: number; major_unit: string | null; minor_unit: string | null }) => {
-    const existing = resultMap.get(detail.book_id) || [];
-    resultMap.set(detail.book_id, [
-      ...existing,
-      {
-        id: detail.id,
-        page_number: detail.page_number,
-        major_unit: detail.major_unit,
-        minor_unit: detail.minor_unit,
-      },
-    ]);
+    if (!resultMap.has(detail.book_id)) {
+      resultMap.set(detail.book_id, []);
+    }
+    resultMap.get(detail.book_id)!.push({
+      id: detail.id,
+      page_number: detail.page_number,
+      major_unit: detail.major_unit,
+      minor_unit: detail.minor_unit,
+    });
   });
 
   // 조회 결과가 없는 bookId들도 빈 배열로 초기화
@@ -1447,7 +1446,7 @@ export async function getStudentBookDetailsBatch(
 export async function getStudentLectureEpisodesBatch(
   lectureIds: string[],
   studentId: string
-): Promise<Map<string, Array<{ id: string; episode_number: number; title: string | null }>>> {
+): Promise<Map<string, Array<{ id: string; episode_number: number; title: string | null; duration: number | null }>>> {
   if (lectureIds.length === 0) {
     return new Map();
   }
@@ -1456,7 +1455,7 @@ export async function getStudentLectureEpisodesBatch(
 
   const { data, error } = await supabase
     .from("student_lecture_episodes")
-    .select("id, lecture_id, episode_number, title")
+    .select("id, lecture_id, episode_number, title, duration")
     .in("lecture_id", lectureIds)
     .order("lecture_id", { ascending: true })
     .order("episode_number", { ascending: true });
@@ -1466,19 +1465,19 @@ export async function getStudentLectureEpisodesBatch(
     return new Map();
   }
 
-  // 결과를 lectureId별로 그룹화하여 Map으로 반환
-  const resultMap = new Map<string, Array<{ id: string; episode_number: number; title: string | null }>>();
+  // 결과를 lectureId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
+  const resultMap = new Map<string, Array<{ id: string; episode_number: number; title: string | null; duration: number | null }>>();
   
-  (data || []).forEach((episode: { id: string; lecture_id: string; episode_number: number; title: string | null }) => {
-    const existing = resultMap.get(episode.lecture_id) || [];
-    resultMap.set(episode.lecture_id, [
-      ...existing,
-      {
-        id: episode.id,
-        episode_number: episode.episode_number,
-        title: episode.title,
-      },
-    ]);
+  (data || []).forEach((episode: { id: string; lecture_id: string; episode_number: number; title: string | null; duration: number | null }) => {
+    if (!resultMap.has(episode.lecture_id)) {
+      resultMap.set(episode.lecture_id, []);
+    }
+    resultMap.get(episode.lecture_id)!.push({
+      id: episode.id,
+      episode_number: episode.episode_number,
+      title: episode.title,
+      duration: episode.duration,
+    });
   });
 
   // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
