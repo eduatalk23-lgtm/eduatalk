@@ -454,7 +454,7 @@ export function CurriculumHierarchyManager() {
   const selectedRevision = revisions.find((r) => r.id === selectedRevisionId);
 
   if (loading && revisions.length === 0) {
-    return <div className="text-center py-8 text-gray-500">로딩 중...</div>;
+    return <div className="text-center py-8 text-gray-700">로딩 중...</div>;
   }
 
   return (
@@ -484,7 +484,7 @@ export function CurriculumHierarchyManager() {
             개정교육과정 선택
           </label>
           {loading && revisions.length === 0 ? (
-            <div className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-500">
+            <div className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700">
               로딩 중...
             </div>
           ) : (
@@ -503,7 +503,7 @@ export function CurriculumHierarchyManager() {
             </select>
           )}
           {!loading && revisions.length === 0 && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-700">
               개정교육과정이 없습니다. 위의 "+ 추가" 버튼을 클릭하여 생성해주세요.
             </p>
           )}
@@ -604,7 +604,7 @@ export function CurriculumHierarchyManager() {
               >
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-gray-900">{revision.name}</span>
-                  <span className="text-xs text-gray-500">순서: {revision.display_order}</span>
+                  <span className="text-xs text-gray-600">순서: {revision.display_order}</span>
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                       revision.is_active
@@ -711,7 +711,7 @@ export function CurriculumHierarchyManager() {
             {/* 교과 목록 */}
             <div className="space-y-4">
               {subjectGroups.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-500">
+                <div className="text-center py-8 text-sm text-gray-700">
                   교과가 없습니다. 교과를 추가해주세요.
                 </div>
               ) : (
@@ -764,7 +764,7 @@ export function CurriculumHierarchyManager() {
                               <h3 className="text-base font-semibold text-gray-900">
                                 {group.name}
                               </h3>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-gray-600">
                                 순서: {group.display_order}
                               </span>
                             </div>
@@ -880,7 +880,7 @@ export function CurriculumHierarchyManager() {
 
                         {/* 과목 항목들 */}
                         {subjects.length === 0 ? (
-                          <div className="text-sm text-gray-500">과목이 없습니다.</div>
+                          <div className="text-sm text-gray-700">과목이 없습니다.</div>
                         ) : (
                           subjects.map((subject) => {
                             const subjectType = subjectTypes.find(
@@ -957,7 +957,7 @@ export function CurriculumHierarchyManager() {
                                       {subjectType.name}
                                     </span>
                                   )}
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-600">
                                     순서: {subject.display_order}
                                   </span>
                                 </div>
@@ -1073,7 +1073,7 @@ export function CurriculumHierarchyManager() {
             {/* 과목구분 목록 */}
             <div className="space-y-2">
               {subjectTypes.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-500">
+                <div className="text-center py-8 text-sm text-gray-700">
                   과목구분이 없습니다. 과목구분을 추가해주세요.
                 </div>
               ) : (
@@ -1133,7 +1133,7 @@ export function CurriculumHierarchyManager() {
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-gray-900">{type.name}</span>
-                        <span className="text-xs text-gray-500">순서: {type.display_order}</span>
+                        <span className="text-xs text-gray-600">순서: {type.display_order}</span>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             type.is_active

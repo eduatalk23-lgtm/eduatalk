@@ -48,9 +48,9 @@ export default async function MasterLecturesPage({
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-500">서비스 마스터</p>
+            <p className="text-sm font-medium text-gray-700">서비스 마스터</p>
             <h1 className="text-3xl font-semibold text-gray-900">강의 목록</h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-700">
               서비스에서 제공하는 강의를 검색하고 확인하세요.
             </p>
           </div>
@@ -100,7 +100,7 @@ export default async function MasterLecturesPage({
                   <h3 className="text-lg font-semibold text-gray-900">
                     검색 결과가 없습니다
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-700">
                     다른 검색 조건으로 시도해보세요.
                   </p>
                 </div>
@@ -118,42 +118,42 @@ export default async function MasterLecturesPage({
                       <h3 className="text-lg font-semibold text-gray-900">
                         {lecture.title}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-700">
                         {lecture.platform || "플랫폼 정보 없음"}
                       </p>
                     </div>
 
                     <dl className="grid gap-y-1 text-sm text-gray-600">
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">개정</dt>
+                        <dt className="font-medium text-gray-700">개정</dt>
                         <dd>{lecture.revision || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">학년/학기</dt>
+                        <dt className="font-medium text-gray-700">학년/학기</dt>
                         <dd>{lecture.semester || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">교과</dt>
+                        <dt className="font-medium text-gray-700">교과</dt>
                         <dd>{lecture.subject_category || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">과목</dt>
+                        <dt className="font-medium text-gray-700">과목</dt>
                         <dd>{lecture.subject || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">총 회차</dt>
+                        <dt className="font-medium text-gray-700">총 회차</dt>
                         <dd>{lecture.total_episodes}회</dd>
                       </div>
                       {lecture.total_duration && (
                         <div className="flex justify-between">
-                          <dt className="font-medium text-gray-500">
+                          <dt className="font-medium text-gray-700">
                             총 강의시간
                           </dt>
                           <dd>{secondsToMinutes(lecture.total_duration)}분</dd>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">난이도</dt>
+                        <dt className="font-medium text-gray-700">난이도</dt>
                         <dd>{lecture.difficulty_level || "—"}</dd>
                       </div>
                     </dl>

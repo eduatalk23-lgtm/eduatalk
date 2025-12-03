@@ -211,7 +211,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
               연결된 교재 함께 등록하기
             </span>
           </label>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-700">
             이 강의가 특정 교재를 기반으로 하는 경우, 교재를 함께 등록할 수
             있습니다.
           </p>
@@ -271,7 +271,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>
@@ -289,7 +289,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>
@@ -307,7 +307,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>
@@ -325,7 +325,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>

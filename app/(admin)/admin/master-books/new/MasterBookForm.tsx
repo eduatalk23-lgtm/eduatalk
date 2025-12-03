@@ -182,7 +182,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
             ))}
           </select>
           {!selectedRevisionId && (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-700">
               개정교육과정을 먼저 선택하세요
             </p>
           )}

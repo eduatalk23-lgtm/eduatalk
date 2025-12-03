@@ -95,7 +95,7 @@ export function PlatformsManager() {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">로딩 중...</div>;
+    return <div className="text-center py-8 text-gray-700">로딩 중...</div>;
   }
 
   return (
@@ -160,16 +160,16 @@ export function PlatformsManager() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
                 이름
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
                 정렬 순서
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
                 상태
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-600">
                 작업
               </th>
             </tr>
@@ -177,7 +177,7 @@ export function PlatformsManager() {
           <tbody className="divide-y divide-gray-200 bg-white">
             {items.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">
+                <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-700">
                   데이터가 없습니다.
                 </td>
               </tr>
@@ -240,7 +240,7 @@ export function PlatformsManager() {
                 ) : (
                   <tr key={item.id}>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{item.display_order}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{item.display_order}</td>
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${

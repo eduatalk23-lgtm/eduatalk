@@ -48,9 +48,9 @@ export default async function MasterBooksPage({
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-500">서비스 마스터</p>
+            <p className="text-sm font-medium text-gray-700">서비스 마스터</p>
             <h1 className="text-3xl font-semibold text-gray-900">교재 목록</h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-700">
               서비스에서 제공하는 교재를 검색하고 확인하세요.
             </p>
           </div>
@@ -100,7 +100,7 @@ export default async function MasterBooksPage({
                   <h3 className="text-lg font-semibold text-gray-900">
                     검색 결과가 없습니다
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-700">
                     다른 검색 조건으로 시도해보세요.
                   </p>
                 </div>
@@ -129,30 +129,30 @@ export default async function MasterBooksPage({
                       <h3 className="text-lg font-semibold text-gray-900">
                         {book.title}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-700">
                         {book.publisher_name || "출판사 정보 없음"}
                       </p>
                     </div>
 
                     <dl className="grid gap-y-1 text-sm text-gray-600">
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">개정</dt>
+                        <dt className="font-medium text-gray-700">개정</dt>
                         <dd>{book.revision || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">학년/학기</dt>
+                        <dt className="font-medium text-gray-700">학년/학기</dt>
                         <dd>{book.semester || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">과목 ID</dt>
+                        <dt className="font-medium text-gray-700">과목 ID</dt>
                         <dd className="truncate max-w-[150px]">{book.subject_id || "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">총 페이지</dt>
+                        <dt className="font-medium text-gray-700">총 페이지</dt>
                         <dd>{book.total_pages ? `${book.total_pages}p` : "—"}</dd>
                       </div>
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-500">난이도</dt>
+                        <dt className="font-medium text-gray-700">난이도</dt>
                         <dd>{book.difficulty_level || "—"}</dd>
                       </div>
                     </dl>

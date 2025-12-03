@@ -243,7 +243,7 @@ export function MasterBookEditForm({
             ))}
           </select>
           {!selectedRevisionId && (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-700">
               개정교육과정을 먼저 선택하세요
             </p>
           )}
@@ -485,7 +485,7 @@ export function MasterBookEditForm({
           />
           {book.cover_image_url && (
             <div className="mt-3">
-              <p className="mb-2 text-xs text-gray-500">현재 이미지 미리보기:</p>
+              <p className="mb-2 text-xs text-gray-700">현재 이미지 미리보기:</p>
               <div className="relative h-48 w-32 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
                 <Image
                   src={book.cover_image_url}

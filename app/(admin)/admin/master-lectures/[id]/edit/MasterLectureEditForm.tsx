@@ -195,7 +195,7 @@ export function MasterLectureEditForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-700">
             이 강의가 특정 교재를 기반으로 하는 경우 교재를 연결할 수
             있습니다.
           </p>
