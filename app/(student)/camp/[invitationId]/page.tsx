@@ -380,16 +380,6 @@ export default async function CampParticipationPage({
         </div>
       </div>
 
-      {/* 템플릿 정보 표시 */}
-      <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-        <h3 className="font-semibold text-blue-900">캠프 프로그램 정보</h3>
-        <p className="text-sm text-blue-800">{template.name}</p>
-        <p className="text-xs text-blue-800">{template.program_type}</p>
-        {template.description && (
-          <p className="mt-2 text-sm text-blue-800">{template.description}</p>
-        )}
-      </div>
-
       <PlanGroupWizard
         initialBlockSets={blockSets || []}
         initialContents={{
