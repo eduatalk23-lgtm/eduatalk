@@ -11,6 +11,7 @@ export { ContentSelector } from "./ContentSelector";
 export { StudentContentsPanel } from "./StudentContentsPanel";
 export { RecommendedContentsPanel } from "./RecommendedContentsPanel";
 export { MasterContentsPanel } from "./MasterContentsPanel";
+export { UnifiedContentsView } from "./UnifiedContentsView";
 
 // Phase 5: 편집/읽기 모드 통합 컴포넌트
 export { EditableField } from "./EditableField";

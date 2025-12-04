@@ -11,6 +11,7 @@ import {
   RecommendedContentsPanel,
   MasterContentsPanel,
   ProgressIndicator,
+  UnifiedContentsView,
 } from "./_shared";
 import { BookOpen, Sparkles, Package } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -875,126 +876,140 @@ export function Step3ContentSelection({
         warningMessage={warningMessage}
       />
 
-      {/* 탭 UI */}
-      <div className="flex gap-2 border-b border-gray-200">
-        <button
-          type="button"
-          onClick={() => {
-            if (!editable) return;
-            setActiveTab("student");
-          }}
-          disabled={!editable}
-          className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
-            activeTab === "student"
-              ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900",
-            !editable && "cursor-not-allowed opacity-60"
-          )}
-        >
-          <BookOpen className="h-4 w-4" />
-          <span>학생 콘텐츠</span>
-          <span
+      {/* 탭 UI - 읽기 전용 모드에서는 숨김 */}
+      {editable && (
+        <div className="flex gap-2 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => {
+              if (!editable) return;
+              setActiveTab("student");
+            }}
+            disabled={!editable}
             className={cn(
-              "rounded-full px-2 py-0.5 text-xs",
+              "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
               activeTab === "student"
-                ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-600"
+                ? "border-blue-600 text-blue-800"
+                : "border-transparent text-gray-600 hover:text-gray-900",
+              !editable && "cursor-not-allowed opacity-60"
             )}
           >
-            {data.student_contents.length}
-          </span>
-        </button>
+            <BookOpen className="h-4 w-4" />
+            <span>학생 콘텐츠</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs",
+                activeTab === "student"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-gray-100 text-gray-600"
+              )}
+            >
+              {data.student_contents.length}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (!editable) return;
-            setActiveTab("recommended");
-          }}
-          disabled={!editable}
-          className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
-            activeTab === "recommended"
-              ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900",
-            !editable && "cursor-not-allowed opacity-60"
-          )}
-        >
-          <Sparkles className="h-4 w-4" />
-          <span>추천 콘텐츠</span>
-          <span
+          <button
+            type="button"
+            onClick={() => {
+              if (!editable) return;
+              setActiveTab("recommended");
+            }}
+            disabled={!editable}
             className={cn(
-              "rounded-full px-2 py-0.5 text-xs",
+              "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
               activeTab === "recommended"
-                ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-600"
+                ? "border-blue-600 text-blue-800"
+                : "border-transparent text-gray-600 hover:text-gray-900",
+              !editable && "cursor-not-allowed opacity-60"
             )}
           >
-            {data.recommended_contents.length}
-          </span>
-        </button>
+            <Sparkles className="h-4 w-4" />
+            <span>추천 콘텐츠</span>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-xs",
+                activeTab === "recommended"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-gray-100 text-gray-600"
+              )}
+            >
+              {data.recommended_contents.length}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (!editable) return;
-            setActiveTab("master");
-          }}
-          disabled={!editable}
-          className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
-            activeTab === "master"
-              ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900",
-            !editable && "cursor-not-allowed opacity-60"
-          )}
-        >
-          <Package className="h-4 w-4" />
-          <span>마스터 콘텐츠</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!editable) return;
+              setActiveTab("master");
+            }}
+            disabled={!editable}
+            className={cn(
+              "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+              activeTab === "master"
+                ? "border-blue-600 text-blue-800"
+                : "border-transparent text-gray-600 hover:text-gray-900",
+              !editable && "cursor-not-allowed opacity-60"
+            )}
+          >
+            <Package className="h-4 w-4" />
+            <span>마스터 콘텐츠</span>
+          </button>
+        </div>
+      )}
 
-      {/* 탭 내용 */}
+      {/* 탭 내용 또는 통합 뷰 */}
       <div>
-        {activeTab === "student" ? (
-          <StudentContentsPanel
-            contents={contents}
-            selectedContents={data.student_contents}
-            maxContents={maxContents}
-            currentTotal={currentTotal}
-            onUpdate={handleStudentContentsUpdate}
-            editable={editable}
-            isCampMode={isCampMode}
-          />
-        ) : activeTab === "recommended" ? (
-          <RecommendedContentsPanel
-            recommendedContents={recommendedContents}
-            allRecommendedContents={allRecommendedContents}
-            selectedContents={data.recommended_contents}
-            selectedRecommendedIds={selectedRecommendedIds}
-            maxContents={maxContents}
-            currentTotal={currentTotal}
-            settings={recommendationSettings}
-            onSettingsChange={setRecommendationSettings}
-            onUpdate={handleRecommendedContentsUpdate}
-            onRequestRecommendations={handleRequestRecommendations}
-            isEditMode={isEditMode}
-            isCampMode={isCampMode}
-            loading={recommendationLoading}
-            hasRequestedRecommendations={hasRequestedRecommendations}
-            hasScoreData={hasScoreData}
-            studentId={studentId}
-            isAdminContinueMode={isAdminContinueMode}
-            editable={editable}
-          />
+        {editable ? (
+          // 편집 모드: 탭별 표시
+          activeTab === "student" ? (
+            <StudentContentsPanel
+              contents={contents}
+              selectedContents={data.student_contents}
+              maxContents={maxContents}
+              currentTotal={currentTotal}
+              onUpdate={handleStudentContentsUpdate}
+              editable={editable}
+              isCampMode={isCampMode}
+            />
+          ) : activeTab === "recommended" ? (
+            <RecommendedContentsPanel
+              recommendedContents={recommendedContents}
+              allRecommendedContents={allRecommendedContents}
+              selectedContents={data.recommended_contents}
+              selectedRecommendedIds={selectedRecommendedIds}
+              maxContents={maxContents}
+              currentTotal={currentTotal}
+              settings={recommendationSettings}
+              onSettingsChange={setRecommendationSettings}
+              onUpdate={handleRecommendedContentsUpdate}
+              onRequestRecommendations={handleRequestRecommendations}
+              isEditMode={isEditMode}
+              isCampMode={isCampMode}
+              loading={recommendationLoading}
+              hasRequestedRecommendations={hasRequestedRecommendations}
+              hasScoreData={hasScoreData}
+              studentId={studentId}
+              isAdminContinueMode={isAdminContinueMode}
+              editable={editable}
+            />
+          ) : (
+            <MasterContentsPanel
+              selectedContents={data.student_contents}
+              maxContents={maxContents}
+              currentTotal={currentTotal}
+              onUpdate={handleStudentContentsUpdate}
+              editable={editable}
+              isCampMode={isCampMode}
+            />
+          )
         ) : (
-          <MasterContentsPanel
-            selectedContents={data.student_contents}
-            maxContents={maxContents}
-            currentTotal={currentTotal}
-            onUpdate={handleStudentContentsUpdate}
-            editable={editable}
+          // 읽기 전용 모드: 통합 뷰
+          <UnifiedContentsView
+            studentContents={data.student_contents}
+            recommendedContents={data.recommended_contents}
+            contents={contents}
+            allRecommendedContents={allRecommendedContents}
             isCampMode={isCampMode}
           />
         )}
