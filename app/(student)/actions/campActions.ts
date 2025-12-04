@@ -250,7 +250,8 @@ export const submitCampParticipation = withErrorHandling(
         ) || []),
       ],
       student_contents: wizardData.student_contents || [],
-      recommended_contents: templateData.recommended_contents || [],
+      // 학생이 선택한 추천 콘텐츠만 저장 (템플릿의 recommended_contents는 초기값으로만 사용)
+      recommended_contents: wizardData.recommended_contents || [],
       // 제외일: 템플릿 기본값 (source, is_locked 포함) + 학생 추가 제외일
       exclusions: [
         ...templateExclusions,
