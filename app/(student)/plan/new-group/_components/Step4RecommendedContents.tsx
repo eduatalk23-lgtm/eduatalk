@@ -43,6 +43,7 @@ export default function Step4RecommendedContents({
   isEditMode = false,
   isCampMode = false,
   studentId,
+  isAdminContinueMode = false,
 }: Step4RecommendedContentsProps) {
   // ============================================================================
   // 추천 콘텐츠 관리
@@ -416,8 +417,9 @@ export default function Step4RecommendedContents({
   const totalCount = studentCount + recommendedCount;
   const canAddMore = totalCount < 9;
 
-  // 추천 요청 폼 표시 조건: 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
+  // 추천 요청 폼 표시 조건: 관리자 모드일 때는 항상 표시, 그 외에는 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
   const shouldShowRecommendationForm =
+    isAdminContinueMode || // 관리자 모드일 때는 항상 표시
     !hasRequestedRecommendations ||
     (hasRequestedRecommendations &&
       recommendedContents.length === 0 &&

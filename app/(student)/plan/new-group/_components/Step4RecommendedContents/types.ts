@@ -57,6 +57,7 @@ export type Step4RecommendedContentsProps = {
   isEditMode?: boolean;
   isCampMode?: boolean;
   studentId?: string; // 관리자 모드에서 다른 학생의 추천 콘텐츠 조회 시 사용
+  isAdminContinueMode?: boolean; // 관리자 남은 단계 진행 모드
 };
 
 // ============================================================================
