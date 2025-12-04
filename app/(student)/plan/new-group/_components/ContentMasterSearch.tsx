@@ -8,12 +8,14 @@ type ContentMasterSearchProps = {
   contentType: "book" | "lecture";
   onContentAdded: (contentId: string, contentType: "book" | "lecture") => void;
   onClose: () => void;
+  studentId?: string; // 관리자 모드에서 사용 시
 };
 
 export function ContentMasterSearch({
   contentType,
   onContentAdded,
   onClose,
+  studentId,
 }: ContentMasterSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
@@ -166,7 +168,7 @@ export function ContentMasterSearch({
   const handleCopy = async (masterId: string) => {
     setCopyingId(masterId);
     try {
-      const result = await copyMasterToStudentContentAction(masterId);
+      const result = await copyMasterToStudentContentAction(masterId, studentId);
       const contentId = result.bookId || result.lectureId;
       if (contentId) {
         onContentAdded(contentId, contentType);

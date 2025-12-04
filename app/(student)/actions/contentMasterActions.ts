@@ -1,6 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   searchContentMasters,
@@ -20,7 +21,8 @@ async function _searchContentMasters(
   filters: ContentMasterFilters
 ): Promise<{ data: any[]; total: number }> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
+  const { role } = await getCurrentUserRole();
+  if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
@@ -109,7 +111,8 @@ async function _getContentMasterById(masterId: string): Promise<{
   details: any[];
 }> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
+  const { role } = await getCurrentUserRole();
+  if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
@@ -121,12 +124,16 @@ export const getContentMasterByIdAction = withErrorHandling(_getContentMasterByI
 /**
  * 마스터 콘텐츠를 학생 콘텐츠로 복사
  */
-async function _copyMasterToStudentContent(masterId: string): Promise<{
+async function _copyMasterToStudentContent(
+  masterId: string,
+  targetStudentId?: string // 관리자 모드에서 사용 시
+): Promise<{
   bookId?: string;
   lectureId?: string;
 }> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
+  const { role } = await getCurrentUserRole();
+  if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
@@ -140,9 +147,12 @@ async function _copyMasterToStudentContent(masterId: string): Promise<{
     );
   }
 
+  // 관리자/컨설턴트인 경우 targetStudentId 사용, 학생인 경우 자신의 ID 사용
+  const finalStudentId = targetStudentId || user.userId;
+
   return await copyMasterToStudentContent(
     masterId,
-    user.userId,
+    finalStudentId,
     tenantContext.tenantId
   );
 }
@@ -156,7 +166,8 @@ export const copyMasterToStudentContentAction = withErrorHandling(
  */
 async function _getSubjectList(content_type?: "book" | "lecture"): Promise<string[]> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
+  const { role } = await getCurrentUserRole();
+  if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
@@ -170,7 +181,8 @@ export const getSubjectListAction = withErrorHandling(_getSubjectList);
  */
 async function _getSemesterList(): Promise<string[]> {
   const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
+  const { role } = await getCurrentUserRole();
+  if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
