@@ -35,6 +35,8 @@ export type Step6SimplifiedProps = {
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   studentId?: string;
+  editable?: boolean;
+  isTemplateMode?: boolean;
 };
 
 // SubjectAllocationEditor 컴포넌트 (관리자 모드용)
@@ -42,6 +44,7 @@ function SubjectAllocationEditor({
   data,
   onUpdate,
   contents,
+  editable = true,
 }: {
   data: WizardData;
   onUpdate: (updates: Partial<WizardData>) => void;
@@ -50,6 +53,7 @@ function SubjectAllocationEditor({
     lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
+  editable?: boolean;
 }) {
   // contentInfos 생성 (data.student_contents와 data.recommended_contents에서)
   const contentInfos = useMemo(() => {
@@ -112,6 +116,7 @@ function SubjectAllocationEditor({
       weekly_days?: number;
     }
   ) => {
+    if (!editable) return;
     const currentAllocations = data.subject_allocations || [];
     const updatedAllocations = currentAllocations.filter(
       (a) => a.subject_name !== subject
@@ -166,7 +171,8 @@ function SubjectAllocationEditor({
                           subject_type: "weakness",
                         });
                       }}
-                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      disabled={!editable}
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900">
@@ -193,7 +199,8 @@ function SubjectAllocationEditor({
                           weekly_days: 3,
                         });
                       }}
-                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      disabled={!editable}
+                      className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <div className="flex-1">
                       <div className="text-sm font-medium text-gray-900">
@@ -213,7 +220,7 @@ function SubjectAllocationEditor({
                     주당 배정 일수
                   </label>
                   <select
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                     value={weeklyDays}
                     onChange={(e) => {
                       handleSubjectAllocationChange(subject, {
@@ -223,6 +230,7 @@ function SubjectAllocationEditor({
                         weekly_days: Number(e.target.value),
                       });
                     }}
+                    disabled={!editable}
                   >
                     <option value="2">주 2일</option>
                     <option value="3">주 3일</option>
@@ -249,6 +257,8 @@ export function Step6Simplified({
   onUpdate,
   contents,
   studentId,
+  editable = true,
+  isTemplateMode = false,
 }: Step6SimplifiedProps) {
   return (
     <div className="space-y-6">
@@ -311,6 +321,7 @@ export function Step6Simplified({
                 data={data}
                 onUpdate={onUpdate}
                 contents={contents}
+                editable={editable}
               />
             ) : (
               <SubjectAllocationSummary data={data} />
