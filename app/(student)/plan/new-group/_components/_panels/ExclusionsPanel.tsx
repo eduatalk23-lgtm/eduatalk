@@ -108,6 +108,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   const [isLoadingCount, setIsLoadingCount] = useState(false);
 
   const toggleExclusionDate = (date: string) => {
+    if (!editable) return;
     setNewExclusionDates((prev) =>
       prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
     );
@@ -180,6 +181,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   };
 
   const addExclusion = () => {
+    if (!editable) return;
     let datesToAdd: string[] = [];
 
     if (exclusionInputType === "single") {
@@ -249,6 +251,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   };
 
   const removeExclusion = (index: number) => {
+    if (!editable) return;
     const exclusion = data.exclusions[index];
     const isTemplateExclusion =
       exclusion.is_locked || exclusion.source === "template";
@@ -352,34 +355,46 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           <div className="mb-4 flex gap-2">
             <button
               type="button"
-              onClick={() => setExclusionInputType("single")}
+              onClick={() => {
+                if (!editable) return;
+                setExclusionInputType("single");
+              }}
+              disabled={!editable}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 exclusionInputType === "single"
                   ? "bg-gray-900 text-white"
                   : "bg-white text-gray-800 hover:bg-gray-100"
-              }`}
+              } ${!editable ? "cursor-not-allowed opacity-60" : ""}`}
             >
               단일 날짜
             </button>
             <button
               type="button"
-              onClick={() => setExclusionInputType("range")}
+              onClick={() => {
+                if (!editable) return;
+                setExclusionInputType("range");
+              }}
+              disabled={!editable}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 exclusionInputType === "range"
                   ? "bg-gray-900 text-white"
                   : "bg-white text-gray-800 hover:bg-gray-100"
-              }`}
+              } ${!editable ? "cursor-not-allowed opacity-60" : ""}`}
             >
               시작일 ~ 종료일
             </button>
             <button
               type="button"
-              onClick={() => setExclusionInputType("multiple")}
+              onClick={() => {
+                if (!editable) return;
+                setExclusionInputType("multiple");
+              }}
+              disabled={!editable}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 exclusionInputType === "multiple"
                   ? "bg-gray-900 text-white"
                   : "bg-white text-gray-800 hover:bg-gray-100"
-              }`}
+              } ${!editable ? "cursor-not-allowed opacity-60" : ""}`}
             >
               비연속 다중 선택
             </button>
@@ -393,9 +408,13 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               </label>
               <input
                 type="date"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 value={newExclusionDate}
-                onChange={(e) => setNewExclusionDate(e.target.value)}
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewExclusionDate(e.target.value);
+                }}
+                disabled={!editable}
                 min={periodStart}
                 max={periodEnd}
               />
@@ -410,9 +429,13 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 </label>
                 <input
                   type="date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                   value={newExclusionStartDate}
-                  onChange={(e) => setNewExclusionStartDate(e.target.value)}
+                  onChange={(e) => {
+                    if (!editable) return;
+                    setNewExclusionStartDate(e.target.value);
+                  }}
+                  disabled={!editable}
                   min={periodStart}
                   max={periodEnd}
                 />
@@ -423,9 +446,13 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 </label>
                 <input
                   type="date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                   value={newExclusionEndDate}
-                  onChange={(e) => setNewExclusionEndDate(e.target.value)}
+                  onChange={(e) => {
+                    if (!editable) return;
+                    setNewExclusionEndDate(e.target.value);
+                  }}
+                  disabled={!editable}
                   min={periodStart}
                   max={periodEnd}
                 />
@@ -471,9 +498,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         key={date}
                         type="button"
                         onClick={() => !isExcluded && toggleExclusionDate(date)}
-                        disabled={isExcluded}
+                        disabled={!editable || isExcluded}
                         className={`w-full rounded px-2 py-1 text-left text-xs transition-colors ${
-                          isExcluded
+                          !editable || isExcluded
                             ? "cursor-not-allowed bg-gray-100 text-gray-600 line-through"
                           : isSelected
                           ? "bg-gray-900 text-white"
@@ -529,11 +556,13 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 )}
               </div>
               <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 value={newExclusionType}
-                onChange={(e) =>
-                  setNewExclusionType(e.target.value as typeof newExclusionType)
-                }
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewExclusionType(e.target.value as typeof newExclusionType);
+                }}
+                disabled={!editable}
               >
                 {exclusionTypes.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -569,10 +598,14 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 placeholder="예: 가족 여행"
                 value={newExclusionReason}
-                onChange={(e) => setNewExclusionReason(e.target.value)}
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewExclusionReason(e.target.value);
+                }}
+                disabled={!editable}
               />
             </div>
           </div>

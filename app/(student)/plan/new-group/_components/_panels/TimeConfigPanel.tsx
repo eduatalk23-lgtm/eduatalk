@@ -55,6 +55,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
     key: "lunch_time" | "camp_study_hours" | "camp_self_study_hours" | "designated_holiday_hours",
     range: { start: string; end: string } | undefined
   ) => {
+    if (!editable) return;
     onUpdate({
       time_settings: {
         ...data.time_settings,
@@ -74,6 +75,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
               onChange={(range) => updateTimeSetting("lunch_time", range)}
               defaultStart="12:00"
               defaultEnd="13:00"
+              disabled={!editable}
             />
           )}
 
@@ -87,6 +89,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                   id="enable_self_study_for_holidays"
                   checked={data.time_settings?.enable_self_study_for_holidays ?? false}
                   onChange={(e) => {
+                    if (!editable) return;
                     const enabled = e.target.checked;
                     onUpdate({
                       time_settings: {
@@ -98,7 +101,8 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                       },
                     });
                   }}
-                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  disabled={!editable}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <label
                   htmlFor="enable_self_study_for_holidays"
@@ -121,6 +125,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                     onChange={(range) => updateTimeSetting("designated_holiday_hours", range)}
                     defaultStart="13:00"
                     defaultEnd="19:00"
+                    disabled={!editable}
                   />
                 </div>
               )}
@@ -132,6 +137,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                   id="enable_self_study_for_study_days"
                   checked={data.time_settings?.enable_self_study_for_study_days ?? false}
                   onChange={(e) => {
+                    if (!editable) return;
                     const enabled = e.target.checked;
                     onUpdate({
                       time_settings: {
@@ -144,7 +150,8 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                       },
                     });
                   }}
-                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  disabled={!editable}
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <label
                   htmlFor="enable_self_study_for_study_days"
@@ -167,6 +174,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                     onChange={(range) => updateTimeSetting("camp_self_study_hours", range)}
                     defaultStart="19:00"
                     defaultEnd="22:00"
+                    disabled={!editable}
                   />
                 </div>
               )}

@@ -68,6 +68,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
   });
 
   const addNonStudyTimeBlock = () => {
+    if (!editable) return;
     if (!newNonStudyTimeBlock.start_time || !newNonStudyTimeBlock.end_time) {
       toast.showError("시작 시간과 종료 시간을 입력해주세요.");
       return;
@@ -89,12 +90,14 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
   };
 
   const removeNonStudyTimeBlock = (index: number) => {
+    if (!editable) return;
     const updated = [...(data.non_study_time_blocks || [])];
     updated.splice(index, 1);
     onUpdate({ non_study_time_blocks: updated.length > 0 ? updated : undefined });
   };
 
   const toggleWeekday = (day: number) => {
+    if (!editable) return;
     const currentDays = newNonStudyTimeBlock.day_of_week || [];
     const updatedDays = currentDays.includes(day)
       ? currentDays.filter((d) => d !== day)
@@ -143,7 +146,12 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                   <button
                     type="button"
                     onClick={() => removeNonStudyTimeBlock(index)}
-                    className="ml-2 text-xs text-red-600 hover:text-red-800"
+                    disabled={!editable}
+                    className={`ml-2 text-xs ${
+                      !editable
+                        ? "cursor-not-allowed text-gray-600"
+                        : "text-red-600 hover:text-red-800"
+                    }`}
                   >
                     삭제
                   </button>
@@ -160,14 +168,16 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-800">제외 항목 유형</label>
                 <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                   value={newNonStudyTimeBlock.type}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (!editable) return;
                     setNewNonStudyTimeBlock({
                       ...newNonStudyTimeBlock,
                       type: e.target.value as any,
-                    })
-                  }
+                    });
+                  }}
+                  disabled={!editable}
                 >
                   <option value="아침식사">아침식사</option>
                   <option value="저녁식사">저녁식사</option>
@@ -181,28 +191,32 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                   <label className="mb-1 block text-xs font-medium text-gray-800">시작 시간</label>
                   <input
                     type="time"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                     value={newNonStudyTimeBlock.start_time}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      if (!editable) return;
                       setNewNonStudyTimeBlock({
                         ...newNonStudyTimeBlock,
                         start_time: e.target.value,
-                      })
-                    }
+                      });
+                    }}
+                    disabled={!editable}
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-800">종료 시간</label>
                   <input
                     type="time"
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                     value={newNonStudyTimeBlock.end_time}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      if (!editable) return;
                       setNewNonStudyTimeBlock({
                         ...newNonStudyTimeBlock,
                         end_time: e.target.value,
-                      })
-                    }
+                      });
+                    }}
+                    disabled={!editable}
                   />
                 </div>
               </div>
@@ -231,22 +245,25 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                 <label className="mb-1 block text-xs font-medium text-gray-800">설명 (선택사항)</label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                   placeholder="예: 점심 식사 시간"
                   value={newNonStudyTimeBlock.description || ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (!editable) return;
                     setNewNonStudyTimeBlock({
                       ...newNonStudyTimeBlock,
                       description: e.target.value || undefined,
-                    })
-                  }
+                    });
+                  }}
+                  disabled={!editable}
                 />
               </div>
 
               <button
                 type="button"
                 onClick={addNonStudyTimeBlock}
-                className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                disabled={!editable}
+                className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
               >
                 제외 항목 추가
               </button>

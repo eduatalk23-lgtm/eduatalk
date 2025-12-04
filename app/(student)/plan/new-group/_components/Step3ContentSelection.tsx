@@ -656,6 +656,7 @@ export function Step3ContentSelection({
 
   // 필수 교과 추가
   const handleAddRequiredSubject = useCallback(() => {
+    if (!editable) return;
     const currentConstraints = data.subject_constraints || {
       enable_required_subjects_validation: true,
       required_subjects: [],
@@ -736,6 +737,7 @@ export function Step3ContentSelection({
   // 제약 조건 처리 방식 변경
   const handleConstraintHandlingChange = useCallback(
     (handling: "strict" | "warning" | "auto_fix") => {
+      if (!editable) return;
       if (!data.subject_constraints) return;
 
       const currentConstraints = data.subject_constraints;
@@ -814,7 +816,12 @@ export function Step3ContentSelection({
             <button
               type="button"
               onClick={handleAddRequiredSubject}
-              className="w-full rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-gray-400 hover:text-gray-600 transition-colors"
+              disabled={!editable}
+              className={`w-full rounded-lg border-2 border-dashed p-3 text-sm transition-colors ${
+                !editable
+                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                  : "border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-600"
+              }`}
             >
               + 필수 교과 추가
             </button>
@@ -833,7 +840,8 @@ export function Step3ContentSelection({
                     e.target.value as "strict" | "warning" | "auto_fix"
                   )
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                disabled={!editable}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
               >
                 <option value="warning">
                   경고 (권장) - 경고만 표시하고 진행
@@ -871,12 +879,17 @@ export function Step3ContentSelection({
       <div className="flex gap-2 border-b border-gray-200">
         <button
           type="button"
-          onClick={() => setActiveTab("student")}
+          onClick={() => {
+            if (!editable) return;
+            setActiveTab("student");
+          }}
+          disabled={!editable}
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "student"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              : "border-transparent text-gray-600 hover:text-gray-900",
+            !editable && "cursor-not-allowed opacity-60"
           )}
         >
           <BookOpen className="h-4 w-4" />
@@ -895,12 +908,17 @@ export function Step3ContentSelection({
 
         <button
           type="button"
-          onClick={() => setActiveTab("recommended")}
+          onClick={() => {
+            if (!editable) return;
+            setActiveTab("recommended");
+          }}
+          disabled={!editable}
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "recommended"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              : "border-transparent text-gray-600 hover:text-gray-900",
+            !editable && "cursor-not-allowed opacity-60"
           )}
         >
           <Sparkles className="h-4 w-4" />
@@ -919,12 +937,17 @@ export function Step3ContentSelection({
 
         <button
           type="button"
-          onClick={() => setActiveTab("master")}
+          onClick={() => {
+            if (!editable) return;
+            setActiveTab("master");
+          }}
+          disabled={!editable}
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
             activeTab === "master"
               ? "border-blue-600 text-blue-800"
-              : "border-transparent text-gray-600 hover:text-gray-900"
+              : "border-transparent text-gray-600 hover:text-gray-900",
+            !editable && "cursor-not-allowed opacity-60"
           )}
         >
           <Package className="h-4 w-4" />
@@ -963,6 +986,7 @@ export function Step3ContentSelection({
             hasScoreData={hasScoreData}
             studentId={studentId}
             isAdminContinueMode={isAdminContinueMode}
+            editable={editable}
           />
         ) : (
           <MasterContentsPanel

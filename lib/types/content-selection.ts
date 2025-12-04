@@ -344,6 +344,7 @@ export type RecommendedContentsPanelProps = {
   hasScoreData?: boolean;
   studentId?: string;
   isAdminContinueMode?: boolean;
+  editable?: boolean;
 };
 
 /**

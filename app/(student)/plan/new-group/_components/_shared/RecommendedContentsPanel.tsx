@@ -36,6 +36,7 @@ export function RecommendedContentsPanel({
   hasScoreData = false,
   studentId,
   isAdminContinueMode = false,
+  editable = true,
 }: RecommendedContentsPanelProps) {
   // 범위 설정 모달
   const [rangeModalOpen, setRangeModalOpen] = useState(false);
@@ -65,6 +66,7 @@ export function RecommendedContentsPanel({
   // 과목 선택 토글
   const handleSubjectToggle = useCallback(
     (subject: string) => {
+      if (!editable) return;
       const newSubjects = new Set(settings.selectedSubjects);
       if (newSubjects.has(subject)) {
         newSubjects.delete(subject);
@@ -92,6 +94,7 @@ export function RecommendedContentsPanel({
   // 추천 개수 변경
   const handleCountChange = useCallback(
     (subject: string, count: number) => {
+      if (!editable) return;
       const newCounts = new Map(settings.recommendationCounts);
       newCounts.set(subject, Math.max(1, Math.min(5, count)));
       onSettingsChange({
@@ -105,6 +108,7 @@ export function RecommendedContentsPanel({
   // 추천 콘텐츠 선택
   const handleRecommendedSelect = useCallback(
     (content: RecommendedContent) => {
+      if (!editable) return;
       if (!canAddMore) {
         alert(`플랜 대상 콘텐츠는 최대 ${maxContents}개까지 가능합니다.`);
         return;
@@ -156,23 +160,25 @@ export function RecommendedContentsPanel({
       setRangeModalContent(modalContent);
       setRangeModalOpen(true);
     },
-    [canAddMore, maxContents]
+    [canAddMore, maxContents, editable]
   );
 
   // 추천 콘텐츠 삭제
   const handleRecommendedRemove = useCallback(
     (contentId: string) => {
+      if (!editable) return;
       const updated = selectedContents.filter(
         (c) => c.content_id !== contentId
       );
       onUpdate(updated);
     },
-    [selectedContents, onUpdate]
+    [selectedContents, onUpdate, editable]
   );
 
   // 범위 수정 모달 열기
   const handleEditRange = useCallback(
     (content: SelectedContent) => {
+      if (!editable) return;
       // custom 타입은 범위 설정을 지원하지 않음
       if (content.content_type === "custom") {
         const errorMessage = `[RecommendedContentsPanel] custom 타입 콘텐츠는 범위 설정을 지원하지 않습니다. contentId: ${content.content_id}, title: ${content.title}`;
@@ -200,12 +206,13 @@ export function RecommendedContentsPanel({
       });
       setRangeModalOpen(true);
     },
-    [allRecommendedContents]
+    [allRecommendedContents, editable]
   );
 
   // 범위 저장
   const handleRangeSave = useCallback(
     (range: ContentRange) => {
+      if (!editable) return;
       if (!rangeModalContent) return;
 
       const { id, type, title, recommendedContent } = rangeModalContent;
@@ -242,7 +249,7 @@ export function RecommendedContentsPanel({
       setRangeModalOpen(false);
       setRangeModalContent(null);
     },
-    [rangeModalContent, selectedContents, onUpdate]
+    [rangeModalContent, selectedContents, onUpdate, editable]
   );
 
   // 추천 요청 폼 표시 조건: 관리자 모드일 때는 항상 표시, 그 외에는 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
@@ -355,11 +362,14 @@ export function RecommendedContentsPanel({
           {/* 추천 받기 버튼 */}
           <button
             type="button"
-            onClick={onRequestRecommendations}
-            disabled={!canRequestRecommendations || loading || maxReached}
+            onClick={() => {
+              if (!editable) return;
+              onRequestRecommendations();
+            }}
+            disabled={!editable || !canRequestRecommendations || loading || maxReached}
             className={cn(
               "mt-4 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700",
-              (!canRequestRecommendations || loading || maxReached) &&
+              (!editable || !canRequestRecommendations || loading || maxReached) &&
                 "cursor-not-allowed opacity-50"
             )}
           >

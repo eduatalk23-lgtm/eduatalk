@@ -92,6 +92,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   const [isLoadingCount, setIsLoadingCount] = useState(false);
 
   const toggleWeekday = (day: number) => {
+    if (!editable) return;
     setNewAcademyDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
@@ -141,6 +142,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   }, [data.academy_schedules.length]);
 
   const addAcademySchedule = () => {
+    if (!editable) return;
     if (newAcademyDays.length === 0) {
       toast.showError("요일을 최소 1개 이상 선택해주세요.");
       return;
@@ -199,6 +201,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   };
 
   const removeAcademySchedule = (index: number) => {
+    if (!editable) return;
     const schedule = data.academy_schedules[index];
     const isTemplateSchedule = schedule.is_locked || schedule.source === "template";
     
@@ -324,9 +327,13 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               </label>
               <input
                 type="time"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 value={newAcademyStartTime}
-                onChange={(e) => setNewAcademyStartTime(e.target.value)}
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewAcademyStartTime(e.target.value);
+                }}
+                disabled={!editable}
               />
             </div>
             <div>
@@ -335,9 +342,13 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               </label>
               <input
                 type="time"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 value={newAcademyEndTime}
-                onChange={(e) => setNewAcademyEndTime(e.target.value)}
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewAcademyEndTime(e.target.value);
+                }}
+                disabled={!editable}
               />
             </div>
           </div>
@@ -350,10 +361,14 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 placeholder="예: 수학 학원"
                 value={newAcademyName}
-                onChange={(e) => setNewAcademyName(e.target.value)}
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewAcademyName(e.target.value);
+                }}
+                disabled={!editable}
               />
             </div>
             <div>
@@ -362,10 +377,14 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               </label>
               <input
                 type="text"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 placeholder="예: 수학"
                 value={newAcademySubject}
-                onChange={(e) => setNewAcademySubject(e.target.value)}
+                onChange={(e) => {
+                  if (!editable) return;
+                  setNewAcademySubject(e.target.value);
+                }}
+                disabled={!editable}
               />
             </div>
           </div>
@@ -382,13 +401,15 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
                 max="300"
                 step="15"
                 required
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                 placeholder="60"
                 value={newAcademyTravelTime}
                 onChange={(e) => {
+                  if (!editable) return;
                   const value = parseInt(e.target.value) || 0;
                   setNewAcademyTravelTime(Math.max(0, Math.min(300, value)));
                 }}
+                disabled={!editable}
               />
               <span className="text-xs text-gray-600">분</span>
             </div>
