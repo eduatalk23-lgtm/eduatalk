@@ -308,8 +308,18 @@ export default function AcademyScheduleManagement({
         await deleteAcademySchedule(formData);
 
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "학원 일정 삭제에 실패했습니다.");
+      } catch (error: unknown) {
+        console.error("[AcademyScheduleManagement] 학원 일정 삭제 실패", error);
+        
+        // 에러 메시지 추출
+        let errorMessage = "학원 일정 삭제에 실패했습니다.";
+        if (error instanceof Error) {
+          errorMessage = error.message || errorMessage;
+        } else if (error && typeof error === "object" && "message" in error) {
+          errorMessage = String(error.message) || errorMessage;
+        }
+        
+        alert(errorMessage);
       }
     });
   };

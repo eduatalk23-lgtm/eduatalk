@@ -447,9 +447,25 @@ async function _deleteAcademySchedule(formData: FormData): Promise<void> {
     .from("academy_schedules")
     .select("student_id")
     .eq("id", scheduleId)
-    .single();
+    .maybeSingle();
 
-  if (fetchError || !schedule) {
+  // PGRST116은 "no rows returned" 에러이므로 정상적인 경우 (데이터 없음)
+  if (fetchError && fetchError.code !== "PGRST116") {
+    console.error("[_deleteAcademySchedule] 학원 일정 조회 실패", {
+      scheduleId,
+      errorCode: fetchError.code,
+      errorMessage: fetchError.message,
+    });
+    throw new AppError(
+      fetchError.message || "학원 일정 조회 중 오류가 발생했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true,
+      { supabaseError: fetchError }
+    );
+  }
+
+  if (!schedule) {
     throw new AppError(
       "학원 일정을 찾을 수 없습니다.",
       ErrorCode.NOT_FOUND,
