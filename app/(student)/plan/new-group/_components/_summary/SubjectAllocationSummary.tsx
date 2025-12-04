@@ -23,19 +23,19 @@ export const SubjectAllocationSummary = React.memo(
       if (!data.subject_allocations) return [];
 
       return data.subject_allocations.map((alloc) => ({
-        subject: alloc.subject,
-        type: alloc.allocation_type,
-        days: alloc.weekly_allocation_days || 0,
+        subject: alloc.subject_name,
+        type: alloc.subject_type,
+        days: alloc.weekly_days || 0,
       }));
     }, [data.subject_allocations]);
 
     // 전략과목과 취약과목 분리
     const strategicSubjects = useMemo(() => {
-      return allocations.filter((a) => a.type === "전략과목");
+      return allocations.filter((a) => a.type === "strategy");
     }, [allocations]);
 
     const weakSubjects = useMemo(() => {
-      return allocations.filter((a) => a.type === "취약과목");
+      return allocations.filter((a) => a.type === "weakness");
     }, [allocations]);
 
     // 빈 상태
