@@ -363,7 +363,6 @@ export default async function CampParticipationPage({
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-700">캠프 프로그램</p>
             <h1 className="text-3xl font-semibold text-gray-900">
               {template.name} 참여하기
             </h1>
