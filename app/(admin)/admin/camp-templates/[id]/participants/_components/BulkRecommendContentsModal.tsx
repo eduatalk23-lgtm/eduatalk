@@ -313,8 +313,8 @@ export function BulkRecommendContentsModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} maxWidth="4xl">
-      <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden p-6 md:p-8">
+    <Dialog open={open} onOpenChange={onOpenChange} maxWidth="full">
+      <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden p-6 md:p-8 max-w-[95vw]">
         <h2 className="text-xl font-semibold text-gray-900">
           추천 콘텐츠 일괄 적용
         </h2>
@@ -505,21 +505,21 @@ export function BulkRecommendContentsModal({
                     className="rounded border-gray-300"
                   />
                 </th>
-                <th className="border-b border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-900">
+                <th className="border-b border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-900 min-w-[120px]">
                   학생명
                 </th>
                 {AVAILABLE_SUBJECTS.map((subject) => (
                   <th
                     key={subject}
-                    className="border-b border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-900"
+                    className="border-b border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-900 min-w-[100px]"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className="border-b border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-900">
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-900 min-w-[80px]">
                   총합
                 </th>
-                <th className="border-b border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-900">
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-900 min-w-[80px]">
                   조율
                 </th>
               </tr>
@@ -557,8 +557,10 @@ export function BulkRecommendContentsModal({
                         className="rounded border-gray-300"
                       />
                     </td>
-                    <td className="border-b border-gray-200 px-4 py-3 font-medium text-gray-900">
-                      {p.studentName}
+                    <td className="border-b border-gray-200 px-4 py-3 font-medium text-gray-900 min-w-[120px]">
+                      <div className="truncate" title={p.studentName}>
+                        {p.studentName}
+                      </div>
                     </td>
                     {AVAILABLE_SUBJECTS.map((subject) => {
                       const current = subjectCounts[p.groupId]?.[subject] || 0;
