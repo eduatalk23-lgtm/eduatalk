@@ -30,6 +30,8 @@ export type SelectedContent = {
   title?: string;
   subject_category?: string;
   master_content_id?: string | null;
+  is_auto_recommended?: boolean; // 자동 배정 여부
+  recommendation_source?: "auto" | "admin" | "template" | null; // 추천 소스
 };
 
 /**

@@ -297,6 +297,8 @@ export function useRecommendations({
             end_range: endRange,
             title: r.title,
             subject_category: r.subject_category || undefined,
+            is_auto_recommended: true, // 자동 배정 플래그
+            recommendation_source: "auto", // 자동 배정 소스
           });
         } catch (error) {
           console.warn(
@@ -311,6 +313,8 @@ export function useRecommendations({
             end_range: 100,
             title: r.title,
             subject_category: r.subject_category || undefined,
+            is_auto_recommended: true, // 자동 배정 플래그
+            recommendation_source: "auto", // 자동 배정 소스
           });
         }
       }
@@ -659,14 +663,17 @@ export function useRecommendations({
 
         setHasRequestedRecommendations(true);
 
-        // 자동 배정
-        console.log("[useRecommendations] 자동 배정 체크:", {
+        // 자동 배정 조건 명확화
+        const shouldAutoAssign =
+          autoAssign && filteredRecommendations.length > 0;
+
+        console.log("[useRecommendations] 자동 배정 조건 확인:", {
           autoAssign,
           filteredRecommendationsCount: filteredRecommendations.length,
-          willAutoAssign: autoAssign && filteredRecommendations.length > 0,
+          shouldAutoAssign,
         });
 
-        if (autoAssign && filteredRecommendations.length > 0) {
+        if (shouldAutoAssign) {
           console.log("[useRecommendations] 자동 배정 시작:", {
             recommendationsCount: filteredRecommendations.length,
             recommendations: filteredRecommendations.map((r) => ({

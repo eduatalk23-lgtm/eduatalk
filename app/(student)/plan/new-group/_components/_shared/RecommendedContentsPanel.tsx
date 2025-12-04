@@ -225,6 +225,7 @@ export function RecommendedContentsPanel({
         title,
         subject_category: recommendedContent?.subject_category || undefined,
         master_content_id: id, // 추천 콘텐츠는 항상 마스터 콘텐츠 ID
+        is_auto_recommended: false, // 수동 선택 플래그
       };
 
       let updated: SelectedContent[];

@@ -366,10 +366,18 @@ export function Step3ContentSelection({
           filteredRecommendations.length > 0,
       });
 
-      if (
+      // 자동 배정 조건 명확화
+      const shouldAutoAssign =
         recommendationSettings.autoAssignContents &&
-        filteredRecommendations.length > 0
-      ) {
+        filteredRecommendations.length > 0;
+
+      console.log("[Step3ContentSelection] 자동 배정 조건 확인:", {
+        autoAssignContents: recommendationSettings.autoAssignContents,
+        filteredRecommendationsCount: filteredRecommendations.length,
+        shouldAutoAssign,
+      });
+
+      if (shouldAutoAssign) {
         console.log("[Step3ContentSelection] 자동 배정 시작:", {
           recommendationsCount: filteredRecommendations.length,
           recommendations: filteredRecommendations.map((r) => ({
@@ -460,6 +468,7 @@ export function Step3ContentSelection({
               end_range: endRange,
               title: r.title,
               subject_category: r.subject_category || undefined,
+              is_auto_recommended: true, // 자동 배정 플래그
             });
           } catch (error) {
             console.warn(
@@ -474,6 +483,7 @@ export function Step3ContentSelection({
               end_range: 100,
               title: r.title,
               subject_category: r.subject_category || undefined,
+              is_auto_recommended: true, // 자동 배정 플래그
             });
           }
         }
