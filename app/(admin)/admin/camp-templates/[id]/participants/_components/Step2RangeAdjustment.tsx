@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getPlanGroupContentsForRangeAdjustment } from "@/app/(admin)/actions/campTemplateActions";
-import { calculateRecommendedRanges, type ScheduleSummary } from "@/lib/plan/rangeRecommendation";
+import type { ScheduleSummary } from "@/lib/plan/rangeRecommendation";
 import { Minus, Plus, AlertTriangle, Loader2 } from "lucide-react";
 
 type Participant = {
@@ -113,20 +113,14 @@ export function Step2RangeAdjustment({
           // 스케줄 요약 정보
           const scheduleSummary: ScheduleSummary | null = result.scheduleSummary || null;
 
-          // 범위 추천 계산
-          const recommendationResult = await calculateRecommendedRanges(
-            scheduleSummary,
-            contentInfos.map((c) => ({
-              content_id: c.contentId,
-              content_type: c.contentType,
-              total_amount: c.totalAmount,
-            }))
-          );
+          // 서버에서 계산된 범위 추천 정보 사용
+          const recommendedRanges = result.recommendedRanges || {};
+          const unavailableReasons = result.unavailableReasons || {};
 
           // 추천 범위 적용
           const contentsWithRecommendation = contentInfos.map((content) => {
-            const recommended = recommendationResult.ranges.get(content.contentId);
-            const unavailableReason = recommendationResult.unavailableReasons.get(content.contentId);
+            const recommended = recommendedRanges[content.contentId];
+            const unavailableReason = unavailableReasons[content.contentId];
 
             return {
               ...content,

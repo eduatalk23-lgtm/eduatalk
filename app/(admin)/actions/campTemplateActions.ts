@@ -25,6 +25,8 @@ import { createPlanContents, getPlanContents } from "@/lib/data/planGroups";
 import { timeToMinutes } from "@/lib/plan/assignPlanTimes";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
+import { calculateRecommendedRanges, type ScheduleSummary } from "@/lib/plan/rangeRecommendation";
+import { getRangeRecommendationConfig } from "@/lib/recommendations/config/configManager";
 
 /**
  * 캠프 템플릿 목록 조회
@@ -4001,6 +4003,8 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
       total_study_days: number;
       total_study_hours: number;
     } | null;
+    recommendedRanges?: Record<string, { start: number; end: number; reason: string }>;
+    unavailableReasons?: Record<string, string>;
     error?: string;
   }> => {
     await requireAdminOrConsultant();
@@ -4230,10 +4234,39 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
         };
       }
 
+      // 범위 추천 계산 (서버에서만 실행)
+      let recommendedRanges: Map<string, { start: number; end: number; reason: string }> = new Map();
+      let unavailableReasons: Map<string, string> = new Map();
+
+      if (scheduleSummary && contentInfos.length > 0) {
+        try {
+          // 테넌트별 설정 조회
+          const config = await getRangeRecommendationConfig(tenantContext.tenantId);
+          
+          const recommendationResult = await calculateRecommendedRanges(
+            scheduleSummary,
+            contentInfos.map((c) => ({
+              content_id: c.contentId,
+              content_type: c.contentType,
+              total_amount: c.totalAmount,
+            })),
+            { config }
+          );
+
+          recommendedRanges = recommendationResult.ranges;
+          unavailableReasons = recommendationResult.unavailableReasons;
+        } catch (error) {
+          console.error("[getPlanGroupContentsForRangeAdjustment] 범위 추천 계산 실패:", error);
+          // 범위 추천 실패해도 기본 정보는 반환
+        }
+      }
+
       return {
         success: true,
         contents: contentInfos,
         scheduleSummary,
+        recommendedRanges: Object.fromEntries(recommendedRanges),
+        unavailableReasons: Object.fromEntries(unavailableReasons),
       };
     } catch (error) {
       console.error(`[getPlanGroupContentsForRangeAdjustment] 그룹 ${groupId} 처리 실패:`, error);

@@ -99,7 +99,8 @@ export async function calculateRecommendedRanges(
     return { ranges, unavailableReasons };
   }
 
-  // 설정 결정: 직접 제공된 config → DB에서 조회 → 기본값
+  // 설정 결정: 직접 제공된 config → 기본값
+  // 클라이언트 컴포넌트에서는 서버 전용 코드를 import하지 않도록 함
   let config: RangeRecommendationConfig;
   if (options?.config) {
     // 직접 제공된 config와 기본값을 병합
@@ -107,14 +108,10 @@ export async function calculateRecommendedRanges(
       ...defaultRangeRecommendationConfig,
       ...options.config,
     };
-  } else if (options?.tenantId !== undefined) {
-    // tenantId가 제공되었으면 DB에서 조회 시도
-    const { getRangeRecommendationConfig } = await import(
-      "@/lib/recommendations/config/configManager"
-    );
-    config = await getRangeRecommendationConfig(options.tenantId);
   } else {
-    // 옵션이 없으면 기본값 사용 (기존 동작 유지)
+    // 옵션이 없으면 기본값 사용
+    // tenantId가 제공되어도 클라이언트에서는 DB 조회를 하지 않음
+    // 서버 액션을 통해 범위 추천을 계산해야 함
     config = defaultRangeRecommendationConfig;
   }
 
