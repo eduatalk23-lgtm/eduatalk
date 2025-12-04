@@ -133,6 +133,8 @@ export function syncWizardDataToCreationData(
         }
         
         // 자동 추천 관련 필드 추가
+        // Step 4에서 자동 배정된 콘텐츠는 is_auto_recommended: true, recommendation_source: "auto"로 설정됨
+        // 이 플래그들은 DB에 저장되어 관리자 일괄 적용 기능과 구분됨
         if ((c as any).is_auto_recommended !== undefined) {
           contentItem.is_auto_recommended = (c as any).is_auto_recommended;
         }
@@ -281,6 +283,9 @@ export function syncCreationDataToWizardData(data: {
     } = schedulerOptions;
 
     // 콘텐츠 분류: is_auto_recommended가 true이거나 recommendation_source가 있는 경우 추천 콘텐츠
+    // - is_auto_recommended: true, recommendation_source: "auto" → Step 4에서 자동 배정된 콘텐츠
+    // - is_auto_recommended: false, recommendation_source: "admin" → 관리자가 일괄 적용한 콘텐츠
+    // - 둘 다 없으면 → 학생이 직접 등록한 콘텐츠 (student_contents)
     const studentContents: WizardData["student_contents"] = [];
     const recommendedContents: WizardData["recommended_contents"] = [];
 

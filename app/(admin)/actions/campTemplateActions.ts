@@ -1902,7 +1902,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
       
       if (existingPlanContents) {
         for (const content of existingPlanContents) {
-          // is_auto_recommended가 true이거나 recommendation_source가 있으면 추천 콘텐츠
+          // 콘텐츠 분류:
+          // - is_auto_recommended: true, recommendation_source: "auto" → Step 4에서 자동 배정된 콘텐츠
+          // - is_auto_recommended: false, recommendation_source: "admin" → 관리자가 일괄 적용한 콘텐츠
+          // - 둘 다 없으면 → 학생이 직접 등록한 콘텐츠
           if (content.is_auto_recommended || content.recommendation_source) {
             existingRecommendedContents.push(content);
           } else {

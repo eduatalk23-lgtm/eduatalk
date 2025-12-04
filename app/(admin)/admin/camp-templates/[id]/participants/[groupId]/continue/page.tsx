@@ -192,7 +192,10 @@ export default async function CampContinuePage({
     contents: contentsForWizard
       .filter((c) => {
         // 추천 콘텐츠 필터링: is_auto_recommended가 true이거나 recommendation_source가 있는 경우 제거
+        // - is_auto_recommended: true, recommendation_source: "auto" → Step 4에서 자동 배정된 콘텐츠
+        // - is_auto_recommended: false, recommendation_source: "admin" → 관리자가 일괄 적용한 콘텐츠
         // 남은 단계 진행 시에는 Step 4에서 새로운 추천 콘텐츠를 선택할 수 있도록 함
+        // DB에는 여전히 존재하지만, 위저드에서는 제외하여 Step 4에서 새로 선택 가능
         return !(c.is_auto_recommended || c.recommendation_source);
       })
       .map((c) => {

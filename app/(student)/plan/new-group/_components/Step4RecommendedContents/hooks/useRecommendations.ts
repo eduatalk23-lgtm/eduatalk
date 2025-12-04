@@ -194,7 +194,21 @@ export function useRecommendations({
   );
 
   /**
-   * 자동 배정: 마스터 콘텐츠 상세 정보 조회 및 추가
+   * 자동 배정: 추천 받은 콘텐츠를 바로 등록
+   * 
+   * 의도:
+   * - 사용자가 "자동 배정" 옵션을 체크했을 때, 추천 받은 콘텐츠를 수동 선택 없이 바로 등록
+   * - 이는 "추천 받은 콘텐츠를 바로 등록"하는 것이지, "추가로 더 받는 것"이 아님
+   * - 제출 시점에 추가로 추천 콘텐츠를 생성하지 않음 (submitCampParticipation에서 처리하지 않음)
+   * 
+   * 동작:
+   * 1. 추천 받은 콘텐츠의 상세 정보 조회 (페이지/회차 범위)
+   * 2. 전체 범위로 설정하여 recommended_contents에 추가
+   * 3. is_auto_recommended: true, recommendation_source: "auto" 플래그 설정
+   * 
+   * 참고:
+   * - Step 4의 추천 기능(/api/recommended-master-contents)은 정상 동작하며, 이 함수와는 독립적임
+   * - 제출 시점의 자동 추천 로직(campActions.ts)과는 별개로 동작함
    */
   const autoAssignContents = useCallback(
     async (recommendations: RecommendedContent[]) => {
