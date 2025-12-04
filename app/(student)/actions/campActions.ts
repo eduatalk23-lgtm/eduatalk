@@ -364,6 +364,11 @@ export const submitCampParticipation = withErrorHandling(
     creationData.contents = creationData.contents.map((c) => {
       const masterContentId = masterContentIdMap.get(c.content_id) || null;
       
+      // start_detail_id와 end_detail_id가 이미 c에 포함되어 있으므로 스프레드로 유지됨
+      // 명시적으로 보존 확인을 위한 로깅
+      const startDetailId = (c as any).start_detail_id ?? null;
+      const endDetailId = (c as any).end_detail_id ?? null;
+      
       // 캠프모드 콘텐츠 정보 로깅 (디버깅용)
       if (wizardData.student_contents?.some((sc: any) => sc.content_id === c.content_id)) {
         console.log("[campActions] 학생 추가 콘텐츠 정보:", {
@@ -372,14 +377,31 @@ export const submitCampParticipation = withErrorHandling(
           master_content_id: masterContentId,
           start_range: c.start_range,
           end_range: c.end_range,
-          start_detail_id: (c as any).start_detail_id ?? null,
-          end_detail_id: (c as any).end_detail_id ?? null,
+          start_detail_id: startDetailId,
+          end_detail_id: endDetailId,
+        });
+      }
+      
+      // 추천 콘텐츠 정보 로깅 (디버깅용)
+      if (wizardData.recommended_contents?.some((rc: any) => rc.content_id === c.content_id)) {
+        console.log("[campActions] 학생 선택 추천 콘텐츠 정보:", {
+          content_id: c.content_id,
+          content_type: c.content_type,
+          master_content_id: masterContentId,
+          start_range: c.start_range,
+          end_range: c.end_range,
+          start_detail_id: startDetailId,
+          end_detail_id: endDetailId,
         });
       }
       
       return {
         ...c,
         master_content_id: masterContentId,
+        // start_detail_id와 end_detail_id는 ...c 스프레드로 이미 포함됨
+        // 명시적으로 보존하기 위해 다시 설정 (안전장치)
+        start_detail_id: startDetailId,
+        end_detail_id: endDetailId,
       };
     });
 
@@ -388,6 +410,7 @@ export const submitCampParticipation = withErrorHandling(
       contentsAfterMapping: creationData.contents.length,
       contentsWithMasterId: creationData.contents.filter((c) => c.master_content_id).length,
       contentsWithoutMasterId: creationData.contents.filter((c) => !c.master_content_id).length,
+      contentsWithDetailIds: creationData.contents.filter((c) => (c as any).start_detail_id || (c as any).end_detail_id).length,
     });
 
     // 캠프 모드에서는 block_set_id를 null로 설정
@@ -613,6 +636,11 @@ export const submitCampParticipation = withErrorHandling(
           const studentContentIds = new Set(
             (wizardData.student_contents || []).map((c: any) => c.content_id)
           );
+          
+          // 학생이 선택한 추천 콘텐츠 ID도 체크
+          const studentRecommendedContentIds = new Set(
+            (wizardData.recommended_contents || []).map((c: any) => c.content_id)
+          );
 
           // 학생 콘텐츠의 master_content_id 조회 (중복 방지 개선)
           const studentMasterIds = new Set<string>();
@@ -656,19 +684,55 @@ export const submitCampParticipation = withErrorHandling(
             }
           }
 
+          // 학생이 선택한 추천 콘텐츠의 master_content_id도 체크
+          // 추천 콘텐츠는 content_id가 마스터 콘텐츠 ID이므로 직접 추가
+          const studentRecommendedMasterIds = new Set<string>();
+          const studentRecommendedContentsForMasterId = (wizardData.recommended_contents || []).filter(
+            (c: any) => c.content_type === "book" || c.content_type === "lecture"
+          );
+
+          if (studentRecommendedContentsForMasterId.length > 0) {
+            // 추천 콘텐츠는 content_id가 마스터 콘텐츠 ID
+            studentRecommendedContentsForMasterId.forEach((content) => {
+              studentRecommendedMasterIds.add(content.content_id);
+            });
+          }
+
+          console.log("[campActions] 자동 추천 콘텐츠 중복 체크:", {
+            templateContentIdsCount: templateContentIds.size,
+            studentContentIdsCount: studentContentIds.size,
+            studentRecommendedContentIdsCount: studentRecommendedContentIds.size,
+            studentMasterIdsCount: studentMasterIds.size,
+            studentRecommendedMasterIdsCount: studentRecommendedMasterIds.size,
+            totalRecommendedContents: recommendedContents.length,
+          });
+
           const uniqueRecommendedContents = recommendedContents.filter(
             (rec) => {
               // content_id로 직접 비교
-              if (templateContentIds.has(rec.id) || studentContentIds.has(rec.id)) {
+              if (
+                templateContentIds.has(rec.id) || 
+                studentContentIds.has(rec.id) ||
+                studentRecommendedContentIds.has(rec.id) // 학생이 선택한 추천 콘텐츠도 체크
+              ) {
                 return false;
               }
               // master_content_id로 비교 (학생이 마스터 콘텐츠를 등록한 경우)
-              if (studentMasterIds.has(rec.id)) {
+              if (
+                studentMasterIds.has(rec.id) ||
+                studentRecommendedMasterIds.has(rec.id) // 학생이 선택한 추천 콘텐츠의 master_content_id도 체크
+              ) {
                 return false;
               }
               return true;
             }
           );
+
+          console.log("[campActions] 자동 추천 콘텐츠 필터링 결과:", {
+            beforeFilter: recommendedContents.length,
+            afterFilter: uniqueRecommendedContents.length,
+            filteredOut: recommendedContents.length - uniqueRecommendedContents.length,
+          });
 
           if (uniqueRecommendedContents.length > 0) {
             const autoRecommendedPlanContents = uniqueRecommendedContents.map(

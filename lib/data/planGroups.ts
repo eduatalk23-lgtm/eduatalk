@@ -543,7 +543,14 @@ export async function deletePlanGroupByInvitationId(
     // 제외일 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
   }
 
-  // 5. plan_groups 삭제 (hard delete)
+  // 5. academy_schedules 삭제는 수행하지 않음
+  // 이유:
+  // - 캠프 모드에서는 academy_schedules가 plan_group_id 없이 저장됨 (학생별 전역 관리)
+  // - submitCampParticipation에서 기존 학원 일정을 모두 삭제하고 템플릿 일정으로 교체
+  // - 초대 취소 시 academy_schedules를 삭제하면 다른 플랜 그룹의 학원 일정까지 삭제될 위험이 있음
+  // - 따라서 academy_schedules는 삭제하지 않고 유지 (다른 플랜 그룹 보호)
+
+  // 6. plan_groups 삭제 (hard delete)
   const { error: deleteGroupError } = await supabase
     .from("plan_groups")
     .delete()
