@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   getPlanGroupById,
   getPlanGroupByIdForAdmin,
