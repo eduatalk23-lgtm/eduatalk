@@ -2309,7 +2309,7 @@ export function Step1BasicInfo({
         {blockSetMode === "select" && (
           <div
             className={`mb-4 space-y-2 ${
-              isCampMode && !canStudentInputBlockSetId ? "opacity-60" : ""
+              !editable || (isCampMode && !canStudentInputBlockSetId) ? "opacity-60" : ""
             }`}
           >
             {blockSets.length > 0 ? (
@@ -2339,7 +2339,7 @@ export function Step1BasicInfo({
                           >
                             <label
                               className={`flex flex-1 items-center gap-2 ${
-                                isCampMode && !canStudentInputBlockSetId
+                                !editable || (isCampMode && !canStudentInputBlockSetId)
                                   ? "cursor-not-allowed"
                                   : "cursor-pointer"
                               }`}
@@ -2350,14 +2350,14 @@ export function Step1BasicInfo({
                                 value={set.id}
                                 checked={isSelected}
                                 onChange={(e) => {
-                                  if (isCampMode && !canStudentInputBlockSetId)
+                                  if (!editable || (isCampMode && !canStudentInputBlockSetId))
                                     return;
                                   onUpdate({
                                     block_set_id: e.target.value || undefined,
                                   });
                                 }}
                                 disabled={
-                                  isCampMode && !canStudentInputBlockSetId
+                                  !editable || (isCampMode && !canStudentInputBlockSetId)
                                 }
                                 className="h-4 w-4 border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-60"
                               />
@@ -2375,7 +2375,7 @@ export function Step1BasicInfo({
                             <button
                               type="button"
                               onClick={(e) => {
-                                if (isCampMode && !canStudentInputBlockSetId)
+                                if (!editable || (isCampMode && !canStudentInputBlockSetId))
                                   return;
                                 e.stopPropagation();
                                 setEditingBlockSetId(set.id);
@@ -2383,7 +2383,7 @@ export function Step1BasicInfo({
                                 setBlockSetMode("edit");
                               }}
                               disabled={
-                                isCampMode && !canStudentInputBlockSetId
+                                !editable || (isCampMode && !canStudentInputBlockSetId)
                               }
                               className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
                                 isCampMode && !canStudentInputBlockSetId
@@ -2437,9 +2437,11 @@ export function Step1BasicInfo({
                 등록된 블록 세트가 없습니다. "+" 버튼을 클릭하여 생성하세요.
               </p>
             )}
-            {isCampMode && !canStudentInputBlockSetId && (
+            {(!editable || (isCampMode && !canStudentInputBlockSetId)) && (
               <p className="mt-2 text-xs text-gray-600">
-                블록 세트는 템플릿에서 고정되어 수정할 수 없습니다.
+                {!editable 
+                  ? "읽기 전용 모드입니다."
+                  : "블록 세트는 템플릿에서 고정되어 수정할 수 없습니다."}
               </p>
             )}
           </div>

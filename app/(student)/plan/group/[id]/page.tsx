@@ -140,6 +140,7 @@ export default async function PlanGroupDetailPage({
     end_time: string;
   }> = [];
   let templateBlockSetName: string | null = null;
+  let templateBlockSetId: string | null = null;
 
   if (isCampMode && group.camp_template_id) {
     try {
@@ -399,6 +400,7 @@ export default async function PlanGroupDetailPage({
                 }
               );
             } else if (templateBlockSet) {
+              templateBlockSetId = templateBlockSet.id;
               templateBlockSetName = templateBlockSet.name;
               console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 성공:", {
                 id: templateBlockSet.id,
@@ -679,6 +681,7 @@ export default async function PlanGroupDetailPage({
             hasPlans={hasPlans}
             templateBlocks={templateBlocks}
             templateBlockSetName={templateBlockSetName}
+            templateBlockSetId={templateBlockSetId}
             blockSets={blockSets}
             campTemplateId={isCampMode ? group.camp_template_id : null}
           />

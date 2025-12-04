@@ -47,6 +47,7 @@ type PlanGroupDetailViewProps = {
     end_time: string;
   }>;
   templateBlockSetName?: string | null;
+  templateBlockSetId?: string | null;
   blockSets?: Array<{
     id: string;
     name: string;
@@ -72,6 +73,7 @@ export function PlanGroupDetailView({
   campSubmissionMode = false,
   templateBlocks = [],
   templateBlockSetName = null,
+  templateBlockSetId = null,
   blockSets = [],
   campTemplateId = null,
 }: PlanGroupDetailViewProps) {
@@ -120,18 +122,54 @@ export function PlanGroupDetailView({
     [contentsWithDetails]
   );
 
+  // 캠프 모드일 때 템플릿 블록 세트를 blockSets에 추가
+  const enhancedBlockSets = useMemo(() => {
+    if (campTemplateId && templateBlockSetId && templateBlockSetName && templateBlocks.length > 0) {
+      // 템플릿 블록 세트가 이미 blockSets에 있는지 확인
+      const existingIndex = blockSets.findIndex(bs => bs.id === templateBlockSetId);
+      
+      if (existingIndex >= 0) {
+        // 이미 있으면 업데이트
+        const updated = [...blockSets];
+        updated[existingIndex] = {
+          id: templateBlockSetId,
+          name: templateBlockSetName,
+          blocks: templateBlocks,
+        };
+        return updated;
+      } else {
+        // 없으면 맨 앞에 추가
+        return [
+          {
+            id: templateBlockSetId,
+            name: templateBlockSetName,
+            blocks: templateBlocks,
+          },
+          ...blockSets,
+        ];
+      }
+    }
+    return blockSets;
+  }, [campTemplateId, templateBlockSetId, templateBlockSetName, templateBlocks, blockSets]);
+
   // WizardData로 변환 (읽기 전용 모드용)
   const wizardData = useMemo(() => {
     const baseData = planGroupToWizardData(group, exclusions, academySchedules);
     const { studentContents: studentContentsFormatted, recommendedContents: recommendedContentsFormatted } = 
       contentsToWizardFormat(contentsWithDetails);
     
+    // 캠프 모드일 때 템플릿 블록 세트 ID를 block_set_id로 설정
+    const blockSetId = campTemplateId && templateBlockSetId 
+      ? templateBlockSetId 
+      : baseData.block_set_id;
+    
     return {
       ...baseData,
+      block_set_id: blockSetId,
       student_contents: studentContentsFormatted,
       recommended_contents: recommendedContentsFormatted,
     };
-  }, [group, exclusions, academySchedules, contentsWithDetails]);
+  }, [group, exclusions, academySchedules, contentsWithDetails, campTemplateId, templateBlockSetId]);
 
   // 탭 변경 핸들러 메모이제이션
   const handleTabChange = useCallback((tab: number) => {
@@ -166,9 +204,9 @@ export function PlanGroupDetailView({
             <Step1BasicInfo 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              blockSets={blockSets}
+              blockSets={enhancedBlockSets}
               editable={false} // 완전히 읽기 전용
-              isCampMode={false} // 제출 모드에서는 isCampMode=false로 설정하여 (!editable && !isCampMode) 조건으로 모든 필드 비활성화
+              isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
               lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
             />
           </Suspense>
@@ -231,9 +269,9 @@ export function PlanGroupDetailView({
             <Step1BasicInfo 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              blockSets={blockSets}
+              blockSets={enhancedBlockSets}
               editable={false} // 완전히 읽기 전용
-              isCampMode={false} // 제출 모드에서는 isCampMode=false로 설정하여 (!editable && !isCampMode) 조건으로 모든 필드 비활성화
+              isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
               lockedFields={[]}
             />
           </Suspense>
