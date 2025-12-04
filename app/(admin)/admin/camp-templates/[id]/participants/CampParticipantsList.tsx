@@ -6,7 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BatchOperationDialog } from "./_components/BatchOperationDialog";
 import { BulkRecommendContentsModal } from "./_components/BulkRecommendContentsModal";
-import { batchUpdateCampPlanGroupStatus } from "@/app/(admin)/actions/campTemplateActions";
+import { batchUpdateCampPlanGroupStatus, bulkCreatePlanGroupsForCamp } from "@/app/(admin)/actions/campTemplateActions";
 
 type Participant = {
   invitation_id: string;
@@ -485,30 +485,37 @@ export function CampParticipantsList({
     (p) => p.plan_group_id !== null && p.hasPlans
   );
 
+  // 플랜 그룹이 없는 참여자 (플랜 생성 대상)
+  const participantsWithoutGroup = filteredParticipants.filter(
+    (p) => p.plan_group_id === null
+  );
+
   // 전체 선택/해제 핸들러
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const selectableIds = new Set(
-        selectableParticipants
-          .map((p) => p.plan_group_id)
-          .filter(Boolean) as string[]
-      );
+      const selectableIds = new Set<string>();
+      // 플랜 그룹이 있는 경우 plan_group_id, 없는 경우 invitation_id 사용
+      filteredParticipants.forEach((p) => {
+        const key = p.plan_group_id || p.invitation_id;
+        selectableIds.add(key);
+      });
       setSelectedParticipantIds(selectableIds);
     } else {
       setSelectedParticipantIds(new Set());
     }
   };
 
-  // 개별 선택/해제 핸들러
-  const handleToggleSelect = (planGroupId: string | null) => {
-    if (!planGroupId) return;
-
+  // 개별 선택/해제 핸들러 (플랜 그룹이 없어도 선택 가능하도록 invitation_id 사용)
+  const handleToggleSelect = (participant: Participant) => {
+    // 플랜 그룹이 있으면 plan_group_id, 없으면 invitation_id를 키로 사용
+    const key = participant.plan_group_id || participant.invitation_id;
+    
     setSelectedParticipantIds((prev) => {
       const next = new Set(prev);
-      if (next.has(planGroupId)) {
-        next.delete(planGroupId);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(planGroupId);
+        next.add(key);
       }
       return next;
     });
@@ -521,23 +528,82 @@ export function CampParticipantsList({
 
   // 일괄 작업 핸들러
   const handleBatchActivate = () => {
-    if (selectedParticipantIds.size === 0) {
-      toast.showError("선택된 참여자가 없습니다.");
+    // 플랜 그룹이 있는 학생들만 필터링
+    const selectedWithGroup = participants.filter((p) => {
+      const key = p.plan_group_id || p.invitation_id;
+      return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+    });
+
+    if (selectedWithGroup.length === 0) {
+      toast.showError("플랜 그룹이 있는 참여자를 선택해주세요.");
       return;
     }
+
     setBatchOperationType("activate");
     setBatchStatus("active");
     setBatchDialogOpen(true);
   };
 
   const handleBatchStatusChange = (status: string) => {
-    if (selectedParticipantIds.size === 0) {
-      toast.showError("선택된 참여자가 없습니다.");
+    // 플랜 그룹이 있는 학생들만 필터링
+    const selectedWithGroup = participants.filter((p) => {
+      const key = p.plan_group_id || p.invitation_id;
+      return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+    });
+
+    if (selectedWithGroup.length === 0) {
+      toast.showError("플랜 그룹이 있는 참여자를 선택해주세요.");
       return;
     }
+
     setBatchOperationType("status_change");
     setBatchStatus(status);
     setBatchDialogOpen(true);
+  };
+
+  // 플랜 그룹 일괄 생성 핸들러
+  const handleBulkCreatePlanGroups = async () => {
+    // 플랜 그룹이 없는 학생들만 필터링
+    const selectedWithoutGroup = participants.filter((p) => {
+      const key = p.plan_group_id || p.invitation_id;
+      return selectedParticipantIds.has(key) && p.plan_group_id === null;
+    });
+
+    if (selectedWithoutGroup.length === 0) {
+      toast.showError("플랜 그룹이 없는 참여자를 선택해주세요.");
+      return;
+    }
+
+    const invitationIds = selectedWithoutGroup.map((p) => p.invitation_id);
+
+    startTransition(async () => {
+      try {
+        const result = await bulkCreatePlanGroupsForCamp(templateId, invitationIds);
+
+        if (result.success) {
+          toast.showSuccess(
+            `${result.successCount}명의 학생에게 플랜 그룹이 생성되었습니다.`
+          );
+          await loadParticipants();
+          setSelectedParticipantIds(new Set());
+        } else {
+          const errorMsg =
+            result.errors && result.errors.length > 0
+              ? `${result.failureCount}개 실패: ${result.errors[0].error}`
+              : "플랜 그룹 일괄 생성에 실패했습니다.";
+          toast.showError(errorMsg);
+
+          if (result.successCount > 0) {
+            await loadParticipants();
+          }
+        }
+      } catch (error) {
+        console.error("플랜 그룹 일괄 생성 실패:", error);
+        toast.showError(
+          error instanceof Error ? error.message : "플랜 그룹 일괄 생성에 실패했습니다."
+        );
+      }
+    });
   };
 
   const handleBatchConfirm = async () => {
@@ -547,7 +613,10 @@ export function CampParticipantsList({
       return;
     }
 
-    const groupIds = Array.from(selectedParticipantIds);
+    const groupIds = Array.from(selectedParticipantIds).filter((id) => {
+      // plan_group_id인지 확인 (invitation_id가 아닌 경우만)
+      return participants.some((p) => p.plan_group_id === id);
+    });
 
     startTransition(async () => {
       try {
@@ -753,24 +822,59 @@ export function CampParticipantsList({
                 개 선택됨
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBulkRecommendModalOpen(true)}
-                  disabled={isPending}
-                  className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  title="선택한 참여자에게 추천 콘텐츠를 일괄 적용합니다"
-                >
-                  추천 콘텐츠 일괄 적용
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBatchActivate}
-                  disabled={isPending}
-                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  title="선택한 참여자의 플랜 그룹을 활성화합니다"
-                >
-                  일괄 활성화
-                </button>
+                {/* 플랜 그룹이 없는 학생들: 플랜 그룹 일괄 생성 */}
+                {(() => {
+                  const selectedWithoutGroup = participants.filter((p) => {
+                    const key = p.plan_group_id || p.invitation_id;
+                    return selectedParticipantIds.has(key) && p.plan_group_id === null;
+                  });
+                  return selectedWithoutGroup.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleBulkCreatePlanGroups}
+                      disabled={isPending}
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="선택한 참여자에게 플랜 그룹을 일괄 생성합니다"
+                    >
+                      플랜 그룹 일괄 생성 ({selectedWithoutGroup.length})
+                    </button>
+                  ) : null;
+                })()}
+                {/* 플랜 그룹이 있는 학생들만 추천 콘텐츠 일괄 적용 가능 */}
+                {(() => {
+                  const selectedWithGroup = participants.filter((p) => {
+                    const key = p.plan_group_id || p.invitation_id;
+                    return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+                  });
+                  return selectedWithGroup.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setBulkRecommendModalOpen(true)}
+                      disabled={isPending}
+                      className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="선택한 참여자에게 추천 콘텐츠를 일괄 적용합니다"
+                    >
+                      추천 콘텐츠 일괄 적용 ({selectedWithGroup.length})
+                    </button>
+                  ) : null;
+                })()}
+                {(() => {
+                  const selectedWithGroup = participants.filter((p) => {
+                    const key = p.plan_group_id || p.invitation_id;
+                    return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+                  });
+                  return selectedWithGroup.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleBatchActivate}
+                      disabled={isPending}
+                      className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="선택한 참여자의 플랜 그룹을 활성화합니다"
+                    >
+                      일괄 활성화 ({selectedWithGroup.length})
+                    </button>
+                  ) : null;
+                })()}
                 <select
                   value=""
                   onChange={(e) => {
@@ -798,21 +902,20 @@ export function CampParticipantsList({
           <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white">
             <thead className="bg-gray-50">
               <tr>
-                <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  <input
-                    type="checkbox"
-                    checked={
-                      selectableParticipants.length > 0 &&
-                      selectableParticipants.every(
-                        (p) =>
-                          p.plan_group_id &&
-                          selectedParticipantIds.has(p.plan_group_id)
-                      )
-                    }
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                </th>
+                  <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredParticipants.length > 0 &&
+                        filteredParticipants.every((p) => {
+                          const key = p.plan_group_id || p.invitation_id;
+                          return selectedParticipantIds.has(key);
+                        })
+                      }
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </th>
                 <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   학생명
                 </th>
@@ -848,11 +951,11 @@ export function CampParticipantsList({
                 </tr>
               ) : (
                 filteredParticipants.map((participant) => {
-                  const isSelectable =
-                    participant.plan_group_id !== null && participant.hasPlans;
-                  const isSelected =
-                    participant.plan_group_id !== null &&
-                    selectedParticipantIds.has(participant.plan_group_id);
+                  // 플랜 그룹이 있으면 plan_group_id, 없으면 invitation_id를 키로 사용
+                  const key = participant.plan_group_id || participant.invitation_id;
+                  
+                  const isSelectable = true; // 모든 참여자 선택 가능
+                  const isSelected = selectedParticipantIds.has(key);
 
                   // 작업 필요 여부 확인
                   const needsAction =
@@ -870,27 +973,10 @@ export function CampParticipantsList({
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={() =>
-                              handleToggleSelect(participant.plan_group_id)
-                            }
-                            disabled={!isSelectable}
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            title={
-                              !isSelectable
-                                ? participant.plan_group_id === null
-                                  ? "플랜 그룹이 없는 참여자는 선택할 수 없습니다."
-                                  : !participant.hasPlans
-                                  ? "플랜이 생성되지 않은 참여자는 선택할 수 없습니다. '남은 단계 진행' 버튼을 클릭하여 플랜을 생성해주세요."
-                                  : "선택할 수 없습니다."
-                                : "선택"
-                            }
-                            aria-label={
-                              isSelectable
-                                ? `${participant.student_name} 선택`
-                                : needsAction
-                                ? `${participant.student_name} - 플랜 생성 필요 (선택 불가)`
-                                : `${participant.student_name} 선택 불가`
-                            }
+                            onChange={() => handleToggleSelect(participant)}
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            title="선택"
+                            aria-label={`${participant.student_name} 선택`}
                           />
                           {!isSelectable && (
                             <span className="sr-only">
@@ -1050,23 +1136,24 @@ export function CampParticipantsList({
         </div>
 
         {/* 추천 콘텐츠 일괄 적용 모달 */}
-        {selectedParticipantIds.size > 0 && (
-          <BulkRecommendContentsModal
-            open={bulkRecommendModalOpen}
-            onOpenChange={setBulkRecommendModalOpen}
-            templateId={templateId}
-            participants={participants
-              .filter((p) => p.plan_group_id && selectedParticipantIds.has(p.plan_group_id))
-              .map((p) => ({
-                groupId: p.plan_group_id!,
-                studentId: p.student_id,
-                studentName: p.student_name,
-              }))}
-            onSuccess={() => {
-              loadParticipants();
-            }}
-          />
-        )}
+        <BulkRecommendContentsModal
+          open={bulkRecommendModalOpen}
+          onOpenChange={setBulkRecommendModalOpen}
+          templateId={templateId}
+          participants={participants
+            .filter((p) => {
+              const key = p.plan_group_id || p.invitation_id;
+              return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+            })
+            .map((p) => ({
+              groupId: p.plan_group_id!,
+              studentId: p.student_id,
+              studentName: p.student_name,
+            }))}
+          onSuccess={() => {
+            loadParticipants();
+          }}
+        />
 
         {/* 일괄 작업 다이얼로그 */}
         <BatchOperationDialog

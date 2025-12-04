@@ -3561,3 +3561,223 @@ export const bulkApplyRecommendedContents = withErrorHandling(
     };
   }
 );
+
+/**
+ * 다수 학생에게 플랜 그룹 일괄 생성
+ */
+export const bulkCreatePlanGroupsForCamp = withErrorHandling(
+  async (
+    templateId: string,
+    invitationIds: string[]
+  ): Promise<{
+    success: boolean;
+    successCount: number;
+    failureCount: number;
+    errors?: Array<{ invitationId: string; error: string }>;
+  }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 템플릿 존재 및 권한 확인
+    const template = await getCampTemplate(templateId);
+    if (!template) {
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    if (template.tenant_id !== tenantContext.tenantId) {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const errors: Array<{ invitationId: string; error: string }> = [];
+    let successCount = 0;
+
+    // 템플릿 데이터 준비
+    const templateData = template.template_data as Partial<WizardData>;
+
+    // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+    let templateBlockSetId: string | null = null;
+    const { data: templateBlockSetLink } = await supabase
+      .from("camp_template_block_sets")
+      .select("tenant_block_set_id")
+      .eq("camp_template_id", template.id)
+      .maybeSingle();
+
+    if (templateBlockSetLink) {
+      templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
+    } else if (templateData.block_set_id) {
+      templateBlockSetId = templateData.block_set_id;
+    }
+
+    // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
+    const templateExclusions = (templateData.exclusions || []).map((exclusion: any) => ({
+      ...exclusion,
+      source: "template" as const,
+      is_locked: true,
+    }));
+
+    const templateAcademySchedules = (templateData.academy_schedules || []).map((schedule: any) => ({
+      ...schedule,
+      source: "template" as const,
+      is_locked: true,
+    }));
+
+    // 각 초대에 대해 플랜 그룹 생성
+    for (const invitationId of invitationIds) {
+      try {
+        // 초대 정보 조회
+        const { data: invitation, error: invitationError } = await supabase
+          .from("camp_invitations")
+          .select("id, student_id, camp_template_id, status")
+          .eq("id", invitationId)
+          .maybeSingle();
+
+        if (invitationError || !invitation) {
+          errors.push({
+            invitationId,
+            error: invitationError?.message || "초대를 찾을 수 없습니다.",
+          });
+          continue;
+        }
+
+        // 이미 플랜 그룹이 있는지 확인
+        const { data: existingGroup } = await supabase
+          .from("plan_groups")
+          .select("id")
+          .eq("camp_invitation_id", invitationId)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        if (existingGroup) {
+          // 이미 플랜 그룹이 있으면 스킵
+          continue;
+        }
+
+        // 템플릿 기본값으로 병합된 데이터 생성
+        const mergedData: Partial<WizardData> = {
+          ...templateData,
+          name: templateData.name || "",
+          plan_purpose: templateData.plan_purpose || "",
+          scheduler_type: templateData.scheduler_type || "1730_timetable",
+          period_start: templateData.period_start || "",
+          period_end: templateData.period_end || "",
+          block_set_id: templateBlockSetId || "",
+          academy_schedules: templateAcademySchedules,
+          student_contents: [],
+          recommended_contents: [],
+          exclusions: templateExclusions,
+          subject_allocations: undefined,
+          student_level: templateData.student_level || undefined,
+          time_settings: templateData.time_settings,
+          scheduler_options: templateData.scheduler_options,
+          study_review_cycle: templateData.study_review_cycle,
+        };
+
+        // 플랜 그룹 생성 데이터 변환
+        const { syncWizardDataToCreationData } = await import(
+          "@/lib/utils/planGroupDataSync"
+        );
+        const creationData = syncWizardDataToCreationData(mergedData as WizardData);
+
+        // 플랜 그룹 생성
+        const { createPlanGroup } = await import("@/lib/data/planGroups");
+        const groupResult = await createPlanGroup({
+          tenant_id: tenantContext.tenantId,
+          student_id: invitation.student_id,
+          name: creationData.name || null,
+          plan_purpose: creationData.plan_purpose || null,
+          scheduler_type: creationData.scheduler_type,
+          scheduler_options: creationData.scheduler_options || null,
+          period_start: creationData.period_start,
+          period_end: creationData.period_end,
+          target_date: creationData.target_date || null,
+          block_set_id: creationData.block_set_id || null,
+          status: "draft",
+          subject_constraints: creationData.subject_constraints || null,
+          additional_period_reallocation: creationData.additional_period_reallocation || null,
+          non_study_time_blocks: creationData.non_study_time_blocks || null,
+          daily_schedule: creationData.daily_schedule || null,
+          plan_type: "camp",
+          camp_template_id: templateId,
+          camp_invitation_id: invitationId,
+        });
+
+        if (!groupResult.success || !groupResult.groupId) {
+          errors.push({
+            invitationId,
+            error: groupResult.error || "플랜 그룹 생성에 실패했습니다.",
+          });
+          continue;
+        }
+
+        const groupId = groupResult.groupId;
+
+        // 제외일 생성
+        if (creationData.exclusions && creationData.exclusions.length > 0) {
+          const { createPlanExclusions } = await import("@/lib/data/planGroups");
+          await createPlanExclusions(
+            groupId,
+            tenantContext.tenantId,
+            creationData.exclusions.map((e) => ({
+              exclusion_date: e.exclusion_date,
+              exclusion_type: e.exclusion_type,
+              reason: e.reason || null,
+            }))
+          );
+        }
+
+        // 학원 일정 생성
+        if (creationData.academy_schedules && creationData.academy_schedules.length > 0) {
+          const { createStudentAcademySchedules } = await import("@/lib/data/planGroups");
+          await createStudentAcademySchedules(
+            invitation.student_id,
+            tenantContext.tenantId,
+            creationData.academy_schedules.map((s) => ({
+              day_of_week: s.day_of_week,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              academy_name: s.academy_name || null,
+              subject: s.subject || null,
+            })),
+            true // 관리자 모드: Admin 클라이언트 사용
+          );
+        }
+
+        successCount++;
+      } catch (error) {
+        console.error(
+          `[bulkCreatePlanGroupsForCamp] 초대 ${invitationId} 처리 실패:`,
+          error
+        );
+        errors.push({
+          invitationId,
+          error:
+            error instanceof Error
+              ? error.message
+              : "알 수 없는 오류가 발생했습니다.",
+        });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      successCount,
+      failureCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+);
