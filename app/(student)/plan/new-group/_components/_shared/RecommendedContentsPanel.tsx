@@ -244,49 +244,6 @@ export function RecommendedContentsPanel({
     [rangeModalContent, selectedContents, onUpdate]
   );
 
-  // 선택된 추천 콘텐츠 렌더링
-  const renderSelectedContent = useCallback(
-    (content: SelectedContent) => {
-      const originalContent = allRecommendedContents.find(
-        (c) => c.id === content.content_id
-      );
-
-      return (
-        <ContentCard
-          key={content.content_id}
-          content={{
-            id: content.content_id,
-            title: content.title || "제목 없음",
-            subject: originalContent?.subject,
-            semester: originalContent?.semester,
-            difficulty: originalContent?.difficulty_level,
-            publisher: originalContent?.publisher,
-            platform: originalContent?.platform,
-          }}
-          selected={true}
-          range={{
-            start: String(content.start_range),
-            end: String(content.end_range),
-            start_detail_id: content.start_detail_id,
-            end_detail_id: content.end_detail_id,
-          }}
-          recommended={
-            originalContent
-              ? {
-                  priority: originalContent.priority,
-                  reason: originalContent.reason,
-                  scoreDetails: originalContent.scoreDetails,
-                }
-              : undefined
-          }
-          onRemove={() => handleRecommendedRemove(content.content_id)}
-          onEditRange={() => handleEditRange(content)}
-        />
-      );
-    },
-    [allRecommendedContents, handleRecommendedRemove, handleEditRange]
-  );
-
   // 추천 요청 폼 표시 조건: 관리자 모드일 때는 항상 표시, 그 외에는 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
   const shouldShowRecommendationForm =
     isAdminContinueMode || // 관리자 모드일 때는 항상 표시
@@ -489,7 +446,44 @@ export function RecommendedContentsPanel({
             </span>
           </div>
           <div className="space-y-3">
-            {selectedContents.map(renderSelectedContent)}
+            {selectedContents.map((content, index) => {
+              const originalContent = allRecommendedContents.find(
+                (c) => c.id === content.content_id
+              );
+
+              return (
+                <ContentCard
+                  key={`${content.content_id}-${content.start_range}-${content.end_range}-${index}`}
+                  content={{
+                    id: content.content_id,
+                    title: content.title || "제목 없음",
+                    subject: originalContent?.subject,
+                    semester: originalContent?.semester,
+                    difficulty: originalContent?.difficulty_level,
+                    publisher: originalContent?.publisher,
+                    platform: originalContent?.platform,
+                  }}
+                  selected={true}
+                  range={{
+                    start: String(content.start_range),
+                    end: String(content.end_range),
+                    start_detail_id: content.start_detail_id,
+                    end_detail_id: content.end_detail_id,
+                  }}
+                  recommended={
+                    originalContent
+                      ? {
+                          priority: originalContent.priority,
+                          reason: originalContent.reason,
+                          scoreDetails: originalContent.scoreDetails,
+                        }
+                      : undefined
+                  }
+                  onRemove={() => handleRecommendedRemove(content.content_id)}
+                  onEditRange={() => handleEditRange(content)}
+                />
+              );
+            })}
           </div>
         </div>
       )}
