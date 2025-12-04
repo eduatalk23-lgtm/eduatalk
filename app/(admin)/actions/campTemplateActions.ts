@@ -20,6 +20,8 @@ import {
   linkBlockSetToTemplate,
   unlinkBlockSetFromTemplate,
 } from "./campTemplateBlockSets";
+import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
+import { createPlanContents, getPlanContents } from "@/lib/data/planGroups";
 
 /**
  * 캠프 템플릿 목록 조회
@@ -1957,6 +1959,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         // 추천 콘텐츠 처리
         if (hasRecommendedContents && wizardData.recommended_contents && wizardData.recommended_contents.length > 0) {
           // wizardData의 recommended_contents를 creationData 형식으로 변환하여 추가
+          // 관리자가 추가하는 경우는 항상 is_auto_recommended: false, recommendation_source: "admin"으로 강제 설정
           const recommendedContentsForCreation = wizardData.recommended_contents.map((c, idx) => ({
             content_type: c.content_type,
             content_id: c.content_id,
@@ -1964,8 +1967,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
             end_range: c.end_range,
             display_order: (contentsToSave.length + idx),
             master_content_id: (c as any).master_content_id || null,
-            is_auto_recommended: (c as any).is_auto_recommended ?? false,
-            recommendation_source: (c as any).recommendation_source || null,
+            is_auto_recommended: false, // 관리자 추가는 항상 false
+            recommendation_source: "admin", // 관리자 추가는 항상 "admin"으로 강제 설정
             recommendation_reason: (c as any).recommendation_reason || null,
             recommendation_metadata: (c as any).recommendation_metadata || null,
           }));
@@ -2580,6 +2583,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   (rc) => rc.content_id === c.content_id || rc.content_id === c.master_content_id
                 );
                 
+                // 관리자가 추가하는 경우는 항상 is_auto_recommended: false, recommendation_source: "admin"으로 강제 설정
                 return {
                   content_type: c.content_type,
                   content_id: c.content_id,
@@ -2587,8 +2591,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   end_range: c.end_range,
                   display_order: c.display_order ?? idx,
                   master_content_id: c.master_content_id || null,
-                  is_auto_recommended: (recommendedContent as any)?.is_auto_recommended ?? false,
-                  recommendation_source: (recommendedContent as any)?.recommendation_source ?? (isRecommended ? "admin" : null),
+                  is_auto_recommended: false, // 관리자 추가는 항상 false
+                  recommendation_source: isRecommended ? "admin" : null, // 관리자 추가는 항상 "admin"으로 강제 설정
                   recommendation_reason: (recommendedContent as any)?.recommendation_reason ?? null,
                   recommendation_metadata: (recommendedContent as any)?.recommendation_metadata ?? null,
                 };
@@ -3220,6 +3224,332 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
         }
       } else {
         successCount = successGroupIds.length;
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      successCount,
+      failureCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+);
+
+/**
+ * 다수 학생에게 추천 콘텐츠 일괄 적용
+ */
+export const bulkApplyRecommendedContents = withErrorHandling(
+  async (
+    templateId: string,
+    groupIds: string[],
+    subjectCountsMap: Record<string, Record<string, number>>, // groupId -> (subject -> count)
+    options?: {
+      replaceExisting?: boolean; // 기존 추천 콘텐츠 교체 여부 (기본값: false, 유지)
+    }
+  ): Promise<{
+    success: boolean;
+    successCount: number;
+    failureCount: number;
+    errors?: Array<{ groupId: string; error: string }>;
+  }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 템플릿 존재 및 권한 확인
+    const template = await getCampTemplate(templateId);
+    if (!template) {
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    if (template.tenant_id !== tenantContext.tenantId) {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const errors: Array<{ groupId: string; error: string }> = [];
+    let successCount = 0;
+
+    // 각 플랜 그룹에 대해 추천 콘텐츠 적용
+    for (const groupId of groupIds) {
+      try {
+        // 플랜 그룹 정보 조회
+        const { data: group, error: groupError } = await supabase
+          .from("plan_groups")
+          .select("id, student_id, tenant_id")
+          .eq("id", groupId)
+          .eq("tenant_id", tenantContext.tenantId)
+          .maybeSingle();
+
+        if (groupError || !group) {
+          errors.push({
+            groupId,
+            error: groupError?.message || "플랜 그룹을 찾을 수 없습니다.",
+          });
+          continue;
+        }
+
+        // 학생 ID 조회
+        const studentId = group.student_id;
+        if (!studentId) {
+          errors.push({
+            groupId,
+            error: "학생 ID를 찾을 수 없습니다.",
+          });
+          continue;
+        }
+
+        // 해당 그룹의 교과/수량 설정 조회
+        const subjectCounts = subjectCountsMap[groupId];
+        if (!subjectCounts || Object.keys(subjectCounts).length === 0) {
+          // 수량 설정이 없으면 스킵
+          continue;
+        }
+
+        // Map으로 변환
+        const requestedSubjectCounts = new Map<string, number>();
+        for (const [subject, count] of Object.entries(subjectCounts)) {
+          if (count > 0) {
+            requestedSubjectCounts.set(subject, count);
+          }
+        }
+
+        if (requestedSubjectCounts.size === 0) {
+          continue;
+        }
+
+        // 추천 콘텐츠 조회
+        const recommendations = await getRecommendedMasterContents(
+          supabase,
+          studentId,
+          tenantContext.tenantId,
+          requestedSubjectCounts
+        );
+
+        if (recommendations.length === 0) {
+          console.warn(
+            `[bulkApplyRecommendedContents] 추천 콘텐츠가 없습니다. groupId: ${groupId}, studentId: ${studentId}`
+          );
+          continue;
+        }
+
+        // 기존 추천 콘텐츠 처리
+        if (options?.replaceExisting) {
+          // 기존 추천 콘텐츠 삭제 (is_auto_recommended가 true이거나 recommendation_source가 있는 것만)
+          const { data: existingContents } = await getPlanContents(
+            groupId,
+            tenantContext.tenantId
+          );
+
+          if (existingContents && existingContents.length > 0) {
+            const recommendedContentIds = existingContents
+              .filter(
+                (c) =>
+                  c.is_auto_recommended || c.recommendation_source !== null
+              )
+              .map((c) => c.id);
+
+            if (recommendedContentIds.length > 0) {
+              const { error: deleteError } = await supabase
+                .from("plan_contents")
+                .delete()
+                .in("id", recommendedContentIds);
+
+              if (deleteError) {
+                console.error(
+                  `[bulkApplyRecommendedContents] 기존 추천 콘텐츠 삭제 실패:`,
+                  deleteError
+                );
+              }
+            }
+          }
+        }
+
+        // 학생이 실제로 가지고 있는 콘텐츠만 필터링
+        const validContents: Array<{
+          content_type: "book" | "lecture";
+          content_id: string;
+          start_range: number;
+          end_range: number;
+          display_order: number;
+          master_content_id: string | null;
+          is_auto_recommended: boolean;
+          recommendation_source: "admin" | null;
+        }> = [];
+
+        for (const rec of recommendations) {
+          let actualContentId: string | null = null;
+          let isValidContent = false;
+
+          // 학생 콘텐츠 조회
+          if (rec.contentType === "book") {
+            const { data: book } = await supabase
+              .from("books")
+              .select("id, master_content_id")
+              .eq("student_id", studentId)
+              .eq("master_content_id", rec.id)
+              .maybeSingle();
+
+            if (book) {
+              actualContentId = book.id;
+              isValidContent = true;
+            }
+          } else if (rec.contentType === "lecture") {
+            const { data: lecture } = await supabase
+              .from("lectures")
+              .select("id, master_content_id")
+              .eq("student_id", studentId)
+              .eq("master_content_id", rec.id)
+              .maybeSingle();
+
+            if (lecture) {
+              actualContentId = lecture.id;
+              isValidContent = true;
+            }
+          }
+
+          if (isValidContent && actualContentId) {
+            // 콘텐츠 상세 정보 조회하여 범위 설정
+            let startRange = 1;
+            let endRange = 100;
+
+            try {
+              if (rec.contentType === "book") {
+                const { data: bookDetails } = await supabase
+                  .from("book_details")
+                  .select("page_number")
+                  .eq("book_id", actualContentId)
+                  .order("page_number", { ascending: true })
+                  .limit(1);
+
+                if (bookDetails && bookDetails.length > 0) {
+                  startRange = bookDetails[0].page_number || 1;
+                }
+
+                const { data: totalData } = await supabase
+                  .from("books")
+                  .select("total_pages")
+                  .eq("id", actualContentId)
+                  .maybeSingle();
+
+                if (totalData?.total_pages) {
+                  endRange = totalData.total_pages;
+                }
+              } else if (rec.contentType === "lecture") {
+                const { data: lectureDetails } = await supabase
+                  .from("lecture_episodes")
+                  .select("episode_number")
+                  .eq("lecture_id", actualContentId)
+                  .order("episode_number", { ascending: true })
+                  .limit(1);
+
+                if (lectureDetails && lectureDetails.length > 0) {
+                  startRange = lectureDetails[0].episode_number || 1;
+                }
+
+                const { data: totalData } = await supabase
+                  .from("lectures")
+                  .select("total_episodes")
+                  .eq("id", actualContentId)
+                  .maybeSingle();
+
+                if (totalData?.total_episodes) {
+                  endRange = totalData.total_episodes;
+                }
+              }
+            } catch (infoError) {
+              // 상세 정보 조회 실패는 무시 (기본값 사용)
+            }
+
+            validContents.push({
+              content_type: rec.contentType,
+              content_id: actualContentId,
+              start_range: startRange,
+              end_range: endRange,
+              display_order: validContents.length,
+              master_content_id: rec.id,
+              is_auto_recommended: false, // 관리자 추가는 항상 false
+              recommendation_source: "admin", // 관리자 추가는 항상 "admin"
+            });
+          }
+        }
+
+        // 학생당 최대 9개 제한 검증
+        const { data: existingPlanContents } = await getPlanContents(
+          groupId,
+          tenantContext.tenantId
+        );
+        const currentCount = existingPlanContents?.length || 0;
+        const newCount = validContents.length;
+        const totalCount = options?.replaceExisting
+          ? currentCount -
+              (existingPlanContents?.filter(
+                (c) => c.is_auto_recommended || c.recommendation_source !== null
+              ).length || 0) +
+              newCount
+          : currentCount + newCount;
+
+        if (totalCount > 9) {
+          errors.push({
+            groupId,
+            error: `최대 콘텐츠 수(9개)를 초과합니다. 현재: ${currentCount}개, 추가 예정: ${newCount}개, 총합: ${totalCount}개`,
+          });
+          continue;
+        }
+
+        // 추천 콘텐츠 저장
+        if (validContents.length > 0) {
+          const contentsResult = await createPlanContents(
+            groupId,
+            tenantContext.tenantId,
+            validContents.map((c) => ({
+              content_type: c.content_type,
+              content_id: c.content_id,
+              start_range: c.start_range,
+              end_range: c.end_range,
+              display_order: c.display_order,
+              master_content_id: c.master_content_id,
+              is_auto_recommended: c.is_auto_recommended,
+              recommendation_source: c.recommendation_source,
+            }))
+          );
+
+          if (!contentsResult.success) {
+            errors.push({
+              groupId,
+              error: contentsResult.error || "콘텐츠 저장에 실패했습니다.",
+            });
+            continue;
+          }
+
+          successCount++;
+        }
+      } catch (error) {
+        console.error(
+          `[bulkApplyRecommendedContents] 그룹 ${groupId} 처리 실패:`,
+          error
+        );
+        errors.push({
+          groupId,
+          error:
+            error instanceof Error
+              ? error.message
+              : "알 수 없는 오류가 발생했습니다.",
+        });
       }
     }
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BatchOperationDialog } from "./_components/BatchOperationDialog";
+import { BulkRecommendContentsModal } from "./_components/BulkRecommendContentsModal";
 import { batchUpdateCampPlanGroupStatus } from "@/app/(admin)/actions/campTemplateActions";
 
 type Participant = {
@@ -45,6 +46,7 @@ export function CampParticipantsList({
     "activate" | "status_change"
   >("activate");
   const [batchStatus, setBatchStatus] = useState<string>("active");
+  const [bulkRecommendModalOpen, setBulkRecommendModalOpen] = useState(false);
 
   useEffect(() => {
     loadParticipants();
@@ -753,6 +755,15 @@ export function CampParticipantsList({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setBulkRecommendModalOpen(true)}
+                  disabled={isPending}
+                  className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="선택한 참여자에게 추천 콘텐츠를 일괄 적용합니다"
+                >
+                  추천 콘텐츠 일괄 적용
+                </button>
+                <button
+                  type="button"
                   onClick={handleBatchActivate}
                   disabled={isPending}
                   className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1037,6 +1048,25 @@ export function CampParticipantsList({
             </tbody>
           </table>
         </div>
+
+        {/* 추천 콘텐츠 일괄 적용 모달 */}
+        {selectedParticipantIds.size > 0 && (
+          <BulkRecommendContentsModal
+            open={bulkRecommendModalOpen}
+            onOpenChange={setBulkRecommendModalOpen}
+            templateId={templateId}
+            participants={participants
+              .filter((p) => p.plan_group_id && selectedParticipantIds.has(p.plan_group_id))
+              .map((p) => ({
+                groupId: p.plan_group_id!,
+                studentId: p.student_id,
+                studentName: p.student_name,
+              }))}
+            onSuccess={() => {
+              loadParticipants();
+            }}
+          />
+        )}
 
         {/* 일괄 작업 다이얼로그 */}
         <BatchOperationDialog
