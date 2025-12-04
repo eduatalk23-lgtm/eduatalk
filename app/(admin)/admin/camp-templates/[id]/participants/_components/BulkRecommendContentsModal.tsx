@@ -487,7 +487,7 @@ export function BulkRecommendContentsModal({
         </div>
 
         {/* 테이블 */}
-        <div className="mt-8 max-h-[60vh] overflow-y-auto overflow-x-auto">
+        <div className="mt-8 max-h-[60vh] overflow-y-auto overflow-x-hidden">
           <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white text-sm">
             <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr>
