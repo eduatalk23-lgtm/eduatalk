@@ -447,8 +447,11 @@ export function RecommendedContentsPanel({
           </div>
           <div className="space-y-3">
             {selectedContents.map((content, index) => {
+              // allRecommendedContents에서 찾을 때 더 정확한 매칭
+              // content_id로 먼저 찾고, 없으면 master_content_id로 찾기
               const originalContent = allRecommendedContents.find(
-                (c) => c.id === content.content_id
+                (c) => c.id === content.content_id || 
+                       (content.master_content_id && c.id === content.master_content_id)
               );
 
               return (

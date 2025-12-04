@@ -127,7 +127,9 @@ async function _createPlanGroup(
   const processedContents = data.contents.map((c) => ({
     content_type: c.content_type,
     content_id: c.content_id, // 마스터 콘텐츠 ID 그대로 저장
-    master_content_id: masterContentIdMap.get(c.content_id) || null,
+    // 이미 설정된 master_content_id가 있으면 우선 사용 (planGroupDataSync에서 설정)
+    // 없으면 학생 콘텐츠의 master_content_id 조회
+    master_content_id: c.master_content_id ?? (masterContentIdMap.get(c.content_id) || null),
     start_range: c.start_range,
     end_range: c.end_range,
     display_order: c.display_order ?? 0,
