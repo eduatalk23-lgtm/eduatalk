@@ -164,6 +164,7 @@ export const TimeSettingsPanel = React.memo(function TimeSettingsPanel({
           onUpdate={onUpdate}
           campMode={campMode}
           isTemplateMode={isTemplateMode}
+          editable={editable}
         />
       </CollapsibleSection>
 
@@ -192,6 +193,7 @@ export const TimeSettingsPanel = React.memo(function TimeSettingsPanel({
           onUpdate={onUpdate}
           campMode={campMode}
           isTemplateMode={isTemplateMode}
+          editable={editable}
         />
       </CollapsibleSection>
     </div>

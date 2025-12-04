@@ -165,8 +165,14 @@ export function Step1BasicInfo({
     );
   };
 
+  // editable={false}일 때 모든 필드 비활성화
+  const isDisabled = (additionalCondition: boolean = false) => {
+    return !editable || additionalCondition;
+  };
+
   // 학생 모드에서 입력 가능 여부 확인 헬퍼 함수
   const canStudentInput = (fieldName: keyof typeof lockedFields): boolean => {
+    if (!editable) return false; // editable={false}일 때는 모든 필드 입력 불가
     if (!isCampMode) return true; // 일반 모드에서는 항상 허용
 
     // templateLockedFields가 없으면 모든 필드 입력 가능 (기본값)
@@ -915,12 +921,14 @@ export function Step1BasicInfo({
             }`}
             placeholder="예: 1학기 중간고사 대비"
             value={data.name || ""}
-            onChange={(e) => onUpdate({ name: e.target.value })}
-            disabled={
-              (!editable && !isCampMode) ||
+            onChange={(e) => {
+              if (!editable) return;
+              onUpdate({ name: e.target.value });
+            }}
+            disabled={isDisabled(
               isFieldLocked("name") ||
               (isCampMode && !canStudentInputName)
-            }
+            )}
             required
           />
           {isFieldLocked("name") && (
@@ -1014,19 +1022,21 @@ export function Step1BasicInfo({
           <button
             type="button"
             onClick={() => handlePeriodTypeChange("dday")}
-            disabled={
+            disabled={isDisabled(
               isFieldLocked("period_start") ||
               isFieldLocked("period_end") ||
               (isCampMode && !canStudentInputPeriod)
-            }
+            )}
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               periodInputType === "dday"
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-300 text-gray-800 hover:bg-gray-50"
             } ${
-              isFieldLocked("period_start") ||
-              isFieldLocked("period_end") ||
-              (isCampMode && !canStudentInputPeriod)
+              isDisabled(
+                isFieldLocked("period_start") ||
+                isFieldLocked("period_end") ||
+                (isCampMode && !canStudentInputPeriod)
+              )
                 ? "cursor-not-allowed opacity-60"
                 : ""
             }`}
@@ -1036,19 +1046,21 @@ export function Step1BasicInfo({
           <button
             type="button"
             onClick={() => handlePeriodTypeChange("weeks")}
-            disabled={
+            disabled={isDisabled(
               isFieldLocked("period_start") ||
               isFieldLocked("period_end") ||
               (isCampMode && !canStudentInputPeriod)
-            }
+            )}
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               periodInputType === "weeks"
                 ? "border-gray-900 bg-gray-900 text-white"
                 : "border-gray-300 text-gray-800 hover:bg-gray-50"
             } ${
-              isFieldLocked("period_start") ||
-              isFieldLocked("period_end") ||
-              (isCampMode && !canStudentInputPeriod)
+              isDisabled(
+                isFieldLocked("period_start") ||
+                isFieldLocked("period_end") ||
+                (isCampMode && !canStudentInputPeriod)
+              )
                 ? "cursor-not-allowed opacity-60"
                 : ""
             }`}
@@ -1058,11 +1070,11 @@ export function Step1BasicInfo({
           <button
             type="button"
             onClick={() => handlePeriodTypeChange("direct")}
-            disabled={
+            disabled={isDisabled(
               isFieldLocked("period_start") ||
               isFieldLocked("period_end") ||
               (isCampMode && !canStudentInputPeriod)
-            }
+            )}
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               periodInputType === "direct"
                 ? "border-gray-900 bg-gray-900 text-white"

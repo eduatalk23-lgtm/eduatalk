@@ -9,6 +9,7 @@ type TimeConfigPanelProps = {
   onUpdate: (updates: Partial<WizardData>) => void;
   campMode?: boolean;
   isTemplateMode?: boolean;
+  editable?: boolean;
 };
 
 /**
@@ -22,6 +23,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
   onUpdate,
   campMode = false,
   isTemplateMode = false,
+  editable = true,
 }: TimeConfigPanelProps) {
   // 템플릿 고정 필드 확인
   const lockedFields = data.templateLockedFields?.step2 || {};

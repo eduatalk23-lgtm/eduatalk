@@ -191,6 +191,11 @@ export function PlanGroupDetailView({
     scheduleViewRef.current?.refresh();
   }, []);
 
+  // 읽기 전용 모드에서 모든 변경을 막는 wrapper 함수
+  const readOnlyUpdate = useCallback(() => {
+    // 읽기 전용 모드에서는 아무것도 하지 않음
+  }, []);
+
   const renderTabContent = () => {
     // 캠프 제출 모드일 때 허용되지 않은 탭 접근 시 첫 번째 허용된 탭 콘텐츠 표시
     const displayTab = campSubmissionMode && !allowedTabIds.includes(currentTab) 
@@ -200,59 +205,67 @@ export function PlanGroupDetailView({
     switch (displayTab) {
       case 1:
         return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step1BasicInfo 
-              data={wizardData}
-              onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              blockSets={enhancedBlockSets}
-              editable={false} // 완전히 읽기 전용
-              isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
-              lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
-            />
-          </Suspense>
+          <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <Step1BasicInfo 
+                data={wizardData}
+                onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
+                blockSets={enhancedBlockSets}
+                editable={false} // 완전히 읽기 전용
+                isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+                lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
+              />
+            </Suspense>
+          </div>
         );
       case 2:
         return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step2TimeSettings 
-              data={wizardData}
-              onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              periodStart={group.period_start}
-              periodEnd={group.period_end}
-              editable={false} // 완전히 읽기 전용
-              campMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드 (제출 모드에서는 editable=false로 모든 필드 비활성화)
-              isTemplateMode={false}
-              studentId={group.student_id}
-            />
-          </Suspense>
+          <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <Step2TimeSettings 
+                data={wizardData}
+                onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
+                periodStart={group.period_start}
+                periodEnd={group.period_end}
+                editable={false} // 완전히 읽기 전용
+                campMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+                isTemplateMode={false}
+                studentId={group.student_id}
+              />
+            </Suspense>
+          </div>
         );
       case 4:
         // 콘텐츠 선택 (학생 + 추천 통합)
         return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step3ContentSelection 
-              data={wizardData}
-              onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              isCampMode={false} // 제출 모드에서는 editable=false로 모든 필드 비활성화
-              isEditMode={false}
-              studentId={group.student_id}
-              editable={false} // 완전히 읽기 전용
-            />
-          </Suspense>
+          <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <Step3ContentSelection 
+                data={wizardData}
+                onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
+                isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+                isEditMode={false}
+                studentId={group.student_id}
+                editable={false} // 완전히 읽기 전용
+              />
+            </Suspense>
+          </div>
         );
       case 6:
         return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step6Simplified 
-              data={wizardData}
-              onBack={() => {}}
-              onNext={() => {}}
-              editable={false} // 완전히 읽기 전용
-              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
-              isTemplateMode={false}
-              studentId={group.student_id}
-            />
-          </Suspense>
+          <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <Step6Simplified 
+                data={wizardData}
+                onBack={() => {}}
+                onNext={() => {}}
+                editable={false} // 완전히 읽기 전용
+                isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+                isTemplateMode={false}
+                studentId={group.student_id}
+              />
+            </Suspense>
+          </div>
         );
       case 7:
         return (
@@ -265,16 +278,18 @@ export function PlanGroupDetailView({
         );
       default:
         return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
-            <Step1BasicInfo 
-              data={wizardData}
-              onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              blockSets={enhancedBlockSets}
-              editable={false} // 완전히 읽기 전용
-              isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
-              lockedFields={[]}
-            />
-          </Suspense>
+          <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
+            <Suspense fallback={<TabLoadingSkeleton />}>
+              <Step1BasicInfo 
+                data={wizardData}
+                onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
+                blockSets={enhancedBlockSets}
+                editable={false} // 완전히 읽기 전용
+                isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+                lockedFields={[]}
+              />
+            </Suspense>
+          </div>
         );
     }
   };
