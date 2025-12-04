@@ -1882,8 +1882,36 @@ export const continueCampStepsForAdmin = withErrorHandling(
         );
       }
 
-      // 콘텐츠 업데이트 (기존 삭제 후 재생성)
-      if (creationData.contents !== undefined) {
+      // 콘텐츠 업데이트 (기존 콘텐츠 보존 로직 개선)
+      // wizardData에서 student_contents와 recommended_contents를 확인하여
+      // 명시적으로 전달된 경우에만 업데이트하고, 그렇지 않으면 기존 콘텐츠 보존
+      const hasStudentContents = wizardData.student_contents !== undefined;
+      const hasRecommendedContents = wizardData.recommended_contents !== undefined;
+      
+      // 기존 콘텐츠 조회 (보존할 콘텐츠 확인용)
+      const { data: existingPlanContents } = await supabase
+        .from("plan_contents")
+        .select("*")
+        .eq("plan_group_id", groupId);
+
+      // 기존 콘텐츠를 학생 콘텐츠와 추천 콘텐츠로 분류
+      const existingStudentContents: typeof existingPlanContents = [];
+      const existingRecommendedContents: typeof existingPlanContents = [];
+      
+      if (existingPlanContents) {
+        for (const content of existingPlanContents) {
+          // is_auto_recommended가 true이거나 recommendation_source가 있으면 추천 콘텐츠
+          if (content.is_auto_recommended || content.recommendation_source) {
+            existingRecommendedContents.push(content);
+          } else {
+            existingStudentContents.push(content);
+          }
+        }
+      }
+
+      // 콘텐츠 업데이트가 필요한 경우에만 처리
+      if (hasStudentContents || hasRecommendedContents) {
+        // 기존 콘텐츠 삭제
         const { error: deleteError } = await supabase
           .from("plan_contents")
           .delete()
@@ -1898,7 +1926,68 @@ export const continueCampStepsForAdmin = withErrorHandling(
           );
         }
 
-        if (creationData.contents.length > 0) {
+        // 병합할 콘텐츠 목록 생성
+        const contentsToSave: typeof creationData.contents = [];
+        
+        // 학생 콘텐츠 처리
+        if (hasStudentContents && wizardData.student_contents && wizardData.student_contents.length > 0) {
+          // wizardData의 student_contents를 creationData 형식으로 변환하여 추가
+          const studentContentsForCreation = wizardData.student_contents.map((c, idx) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+            start_range: c.start_range,
+            end_range: c.end_range,
+            display_order: idx,
+            master_content_id: (c as any).master_content_id || null,
+          }));
+          contentsToSave.push(...studentContentsForCreation);
+        } else if (!hasStudentContents && existingStudentContents.length > 0) {
+          // wizardData에 student_contents가 없으면 기존 학생 콘텐츠 보존
+          const preservedStudentContents = existingStudentContents.map((c) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+            start_range: c.start_range,
+            end_range: c.end_range,
+            display_order: c.display_order ?? 0,
+            master_content_id: (c as any).master_content_id || null,
+          }));
+          contentsToSave.push(...preservedStudentContents);
+        }
+
+        // 추천 콘텐츠 처리
+        if (hasRecommendedContents && wizardData.recommended_contents && wizardData.recommended_contents.length > 0) {
+          // wizardData의 recommended_contents를 creationData 형식으로 변환하여 추가
+          const recommendedContentsForCreation = wizardData.recommended_contents.map((c, idx) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+            start_range: c.start_range,
+            end_range: c.end_range,
+            display_order: (contentsToSave.length + idx),
+            master_content_id: (c as any).master_content_id || null,
+            is_auto_recommended: (c as any).is_auto_recommended ?? false,
+            recommendation_source: (c as any).recommendation_source || null,
+            recommendation_reason: (c as any).recommendation_reason || null,
+            recommendation_metadata: (c as any).recommendation_metadata || null,
+          }));
+          contentsToSave.push(...recommendedContentsForCreation);
+        } else if (!hasRecommendedContents && existingRecommendedContents.length > 0) {
+          // wizardData에 recommended_contents가 없으면 기존 추천 콘텐츠 보존
+          const preservedRecommendedContents = existingRecommendedContents.map((c) => ({
+            content_type: c.content_type,
+            content_id: c.content_id,
+            start_range: c.start_range,
+            end_range: c.end_range,
+            display_order: (contentsToSave.length + (c.display_order ?? 0)),
+            master_content_id: (c as any).master_content_id || null,
+            is_auto_recommended: c.is_auto_recommended ?? false,
+            recommendation_source: c.recommendation_source || null,
+            recommendation_reason: (c as any).recommendation_reason || null,
+            recommendation_metadata: (c as any).recommendation_metadata || null,
+          }));
+          contentsToSave.push(...preservedRecommendedContents);
+        }
+
+        if (contentsToSave.length > 0) {
           // 학생이 실제로 가지고 있는 콘텐츠만 필터링
           const studentId = result.group.student_id;
           const validContents: Array<{
@@ -1907,9 +1996,14 @@ export const continueCampStepsForAdmin = withErrorHandling(
             start_range: number;
             end_range: number;
             display_order: number;
+            master_content_id?: string | null;
+            is_auto_recommended?: boolean;
+            recommendation_source?: string | null;
+            recommendation_reason?: string | null;
+            recommendation_metadata?: any;
           }> = [];
 
-          for (const content of creationData.contents) {
+          for (const content of contentsToSave) {
             let isValidContent = false;
             let actualContentId = content.content_id;
 
@@ -2025,6 +2119,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 start_range: content.start_range,
                 end_range: content.end_range,
                 display_order: content.display_order ?? 0,
+                master_content_id: content.master_content_id || null,
+                is_auto_recommended: content.is_auto_recommended ?? false,
+                recommendation_source: content.recommendation_source || null,
+                recommendation_reason: content.recommendation_reason || null,
+                recommendation_metadata: content.recommendation_metadata || null,
               });
             }
           }
@@ -2044,7 +2143,87 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 true
               );
             }
-          } else if (creationData.contents.length > 0) {
+
+            // 데이터 병합 검증: 저장된 콘텐츠 확인
+            const { data: savedContents } = await supabase
+              .from("plan_contents")
+              .select("*")
+              .eq("plan_group_id", groupId);
+
+            const savedStudentContents = savedContents?.filter(
+              (c) => !c.is_auto_recommended && !c.recommendation_source
+            ) || [];
+            const savedRecommendedContents = savedContents?.filter(
+              (c) => c.is_auto_recommended || c.recommendation_source
+            ) || [];
+
+            console.log("[campTemplateActions] 콘텐츠 병합 검증:", {
+              groupId,
+              studentId,
+              hasStudentContents,
+              hasRecommendedContents,
+              existingStudentContentsCount: existingStudentContents.length,
+              existingRecommendedContentsCount: existingRecommendedContents.length,
+              savedStudentContentsCount: savedStudentContents.length,
+              savedRecommendedContentsCount: savedRecommendedContents.length,
+              validContentsCount: validContents.length,
+              contentsToSaveCount: contentsToSave.length,
+            });
+
+            // 검증: 기존 학생 콘텐츠가 보존되었는지 확인
+            if (!hasStudentContents && existingStudentContents.length > 0) {
+              const preservedCount = savedStudentContents.filter((saved) =>
+                existingStudentContents.some(
+                  (existing) =>
+                    existing.content_type === saved.content_type &&
+                    existing.content_id === saved.content_id
+                )
+              ).length;
+
+              if (preservedCount !== existingStudentContents.length) {
+                console.warn(
+                  `[campTemplateActions] 기존 학생 콘텐츠 보존 검증 실패:`,
+                  {
+                    expected: existingStudentContents.length,
+                    actual: preservedCount,
+                    groupId,
+                    studentId,
+                  }
+                );
+              } else {
+                console.log(
+                  `[campTemplateActions] 기존 학생 콘텐츠 보존 검증 성공: ${preservedCount}개 보존됨`
+                );
+              }
+            }
+
+            // 검증: 기존 추천 콘텐츠가 보존되었는지 확인
+            if (!hasRecommendedContents && existingRecommendedContents.length > 0) {
+              const preservedCount = savedRecommendedContents.filter((saved) =>
+                existingRecommendedContents.some(
+                  (existing) =>
+                    existing.content_type === saved.content_type &&
+                    existing.content_id === saved.content_id
+                )
+              ).length;
+
+              if (preservedCount !== existingRecommendedContents.length) {
+                console.warn(
+                  `[campTemplateActions] 기존 추천 콘텐츠 보존 검증 실패:`,
+                  {
+                    expected: existingRecommendedContents.length,
+                    actual: preservedCount,
+                    groupId,
+                    studentId,
+                  }
+                );
+              } else {
+                console.log(
+                  `[campTemplateActions] 기존 추천 콘텐츠 보존 검증 성공: ${preservedCount}개 보존됨`
+                );
+              }
+            }
+          } else if (contentsToSave.length > 0) {
             // 유효한 콘텐츠가 없는 경우 경고만 출력 (에러는 발생시키지 않음)
             console.warn(
               `[campTemplateActions] 학생(${studentId})이 가지고 있는 유효한 콘텐츠가 없습니다.`
@@ -2089,30 +2268,41 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
       }
 
-      // 학원 일정 업데이트 (학생별 전역 관리)
+      // 학원 일정 업데이트 (학생별 전역 관리, UPSERT 방식)
       if (creationData.academy_schedules !== undefined) {
         const studentId = result.group.student_id;
 
-        // 기존 학원 일정 모두 삭제
-        const { error: deleteError } = await supabase
-          .from("academy_schedules")
-          .delete()
-          .eq("student_id", studentId)
-          .eq("tenant_id", tenantContext.tenantId);
+        // 기존 학원 일정 조회 (중복 체크용)
+        const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+        const existingSchedules = await getStudentAcademySchedules(studentId, tenantContext.tenantId);
+        
+        // 기존 학원 일정을 키로 매핑 (요일:시작시간:종료시간:학원명:과목)
+        const existingKeys = new Set(
+          existingSchedules.map((s) => 
+            `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`
+          )
+        );
 
-        if (deleteError) {
-          console.error(
-            "[campTemplateActions] 기존 학원 일정 삭제 실패",
-            deleteError
-          );
-        }
+        // 새로운 학원 일정 중 중복되지 않은 것만 필터링
+        const newSchedules = creationData.academy_schedules.filter((s) => {
+          const key = `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`;
+          return !existingKeys.has(key);
+        });
 
-        // 새로운 학원 일정 추가 (관리자 모드: Admin 클라이언트 사용)
-        if (creationData.academy_schedules.length > 0) {
+        console.log("[campTemplateActions] 학원 일정 업데이트:", {
+          studentId,
+          totalSchedules: creationData.academy_schedules.length,
+          existingSchedulesCount: existingSchedules.length,
+          newSchedulesCount: newSchedules.length,
+          skippedCount: creationData.academy_schedules.length - newSchedules.length,
+        });
+
+        // 중복되지 않은 새로운 학원 일정만 추가 (관리자 모드: Admin 클라이언트 사용)
+        if (newSchedules.length > 0) {
           const schedulesResult = await createStudentAcademySchedules(
             studentId,
             tenantContext.tenantId,
-            creationData.academy_schedules.map((s) => ({
+            newSchedules.map((s) => ({
               day_of_week: s.day_of_week,
               start_time: s.start_time,
               end_time: s.end_time,
@@ -2130,6 +2320,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
               true
             );
           }
+        } else if (creationData.academy_schedules.length > 0) {
+          // 모든 학원 일정이 이미 존재하는 경우 로그만 출력
+          console.log("[campTemplateActions] 모든 학원 일정이 이미 존재합니다.");
         }
       }
 

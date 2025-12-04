@@ -84,3 +84,5 @@ export default function Step4RecommendedContents({
 - [ ] 관리자 모드에서 추천 받기 버튼을 클릭하여 추천 콘텐츠를 받을 수 있는지 확인
 - [ ] 일반 학생 모드에서는 기존 로직대로 동작하는지 확인
 
+
+

@@ -407,7 +407,37 @@ export const submitCampParticipation = withErrorHandling(
 
     // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
     // (학원 일정은 학생별 전역 관리이므로, 캠프 모드 제출 시 템플릿 일정으로 교체)
+    // 중복 생성 방지를 위해 삭제 전에 기존 일정을 조회하여 중복 체크
     if (creationData.academy_schedules && creationData.academy_schedules.length > 0) {
+      // 기존 학원 일정 조회 (중복 체크용)
+      const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+      const existingSchedules = await getStudentAcademySchedules(
+        user.userId,
+        tenantContext.tenantId
+      );
+
+      // 기존 학원 일정을 키로 매핑 (요일:시작시간:종료시간:학원명:과목)
+      const existingKeys = new Set(
+        existingSchedules.map((s) =>
+          `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`
+        )
+      );
+
+      // 새로운 학원 일정 중 중복되지 않은 것만 필터링
+      const newSchedules = creationData.academy_schedules.filter((s) => {
+        const key = `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`;
+        return !existingKeys.has(key);
+      });
+
+      console.log("[campActions] 학원 일정 업데이트:", {
+        studentId: user.userId,
+        totalSchedules: creationData.academy_schedules.length,
+        existingSchedulesCount: existingSchedules.length,
+        newSchedulesCount: newSchedules.length,
+        skippedCount: creationData.academy_schedules.length - newSchedules.length,
+      });
+
+      // 기존 학원 일정 삭제 (템플릿 일정으로 교체)
       const deleteQuery = supabase
         .from("academy_schedules")
         .delete()
@@ -424,6 +454,42 @@ export const submitCampParticipation = withErrorHandling(
         // 삭제 실패해도 계속 진행 (새 일정 저장 시도)
       } else {
         console.log("[campActions] 기존 학원 일정 삭제 완료");
+      }
+
+      // 중복되지 않은 새로운 학원 일정만 추가
+      // createStudentAcademySchedules는 내부적으로도 중복 체크를 하지만,
+      // 삭제 직후이므로 모든 일정이 새로 추가되어야 함
+      // 하지만 안전을 위해 중복 체크를 한 번 더 수행
+      if (newSchedules.length > 0) {
+        // 삭제 직후이므로 모든 일정을 추가 (중복 체크는 createStudentAcademySchedules에서 수행)
+        // 하지만 이미 필터링했으므로 중복은 없어야 함
+        const { createStudentAcademySchedules } = await import("@/lib/data/planGroups");
+        const schedulesResult = await createStudentAcademySchedules(
+          user.userId,
+          tenantContext.tenantId,
+          newSchedules.map((s) => ({
+            day_of_week: s.day_of_week,
+            start_time: s.start_time,
+            end_time: s.end_time,
+            academy_name: s.academy_name || null,
+            subject: s.subject || null,
+          }))
+        );
+
+        if (!schedulesResult.success) {
+          console.warn(
+            "[campActions] 학원 일정 추가 실패 (무시하고 계속 진행):",
+            schedulesResult.error
+          );
+          // 추가 실패해도 계속 진행 (플랜 그룹은 생성됨)
+        } else {
+          console.log("[campActions] 학원 일정 추가 완료:", {
+            addedCount: newSchedules.length,
+          });
+        }
+      } else if (creationData.academy_schedules.length > 0) {
+        // 모든 학원 일정이 이미 존재하는 경우 로그만 출력
+        console.log("[campActions] 모든 학원 일정이 이미 존재합니다.");
       }
     }
 

@@ -70,3 +70,5 @@ export const getSubjectsByGroupAction = withErrorHandling(_getSubjectsByGroup);
 - 데이터 조회는 읽기 전용 작업이므로 학생에게도 허용되는 것이 적절합니다.
 
 
+
+
