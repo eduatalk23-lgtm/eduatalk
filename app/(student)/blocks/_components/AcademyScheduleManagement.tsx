@@ -11,7 +11,7 @@ import {
   deleteAcademySchedule 
 } from "@/app/(student)/actions/planGroupActions";
 import type { AcademySchedule, Academy } from "@/lib/types/plan";
-import { Trash2, Pencil, X } from "lucide-react";
+import { Trash2, Pencil, X, Plus } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 type AcademyScheduleManagementProps = {
