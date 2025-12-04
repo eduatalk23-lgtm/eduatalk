@@ -257,8 +257,7 @@ export function PlanGroupDetailView({
             <Suspense fallback={<TabLoadingSkeleton />}>
               <Step6Simplified 
                 data={wizardData}
-                onBack={() => {}}
-                onNext={() => {}}
+                onEditStep={() => {}} // 읽기 전용 모드에서는 사용하지 않음
                 editable={false} // 완전히 읽기 전용
                 isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
                 isTemplateMode={false}
