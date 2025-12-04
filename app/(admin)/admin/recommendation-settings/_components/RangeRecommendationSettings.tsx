@@ -11,8 +11,8 @@ import type { RangeRecommendationConfig } from "@/lib/recommendations/config/typ
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { Spinner } from "@/components/atoms/Spinner";
 import Button from "@/components/atoms/Button";
-import { Input } from "@/components/atoms/Input";
-import { Label } from "@/components/atoms/Label";
+import Input from "@/components/atoms/Input";
+import Label from "@/components/atoms/Label";
 
 export function RangeRecommendationSettings() {
   const { showSuccess, showError } = useToast();
