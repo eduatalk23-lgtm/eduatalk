@@ -1299,6 +1299,7 @@ export function PlanGroupWizard({
             isEditMode={isEditMode}
             studentId={(initialData as any)?.student_id}
             editable={isAdminContinueMode || !isCampMode}
+            isAdminContinueMode={isAdminContinueMode}
           />
         )}
         {currentStep === 5 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (

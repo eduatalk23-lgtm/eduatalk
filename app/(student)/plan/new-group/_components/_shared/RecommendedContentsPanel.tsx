@@ -35,6 +35,7 @@ export function RecommendedContentsPanel({
   hasRequestedRecommendations = false,
   hasScoreData = false,
   studentId,
+  isAdminContinueMode = false,
 }: RecommendedContentsPanelProps) {
   // 범위 설정 모달
   const [rangeModalOpen, setRangeModalOpen] = useState(false);
@@ -286,10 +287,18 @@ export function RecommendedContentsPanel({
     [allRecommendedContents, handleRecommendedRemove, handleEditRange]
   );
 
+  // 추천 요청 폼 표시 조건: 관리자 모드일 때는 항상 표시, 그 외에는 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
+  const shouldShowRecommendationForm =
+    isAdminContinueMode || // 관리자 모드일 때는 항상 표시
+    (!isEditMode && !hasRequestedRecommendations) ||
+    (hasRequestedRecommendations &&
+      recommendedContents.length === 0 &&
+      !loading);
+
   return (
     <div className="space-y-6">
       {/* 추천 받기 설정 */}
-      {!isEditMode && !hasRequestedRecommendations && (
+      {shouldShowRecommendationForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-blue-600" />

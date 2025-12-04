@@ -41,7 +41,8 @@ export function Step3ContentSelection({
   isTemplateMode = false,
   studentId,
   editable = true,
-}: Step3ContentSelectionProps & { isTemplateMode?: boolean }) {
+  isAdminContinueMode = false,
+}: Step3ContentSelectionProps & { isTemplateMode?: boolean; isAdminContinueMode?: boolean }) {
   // 탭 상태
   const [activeTab, setActiveTab] = useState<
     "student" | "recommended" | "master"
@@ -951,6 +952,7 @@ export function Step3ContentSelection({
             hasRequestedRecommendations={hasRequestedRecommendations}
             hasScoreData={hasScoreData}
             studentId={studentId}
+            isAdminContinueMode={isAdminContinueMode}
           />
         ) : (
           <MasterContentsPanel
