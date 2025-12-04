@@ -1371,6 +1371,7 @@ export function Step1BasicInfo({
                     }`}
                     value={directState.startMonth}
                     onChange={(e) => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1397,11 +1398,11 @@ export function Step1BasicInfo({
                         ),
                       });
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                   >
                     {Array.from({ length: 12 }, (_, i) => {
                       const month = i + 1;
@@ -1431,6 +1432,7 @@ export function Step1BasicInfo({
                     }`}
                     value={directState.startDay}
                     onChange={(e) => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1448,11 +1450,11 @@ export function Step1BasicInfo({
                         ),
                       });
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                   >
                     {Array.from(
                       {
@@ -1499,6 +1501,7 @@ export function Step1BasicInfo({
                     }`}
                     value={directState.endYear}
                     onChange={(e) => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1522,11 +1525,11 @@ export function Step1BasicInfo({
                         ),
                       });
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                   >
                     {Array.from({ length: 6 }, (_, i) => {
                       const year = new Date().getFullYear() + i;
@@ -1556,6 +1559,7 @@ export function Step1BasicInfo({
                     }`}
                     value={directState.endMonth}
                     onChange={(e) => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1579,11 +1583,11 @@ export function Step1BasicInfo({
                         ),
                       });
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                   >
                     {Array.from({ length: 12 }, (_, i) => {
                       const month = i + 1;
@@ -1613,6 +1617,7 @@ export function Step1BasicInfo({
                     }`}
                     value={directState.endDay}
                     onChange={(e) => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1630,11 +1635,11 @@ export function Step1BasicInfo({
                         ),
                       });
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                   >
                     {Array.from(
                       {
@@ -1968,6 +1973,7 @@ export function Step1BasicInfo({
                 value={type.value}
                 checked={data.scheduler_type === type.value}
                 onChange={() => {
+                  if (!editable) return;
                   if (isCampMode && !canStudentInputSchedulerType) return;
                   onUpdate({
                     scheduler_type: type.value as any,
@@ -1976,7 +1982,7 @@ export function Step1BasicInfo({
                   // 유형 변경 시 설명도 초기화
                   setShow1730Desc(false);
                 }}
-                disabled={isCampMode && !canStudentInputSchedulerType}
+                disabled={isDisabled(isCampMode && !canStudentInputSchedulerType)}
                 className="hidden"
               />
               {type.label}
@@ -1995,7 +2001,10 @@ export function Step1BasicInfo({
             <div>
               <button
                 type="button"
-                onClick={() => setShow1730Desc(!show1730Desc)}
+                onClick={() => {
+                  if (!editable) return;
+                  setShow1730Desc(!show1730Desc);
+                }}
                 className="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
               >
                 <span>
@@ -2082,6 +2091,7 @@ export function Step1BasicInfo({
                     <button
                       type="button"
                       onClick={() => {
+                        if (!editable) return;
                         if (isCampMode && !canStudentInputStudyReviewCycle)
                           return;
                         const currentStudyDays =
@@ -2102,12 +2112,12 @@ export function Step1BasicInfo({
                           },
                         });
                       }}
-                      disabled={
+                      disabled={isDisabled(
                         (data.scheduler_options?.study_days ??
                           data.study_review_cycle?.study_days ??
                           6) <= 1 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
-                      }
+                      )}
                       className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       −
@@ -2121,6 +2131,7 @@ export function Step1BasicInfo({
                     <button
                       type="button"
                       onClick={() => {
+                        if (!editable) return;
                         if (isCampMode && !canStudentInputStudyReviewCycle)
                           return;
                         const currentStudyDays =
@@ -2141,12 +2152,12 @@ export function Step1BasicInfo({
                           },
                         });
                       }}
-                      disabled={
+                      disabled={isDisabled(
                         (data.scheduler_options?.study_days ??
                           data.study_review_cycle?.study_days ??
                           6) >= 6 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
-                      }
+                      )}
                       className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       +
@@ -2161,6 +2172,7 @@ export function Step1BasicInfo({
                     <button
                       type="button"
                       onClick={() => {
+                        if (!editable) return;
                         if (isCampMode && !canStudentInputStudyReviewCycle)
                           return;
                         const currentReviewDays =
@@ -2184,12 +2196,12 @@ export function Step1BasicInfo({
                           },
                         });
                       }}
-                      disabled={
+                      disabled={isDisabled(
                         (data.scheduler_options?.review_days ??
                           data.study_review_cycle?.review_days ??
                           1) <= 1 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
-                      }
+                      )}
                       className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       −
@@ -2203,6 +2215,7 @@ export function Step1BasicInfo({
                     <button
                       type="button"
                       onClick={() => {
+                        if (!editable) return;
                         if (isCampMode && !canStudentInputStudyReviewCycle)
                           return;
                         const currentReviewDays =
@@ -2226,12 +2239,12 @@ export function Step1BasicInfo({
                           },
                         });
                       }}
-                      disabled={
+                      disabled={isDisabled(
                         (data.scheduler_options?.review_days ??
                           data.study_review_cycle?.review_days ??
                           1) >= 6 ||
                         (isCampMode && !canStudentInputStudyReviewCycle)
-                      }
+                      )}
                       className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       +
