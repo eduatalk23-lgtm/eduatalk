@@ -373,6 +373,7 @@ export function Step1BasicInfo({
 
   // 유형 전환 시 다른 유형의 값 초기화
   const handlePeriodTypeChange = (type: PeriodInputType) => {
+    if (!editable) return;
     setPeriodInputType(type);
 
     // 다른 유형의 값 초기화
@@ -978,13 +979,13 @@ export function Step1BasicInfo({
                   name="plan_purpose"
                   value={purpose.value}
                   checked={data.plan_purpose === purpose.value}
-                  onChange={() =>
-                    onUpdate({ plan_purpose: purpose.value as any })
-                  }
-                  disabled={
-                    (!editable && !isCampMode) ||
-                    (isCampMode && !canStudentInputPlanPurpose)
-                  }
+                  onChange={() => {
+                    if (!editable) return;
+                    onUpdate({ plan_purpose: purpose.value as any });
+                  }}
+                  disabled={isDisabled(
+                    isCampMode && !canStudentInputPlanPurpose
+                  )}
                   className="hidden"
                 />
                 {purpose.label}
@@ -1118,6 +1119,7 @@ export function Step1BasicInfo({
               }`}
               value={ddayState.date}
               onChange={(e) => {
+                if (!editable) return;
                 if (
                   isFieldLocked("period_start") ||
                   isFieldLocked("period_end") ||
@@ -1136,11 +1138,11 @@ export function Step1BasicInfo({
                   });
                 }
               }}
-              disabled={
+              disabled={isDisabled(
                 isFieldLocked("period_start") ||
                 isFieldLocked("period_end") ||
                 (isCampMode && !canStudentInputPeriod)
-              }
+              )}
               min={today}
             />
             {ddayState.calculated && data.period_start && data.period_end && (
@@ -1178,6 +1180,7 @@ export function Step1BasicInfo({
               }`}
               value={weeksState.startDate}
               onChange={(e) => {
+                if (!editable) return;
                 if (
                   isFieldLocked("period_start") ||
                   isFieldLocked("period_end") ||
@@ -1192,11 +1195,11 @@ export function Step1BasicInfo({
                   onUpdate({ period_start: "", period_end: "" });
                 }
               }}
-              disabled={
+              disabled={isDisabled(
                 isFieldLocked("period_start") ||
                 isFieldLocked("period_end") ||
                 (isCampMode && !canStudentInputPeriod)
-              }
+              )}
               min={today}
             />
 
@@ -1209,6 +1212,7 @@ export function Step1BasicInfo({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1219,12 +1223,12 @@ export function Step1BasicInfo({
                       setWeeksState({ ...weeksState, weeks: newWeeks });
                       calculatePeriodFromWeeks(newWeeks, weeksState.startDate);
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       weeksState.weeks <= 4 ||
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                     className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     −
@@ -1235,6 +1239,7 @@ export function Step1BasicInfo({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1245,11 +1250,11 @@ export function Step1BasicInfo({
                       setWeeksState({ ...weeksState, weeks: newWeeks });
                       calculatePeriodFromWeeks(newWeeks, weeksState.startDate);
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                     className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     +
@@ -1305,6 +1310,7 @@ export function Step1BasicInfo({
                     }`}
                     value={directState.startYear}
                     onChange={(e) => {
+                      if (!editable) return;
                       if (
                         isFieldLocked("period_start") ||
                         isFieldLocked("period_end") ||
@@ -1331,11 +1337,11 @@ export function Step1BasicInfo({
                         ),
                       });
                     }}
-                    disabled={
+                    disabled={isDisabled(
                       isFieldLocked("period_start") ||
                       isFieldLocked("period_end") ||
                       (isCampMode && !canStudentInputPeriod)
-                    }
+                    )}
                   >
                     {Array.from({ length: 6 }, (_, i) => {
                       const year = new Date().getFullYear() + i;
