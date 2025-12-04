@@ -61,12 +61,22 @@ export const getCampInvitationWithTemplate = withErrorHandling(
 
     // 입력값 검증
     if (!invitationId || typeof invitationId !== "string") {
-      throw new AppError("초대 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "초대 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const invitation = await getCampInvitation(invitationId);
     if (!invitation) {
-      throw new AppError("초대를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 본인의 초대인지 확인 (보안 강화)
@@ -76,7 +86,12 @@ export const getCampInvitationWithTemplate = withErrorHandling(
 
     const template = await getCampTemplate(invitation.camp_template_id);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     return {
@@ -94,7 +109,12 @@ export const submitCampParticipation = withErrorHandling(
   async (
     invitationId: string,
     wizardData: Partial<WizardData>
-  ): Promise<{ success: boolean; groupId?: string; invitationId?: string; error?: string }> => {
+  ): Promise<{
+    success: boolean;
+    groupId?: string;
+    invitationId?: string;
+    error?: string;
+  }> => {
     // 권한 검증
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
@@ -103,22 +123,42 @@ export const submitCampParticipation = withErrorHandling(
 
     // 입력값 검증
     if (!invitationId || typeof invitationId !== "string") {
-      throw new AppError("초대 ID가 올바르지 않습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "초대 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     if (!wizardData) {
-      throw new AppError("참여 정보가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "참여 정보가 필요합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
-      throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 초대 정보 확인 및 권한 검증 (강화)
     const invitation = await getCampInvitation(invitationId);
     if (!invitation) {
-      throw new AppError("초대를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 본인의 초대인지 확인 (보안 강화)
@@ -128,7 +168,12 @@ export const submitCampParticipation = withErrorHandling(
 
     // 초대 상태 확인
     if (invitation.status !== "pending") {
-      throw new AppError("이미 처리된 초대입니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "이미 처리된 초대입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     // 이미 생성된 플랜 그룹이 있는지 확인 (중복 제출 방지)
@@ -185,12 +230,22 @@ export const submitCampParticipation = withErrorHandling(
     // 템플릿 데이터와 학생 입력 데이터 병합
     const template = await getCampTemplate(invitation.camp_template_id);
     if (!template) {
-      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
     }
 
     // 템플릿이 활성 상태인지 확인
     if (template.status === "archived") {
-      throw new AppError("보관된 템플릿에는 참여할 수 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+      throw new AppError(
+        "보관된 템플릿에는 참여할 수 없습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
     }
 
     const templateData = template.template_data as Partial<WizardData>;
@@ -211,24 +266,29 @@ export const submitCampParticipation = withErrorHandling(
     }
 
     // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
-    const templateExclusions = (templateData.exclusions || []).map((exclusion: any) => ({
-      ...exclusion,
-      source: "template" as const,
-      is_locked: true,
-    }));
+    const templateExclusions = (templateData.exclusions || []).map(
+      (exclusion: any) => ({
+        ...exclusion,
+        source: "template" as const,
+        is_locked: true,
+      })
+    );
 
-    const templateAcademySchedules = (templateData.academy_schedules || []).map((schedule: any) => ({
-      ...schedule,
-      source: "template" as const,
-      is_locked: true,
-    }));
+    const templateAcademySchedules = (templateData.academy_schedules || []).map(
+      (schedule: any) => ({
+        ...schedule,
+        source: "template" as const,
+        is_locked: true,
+      })
+    );
 
     // 디버깅: 템플릿 학원 일정 확인
     console.log("[campActions] 템플릿 학원 일정:", {
       templateId: invitation.camp_template_id,
       templateAcademySchedulesCount: templateAcademySchedules.length,
       templateAcademySchedules: templateAcademySchedules,
-      wizardDataAcademySchedulesCount: wizardData.academy_schedules?.length || 0,
+      wizardDataAcademySchedulesCount:
+        wizardData.academy_schedules?.length || 0,
       wizardDataAcademySchedules: wizardData.academy_schedules,
     });
 
@@ -238,7 +298,10 @@ export const submitCampParticipation = withErrorHandling(
       // 학생이 입력하는 필드는 wizardData 우선 (plan_purpose, name 등)
       name: wizardData.name || templateData.name || "",
       plan_purpose: wizardData.plan_purpose || templateData.plan_purpose || "",
-      scheduler_type: wizardData.scheduler_type || templateData.scheduler_type || "1730_timetable",
+      scheduler_type:
+        wizardData.scheduler_type ||
+        templateData.scheduler_type ||
+        "1730_timetable",
       period_start: wizardData.period_start || templateData.period_start || "",
       period_end: wizardData.period_end || templateData.period_end || "",
       block_set_id: wizardData.block_set_id || templateBlockSetId || "",
@@ -265,11 +328,14 @@ export const submitCampParticipation = withErrorHandling(
       ],
       // 캠프 모드: 전략과목/취약과목 설정은 관리자 검토 후 설정하므로 null로 저장
       subject_allocations: undefined,
-      student_level: wizardData.student_level || templateData.student_level || undefined,
+      student_level:
+        wizardData.student_level || templateData.student_level || undefined,
       // 기타 필드들도 wizardData 우선
       time_settings: wizardData.time_settings || templateData.time_settings,
-      scheduler_options: wizardData.scheduler_options || templateData.scheduler_options,
-      study_review_cycle: wizardData.study_review_cycle || templateData.study_review_cycle,
+      scheduler_options:
+        wizardData.scheduler_options || templateData.scheduler_options,
+      study_review_cycle:
+        wizardData.study_review_cycle || templateData.study_review_cycle,
     };
 
     // 플랜 그룹 생성 (기존 액션 재사용)
@@ -286,7 +352,8 @@ export const submitCampParticipation = withErrorHandling(
 
     // 디버깅: 변환된 학원 일정 확인
     console.log("[campActions] 변환된 학원 일정 (creationData):", {
-      creationDataAcademySchedulesCount: creationData.academy_schedules?.length || 0,
+      creationDataAcademySchedulesCount:
+        creationData.academy_schedules?.length || 0,
       creationDataAcademySchedules: creationData.academy_schedules,
     });
 
@@ -317,7 +384,7 @@ export const submitCampParticipation = withErrorHandling(
         .select("id, master_content_id")
         .in("id", bookIds)
         .eq("student_id", user.userId);
-      
+
       if (booksError) {
         console.error("[campActions] 교재 master_content_id 조회 실패:", {
           error: booksError.message,
@@ -330,7 +397,11 @@ export const submitCampParticipation = withErrorHandling(
         });
         console.log("[campActions] 교재 master_content_id 조회 완료:", {
           foundCount: books?.length || 0,
-          masterContentIds: books?.map((b) => ({ id: b.id, master_content_id: b.master_content_id })) || [],
+          masterContentIds:
+            books?.map((b) => ({
+              id: b.id,
+              master_content_id: b.master_content_id,
+            })) || [],
         });
       }
     }
@@ -341,7 +412,7 @@ export const submitCampParticipation = withErrorHandling(
         .select("id, master_content_id")
         .in("id", lectureIds)
         .eq("student_id", user.userId);
-      
+
       if (lecturesError) {
         console.error("[campActions] 강의 master_content_id 조회 실패:", {
           error: lecturesError.message,
@@ -354,7 +425,11 @@ export const submitCampParticipation = withErrorHandling(
         });
         console.log("[campActions] 강의 master_content_id 조회 완료:", {
           foundCount: lectures?.length || 0,
-          masterContentIds: lectures?.map((l) => ({ id: l.id, master_content_id: l.master_content_id })) || [],
+          masterContentIds:
+            lectures?.map((l) => ({
+              id: l.id,
+              master_content_id: l.master_content_id,
+            })) || [],
         });
       }
     }
@@ -363,14 +438,18 @@ export const submitCampParticipation = withErrorHandling(
     const contentsBeforeMapping = creationData.contents.length;
     creationData.contents = creationData.contents.map((c) => {
       const masterContentId = masterContentIdMap.get(c.content_id) || null;
-      
+
       // start_detail_id와 end_detail_id가 이미 c에 포함되어 있으므로 스프레드로 유지됨
       // 명시적으로 보존 확인을 위한 로깅
       const startDetailId = (c as any).start_detail_id ?? null;
       const endDetailId = (c as any).end_detail_id ?? null;
-      
+
       // 캠프모드 콘텐츠 정보 로깅 (디버깅용)
-      if (wizardData.student_contents?.some((sc: any) => sc.content_id === c.content_id)) {
+      if (
+        wizardData.student_contents?.some(
+          (sc: any) => sc.content_id === c.content_id
+        )
+      ) {
         console.log("[campActions] 학생 추가 콘텐츠 정보:", {
           content_id: c.content_id,
           content_type: c.content_type,
@@ -381,9 +460,13 @@ export const submitCampParticipation = withErrorHandling(
           end_detail_id: endDetailId,
         });
       }
-      
+
       // 추천 콘텐츠 정보 로깅 (디버깅용)
-      if (wizardData.recommended_contents?.some((rc: any) => rc.content_id === c.content_id)) {
+      if (
+        wizardData.recommended_contents?.some(
+          (rc: any) => rc.content_id === c.content_id
+        )
+      ) {
         console.log("[campActions] 학생 선택 추천 콘텐츠 정보:", {
           content_id: c.content_id,
           content_type: c.content_type,
@@ -394,7 +477,7 @@ export const submitCampParticipation = withErrorHandling(
           end_detail_id: endDetailId,
         });
       }
-      
+
       return {
         ...c,
         master_content_id: masterContentId,
@@ -408,9 +491,15 @@ export const submitCampParticipation = withErrorHandling(
     console.log("[campActions] 콘텐츠 master_content_id 매핑 완료:", {
       contentsBeforeMapping,
       contentsAfterMapping: creationData.contents.length,
-      contentsWithMasterId: creationData.contents.filter((c) => c.master_content_id).length,
-      contentsWithoutMasterId: creationData.contents.filter((c) => !c.master_content_id).length,
-      contentsWithDetailIds: creationData.contents.filter((c) => (c as any).start_detail_id || (c as any).end_detail_id).length,
+      contentsWithMasterId: creationData.contents.filter(
+        (c) => c.master_content_id
+      ).length,
+      contentsWithoutMasterId: creationData.contents.filter(
+        (c) => !c.master_content_id
+      ).length,
+      contentsWithDetailIds: creationData.contents.filter(
+        (c) => (c as any).start_detail_id || (c as any).end_detail_id
+      ).length,
     });
 
     // 캠프 모드에서는 block_set_id를 null로 설정
@@ -426,15 +515,21 @@ export const submitCampParticipation = withErrorHandling(
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
-      (creationData.scheduler_options as any).template_block_set_id = blockSetId;
+      (creationData.scheduler_options as any).template_block_set_id =
+        blockSetId;
     }
 
     // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
     // (학원 일정은 학생별 전역 관리이므로, 캠프 모드 제출 시 템플릿 일정으로 교체)
     // 중복 생성 방지를 위해 삭제 전에 기존 일정을 조회하여 중복 체크
-    if (creationData.academy_schedules && creationData.academy_schedules.length > 0) {
+    if (
+      creationData.academy_schedules &&
+      creationData.academy_schedules.length > 0
+    ) {
       // 기존 학원 일정 조회 (중복 체크용)
-      const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
+      const { getStudentAcademySchedules } = await import(
+        "@/lib/data/planGroups"
+      );
       const existingSchedules = await getStudentAcademySchedules(
         user.userId,
         tenantContext.tenantId
@@ -442,14 +537,19 @@ export const submitCampParticipation = withErrorHandling(
 
       // 기존 학원 일정을 키로 매핑 (요일:시작시간:종료시간:학원명:과목)
       const existingKeys = new Set(
-        existingSchedules.map((s) =>
-          `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`
+        existingSchedules.map(
+          (s) =>
+            `${s.day_of_week}:${s.start_time}:${s.end_time}:${
+              s.academy_name || ""
+            }:${s.subject || ""}`
         )
       );
 
       // 새로운 학원 일정 중 중복되지 않은 것만 필터링
       const newSchedules = creationData.academy_schedules.filter((s) => {
-        const key = `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`;
+        const key = `${s.day_of_week}:${s.start_time}:${s.end_time}:${
+          s.academy_name || ""
+        }:${s.subject || ""}`;
         return !existingKeys.has(key);
       });
 
@@ -458,7 +558,8 @@ export const submitCampParticipation = withErrorHandling(
         totalSchedules: creationData.academy_schedules.length,
         existingSchedulesCount: existingSchedules.length,
         newSchedulesCount: newSchedules.length,
-        skippedCount: creationData.academy_schedules.length - newSchedules.length,
+        skippedCount:
+          creationData.academy_schedules.length - newSchedules.length,
       });
 
       // 기존 학원 일정 삭제 (템플릿 일정으로 교체)
@@ -474,7 +575,10 @@ export const submitCampParticipation = withErrorHandling(
       const { error: deleteError } = await deleteQuery;
 
       if (deleteError) {
-        console.warn("[campActions] 기존 학원 일정 삭제 실패 (무시하고 계속 진행):", deleteError);
+        console.warn(
+          "[campActions] 기존 학원 일정 삭제 실패 (무시하고 계속 진행):",
+          deleteError
+        );
         // 삭제 실패해도 계속 진행 (새 일정 저장 시도)
       } else {
         console.log("[campActions] 기존 학원 일정 삭제 완료");
@@ -487,7 +591,9 @@ export const submitCampParticipation = withErrorHandling(
       if (newSchedules.length > 0) {
         // 삭제 직후이므로 모든 일정을 추가 (중복 체크는 createStudentAcademySchedules에서 수행)
         // 하지만 이미 필터링했으므로 중복은 없어야 함
-        const { createStudentAcademySchedules } = await import("@/lib/data/planGroups");
+        const { createStudentAcademySchedules } = await import(
+          "@/lib/data/planGroups"
+        );
         const schedulesResult = await createStudentAcademySchedules(
           user.userId,
           tenantContext.tenantId,
@@ -569,9 +675,14 @@ export const submitCampParticipation = withErrorHandling(
       .eq("id", groupId);
 
     if (statusUpdateError) {
-      console.error("[campActions] 플랜 그룹 상태 업데이트 실패:", statusUpdateError);
+      console.error(
+        "[campActions] 플랜 그룹 상태 업데이트 실패:",
+        statusUpdateError
+      );
       // 상태 업데이트 실패는 경고만 (플랜 그룹은 생성/업데이트됨)
-      console.warn("[campActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다. 관리자에게 문의해주세요.");
+      console.warn(
+        "[campActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다. 관리자에게 문의해주세요."
+      );
     }
 
     // 플랜 그룹이 제대로 생성되었는지 확인
@@ -594,19 +705,25 @@ export const submitCampParticipation = withErrorHandling(
 
     // camp_invitation_id가 제대로 저장되었는지 확인
     if (createdGroup.camp_invitation_id !== invitationId) {
-      console.warn("[campActions] camp_invitation_id가 일치하지 않음, 업데이트 시도:", {
-        expected: invitationId,
-        actual: createdGroup.camp_invitation_id,
-        groupId: groupId,
-      });
-      
+      console.warn(
+        "[campActions] camp_invitation_id가 일치하지 않음, 업데이트 시도:",
+        {
+          expected: invitationId,
+          actual: createdGroup.camp_invitation_id,
+          groupId: groupId,
+        }
+      );
+
       const { error: updateError } = await supabase
         .from("plan_groups")
         .update({ camp_invitation_id: invitationId })
         .eq("id", groupId);
 
       if (updateError) {
-        console.error("[campActions] camp_invitation_id 업데이트 실패:", updateError);
+        console.error(
+          "[campActions] camp_invitation_id 업데이트 실패:",
+          updateError
+        );
         // 업데이트 실패해도 계속 진행 (플랜 그룹은 생성됨)
       } else {
         console.log("[campActions] camp_invitation_id 업데이트 성공");
@@ -619,10 +736,16 @@ export const submitCampParticipation = withErrorHandling(
     // Step 4의 추천 기능(/api/recommended-master-contents)은 정상 동작하며, 이 로직과는 독립적임
 
     // 초대 상태 업데이트
-    const updateResult = await updateCampInvitationStatus(invitationId, "accepted");
+    const updateResult = await updateCampInvitationStatus(
+      invitationId,
+      "accepted"
+    );
     if (!updateResult.success) {
       // 플랜은 생성되었지만 초대 상태 업데이트 실패 (경고만)
-      console.warn("[campActions] 초대 상태 업데이트 실패:", updateResult.error);
+      console.warn(
+        "[campActions] 초대 상태 업데이트 실패:",
+        updateResult.error
+      );
     }
 
     return {

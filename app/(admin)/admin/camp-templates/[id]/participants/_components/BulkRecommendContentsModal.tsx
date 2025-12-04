@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkApplyRecommendedContents } from "@/app/(admin)/actions/campTemplateActions";
 import { AVAILABLE_SUBJECTS } from "@/app/(student)/plan/new-group/_components/Step4RecommendedContents/constants";
+import { Minus, Plus, Users, BookOpen, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type Participant = {
   groupId: string;
@@ -76,6 +77,32 @@ export function BulkRecommendContentsModal({
   const calculateTotal = (groupId: string): number => {
     const counts = subjectCounts[groupId] || {};
     return Object.values(counts).reduce((sum, count) => sum + count, 0);
+  };
+
+  // 전체 통계 계산
+  const calculateSummary = () => {
+    let totalContents = 0;
+    const subjectTotals: Record<string, number> = {};
+    let overLimitCount = 0;
+
+    participants.forEach((p) => {
+      const total = calculateTotal(p.groupId);
+      totalContents += total;
+      if (total > 9) {
+        overLimitCount++;
+      }
+
+      AVAILABLE_SUBJECTS.forEach((subject) => {
+        const count = subjectCounts[p.groupId]?.[subject] || 0;
+        subjectTotals[subject] = (subjectTotals[subject] || 0) + count;
+      });
+    });
+
+    return {
+      totalContents,
+      subjectTotals,
+      overLimitCount,
+    };
   };
 
   // 학생당 최대 9개 제한 검증
@@ -286,9 +313,9 @@ export function BulkRecommendContentsModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <div className="max-h-[90vh] overflow-y-auto p-6">
-        <h2 className="text-lg font-semibold text-gray-900">
+    <Dialog open={open} onOpenChange={onOpenChange} maxWidth="2xl">
+      <div className="max-h-[90vh] overflow-y-auto p-6 md:p-8">
+        <h2 className="text-xl font-semibold text-gray-900">
           추천 콘텐츠 일괄 적용
         </h2>
         <p className="mt-2 text-sm text-gray-700">
@@ -296,38 +323,119 @@ export function BulkRecommendContentsModal({
           학생당 최대 9개까지 설정할 수 있습니다.
         </p>
 
+        {/* 요약 섹션 */}
+        {(() => {
+          const summary = calculateSummary();
+          return (
+            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <Users className="h-4 w-4" />
+                  <span>선택된 학생</span>
+                </div>
+                <div className="mt-1 text-2xl font-bold text-gray-900">
+                  {participants.length}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <BookOpen className="h-4 w-4" />
+                  <span>전체 콘텐츠</span>
+                </div>
+                <div className="mt-1 text-2xl font-bold text-gray-900">
+                  {summary.totalContents}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>교과별 합계</span>
+                </div>
+                <div className="mt-1 space-y-0.5">
+                  {AVAILABLE_SUBJECTS.map((subject) => (
+                    <div key={subject} className="text-xs font-semibold text-gray-900">
+                      <span className="text-gray-600">{subject}:</span>{" "}
+                      <span className="text-gray-900">{summary.subjectTotals[subject] || 0}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className={`rounded-lg border p-4 ${
+                summary.overLimitCount > 0
+                  ? "border-red-200 bg-red-50"
+                  : "border-gray-200 bg-white"
+              }`}>
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <AlertTriangle className={`h-4 w-4 ${
+                    summary.overLimitCount > 0 ? "text-red-600" : "text-gray-400"
+                  }`} />
+                  <span>초과 학생</span>
+                </div>
+                <div className={`mt-1 text-2xl font-bold ${
+                  summary.overLimitCount > 0 ? "text-red-600" : "text-gray-900"
+                }`}>
+                  {summary.overLimitCount}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* 전체 조율 컨트롤 */}
-        <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">전체 조율</h3>
+        <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">전체 조율</h3>
           
           {/* 일괄 적용 */}
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-gray-700 mb-2">
+          <div className="mb-5">
+            <label className="block text-xs font-medium text-gray-700 mb-3">
               모든 학생에게 일괄 적용
             </label>
-            <div className="flex flex-wrap gap-2">
-              {AVAILABLE_SUBJECTS.map((subject) => (
-                <div key={subject} className="flex items-center gap-1">
-                  <label className="text-xs text-gray-600">{subject}:</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="9"
-                    value={globalSubjectCounts[subject] || 0}
-                    onChange={(e) =>
-                      setGlobalSubjectCounts({
-                        ...globalSubjectCounts,
-                        [subject]: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm"
-                  />
-                </div>
-              ))}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              {AVAILABLE_SUBJECTS.map((subject) => {
+                const current = globalSubjectCounts[subject] || 0;
+                return (
+                  <div key={subject} className="flex items-center gap-2">
+                    <label className="text-xs font-medium text-gray-700 min-w-[3rem]">{subject}:</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGlobalSubjectCounts({
+                            ...globalSubjectCounts,
+                            [subject]: Math.max(0, current - 1),
+                          })
+                        }
+                        disabled={current === 0}
+                        className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                        aria-label={`${subject} 감소`}
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="min-w-[2rem] text-center text-sm font-semibold text-gray-900">
+                        {current}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGlobalSubjectCounts({
+                            ...globalSubjectCounts,
+                            [subject]: Math.min(9, current + 1),
+                          })
+                        }
+                        disabled={current === 9}
+                        className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                        aria-label={`${subject} 증가`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
               <button
                 type="button"
                 onClick={handleGlobalApply}
-                className="rounded bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+                className="sm:ml-auto rounded bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
               >
                 적용
               </button>
@@ -336,10 +444,10 @@ export function BulkRecommendContentsModal({
 
           {/* 일괄 증가/감소 */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-medium text-gray-700 mb-3">
               모든 학생 증가/감소
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
                 value={globalAdjustSubject}
                 onChange={(e) => setGlobalAdjustSubject(e.target.value)}
@@ -379,9 +487,9 @@ export function BulkRecommendContentsModal({
         </div>
 
         {/* 테이블 */}
-        <div className="mt-6 overflow-x-auto">
+        <div className="mt-8 max-h-[60vh] overflow-y-auto overflow-x-auto">
           <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white text-sm">
-            <thead className="bg-gray-50">
+            <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
               <tr>
                 <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-900">
                   <input
@@ -397,21 +505,21 @@ export function BulkRecommendContentsModal({
                     className="rounded border-gray-300"
                   />
                 </th>
-                <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold text-gray-900">
+                <th className="border-b border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-900">
                   학생명
                 </th>
                 {AVAILABLE_SUBJECTS.map((subject) => (
                   <th
                     key={subject}
-                    className="border-b border-gray-200 px-2 py-2 text-center text-xs font-semibold text-gray-900"
+                    className="border-b border-gray-200 px-3 py-3 text-center text-xs font-semibold text-gray-900"
                   >
                     {subject}
                   </th>
                 ))}
-                <th className="border-b border-gray-200 px-3 py-2 text-center text-xs font-semibold text-gray-900">
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-900">
                   총합
                 </th>
-                <th className="border-b border-gray-200 px-3 py-2 text-center text-xs font-semibold text-gray-900">
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-900">
                   조율
                 </th>
               </tr>
@@ -425,9 +533,15 @@ export function BulkRecommendContentsModal({
                 return (
                   <tr
                     key={p.groupId}
-                    className={isOverLimit ? "bg-red-50" : ""}
+                    className={`transition-colors ${
+                      isOverLimit
+                        ? "bg-red-50 hover:bg-red-100"
+                        : total === 9
+                        ? "bg-orange-50 hover:bg-orange-100"
+                        : "hover:bg-gray-50"
+                    }`}
                   >
-                    <td className="border-b border-gray-200 px-3 py-2">
+                    <td className="border-b border-gray-200 px-4 py-3">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -443,39 +557,59 @@ export function BulkRecommendContentsModal({
                         className="rounded border-gray-300"
                       />
                     </td>
-                    <td className="border-b border-gray-200 px-3 py-2 font-medium text-gray-900">
+                    <td className="border-b border-gray-200 px-4 py-3 font-medium text-gray-900">
                       {p.studentName}
                     </td>
-                    {AVAILABLE_SUBJECTS.map((subject) => (
-                      <td key={subject} className="border-b border-gray-200 px-2 py-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="9"
-                          value={subjectCounts[p.groupId]?.[subject] || 0}
-                          onChange={(e) =>
-                            updateCount(
-                              p.groupId,
-                              subject,
-                              parseInt(e.target.value) || 0
-                            )
-                          }
-                          className={`w-full rounded border px-2 py-1 text-center text-xs ${
-                            isOverLimit
-                              ? "border-red-300 bg-red-50"
-                              : "border-gray-300"
-                          }`}
-                        />
-                      </td>
-                    ))}
+                    {AVAILABLE_SUBJECTS.map((subject) => {
+                      const current = subjectCounts[p.groupId]?.[subject] || 0;
+                      return (
+                        <td key={subject} className="border-b border-gray-200 px-3 py-3">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => updateCount(p.groupId, subject, current - 1)}
+                              disabled={current === 0}
+                              className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                              aria-label={`${subject} 감소`}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="min-w-[2rem] text-center text-sm font-semibold text-gray-900">
+                              {current}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateCount(p.groupId, subject, current + 1)}
+                              disabled={current === 9}
+                              className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                              aria-label={`${subject} 증가`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    })}
                     <td
-                      className={`border-b border-gray-200 px-3 py-2 text-center font-semibold ${
-                        isOverLimit ? "text-red-600" : total === 9 ? "text-orange-600" : "text-gray-900"
+                      className={`border-b border-gray-200 px-4 py-3 text-center font-semibold ${
+                        isOverLimit
+                          ? "text-red-600"
+                          : total === 9
+                          ? "text-orange-600"
+                          : "text-gray-900"
                       }`}
                     >
-                      {total}/9
+                      <div className="flex items-center justify-center gap-1">
+                        {isOverLimit && <AlertTriangle className="h-4 w-4 text-red-600" />}
+                        {total === 9 && !isOverLimit && (
+                          <AlertTriangle className="h-4 w-4 text-orange-600" />
+                        )}
+                        <span>
+                          {total}/9
+                        </span>
+                      </div>
                     </td>
-                    <td className="border-b border-gray-200 px-3 py-2 text-center">
+                    <td className="border-b border-gray-200 px-4 py-3 text-center">
                       <div className="relative">
                         <button
                           type="button"
@@ -484,41 +618,64 @@ export function BulkRecommendContentsModal({
                               openPopoverId === p.groupId ? null : p.groupId
                             )
                           }
-                          className="rounded border border-gray-300 bg-white px-2 py-1 text-xs hover:bg-gray-50"
+                          className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:border-gray-400"
                         >
                           조율
                         </button>
                         {openPopoverId === p.groupId && (
-                          <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                          <div className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
                             <div className="space-y-3">
                               <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-2">
                                   선택한 학생에게 일괄 적용
                                 </label>
-                                <div className="flex flex-wrap gap-1">
-                                  {AVAILABLE_SUBJECTS.map((subject) => (
-                                    <div key={subject} className="flex items-center gap-1">
-                                      <label className="text-xs text-gray-600">{subject}:</label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        max="9"
-                                        value={individualSubjectCounts[subject] || 0}
-                                        onChange={(e) =>
-                                          setIndividualSubjectCounts({
-                                            ...individualSubjectCounts,
-                                            [subject]: parseInt(e.target.value) || 0,
-                                          })
-                                        }
-                                        className="w-12 rounded border border-gray-300 px-1 py-0.5 text-xs"
-                                      />
-                                    </div>
-                                  ))}
+                                <div className="space-y-2">
+                                  {AVAILABLE_SUBJECTS.map((subject) => {
+                                    const current = individualSubjectCounts[subject] || 0;
+                                    return (
+                                      <div key={subject} className="flex items-center justify-between gap-2">
+                                        <label className="text-xs font-medium text-gray-700 min-w-[3rem]">{subject}:</label>
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setIndividualSubjectCounts({
+                                                ...individualSubjectCounts,
+                                                [subject]: Math.max(0, current - 1),
+                                              })
+                                            }
+                                            disabled={current === 0}
+                                            className="flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                                            aria-label={`${subject} 감소`}
+                                          >
+                                            <Minus className="h-3 w-3" />
+                                          </button>
+                                          <span className="min-w-[1.5rem] text-center text-xs font-semibold text-gray-900">
+                                            {current}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setIndividualSubjectCounts({
+                                                ...individualSubjectCounts,
+                                                [subject]: Math.min(9, current + 1),
+                                              })
+                                            }
+                                            disabled={current === 9}
+                                            className="flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                                            aria-label={`${subject} 증가`}
+                                          >
+                                            <Plus className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                                 <button
                                   type="button"
                                   onClick={handleIndividualApply}
-                                  className="mt-2 w-full rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+                                  className="mt-3 w-full rounded bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
                                 >
                                   적용
                                 </button>
@@ -588,13 +745,13 @@ export function BulkRecommendContentsModal({
         </div>
 
         {/* 적용 옵션 */}
-        <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <label className="flex items-center gap-2">
+        <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
+          <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={replaceExisting}
               onChange={(e) => setReplaceExisting(e.target.checked)}
-              className="rounded border-gray-300"
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
             <span className="text-sm text-gray-700">
               기존 추천 콘텐츠 교체 (체크 시 기존 추천 콘텐츠를 삭제하고 새로 추가)
@@ -603,12 +760,12 @@ export function BulkRecommendContentsModal({
         </div>
 
         {/* 액션 버튼 */}
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             disabled={isPending}
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             취소
           </button>
@@ -616,7 +773,7 @@ export function BulkRecommendContentsModal({
             type="button"
             onClick={handleSubmit}
             disabled={isPending}
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "적용 중..." : "적용"}
           </button>
