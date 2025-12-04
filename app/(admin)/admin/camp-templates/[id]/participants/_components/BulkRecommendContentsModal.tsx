@@ -314,7 +314,7 @@ export function BulkRecommendContentsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} maxWidth="4xl">
-      <div className="max-h-[90vh] overflow-y-auto p-6 md:p-8">
+      <div className="max-h-[90vh] overflow-y-auto overflow-x-hidden p-6 md:p-8">
         <h2 className="text-xl font-semibold text-gray-900">
           추천 콘텐츠 일괄 적용
         </h2>
@@ -390,13 +390,13 @@ export function BulkRecommendContentsModal({
             <label className="block text-xs font-medium text-gray-700 mb-3">
               모든 학생에게 일괄 적용
             </label>
-            <div className="flex flex-row gap-3 items-center">
+            <div className="flex flex-row flex-wrap gap-2 items-center">
               {AVAILABLE_SUBJECTS.map((subject) => {
                 const current = globalSubjectCounts[subject] || 0;
                 return (
-                  <div key={subject} className="flex items-center gap-2">
-                    <label className="text-xs font-medium text-gray-700 min-w-[3rem]">{subject}:</label>
-                    <div className="flex items-center gap-1.5">
+                  <div key={subject} className="flex items-center gap-1.5 shrink-0">
+                    <label className="text-xs font-medium text-gray-700 whitespace-nowrap">{subject}:</label>
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() =>
@@ -406,12 +406,12 @@ export function BulkRecommendContentsModal({
                           })
                         }
                         disabled={current === 0}
-                        className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                        className="flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white shrink-0"
                         aria-label={`${subject} 감소`}
                       >
-                        <Minus className="h-3.5 w-3.5" />
+                        <Minus className="h-3 w-3" />
                       </button>
-                      <span className="min-w-[2rem] text-center text-sm font-semibold text-gray-900">
+                      <span className="min-w-[1.5rem] text-center text-xs font-semibold text-gray-900">
                         {current}
                       </span>
                       <button
@@ -423,10 +423,10 @@ export function BulkRecommendContentsModal({
                           })
                         }
                         disabled={current === 9}
-                        className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white"
+                        className="flex h-6 w-6 items-center justify-center rounded border border-gray-300 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white shrink-0"
                         aria-label={`${subject} 증가`}
                       >
-                        <Plus className="h-3.5 w-3.5" />
+                        <Plus className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
@@ -435,7 +435,7 @@ export function BulkRecommendContentsModal({
               <button
                 type="button"
                 onClick={handleGlobalApply}
-                className="ml-auto rounded bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                className="ml-auto shrink-0 rounded bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
               >
                 적용
               </button>
