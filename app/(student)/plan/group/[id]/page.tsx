@@ -262,6 +262,11 @@ export default async function PlanGroupDetailPage({
 
         if (blockSetId) {
           // 템플릿 블록 세트 조회 (template_id 조건 제거 - block_set_id만으로 조회)
+          console.log("[PlanGroupDetailPage] 템플릿 블록 세트 조회 시도:", {
+            block_set_id: blockSetId,
+            template_id: group.camp_template_id,
+          });
+          
           const { data: templateBlockSet, error: blockSetError } =
             await supabase
               .from("template_block_sets")
@@ -269,59 +274,113 @@ export default async function PlanGroupDetailPage({
               .eq("id", blockSetId)
               .maybeSingle();
 
+          // 에러 존재 여부와 데이터 존재 여부를 상세히 로깅
+          console.log("[PlanGroupDetailPage] 템플릿 블록 세트 조회 결과:", {
+            hasError: !!blockSetError,
+            hasData: !!templateBlockSet,
+            errorType: typeof blockSetError,
+            errorIsNull: blockSetError === null,
+            errorIsUndefined: blockSetError === undefined,
+            errorConstructor: blockSetError?.constructor?.name,
+            errorKeys: blockSetError && typeof blockSetError === "object" ? Object.keys(blockSetError) : null,
+            data: templateBlockSet,
+          });
+
           if (blockSetError) {
-            // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
-            const errorInfo: Record<string, unknown> = {};
+            // 에러 객체를 여러 방법으로 직렬화 시도
+            let errorStringified = "";
+            let errorSerialized = {};
             
-            // 에러 객체의 모든 속성 추출 시도
             try {
-              if (blockSetError instanceof Error) {
-                errorInfo.message = blockSetError.message;
-                errorInfo.name = blockSetError.name;
-                errorInfo.stack = blockSetError.stack;
-              } else if (typeof blockSetError === "object" && blockSetError !== null) {
-                // 일반 객체인 경우 모든 속성 복사
-                Object.keys(blockSetError).forEach((key) => {
-                  try {
-                    errorInfo[key] = (blockSetError as Record<string, unknown>)[key];
-                  } catch {
-                    // 속성 접근 실패 시 무시
-                  }
-                });
-              } else {
-                errorInfo.value = String(blockSetError);
-              }
-              
-              // Supabase 에러의 표준 속성들 확인
-              const standardKeys = ["message", "code", "details", "hint", "statusCode"];
-              standardKeys.forEach((key) => {
-                if (key in blockSetError) {
-                  try {
-                    errorInfo[key] = (blockSetError as Record<string, unknown>)[key];
-                  } catch {
-                    // 속성 접근 실패 시 무시
-                  }
-                }
-              });
-            } catch (extractError) {
-              errorInfo.extractionError = String(extractError);
-              errorInfo.rawError = String(blockSetError);
+              errorStringified = JSON.stringify(blockSetError, null, 2);
+            } catch (stringifyError) {
+              errorStringified = `JSON.stringify 실패: ${String(stringifyError)}`;
             }
             
-            // 최소한의 정보라도 보장
-            if (Object.keys(errorInfo).length === 0) {
-              errorInfo.message = String(blockSetError);
+            try {
+              // 순환 참조 문제 해결을 위한 Set
+              const seen = new WeakSet();
+              // 직렬화 가능한 속성만 추출
+              errorSerialized = JSON.parse(JSON.stringify(blockSetError, (key, value) => {
+                // 순환 참조 방지
+                if (typeof value === "object" && value !== null) {
+                  if (seen.has(value)) {
+                    return "[Circular]";
+                  }
+                  seen.add(value);
+                }
+                // 함수는 문자열로 변환
+                if (typeof value === "function") {
+                  return `[Function: ${value.name || "anonymous"}]`;
+                }
+                return value;
+              }));
+            } catch (serializeError) {
+              errorSerialized = { serializationError: String(serializeError) };
             }
+            
+            // 다양한 방법으로 에러 정보 추출
+            const errorInfo: Record<string, unknown> = {
+              // 기본 정보
+              errorExists: !!blockSetError,
+              errorType: typeof blockSetError,
+              errorConstructor: blockSetError?.constructor?.name,
+              
+              // 직렬화 결과
+              stringified: errorStringified,
+              serialized: errorSerialized,
+              
+              // 직접 접근
+              directMessage: (blockSetError as any)?.message,
+              directCode: (blockSetError as any)?.code,
+              directDetails: (blockSetError as any)?.details,
+              directHint: (blockSetError as any)?.hint,
+              directStatusCode: (blockSetError as any)?.statusCode,
+              
+              // toString 시도
+              toString: blockSetError?.toString?.(),
+              
+              // Object.keys 시도
+              keys: blockSetError && typeof blockSetError === "object" ? Object.keys(blockSetError) : null,
+              
+              // 모든 속성 시도 (안전하게)
+              allProperties: (() => {
+                if (blockSetError && typeof blockSetError === "object") {
+                  const props: Record<string, unknown> = {};
+                  try {
+                    for (const key in blockSetError) {
+                      try {
+                        const value = (blockSetError as any)[key];
+                        if (typeof value !== "function") {
+                          props[key] = value;
+                        }
+                      } catch {
+                        props[key] = "[접근 불가]";
+                      }
+                    }
+                  } catch {
+                    // 무시
+                  }
+                  return props;
+                }
+                return null;
+              })(),
+            };
             
             console.error(
               "[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
               errorInfo,
+              "\n원본 에러 객체:",
+              blockSetError,
+              "\n에러 타입:",
+              typeof blockSetError,
+              "\n에러 생성자:",
+              blockSetError?.constructor?.name,
+              "\n쿼리 파라미터:",
               {
                 block_set_id: blockSetId,
                 template_id: group.camp_template_id,
-              },
-              "원본 에러:",
-              blockSetError
+              }
             );
           } else if (templateBlockSet) {
             // template_id 일치 확인 (보안 검증)
