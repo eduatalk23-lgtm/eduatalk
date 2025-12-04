@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BatchOperationDialog } from "./_components/BatchOperationDialog";
 import { BulkRecommendContentsModal } from "./_components/BulkRecommendContentsModal";
+import { BatchPlanWizard } from "./_components/BatchPlanWizard";
 import { batchUpdateCampPlanGroupStatus, bulkCreatePlanGroupsForCamp } from "@/app/(admin)/actions/campTemplateActions";
 
 type Participant = {
@@ -47,6 +48,7 @@ export function CampParticipantsList({
   >("activate");
   const [batchStatus, setBatchStatus] = useState<string>("active");
   const [bulkRecommendModalOpen, setBulkRecommendModalOpen] = useState(false);
+  const [batchWizardOpen, setBatchWizardOpen] = useState(false);
 
   useEffect(() => {
     loadParticipants();
@@ -840,7 +842,25 @@ export function CampParticipantsList({
                     </button>
                   ) : null;
                 })()}
-                {/* 플랜 그룹이 있는 학생들만 추천 콘텐츠 일괄 적용 가능 */}
+                {/* 플랜 그룹이 있는 학생들: 일괄 설정 및 플랜 생성 위저드 */}
+                {(() => {
+                  const selectedWithGroup = participants.filter((p) => {
+                    const key = p.plan_group_id || p.invitation_id;
+                    return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+                  });
+                  return selectedWithGroup.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setBatchWizardOpen(true)}
+                      disabled={isPending}
+                      className="inline-flex items-center justify-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      title="선택한 참여자에게 콘텐츠 추천, 범위 조절, 플랜 생성을 단계별로 진행합니다"
+                    >
+                      일괄 설정 및 플랜 생성 ({selectedWithGroup.length})
+                    </button>
+                  ) : null;
+                })()}
+                {/* 플랜 그룹이 있는 학생들만 추천 콘텐츠 일괄 적용 가능 (기존 기능 유지) */}
                 {(() => {
                   const selectedWithGroup = participants.filter((p) => {
                     const key = p.plan_group_id || p.invitation_id;
@@ -852,9 +872,9 @@ export function CampParticipantsList({
                       onClick={() => setBulkRecommendModalOpen(true)}
                       disabled={isPending}
                       className="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="선택한 참여자에게 추천 콘텐츠를 일괄 적용합니다"
+                      title="선택한 참여자에게 추천 콘텐츠만 일괄 적용합니다"
                     >
-                      추천 콘텐츠 일괄 적용 ({selectedWithGroup.length})
+                      추천 콘텐츠만 적용 ({selectedWithGroup.length})
                     </button>
                   ) : null;
                 })()}
@@ -1135,7 +1155,28 @@ export function CampParticipantsList({
           </table>
         </div>
 
-        {/* 추천 콘텐츠 일괄 적용 모달 */}
+        {/* 일괄 설정 및 플랜 생성 위저드 */}
+        <BatchPlanWizard
+          open={batchWizardOpen}
+          onOpenChange={setBatchWizardOpen}
+          templateId={templateId}
+          participants={participants
+            .filter((p) => {
+              const key = p.plan_group_id || p.invitation_id;
+              return selectedParticipantIds.has(key) && p.plan_group_id !== null;
+            })
+            .map((p) => ({
+              groupId: p.plan_group_id!,
+              studentId: p.student_id,
+              studentName: p.student_name,
+            }))}
+          onSuccess={() => {
+            loadParticipants();
+            setSelectedParticipantIds(new Set());
+          }}
+        />
+
+        {/* 추천 콘텐츠 일괄 적용 모달 (기존 기능 유지) */}
         <BulkRecommendContentsModal
           open={bulkRecommendModalOpen}
           onOpenChange={setBulkRecommendModalOpen}

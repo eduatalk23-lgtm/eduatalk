@@ -3784,3 +3784,342 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
     };
   }
 );
+
+/**
+ * 플랜 그룹 콘텐츠 범위 일괄 조절
+ */
+export const bulkAdjustPlanRanges = withErrorHandling(
+  async (
+    groupIds: string[],
+    rangeAdjustments: Record<string, Array<{
+      contentId: string;
+      contentType: "book" | "lecture";
+      startRange?: number;
+      endRange?: number;
+    }>>
+  ): Promise<{
+    success: boolean;
+    successCount: number;
+    failureCount: number;
+    errors?: Array<{ groupId: string; error: string }>;
+  }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const errors: Array<{ groupId: string; error: string }> = [];
+    let successCount = 0;
+
+    for (const groupId of groupIds) {
+      try {
+        // 플랜 그룹 존재 및 권한 확인
+        const { data: group, error: groupError } = await supabase
+          .from("plan_groups")
+          .select("id, tenant_id")
+          .eq("id", groupId)
+          .eq("tenant_id", tenantContext.tenantId)
+          .maybeSingle();
+
+        if (groupError || !group) {
+          errors.push({
+            groupId,
+            error: groupError?.message || "플랜 그룹을 찾을 수 없습니다.",
+          });
+          continue;
+        }
+
+        // 해당 그룹의 범위 조절 정보 조회
+        const adjustments = rangeAdjustments[groupId];
+        if (!adjustments || adjustments.length === 0) {
+          // 조절할 내용이 없으면 스킵
+          successCount++;
+          continue;
+        }
+
+        // 각 콘텐츠의 범위 업데이트
+        for (const adjustment of adjustments) {
+          const updateData: {
+            start_range?: number;
+            end_range?: number;
+            updated_at: string;
+          } = {
+            updated_at: new Date().toISOString(),
+          };
+
+          if (adjustment.startRange !== undefined) {
+            updateData.start_range = adjustment.startRange;
+          }
+          if (adjustment.endRange !== undefined) {
+            updateData.end_range = adjustment.endRange;
+          }
+
+          // 범위 유효성 검증
+          if (
+            updateData.start_range !== undefined &&
+            updateData.end_range !== undefined &&
+            updateData.start_range >= updateData.end_range
+          ) {
+            errors.push({
+              groupId,
+              error: `콘텐츠 ${adjustment.contentId}의 범위가 유효하지 않습니다 (시작 >= 종료).`,
+            });
+            continue;
+          }
+
+          const { error: updateError } = await supabase
+            .from("plan_contents")
+            .update(updateData)
+            .eq("plan_group_id", groupId)
+            .eq("content_id", adjustment.contentId)
+            .eq("content_type", adjustment.contentType);
+
+          if (updateError) {
+            console.error(
+              `[bulkAdjustPlanRanges] 콘텐츠 범위 업데이트 실패:`,
+              {
+                groupId,
+                contentId: adjustment.contentId,
+                error: updateError.message,
+              }
+            );
+            errors.push({
+              groupId,
+              error: `콘텐츠 ${adjustment.contentId} 범위 업데이트 실패: ${updateError.message}`,
+            });
+          }
+        }
+
+        // 에러가 없으면 성공으로 카운트
+        if (!errors.some((e) => e.groupId === groupId)) {
+          successCount++;
+        }
+      } catch (error) {
+        console.error(
+          `[bulkAdjustPlanRanges] 그룹 ${groupId} 처리 실패:`,
+          error
+        );
+        errors.push({
+          groupId,
+          error:
+            error instanceof Error
+              ? error.message
+              : "알 수 없는 오류가 발생했습니다.",
+        });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      successCount,
+      failureCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+);
+
+/**
+ * 플랜 일괄 미리보기
+ */
+export const bulkPreviewPlans = withErrorHandling(
+  async (
+    groupIds: string[]
+  ): Promise<{
+    success: boolean;
+    previews: Array<{
+      groupId: string;
+      studentName: string;
+      planCount: number;
+      previewData?: Array<any>;
+      error?: string;
+    }>;
+  }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const { previewPlansFromGroupAction } = await import(
+      "@/app/(student)/actions/planGroupActions"
+    );
+
+    const previews: Array<{
+      groupId: string;
+      studentName: string;
+      planCount: number;
+      previewData?: Array<any>;
+      error?: string;
+    }> = [];
+
+    for (const groupId of groupIds) {
+      try {
+        // 플랜 그룹 및 학생 정보 조회
+        const { data: group, error: groupError } = await supabase
+          .from("plan_groups")
+          .select("id, student_id, tenant_id, students:student_id(name)")
+          .eq("id", groupId)
+          .eq("tenant_id", tenantContext.tenantId)
+          .maybeSingle();
+
+        if (groupError || !group) {
+          previews.push({
+            groupId,
+            studentName: "알 수 없음",
+            planCount: 0,
+            error: groupError?.message || "플랜 그룹을 찾을 수 없습니다.",
+          });
+          continue;
+        }
+
+        const studentName = (group.students as any)?.name || "알 수 없음";
+
+        // 플랜 미리보기 실행
+        try {
+          const result = await previewPlansFromGroupAction(groupId);
+          previews.push({
+            groupId,
+            studentName,
+            planCount: result.plans.length,
+            previewData: result.plans,
+          });
+        } catch (previewError) {
+          previews.push({
+            groupId,
+            studentName,
+            planCount: 0,
+            error:
+              previewError instanceof Error
+                ? previewError.message
+                : "플랜 미리보기에 실패했습니다.",
+          });
+        }
+      } catch (error) {
+        console.error(
+          `[bulkPreviewPlans] 그룹 ${groupId} 처리 실패:`,
+          error
+        );
+        previews.push({
+          groupId,
+          studentName: "알 수 없음",
+          planCount: 0,
+          error:
+            error instanceof Error
+              ? error.message
+              : "알 수 없는 오류가 발생했습니다.",
+        });
+      }
+    }
+
+    return {
+      success: true,
+      previews,
+    };
+  }
+);
+
+/**
+ * 플랜 일괄 생성
+ */
+export const bulkGeneratePlans = withErrorHandling(
+  async (
+    groupIds: string[]
+  ): Promise<{
+    success: boolean;
+    successCount: number;
+    failureCount: number;
+    errors?: Array<{ groupId: string; error: string }>;
+  }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const { generatePlansFromGroupAction } = await import(
+      "@/app/(student)/actions/planGroupActions"
+    );
+
+    const errors: Array<{ groupId: string; error: string }> = [];
+    let successCount = 0;
+
+    for (const groupId of groupIds) {
+      try {
+        // 플랜 그룹 존재 및 권한 확인
+        const { data: group, error: groupError } = await supabase
+          .from("plan_groups")
+          .select("id, tenant_id")
+          .eq("id", groupId)
+          .eq("tenant_id", tenantContext.tenantId)
+          .maybeSingle();
+
+        if (groupError || !group) {
+          errors.push({
+            groupId,
+            error: groupError?.message || "플랜 그룹을 찾을 수 없습니다.",
+          });
+          continue;
+        }
+
+        // 플랜 생성 실행
+        try {
+          await generatePlansFromGroupAction(groupId);
+          successCount++;
+        } catch (generateError) {
+          console.error(
+            `[bulkGeneratePlans] 그룹 ${groupId} 플랜 생성 실패:`,
+            generateError
+          );
+          errors.push({
+            groupId,
+            error:
+              generateError instanceof Error
+                ? generateError.message
+                : "플랜 생성에 실패했습니다.",
+          });
+        }
+      } catch (error) {
+        console.error(
+          `[bulkGeneratePlans] 그룹 ${groupId} 처리 실패:`,
+          error
+        );
+        errors.push({
+          groupId,
+          error:
+            error instanceof Error
+              ? error.message
+              : "알 수 없는 오류가 발생했습니다.",
+        });
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      successCount,
+      failureCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  }
+);
