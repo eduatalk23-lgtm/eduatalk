@@ -11,6 +11,7 @@ import {
   fetchContentMetadataAction,
   fetchContentMetadataBatchAction,
 } from "@/app/(student)/actions/fetchContentMetadata";
+import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 
 type Step6FinalReviewProps = {
   data: WizardData;
@@ -591,8 +592,8 @@ export function Step6FinalReview({
         }
 
         if (contentInfo.content_type === "book") {
-          // 교재: 일일 학습량을 페이지로 환산 (1시간당 10페이지 가정)
-          const pagesPerHour = 10;
+          // 교재: 일일 학습량을 페이지로 환산
+          const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
           const dailyPages = Math.round(hoursPerContentPerDay * pagesPerHour);
           const recommendedEnd = Math.min(
             dailyPages * total_study_days,
@@ -605,8 +606,8 @@ export function Step6FinalReview({
             reason: `${totalContents}개 콘텐츠 분배, 일일 ${dailyPages}페이지 × ${total_study_days}일`,
           });
         } else {
-          // 강의: 일일 학습량을 회차로 환산 (1시간당 1회차 가정)
-          const episodesPerHour = 1;
+          // 강의: 일일 학습량을 회차로 환산
+          const episodesPerHour = defaultRangeRecommendationConfig.episodesPerHour;
           const dailyEpisodes = Math.round(
             hoursPerContentPerDay * episodesPerHour
           );
@@ -1057,9 +1058,8 @@ export function Step6FinalReview({
           const avgDailyHours = total_study_hours / total_study_days;
 
           // 전체 일일 학습량 계산 (각 콘텐츠별이 아닌 전체)
-          // 교재: 1시간당 10페이지, 강의: 1시간당 1회차
-          const pagesPerHour = 10;
-          const episodesPerHour = 1;
+          const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
+          const episodesPerHour = defaultRangeRecommendationConfig.episodesPerHour;
           const totalDailyPages = Math.round(avgDailyHours * pagesPerHour); // 전체 일일 페이지
           const totalDailyEpisodes = Math.round(
             avgDailyHours * episodesPerHour

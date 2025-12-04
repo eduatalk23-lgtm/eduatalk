@@ -2,6 +2,8 @@
  * 플랜 데이터를 시스템 프롬프트 기준 표 형식으로 변환하는 유틸리티
  */
 
+import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+
 export type ScheduleTableRow = {
   id: string;
   weekAndDay: string; // "1주차-1일"
@@ -214,9 +216,9 @@ function calculateEstimatedTime(
 
   // 콘텐츠 타입별 소요시간 계산
   if (contentType === "book") {
-    // 책: 1시간당 10페이지 가정 (Step6FinalReview.tsx와 동일)
-    const pagesPerHour = 10;
-    const minutesPerPage = 60 / pagesPerHour; // 6분/페이지
+    // 책: 설정 기반 시간 계산
+    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
+    const minutesPerPage = 60 / pagesPerHour;
     baseTime = Math.round(amount * minutesPerPage);
   } else if (contentType === "lecture") {
     // 강의: duration 정보 사용

@@ -3,6 +3,8 @@
  * Step7의 TimeSlotsWithPlans 로직을 서버 액션에서 사용하기 위한 함수
  */
 
+import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+
 // 시간 문자열을 분으로 변환
 export function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
@@ -51,8 +53,8 @@ export function calculatePlanEstimatedTime(
   let baseTime = 0;
 
   if (plan.content_type === "book") {
-    // 책: 1시간당 10페이지 가정
-    const pagesPerHour = 10;
+    // 책: 설정 기반 시간 계산
+    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
     const minutesPerPage = 60 / pagesPerHour;
     baseTime = Math.round(amount * minutesPerPage);
   } else if (plan.content_type === "lecture") {

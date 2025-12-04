@@ -22,6 +22,9 @@ import {
 } from "./campTemplateBlockSets";
 import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
 import { createPlanContents, getPlanContents } from "@/lib/data/planGroups";
+import { timeToMinutes } from "@/lib/plan/assignPlanTimes";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
 
 /**
  * 캠프 템플릿 목록 조회
@@ -1932,7 +1935,18 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
 
         // 병합할 콘텐츠 목록 생성
-        const contentsToSave: typeof creationData.contents = [];
+        const contentsToSave: Array<{
+          content_type: string;
+          content_id: string;
+          start_range: number;
+          end_range: number;
+          display_order: number;
+          master_content_id?: string | null;
+          is_auto_recommended?: boolean;
+          recommendation_source?: "auto" | "admin" | "template" | null;
+          recommendation_reason?: string | null;
+          recommendation_metadata?: any;
+        }> = [];
         
         // 학생 콘텐츠 처리
         if (hasStudentContents && wizardData.student_contents && wizardData.student_contents.length > 0) {
@@ -1944,6 +1958,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
             end_range: c.end_range,
             display_order: idx,
             master_content_id: (c as any).master_content_id || null,
+            is_auto_recommended: false, // 학생 콘텐츠는 항상 false
+            recommendation_source: null,
+            recommendation_reason: null,
+            recommendation_metadata: null,
           }));
           contentsToSave.push(...studentContentsForCreation);
         } else if (!hasStudentContents && existingStudentContents.length > 0) {
@@ -1955,6 +1973,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
             end_range: c.end_range,
             display_order: c.display_order ?? 0,
             master_content_id: (c as any).master_content_id || null,
+            is_auto_recommended: false, // 학생 콘텐츠는 항상 false
+            recommendation_source: null,
+            recommendation_reason: null,
+            recommendation_metadata: null,
           }));
           contentsToSave.push(...preservedStudentContents);
         }
@@ -1963,7 +1985,18 @@ export const continueCampStepsForAdmin = withErrorHandling(
         if (hasRecommendedContents && wizardData.recommended_contents && wizardData.recommended_contents.length > 0) {
           // wizardData의 recommended_contents를 creationData 형식으로 변환하여 추가
           // 관리자가 추가하는 경우는 항상 is_auto_recommended: false, recommendation_source: "admin"으로 강제 설정
-          const recommendedContentsForCreation = wizardData.recommended_contents.map((c, idx) => ({
+          const recommendedContentsForCreation: Array<{
+            content_type: string;
+            content_id: string;
+            start_range: number;
+            end_range: number;
+            display_order: number;
+            master_content_id?: string | null;
+            is_auto_recommended?: boolean;
+            recommendation_source?: "auto" | "admin" | "template" | null;
+            recommendation_reason?: string | null;
+            recommendation_metadata?: any;
+          }> = wizardData.recommended_contents.map((c, idx) => ({
             content_type: c.content_type,
             content_id: c.content_id,
             start_range: c.start_range,
@@ -1971,7 +2004,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
             display_order: (contentsToSave.length + idx),
             master_content_id: (c as any).master_content_id || null,
             is_auto_recommended: false, // 관리자 추가는 항상 false
-            recommendation_source: "admin", // 관리자 추가는 항상 "admin"으로 강제 설정
+            recommendation_source: "admin" as const, // 관리자 추가는 항상 "admin"으로 강제 설정
             recommendation_reason: (c as any).recommendation_reason || null,
             recommendation_metadata: (c as any).recommendation_metadata || null,
           }));
@@ -2004,7 +2037,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
             display_order: number;
             master_content_id?: string | null;
             is_auto_recommended?: boolean;
-            recommendation_source?: string | null;
+            recommendation_source?: "auto" | "admin" | "template" | null;
             recommendation_reason?: string | null;
             recommendation_metadata?: any;
           }> = [];
@@ -2119,6 +2152,17 @@ export const continueCampStepsForAdmin = withErrorHandling(
             }
 
             if (isValidContent) {
+              const contentWithRecommendation = content as typeof content & {
+                is_auto_recommended?: boolean;
+                recommendation_source?: "auto" | "admin" | "template" | string | null;
+                recommendation_reason?: string | null;
+                recommendation_metadata?: any;
+              };
+              const recommendationSource = contentWithRecommendation.recommendation_source;
+              const validRecommendationSource: "auto" | "admin" | "template" | null = 
+                recommendationSource === "auto" || recommendationSource === "admin" || recommendationSource === "template"
+                  ? recommendationSource
+                  : null;
               validContents.push({
                 content_type: content.content_type,
                 content_id: actualContentId,
@@ -2126,10 +2170,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 end_range: content.end_range,
                 display_order: content.display_order ?? 0,
                 master_content_id: content.master_content_id || null,
-                is_auto_recommended: content.is_auto_recommended ?? false,
-                recommendation_source: content.recommendation_source || null,
-                recommendation_reason: content.recommendation_reason || null,
-                recommendation_metadata: content.recommendation_metadata || null,
+                is_auto_recommended: contentWithRecommendation.is_auto_recommended ?? false,
+                recommendation_source: validRecommendationSource,
+                recommendation_reason: contentWithRecommendation.recommendation_reason || null,
+                recommendation_metadata: contentWithRecommendation.recommendation_metadata || null,
               });
             }
           }
@@ -2577,7 +2621,18 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 recommendedContents.map((c) => c.content_id)
               );
               
-              const contentsToSave = validContents.map((c, idx) => {
+              const contentsToSave: Array<{
+                content_type: string;
+                content_id: string;
+                start_range: number;
+                end_range: number;
+                display_order: number;
+                master_content_id: string | null;
+                is_auto_recommended: boolean;
+                recommendation_source: "auto" | "admin" | "template" | null;
+                recommendation_reason: string | null;
+                recommendation_metadata: any;
+              }> = validContents.map((c, idx) => {
                 const isRecommended = recommendedContentIds.has(c.content_id) || 
                   (c.master_content_id && recommendedContentIds.has(c.master_content_id));
                 
@@ -2595,7 +2650,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   display_order: c.display_order ?? idx,
                   master_content_id: c.master_content_id || null,
                   is_auto_recommended: false, // 관리자 추가는 항상 false
-                  recommendation_source: isRecommended ? "admin" : null, // 관리자 추가는 항상 "admin"으로 강제 설정
+                  recommendation_source: (isRecommended ? "admin" : null) as "auto" | "admin" | "template" | null, // 관리자 추가는 항상 "admin"으로 강제 설정
                   recommendation_reason: (recommendedContent as any)?.recommendation_reason ?? null,
                   recommendation_metadata: (recommendedContent as any)?.recommendation_metadata ?? null,
                 };
@@ -3353,7 +3408,7 @@ export const bulkApplyRecommendedContents = withErrorHandling(
         // 기존 추천 콘텐츠 처리
         if (options?.replaceExisting) {
           // 기존 추천 콘텐츠 삭제 (is_auto_recommended가 true이거나 recommendation_source가 있는 것만)
-          const { data: existingContents } = await getPlanContents(
+          const existingContents = await getPlanContents(
             groupId,
             tenantContext.tenantId
           );
@@ -3492,7 +3547,7 @@ export const bulkApplyRecommendedContents = withErrorHandling(
         }
 
         // 학생당 최대 9개 제한 검증
-        const { data: existingPlanContents } = await getPlanContents(
+        const existingPlanContents = await getPlanContents(
           groupId,
           tenantContext.tenantId
         );
@@ -3923,6 +3978,270 @@ export const bulkAdjustPlanRanges = withErrorHandling(
       failureCount: errors.length,
       errors: errors.length > 0 ? errors : undefined,
     };
+  }
+);
+
+/**
+ * 플랜 그룹 콘텐츠 및 스케줄 정보 조회 (클라이언트 컴포넌트용)
+ */
+export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
+  async (
+    groupId: string
+  ): Promise<{
+    success: boolean;
+    contents?: Array<{
+      contentId: string;
+      contentType: "book" | "lecture";
+      title: string;
+      totalAmount: number;
+      currentStartRange: number;
+      currentEndRange: number;
+    }>;
+    scheduleSummary?: {
+      total_study_days: number;
+      total_study_hours: number;
+    } | null;
+    error?: string;
+  }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const adminSupabase = await createSupabaseAdminClient();
+
+    if (!adminSupabase) {
+      return {
+        success: false,
+        error: "Admin 클라이언트를 생성할 수 없습니다.",
+      };
+    }
+
+    try {
+      // 플랜 그룹 정보 조회 (period_start, period_end, daily_schedule 포함)
+      const { data: group, error: groupError } = await supabase
+        .from("plan_groups")
+        .select("id, period_start, period_end, daily_schedule")
+        .eq("id", groupId)
+        .eq("tenant_id", tenantContext.tenantId)
+        .maybeSingle();
+
+      if (groupError || !group) {
+        return {
+          success: false,
+          error: groupError?.message || "플랜 그룹을 찾을 수 없습니다.",
+        };
+      }
+
+      // 콘텐츠 조회
+      const contents = await getPlanContents(groupId, tenantContext.tenantId);
+
+      // 콘텐츠 상세 정보 조회 (총량 정보 포함)
+      // Admin 클라이언트를 사용하여 RLS 정책 우회
+      const contentInfos: Array<{
+        contentId: string;
+        contentType: "book" | "lecture";
+        title: string;
+        totalAmount: number;
+        currentStartRange: number;
+        currentEndRange: number;
+      }> = [];
+
+      for (const content of contents) {
+        // custom 콘텐츠는 범위 조절 대상이 아니므로 제외
+        if (content.content_type === "custom") {
+          continue;
+        }
+
+        try {
+          let totalAmount = 0;
+          let title = "알 수 없음";
+
+          if (content.content_type === "book") {
+            // Admin 클라이언트를 사용하여 학생 교재 조회 (RLS 우회)
+            const { data: book } = await adminSupabase
+              .from("books")
+              .select("title, master_content_id")
+              .eq("id", content.content_id)
+              .maybeSingle();
+
+            if (book) {
+              title = book.title || "알 수 없음";
+
+              // 마스터 콘텐츠 정보 조회
+              if (book.master_content_id) {
+                try {
+                  const { book: masterBook } = await getMasterBookById(book.master_content_id);
+                  if (masterBook) {
+                    totalAmount = masterBook.total_pages || 0;
+                  } else {
+                    // 마스터 교재 조회 실패 시 Admin 클라이언트로 직접 조회 시도
+                    const { data: bookInfo } = await adminSupabase
+                      .from("master_books")
+                      .select("total_pages")
+                      .eq("id", book.master_content_id)
+                      .maybeSingle();
+                    totalAmount = bookInfo?.total_pages || 0;
+                  }
+                } catch (error) {
+                  console.error(`마스터 교재 ${book.master_content_id} 조회 실패:`, error);
+                  // 마스터 교재 조회 실패 시 Admin 클라이언트로 직접 조회 시도
+                  const { data: bookInfo } = await adminSupabase
+                    .from("master_books")
+                    .select("total_pages")
+                    .eq("id", book.master_content_id)
+                    .maybeSingle();
+                  totalAmount = bookInfo?.total_pages || 0;
+                }
+              } else {
+                // 마스터 콘텐츠 ID가 없으면 직접 조회 시도
+                const { data: bookInfo } = await adminSupabase
+                  .from("master_books")
+                  .select("total_pages")
+                  .eq("id", content.content_id)
+                  .maybeSingle();
+                totalAmount = bookInfo?.total_pages || 0;
+              }
+            }
+          } else if (content.content_type === "lecture") {
+            // Admin 클라이언트를 사용하여 학생 강의 조회 (RLS 우회)
+            const { data: lecture } = await adminSupabase
+              .from("lectures")
+              .select("title, master_content_id")
+              .eq("id", content.content_id)
+              .maybeSingle();
+
+            if (lecture) {
+              title = lecture.title || "알 수 없음";
+
+              // 마스터 콘텐츠 정보 조회
+              if (lecture.master_content_id) {
+                try {
+                  const { lecture: masterLecture } = await getMasterLectureById(lecture.master_content_id);
+                  if (masterLecture) {
+                    totalAmount = masterLecture.total_episodes || 0;
+                  } else {
+                    // 마스터 강의 조회 실패 시 Admin 클라이언트로 직접 조회 시도
+                    const { data: lectureInfo } = await adminSupabase
+                      .from("master_lectures")
+                      .select("total_episodes")
+                      .eq("id", lecture.master_content_id)
+                      .maybeSingle();
+                    totalAmount = lectureInfo?.total_episodes || 0;
+                  }
+                } catch (error) {
+                  console.error(`마스터 강의 ${lecture.master_content_id} 조회 실패:`, error);
+                  // 마스터 강의 조회 실패 시 Admin 클라이언트로 직접 조회 시도
+                  const { data: lectureInfo } = await adminSupabase
+                    .from("master_lectures")
+                    .select("total_episodes")
+                    .eq("id", lecture.master_content_id)
+                    .maybeSingle();
+                  totalAmount = lectureInfo?.total_episodes || 0;
+                }
+              } else {
+                // 마스터 콘텐츠 ID가 없으면 직접 조회 시도
+                const { data: lectureInfo } = await adminSupabase
+                  .from("master_lectures")
+                  .select("total_episodes")
+                  .eq("id", content.content_id)
+                  .maybeSingle();
+                totalAmount = lectureInfo?.total_episodes || 0;
+              }
+            }
+          }
+
+          contentInfos.push({
+            contentId: content.content_id,
+            contentType: content.content_type,
+            title,
+            totalAmount,
+            currentStartRange: content.start_range,
+            currentEndRange: content.end_range,
+          });
+        } catch (error) {
+          console.error(`콘텐츠 ${content.content_id} 정보 조회 실패:`, error);
+        }
+      }
+
+      // 스케줄 요약 정보 계산
+      let scheduleSummary: {
+        total_study_days: number;
+        total_study_hours: number;
+      } | null = null;
+      
+      if (group.period_start && group.period_end) {
+        let totalStudyDays = 0;
+        let totalHours = 0;
+        
+        // daily_schedule이 있으면 그것을 기반으로 계산
+        if (group.daily_schedule && Array.isArray(group.daily_schedule)) {
+          const dailySchedule = group.daily_schedule as any[];
+          
+          dailySchedule.forEach((day) => {
+            // 학습일만 카운트
+            if (day.day_type === "학습일" || day.day_type === "복습일") {
+              totalStudyDays++;
+            }
+            
+            // study_hours가 있으면 합산
+            if (typeof day.study_hours === "number") {
+              totalHours += day.study_hours;
+            } else if (day.time_slots && Array.isArray(day.time_slots)) {
+              // time_slots가 있으면 그것을 기반으로 계산
+              day.time_slots.forEach((slot: any) => {
+                if (slot.type === "학습시간" && slot.start && slot.end) {
+                  try {
+                    const startMinutes = timeToMinutes(slot.start);
+                    const endMinutes = timeToMinutes(slot.end);
+                    const hours = (endMinutes - startMinutes) / 60;
+                    totalHours += hours;
+                  } catch (error) {
+                    // 시간 파싱 실패 시 무시
+                  }
+                }
+              });
+            }
+          });
+        }
+        
+        // daily_schedule이 없거나 비어있으면 기간 기반으로 기본값 계산
+        if (totalStudyDays === 0 || totalHours === 0) {
+          const startDate = new Date(group.period_start);
+          const endDate = new Date(group.period_end);
+          const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // 시작일과 종료일 포함
+          
+          totalStudyDays = diffDays;
+          totalHours = diffDays * 3; // 기본값: 하루 3시간
+        }
+        
+        scheduleSummary = {
+          total_study_days: totalStudyDays,
+          total_study_hours: totalHours,
+        };
+      }
+
+      return {
+        success: true,
+        contents: contentInfos,
+        scheduleSummary,
+      };
+    } catch (error) {
+      console.error(`[getPlanGroupContentsForRangeAdjustment] 그룹 ${groupId} 처리 실패:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+      };
+    }
   }
 );
 

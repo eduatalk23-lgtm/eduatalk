@@ -4,6 +4,9 @@
  * 스케줄 정보를 기반으로 각 콘텐츠에 대한 적정 학습 범위를 계산합니다.
  */
 
+import type { RangeRecommendationConfig } from "@/lib/recommendations/config/types";
+import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+
 export type ScheduleSummary = {
   total_study_days: number;
   total_study_hours: number;
@@ -58,12 +61,19 @@ export function getUnavailableReason(
  * 
  * @param scheduleSummary 스케줄 요약 정보
  * @param contents 콘텐츠 정보 목록
+ * @param options 선택적 설정 옵션
+ * @param options.config 직접 제공된 범위 추천 설정 (우선순위 1)
+ * @param options.tenantId 테넌트 ID (설정을 DB에서 조회할 때 사용)
  * @returns 추천 범위 및 불가능한 이유
  */
-export function calculateRecommendedRanges(
+export async function calculateRecommendedRanges(
   scheduleSummary: ScheduleSummary | null | undefined,
-  contents: ContentInfo[]
-): RangeRecommendationResult {
+  contents: ContentInfo[],
+  options?: {
+    config?: Partial<RangeRecommendationConfig>;
+    tenantId?: string | null;
+  }
+): Promise<RangeRecommendationResult> {
   const ranges = new Map<string, RecommendedRange>();
   const unavailableReasons = new Map<string, string>();
 
@@ -89,6 +99,25 @@ export function calculateRecommendedRanges(
     return { ranges, unavailableReasons };
   }
 
+  // 설정 결정: 직접 제공된 config → DB에서 조회 → 기본값
+  let config: RangeRecommendationConfig;
+  if (options?.config) {
+    // 직접 제공된 config와 기본값을 병합
+    config = {
+      ...defaultRangeRecommendationConfig,
+      ...options.config,
+    };
+  } else if (options?.tenantId !== undefined) {
+    // tenantId가 제공되었으면 DB에서 조회 시도
+    const { getRangeRecommendationConfig } = await import(
+      "@/lib/recommendations/config/configManager"
+    );
+    config = await getRangeRecommendationConfig(options.tenantId);
+  } else {
+    // 옵션이 없으면 기본값 사용 (기존 동작 유지)
+    config = defaultRangeRecommendationConfig;
+  }
+
   // 일일 평균 학습 시간 계산
   const avgDailyHours = total_study_hours / total_study_days;
 
@@ -109,8 +138,8 @@ export function calculateRecommendedRanges(
     }
 
     if (content.content_type === "book") {
-      // 교재: 일일 학습량을 페이지로 환산 (1시간당 10페이지 가정)
-      const pagesPerHour = 10;
+      // 교재: 일일 학습량을 페이지로 환산
+      const pagesPerHour = config.pagesPerHour;
       const dailyPages = Math.round(hoursPerContentPerDay * pagesPerHour);
       const recommendedEnd = Math.min(
         dailyPages * total_study_days,
@@ -123,8 +152,8 @@ export function calculateRecommendedRanges(
         reason: `${totalContents}개 콘텐츠 분배, 일일 ${dailyPages}페이지 × ${total_study_days}일`,
       });
     } else if (content.content_type === "lecture") {
-      // 강의: 일일 학습량을 회차로 환산 (1시간당 1회차 가정)
-      const episodesPerHour = 1;
+      // 강의: 일일 학습량을 회차로 환산
+      const episodesPerHour = config.episodesPerHour;
       const dailyEpisodes = Math.round(
         hoursPerContentPerDay * episodesPerHour
       );

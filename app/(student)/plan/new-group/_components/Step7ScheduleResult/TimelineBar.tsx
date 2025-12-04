@@ -100,15 +100,17 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
         })}
       </div>
       
-      {/* 범례 (타입별 색상 안내) */}
-      <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-gray-600">
-        {Array.from(new Set(slotData.map(s => s.type))).map((type) => (
-          <div key={type} className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-sm ${slotColors[type]}`} />
-            <span>{slotLabels[type]}</span>
-          </div>
-        ))}
-      </div>
+      {/* 범례 (타입별 색상 안내) - 토글 버튼과 겹치지 않도록 제거하거나 최소화 */}
+      {slotData.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-gray-600 max-w-full">
+          {Array.from(new Set(slotData.map(s => s.type))).map((type) => (
+            <div key={type} className="flex items-center gap-1 flex-shrink-0">
+              <div className={`w-2 h-2 rounded-sm ${slotColors[type]}`} />
+              <span className="whitespace-nowrap">{slotLabels[type]}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

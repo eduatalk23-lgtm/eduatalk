@@ -350,6 +350,13 @@ const adminCategories: NavigationCategory[] = [
         roles: ["admin"], // admin만 접근
       },
       {
+        id: "admin-recommendation-settings",
+        label: "추천 시스템 설정",
+        href: "/admin/recommendation-settings",
+        icon: "🎯",
+        roles: ["admin"], // admin만 접근
+      },
+      {
         id: "admin-tenant-users",
         label: "기관별 사용자 관리",
         href: "/admin/tenant/users",

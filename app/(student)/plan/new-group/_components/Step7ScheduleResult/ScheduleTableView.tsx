@@ -14,7 +14,7 @@ import {
 import type { BlockData, ContentData } from "../utils/scheduleTransform";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { TimelineBar } from "./TimelineBar";
-import { VirtualizedList } from "@/lib/components/VirtualizedList";
+import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 
 type DailySchedule = {
   date: string;
@@ -230,13 +230,9 @@ export function ScheduleTableView({
           />
         </div>
       ) : (
-        // 주차 정보가 없으면 가상 스크롤링 적용
-        <VirtualizedList
-          items={sortedSchedules}
-          itemHeight={120} // 기본 높이 (확장 시 더 높아질 수 있음)
-          containerHeight={800}
-          overscan={3}
-          renderItem={(schedule, index) => {
+        // 주차 정보가 없으면 일반 스크롤 사용 (토글이 있어서 동적 높이 필요)
+        <div className="max-h-[800px] overflow-y-auto">
+          {sortedSchedules.map((schedule) => {
             const datePlans = plansByDate.get(schedule.date) || [];
             return (
               <ScheduleItem
@@ -250,8 +246,8 @@ export function ScheduleTableView({
                 onToggle={() => toggleDate(schedule.date)}
               />
             );
-          }}
-        />
+          })}
+        </div>
       )}
     </div>
   );
@@ -300,7 +296,7 @@ const ScheduleItem = memo(function ScheduleItem({
         }}
       >
         <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 pr-2">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-900">
                 {formatDate(schedule.date)}
@@ -403,7 +399,7 @@ const ScheduleItem = memo(function ScheduleItem({
             )}
           </div>
           {(hasDetails || hasExclusion || hasTimeSlots) && (
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 relative z-10">
               {isExpanded ? (
                 <ChevronUp className="h-5 w-5 text-gray-600" />
               ) : (
@@ -1551,8 +1547,8 @@ function calculateEstimatedTime(
   let baseTime = 0;
 
   if (plan.content_type === "book") {
-    // 책: 1시간당 10페이지 가정
-    const pagesPerHour = 10;
+    // 책: 설정 기반 시간 계산
+    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
     const minutesPerPage = 60 / pagesPerHour;
     baseTime = Math.round(amount * minutesPerPage);
   } else if (plan.content_type === "lecture") {

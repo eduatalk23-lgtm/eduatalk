@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getPlanContents } from "@/lib/data/planGroups";
+import { getPlanGroupContentsForRangeAdjustment } from "@/app/(admin)/actions/campTemplateActions";
 import { calculateRecommendedRanges, type ScheduleSummary } from "@/lib/plan/rangeRecommendation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Minus, Plus, AlertTriangle, Loader2 } from "lucide-react";
 
 type Participant = {
@@ -81,106 +80,41 @@ export function Step2RangeAdjustment({
   // Step 1에서 설정한 콘텐츠에 대한 범위 추천 계산
   useEffect(() => {
     const loadData = async () => {
-      const supabase = createSupabaseBrowserClient();
       const newStudentData = new Map<string, StudentContentData>();
 
       // 각 학생의 콘텐츠 및 스케줄 정보 조회
       for (const participant of participants) {
         try {
-          // 플랜 그룹 정보 조회 (schedule_summary 포함)
-          const { data: group, error: groupError } = await supabase
-            .from("plan_groups")
-            .select("id, schedule_summary")
-            .eq("id", participant.groupId)
-            .maybeSingle();
+          // 서버 액션을 통해 콘텐츠 및 스케줄 정보 조회
+          const result = await getPlanGroupContentsForRangeAdjustment(participant.groupId);
 
-          if (groupError || !group) {
+          if (!result.success || !result.contents) {
             newStudentData.set(participant.groupId, {
               groupId: participant.groupId,
               studentName: participant.studentName,
               contents: [],
               scheduleSummary: null,
               loading: false,
-              error: groupError?.message || "플랜 그룹을 찾을 수 없습니다.",
+              error: result.error || "데이터 조회에 실패했습니다.",
             });
             continue;
           }
 
-          // 콘텐츠 조회
-          const contents = await getPlanContents(participant.groupId);
-          
-          // 콘텐츠 상세 정보 조회 (총량 정보 포함)
-          const contentInfos: ContentInfo[] = [];
-          for (const content of contents) {
-            try {
-              let totalAmount = 0;
-              let title = "알 수 없음";
+          // 콘텐츠 정보 변환
+          const contentInfos: ContentInfo[] = result.contents.map((content) => ({
+            contentId: content.contentId,
+            contentType: content.contentType,
+            title: content.title,
+            totalAmount: content.totalAmount,
+            currentStartRange: content.currentStartRange,
+            currentEndRange: content.currentEndRange,
+          }));
 
-              if (content.content_type === "book") {
-                const { data: book } = await supabase
-                  .from("books")
-                  .select("title, master_content_id")
-                  .eq("id", content.content_id)
-                  .maybeSingle();
-
-                if (book) {
-                  title = book.title || "알 수 없음";
-                  
-                  // 총 페이지 수 조회
-                  const { data: bookInfo } = await supabase
-                    .from("master_content_info")
-                    .select("total_pages")
-                    .eq("id", book.master_content_id || content.content_id)
-                    .maybeSingle();
-
-                  totalAmount = bookInfo?.total_pages || 0;
-                }
-              } else if (content.content_type === "lecture") {
-                const { data: lecture } = await supabase
-                  .from("lectures")
-                  .select("title, master_content_id")
-                  .eq("id", content.content_id)
-                  .maybeSingle();
-
-                if (lecture) {
-                  title = lecture.title || "알 수 없음";
-                  
-                  // 총 회차 수 조회
-                  const { data: lectureInfo } = await supabase
-                    .from("master_content_info")
-                    .select("total_episodes")
-                    .eq("id", lecture.master_content_id || content.content_id)
-                    .maybeSingle();
-
-                  totalAmount = lectureInfo?.total_episodes || 0;
-                }
-              }
-
-              contentInfos.push({
-                contentId: content.content_id,
-                contentType: content.content_type,
-                title,
-                totalAmount,
-                currentStartRange: content.start_range,
-                currentEndRange: content.end_range,
-              });
-            } catch (error) {
-              console.error(`콘텐츠 ${content.content_id} 정보 조회 실패:`, error);
-            }
-          }
-
-          // 스케줄 요약 정보 파싱
-          let scheduleSummary: ScheduleSummary | null = null;
-          if (group.schedule_summary) {
-            const summary = group.schedule_summary as any;
-            scheduleSummary = {
-              total_study_days: summary.total_study_days || 0,
-              total_study_hours: summary.total_study_hours || 0,
-            };
-          }
+          // 스케줄 요약 정보
+          const scheduleSummary: ScheduleSummary | null = result.scheduleSummary || null;
 
           // 범위 추천 계산
-          const recommendationResult = calculateRecommendedRanges(
+          const recommendationResult = await calculateRecommendedRanges(
             scheduleSummary,
             contentInfos.map((c) => ({
               content_id: c.contentId,
@@ -273,7 +207,7 @@ export function Step2RangeAdjustment({
   const handleNext = () => {
     // 범위 유효성 검증
     const errors: string[] = [];
-    rangeAdjustments.forEach((adjustments, groupId) => {
+    Object.entries(rangeAdjustments).forEach(([groupId, adjustments]) => {
       const studentName = studentData.get(groupId)?.studentName || "알 수 없음";
       adjustments.forEach((adj) => {
         if (adj.startRange >= adj.endRange) {

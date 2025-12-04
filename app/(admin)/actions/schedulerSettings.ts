@@ -12,6 +12,9 @@ import type { TenantSchedulerSettings } from "@/lib/types/schedulerSettings";
  */
 export async function getTenantSchedulerSettingsAction(): Promise<TenantSchedulerSettings | null> {
   const { tenantId } = await requireAdminAuth();
+  if (!tenantId) {
+    return null;
+  }
   return getTenantSchedulerSettings(tenantId);
 }
 
@@ -24,6 +27,9 @@ export async function saveTenantSchedulerSettingsAction(
   >
 ): Promise<{ success: boolean; error?: string }> {
   const { tenantId } = await requireAdminAuth();
+  if (!tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
   return upsertTenantSchedulerSettings(tenantId, settings);
 }
 

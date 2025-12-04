@@ -94,7 +94,7 @@ export function Dialog({
             )}
           </div>
         )}
-        <div className="px-6 py-4">{children}</div>
+        <div className="flex flex-col h-full max-h-[90vh]">{children}</div>
       </div>
     </div>,
     document.body

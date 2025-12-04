@@ -42,10 +42,10 @@ export default async function MasterBookDetailPage({
         <ContentDetailTable
           rows={[
             { label: "개정교육과정", value: book.revision },
-            { label: "교과", value: book.subject_category },
-            { label: "과목", value: book.subject },
-            { label: "출판사", value: book.publisher },
-            { label: "저자", value: book.author },
+            { label: "교과", value: book.subject_category ?? null },
+            { label: "과목", value: book.subject ?? null },
+            { label: "출판사", value: book.publisher ?? null },
+            { label: "저자", value: book.author ?? null },
             { label: "총 페이지", value: book.total_pages ? `${book.total_pages}p` : null },
             { label: "난이도", value: book.difficulty_level },
             { label: "메모", value: book.notes },

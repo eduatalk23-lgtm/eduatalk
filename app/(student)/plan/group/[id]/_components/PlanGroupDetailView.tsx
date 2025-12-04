@@ -168,7 +168,7 @@ export function PlanGroupDetailView({
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
               blockSets={blockSets}
               editable={false} // 완전히 읽기 전용
-              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
+              isCampMode={false} // 제출 모드에서는 isCampMode=false로 설정하여 (!editable && !isCampMode) 조건으로 모든 필드 비활성화
               lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
             />
           </Suspense>
@@ -182,7 +182,7 @@ export function PlanGroupDetailView({
               periodStart={group.period_start}
               periodEnd={group.period_end}
               editable={false} // 완전히 읽기 전용
-              campMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
+              campMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드 (제출 모드에서는 editable=false로 모든 필드 비활성화)
               isTemplateMode={false}
               studentId={group.student_id}
             />
@@ -195,7 +195,7 @@ export function PlanGroupDetailView({
             <Step3ContentSelection 
               data={wizardData}
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
-              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
+              isCampMode={false} // 제출 모드에서는 editable=false로 모든 필드 비활성화
               isEditMode={false}
               studentId={group.student_id}
               editable={false} // 완전히 읽기 전용
@@ -233,7 +233,7 @@ export function PlanGroupDetailView({
               onUpdate={() => {}} // 읽기 전용 - 변경 불가
               blockSets={blockSets}
               editable={false} // 완전히 읽기 전용
-              isCampMode={false} // 상세보기에서는 캠프 모드 체크 비활성화하여 모든 필드 비활성화
+              isCampMode={false} // 제출 모드에서는 isCampMode=false로 설정하여 (!editable && !isCampMode) 조건으로 모든 필드 비활성화
               lockedFields={[]}
             />
           </Suspense>
