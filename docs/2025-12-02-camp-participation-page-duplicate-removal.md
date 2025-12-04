@@ -34,7 +34,8 @@
 
 1. **상단 헤더 영역의 중복된 "캠프 프로그램" 텍스트 제거** (1차 수정)
 2. **페이지 상단의 "캠프 프로그램 정보" 섹션 전체 제거** (2차 수정)
-   - Step1BasicInfo 컴포넌트 내부에서 이미 동일한 정보를 표시하므로 중복 제거
+3. **Step1BasicInfo 컴포넌트 내부의 "캠프 프로그램" 섹션 제거** (3차 수정)
+   - 사용자 요청에 따라 모든 중복 섹션 제거
 
 ### 1차 변경 (상단 헤더 텍스트 제거)
 
@@ -85,6 +86,33 @@
       <PlanGroupWizard
 ```
 
+### 3차 변경 (Step1BasicInfo 내부 섹션 제거)
+
+**변경 전:**
+```tsx
+      </div>
+
+      {/* 캠프 템플릿 정보 표시 */}
+      {campTemplateInfo && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <h3 className="font-semibold text-blue-800">캠프 프로그램</h3>
+          <p className="text-sm text-blue-800">{campTemplateInfo.name}</p>
+          <p className="text-xs text-blue-800">
+            {campTemplateInfo.program_type}
+          </p>
+        </div>
+      )}
+
+      {/* 플랜/캠프 이름 (필수) */}
+```
+
+**변경 후:**
+```tsx
+      </div>
+
+      {/* 플랜/캠프 이름 (필수) */}
+```
+
 ---
 
 ## 📝 수정 파일
@@ -93,13 +121,16 @@
   - 366번째 줄: 상단 헤더의 중복된 "캠프 프로그램" 텍스트 제거
   - 383-391번째 줄: 페이지 상단의 "캠프 프로그램 정보" 섹션 전체 제거
 
+- `app/(student)/plan/new-group/_components/Step1BasicInfo.tsx`
+  - 888-897번째 줄: Step1BasicInfo 컴포넌트 내부의 "캠프 프로그램" 섹션 제거
+
 ---
 
 ## ✨ 개선 효과
 
-- 중복된 정보 제거로 UI 간결성 향상
-- 캠프 프로그램 정보가 Step1BasicInfo 컴포넌트 내부에만 표시되어 위치가 더 적절함
-- 사용자가 Step 1에서 필요한 정보를 한 번에 확인할 수 있어 가독성 향상
+- 모든 중복된 "캠프 프로그램" 정보 섹션 제거로 UI 간결성 대폭 향상
+- 불필요한 정보 반복 제거로 사용자 경험 개선
+- 페이지 구조가 더 깔끔하고 직관적으로 개선됨
 
 ---
 

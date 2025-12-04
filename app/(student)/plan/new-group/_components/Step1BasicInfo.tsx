@@ -885,17 +885,6 @@ export function Step1BasicInfo({
         </p>
       </div>
 
-      {/* 캠프 템플릿 정보 표시 */}
-      {campTemplateInfo && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <h3 className="font-semibold text-blue-800">캠프 프로그램</h3>
-          <p className="text-sm text-blue-800">{campTemplateInfo.name}</p>
-          <p className="text-xs text-blue-800">
-            {campTemplateInfo.program_type}
-          </p>
-        </div>
-      )}
-
       {/* 플랜/캠프 이름 (필수) */}
       <CollapsibleSection
         title={`${isCampMode ? "캠프 이름" : "플랜 이름"} *`}
