@@ -1184,6 +1184,15 @@ export function PlanGroupWizard({
               type="button"
               onClick={() => {
                 if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
+                  // 관리자 모드일 때는 캠프 템플릿 참여자 목록으로 이동
+                  if (isAdminMode || isAdminContinueMode) {
+                    const templateId = (initialData as any)?.templateId;
+                    if (templateId) {
+                      router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
+                      return;
+                    }
+                  }
+                  // 일반 모드일 때는 기존 로직 사용
                   router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan", { scroll: true });
                 }
               }}
