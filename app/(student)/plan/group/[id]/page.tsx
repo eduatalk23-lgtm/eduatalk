@@ -151,25 +151,54 @@ export default async function PlanGroupDetailPage({
         .maybeSingle();
 
       if (templateError) {
-        // Supabase 에러 객체의 주요 속성 추출
-        const errorInfo: Record<string, unknown> = {
-          message: templateError.message || String(templateError),
-          code: templateError.code || "UNKNOWN",
-        };
-        if ("details" in templateError) {
-          errorInfo.details = (templateError as { details?: unknown }).details;
+        // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
+        const errorInfo: Record<string, unknown> = {};
+        
+        try {
+          if (templateError instanceof Error) {
+            errorInfo.message = templateError.message;
+            errorInfo.name = templateError.name;
+            errorInfo.stack = templateError.stack;
+          } else if (typeof templateError === "object" && templateError !== null) {
+            Object.keys(templateError).forEach((key) => {
+              try {
+                errorInfo[key] = (templateError as Record<string, unknown>)[key];
+              } catch {
+                // 속성 접근 실패 시 무시
+              }
+            });
+          } else {
+            errorInfo.value = String(templateError);
+          }
+          
+          const standardKeys = ["message", "code", "details", "hint", "statusCode"];
+          standardKeys.forEach((key) => {
+            if (key in templateError) {
+              try {
+                errorInfo[key] = (templateError as Record<string, unknown>)[key];
+              } catch {
+                // 속성 접근 실패 시 무시
+              }
+            }
+          });
+        } catch (extractError) {
+          errorInfo.extractionError = String(extractError);
+          errorInfo.rawError = String(templateError);
         }
-        if ("hint" in templateError) {
-          errorInfo.hint = (templateError as { hint?: unknown }).hint;
+        
+        if (Object.keys(errorInfo).length === 0) {
+          errorInfo.message = String(templateError);
         }
-        if ("statusCode" in templateError) {
-          errorInfo.statusCode = (
-            templateError as { statusCode?: unknown }
-          ).statusCode;
-        }
-        console.error("[PlanGroupDetailPage] 템플릿 조회 에러:", errorInfo, {
-          camp_template_id: group.camp_template_id,
-        });
+        
+        console.error(
+          "[PlanGroupDetailPage] 템플릿 조회 에러:",
+          errorInfo,
+          {
+            camp_template_id: group.camp_template_id,
+          },
+          "원본 에러:",
+          templateError
+        );
       } else if (!template) {
         console.warn(
           "[PlanGroupDetailPage] 템플릿을 찾을 수 없음:",
@@ -241,31 +270,58 @@ export default async function PlanGroupDetailPage({
               .maybeSingle();
 
           if (blockSetError) {
-            // Supabase 에러 객체의 주요 속성 추출
-            const errorInfo: Record<string, unknown> = {
-              message: blockSetError.message || String(blockSetError),
-              code: blockSetError.code || "UNKNOWN",
-            };
-            if ("details" in blockSetError) {
-              errorInfo.details = (
-                blockSetError as { details?: unknown }
-              ).details;
+            // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
+            const errorInfo: Record<string, unknown> = {};
+            
+            // 에러 객체의 모든 속성 추출 시도
+            try {
+              if (blockSetError instanceof Error) {
+                errorInfo.message = blockSetError.message;
+                errorInfo.name = blockSetError.name;
+                errorInfo.stack = blockSetError.stack;
+              } else if (typeof blockSetError === "object" && blockSetError !== null) {
+                // 일반 객체인 경우 모든 속성 복사
+                Object.keys(blockSetError).forEach((key) => {
+                  try {
+                    errorInfo[key] = (blockSetError as Record<string, unknown>)[key];
+                  } catch {
+                    // 속성 접근 실패 시 무시
+                  }
+                });
+              } else {
+                errorInfo.value = String(blockSetError);
+              }
+              
+              // Supabase 에러의 표준 속성들 확인
+              const standardKeys = ["message", "code", "details", "hint", "statusCode"];
+              standardKeys.forEach((key) => {
+                if (key in blockSetError) {
+                  try {
+                    errorInfo[key] = (blockSetError as Record<string, unknown>)[key];
+                  } catch {
+                    // 속성 접근 실패 시 무시
+                  }
+                }
+              });
+            } catch (extractError) {
+              errorInfo.extractionError = String(extractError);
+              errorInfo.rawError = String(blockSetError);
             }
-            if ("hint" in blockSetError) {
-              errorInfo.hint = (blockSetError as { hint?: unknown }).hint;
+            
+            // 최소한의 정보라도 보장
+            if (Object.keys(errorInfo).length === 0) {
+              errorInfo.message = String(blockSetError);
             }
-            if ("statusCode" in blockSetError) {
-              errorInfo.statusCode = (
-                blockSetError as { statusCode?: unknown }
-              ).statusCode;
-            }
+            
             console.error(
               "[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
               errorInfo,
               {
                 block_set_id: blockSetId,
                 template_id: group.camp_template_id,
-              }
+              },
+              "원본 에러:",
+              blockSetError
             );
           } else if (templateBlockSet) {
             // template_id 일치 확인 (보안 검증)
@@ -291,30 +347,53 @@ export default async function PlanGroupDetailPage({
                 .order("start_time", { ascending: true });
 
               if (blocksError) {
-                // Supabase 에러 객체의 주요 속성 추출
-                const errorInfo: Record<string, unknown> = {
-                  message: blocksError.message || String(blocksError),
-                  code: blocksError.code || "UNKNOWN",
-                };
-                if ("details" in blocksError) {
-                  errorInfo.details = (
-                    blocksError as { details?: unknown }
-                  ).details;
+                // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
+                const errorInfo: Record<string, unknown> = {};
+                
+                try {
+                  if (blocksError instanceof Error) {
+                    errorInfo.message = blocksError.message;
+                    errorInfo.name = blocksError.name;
+                    errorInfo.stack = blocksError.stack;
+                  } else if (typeof blocksError === "object" && blocksError !== null) {
+                    Object.keys(blocksError).forEach((key) => {
+                      try {
+                        errorInfo[key] = (blocksError as Record<string, unknown>)[key];
+                      } catch {
+                        // 속성 접근 실패 시 무시
+                      }
+                    });
+                  } else {
+                    errorInfo.value = String(blocksError);
+                  }
+                  
+                  const standardKeys = ["message", "code", "details", "hint", "statusCode"];
+                  standardKeys.forEach((key) => {
+                    if (key in blocksError) {
+                      try {
+                        errorInfo[key] = (blocksError as Record<string, unknown>)[key];
+                      } catch {
+                        // 속성 접근 실패 시 무시
+                      }
+                    }
+                  });
+                } catch (extractError) {
+                  errorInfo.extractionError = String(extractError);
+                  errorInfo.rawError = String(blocksError);
                 }
-                if ("hint" in blocksError) {
-                  errorInfo.hint = (blocksError as { hint?: unknown }).hint;
+                
+                if (Object.keys(errorInfo).length === 0) {
+                  errorInfo.message = String(blocksError);
                 }
-                if ("statusCode" in blocksError) {
-                  errorInfo.statusCode = (
-                    blocksError as { statusCode?: unknown }
-                  ).statusCode;
-                }
+                
                 console.error(
                   "[PlanGroupDetailPage] 템플릿 블록 조회 에러:",
                   errorInfo,
                   {
                     template_block_set_id: templateBlockSet.id,
-                  }
+                  },
+                  "원본 에러:",
+                  blocksError
                 );
               } else if (blocks && blocks.length > 0) {
                 templateBlocks = blocks.map((b) => ({
