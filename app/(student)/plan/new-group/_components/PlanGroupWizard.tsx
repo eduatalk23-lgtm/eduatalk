@@ -1307,6 +1307,7 @@ export function PlanGroupWizard({
             data={wizardData}
             onEditStep={(step) => setCurrentStep(step)}
             isCampMode={isCampMode}
+            isAdminContinueMode={isAdminContinueMode}
           />
         )}
         {currentStep === 6 && draftGroupId && (!isCampMode || isAdminContinueMode) && (

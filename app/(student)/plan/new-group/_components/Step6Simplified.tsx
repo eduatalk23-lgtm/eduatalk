@@ -27,12 +27,14 @@ export type Step6SimplifiedProps = {
   data: WizardData;
   onEditStep: (step: 1 | 2 | 4) => void;
   isCampMode?: boolean;
+  isAdminContinueMode?: boolean;
 };
 
 export function Step6Simplified({
   data,
   onEditStep,
   isCampMode = false,
+  isAdminContinueMode = false,
 }: Step6SimplifiedProps) {
   return (
     <div className="space-y-6">
@@ -82,14 +84,17 @@ export function Step6Simplified({
           <LearningVolumeSummary data={data} />
         </CollapsibleSection>
 
-        {/* 5. 전략/취약 과목 (캠프 모드만) */}
-        {isCampMode &&
-          data.subject_allocations &&
-          data.subject_allocations.length > 0 && (
-            <CollapsibleSection title="전략과목/취약과목" defaultOpen={false}>
-              <SubjectAllocationSummary data={data} />
-            </CollapsibleSection>
-          )}
+        {/* 5. 전략/취약 과목 */}
+        {/* 관리자 모드에서는 항상 표시, 일반 모드에서는 캠프 모드이고 1730_timetable이고 subject_allocations가 있을 때만 표시 */}
+        {(isAdminContinueMode ||
+          (isCampMode &&
+            data.scheduler_type === "1730_timetable" &&
+            data.subject_allocations &&
+            data.subject_allocations.length > 0)) && (
+          <CollapsibleSection title="전략과목/취약과목" defaultOpen={false}>
+            <SubjectAllocationSummary data={data} />
+          </CollapsibleSection>
+        )}
       </div>
 
       {/* 안내 메시지 */}
