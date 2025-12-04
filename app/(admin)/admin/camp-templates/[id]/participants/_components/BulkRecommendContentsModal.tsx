@@ -313,7 +313,7 @@ export function BulkRecommendContentsModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} maxWidth="2xl">
+    <Dialog open={open} onOpenChange={onOpenChange} maxWidth="4xl">
       <div className="max-h-[90vh] overflow-y-auto p-6 md:p-8">
         <h2 className="text-xl font-semibold text-gray-900">
           추천 콘텐츠 일괄 적용
@@ -390,7 +390,7 @@ export function BulkRecommendContentsModal({
             <label className="block text-xs font-medium text-gray-700 mb-3">
               모든 학생에게 일괄 적용
             </label>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="flex flex-row gap-3 items-center">
               {AVAILABLE_SUBJECTS.map((subject) => {
                 const current = globalSubjectCounts[subject] || 0;
                 return (
@@ -435,7 +435,7 @@ export function BulkRecommendContentsModal({
               <button
                 type="button"
                 onClick={handleGlobalApply}
-                className="sm:ml-auto rounded bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                className="ml-auto rounded bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
               >
                 적용
               </button>

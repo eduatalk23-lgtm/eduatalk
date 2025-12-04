@@ -509,7 +509,7 @@ export function CampParticipantsList({
   const handleToggleSelect = (participant: Participant) => {
     // 플랜 그룹이 있으면 plan_group_id, 없으면 invitation_id를 키로 사용
     const key = participant.plan_group_id || participant.invitation_id;
-    
+
     setSelectedParticipantIds((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -864,15 +864,15 @@ export function CampParticipantsList({
                     return selectedParticipantIds.has(key) && p.plan_group_id !== null;
                   });
                   return selectedWithGroup.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={handleBatchActivate}
-                      disabled={isPending}
-                      className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      title="선택한 참여자의 플랜 그룹을 활성화합니다"
-                    >
+                <button
+                  type="button"
+                  onClick={handleBatchActivate}
+                  disabled={isPending}
+                  className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  title="선택한 참여자의 플랜 그룹을 활성화합니다"
+                >
                       일괄 활성화 ({selectedWithGroup.length})
-                    </button>
+                </button>
                   ) : null;
                 })()}
                 <select
@@ -902,20 +902,20 @@ export function CampParticipantsList({
           <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white">
             <thead className="bg-gray-50">
               <tr>
-                  <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                    <input
-                      type="checkbox"
-                      checked={
+                <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  <input
+                    type="checkbox"
+                    checked={
                         filteredParticipants.length > 0 &&
                         filteredParticipants.every((p) => {
                           const key = p.plan_group_id || p.invitation_id;
                           return selectedParticipantIds.has(key);
                         })
-                      }
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                  </th>
+                    }
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
                 <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   학생명
                 </th>
