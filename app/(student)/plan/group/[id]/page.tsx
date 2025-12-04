@@ -223,7 +223,7 @@ export default async function PlanGroupDetailPage({
           }
         }
 
-        // block_set_id 찾기: scheduler_options에서 먼저 확인 (실제 저장된 값), 없으면 template_data에서 확인
+        // block_set_id 찾기: 여러 경로에서 확인
         let blockSetId: string | null = null;
 
         // 1. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로 - 우선 확인)
@@ -251,42 +251,58 @@ export default async function PlanGroupDetailPage({
           }
         }
 
-        // 2. template_data에서 block_set_id 확인 (fallback)
+        // 2. 연결 테이블에서 block_set_id 확인 (새로운 방식)
+        if (!blockSetId && group.camp_template_id) {
+          const { data: templateBlockSetLink } = await supabase
+            .from("camp_template_block_sets")
+            .select("tenant_block_set_id")
+            .eq("camp_template_id", group.camp_template_id)
+            .maybeSingle();
+
+          if (templateBlockSetLink) {
+            blockSetId = templateBlockSetLink.tenant_block_set_id;
+            console.log(
+              "[PlanGroupDetailPage] 연결 테이블에서 block_set_id 발견:",
+              blockSetId
+            );
+          }
+        }
+
+        // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
         if (!blockSetId && templateData?.block_set_id) {
           blockSetId = templateData.block_set_id;
           console.log(
-            "[PlanGroupDetailPage] template_data에서 block_set_id 발견:",
+            "[PlanGroupDetailPage] template_data에서 block_set_id 발견 (하위 호환성):",
             blockSetId
           );
         }
 
         if (blockSetId) {
-          // 템플릿 블록 세트 조회 (template_id 조건 제거 - block_set_id만으로 조회)
-          console.log("[PlanGroupDetailPage] 템플릿 블록 세트 조회 시도:", {
+          // tenant_block_sets에서 블록 세트 조회 (올바른 테이블 사용)
+          console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 시도:", {
             block_set_id: blockSetId,
             template_id: group.camp_template_id,
+            tenant_id: tenantContext?.tenantId,
           });
-          
-          const { data: templateBlockSet, error: blockSetError } =
-            await supabase
-              .from("template_block_sets")
-              .select("id, name, template_id")
+
+          if (!tenantContext?.tenantId) {
+            console.warn("[PlanGroupDetailPage] tenant_id가 없어 블록 세트 조회 불가");
+          } else {
+            const { data: templateBlockSet, error: blockSetError } = await supabase
+              .from("tenant_block_sets")
+              .select("id, name")
               .eq("id", blockSetId)
+              .eq("tenant_id", tenantContext.tenantId)
               .maybeSingle();
 
-          // 에러 존재 여부와 데이터 존재 여부를 상세히 로깅
-          console.log("[PlanGroupDetailPage] 템플릿 블록 세트 조회 결과:", {
-            hasError: !!blockSetError,
-            hasData: !!templateBlockSet,
-            errorType: typeof blockSetError,
-            errorIsNull: blockSetError === null,
-            errorIsUndefined: blockSetError === undefined,
-            errorConstructor: blockSetError?.constructor?.name,
-            errorKeys: blockSetError && typeof blockSetError === "object" ? Object.keys(blockSetError) : null,
-            data: templateBlockSet,
-          });
+            console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 결과:", {
+              hasError: !!blockSetError,
+              hasData: !!templateBlockSet,
+              block_set_id: blockSetId,
+              tenant_id: tenantContext.tenantId,
+            });
 
-          if (blockSetError) {
+            if (blockSetError) {
             // 에러 객체를 여러 방법으로 직렬화 시도
             let errorStringified = "";
             let errorSerialized = {};
@@ -383,27 +399,19 @@ export default async function PlanGroupDetailPage({
               }
             );
           } else if (templateBlockSet) {
-            // template_id 일치 확인 (보안 검증)
-            if (templateBlockSet.template_id !== group.camp_template_id) {
-              console.warn("[PlanGroupDetailPage] 템플릿 ID 불일치:", {
-                block_set_id: blockSetId,
-                expected_template_id: group.camp_template_id,
-                actual_template_id: templateBlockSet.template_id,
-              });
-            } else {
-              templateBlockSetName = templateBlockSet.name;
-              console.log("[PlanGroupDetailPage] 템플릿 블록 세트 조회 성공:", {
-                id: templateBlockSet.id,
-                name: templateBlockSet.name,
-              });
+            templateBlockSetName = templateBlockSet.name;
+            console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 성공:", {
+              id: templateBlockSet.id,
+              name: templateBlockSet.name,
+            });
 
-              // 템플릿 블록 조회
-              const { data: blocks, error: blocksError } = await supabase
-                .from("template_blocks")
-                .select("id, day_of_week, start_time, end_time")
-                .eq("template_block_set_id", templateBlockSet.id)
-                .order("day_of_week", { ascending: true })
-                .order("start_time", { ascending: true });
+            // tenant_blocks에서 블록 조회
+            const { data: blocks, error: blocksError } = await supabase
+              .from("tenant_blocks")
+              .select("id, day_of_week, start_time, end_time")
+              .eq("tenant_block_set_id", templateBlockSet.id)
+              .order("day_of_week", { ascending: true })
+              .order("start_time", { ascending: true });
 
               if (blocksError) {
                 // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
@@ -449,7 +457,7 @@ export default async function PlanGroupDetailPage({
                   "[PlanGroupDetailPage] 템플릿 블록 조회 에러:",
                   errorInfo,
                   {
-                    template_block_set_id: templateBlockSet.id,
+                    tenant_block_set_id: templateBlockSet.id,
                   },
                   "원본 에러:",
                   blocksError
@@ -467,11 +475,12 @@ export default async function PlanGroupDetailPage({
                 });
               } else {
                 console.warn("[PlanGroupDetailPage] 템플릿 블록이 없음:", {
-                  block_set_id: blockSetId,
+                  tenant_block_set_id: templateBlockSet.id,
                 });
               }
             }
-          } else {
+          }
+        } else {
             console.warn(
               "[PlanGroupDetailPage] 템플릿 블록 세트를 찾을 수 없음:",
               {
