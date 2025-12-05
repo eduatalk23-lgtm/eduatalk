@@ -218,16 +218,11 @@ export function TenantUsersManagement({
                     <td className="px-6 py-4 text-body-2 text-gray-900">
                       {user.type === "student" ? (
                         <span>
-                          {(user as Extract<TenantUser, { type: "student" }>)
-                            .grade || "-"}
-                          학년
+                          {user.grade || "-"} 학년
                         </span>
                       ) : (
                         <span>
-                          {
-                            (user as Extract<TenantUser, { type: "parent" }>)
-                              .relationship || "-"
-                          }
+                          {user.relationship || "-"}
                         </span>
                       )}
                     </td>
