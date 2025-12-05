@@ -612,9 +612,15 @@ export function PlanGroupWizard({
       return;
     }
 
-    // Step 5 (최종 확인)에서 다음 버튼 클릭 시 플랜 생성 및 Step 6으로 이동
+    // Step 5 (최종 확인)에서 다음 버튼 클릭 시
     if (currentStep === 5) {
-      handleSubmit(true); // 플랜 생성
+      // 관리자 continue 모드에서는 플랜 생성하지 않고 데이터만 저장 후 Step 6으로 이동
+      // 일반 모드에서는 플랜 생성 후 Step 6으로 이동
+      if (isAdminContinueMode) {
+        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
+      } else {
+        handleSubmit(true); // 플랜 생성
+      }
       return;
     }
 
@@ -904,14 +910,14 @@ export function PlanGroupWizard({
 
               if (result.success) {
                 toast.showSuccess("저장되었습니다.");
-                // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
-                if (currentStep === 4 && !generatePlans) {
+                // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동
+                if (currentStep === 4) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
                   setCurrentStep(5);
                   return;
                 }
-                // Step 5에서 호출된 경우 플랜 생성 후 Step 6으로 이동
-                if (currentStep === 5 && generatePlans) {
+                // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동 (플랜 생성은 Step 7에서)
+                if (currentStep === 5) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
                   setCurrentStep(6);
                   return;
@@ -922,17 +928,7 @@ export function PlanGroupWizard({
                   setCurrentStep(7);
                   return;
                 }
-                // Step 7에서 완료 후 참여자 목록으로 이동
-                if (currentStep === 7) {
-                  // templateId를 initialData에서 가져오기
-                  const templateId = initialData?.templateId;
-                  if (templateId) {
-                    router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
-                  } else {
-                    router.push(`/admin/camp-templates`, { scroll: true });
-                  }
-                  return;
-                }
+                // Step 7은 onComplete에서 처리 (플랜 생성 및 페이지 이동)
               } else {
                 const errorMessage = result.error || "저장에 실패했습니다.";
                 setValidationErrors([errorMessage]);
@@ -1342,48 +1338,33 @@ export function PlanGroupWizard({
             onComplete={async () => {
               // 관리자 continue 모드에서는 플랜 생성 및 페이지 이동 처리
               if (isAdminContinueMode) {
-                console.log("[PlanGroupWizard] Step 7 완료 - 관리자 continue 모드", {
-                  draftGroupId,
-                  initialDataGroupId: initialData?.groupId,
-                  initialDataTemplateId: initialData?.templateId,
-                  currentStep,
-                });
-
                 try {
                   const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
                   
-                  console.log("[PlanGroupWizard] continueCampStepsForAdmin 호출 시작");
+                  // Step 7에서 플랜 생성 및 저장
                   const result = await continueCampStepsForAdmin(
                     draftGroupId || (initialData?.groupId as string),
                     wizardData,
                     currentStep
                   );
-                  console.log("[PlanGroupWizard] continueCampStepsForAdmin 결과:", result);
 
                   if (result.success) {
-                    toast.showSuccess("저장되었습니다.");
-                    // templateId를 initialData에서 가져오기
+                    toast.showSuccess("플랜이 생성되었습니다.");
+                    // 참여자 목록 페이지로 이동
                     const templateId = initialData?.templateId;
-                    console.log("[PlanGroupWizard] 페이지 이동 준비:", { templateId });
-                    
                     if (templateId) {
-                      const targetUrl = `/admin/camp-templates/${templateId}/participants`;
-                      console.log("[PlanGroupWizard] 페이지 이동:", targetUrl);
-                      // 서버 사이드 리다이렉트를 우회하기 위해 window.location 사용
-                      window.location.href = targetUrl;
+                      window.location.href = `/admin/camp-templates/${templateId}/participants`;
                     } else {
-                      console.log("[PlanGroupWizard] templateId 없음, 기본 경로로 이동");
                       window.location.href = `/admin/camp-templates`;
                     }
                   } else {
-                    const errorMessage = result.error || "저장에 실패했습니다.";
-                    console.error("[PlanGroupWizard] 저장 실패:", errorMessage);
+                    const errorMessage = result.error || "플랜 생성에 실패했습니다.";
                     setValidationErrors([errorMessage]);
                     toast.showError(errorMessage);
                   }
                 } catch (error) {
-                  console.error("[PlanGroupWizard] 관리자 캠프 남은 단계 진행 실패:", error);
-                  const errorMessage = error instanceof Error ? error.message : "저장에 실패했습니다.";
+                  console.error("[PlanGroupWizard] 관리자 캠프 플랜 생성 실패:", error);
+                  const errorMessage = error instanceof Error ? error.message : "플랜 생성에 실패했습니다.";
                   setValidationErrors([errorMessage]);
                   toast.showError(errorMessage);
                 }
@@ -1464,7 +1445,9 @@ export function PlanGroupWizard({
             : currentStep === 4 && isCampMode && !isAdminContinueMode
             ? "참여 제출하기"
             : currentStep === 5
-            ? isEditMode
+            ? isAdminContinueMode
+              ? "다음 단계로"
+              : isEditMode
               ? "수정 및 플랜 생성"
               : "플랜 생성하기"
             : currentStep === 6

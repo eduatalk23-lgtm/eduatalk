@@ -2491,9 +2491,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
       }
 
-      // Step 5 또는 Step 7일 때 플랜 생성
-      // Step 6에서는 플랜 생성하지 않고 Step 7로 이동만 함 (플랜 생성은 Step 7에서)
-      if (step === 5 || step === 7) {
+      // Step 7에서만 플랜 생성
+      // Step 4, 5, 6에서는 데이터 저장만 수행
+      if (step === 7) {
         // 플랜 생성 전 필수 데이터 검증
         const validationErrors: string[] = [];
 
