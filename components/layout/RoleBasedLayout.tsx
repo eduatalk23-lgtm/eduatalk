@@ -112,7 +112,9 @@ export function RoleBasedLayout({
         )}
 
         {/* 페이지 콘텐츠 */}
-        <div className="flex-1">{children}</div>
+        <div className="flex-1">
+          {children}
+        </div>
       </main>
     </div>
   );

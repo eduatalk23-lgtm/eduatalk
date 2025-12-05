@@ -89,7 +89,7 @@ export default function SubjectTable({
   }
 
   const sortedSubjects = [...subjects].sort(
-    (a, b) => a.display_order - b.display_order || a.name.localeCompare(b.name)
+    (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || a.name.localeCompare(b.name)
   );
 
   return (

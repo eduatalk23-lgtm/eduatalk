@@ -124,7 +124,7 @@ async function _unlinkBlockSetFromTemplate(templateId: string): Promise<void> {
 async function _getTemplateBlockSet(templateId: string): Promise<{
   id: string;
   name: string;
-  blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
+  blocks: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
 } | null> {
   await requireAdminOrConsultant();
 

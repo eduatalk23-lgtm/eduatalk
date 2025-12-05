@@ -1405,6 +1405,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
       } else {
         // block_set_id 찾기: camp_template_id로 직접 조회 (가장 간단하고 명확한 방법)
         let tenantBlockSetId: string | null = null;
+        const schedulerOptions = (result.group.scheduler_options as any) || {};
         
         // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
         const { data: templateBlockSetLink, error: linkError } = await supabase
@@ -1425,7 +1426,6 @@ export const getCampPlanGroupForReview = withErrorHandling(
 
         // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
         if (!tenantBlockSetId) {
-          const schedulerOptions = (result.group.scheduler_options as any) || {};
           let templateBlockSetId = schedulerOptions.template_block_set_id;
 
           console.log("[getCampPlanGroupForReview] scheduler_options에서 조회:", {

@@ -115,7 +115,7 @@ export default function UnifiedSubjectForm({
           const subject = data.find((s) => s.id === defaultSubjectId);
           if (subject) {
             setSubjectName(subject.name);
-            setDisplayOrder(subject.display_order);
+            setDisplayOrder(subject.display_order ?? 0);
             setSelectedSubjectTypeId(subject.subject_type_id || "");
           }
         } else {

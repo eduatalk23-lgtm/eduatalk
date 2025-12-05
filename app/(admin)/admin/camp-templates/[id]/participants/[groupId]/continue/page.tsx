@@ -263,12 +263,15 @@ export default async function CampContinuePage({
   };
   
   // 필터링 후 최종 결과 로깅
+  const recommendedContentsArray = Array.isArray(filteredWizardData.recommended_contents) 
+    ? filteredWizardData.recommended_contents 
+    : [];
   console.log("[CampContinuePage] 필터링 후 최종 결과:", {
     groupId,
     studentId,
     originalStudentContentsCount: wizardData.student_contents.length,
     finalStudentContentsCount: filteredWizardData.student_contents?.length ?? 0,
-    finalRecommendedContentsCount: filteredWizardData.recommended_contents?.length ?? 0,
+    finalRecommendedContentsCount: recommendedContentsArray.length,
     originalRecommendedContentsCount: wizardData.recommended_contents.length,
     studentContentsWillBePreserved: filteredWizardData.student_contents === undefined,
     recommendedContentsWillBePreserved: filteredWizardData.recommended_contents === undefined,

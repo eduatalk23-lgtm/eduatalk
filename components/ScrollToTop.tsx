@@ -8,7 +8,15 @@ import { scrollToTop } from "@/lib/utils/scroll";
  */
 export function ScrollToTop() {
   useEffect(() => {
-    scrollToTop();
+    // DOM이 준비된 후에만 스크롤 실행
+    if (typeof window !== "undefined") {
+      // 다음 틱에서 실행하여 DOM이 완전히 렌더링된 후 실행
+      const timer = setTimeout(() => {
+        scrollToTop();
+      }, 0);
+      
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   return null;

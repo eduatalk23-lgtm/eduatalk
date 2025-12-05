@@ -12,7 +12,7 @@ type School = {
   name: string;
   type: "중학교" | "고등학교" | "대학교";
   school_code?: string | null;
-  region_id: string | null;
+  region_id?: string | null;
   region: string | null;
   address?: string | null;
   postal_code?: string | null;
@@ -20,9 +20,9 @@ type School = {
   city?: string | null;
   district?: string | null;
   phone?: string | null;
-  category?: "일반고" | "특목고" | "자사고" | "특성화고" | null;
-  university_type?: "4년제" | "2년제" | null;
-  university_ownership?: "국립" | "사립" | null;
+  category?: string | null;
+  university_type?: string | null;
+  university_ownership?: string | null;
   campus_name?: string | null;
 };
 

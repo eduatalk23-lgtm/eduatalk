@@ -41,15 +41,15 @@ export default function SchoolFormModal({
   // 고등학교 속성
   const [category, setCategory] = useState<
     "일반고" | "특목고" | "자사고" | "특성화고" | ""
-  >(school?.category || "");
+  >((school?.category as "일반고" | "특목고" | "자사고" | "특성화고" | "" | null | undefined) || "");
 
   // 대학교 속성
   const [universityType, setUniversityType] = useState<"4년제" | "2년제" | "">(
-    school?.university_type || ""
+    (school?.university_type as "4년제" | "2년제" | "" | null | undefined) || ""
   );
   const [universityOwnership, setUniversityOwnership] = useState<
     "국립" | "사립" | ""
-  >(school?.university_ownership || "");
+  >((school?.university_ownership as "국립" | "사립" | "" | null | undefined) || "");
   const [campusName, setCampusName] = useState(school?.campus_name || "");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
