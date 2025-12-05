@@ -398,6 +398,7 @@ export function Step3ContentSelection({
           end_range: number;
           title?: string;
           subject_category?: string;
+          is_auto_recommended?: boolean;
         }> = [];
 
         for (const r of filteredRecommendations) {
