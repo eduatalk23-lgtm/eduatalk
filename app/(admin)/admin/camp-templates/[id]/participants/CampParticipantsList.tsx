@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BatchOperationDialog } from "./_components/BatchOperationDialog";
@@ -35,6 +36,7 @@ export function CampParticipantsList({
   templateName,
 }: CampParticipantsListProps) {
   const toast = useToast();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,12 +51,22 @@ export function CampParticipantsList({
   const [batchStatus, setBatchStatus] = useState<string>("active");
   const [bulkRecommendModalOpen, setBulkRecommendModalOpen] = useState(false);
   const [batchWizardOpen, setBatchWizardOpen] = useState(false);
+  
+  // 마지막 로드 시간 추적 (중복 로드 방지)
+  const lastLoadTimeRef = useRef<number>(0);
+  const isLoadingRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    loadParticipants();
-  }, [templateId]);
-
-  const loadParticipants = async () => {
+  // loadParticipants 함수를 useCallback으로 메모이제이션
+  const loadParticipants = useCallback(async () => {
+    // 중복 로드 방지: 1초 이내 재요청 차단
+    const now = Date.now();
+    if (isLoadingRef.current || (now - lastLoadTimeRef.current < 1000)) {
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    lastLoadTimeRef.current = now;
+    
     try {
       setLoading(true);
       const supabase = createSupabaseBrowserClient();
@@ -468,32 +480,82 @@ export function CampParticipantsList({
           ? `참여자 목록을 불러오는데 실패했습니다: ${error.message}`
           : "참여자 목록을 불러오는데 실패했습니다."
       );
+      // 에러 발생 시에도 기존 데이터는 유지
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [templateId, toast]);
 
-  // 필터링된 참여자 목록
-  const filteredParticipants = participants.filter((p) => {
-    if (statusFilter === "all") return true;
-    if (statusFilter === "accepted") return p.invitation_status === "accepted";
-    if (statusFilter === "pending") return p.invitation_status === "pending";
-    if (statusFilter === "declined") return p.invitation_status === "declined";
-    return true;
-  });
+  // 초기 로드 및 templateId 변경 시
+  useEffect(() => {
+    loadParticipants();
+  }, [loadParticipants]);
 
-  // 선택 가능한 참여자만 필터링 (플랜이 생성된 참여자만 활성화 가능)
-  const selectableParticipants = filteredParticipants.filter(
-    (p) => p.plan_group_id !== null && p.hasPlans
-  );
+  // 페이지 포커스 시 자동 새로고침 (다른 페이지에서 돌아왔을 때)
+  useEffect(() => {
+    const handleFocus = () => {
+      // 현재 페이지가 참여자 목록 페이지인지 확인
+      if (pathname?.includes('/participants') && !pathname?.includes('/participants/')) {
+        // 마지막 로드 후 5초 이상 지났을 때만 새로고침
+        const now = Date.now();
+        if (now - lastLoadTimeRef.current > 5000) {
+          loadParticipants();
+        }
+      }
+    };
 
-  // 플랜 그룹이 없는 참여자 (플랜 생성 대상)
-  const participantsWithoutGroup = filteredParticipants.filter(
-    (p) => p.plan_group_id === null
-  );
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [pathname, loadParticipants]);
 
-  // 전체 선택/해제 핸들러
-  const handleSelectAll = (checked: boolean) => {
+  // 페이지 가시성 변경 시 (탭 전환 등)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // 마지막 로드 후 10초 이상 지났을 때만 새로고침
+        const now = Date.now();
+        if (now - lastLoadTimeRef.current > 10000) {
+          loadParticipants();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadParticipants]);
+
+  // 필터링된 참여자 목록 (메모이제이션)
+  const filteredParticipants = useMemo(() => {
+    return participants.filter((p) => {
+      if (statusFilter === "all") return true;
+      if (statusFilter === "accepted") return p.invitation_status === "accepted";
+      if (statusFilter === "pending") return p.invitation_status === "pending";
+      if (statusFilter === "declined") return p.invitation_status === "declined";
+      return true;
+    });
+  }, [participants, statusFilter]);
+
+  // 선택 가능한 참여자만 필터링 (플랜이 생성된 참여자만 활성화 가능) - 메모이제이션
+  const selectableParticipants = useMemo(() => {
+    return filteredParticipants.filter(
+      (p) => p.plan_group_id !== null && p.hasPlans
+    );
+  }, [filteredParticipants]);
+
+  // 플랜 그룹이 없는 참여자 (플랜 생성 대상) - 메모이제이션
+  const participantsWithoutGroup = useMemo(() => {
+    return filteredParticipants.filter(
+      (p) => p.plan_group_id === null
+    );
+  }, [filteredParticipants]);
+
+  // 전체 선택/해제 핸들러 (메모이제이션)
+  const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
       const selectableIds = new Set<string>();
       // 플랜 그룹이 있는 경우 plan_group_id, 없는 경우 invitation_id 사용
@@ -505,10 +567,10 @@ export function CampParticipantsList({
     } else {
       setSelectedParticipantIds(new Set());
     }
-  };
+  }, [filteredParticipants]);
 
-  // 개별 선택/해제 핸들러 (플랜 그룹이 없어도 선택 가능하도록 invitation_id 사용)
-  const handleToggleSelect = (participant: Participant) => {
+  // 개별 선택/해제 핸들러 (메모이제이션)
+  const handleToggleSelect = useCallback((participant: Participant) => {
     // 플랜 그룹이 있으면 plan_group_id, 없으면 invitation_id를 키로 사용
     const key = participant.plan_group_id || participant.invitation_id;
 
@@ -521,15 +583,19 @@ export function CampParticipantsList({
       }
       return next;
     });
-  };
+  }, []);
 
-  // 필터 변경 시 선택 해제
+  // 필터 변경 시 선택 해제 (필터가 실제로 변경되었을 때만)
+  const prevStatusFilterRef = useRef<string>(statusFilter);
   useEffect(() => {
-    setSelectedParticipantIds(new Set());
+    if (prevStatusFilterRef.current !== statusFilter) {
+      setSelectedParticipantIds(new Set());
+      prevStatusFilterRef.current = statusFilter;
+    }
   }, [statusFilter]);
 
-  // 일괄 작업 핸들러
-  const handleBatchActivate = () => {
+  // 일괄 작업 핸들러 (메모이제이션)
+  const handleBatchActivate = useCallback(() => {
     // 플랜 그룹이 있는 학생들만 필터링
     const selectedWithGroup = participants.filter((p) => {
       const key = p.plan_group_id || p.invitation_id;
@@ -544,9 +610,9 @@ export function CampParticipantsList({
     setBatchOperationType("activate");
     setBatchStatus("active");
     setBatchDialogOpen(true);
-  };
+  }, [participants, selectedParticipantIds, toast]);
 
-  const handleBatchStatusChange = (status: string) => {
+  const handleBatchStatusChange = useCallback((status: string) => {
     // 플랜 그룹이 있는 학생들만 필터링
     const selectedWithGroup = participants.filter((p) => {
       const key = p.plan_group_id || p.invitation_id;
@@ -561,10 +627,10 @@ export function CampParticipantsList({
     setBatchOperationType("status_change");
     setBatchStatus(status);
     setBatchDialogOpen(true);
-  };
+  }, [participants, selectedParticipantIds, toast]);
 
   // 플랜 그룹 일괄 생성 핸들러
-  const handleBulkCreatePlanGroups = async () => {
+  const handleBulkCreatePlanGroups = useCallback(async () => {
     // 플랜 그룹이 없는 학생들만 필터링
     const selectedWithoutGroup = participants.filter((p) => {
       const key = p.plan_group_id || p.invitation_id;
@@ -586,8 +652,12 @@ export function CampParticipantsList({
           toast.showSuccess(
             `${result.successCount}명의 학생에게 플랜 그룹이 생성되었습니다.`
           );
-          await loadParticipants();
+          // 상태 초기화 후 데이터 새로고침
           setSelectedParticipantIds(new Set());
+          // 약간의 지연을 두어 DB 동기화 시간 확보
+          setTimeout(() => {
+            loadParticipants();
+          }, 500);
         } else {
           const errorMsg =
             result.errors && result.errors.length > 0
@@ -596,7 +666,10 @@ export function CampParticipantsList({
           toast.showError(errorMsg);
 
           if (result.successCount > 0) {
-            await loadParticipants();
+            // 부분 성공 시에도 데이터 새로고침
+            setTimeout(() => {
+              loadParticipants();
+            }, 500);
           }
         }
       } catch (error) {
@@ -606,9 +679,9 @@ export function CampParticipantsList({
         );
       }
     });
-  };
+  }, [participants, selectedParticipantIds, templateId, toast, loadParticipants]);
 
-  const handleBatchConfirm = async () => {
+  const handleBatchConfirm = useCallback(async () => {
     if (selectedParticipantIds.size === 0) {
       toast.showError("선택된 참여자가 없습니다.");
       setBatchDialogOpen(false);
@@ -633,7 +706,10 @@ export function CampParticipantsList({
           );
           setSelectedParticipantIds(new Set());
           setBatchDialogOpen(false);
-          await loadParticipants();
+          // 약간의 지연을 두어 DB 동기화 시간 확보
+          setTimeout(() => {
+            loadParticipants();
+          }, 500);
         } else {
           const errorMsg =
             result.errors && result.errors.length > 0
@@ -649,7 +725,10 @@ export function CampParticipantsList({
               )
             );
             setSelectedParticipantIds(successIds);
-            await loadParticipants();
+            // 부분 성공 시에도 데이터 새로고침
+            setTimeout(() => {
+              loadParticipants();
+            }, 500);
           }
         }
       } catch (error) {
@@ -659,23 +738,32 @@ export function CampParticipantsList({
         );
       }
     });
-  };
+  }, [selectedParticipantIds, participants, batchStatus, toast, loadParticipants]);
 
-  // 통계
-  const stats = {
-    total: participants.length,
-    accepted: participants.filter((p) => p.display_status === "accepted")
-      .length,
-    pending: participants.filter(
-      (p) => p.display_status === "pending" || p.display_status === "submitted"
-    ).length,
-    declined: participants.filter((p) => p.display_status === "declined")
-      .length,
-    withPlan: participants.filter((p) => p.plan_group_id !== null).length,
-    needsAction: participants.filter(
+  // 통계 (메모이제이션)
+  const stats = useMemo(() => {
+    return {
+      total: participants.length,
+      accepted: participants.filter((p) => p.display_status === "accepted")
+        .length,
+      pending: participants.filter(
+        (p) => p.display_status === "pending" || p.display_status === "submitted"
+      ).length,
+      declined: participants.filter((p) => p.display_status === "declined")
+        .length,
+      withPlan: participants.filter((p) => p.plan_group_id !== null).length,
+      needsAction: participants.filter(
+        (p) => p.plan_group_id !== null && !p.hasPlans
+      ).length,
+    };
+  }, [participants]);
+
+  // 작업이 필요한 참여자 목록 (메모이제이션)
+  const needsActionParticipants = useMemo(() => {
+    return participants.filter(
       (p) => p.plan_group_id !== null && !p.hasPlans
-    ).length,
-  };
+    );
+  }, [participants]);
 
   if (loading) {
     return (
@@ -687,10 +775,6 @@ export function CampParticipantsList({
     );
   }
 
-  // 작업이 필요한 참여자 목록 (플랜 그룹이 있지만 플랜이 생성되지 않은 경우)
-  const needsActionParticipants = participants.filter(
-    (p) => p.plan_group_id !== null && !p.hasPlans
-  );
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -1127,10 +1211,14 @@ export function CampParticipantsList({
                               )}
                               <div className="mt-1 flex gap-2">
                                 <button
-                                  onClick={() => loadParticipants()}
-                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                  onClick={() => {
+                                    lastLoadTimeRef.current = 0; // 강제 새로고침
+                                    loadParticipants();
+                                  }}
+                                  disabled={loading}
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  새로고침
+                                  {loading ? "새로고침 중..." : "새로고침"}
                                 </button>
                                 <Link
                                   href={`/admin/camp-templates/${templateId}/participants?studentId=${participant.student_id}`}
@@ -1171,8 +1259,11 @@ export function CampParticipantsList({
               studentName: p.student_name,
             }))}
           onSuccess={() => {
-            loadParticipants();
             setSelectedParticipantIds(new Set());
+            // 약간의 지연을 두어 DB 동기화 시간 확보
+            setTimeout(() => {
+              loadParticipants();
+            }, 500);
           }}
         />
 
@@ -1192,7 +1283,10 @@ export function CampParticipantsList({
               studentName: p.student_name,
             }))}
           onSuccess={() => {
-            loadParticipants();
+            // 약간의 지연을 두어 DB 동기화 시간 확보
+            setTimeout(() => {
+              loadParticipants();
+            }, 500);
           }}
         />
 
