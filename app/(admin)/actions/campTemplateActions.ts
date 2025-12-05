@@ -1749,6 +1749,15 @@ export const continueCampStepsForAdmin = withErrorHandling(
     const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
     const supabase = createSupabaseAdminClient();
     
+    if (!supabase) {
+      throw new AppError(
+        "서버 설정 오류: Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+    
     console.log("[continueCampStepsForAdmin] Admin 클라이언트 사용 (RLS 우회)");
 
     // 플랜 그룹 조회 및 권한 확인
