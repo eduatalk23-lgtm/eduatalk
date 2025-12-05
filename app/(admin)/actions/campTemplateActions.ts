@@ -2461,28 +2461,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
 
         // 2. 콘텐츠 검증 및 저장 보장
-        // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
-        const studentContents = wizardData.student_contents || [];
-        const recommendedContents = wizardData.recommended_contents || [];
-        const totalContents = studentContents.length + recommendedContents.length;
-
-        console.log("[campTemplateActions] Step 6 콘텐츠 검증 시작:", {
-          groupId,
-          studentContentsCount: studentContents.length,
-          recommendedContentsCount: recommendedContents.length,
-          totalContents,
-          studentContents: studentContents.map((c) => ({
-            content_type: c.content_type,
-            content_id: c.content_id,
-            master_content_id: (c as any).master_content_id,
-          })),
-          recommendedContents: recommendedContents.map((c) => ({
-            content_type: c.content_type,
-            content_id: c.content_id,
-          })),
-        });
-
-        // plan_contents 테이블에 콘텐츠가 있는지 확인
+        // plan_contents 테이블에 콘텐츠가 있는지 먼저 확인 (DB 우선 확인)
         const { data: existingPlanContents } = await supabase
           .from("plan_contents")
           .select("id")
@@ -2491,13 +2470,81 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
         const hasPlanContents = existingPlanContents && existingPlanContents.length > 0;
 
-        console.log("[campTemplateActions] Step 6 plan_contents 확인:", {
+        console.log("[campTemplateActions] Step 6 콘텐츠 검증 시작:", {
+          groupId,
+          step,
           hasPlanContents,
           existingPlanContentsCount: existingPlanContents?.length || 0,
+          wizardDataStudentContents: wizardData.student_contents?.length ?? 0,
+          wizardDataRecommendedContents: wizardData.recommended_contents?.length ?? 0,
+          wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
+          wizardDataRecommendedContentsIsUndefined: wizardData.recommended_contents === undefined,
         });
 
-        // wizardData에 콘텐츠가 있고 plan_contents에 없으면 저장
-        if (totalContents > 0 && !hasPlanContents) {
+        // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
+        // wizardData가 undefined이면 DB에서 콘텐츠를 로드하여 wizardData에 채움
+        let studentContents = wizardData.student_contents || [];
+        let recommendedContents = wizardData.recommended_contents || [];
+        
+        // wizardData에 콘텐츠가 없고 DB에 콘텐츠가 있으면 DB에서 로드
+        if (
+          (wizardData.student_contents === undefined || wizardData.recommended_contents === undefined) &&
+          hasPlanContents
+        ) {
+          console.log("[campTemplateActions] Step 6 DB에서 콘텐츠 로드:", {
+            wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
+            wizardDataRecommendedContentsIsUndefined: wizardData.recommended_contents === undefined,
+            hasPlanContents,
+          });
+          
+          // DB에서 콘텐츠 조회
+          const { getPlanGroupWithDetailsForAdmin } = await import(
+            "@/lib/data/planGroups"
+          );
+          const dbResult = await getPlanGroupWithDetailsForAdmin(
+            groupId,
+            tenantContext.tenantId
+          );
+          
+          if (dbResult.contents && dbResult.contents.length > 0) {
+            // DB 콘텐츠를 wizardData 형식으로 변환
+            const { syncCreationDataToWizardData } = await import(
+              "@/lib/utils/planGroupDataSync"
+            );
+            const dbWizardData = syncCreationDataToWizardData({
+              group: result.group,
+              contents: dbResult.contents,
+              exclusions: dbResult.exclusions || [],
+              academySchedules: dbResult.academySchedules || [],
+            });
+            
+            // wizardData에 채움 (undefined인 경우만)
+            if (wizardData.student_contents === undefined) {
+              studentContents = dbWizardData.student_contents || [];
+            }
+            if (wizardData.recommended_contents === undefined) {
+              recommendedContents = dbWizardData.recommended_contents || [];
+            }
+            
+            console.log("[campTemplateActions] Step 6 DB에서 로드한 콘텐츠:", {
+              loadedStudentContentsCount: studentContents.length,
+              loadedRecommendedContentsCount: recommendedContents.length,
+              totalLoadedContents: studentContents.length + recommendedContents.length,
+            });
+          }
+        }
+        
+        const totalContents = studentContents.length + recommendedContents.length;
+
+        // DB에 콘텐츠가 있으면 저장 로직 스킵 (이미 저장되어 있음)
+        if (hasPlanContents) {
+          console.log("[campTemplateActions] Step 6 콘텐츠 저장 스킵:", {
+            reason: "DB에 이미 콘텐츠가 있음",
+            existingPlanContentsCount: existingPlanContents?.length || 0,
+            wizardDataTotalContents: totalContents,
+          });
+        } else if (totalContents > 0) {
+          // wizardData에 콘텐츠가 있고 plan_contents에 없으면 저장
           console.log("[campTemplateActions] Step 6에서 콘텐츠 저장 필요:", {
             totalContents,
             studentContents: studentContents.length,
@@ -2795,8 +2842,12 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
           if (!finalPlanContents || finalPlanContents.length === 0) {
             validationErrors.push(
-              "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
+              "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요. (wizardData에 콘텐츠가 없고 DB에도 콘텐츠가 저장되지 않았습니다)"
             );
+          } else {
+            console.log("[campTemplateActions] Step 6 최종 검증: DB에 콘텐츠가 있어 플랜 생성 가능:", {
+              finalPlanContentsCount: finalPlanContents.length,
+            });
           }
         }
 
