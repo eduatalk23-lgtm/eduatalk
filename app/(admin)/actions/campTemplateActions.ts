@@ -1779,14 +1779,17 @@ export const continueCampStepsForAdmin = withErrorHandling(
       );
     }
 
-    // 이미 플랜이 생성된 경우 업데이트 불가
+    // 이미 플랜이 생성된 경우 확인
     const { data: plans } = await supabase
       .from("student_plan")
       .select("id")
       .eq("plan_group_id", groupId)
       .limit(1);
 
-    if (plans && plans.length > 0) {
+    const hasPlans = plans && plans.length > 0;
+
+    // Step 7이 아닌 경우에만 플랜 생성 여부 확인 (Step 7에서는 플랜 생성이 목적이므로 허용)
+    if (hasPlans && step !== 7) {
       throw new AppError(
         "이미 플랜이 생성된 그룹은 수정할 수 없습니다.",
         ErrorCode.VALIDATION_ERROR,
@@ -2996,41 +2999,58 @@ export const continueCampStepsForAdmin = withErrorHandling(
           );
         }
 
-        // generatePlansFromGroupAction은 verifyPlanGroupAccess를 사용하여
-        // Admin/Consultant 권한도 지원합니다 (planGroupAuth.ts 참조)
-        const { generatePlansFromGroupAction } = await import(
-          "@/app/(student)/actions/planGroupActions"
-        );
+        // 플랜이 이미 생성되어 있는지 확인
+        const { data: existingPlans } = await supabase
+          .from("student_plan")
+          .select("id")
+          .eq("plan_group_id", groupId)
+          .limit(1);
 
-        try {
-          await generatePlansFromGroupAction(groupId);
+        const plansAlreadyExist = existingPlans && existingPlans.length > 0;
 
-          // 플랜 생성 후 상태를 "saved"로 변경
-          const { error: statusUpdateError } = await supabase
-            .from("plan_groups")
-            .update({ status: "saved", updated_at: new Date().toISOString() })
-            .eq("id", groupId);
+        // 플랜이 이미 생성되어 있으면 플랜 생성 스킵
+        if (!plansAlreadyExist) {
+          // generatePlansFromGroupAction은 verifyPlanGroupAccess를 사용하여
+          // Admin/Consultant 권한도 지원합니다 (planGroupAuth.ts 참조)
+          const { generatePlansFromGroupAction } = await import(
+            "@/app/(student)/actions/planGroupActions"
+          );
 
-          if (statusUpdateError) {
-            console.error(
-              "[campTemplateActions] 플랜 그룹 상태 업데이트 실패:",
-              statusUpdateError
-            );
-            // 상태 업데이트 실패는 경고만 (플랜은 생성됨)
-            console.warn(
-              "[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다."
+          try {
+            await generatePlansFromGroupAction(groupId);
+
+            // 플랜 생성 후 상태를 "saved"로 변경
+            const { error: statusUpdateError } = await supabase
+              .from("plan_groups")
+              .update({ status: "saved", updated_at: new Date().toISOString() })
+              .eq("id", groupId);
+
+            if (statusUpdateError) {
+              console.error(
+                "[campTemplateActions] 플랜 그룹 상태 업데이트 실패:",
+                statusUpdateError
+              );
+              // 상태 업데이트 실패는 경고만 (플랜은 생성됨)
+              console.warn(
+                "[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다."
+              );
+            }
+          } catch (planError) {
+            console.error("[campTemplateActions] 플랜 생성 실패:", planError);
+            throw new AppError(
+              planError instanceof Error
+                ? planError.message
+                : "플랜 생성에 실패했습니다.",
+              ErrorCode.DATABASE_ERROR,
+              500,
+              true
             );
           }
-        } catch (planError) {
-          console.error("[campTemplateActions] 플랜 생성 실패:", planError);
-          throw new AppError(
-            planError instanceof Error
-              ? planError.message
-              : "플랜 생성에 실패했습니다.",
-            ErrorCode.DATABASE_ERROR,
-            500,
-            true
-          );
+        } else {
+          console.log("[campTemplateActions] 플랜이 이미 생성되어 있어 플랜 생성 스킵:", {
+            groupId,
+            existingPlansCount: existingPlans?.length || 0,
+          });
         }
       }
     } catch (error) {

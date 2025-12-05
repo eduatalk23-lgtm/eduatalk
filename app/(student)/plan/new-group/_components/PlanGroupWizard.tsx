@@ -1330,10 +1330,17 @@ export function PlanGroupWizard({
             studentId={(initialData as any)?.student_id}
           />
         )}
-        {currentStep === 6 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
+        {currentStep === 7 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
           <Step7ScheduleResult
             groupId={draftGroupId}
             onComplete={async () => {
+              // 관리자 continue 모드에서는 handleSubmit을 통해 플랜 생성 및 페이지 이동 처리
+              if (isAdminContinueMode) {
+                handleSubmit(true);
+                return;
+              }
+
+              // 일반 모드(학생 모드)에서는 기존 로직 유지
               // 플랜이 실제로 생성되었는지 확인
               try {
                 const checkResult = await checkPlansExistAction(draftGroupId);
