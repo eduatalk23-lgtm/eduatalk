@@ -923,7 +923,8 @@ export function PlanGroupWizard({
                   const templateId = initialData?.templateId;
                   const groupId = draftGroupId || (initialData?.groupId as string);
                   if (templateId && groupId) {
-                    router.push(`/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=6`);
+                    // window.location.href로 확실한 페이지 이동 보장
+                    window.location.href = `/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=6`;
                   } else {
                     setCurrentStep(6);
                   }
@@ -936,7 +937,8 @@ export function PlanGroupWizard({
                   const templateId = initialData?.templateId;
                   const groupId = draftGroupId || (initialData?.groupId as string);
                   if (templateId && groupId) {
-                    router.push(`/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=7`);
+                    // window.location.href로 확실한 페이지 이동 보장
+                    window.location.href = `/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=7`;
                   } else {
                     setCurrentStep(7);
                   }
