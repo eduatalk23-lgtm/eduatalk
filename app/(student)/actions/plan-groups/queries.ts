@@ -11,6 +11,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { timeToMinutes } from "./utils";
 import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
+import type { DailyScheduleInfo } from "@/lib/types/plan";
 
 /**
  * 플랜 그룹의 플랜 목록 조회
@@ -729,9 +730,9 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
       // 폴백: 저장된 daily_schedule에서 exclusion 정보 추출
       if (group.daily_schedule && Array.isArray(group.daily_schedule)) {
-        exclusions = group.daily_schedule
-          .filter((d) => d.exclusion)
-          .map((d) => ({
+        exclusions = (group.daily_schedule as DailyScheduleInfo[])
+          .filter((d: DailyScheduleInfo) => d.exclusion)
+          .map((d: DailyScheduleInfo) => ({
             exclusion_date: d.date,
             exclusion_type: d.exclusion!.exclusion_type,
             reason: d.exclusion!.reason || null,
