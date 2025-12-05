@@ -155,7 +155,8 @@ export function Step6FinalReview({
         }
 
         // 메타데이터가 없으면 상세 정보 API에서 조회
-        if (!metadata && content.content_type !== "custom") {
+        // ContentInfo 타입은 "book" | "lecture"만 포함하므로 "custom" 체크 불필요
+        if (!metadata) {
           try {
             // 캠프 모드에서 관리자의 경우 student_id를 쿼리 파라미터로 추가
             const studentIdParam =
