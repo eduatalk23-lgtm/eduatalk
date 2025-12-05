@@ -155,34 +155,57 @@ export async function getPlanGroupById(
 
   let { data, error } = await query.maybeSingle<PlanGroup>();
 
-  // 컬럼이 없는 경우 fallback (scheduler_options 제외)
+  // 컬럼이 없는 경우 fallback (scheduler_options 포함 시도)
   if (error && error.code === "42703") {
-    console.warn("[data/planGroups] scheduler_options 컬럼이 없어 fallback 쿼리 사용", {
+    console.warn("[data/planGroups] 컬럼 에러 발생, fallback 쿼리 사용", {
       groupId,
       studentId,
       tenantId,
     });
     
-    const fallbackSelect = () =>
+    // 먼저 scheduler_options 포함하여 시도
+    const fallbackSelectWithScheduler = () =>
       supabase
         .from("plan_groups")
         .select(
-          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
         )
         .eq("id", groupId)
         .eq("student_id", studentId)
         .is("deleted_at", null);
     
-    let fallbackQuery = fallbackSelect();
+    let fallbackQuery = fallbackSelectWithScheduler();
     if (tenantId) {
       fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
     }
     
     ({ data, error } = await fallbackQuery.maybeSingle<PlanGroup>());
     
-    // fallback 성공 시 scheduler_options를 null로 설정
-    if (data && !error) {
-      data = { ...data, scheduler_options: null } as PlanGroup;
+    // scheduler_options가 없는 경우 다시 시도
+    if (error && error.code === "42703") {
+      console.warn("[data/planGroups] scheduler_options 컬럼이 없어 최종 fallback 쿼리 사용");
+      
+      const fallbackSelectWithoutScheduler = () =>
+        supabase
+          .from("plan_groups")
+          .select(
+            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+          )
+          .eq("id", groupId)
+          .eq("student_id", studentId)
+          .is("deleted_at", null);
+      
+      let finalFallbackQuery = fallbackSelectWithoutScheduler();
+      if (tenantId) {
+        finalFallbackQuery = finalFallbackQuery.eq("tenant_id", tenantId);
+      }
+      
+      ({ data, error } = await finalFallbackQuery.maybeSingle<PlanGroup>());
+      
+      // 최종 fallback 성공 시 scheduler_options를 null로 설정
+      if (data && !error) {
+        data = { ...data, scheduler_options: null } as PlanGroup;
+      }
     }
   }
 
