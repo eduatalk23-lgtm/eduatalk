@@ -37,6 +37,7 @@ type DailySchedule = {
     start_time: string;
     end_time: string;
   }>;
+  note?: string; // 일정 메모
 };
 
 type Plan = {
