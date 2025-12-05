@@ -540,7 +540,7 @@ export const submitCampParticipation = withErrorHandling(
     // template_block_set_id는 이미 mergedData.scheduler_options에 추가되어 있음
     // syncWizardDataToCreationData에서 scheduler_options를 병합할 때 보존됨
     // 추가 확인: creationData.scheduler_options에 template_block_set_id가 있는지 확인
-    if (!creationData.scheduler_options?.template_block_set_id && blockSetId) {
+    if (!(creationData.scheduler_options as any)?.template_block_set_id && blockSetId) {
       console.warn(
         "[campActions] creationData.scheduler_options에 template_block_set_id가 없어 추가:",
         {
