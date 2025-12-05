@@ -163,7 +163,7 @@ export default async function PlanGroupDetailPage({
           } else if (typeof templateError === "object" && templateError !== null) {
             Object.keys(templateError).forEach((key) => {
               try {
-                errorInfo[key] = (templateError as Record<string, unknown>)[key];
+                errorInfo[key] = (templateError as unknown as Record<string, unknown>)[key];
               } catch {
                 // 속성 접근 실패 시 무시
               }
@@ -427,7 +427,7 @@ export default async function PlanGroupDetailPage({
                   } else if (typeof blocksError === "object" && blocksError !== null) {
                     Object.keys(blocksError).forEach((key) => {
                       try {
-                        errorInfo[key] = (blocksError as Record<string, unknown>)[key];
+                        errorInfo[key] = (blocksError as unknown as Record<string, unknown>)[key];
                       } catch {
                         // 속성 접근 실패 시 무시
                       }
@@ -440,7 +440,7 @@ export default async function PlanGroupDetailPage({
                   standardKeys.forEach((key) => {
                     if (key in blocksError) {
                       try {
-                        errorInfo[key] = (blocksError as Record<string, unknown>)[key];
+                        errorInfo[key] = (blocksError as unknown as Record<string, unknown>)[key];
                       } catch {
                         // 속성 접근 실패 시 무시
                       }
