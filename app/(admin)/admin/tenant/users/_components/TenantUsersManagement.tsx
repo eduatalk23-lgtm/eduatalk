@@ -65,13 +65,11 @@ export function TenantUsersManagement({
     // 검색어 적용
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
+      const isStudent = user.type === "student";
       return (
         user.name?.toLowerCase().includes(query) ||
         user.email?.toLowerCase().includes(query) ||
-        (user.type === "student" &&
-          (user as Extract<TenantUser, { type: "student" }>).grade
-            ?.toLowerCase()
-            .includes(query))
+        (isStudent && user.grade?.toLowerCase().includes(query))
       );
     }
 
