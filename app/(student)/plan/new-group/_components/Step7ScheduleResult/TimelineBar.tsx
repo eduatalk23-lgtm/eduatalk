@@ -53,6 +53,8 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
       durationMinutes,
       durationHours,
       label: slot.label,
+      start: slot.start,
+      end: slot.end,
     };
   });
 
