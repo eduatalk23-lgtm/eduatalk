@@ -507,71 +507,68 @@ export function Step3ContentSelection({
         );
 
         try {
-          onUpdate((prev) => {
-            const currentTotal =
-              prev.student_contents.length + prev.recommended_contents.length;
-            const toAdd = contentsToAutoAdd.length;
+          const currentTotal =
+            data.student_contents.length + data.recommended_contents.length;
+          const toAdd = contentsToAutoAdd.length;
 
-            console.log(
-              "[Step3ContentSelection] 자동 배정 실행 (함수형 업데이트 내부):",
-              {
-                currentTotal,
-                toAdd,
-                currentRecommendedContents: prev.recommended_contents.length,
-                currentStudentContents: prev.student_contents.length,
-              }
-            );
+          console.log(
+            "[Step3ContentSelection] 자동 배정 실행:",
+            {
+              currentTotal,
+              toAdd,
+              currentRecommendedContents: data.recommended_contents.length,
+              currentStudentContents: data.student_contents.length,
+            }
+          );
 
-            if (currentTotal + toAdd > 9) {
-              const maxToAdd = 9 - currentTotal;
-              const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
+          if (currentTotal + toAdd > 9) {
+            const maxToAdd = 9 - currentTotal;
+            const trimmed = contentsToAutoAdd.slice(0, maxToAdd);
 
-              if (trimmed.length > 0) {
-                const newRecommendedContents = [
-                  ...prev.recommended_contents,
-                  ...trimmed,
-                ];
-                console.log("[Step3ContentSelection] 자동 배정 (제한 적용):", {
-                  trimmed: trimmed.length,
-                  excluded: toAdd - trimmed.length,
-                });
-                setTimeout(() => {
-                  alert(
-                    `추천 콘텐츠 ${
-                      trimmed.length
-                    }개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${
-                      toAdd - trimmed.length
-                    }개 제외됨)`
-                  );
-                }, 0);
-                return {
-                  recommended_contents: newRecommendedContents,
-                };
-              } else {
-                setTimeout(() => {
-                  alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
-                }, 0);
-                return {};
-              }
-            } else {
+            if (trimmed.length > 0) {
               const newRecommendedContents = [
-                ...prev.recommended_contents,
-                ...contentsToAutoAdd,
+                ...data.recommended_contents,
+                ...trimmed,
               ];
-              console.log("[Step3ContentSelection] 자동 배정 성공:", {
-                added: contentsToAutoAdd.length,
-                newRecommendedContents: newRecommendedContents.length,
+              console.log("[Step3ContentSelection] 자동 배정 (제한 적용):", {
+                trimmed: trimmed.length,
+                excluded: toAdd - trimmed.length,
               });
               setTimeout(() => {
                 alert(
-                  `추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`
+                  `추천 콘텐츠 ${
+                    trimmed.length
+                  }개가 자동으로 추가되었습니다. (최대 9개 제한으로 ${
+                    toAdd - trimmed.length
+                  }개 제외됨)`
                 );
               }, 0);
-              return {
+              onUpdate({
                 recommended_contents: newRecommendedContents,
-              };
+              });
+            } else {
+              setTimeout(() => {
+                alert("추가할 수 있는 콘텐츠가 없습니다. (최대 9개 제한)");
+              }, 0);
             }
-          });
+          } else {
+            const newRecommendedContents = [
+              ...data.recommended_contents,
+              ...contentsToAutoAdd,
+            ];
+            console.log("[Step3ContentSelection] 자동 배정 성공:", {
+              added: contentsToAutoAdd.length,
+              newRecommendedContents: newRecommendedContents.length,
+            });
+            setTimeout(() => {
+              alert(
+                `추천 콘텐츠 ${contentsToAutoAdd.length}개가 자동으로 추가되었습니다.`
+              );
+            }, 0);
+            onUpdate({
+              recommended_contents: newRecommendedContents,
+            });
+          }
 
           console.log("[Step3ContentSelection] onUpdate 호출 완료");
 
