@@ -25,6 +25,12 @@ Type error: Type 'string | null | undefined' is not assignable to type 'string |
 Type 'undefined' is not assignable to type 'string | null'.
 ```
 
+### 에러 4
+```
+./app/(student)/actions/masterContentActions.ts:308:9
+Type error: Object literal may only specify known properties, but 'publisher' does not exist in type 'Omit<MasterBook, "id" | "updated_at" | "created_at">'. Did you mean to write 'publisher_id'?
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -35,6 +41,9 @@ Type 'undefined' is not assignable to type 'string | null'.
 
 ### 에러 3
 `Partial`을 사용한 타입이 `createMasterLecture` 함수에 전달될 때, `Partial`로 인해 모든 속성이 `undefined`를 포함할 수 있어서 타입 호환성 문제가 발생했습니다. 특히 `tenant_id`가 `string | null | undefined`가 되어 `string | null`을 기대하는 함수와 호환되지 않았습니다.
+
+### 에러 4
+`MasterBook` 타입에는 `publisher` 필드가 없고 `publisher_name` 필드를 사용해야 합니다. 코드에서 `publisher`를 사용하고 있어서 타입 에러가 발생했습니다.
 
 ## 수정 내용
 
@@ -88,6 +97,28 @@ const lecture = await createMasterLecture(lectureData);
 const lecture = await createMasterLecture(lectureData as Omit<MasterLecture, "id" | "created_at" | "updated_at">);
 ```
 
+#### 수정 4: MasterBook의 publisher 필드를 publisher_name으로 변경
+`MasterBook` 타입에는 `publisher` 필드가 없고 `publisher_name` 필드를 사용해야 합니다. 또한 `is_active` 필수 속성도 추가했습니다.
+
+```typescript
+// 수정 전
+const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
+  tenant_id: student?.tenant_id || null,
+  // ...
+  publisher: formData.get("book_publisher")?.toString() || null,
+  // ...
+};
+
+// 수정 후
+const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
+  tenant_id: student?.tenant_id || null,
+  is_active: true,  // 추가됨
+  // ...
+  publisher_name: formData.get("book_publisher")?.toString() || null,
+  // ...
+};
+```
+
 ## 검증
 - TypeScript 컴파일 에러 해결 확인
 - 린터 에러 없음 확인
@@ -99,4 +130,6 @@ const lecture = await createMasterLecture(lectureData as Omit<MasterLecture, "id
 - `MasterLecture` 타입의 필수 속성: `id`, `is_active`, `title`, `total_episodes`, `created_at`, `updated_at`
 - `Partial`을 사용하여 optional 속성들을 선택적으로 포함할 수 있도록 했습니다.
 - `createMasterLecture` 함수는 `Omit<MasterLecture, "id" | "created_at" | "updated_at">` 타입을 기대하므로, `Partial` 타입을 전달할 때는 타입 단언이 필요합니다.
+- `MasterBook` 타입은 `lib/types/plan.ts`에 정의되어 있으며, `publisher` 필드 대신 `publisher_name` 필드를 사용합니다.
+- `MasterBook` 타입의 필수 속성: `id`, `is_active`, `title`, `created_at`, `updated_at`
 

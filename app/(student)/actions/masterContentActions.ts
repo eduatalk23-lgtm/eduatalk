@@ -299,13 +299,14 @@ export async function addMasterLecture(formData: FormData) {
     try {
       const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
         tenant_id: student?.tenant_id || null,
+        is_active: true,
         revision: formData.get("book_revision")?.toString() || null,
         content_category: null,
         // semester 필드 제거됨 (2025-02-04)
         subject_category: formData.get("book_subject_category")?.toString() || null,
         subject: formData.get("book_subject")?.toString() || null,
         title: bookTitle,
-        publisher: formData.get("book_publisher")?.toString() || null,
+        publisher_name: formData.get("book_publisher")?.toString() || null,
         total_pages: formData.get("book_total_pages")
           ? parseInt(formData.get("book_total_pages")!.toString())
           : 0,
