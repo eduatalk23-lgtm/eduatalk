@@ -1063,13 +1063,13 @@ export function PlanGroupWizard({
 
         let finalGroupId: string;
 
-        if (isEditMode && draftGroupId) {
-          // 수정 모드: draft 상태면 updatePlanGroupDraftAction, 아니면 updatePlanGroupAction
-          // 현재는 draft 상태만 수정 가능하므로 updatePlanGroupDraftAction 사용
+        // 이미 플랜 그룹이 생성되어 있으면 업데이트, 아니면 새로 생성
+        if (draftGroupId) {
+          // 기존 플랜 그룹 업데이트 (수정 모드 또는 이전 단계에서 생성된 경우)
           await updatePlanGroupDraftAction(draftGroupId, creationData);
           finalGroupId = draftGroupId;
         } else {
-          // 생성 모드
+          // 새 플랜 그룹 생성
           // 캠프 모드에서 Step 4에서 제출할 때는 콘텐츠 검증 건너뛰기 (콘텐츠가 없어도 제출 가능)
           const skipContentValidation = isCampMode && currentStep === 4 && !isAdminContinueMode;
           const result = await createPlanGroupAction(creationData, {
