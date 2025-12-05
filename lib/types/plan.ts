@@ -571,6 +571,19 @@ export type SchedulerOptions = {
   weak_subject_focus?: "low" | "medium" | "high" | boolean;
   study_days?: number; // 학습일 수 (기본값: 6)
   review_days?: number; // 복습일 수 (기본값: 1)
+  student_level?: "high" | "medium" | "low";
+  subject_allocations?: Array<{
+    subject_id: string;
+    subject_name: string;
+    subject_type: "strategy" | "weakness";
+    weekly_days?: number;
+  }>;
+  content_allocations?: Array<{
+    content_type: "book" | "lecture";
+    content_id: string;
+    subject_type: "strategy" | "weakness";
+    weekly_days?: number;
+  }>;
 };
 
 /**

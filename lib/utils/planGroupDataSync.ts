@@ -51,6 +51,17 @@ export function syncWizardDataToCreationData(
         (schedulerOptions as any).template_block_set_id = templateBlockSetIdBefore;
       }
     }
+
+    // subject_allocations와 content_allocations를 scheduler_options에 저장
+    if (wizardData.subject_allocations) {
+      schedulerOptions.subject_allocations = wizardData.subject_allocations;
+    }
+    if (wizardData.content_allocations) {
+      schedulerOptions.content_allocations = wizardData.content_allocations;
+    }
+    if (wizardData.student_level) {
+      schedulerOptions.student_level = wizardData.student_level;
+    }
     
     // 최종 확인
     if ((schedulerOptions as any).template_block_set_id) {
@@ -191,6 +202,7 @@ export function syncWizardDataToCreationData(
       study_review_cycle: wizardData.study_review_cycle,
       student_level: wizardData.student_level,
       subject_allocations: wizardData.subject_allocations,
+      content_allocations: wizardData.content_allocations,
       subject_constraints: wizardData.subject_constraints,
       additional_period_reallocation: wizardData.additional_period_reallocation,
       non_study_time_blocks: wizardData.non_study_time_blocks,
@@ -303,6 +315,7 @@ export function syncCreationDataToWizardData(data: {
       review_days,
       student_level,
       subject_allocations,
+      content_allocations,
       ...schedulerOptionsWithoutTimeSettings
     } = schedulerOptions;
 
@@ -380,6 +393,7 @@ export function syncCreationDataToWizardData(data: {
           : undefined,
       student_level: student_level,
       subject_allocations: subject_allocations,
+      content_allocations: content_allocations,
       subject_constraints: group.subject_constraints || undefined,
       additional_period_reallocation: group.additional_period_reallocation || undefined,
       non_study_time_blocks: group.non_study_time_blocks || undefined,
