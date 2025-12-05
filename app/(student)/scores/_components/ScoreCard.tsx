@@ -82,7 +82,7 @@ function ScoreCardComponent({
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium text-gray-500">원점수</span>
             <span className="text-base font-semibold text-gray-900">
-              {score.raw_score !== null ? score.raw_score.toLocaleString() : "-"}
+              {score.raw_score != null ? score.raw_score.toLocaleString() : "-"}
             </span>
           </div>
           <div className="flex flex-col gap-1">
@@ -207,7 +207,7 @@ function ScoreCardComponent({
             <div>
               <span className="text-xs text-gray-500">원점수</span>
               <p className="mt-1 text-sm font-medium text-gray-900">
-                {score.raw_score !== null ? score.raw_score : "-"}
+                {score.raw_score != null ? score.raw_score : "-"}
               </p>
             </div>
             <div>
