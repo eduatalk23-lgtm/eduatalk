@@ -342,8 +342,8 @@ async function _getScheduleResultData(groupId: string): Promise<{
     );
   }
 
-  // 2. 플랜 데이터 조회
-  const { data: plans, error: plansError } = await queryClient
+  // 2. 플랜 데이터 조회와 블록 데이터 조회를 병렬로 실행
+  const plansQuery = queryClient
     .from("student_plan")
     .select(
       "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number,sequence"
@@ -352,6 +352,21 @@ async function _getScheduleResultData(groupId: string): Promise<{
     .eq("student_id", targetStudentId)
     .order("plan_date", { ascending: true })
     .order("block_index", { ascending: true });
+
+  // 블록 데이터 조회 준비 (block_set_id가 있는 경우에만)
+  const blocksQuery = group.block_set_id
+    ? queryClient
+        .from("student_block_schedule")
+        .select("id, day_of_week, start_time, end_time, block_index")
+        .eq("block_set_id", group.block_set_id)
+        .eq("student_id", targetStudentId)
+    : Promise.resolve({ data: null, error: null });
+
+  // 플랜과 블록을 병렬로 조회
+  const [
+    { data: plans, error: plansError },
+    { data: blockData, error: blocksError },
+  ] = await Promise.all([plansQuery, blocksQuery]);
 
   if (plansError) {
     throw new AppError(
@@ -363,7 +378,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
     );
   }
 
-  // 3. 콘텐츠 데이터 조회 (총량/duration 정보 포함)
+  // 블록 에러는 로깅만 하고 계속 진행 (블록이 없어도 플랜 조회는 가능)
+  if (blocksError) {
+    console.error("[planGroupActions] 블록 조회 실패:", blocksError);
+  }
+
+  // 3. 콘텐츠 데이터 조회 (총량/duration 정보 포함) - 병렬 최적화
   const contentIds = new Set((plans || []).map((p) => p.content_id));
   const contentsMap = new Map<
     string,
@@ -378,38 +398,64 @@ async function _getScheduleResultData(groupId: string): Promise<{
     }
   >();
 
-  // 책 조회
+  // 콘텐츠 타입별 ID 추출
   const bookPlans = (plans || []).filter((p) => p.content_type === "book");
+  const lecturePlans = (plans || []).filter(
+    (p) => p.content_type === "lecture"
+  );
+  const customPlans = (plans || []).filter((p) => p.content_type === "custom");
   const bookIds = Array.from(new Set(bookPlans.map((p) => p.content_id)));
+  const lectureIds = Array.from(new Set(lecturePlans.map((p) => p.content_id)));
+  const customIds = Array.from(new Set(customPlans.map((p) => p.content_id)));
 
+  // 학생 콘텐츠들을 병렬로 조회
+  const studentContentQueries = [];
+  
   if (bookIds.length > 0) {
-    const { data: books } = await queryClient
-      .from("books")
-      .select("id, title, subject, subject_category, total_pages")
-      .in("id", bookIds)
-      .eq("student_id", targetStudentId);
-
-    books?.forEach((book) => {
-      contentsMap.set(book.id, {
-        id: book.id,
-        title: book.title || "",
-        subject: book.subject || null,
-        subject_category: book.subject_category || null,
-        total_pages: book.total_pages || null,
-      });
-    });
-
-    // 마스터 책 조회 (학생 책에 없는 경우)
-    const foundBookIds = new Set(books?.map((b) => b.id) || []);
-    const missingBookIds = bookIds.filter((id) => !foundBookIds.has(id));
-
-    if (missingBookIds.length > 0) {
-      const { data: masterBooks } = await supabase
-        .from("master_books")
+    studentContentQueries.push(
+      queryClient
+        .from("books")
         .select("id, title, subject, subject_category, total_pages")
-        .in("id", missingBookIds);
+        .in("id", bookIds)
+        .eq("student_id", targetStudentId)
+        .then((result) => ({ type: "book" as const, ...result }))
+    );
+  }
 
-      masterBooks?.forEach((book) => {
+  if (lectureIds.length > 0) {
+    studentContentQueries.push(
+      queryClient
+        .from("lectures")
+        .select("id, title, subject, subject_category, duration")
+        .in("id", lectureIds)
+        .eq("student_id", targetStudentId)
+        .then((result) => ({ type: "lecture" as const, ...result }))
+    );
+  }
+
+  if (customIds.length > 0) {
+    studentContentQueries.push(
+      queryClient
+        .from("student_custom_contents")
+        .select("id, title, subject, subject_category, total_page_or_time")
+        .in("id", customIds)
+        .eq("student_id", targetStudentId)
+        .then((result) => ({ type: "custom" as const, ...result }))
+    );
+  }
+
+  // 모든 학생 콘텐츠를 병렬로 조회
+  const studentContentResults = await Promise.all(studentContentQueries);
+
+  // 조회 결과를 contentsMap에 저장하고 누락된 ID 추출
+  const foundBookIds = new Set<string>();
+  const foundLectureIds = new Set<string>();
+  const foundCustomIds = new Set<string>();
+
+  for (const result of studentContentResults) {
+    if (result.type === "book" && result.data) {
+      result.data.forEach((book: any) => {
+        foundBookIds.add(book.id);
         contentsMap.set(book.id, {
           id: book.id,
           title: book.title || "",
@@ -418,79 +464,86 @@ async function _getScheduleResultData(groupId: string): Promise<{
           total_pages: book.total_pages || null,
         });
       });
-    }
-  }
-
-  // 강의 조회
-  const lecturePlans = (plans || []).filter(
-    (p) => p.content_type === "lecture"
-  );
-  const lectureIds = Array.from(new Set(lecturePlans.map((p) => p.content_id)));
-
-  if (lectureIds.length > 0) {
-    const { data: lectures } = await queryClient
-      .from("lectures")
-      .select("id, title, subject, subject_category, duration")
-      .in("id", lectureIds)
-      .eq("student_id", targetStudentId);
-
-    lectures?.forEach((lecture) => {
-      contentsMap.set(lecture.id, {
-        id: lecture.id,
-        title: lecture.title || "",
-        subject: lecture.subject || null,
-        subject_category: lecture.subject_category || null,
-        duration: lecture.duration || null,
-      });
-    });
-
-    // 마스터 강의 조회 (학생 강의에 없는 경우)
-    const foundLectureIds = new Set(lectures?.map((l) => l.id) || []);
-    const missingLectureIds = lectureIds.filter(
-      (id) => !foundLectureIds.has(id)
-    );
-
-    if (missingLectureIds.length > 0) {
-      const { data: masterLectures } = await supabase
-        .from("master_lectures")
-        .select("id, title, subject, subject_category, total_duration")
-        .in("id", missingLectureIds);
-
-      masterLectures?.forEach((lecture) => {
+    } else if (result.type === "lecture" && result.data) {
+      result.data.forEach((lecture: any) => {
+        foundLectureIds.add(lecture.id);
         contentsMap.set(lecture.id, {
           id: lecture.id,
           title: lecture.title || "",
           subject: lecture.subject || null,
           subject_category: lecture.subject_category || null,
-          duration: lecture.total_duration || null, // 마스터 강의는 total_duration
+          duration: lecture.duration || null,
+        });
+      });
+    } else if (result.type === "custom" && result.data) {
+      result.data.forEach((custom: any) => {
+        foundCustomIds.add(custom.id);
+        contentsMap.set(custom.id, {
+          id: custom.id,
+          title: custom.title || "",
+          subject: custom.subject || null,
+          subject_category: custom.subject_category || null,
+          total_page_or_time: custom.total_page_or_time || null,
         });
       });
     }
   }
 
-  // 커스텀 콘텐츠 조회
-  const customPlans = (plans || []).filter((p) => p.content_type === "custom");
-  const customIds = Array.from(new Set(customPlans.map((p) => p.content_id)));
+  // 누락된 마스터 콘텐츠 ID 추출 및 병렬 조회
+  const masterContentQueries = [];
+  const missingBookIds = bookIds.filter((id) => !foundBookIds.has(id));
+  const missingLectureIds = lectureIds.filter((id) => !foundLectureIds.has(id));
 
-  if (customIds.length > 0) {
-    const { data: customContents } = await queryClient
-      .from("student_custom_contents")
-      .select("id, title, subject, subject_category, total_page_or_time")
-      .in("id", customIds)
-      .eq("student_id", targetStudentId);
-
-    customContents?.forEach((custom) => {
-      contentsMap.set(custom.id, {
-        id: custom.id,
-        title: custom.title || "",
-        subject: custom.subject || null,
-        subject_category: custom.subject_category || null,
-        total_page_or_time: custom.total_page_or_time || null,
-      });
-    });
+  if (missingBookIds.length > 0) {
+    masterContentQueries.push(
+      supabase
+        .from("master_books")
+        .select("id, title, subject, subject_category, total_pages")
+        .in("id", missingBookIds)
+        .then((result) => ({ type: "book" as const, ...result }))
+    );
   }
 
-  // 4. 블록 데이터 조회 (플랜 생성 시와 동일한 방식으로 block_index 재할당)
+  if (missingLectureIds.length > 0) {
+    masterContentQueries.push(
+      supabase
+        .from("master_lectures")
+        .select("id, title, subject, subject_category, total_duration")
+        .in("id", missingLectureIds)
+        .then((result) => ({ type: "lecture" as const, ...result }))
+    );
+  }
+
+  // 마스터 콘텐츠들을 병렬로 조회
+  if (masterContentQueries.length > 0) {
+    const masterContentResults = await Promise.all(masterContentQueries);
+
+    for (const result of masterContentResults) {
+      if (result.type === "book" && result.data) {
+        result.data.forEach((book: any) => {
+          contentsMap.set(book.id, {
+            id: book.id,
+            title: book.title || "",
+            subject: book.subject || null,
+            subject_category: book.subject_category || null,
+            total_pages: book.total_pages || null,
+          });
+        });
+      } else if (result.type === "lecture" && result.data) {
+        result.data.forEach((lecture: any) => {
+          contentsMap.set(lecture.id, {
+            id: lecture.id,
+            title: lecture.title || "",
+            subject: lecture.subject || null,
+            subject_category: lecture.subject_category || null,
+            duration: lecture.total_duration || null, // 마스터 강의는 total_duration
+          });
+        });
+      }
+    }
+  }
+
+  // 4. 블록 데이터 처리 (플랜 생성 시와 동일한 방식으로 block_index 재할당)
   let blocks: Array<{
     id: string;
     day_of_week: number;
@@ -499,41 +552,33 @@ async function _getScheduleResultData(groupId: string): Promise<{
     block_index: number;
   }> = [];
 
-  if (group.block_set_id) {
-    const { data: blockData } = await queryClient
-      .from("student_block_schedule")
-      .select("id, day_of_week, start_time, end_time, block_index")
-      .eq("block_set_id", group.block_set_id)
-      .eq("student_id", targetStudentId);
+  if (blockData && blockData.length > 0) {
+    // day_of_week별로 그룹화하여 block_index 재할당 (플랜 생성 시와 동일)
+    const blocksByDay = new Map<number, typeof blockData>();
+    blockData.forEach((b) => {
+      const day = b.day_of_week;
+      if (!blocksByDay.has(day)) {
+        blocksByDay.set(day, []);
+      }
+      blocksByDay.get(day)!.push(b);
+    });
 
-    if (blockData && blockData.length > 0) {
-      // day_of_week별로 그룹화하여 block_index 재할당 (플랜 생성 시와 동일)
-      const blocksByDay = new Map<number, typeof blockData>();
-      blockData.forEach((b) => {
-        const day = b.day_of_week;
-        if (!blocksByDay.has(day)) {
-          blocksByDay.set(day, []);
-        }
-        blocksByDay.get(day)!.push(b);
+    blocks = Array.from(blocksByDay.entries()).flatMap(([day, dayBlocks]) => {
+      // 같은 day_of_week 내에서 start_time으로 정렬
+      const sorted = [...dayBlocks].sort((a, b) => {
+        const aTime = timeToMinutes(a.start_time);
+        const bTime = timeToMinutes(b.start_time);
+        return aTime - bTime;
       });
 
-      blocks = Array.from(blocksByDay.entries()).flatMap(([day, dayBlocks]) => {
-        // 같은 day_of_week 내에서 start_time으로 정렬
-        const sorted = [...dayBlocks].sort((a, b) => {
-          const aTime = timeToMinutes(a.start_time);
-          const bTime = timeToMinutes(b.start_time);
-          return aTime - bTime;
-        });
-
-        return sorted.map((b, index) => ({
-          id: b.id,
-          day_of_week: day,
-          block_index: index + 1, // 같은 day_of_week 내에서 1부터 시작
-          start_time: b.start_time,
-          end_time: b.end_time,
-        }));
-      });
-    }
+      return sorted.map((b, index) => ({
+        id: b.id,
+        day_of_week: day,
+        block_index: index + 1, // 같은 day_of_week 내에서 1부터 시작
+        start_time: b.start_time,
+        end_time: b.end_time,
+      }));
+    });
   }
 
   // 5. Step 2.5 스케줄 결과 조회 (time_slots 정보 포함)
