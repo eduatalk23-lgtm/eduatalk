@@ -263,12 +263,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const isAdminOrConsultant = userRole.role === "admin" || userRole.role === "consultant";
   const groupQueryClient = isAdminOrConsultant ? createSupabaseAdminClient() : supabase;
   
-  if (isAdminOrConsultant && !groupQueryClient) {
+  if (!groupQueryClient) {
     throw new AppError(
-      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      "Supabase 클라이언트를 생성할 수 없습니다.",
       ErrorCode.INTERNAL_ERROR,
       500,
-      false
+      true
     );
   }
 
