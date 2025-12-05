@@ -1744,7 +1744,12 @@ export const continueCampStepsForAdmin = withErrorHandling(
       );
     }
 
-    const supabase = await createSupabaseServerClient();
+    // 관리자용 Admin 클라이언트 사용 (RLS 우회)
+    // 관리자가 다른 학생의 데이터를 조회/수정해야 하므로 Admin 클라이언트 필요
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const supabase = createSupabaseAdminClient();
+    
+    console.log("[continueCampStepsForAdmin] Admin 클라이언트 사용 (RLS 우회)");
 
     // 플랜 그룹 조회 및 권한 확인
     const { getPlanGroupWithDetailsForAdmin } = await import(
