@@ -273,16 +273,16 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
 
       <ContentDetailTable
         rows={[
-          { label: "개정교육과정", value: lecture.revision },
-          { label: "학년/학기", value: lecture.semester },
-          { label: "교과", value: lecture.subject_category },
-          { label: "과목", value: lecture.subject },
-          { label: "플랫폼", value: lecture.platform },
+          { label: "개정교육과정", value: lecture.revision ?? null },
+          { label: "학년/학기", value: lecture.semester ?? null },
+          { label: "교과", value: lecture.subject_category ?? null },
+          { label: "과목", value: lecture.subject ?? null },
+          { label: "플랫폼", value: lecture.platform ?? null },
           { label: "강의 유형", value: lecture.lecture_type ?? null },
-          { label: "콘텐츠 카테고리", value: lecture.content_category },
-          { label: "강사명", value: lecture.instructor_name },
-          { label: "대상 학년", value: lecture.grade_level },
-          { label: "난이도", value: lecture.difficulty_level },
+          { label: "콘텐츠 카테고리", value: lecture.content_category ?? null },
+          { label: "강사명", value: lecture.instructor_name ?? null },
+          { label: "대상 학년", value: lecture.grade_level ?? null },
+          { label: "난이도", value: lecture.difficulty_level ?? null },
           {
             label: "총 회차",
             value: lecture.total_episodes ? `${lecture.total_episodes}회` : null,
@@ -297,13 +297,13 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
           },
           {
             label: "출처 URL",
-            value: lecture.lecture_source_url,
+            value: lecture.lecture_source_url ?? null,
             isUrl: !!lecture.lecture_source_url,
           },
-          { label: "부제목", value: lecture.subtitle },
-          { label: "시리즈명", value: lecture.series_name },
-          { label: "설명", value: lecture.description },
-          { label: "메모", value: lecture.notes },
+          { label: "부제목", value: lecture.subtitle ?? null },
+          { label: "시리즈명", value: lecture.series_name ?? null },
+          { label: "설명", value: lecture.description ?? null },
+          { label: "메모", value: lecture.notes ?? null },
         ]}
       />
     </div>
