@@ -919,13 +919,27 @@ export function PlanGroupWizard({
                 // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동 (플랜 생성은 Step 7에서)
                 if (currentStep === 5) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
-                  setCurrentStep(6);
+                  // URL에 step=6 파라미터 추가하여 페이지 리렌더링 시에도 Step 6 유지
+                  const templateId = initialData?.templateId;
+                  const groupId = draftGroupId || (initialData?.groupId as string);
+                  if (templateId && groupId) {
+                    router.push(`/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=6`);
+                  } else {
+                    setCurrentStep(6);
+                  }
                   return;
                 }
                 // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
                 if (currentStep === 6) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
-                  setCurrentStep(7);
+                  // URL에 step=7 파라미터 추가하여 페이지 리렌더링 시에도 Step 7 유지
+                  const templateId = initialData?.templateId;
+                  const groupId = draftGroupId || (initialData?.groupId as string);
+                  if (templateId && groupId) {
+                    router.push(`/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=7`);
+                  } else {
+                    setCurrentStep(7);
+                  }
                   return;
                 }
                 // Step 7은 onComplete에서 처리 (플랜 생성 및 페이지 이동)

@@ -11,10 +11,12 @@ import Link from "next/link";
 
 type CampContinuePageProps = {
   params: Promise<{ id: string; groupId: string }>;
+  searchParams: Promise<{ step?: string }>;
 };
 
 export default async function CampContinuePage({
   params,
+  searchParams,
 }: CampContinuePageProps) {
   const { role } = await getCurrentUserRole();
   if (role !== "admin" && role !== "consultant") {
@@ -22,6 +24,7 @@ export default async function CampContinuePage({
   }
 
   const { id: templateId, groupId } = await params;
+  const { step } = await searchParams;
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -301,6 +304,10 @@ export default async function CampContinuePage({
     );
   }
 
+  // URL에서 step 파라미터가 있으면 해당 단계부터 시작, 없으면 Step 4부터 시작
+  const startStep = step ? parseInt(step, 10) : 4;
+  const validStartStep = startStep >= 4 && startStep <= 7 ? startStep : 4;
+
   // Step 4부터 시작하도록 설정 (콘텐츠 추가하기 단계)
   const initialData = {
     ...filteredWizardData, // 필터링된 wizardData 사용
@@ -308,7 +315,7 @@ export default async function CampContinuePage({
     groupId: group.id,
     // 템플릿 블록 세트 ID 설정 (Step1BasicInfo에서 자동 선택하기 위해)
     block_set_id: templateBlockSet?.id || filteredWizardData.block_set_id || "",
-    _startStep: 4, // Step 4 (콘텐츠 추가하기)부터 시작
+    _startStep: validStartStep, // URL 파라미터에서 받은 step 또는 기본값 4
     student_id: studentId, // Step6FinalReview에서 API 호출 시 사용
   };
 
