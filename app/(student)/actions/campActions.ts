@@ -338,6 +338,16 @@ export const submitCampParticipation = withErrorHandling(
         wizardData.study_review_cycle || templateData.study_review_cycle,
     };
 
+    // 템플릿 블록 세트 ID를 scheduler_options에 먼저 추가
+    // syncWizardDataToCreationData 호출 전에 추가하여 보존되도록 함
+    const blockSetId = mergedData.block_set_id || templateBlockSetId;
+    if (blockSetId) {
+      if (!mergedData.scheduler_options) {
+        mergedData.scheduler_options = {};
+      }
+      (mergedData.scheduler_options as any).template_block_set_id = blockSetId;
+    }
+
     // 플랜 그룹 생성 (기존 액션 재사용)
     const { syncWizardDataToCreationData } = await import(
       "@/lib/utils/planGroupDataSync"
@@ -507,16 +517,14 @@ export const submitCampParticipation = withErrorHandling(
     // plan_groups.block_set_id (student_block_sets 참조)에 저장할 수 없음
     creationData.block_set_id = null;
 
-    // 템플릿 블록 세트 ID를 scheduler_options에 저장
-    // mergedData.block_set_id 사용 (wizardData.block_set_id || templateBlockSetId)
-    // 학생이 블록을 선택했다면 wizardData.block_set_id가 우선적으로 사용됨
-    const blockSetId = mergedData.block_set_id || templateBlockSetId;
-    if (blockSetId) {
+    // template_block_set_id는 이미 mergedData.scheduler_options에 추가되어 있음
+    // syncWizardDataToCreationData에서 scheduler_options를 병합할 때 보존됨
+    // 추가 확인: creationData.scheduler_options에 template_block_set_id가 있는지 확인
+    if (!creationData.scheduler_options?.template_block_set_id && blockSetId) {
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
-      (creationData.scheduler_options as any).template_block_set_id =
-        blockSetId;
+      (creationData.scheduler_options as any).template_block_set_id = blockSetId;
     }
 
     // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
