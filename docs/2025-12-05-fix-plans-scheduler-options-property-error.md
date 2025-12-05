@@ -18,6 +18,12 @@ Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ 
 Type error: Property 'camp_self_study_hours' does not exist on type '{ study_days: number; review_days: number; weak_subject_focus: boolean | WeakSubjectFocus | undefined; review_scope: ReviewScope | undefined; lunch_time: TimeRange | undefined; camp_study_hours: TimeRange | undefined; self_study_hours: TimeRange | undefined; }'. Did you mean 'camp_study_hours'?
 ```
 
+### 에러 3
+```
+./app/(student)/actions/plan-groups/plans.ts:625:31
+Type error: 'studentContentClient' is possibly 'null'.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -25,6 +31,9 @@ Type error: Property 'camp_self_study_hours' does not exist on type '{ study_day
 
 ### 에러 2
 `schedulerOptions` 객체에는 `self_study_hours` 속성만 있고 `camp_self_study_hours` 속성은 없습니다. `CalculateOptions` 타입에서는 `camp_self_study_hours`를 요구하므로, `self_study_hours`를 `camp_self_study_hours`로 매핑해야 합니다.
+
+### 에러 3
+`getSupabaseClientForStudent` 함수는 `SupabaseClientForStudentQuery` 타입을 반환하는데, 이 타입은 `SupabaseServerClient | SupabaseAdminClient`입니다. `SupabaseAdminClient`는 `null`을 포함할 수 있어서 TypeScript가 `studentContentClient`가 `null`일 수 있다고 판단했습니다. 실제로는 `ensureAdminClient()`가 `null`이 아닌 것을 보장하지만, 타입 시스템이 이를 인식하지 못합니다.
 
 ## 수정 내용
 
@@ -38,6 +47,9 @@ Type error: Property 'camp_self_study_hours' does not exist on type '{ study_day
 
 #### 수정 2: camp_self_study_hours를 self_study_hours로 매핑
 `schedulerOptions`에는 `self_study_hours` 속성만 있으므로, 이를 `camp_self_study_hours`로 매핑했습니다.
+
+#### 수정 3: studentContentClient null 체크 추가
+`studentContentClient`가 `null`일 수 있다는 타입 에러를 해결하기 위해 null 체크를 추가했습니다. `null`인 경우 `AppError`를 던지도록 했습니다.
 
 ```typescript
 // 수정 전
@@ -82,4 +94,7 @@ Type error: Property 'camp_self_study_hours' does not exist on type '{ study_day
 - `enable_self_study_for_holidays`, `enable_self_study_for_study_days`, `designated_holiday_hours` 속성은 `group.scheduler_options`에만 있습니다.
 - `group.scheduler_options`는 `Record<string, unknown>` 타입이므로 타입 단언(`as any`)을 사용했습니다.
 - `schedulerOptions`에는 `self_study_hours` 속성만 있고, `CalculateOptions` 타입에서는 `camp_self_study_hours`를 요구하므로 `self_study_hours`를 `camp_self_study_hours`로 매핑했습니다.
+- `getSupabaseClientForStudent` 함수는 `SupabaseClientForStudentQuery` 타입을 반환하며, 이 타입은 `SupabaseServerClient | SupabaseAdminClient`입니다.
+- `SupabaseAdminClient`는 `null`을 포함할 수 있지만, `ensureAdminClient()`가 `null`이 아닌 것을 보장합니다.
+- 타입 시스템이 이를 인식하지 못하므로, null 체크를 추가하여 타입 에러를 해결했습니다.
 

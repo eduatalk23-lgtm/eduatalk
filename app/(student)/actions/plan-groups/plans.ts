@@ -615,6 +615,15 @@ async function _generatePlansFromGroup(
     access.role
   );
 
+  if (!studentContentClient) {
+    throw new AppError(
+      "Supabase 클라이언트를 생성할 수 없습니다.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      true
+    );
+  }
+
   for (const content of contents) {
     const finalContentId =
       contentIdMap.get(content.content_id) || content.content_id;
