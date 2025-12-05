@@ -183,13 +183,18 @@ export class WizardValidator {
 
     // 1730 Timetable인 경우 제약 조건 검증
     if (wizardData.scheduler_type === "1730_timetable") {
-      // subject_allocations 필수 검증
-      if (
-        !wizardData.subject_allocations ||
-        wizardData.subject_allocations.length === 0
-      ) {
+      // content_allocations 또는 subject_allocations 중 하나라도 있어야 함
+      const hasContentAllocations =
+        wizardData.content_allocations &&
+        wizardData.content_allocations.length > 0;
+      const hasSubjectAllocations =
+        wizardData.subject_allocations &&
+        wizardData.subject_allocations.length > 0;
+
+      if (!hasContentAllocations && !hasSubjectAllocations) {
         errors.push("전략과목/취약과목 정보를 설정해주세요.");
-      } else {
+      } else if (hasSubjectAllocations) {
+        // subject_allocations가 있을 때만 과목 일치 검증 수행
         // subject_allocations의 모든 과목이 콘텐츠에 포함되어 있는지 검증
         const allocatedSubjects = new Set(
           wizardData.subject_allocations.map((a) => a.subject_name)
