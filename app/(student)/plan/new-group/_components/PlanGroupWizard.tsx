@@ -618,6 +618,12 @@ export function PlanGroupWizard({
       return;
     }
 
+    // Step 6 (최종확인)에서 다음 버튼 클릭 시 데이터 저장 및 Step 7로 이동 (플랜 생성은 Step 7에서)
+    if (currentStep === 6) {
+      handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
+      return;
+    }
+
     if (currentStep < 5) {
       if (currentStep === 4) {
         // 템플릿 모드나 캠프 모드가 아닐 때만 Step 4에서 데이터만 저장하고 Step 5로 이동
@@ -1446,9 +1452,9 @@ export function PlanGroupWizard({
         <button
           type="button"
           onClick={handleNext}
-          disabled={isPending || currentStep === 6 || currentStep === 7}
+          disabled={isPending || currentStep === 7}
           className={`items-center justify-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400 ${
-            currentStep === 6 || currentStep === 7 ? "hidden" : "inline-flex"
+            currentStep === 7 ? "hidden" : "inline-flex"
           }`}
         >
           {isPending
@@ -1461,6 +1467,8 @@ export function PlanGroupWizard({
             ? isEditMode
               ? "수정 및 플랜 생성"
               : "플랜 생성하기"
+            : currentStep === 6
+            ? "스케줄 미리보기로 이동"
             : "다음"}
         </button>
       </div>
