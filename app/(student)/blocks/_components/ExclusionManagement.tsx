@@ -107,7 +107,7 @@ export default function ExclusionManagement({
         // 폼 초기화
         setNewExclusionDate("");
         setNewExclusionReason("");
-        setIsAdding(false);
+        onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
 
         // 데이터 다시 로드
         await loadData();
