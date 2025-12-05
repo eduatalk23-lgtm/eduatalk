@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getPlanGroupsForStudent,
-  getStudentExclusions,
+  getPlanExclusions,
   getAcademySchedules,
 } from "@/lib/data/planGroups";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
@@ -221,8 +221,24 @@ export default async function PlanCalendarPage({
             .sort()[0] || new Date().toISOString().slice(0, 10)
         : new Date().toISOString().slice(0, 10);
 
-    // 휴일(제외일) 조회
-    const exclusions = await getStudentExclusions(user.id);
+    // 제외일 조회 (플랜 그룹별 관리)
+    // 활성 플랜 그룹들의 제외일 조회 후 병합
+    const exclusionsPromises = activePlanGroups.map((group) =>
+      getPlanExclusions(group.id, tenantContext.tenantId)
+    );
+    const exclusionsArrays = await Promise.all(exclusionsPromises);
+    
+    // 중복 제거: exclusion_date:exclusion_type 조합이 같은 것은 하나만 표시
+    const exclusionsMap = new Map();
+    for (const exclusions of exclusionsArrays) {
+      for (const exclusion of exclusions) {
+        const key = `${exclusion.exclusion_date}:${exclusion.exclusion_type}`;
+        if (!exclusionsMap.has(key)) {
+          exclusionsMap.set(key, exclusion);
+        }
+      }
+    }
+    const exclusions = Array.from(exclusionsMap.values());
 
     // 학원일정 조회 (플랜 그룹별 관리)
     // Phase 2: 활성 플랜 그룹들의 학원 일정 조회 후 병합
