@@ -975,22 +975,33 @@ export function PlanGroupWizard({
           }
 
           // 학생 모드에서 남은 단계 진행 (isEditMode && groupId가 있는 경우)
+          // updatePlanGroupDraftAction을 사용하여 플랜 그룹 업데이트
           if (isEditMode && draftGroupId && !isAdminMode) {
-            const { continueCampSteps } = await import("@/app/(student)/actions/campActions");
+            const { updatePlanGroupDraftAction } = await import("@/app/(student)/actions/planGroupActions");
+            const { syncWizardDataToCreationData } = await import("@/lib/utils/planGroupDataSync");
             
             try {
-              const result = await continueCampSteps(draftGroupId, wizardData);
-
-              if (result.success) {
-                toast.showSuccess("저장되었습니다.");
-                // Step 7에서 플랜 생성 후 상세 페이지로 이동
-                if (currentStep === 7) {
-                  router.push(`/plan/group/${draftGroupId}`, { scroll: true });
+              // wizardData를 PlanGroupCreationData로 변환
+              const creationData = syncWizardDataToCreationData(wizardData);
+              
+              // 캠프 모드 관련 필드 설정
+              if (isCampMode) {
+                creationData.block_set_id = null;
+                if (campInvitationId) {
+                  creationData.camp_invitation_id = campInvitationId;
                 }
-              } else {
-                const errorMessage = result.error || "저장에 실패했습니다.";
-                setValidationErrors([errorMessage]);
-                toast.showError(errorMessage);
+                if (initialData?.templateId) {
+                  creationData.camp_template_id = initialData.templateId;
+                }
+                creationData.plan_type = "camp";
+              }
+              
+              await updatePlanGroupDraftAction(draftGroupId, creationData);
+              
+              toast.showSuccess("저장되었습니다.");
+              // Step 7에서 플랜 생성 후 상세 페이지로 이동
+              if (currentStep === 7) {
+                router.push(`/plan/group/${draftGroupId}`, { scroll: true });
               }
             } catch (error) {
               console.error("[PlanGroupWizard] 캠프 남은 단계 진행 실패:", error);
