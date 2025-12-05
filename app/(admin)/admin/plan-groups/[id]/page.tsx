@@ -135,92 +135,149 @@ export default async function AdminPlanGroupDetailPage({
     end_time: string;
   }> = [];
   let templateBlockSetName: string | null = null;
+  let templateBlockSetId: string | null = null;
 
   if (isCampMode && group.camp_template_id) {
     try {
-      // 템플릿 조회
-      const { data: template, error: templateError } = await supabase
-        .from("camp_templates")
-        .select("template_data")
-        .eq("id", group.camp_template_id)
-        .maybeSingle();
+      // block_set_id 찾기: camp_template_id로 직접 조회 (가장 간단하고 명확한 방법)
+      let blockSetId: string | null = null;
 
-      if (!templateError && template) {
-        // template_data 안전하게 파싱
-        let templateData: any = null;
-        if (template.template_data) {
-          if (typeof template.template_data === "string") {
-            try {
+      // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
+      if (group.camp_template_id) {
+        const { data: templateBlockSetLink, error: linkError } = await supabase
+          .from("camp_template_block_sets")
+          .select("tenant_block_set_id")
+          .eq("camp_template_id", group.camp_template_id)
+          .maybeSingle();
+
+        if (linkError) {
+          console.error(
+            "[AdminPlanGroupDetailPage] 템플릿 블록 세트 연결 조회 에러:",
+            linkError
+          );
+        } else if (templateBlockSetLink) {
+          blockSetId = templateBlockSetLink.tenant_block_set_id;
+          console.log(
+            "[AdminPlanGroupDetailPage] 연결 테이블에서 block_set_id 발견:",
+            blockSetId
+          );
+        }
+      }
+
+      // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
+      if (!blockSetId && group.scheduler_options) {
+        let schedulerOptions: any = null;
+        if (typeof group.scheduler_options === "string") {
+          try {
+            schedulerOptions = JSON.parse(group.scheduler_options);
+          } catch (parseError) {
+            console.error(
+              "[AdminPlanGroupDetailPage] scheduler_options 파싱 에러:",
+              parseError
+            );
+          }
+        } else {
+          schedulerOptions = group.scheduler_options;
+        }
+
+        if (schedulerOptions?.template_block_set_id) {
+          blockSetId = schedulerOptions.template_block_set_id;
+          console.log(
+            "[AdminPlanGroupDetailPage] scheduler_options에서 template_block_set_id 발견 (Fallback):",
+            blockSetId
+          );
+        }
+      }
+
+      // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
+      if (!blockSetId) {
+        const { data: template, error: templateError } = await supabase
+          .from("camp_templates")
+          .select("template_data")
+          .eq("id", group.camp_template_id)
+          .maybeSingle();
+
+        if (!templateError && template?.template_data) {
+          try {
+            let templateData: any = null;
+            if (typeof template.template_data === "string") {
               templateData = JSON.parse(template.template_data);
-            } catch (parseError) {
-              console.error(
-                "[AdminPlanGroupDetailPage] template_data 파싱 에러:",
-                parseError
-              );
-              templateData = null;
+            } else {
+              templateData = template.template_data;
             }
-          } else {
-            templateData = template.template_data;
-          }
-        }
 
-        // block_set_id 찾기
-        let blockSetId: string | null = null;
-
-        // scheduler_options에서 먼저 확인
-        if (group.scheduler_options) {
-          let schedulerOptions: any = null;
-          if (typeof group.scheduler_options === "string") {
-            try {
-              schedulerOptions = JSON.parse(group.scheduler_options);
-            } catch (parseError) {
-              console.error(
-                "[AdminPlanGroupDetailPage] scheduler_options 파싱 에러:",
-                parseError
+            if (templateData?.block_set_id) {
+              blockSetId = templateData.block_set_id;
+              console.log(
+                "[AdminPlanGroupDetailPage] template_data에서 block_set_id 발견 (하위 호환성):",
+                blockSetId
               );
             }
+          } catch (parseError) {
+            console.error(
+              "[AdminPlanGroupDetailPage] template_data 파싱 에러:",
+              parseError
+            );
+          }
+        }
+      }
+
+      console.log("[AdminPlanGroupDetailPage] 최종 blockSetId:", blockSetId);
+
+      if (blockSetId) {
+        // tenant_block_sets에서 블록 세트 조회 (올바른 테이블 사용)
+        const { data: templateBlockSet, error: blockSetError } = await supabase
+          .from("tenant_block_sets")
+          .select("id, name")
+          .eq("id", blockSetId)
+          .eq("tenant_id", tenantContext.tenantId)
+          .maybeSingle();
+
+        if (blockSetError) {
+          console.error(
+            "[AdminPlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
+            blockSetError
+          );
+        } else if (templateBlockSet) {
+          templateBlockSetName = templateBlockSet.name;
+          templateBlockSetId = templateBlockSet.id;
+
+          // tenant_blocks 테이블에서 블록 조회 (올바른 테이블 사용)
+          const { data: blocks, error: blocksError } = await supabase
+            .from("tenant_blocks")
+            .select("id, day_of_week, start_time, end_time")
+            .eq("tenant_block_set_id", templateBlockSet.id)
+            .order("day_of_week", { ascending: true })
+            .order("start_time", { ascending: true });
+
+          if (blocksError) {
+            console.error(
+              "[AdminPlanGroupDetailPage] 템플릿 블록 조회 에러:",
+              blocksError
+            );
+          } else if (blocks && blocks.length > 0) {
+            templateBlocks = blocks.map((b) => ({
+              id: b.id,
+              day_of_week: b.day_of_week,
+              start_time: b.start_time,
+              end_time: b.end_time,
+            }));
+
+            console.log(
+              "[AdminPlanGroupDetailPage] 템플릿 블록 조회 성공:",
+              {
+                blockSetName: templateBlockSetName,
+                blockCount: templateBlocks.length,
+              }
+            );
           } else {
-            schedulerOptions = group.scheduler_options;
-          }
-
-          if (schedulerOptions?.template_block_set_id) {
-            blockSetId = schedulerOptions.template_block_set_id;
-          }
-        }
-
-        // template_data에서 block_set_id 확인 (fallback)
-        if (!blockSetId && templateData?.block_set_id) {
-          blockSetId = templateData.block_set_id;
-        }
-
-        if (blockSetId) {
-          // 템플릿 블록 세트 조회
-          const { data: templateBlockSet, error: blockSetError } =
-            await supabase
-              .from("template_block_sets")
-              .select("id, name, template_id")
-              .eq("id", blockSetId)
-              .maybeSingle();
-
-          if (!blockSetError && templateBlockSet) {
-            templateBlockSetName = templateBlockSet.name;
-
-            // 템플릿 블록 조회
-            const { data: blocks, error: blocksError } = await supabase
-              .from("template_blocks")
-              .select("id, day_of_week, start_time, end_time")
-              .eq("template_block_set_id", templateBlockSet.id)
-              .order("day_of_week", { ascending: true })
-              .order("start_time", { ascending: true });
-
-            if (!blocksError && blocks && blocks.length > 0) {
-              templateBlocks = blocks.map((b) => ({
-                id: b.id,
-                day_of_week: b.day_of_week,
-                start_time: b.start_time,
-                end_time: b.end_time,
-              }));
-            }
+            console.warn(
+              "[AdminPlanGroupDetailPage] 템플릿 블록이 없음:",
+              {
+                blockSetId: templateBlockSet.id,
+                blockSetName: templateBlockSetName,
+              }
+            );
           }
         }
       }
@@ -451,6 +508,8 @@ export default async function AdminPlanGroupDetailPage({
             hasPlans={hasPlans}
             templateBlocks={templateBlocks}
             templateBlockSetName={templateBlockSetName}
+            templateBlockSetId={templateBlockSetId}
+            campTemplateId={group.camp_template_id}
           />
         </div>
       </div>
