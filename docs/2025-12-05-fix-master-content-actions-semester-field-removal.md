@@ -31,6 +31,12 @@ Type 'undefined' is not assignable to type 'string | null'.
 Type error: Object literal may only specify known properties, but 'publisher' does not exist in type 'Omit<MasterBook, "id" | "updated_at" | "created_at">'. Did you mean to write 'publisher_id'?
 ```
 
+### 에러 5
+```
+./app/(student)/actions/masterContentActions.ts:300:13
+Type error: Type '{ ... }' is missing the following properties from type 'Omit<MasterBook, "id" | "updated_at" | "created_at">': curriculum_revision_id, subject_group_id, subject_id, publisher_id, and 23 more.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -44,6 +50,9 @@ Type error: Object literal may only specify known properties, but 'publisher' do
 
 ### 에러 4
 `MasterBook` 타입에는 `publisher` 필드가 없고 `publisher_name` 필드를 사용해야 합니다. 코드에서 `publisher`를 사용하고 있어서 타입 에러가 발생했습니다.
+
+### 에러 5
+`Omit<MasterBook, "id" | "created_at" | "updated_at">` 타입을 사용할 때, `MasterBook`의 많은 optional 속성들이 필수로 요구되어 에러가 발생했습니다. `lectureData`와 동일하게 `Partial`을 사용하고 필수 속성만 명시해야 합니다.
 
 ## 수정 내용
 
@@ -110,13 +119,27 @@ const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
 };
 
 // 수정 후
-const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
+const bookData: Partial<Omit<MasterBook, "id" | "created_at" | "updated_at">> & {
+  title: string;
+  is_active: boolean;
+} = {
   tenant_id: student?.tenant_id || null,
   is_active: true,  // 추가됨
   // ...
   publisher_name: formData.get("book_publisher")?.toString() || null,
   // ...
 };
+```
+
+#### 수정 5: bookData 타입을 Partial로 변경 및 타입 단언 추가
+`lectureData`와 동일하게 `Partial`을 사용하고 필수 속성(`title`, `is_active`)만 명시하도록 수정했습니다. 또한 `createMasterBook` 함수 호출 시 타입 단언을 추가했습니다.
+
+```typescript
+// 수정 전
+const book = await createMasterBook(bookData);
+
+// 수정 후
+const book = await createMasterBook(bookData as Omit<MasterBook, "id" | "created_at" | "updated_at">);
 ```
 
 ## 검증

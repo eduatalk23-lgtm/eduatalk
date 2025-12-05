@@ -297,7 +297,10 @@ export async function addMasterLecture(formData: FormData) {
 
   if (bookTitle) {
     try {
-      const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
+      const bookData: Partial<Omit<MasterBook, "id" | "created_at" | "updated_at">> & {
+        title: string;
+        is_active: boolean;
+      } = {
         tenant_id: student?.tenant_id || null,
         is_active: true,
         revision: formData.get("book_revision")?.toString() || null,
@@ -318,7 +321,7 @@ export async function addMasterLecture(formData: FormData) {
         throw new Error("교재명과 총 페이지는 필수입니다.");
       }
 
-      const book = await createMasterBook(bookData);
+      const book = await createMasterBook(bookData as Omit<MasterBook, "id" | "created_at" | "updated_at">);
       linkedBookId = book.id;
 
       // 교재 상세 정보 추가 (있는 경우)
