@@ -70,7 +70,7 @@ export function RangeSettingModal({
 
     const fetchDetails = async () => {
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
-      if (content.type === "custom") {
+      if ((content.type as string) === "custom") {
         const errorMessage = `[RangeSettingModal] custom 타입 콘텐츠는 범위 설정을 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}`;
         console.error(errorMessage);
         setError("커스텀 콘텐츠는 범위 설정이 필요하지 않습니다.");

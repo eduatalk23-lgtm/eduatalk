@@ -18,6 +18,7 @@ import {
   scheduleCache,
   type ScheduleCalculationParams,
 } from "@/lib/utils/scheduleCache";
+import type { Exclusion } from "@/lib/scheduler/calculateAvailableDates";
 import type {
   ScheduleAvailabilityResult,
   DailySchedule,
@@ -132,7 +133,11 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       periodEnd: effectiveEndDate,
       schedulerType: data.scheduler_type as "1730_timetable",
       blockSetId: data.block_set_id || "default",
-      exclusions: data.exclusions || [],
+      exclusions: (data.exclusions || []).map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: e.exclusion_type as Exclusion["exclusion_type"],
+        reason: e.reason,
+      })) as Exclusion[],
       academySchedules: data.academy_schedules || [],
       schedulerOptions: data.scheduler_options,
       timeSettings: data.time_settings,
@@ -174,6 +179,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         // 서버 계산 - calculateScheduleAvailability에 필요한 추가 필드 포함
         const calculatedResult = await calculateScheduleAvailability({
           ...params,
+          exclusions: params.exclusions as Exclusion[],
           blocks: selectedBlockSetBlocks,
           isTemplateMode,
           isCampMode,

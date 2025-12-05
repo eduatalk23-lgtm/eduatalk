@@ -297,7 +297,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       exclusion_date: string;
       exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
       reason?: string;
-      source?: "time_management";
+      source?: "template" | "student" | "time_management";
+      is_locked?: boolean;
     }>
   ) => {
     const newExclusions = selectedExclusions.map((e) => ({

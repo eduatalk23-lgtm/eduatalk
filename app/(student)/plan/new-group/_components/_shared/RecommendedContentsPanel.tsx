@@ -130,7 +130,7 @@ export function RecommendedContentsPanel({
       const contentType = content.contentType;
 
       // custom 타입은 범위 설정을 지원하지 않음 (방어 코드)
-      if (contentType === "custom") {
+      if ((contentType as string) === "custom") {
         const errorMessage = `[RecommendedContentsPanel] custom 타입 추천 콘텐츠는 지원하지 않습니다. contentId: ${content.id}, title: ${content.title}, contentType: ${contentType}`;
         console.error(errorMessage, { content });
         return;

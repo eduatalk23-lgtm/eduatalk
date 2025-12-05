@@ -1328,7 +1328,7 @@ export function PlanGroupWizard({
             periodStart={wizardData.period_start}
             periodEnd={wizardData.period_end}
             groupId={draftGroupId || undefined}
-            onNavigateToStep={setCurrentStep}
+            onNavigateToStep={(step) => setCurrentStep(step as WizardStep)}
             campMode={isCampMode}
             isTemplateMode={isTemplateMode}
             templateExclusions={isCampMode ? wizardData.exclusions : undefined}
@@ -1346,13 +1346,27 @@ export function PlanGroupWizard({
             isTemplateMode={isTemplateMode}
             campMode={isCampMode}
             campTemplateId={isCampMode ? initialData?.templateId : undefined}
-            onNavigateToStep={setCurrentStep}
+            onNavigateToStep={(step) => setCurrentStep(step as WizardStep)}
           />
         )}
         {currentStep === 4 && (
           <Step3ContentSelection
             data={wizardData}
-            onUpdate={updateWizardData}
+            onUpdate={(updates) => {
+              // custom 타입 필터링
+              const filteredUpdates: Partial<WizardData> = { ...updates };
+              if (updates.student_contents) {
+                filteredUpdates.student_contents = updates.student_contents.filter(
+                  (c) => c.content_type === "book" || c.content_type === "lecture"
+                ) as WizardData["student_contents"];
+              }
+              if (updates.recommended_contents) {
+                filteredUpdates.recommended_contents = updates.recommended_contents.filter(
+                  (c) => c.content_type === "book" || c.content_type === "lecture"
+                ) as WizardData["recommended_contents"];
+              }
+              updateWizardData(filteredUpdates);
+            }}
             contents={initialContents}
             isCampMode={isCampMode}
             isTemplateMode={isTemplateMode}

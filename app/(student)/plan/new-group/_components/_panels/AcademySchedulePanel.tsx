@@ -243,7 +243,8 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
     academy_name?: string;
     subject?: string;
     travel_time?: number;
-    source?: "time_management";
+    source?: "template" | "student" | "time_management";
+    is_locked?: boolean;
   }>) => {
     const newSchedules = selectedSchedules.map((s) => ({
       ...s,

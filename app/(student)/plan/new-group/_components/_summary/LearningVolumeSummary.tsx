@@ -164,7 +164,7 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
             {status !== "empty" && status !== "optimal" && (
               <p
                 className={`mt-2 text-xs ${
-                  status === "optimal"
+                  (status as string) === "optimal"
                     ? "text-green-600"
                     : "text-yellow-600"
                 }`}
