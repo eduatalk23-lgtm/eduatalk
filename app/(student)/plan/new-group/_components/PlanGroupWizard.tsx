@@ -1336,7 +1336,37 @@ export function PlanGroupWizard({
             onComplete={async () => {
               // 관리자 continue 모드에서는 handleSubmit을 통해 플랜 생성 및 페이지 이동 처리
               if (isAdminContinueMode) {
-                handleSubmit(true);
+                // 플랜 생성 및 저장 처리
+                startTransition(async () => {
+                  try {
+                    const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
+                    const result = await continueCampStepsForAdmin(
+                      draftGroupId || (initialData?.groupId as string),
+                      wizardData,
+                      currentStep
+                    );
+
+                    if (result.success) {
+                      toast.showSuccess("저장되었습니다.");
+                      // templateId를 initialData에서 가져오기
+                      const templateId = initialData?.templateId;
+                      if (templateId) {
+                        router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
+                      } else {
+                        router.push(`/admin/camp-templates`, { scroll: true });
+                      }
+                    } else {
+                      const errorMessage = result.error || "저장에 실패했습니다.";
+                      setValidationErrors([errorMessage]);
+                      toast.showError(errorMessage);
+                    }
+                  } catch (error) {
+                    console.error("[PlanGroupWizard] 관리자 캠프 남은 단계 진행 실패:", error);
+                    const errorMessage = error instanceof Error ? error.message : "저장에 실패했습니다.";
+                    setValidationErrors([errorMessage]);
+                    toast.showError(errorMessage);
+                  }
+                });
                 return;
               }
 
