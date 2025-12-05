@@ -532,22 +532,55 @@ export async function updateMockScoreAction(
   const standardScore = standardScoreInput ? Number(standardScoreInput) : null;
   const percentile = percentileInput ? Number(percentileInput) : null;
 
-  const result = await updateMockScore(id, user.userId, {
+  // exam_date와 exam_title 가져오기
+  const examDate = String(formData.get("exam_date") ?? "").trim();
+  const examTitle = String(formData.get("exam_title") ?? "").trim() || examType;
+
+  const updates: Partial<Omit<MockScore, "id" | "student_id" | "created_at">> = {
     grade,
-    exam_type: examType,
-    // FK 필드 (우선 사용)
-    subject_group_id: subjectGroupId || undefined,
-    subject_id: subjectId || undefined,
-    subject_type_id: subjectTypeId || undefined,
-    // 하위 호환성을 위한 텍스트 필드 (deprecated)
-    subject_group: subjectGroup || undefined,
-    subject_name: subjectName || undefined,
-    raw_score: null, // 원점수 제거
-    standard_score: standardScore,
-    percentile: percentile,
-    grade_score: gradeScore,
-    exam_round: examRound || null,
-  });
+  };
+
+  if (examDate) {
+    updates.exam_date = examDate;
+  }
+  if (examTitle) {
+    updates.exam_title = examTitle;
+  }
+
+  // FK 필드 (우선 사용)
+  if (subjectGroupId) {
+    updates.subject_group_id = subjectGroupId;
+  }
+  if (subjectId) {
+    updates.subject_id = subjectId;
+  }
+  if (subjectTypeId) {
+    updates.subject_type_id = subjectTypeId;
+  }
+
+  // 하위 호환성을 위한 텍스트 필드 (deprecated)
+  if (subjectGroup) {
+    updates.subject_group = subjectGroup;
+  }
+  if (subjectName) {
+    updates.subject_name = subjectName;
+  }
+
+  updates.raw_score = null; // 원점수 제거
+  if (standardScore !== null) {
+    updates.standard_score = standardScore;
+  }
+  if (percentile !== null) {
+    updates.percentile = percentile;
+  }
+  if (gradeScore !== null) {
+    updates.grade_score = gradeScore;
+  }
+  if (examRound) {
+    updates.exam_round = examRound;
+  }
+
+  const result = await updateMockScore(id, user.userId, updates);
 
   if (!result.success) {
     throw new Error(result.error || "모의고사 성적 수정에 실패했습니다.");
