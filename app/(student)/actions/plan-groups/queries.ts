@@ -272,9 +272,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
   let groupQuery = groupQueryClient
     .from("plan_groups")
-    .select(
-      "period_start, period_end, block_set_id, scheduler_type, scheduler_options, daily_schedule, student_id, plan_type, camp_template_id"
-    )
+    .select("*")
     .eq("id", groupId);
 
   // 학생인 경우 student_id로 필터링
