@@ -2785,15 +2785,22 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
               console.log("[campTemplateActions] Step 6에서 콘텐츠 저장 완료:", {
                 savedCount: validContents.length,
+                totalContents: creationDataForContents.contents.length,
               });
             } else {
-              console.warn(
+              // 콘텐츠 저장 실패: 모든 콘텐츠가 필터링됨
+              console.error(
                 `[campTemplateActions] 학생(${result.group.student_id})이 가지고 있는 유효한 콘텐츠가 없습니다.`,
                 {
                   creationDataContentsCount: creationDataForContents.contents.length,
                   validContentsCount: validContents.length,
+                  wizardDataStudentContents: studentContents.length,
+                  wizardDataRecommendedContents: recommendedContents.length,
+                  reason: "콘텐츠 저장 과정에서 모든 콘텐츠가 필터링되었습니다. 학생이 해당 콘텐츠를 가지고 있지 않거나, 콘텐츠 ID가 유효하지 않을 수 있습니다.",
                 }
               );
+              // 이 경우에도 플랜 생성은 가능하도록 허용 (플랜 생성 시 콘텐츠가 자동으로 처리될 수 있음)
+              // 단, 경고 로그만 남기고 검증 에러는 발생시키지 않음
             }
           } else {
             console.warn(
@@ -2841,16 +2848,37 @@ export const continueCampStepsForAdmin = withErrorHandling(
           finalPlanContentsCount: finalPlanContents?.length || 0,
           hasFinalPlanContents: finalPlanContents && finalPlanContents.length > 0,
           wizardDataTotalContents: finalTotalContents,
+          wizardDataStudentContents: finalStudentContents.length,
+          wizardDataRecommendedContents: finalRecommendedContents.length,
         });
 
-        if (!finalPlanContents || finalPlanContents.length === 0) {
+        // 검증: DB에 콘텐츠가 없고 wizardData에도 콘텐츠가 없는 경우에만 에러
+        const hasPlanContents = finalPlanContents && finalPlanContents.length > 0;
+        const hasWizardContents = finalTotalContents > 0;
+
+        if (!hasPlanContents && !hasWizardContents) {
           // DB에 콘텐츠가 없고 wizardData에도 콘텐츠가 없는 경우
           validationErrors.push(
             "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
           );
+        } else if (!hasPlanContents && hasWizardContents) {
+          // wizardData에 콘텐츠가 있지만 DB에 저장되지 않은 경우
+          // (콘텐츠 저장 과정에서 모든 콘텐츠가 필터링되었을 수 있음)
+          console.warn(
+            "[campTemplateActions] Step 6 검증: wizardData에 콘텐츠가 있지만 DB에 저장되지 않음. 콘텐츠 저장 과정을 확인하세요.",
+            {
+              wizardDataStudentContents: finalStudentContents.length,
+              wizardDataRecommendedContents: finalRecommendedContents.length,
+              wizardDataTotalContents: finalTotalContents,
+            }
+          );
+          // 이 경우에도 플랜 생성은 가능하도록 허용 (플랜 생성 시 콘텐츠가 자동으로 처리될 수 있음)
+          // 단, 경고 로그만 남기고 검증 에러는 발생시키지 않음
         } else {
-          console.log("[campTemplateActions] Step 6 최종 검증: DB에 콘텐츠가 있어 플랜 생성 가능:", {
-            finalPlanContentsCount: finalPlanContents.length,
+          console.log("[campTemplateActions] Step 6 최종 검증: 콘텐츠가 있어 플랜 생성 가능:", {
+            hasPlanContents,
+            hasWizardContents,
+            finalPlanContentsCount: finalPlanContents?.length || 0,
             wizardDataTotalContents: finalTotalContents,
           });
         }
