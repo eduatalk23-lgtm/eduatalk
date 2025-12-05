@@ -248,10 +248,12 @@ export default async function CampContinuePage({
   
   // 남은 단계 진행 시에는 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
   // student_contents는 그대로 유지 (학생이 추가한 콘텐츠는 보존)
+  // recommended_contents를 undefined로 설정하여 continueCampStepsForAdmin에서 기존 추천 콘텐츠가 보존되도록 함
+  // (빈 배열로 설정하면 hasRecommendedContents가 true가 되어 기존 추천 콘텐츠가 삭제됨)
   const filteredWizardData = {
     ...wizardData,
     student_contents: wizardData.student_contents, // 학생 콘텐츠는 그대로 유지
-    recommended_contents: [], // 추천 콘텐츠는 Step 4에서 새로 선택할 수 있도록 제거
+    recommended_contents: undefined, // undefined로 설정하여 기존 추천 콘텐츠 보존 (Step 4에서 새로 선택 가능)
   };
   
   // 필터링 후 최종 결과 로깅
@@ -259,8 +261,9 @@ export default async function CampContinuePage({
     groupId,
     studentId,
     finalStudentContentsCount: filteredWizardData.student_contents.length,
-    finalRecommendedContentsCount: filteredWizardData.recommended_contents.length,
-    removedRecommendedContentsCount: wizardData.recommended_contents.length,
+    finalRecommendedContentsCount: filteredWizardData.recommended_contents?.length ?? 0,
+    originalRecommendedContentsCount: wizardData.recommended_contents.length,
+    recommendedContentsWillBePreserved: filteredWizardData.recommended_contents === undefined,
     finalStudentContents: filteredWizardData.student_contents.map((c) => ({
       content_id: c.content_id,
       content_type: c.content_type,
