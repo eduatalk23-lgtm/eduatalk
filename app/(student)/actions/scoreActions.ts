@@ -555,17 +555,6 @@ export async function updateMockScoreAction(
   if (subjectId) {
     updates.subject_id = subjectId;
   }
-  if (subjectTypeId) {
-    updates.subject_type_id = subjectTypeId;
-  }
-
-  // 하위 호환성을 위한 텍스트 필드 (deprecated)
-  if (subjectGroup) {
-    updates.subject_group = subjectGroup;
-  }
-  if (subjectName) {
-    updates.subject_name = subjectName;
-  }
 
   updates.raw_score = null; // 원점수 제거
   if (standardScore !== null) {
@@ -576,9 +565,6 @@ export async function updateMockScoreAction(
   }
   if (gradeScore !== null) {
     updates.grade_score = gradeScore;
-  }
-  if (examRound) {
-    updates.exam_round = examRound;
   }
 
   const result = await updateMockScore(id, user.userId, updates);
