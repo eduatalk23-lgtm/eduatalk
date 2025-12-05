@@ -413,7 +413,7 @@ export function PlanGroupWizard({
 
   const initialContentsData = useMemo(() => getInitialContents(), [initialData]);
   const normalizedSchedulerType: WizardData["scheduler_type"] =
-    initialData?.scheduler_type === "자동스케줄러"
+    (initialData?.scheduler_type as string) === "자동스케줄러"
       ? "1730_timetable"
       : (initialData?.scheduler_type as WizardData["scheduler_type"]) || "1730_timetable";
 
