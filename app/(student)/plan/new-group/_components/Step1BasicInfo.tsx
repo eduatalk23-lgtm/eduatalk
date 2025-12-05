@@ -1821,7 +1821,7 @@ export function Step1BasicInfo({
 
                             // 추가 기간 종료일이 새로운 시작일보다 이전이면 종료일도 조정
                             let newEndDate =
-                              data.additional_period_reallocation.period_end;
+                              data.additional_period_reallocation?.period_end || "";
                             if (newEndDate && newEndDate < newStartDate) {
                               newEndDate = addDaysToDate(newStartDate, 1);
                             }
@@ -1830,7 +1830,7 @@ export function Step1BasicInfo({
                               additional_period_reallocation: {
                                 ...data.additional_period_reallocation!,
                                 period_start: newStartDate,
-                                period_end: newEndDate,
+                                period_end: newEndDate || addDaysToDate(newStartDate, 1),
                               },
                             });
                           }}
@@ -1871,9 +1871,9 @@ export function Step1BasicInfo({
 
                             const newEndDate = e.target.value;
                             const minDate = data.additional_period_reallocation
-                              .period_start
+                              ?.period_start
                               ? addDaysToDate(
-                                  data.additional_period_reallocation
+                                  data.additional_period_reallocation!
                                     .period_start,
                                   1
                                 )
