@@ -237,7 +237,6 @@ export function PlanGroupDetailView({
                 blockSets={enhancedBlockSets}
                 editable={false} // 완전히 읽기 전용
                 isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
-                lockedFields={[]} // 읽기 전용이므로 모든 필드 잠금 불필요
               />
             </Suspense>
           </div>
