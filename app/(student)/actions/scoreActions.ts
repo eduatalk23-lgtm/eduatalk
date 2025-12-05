@@ -14,7 +14,7 @@ import {
 } from "@/lib/data/studentScores";
 import { recordHistory } from "@/lib/history/record";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getSubjectById, getSubjectGroupById } from "@/lib/data/subjects";
+import { getSubjectById, getSubjectGroupById, getActiveCurriculumRevision } from "@/lib/data/subjects";
 
 // 내신 성적 등록
 export async function addSchoolScore(formData: FormData): Promise<void> {
@@ -395,23 +395,29 @@ export async function addMockScore(formData: FormData): Promise<void> {
     throw new Error("교과와 과목을 모두 선택해주세요.");
   }
 
+  // exam_date와 exam_title 가져오기
+  const examDate = String(formData.get("exam_date") ?? "").trim() || new Date().toISOString().split("T")[0];
+  const examTitle = String(formData.get("exam_title") ?? "").trim() || examType;
+
+  // curriculum_revision_id 가져오기
+  const curriculumRevision = await getActiveCurriculumRevision();
+  if (!curriculumRevision) {
+    throw new Error("개정교육과정을 찾을 수 없습니다. 관리자에게 문의해주세요.");
+  }
+
   const result = await createMockScore({
     tenant_id: tenantContext.tenantId,
     student_id: user.userId,
+    exam_date: examDate,
+    exam_title: examTitle,
     grade,
-    exam_type: examType,
-    // FK 필드 (우선 사용)
     subject_group_id: subjectGroupId,
     subject_id: subjectId,
-    subject_type_id: subjectTypeId || undefined,
-    // 하위 호환성을 위한 텍스트 필드 (deprecated)
-    subject_group: subjectGroup || undefined,
-    subject_name: subjectName || undefined,
+    curriculum_revision_id: curriculumRevision.id,
     raw_score: null, // 원점수 제거
     standard_score: standardScore,
     percentile: percentile,
     grade_score: gradeScore,
-    exam_round: examRound || null,
   });
 
   if (!result.success) {
