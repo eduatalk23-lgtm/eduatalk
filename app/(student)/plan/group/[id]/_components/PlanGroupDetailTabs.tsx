@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, KeyboardEvent } from "react";
-import { CheckCircle2, Circle } from "lucide-react";
+import { KeyboardEvent } from "react";
 
 type Tab = {
   id: number;
@@ -62,7 +61,7 @@ export function PlanGroupDetailTabs({
             onClick={() => onTabChange(tab.id)}
             onKeyDown={(e) => handleKeyDown(e, tab.id)}
             className={`
-              group relative inline-flex items-center gap-2 rounded-t-lg border-b-2 px-3 py-3 text-sm font-semibold transition-all
+              group relative inline-flex items-center rounded-t-lg border-b-2 px-3 py-3 text-sm font-semibold transition-all
               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
               ${
                 currentTab === tab.id
@@ -71,21 +70,6 @@ export function PlanGroupDetailTabs({
               }
             `}
           >
-            {tab.completed ? (
-              <CheckCircle2
-                className={`h-4 w-4 flex-shrink-0 ${
-                  currentTab === tab.id ? "text-blue-600" : "text-green-500"
-                }`}
-                aria-hidden="true"
-              />
-            ) : (
-              <Circle
-                className={`h-4 w-4 flex-shrink-0 ${
-                  currentTab === tab.id ? "text-blue-600" : "text-gray-700"
-                }`}
-                aria-hidden="true"
-              />
-            )}
             <span className="whitespace-nowrap">{tab.label}</span>
             {tab.completed && currentTab !== tab.id && (
               <span className="sr-only">완료됨</span>
