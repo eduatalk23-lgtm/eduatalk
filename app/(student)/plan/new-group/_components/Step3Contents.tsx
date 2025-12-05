@@ -143,9 +143,9 @@ export function Step3Contents({
       const initialLoadingSet = new Set(contentIdsToFetch);
       setLoadingDetails(new Set(initialLoadingSet));
 
+      // 성능 측정 시작
+      const performanceStart = performance.now();
       try {
-        // 성능 측정 시작
-        const performanceStart = performance.now();
         const typeCheckStart = performance.now();
 
         // 콘텐츠 타입 정보 수집 (최적화: Set.has() 사용으로 O(1) 조회)
