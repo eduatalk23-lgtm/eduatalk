@@ -146,13 +146,13 @@ async function _generatePlansFromGroup(
       scheduler_options: schedulerOptions || null,
       use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
       enable_self_study_for_holidays:
-        schedulerOptions.enable_self_study_for_holidays === true,
+        (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
       enable_self_study_for_study_days:
-        schedulerOptions.enable_self_study_for_study_days === true,
+        (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
       lunch_time: schedulerOptions.lunch_time,
       camp_study_hours: schedulerOptions.camp_study_hours,
       camp_self_study_hours: schedulerOptions.camp_self_study_hours,
-      designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+      designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
       non_study_time_blocks: (group as any).non_study_time_blocks || undefined,
     }
   );
