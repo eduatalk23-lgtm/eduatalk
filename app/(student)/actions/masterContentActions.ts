@@ -263,9 +263,13 @@ export async function addMasterLecture(formData: FormData) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const lectureData: Omit<MasterLecture, "id" | "created_at" | "updated_at"> =
-    {
+  const lectureData: Partial<Omit<MasterLecture, "id" | "created_at" | "updated_at">> & {
+    title: string;
+    total_episodes: number;
+    is_active: boolean;
+  } = {
       tenant_id: student?.tenant_id || null,
+      is_active: true,
       revision: formData.get("revision")?.toString() || null,
       content_category: formData.get("content_category")?.toString() || null,
       subject_category: formData.get("subject_category")?.toString() || null,
