@@ -2591,18 +2591,21 @@ export const continueCampStepsForAdmin = withErrorHandling(
             if (wizardData.recommended_contents === undefined) {
               recommendedContents = dbWizardData.recommended_contents || [];
             }
-            
-            console.log("[campTemplateActions] Step 6 DB에서 로드한 콘텐츠:", {
-              loadedStudentContentsCount: studentContents.length,
-              loadedRecommendedContentsCount: recommendedContents.length,
-              totalLoadedContents: studentContents.length + recommendedContents.length,
-            });
           }
         }
         
         // undefined인 경우 빈 배열로 변환 (계산을 위해)
         if (studentContents === undefined) studentContents = [];
         if (recommendedContents === undefined) recommendedContents = [];
+        
+        // DB에서 로드한 콘텐츠 로그 (undefined 체크 이후)
+        if (hasPlanContents) {
+          console.log("[campTemplateActions] Step 6 DB에서 로드한 콘텐츠:", {
+            loadedStudentContentsCount: studentContents.length,
+            loadedRecommendedContentsCount: recommendedContents.length,
+            totalLoadedContents: studentContents.length + recommendedContents.length,
+          });
+        }
         
         const totalContents = studentContents.length + recommendedContents.length;
 
