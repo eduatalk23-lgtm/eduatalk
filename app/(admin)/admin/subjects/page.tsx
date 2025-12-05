@@ -52,7 +52,9 @@ export default function SubjectsPage() {
     setIsExporting(true);
     try {
       const buffer = await exportSubjectsToExcel();
-      const blob = new Blob([buffer], {
+      // Buffer를 Uint8Array로 변환하여 Blob 생성
+      const uint8Array = new Uint8Array(buffer);
+      const blob = new Blob([uint8Array], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
@@ -78,7 +80,9 @@ export default function SubjectsPage() {
     setIsExporting(true);
     try {
       const buffer = await downloadSubjectsTemplate();
-      const blob = new Blob([buffer], {
+      // Buffer를 Uint8Array로 변환하여 Blob 생성
+      const uint8Array = new Uint8Array(buffer);
+      const blob = new Blob([uint8Array], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
