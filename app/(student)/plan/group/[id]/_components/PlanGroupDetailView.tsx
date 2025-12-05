@@ -196,7 +196,7 @@ export function PlanGroupDetailView({
   }, [group, exclusions, academySchedules, contentsWithDetails, campTemplateId, templateBlockSetId]);
 
   // contentsWithDetails를 Step3ContentSelection에 필요한 형식으로 변환
-  const contents = useMemo(() => {
+  const formattedContents = useMemo(() => {
     const books = contentsWithDetails
       .filter((c) => c.content_type === "book")
       .map((c) => ({
@@ -297,7 +297,7 @@ export function PlanGroupDetailView({
               <Step3ContentSelection 
                 data={wizardData}
                 onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
-                contents={contents}
+                contents={formattedContents}
                 isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
                 isEditMode={false}
                 studentId={group.student_id}
