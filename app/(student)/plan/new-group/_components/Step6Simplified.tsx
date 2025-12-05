@@ -239,7 +239,58 @@ function SubjectAllocationEditor({
       const updatedAllocations = (data.subject_allocations || []).filter(
         (a) => a.subject_name !== subject
       );
-      onUpdate({ subject_allocations: updatedAllocations });
+      
+      // 기존 교과 단위 설정 값 가져오기
+      const existingSubjectAllocation = (data.subject_allocations || []).find(
+        (a) => a.subject_name === subject
+      );
+      
+      // 해당 교과의 콘텐츠 목록 가져오기
+      const subjectContents = contentsBySubject.get(subject) || [];
+      
+      // 기존 content_allocations 가져오기
+      const currentContentAllocations = data.content_allocations || [];
+      
+      // 해당 교과의 기존 content_allocations 제거 (중복 방지)
+      const filteredContentAllocations = currentContentAllocations.filter(
+        (a) =>
+          !subjectContents.some(
+            (c) =>
+              c.content_type === a.content_type &&
+              c.content_id === a.content_id
+          )
+      );
+      
+      // 기존 교과 단위 설정 값이 있으면 각 콘텐츠에 복사
+      // 없으면 기본값(취약과목)으로 각 콘텐츠에 설정
+      const allocationToApply = existingSubjectAllocation || {
+        subject_type: "weakness" as const,
+        weekly_days: undefined,
+      };
+      
+      subjectContents.forEach((content) => {
+        // 이미 content_allocations에 있는지 확인
+        const existingContentAlloc = currentContentAllocations.find(
+          (a) =>
+            a.content_type === content.content_type &&
+            a.content_id === content.content_id
+        );
+        
+        // 없으면 기존 교과 단위 설정 값(또는 기본값)으로 추가
+        if (!existingContentAlloc) {
+          filteredContentAllocations.push({
+            content_type: content.content_type as "book" | "lecture",
+            content_id: content.content_id,
+            subject_type: allocationToApply.subject_type,
+            weekly_days: allocationToApply.weekly_days,
+          });
+        }
+      });
+      
+      onUpdate({
+        subject_allocations: updatedAllocations,
+        content_allocations: filteredContentAllocations,
+      });
     }
   };
 
