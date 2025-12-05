@@ -278,7 +278,7 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
           { label: "교과", value: lecture.subject_category },
           { label: "과목", value: lecture.subject },
           { label: "플랫폼", value: lecture.platform },
-          { label: "강의 유형", value: lecture.lecture_type },
+          { label: "강의 유형", value: lecture.lecture_type ?? null },
           { label: "콘텐츠 카테고리", value: lecture.content_category },
           { label: "강사명", value: lecture.instructor_name },
           { label: "대상 학년", value: lecture.grade_level },
