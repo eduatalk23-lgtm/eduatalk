@@ -3054,8 +3054,7 @@ export function Step6FinalReview({
       )}
 
       {/* 전략과목/취약과목 정보 */}
-      {isCampMode &&
-        data.scheduler_type === "1730_timetable" &&
+      {data.scheduler_type === "1730_timetable" &&
         (data.student_contents.length > 0 ||
           data.recommended_contents.length > 0) && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
