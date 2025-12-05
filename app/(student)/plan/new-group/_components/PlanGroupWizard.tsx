@@ -112,6 +112,8 @@ export type WizardData = {
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
     subject?: string; // 추가: 세부 과목 저장 (검증용)
+    is_auto_recommended?: boolean; // 자동 배정 플래그
+    recommendation_source?: "auto" | "admin" | "template" | null; // 자동 배정 소스
   }>;
   // Step 2.5 - 스케줄 요약 정보 (Step 3에서 학습 범위 추천에 사용)
   schedule_summary?: {
