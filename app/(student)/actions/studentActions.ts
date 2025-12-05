@@ -152,7 +152,7 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
 
   const basicResult = await upsertStudent({
     id: user.id,
-    tenant_id: existingStudent.tenant_id,
+    tenant_id: existingStudent.tenant_id ?? null,
     name: nameValue,
     grade,
     class: existingStudent.class || "",
