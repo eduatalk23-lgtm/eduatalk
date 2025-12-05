@@ -1334,40 +1334,37 @@ export function PlanGroupWizard({
           <Step7ScheduleResult
             groupId={draftGroupId}
             onComplete={async () => {
-              // 관리자 continue 모드에서는 handleSubmit을 통해 플랜 생성 및 페이지 이동 처리
+              // 관리자 continue 모드에서는 플랜 생성 및 페이지 이동 처리
               if (isAdminContinueMode) {
-                // 플랜 생성 및 저장 처리
-                startTransition(async () => {
-                  try {
-                    const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
-                    const result = await continueCampStepsForAdmin(
-                      draftGroupId || (initialData?.groupId as string),
-                      wizardData,
-                      currentStep
-                    );
+                try {
+                  const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
+                  const result = await continueCampStepsForAdmin(
+                    draftGroupId || (initialData?.groupId as string),
+                    wizardData,
+                    currentStep
+                  );
 
-                    if (result.success) {
-                      toast.showSuccess("저장되었습니다.");
-                      // templateId를 initialData에서 가져오기
-                      const templateId = initialData?.templateId;
-                      if (templateId) {
-                        // 서버 사이드 리다이렉트를 우회하기 위해 window.location 사용
-                        window.location.href = `/admin/camp-templates/${templateId}/participants`;
-                      } else {
-                        window.location.href = `/admin/camp-templates`;
-                      }
+                  if (result.success) {
+                    toast.showSuccess("저장되었습니다.");
+                    // templateId를 initialData에서 가져오기
+                    const templateId = initialData?.templateId;
+                    if (templateId) {
+                      // 서버 사이드 리다이렉트를 우회하기 위해 window.location 사용
+                      window.location.href = `/admin/camp-templates/${templateId}/participants`;
                     } else {
-                      const errorMessage = result.error || "저장에 실패했습니다.";
-                      setValidationErrors([errorMessage]);
-                      toast.showError(errorMessage);
+                      window.location.href = `/admin/camp-templates`;
                     }
-                  } catch (error) {
-                    console.error("[PlanGroupWizard] 관리자 캠프 남은 단계 진행 실패:", error);
-                    const errorMessage = error instanceof Error ? error.message : "저장에 실패했습니다.";
+                  } else {
+                    const errorMessage = result.error || "저장에 실패했습니다.";
                     setValidationErrors([errorMessage]);
                     toast.showError(errorMessage);
                   }
-                });
+                } catch (error) {
+                  console.error("[PlanGroupWizard] 관리자 캠프 남은 단계 진행 실패:", error);
+                  const errorMessage = error instanceof Error ? error.message : "저장에 실패했습니다.";
+                  setValidationErrors([errorMessage]);
+                  toast.showError(errorMessage);
+                }
                 return;
               }
 
