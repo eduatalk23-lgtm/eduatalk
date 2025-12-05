@@ -176,7 +176,7 @@ export default async function PlanGroupDetailPage({
           standardKeys.forEach((key) => {
             if (key in templateError) {
               try {
-                errorInfo[key] = (templateError as Record<string, unknown>)[key];
+                errorInfo[key] = (templateError as unknown as Record<string, unknown>)[key];
               } catch {
                 // 속성 접근 실패 시 무시
               }
