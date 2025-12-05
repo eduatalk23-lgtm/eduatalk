@@ -79,7 +79,7 @@ export async function createPlanGroup(
     }
 
     const planGroup = await repository.insertPlanGroup(data);
-    return { success: true, planGroupId: planGroup.id, planGroup };
+    return { success: true, planGroupId: planGroup.id, planGroup: planGroup as any };
   } catch (error) {
     console.error("[plan/service] 플랜 그룹 생성 실패:", error);
     return {
@@ -117,7 +117,7 @@ export async function updatePlanGroup(
       studentId,
       updates
     );
-    return { success: true, planGroup };
+    return { success: true, planGroup: planGroup as any };
   } catch (error) {
     console.error("[plan/service] 플랜 그룹 수정 실패:", error);
     return {
@@ -521,7 +521,7 @@ export function calculatePlanProgress(plans: Plan[]): number {
   if (plans.length === 0) return 0;
 
   const completedCount = plans.filter(
-    (plan) => plan.progress !== null && plan.progress >= 100
+    (plan) => plan.progress != null && plan.progress >= 100
   ).length;
 
   return Math.round((completedCount / plans.length) * 100);

@@ -261,7 +261,7 @@ export function PlanItem({
                   시작: {formatTimestamp(plan.actual_start_time)}
                 </div>
               )}
-              {plan.pause_count !== null && plan.pause_count > 0 && (
+              {plan.pause_count != null && plan.pause_count > 0 && (
                 <div className="text-xs text-gray-500">
                   일시정지: {plan.pause_count}회
                 </div>

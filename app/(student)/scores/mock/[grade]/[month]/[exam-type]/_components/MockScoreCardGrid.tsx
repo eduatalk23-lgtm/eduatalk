@@ -52,19 +52,18 @@ export function MockScoreCardGrid({
     return scores.map((score) => {
       const group = score.subject_group_id
         ? subjectGroups.find((g) => g.id === score.subject_group_id)
-        : subjectGroups.find((g) => g.name === score.subject_group);
-      const subject = score.subject_id
-        ? group?.subjects.find((s) => s.id === score.subject_id)
-        : group?.subjects.find((s) => s.name === score.subject_name);
-      const subjectType = score.subject_type_id
-        ? subjectTypes.find((st) => st.id === score.subject_type_id)
         : null;
+      const subject = score.subject_id && group
+        ? group.subjects.find((s) => s.id === score.subject_id)
+        : null;
+      // MockScore 타입에 subject_type_id가 없으므로 subjectType은 항상 null
+      const subjectType = null;
 
       return {
         score,
-        subjectGroupName: group?.name || score.subject_group || "",
-        subjectName: subject?.name || score.subject_name || "",
-        subjectTypeName: subjectType?.name || "",
+        subjectGroupName: group?.name || "",
+        subjectName: subject?.name || "",
+        subjectTypeName: "", // MockScore 타입에 subject_type_id가 없으므로 항상 빈 문자열
       };
     });
   }, [scores, subjectGroups, subjectTypes]);
@@ -80,17 +79,20 @@ export function MockScoreCardGrid({
       );
     }
 
-    // 시험 유형 필터링
+    // 시험 유형 필터링 (exam_title에서 추출)
     if (filterExamType !== "all") {
       filtered = filtered.filter(
-        (item) => item.score.exam_type === filterExamType
+        (item) => item.score.exam_title.includes(filterExamType)
       );
     }
 
-    // 회차 필터링
+    // 회차 필터링 (exam_date에서 월 추출)
     if (filterMonth !== "all") {
       filtered = filtered.filter(
-        (item) => item.score.exam_round === filterMonth
+        (item) => {
+          const month = (new Date(item.score.exam_date).getMonth() + 1).toString();
+          return month === filterMonth;
+        }
       );
     }
 
@@ -124,12 +126,12 @@ export function MockScoreCardGrid({
           bValue = b.score.grade ?? 0;
           break;
         case "examType":
-          aValue = a.score.exam_type ?? "";
-          bValue = b.score.exam_type ?? "";
+          aValue = a.score.exam_title ?? "";
+          bValue = b.score.exam_title ?? "";
           break;
         case "month":
-          aValue = a.score.exam_round ?? "";
-          bValue = b.score.exam_round ?? "";
+          aValue = (new Date(a.score.exam_date).getMonth() + 1).toString();
+          bValue = (new Date(b.score.exam_date).getMonth() + 1).toString();
           break;
         case "grade_score":
           aValue = a.score.grade_score ?? 999;
@@ -193,7 +195,11 @@ export function MockScoreCardGrid({
   const availableExamTypes = useMemo(() => {
     const types = new Set<string>();
     scoresWithInfo.forEach((item) => {
-      if (item.score.exam_type) types.add(item.score.exam_type);
+      // exam_title에서 시험 유형 추출 (예: "2024학년도 3월 평가원 모의고사" -> "평가원")
+      const examTitle = item.score.exam_title || "";
+      if (examTitle.includes("평가원")) types.add("평가원");
+      if (examTitle.includes("교육청")) types.add("교육청");
+      if (examTitle.includes("사설")) types.add("사설");
     });
     return Array.from(types).sort();
   }, [scoresWithInfo]);
@@ -201,7 +207,8 @@ export function MockScoreCardGrid({
   const availableMonths = useMemo(() => {
     const monthsSet = new Set<string>();
     scoresWithInfo.forEach((item) => {
-      if (item.score.exam_round) monthsSet.add(item.score.exam_round);
+      const month = (new Date(item.score.exam_date).getMonth() + 1).toString();
+      monthsSet.add(month);
     });
     return Array.from(monthsSet).sort((a, b) => parseInt(a) - parseInt(b));
   }, [scoresWithInfo]);

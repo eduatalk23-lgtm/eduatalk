@@ -116,7 +116,7 @@ const signUpSchema = z.object({
 export async function signUp(
   prevState: { error?: string; message?: string } | null,
   formData: FormData
-): Promise<{ error?: string; message?: string }> {
+): Promise<{ error?: string; message?: string; redirect?: string }> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
   const displayName = String(formData.get("displayName") ?? "").trim();

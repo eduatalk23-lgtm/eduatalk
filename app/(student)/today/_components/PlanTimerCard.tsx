@@ -217,10 +217,10 @@ export function PlanTimerCard({
           {currentPendingMessage && (
             <div className="mt-2 text-xs font-semibold text-indigo-600">{currentPendingMessage}</div>
           )}
-          {pauseCount !== null && pauseCount > 0 && (
+          {pauseCount != null && pauseCount > 0 && (
             <div className="mt-2 text-xs text-gray-500">
               일시정지: {pauseCount}회
-              {pausedDurationSeconds !== null && pausedDurationSeconds > 0 && (
+              {pausedDurationSeconds != null && pausedDurationSeconds > 0 && (
                 <span> ({formatTime(pausedDurationSeconds)})</span>
               )}
             </div>

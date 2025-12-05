@@ -74,6 +74,7 @@ export async function getPlanGroupsForStudent(
   query = query.order("created_at", { ascending: false });
 
   let { data, error } = await query;
+  let planGroupsData: PlanGroup[] | null = data as PlanGroup[] | null;
 
   if (error && error.code === "42703") {
     // fallback: 컬럼이 없는 경우 (scheduler_options 제외)
@@ -97,11 +98,14 @@ export async function getPlanGroupsForStudent(
       fallbackQuery.is("deleted_at", null);
     }
 
-    ({ data, error } = await fallbackQuery.order("created_at", { ascending: false }));
+    const fallbackResult = await fallbackQuery.order("created_at", { ascending: false });
+    error = fallbackResult.error;
     
     // fallback 성공 시 scheduler_options를 null로 설정
-    if (data && !error) {
-      data = data.map((group) => ({ ...group, scheduler_options: null })) as PlanGroup[];
+    if (fallbackResult.data && !error) {
+      planGroupsData = fallbackResult.data.map((group: any) => ({ ...group, scheduler_options: null })) as PlanGroup[];
+    } else {
+      planGroupsData = (fallbackResult.data as any) as PlanGroup[] | null;
     }
   }
 
@@ -125,7 +129,7 @@ export async function getPlanGroupsForStudent(
     return [];
   }
 
-  return (data as PlanGroup[] | null) ?? [];
+  return planGroupsData ?? [];
 }
 
 /**
@@ -1162,6 +1166,7 @@ export async function getAcademySchedules(
   }
 
   let { data, error } = await query;
+  let schedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
 
   // tenant_id 컬럼 없는 경우 재시도
   if (error && error.code === "42703") {
@@ -1175,7 +1180,15 @@ export async function getAcademySchedules(
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true });
 
-    ({ data, error } = await retryQuery);
+    const retryResult = await retryQuery;
+    error = retryResult.error;
+    
+    // tenant_id를 null로 설정
+    if (retryResult.data && !error) {
+      schedulesData = retryResult.data.map((schedule: any) => ({ ...schedule, tenant_id: null })) as AcademySchedule[];
+    } else {
+      schedulesData = (retryResult.data as any) as AcademySchedule[] | null;
+    }
   }
 
   if (error) {
@@ -1185,12 +1198,15 @@ export async function getAcademySchedules(
 
   // travel_time 추출 및 반환
   return (
-    data?.map((schedule) => ({
-      ...schedule,
-      travel_time: Array.isArray(schedule.academies)
-        ? schedule.academies[0]?.travel_time ?? 60
-        : (schedule.academies as { travel_time?: number })?.travel_time ?? 60,
-    })) || []
+    schedulesData?.map((schedule) => {
+      const scheduleWithAcademies = schedule as any;
+      return {
+        ...schedule,
+        travel_time: Array.isArray(scheduleWithAcademies.academies)
+          ? scheduleWithAcademies.academies[0]?.travel_time ?? 60
+          : (scheduleWithAcademies.academies as { travel_time?: number })?.travel_time ?? 60,
+      };
+    }) || []
   );
 }
 
@@ -1220,6 +1236,7 @@ export async function getStudentAcademySchedules(
   }
 
   let { data, error } = await query;
+  let studentSchedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
 
   if (error && error.code === "42703") {
     // academy_id가 없는 경우를 대비한 fallback
@@ -1237,7 +1254,15 @@ export async function getStudentAcademySchedules(
     if (tenantId) {
       fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
     }
-    ({ data, error } = await fallbackQuery);
+    const fallbackResult = await fallbackQuery;
+    error = fallbackResult.error;
+    
+    // academy_id를 null로 설정
+    if (fallbackResult.data && !error) {
+      studentSchedulesData = fallbackResult.data.map((schedule: any) => ({ ...schedule, academy_id: null as any })) as AcademySchedule[];
+    } else {
+      studentSchedulesData = (fallbackResult.data as any) as AcademySchedule[] | null;
+    }
   }
 
   if (error) {
@@ -1246,7 +1271,7 @@ export async function getStudentAcademySchedules(
   }
 
   // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
-  const schedules = (data as any[] | null) ?? [];
+  const schedules = (studentSchedulesData as any[] | null) ?? [];
   return schedules.map((schedule) => ({
     ...schedule,
     travel_time: schedule.academies?.travel_time ?? 60, // 기본값 60분
@@ -1860,6 +1885,7 @@ export async function getPlanGroupWithDetailsForAdmin(
         .order("start_time", { ascending: true });
 
     let { data, error } = await selectSchedules();
+    let adminSchedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
 
     if (error && error.code === "42703") {
       // academy_id가 없는 경우를 대비한 fallback
@@ -1874,7 +1900,15 @@ export async function getPlanGroupWithDetailsForAdmin(
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true });
 
-      ({ data, error } = await fallbackSelect());
+      const fallbackResult = await fallbackSelect();
+      error = fallbackResult.error;
+      
+      // academy_id를 null로 설정
+      if (fallbackResult.data && !error) {
+        adminSchedulesData = fallbackResult.data.map((schedule: any) => ({ ...schedule, academy_id: null as any })) as AcademySchedule[];
+      } else {
+        adminSchedulesData = (fallbackResult.data as any) as AcademySchedule[] | null;
+      }
     }
 
     if (error) {
@@ -1889,7 +1923,7 @@ export async function getPlanGroupWithDetailsForAdmin(
     }
 
     // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
-    const schedules = (data as any[] | null) ?? [];
+    const schedules = (adminSchedulesData as any[] | null) ?? [];
     const academySchedules = schedules.map((schedule) => ({
       ...schedule,
       travel_time: schedule.academies?.travel_time ?? 60, // 기본값 60분

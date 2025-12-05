@@ -75,10 +75,21 @@ export function MockScoreFormModal({
   // 편집 모드일 때 초기값 설정
   useEffect(() => {
     if (editingScore && open) {
+      // exam_title에서 시험 유형 추출 (예: "2024학년도 3월 평가원 모의고사" -> "평가원")
+      const examTitle = editingScore.exam_title || "";
+      let extractedExamType = initialExamType || "";
+      if (examTitle.includes("평가원")) extractedExamType = "평가원";
+      else if (examTitle.includes("교육청")) extractedExamType = "교육청";
+      else if (examTitle.includes("사설")) extractedExamType = "사설";
+      
+      // exam_date에서 월 추출
+      const examDate = editingScore.exam_date ? new Date(editingScore.exam_date) : null;
+      const extractedMonth = examDate ? (examDate.getMonth() + 1).toString() : initialMonth || "";
+      
       setFormData({
         grade: editingScore.grade?.toString() || initialGrade?.toString() || "",
-        examType: editingScore.exam_type || initialExamType || "",
-        examRound: editingScore.exam_round || initialMonth || "",
+        examType: extractedExamType,
+        examRound: extractedMonth,
         subject_group_id: editingScore.subject_group_id || "",
         subject_id: editingScore.subject_id || "",
         standard_score: editingScore.standard_score?.toString() || "",

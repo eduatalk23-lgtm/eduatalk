@@ -160,6 +160,10 @@ async function getStudentBlockSet(
     isAdminOrConsultant
   );
 
+  if (!queryClient) {
+    throw new Error("데이터베이스 클라이언트를 초기화할 수 없습니다.");
+  }
+
   // 블록 세트 소유자 확인
   const { data: blockSet } = await queryClient
     .from("student_block_sets")
@@ -217,6 +221,10 @@ async function getActiveBlockSet(
     currentUserId,
     isAdminOrConsultant
   );
+
+  if (!queryClient) {
+    throw new Error("데이터베이스 클라이언트를 초기화할 수 없습니다.");
+  }
 
   // 학생의 활성 블록 세트 ID 조회
   const { data: student } = await queryClient

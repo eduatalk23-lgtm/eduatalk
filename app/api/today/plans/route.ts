@@ -3,6 +3,9 @@ import {
   getBooks,
   getLectures,
   getCustomContents,
+  type Book,
+  type Lecture,
+  type CustomContent,
 } from "@/lib/data/studentContents";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -235,7 +238,7 @@ export async function GET(request: Request) {
 
       return {
         ...planWithoutDenormalized,
-        content,
+        content: content as Book | Lecture | CustomContent | undefined,
         progress,
         session: session ? {
           isPaused: session.isPaused,

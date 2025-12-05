@@ -229,6 +229,7 @@ function PlanGroupCardComponent({
 
   const handleGroupComplete = async () => {
     // 완료 버튼을 누르면 활성 세션을 먼저 종료하여 타이머 중지
+    const activePlan = aggregatedInfo.activePlan;
     if (!activePlan) {
       // 활성 플랜이 없으면 상세보기 페이지로 이동
       router.push(`/today/plan/${group.plan.id}`);
@@ -353,7 +354,7 @@ function PlanGroupCardComponent({
         {/* 시간 체크 섹션 */}
         <TimeCheckSection
           timeStats={timeStats}
-          isPaused={groupStatus.isGroupPaused}
+          isPaused={!!groupStatus.isGroupPaused}
           activePlanStartTime={aggregatedInfo.activePlan?.actual_start_time ?? null}
           planId={aggregatedInfo.activePlan?.id || group.plan.id || ""}
           isActive={groupStatus.isGroupRunning}
@@ -399,7 +400,7 @@ function PlanGroupCardComponent({
         {/* 메모 모달 */}
         <PlanMemoModal
           group={group}
-          memo={memo}
+          memo={memo ?? null}
           isOpen={isMemoModalOpen}
           onClose={() => setIsMemoModalOpen(false)}
           onSave={handleSaveMemo}
@@ -497,9 +498,9 @@ function PlanGroupCardComponent({
 
       {/* 그룹 제어 버튼 */}
       <TimerControlButtons
-        planId={aggregatedInfo.activePlan?.id || group.plans[0]?.id || ""}
+        planId={aggregatedInfo.activePlan?.id || group.plan.id || ""}
         isActive={groupStatus.isGroupRunning}
-        isPaused={groupStatus.isGroupPaused}
+        isPaused={!!groupStatus.isGroupPaused}
         isCompleted={aggregatedInfo.completedPlansCount === 1}
         isLoading={isLoading || isPending}
         onStart={handleGroupStart}
@@ -511,7 +512,7 @@ function PlanGroupCardComponent({
       {/* 메모 모달 */}
       <PlanMemoModal
         group={group}
-        memo={memo}
+        memo={memo ?? null}
         isOpen={isMemoModalOpen}
         onClose={() => setIsMemoModalOpen(false)}
         onSave={handleSaveMemo}

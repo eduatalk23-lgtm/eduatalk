@@ -89,7 +89,7 @@ export function TimerLogSection({ events }: TimerLogSectionProps) {
                   <div className="text-xs text-gray-600">{timeOnly}</div>
                 </div>
               </div>
-              {event.durationSeconds !== null && event.durationSeconds > 0 && (
+              {event.durationSeconds != null && event.durationSeconds > 0 && (
                 <div className="text-xs font-medium text-gray-700">
                   {formatTime(event.durationSeconds)}
                 </div>

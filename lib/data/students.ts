@@ -82,11 +82,13 @@ export async function listStudentsByTenant(
 
   // 기본 학적 정보만 조회
   const result = await executeQuery<Student[]>(
-    () =>
-      supabase
+    async () => {
+      const queryResult = await supabase
         .from("students")
         .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false });
+      return queryResult;
+    },
     {
       context: "[data/students]",
       defaultValue: [],

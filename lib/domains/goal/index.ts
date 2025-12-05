@@ -13,23 +13,27 @@ export {
   updateGoal,
   deleteGoal,
   getGoalById,
-  getGoalsByStudent,
+  getGoalsForStudent,
   recordGoalProgress,
-  getGoalProgress,
+  getGoalProgressList,
 } from "@/lib/data/studentGoals";
 
 // 목표 관련 쿼리 re-export
 export {
   getAllGoals,
   getActiveGoals,
-  getGoalWithProgress,
+  getGoalProgress,
 } from "@/lib/goals/queries";
 
 // 목표 계산 유틸리티 re-export
 export {
   calculateGoalProgress,
-  calculateGoalStatus,
-  getGoalRemainDays,
+  getGoalStatusLabel,
+  getGoalTypeLabel,
+  getGoalTypeColor,
+  type Goal,
+  type GoalProgress,
+  type GoalProgressResult,
 } from "@/lib/goals/calc";
 
 /**

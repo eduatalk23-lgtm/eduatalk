@@ -49,12 +49,12 @@ export default function MockScoresTable({
       // FK 기반으로 교과/과목 찾기
       const group = score.subject_group_id
         ? subjectGroups.find((g) => g.id === score.subject_group_id)
-        : subjectGroups.find((g) => g.name === score.subject_group);
+        : null;
       if (!group) return;
 
       const subject = score.subject_id
         ? group.subjects.find((s) => s.id === score.subject_id)
-        : group.subjects.find((s) => s.name === score.subject_name);
+        : null;
 
       const key = `${group.id}:${subject?.id || ""}`;
       scoreMap.set(key, {

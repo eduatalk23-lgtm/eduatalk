@@ -43,7 +43,7 @@ export async function verifyPlanGroupAccess(): Promise<PlanGroupAccessContext> {
     );
   }
 
-  if (!allowedRoles.includes(user.role as AllowedRole)) {
+  if (!allowedRoles.includes(user.role as PlanGroupAllowedRole)) {
     throw new AppError(
       "학생 권한이 필요합니다.",
       ErrorCode.UNAUTHORIZED,

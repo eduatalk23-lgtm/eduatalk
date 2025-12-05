@@ -65,8 +65,6 @@ export function TodayPlanListView({
           onSelectPlan={setSelectedPlanNumber}
           sessions={sessions}
           planDate={planDate}
-          memos={memos}
-          totalPagesMap={totalPagesMap}
         />
       )}
     </div>

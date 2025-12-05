@@ -27,8 +27,12 @@ export {
 
 // 세션 관리 re-export
 export {
-  getSession,
-  refreshSession,
+  getUserSessions,
+  saveUserSession,
+  revokeSession,
+  revokeAllOtherSessions,
+  updateLastActive,
+  type UserSession,
 } from "@/lib/auth/sessionManager";
 
 // Rate limit 처리 re-export

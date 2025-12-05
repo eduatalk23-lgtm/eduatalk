@@ -49,6 +49,24 @@ export default async function UnifiedScoreDashboardPage() {
 
   const tenantId = tenantContext.tenantId;
 
+  // tenantId가 없으면 에러 반환
+  if (!tenantId) {
+    return (
+      <section className="mx-auto max-w-6xl p-6 md:p-8">
+        <Card>
+          <div className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="text-lg font-semibold text-red-600">
+              테넌트 정보를 찾을 수 없습니다
+            </div>
+            <p className="text-sm text-gray-600">
+              다시 로그인해주세요.
+            </p>
+          </div>
+        </Card>
+      </section>
+    );
+  }
+
   // 학생 ID 조회
   const { data: student } = await supabase
     .from("students")

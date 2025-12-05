@@ -270,7 +270,7 @@ export function SummarySection({
                     className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2"
                   >
                     <span className="text-xs text-gray-600">
-                      {score.grade}학년 {score.semester}학기
+                      {score.grade}학년
                     </span>
                     <div className="flex items-center gap-2">
                       {score.percentile !== null && (

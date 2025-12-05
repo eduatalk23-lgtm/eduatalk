@@ -2250,3 +2250,930 @@ await updatePlanGroupDraftAction(draftGroupId, creationData);
 
 27. 커밋 해시: `d8dbdaf`
     - 커밋 메시지: "fix: 존재하지 않는 continueCampSteps 함수 호출 제거"
+
+## 추가 문제 27 및 해결
+
+스물일곱 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step1BasicInfo.tsx:2335:38
+Type error: Type '{ id: string; day_of_week: number; start_time: string; end_time: string; }[]' is not assignable to type 'Block[]'.
+Property 'block_index' is missing in type '{ id: string; day_of_week: number; start_time: string; end_time: string; }' but required in type 'Block'.
+```
+
+### 원인
+`BlockSetTimeline` 컴포넌트는 `block_index`가 필수인 `Block` 타입을 요구하는데, 블록 세트의 `blocks` 배열에는 `block_index` 속성이 없어서 타입 에러가 발생했습니다.
+
+### 해결
+블록 세트의 `blocks` 배열을 `BlockSetTimeline`에 전달하기 전에 각 블록에 `block_index`를 추가했습니다.
+
+```typescript
+// 수정 전
+const blocks = selectedSet?.blocks ?? [];
+return <BlockSetTimeline blocks={blocks} name={name} />;
+
+// 수정 후
+const rawBlocks = selectedSet?.blocks ?? [];
+// BlockSetTimeline에 필요한 block_index 추가
+const blocks = rawBlocks.map((block, index) => ({
+  ...block,
+  block_index: index,
+}));
+return <BlockSetTimeline blocks={blocks} name={name} />;
+```
+
+## 최종 커밋 정보
+
+1. 커밋 해시: `c4be39e`
+   - 커밋 메시지: "fix: targetStudentId 변수 할당 전 사용 에러 수정"
+
+... (이전 커밋들)
+
+27. 커밋 해시: `56dc5ae`
+    - 커밋 메시지: "fix: additional_period_reallocation undefined 체크 추가"
+
+28. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: BlockSetTimeline에 전달하는 blocks에 block_index 추가"
+
+## 추가 문제 28 및 해결
+
+스물여덟 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step3ContentSelection.tsx:133:12
+Type error: Property 'subject_constraints' does not exist on type '{ student_contents: SelectedContent[]; recommended_contents: SelectedContent[]; schedule_summary?: any; }'.
+```
+
+### 원인
+`Step3ContentSelection` 컴포넌트에서 `data.subject_constraints`를 사용하는데, `Step3ContentSelectionProps`의 `data` 타입에 `subject_constraints` 속성이 정의되지 않아서 타입 에러가 발생했습니다.
+
+### 해결
+`WizardData`의 `subject_constraints` 타입을 참고하여 `Step3ContentSelectionProps`의 `data` 타입에 `subject_constraints`를 추가했습니다.
+
+```typescript
+// 수정 전
+export type Step3ContentSelectionProps = {
+  data: {
+    student_contents: SelectedContent[];
+    recommended_contents: SelectedContent[];
+    schedule_summary?: any;
+  };
+  // ...
+};
+
+// 수정 후
+export type Step3ContentSelectionProps = {
+  data: {
+    student_contents: SelectedContent[];
+    recommended_contents: SelectedContent[];
+    schedule_summary?: any;
+    subject_constraints?: {
+      enable_required_subjects_validation?: boolean;
+      required_subjects?: Array<{
+        subject_group_id: string;
+        subject_category: string;
+        min_count: number;
+        subjects_by_curriculum?: Array<{
+          curriculum_revision_id: string;
+          subject_id?: string;
+          subject_name?: string;
+        }>;
+      }>;
+      excluded_subjects?: string[];
+      constraint_handling?: "strict" | "warning" | "auto_fix";
+    };
+  };
+  // ...
+};
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+28. 커밋 해시: `153efa4`
+    - 커밋 메시지: "fix: BlockSetTimeline에 전달하는 blocks에 block_index 추가"
+
+29. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: Step3ContentSelectionProps의 data 타입에 subject_constraints 추가"
+
+## 추가 문제 29 및 해결
+
+스물아홉 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step3ContentSelection.tsx:234:9
+Type error: Argument of type 'number[]' is not assignable to parameter of type 'Record<string, number>'.
+Index signature for type 'string' is missing in type 'number[]'.
+```
+
+### 원인
+`getRecommendedMasterContentsAction` 함수는 `counts: Record<string, number>` 타입을 요구하는데, `number[]` 배열을 전달하여 타입 에러가 발생했습니다.
+
+### 해결
+`subjects` 배열과 `counts`를 매핑하여 `Record<string, number>` 객체로 변환했습니다.
+
+```typescript
+// 수정 전
+const subjects = Array.from(recommendationSettings.selectedSubjects);
+const counts = subjects.map(
+  (s) => recommendationSettings.recommendationCounts.get(s) || 1
+);
+
+// 수정 후
+const subjects = Array.from(recommendationSettings.selectedSubjects);
+// Record<string, number> 형식으로 변환
+const counts: Record<string, number> = {};
+subjects.forEach((subject) => {
+  counts[subject] = recommendationSettings.recommendationCounts.get(subject) || 1;
+});
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+29. 커밋 해시: `9347fa2`
+    - 커밋 메시지: "fix: Step3ContentSelectionProps의 data 타입에 subject_constraints 추가"
+
+30. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: getRecommendedMasterContentsAction에 전달하는 counts 타입 수정"
+
+## 추가 문제 30 및 해결
+
+서른 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step3ContentSelection.tsx:474:15
+Type error: Object literal may only specify known properties, and 'is_auto_recommended' does not exist in type '{ content_type: "book" | "lecture"; content_id: string; start_range: number; end_range: number; title?: string | undefined; subject_category?: string | undefined; }'.
+```
+
+### 원인
+`contentsToAutoAdd` 배열에 `is_auto_recommended` 속성을 추가하려고 했지만, 타입 정의에 해당 속성이 없어서 타입 에러가 발생했습니다.
+
+### 해결
+`contentsToAutoAdd`의 타입 정의에 `is_auto_recommended?: boolean` 속성을 추가했습니다.
+
+```typescript
+// 수정 전
+const contentsToAutoAdd: Array<{
+  content_type: "book" | "lecture";
+  content_id: string;
+  start_range: number;
+  end_range: number;
+  title?: string;
+  subject_category?: string;
+}> = [];
+
+// 수정 후
+const contentsToAutoAdd: Array<{
+  content_type: "book" | "lecture";
+  content_id: string;
+  start_range: number;
+  end_range: number;
+  title?: string;
+  subject_category?: string;
+  is_auto_recommended?: boolean;
+}> = [];
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+30. 커밋 해시: `1ca09fb`
+    - 커밋 메시지: "fix: getRecommendedMasterContentsAction에 전달하는 counts 타입 수정"
+
+31. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: contentsToAutoAdd 타입에 is_auto_recommended 속성 추가"
+
+## 추가 문제 31 및 해결
+
+서른한 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step3ContentSelection.tsx:510:20
+Type error: Value of type '(prev: any) => { recommended_contents: any[]; } | { recommended_contents?: undefined; }' has no properties in common with type 'Partial<{ student_contents: SelectedContent[]; recommended_contents: SelectedContent[]; schedule_summary?: any; subject_constraints?: { ... } }>'. Did you mean to call it?
+```
+
+### 원인
+`onUpdate`는 `Partial<Step3ContentSelectionProps["data"]>` 타입을 받아야 하는데, 함수형 업데이트 `(prev) => {...}`를 전달하여 타입 에러가 발생했습니다.
+
+### 해결
+함수형 업데이트를 제거하고, `data`를 직접 사용하여 계산한 후 객체를 전달하도록 수정했습니다.
+
+```typescript
+// 수정 전
+onUpdate((prev) => {
+  const currentTotal = prev.student_contents.length + prev.recommended_contents.length;
+  // ...
+  return { recommended_contents: newRecommendedContents };
+});
+
+// 수정 후
+const currentTotal = data.student_contents.length + data.recommended_contents.length;
+// ...
+onUpdate({
+  recommended_contents: newRecommendedContents,
+});
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+31. 커밋 해시: `ab6962a`
+    - 커밋 메시지: "fix: contentsToAutoAdd 타입에 is_auto_recommended 속성 추가"
+
+32. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: onUpdate 함수형 업데이트를 직접 객체 전달로 변경"
+
+## 추가 문제 32 및 해결
+
+서른두 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step3Contents.tsx:328:47
+Type error: Cannot find name 'performanceStart'. Did you mean 'performance'?
+```
+
+### 원인
+`performanceStart` 변수가 `try` 블록 내부에서 선언되어 있어서 `catch` 블록에서 접근할 수 없어 타입 에러가 발생했습니다.
+
+### 해결
+`performanceStart` 변수를 `try` 블록 밖으로 이동하여 `catch` 블록에서도 접근할 수 있도록 수정했습니다.
+
+```typescript
+// 수정 전
+try {
+  // 성능 측정 시작
+  const performanceStart = performance.now();
+  // ...
+} catch (error) {
+  const errorTime = performance.now() - performanceStart; // 에러: performanceStart 접근 불가
+}
+
+// 수정 후
+// 성능 측정 시작
+const performanceStart = performance.now();
+try {
+  // ...
+} catch (error) {
+  const errorTime = performance.now() - performanceStart; // 정상 작동
+}
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+32. 커밋 해시: `dd478fb`
+    - 커밋 메시지: "fix: onUpdate 함수형 업데이트를 직접 객체 전달로 변경"
+
+33. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: performanceStart 변수 스코프 수정"
+
+## 추가 문제 33 및 해결
+
+서른세 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step4RecommendedContents/Step4RecommendedContentsRefactored.tsx:166:11
+Type error: Property 'subject_group_id' is missing in type '{ subject_category: string; min_count: number; }' but required in type '{ subject_group_id: string; subject_category: string; min_count: number; subjects_by_curriculum?: { ... }[] | undefined; }'.
+```
+
+### 원인
+`required_subjects` 배열에 추가하는 객체에 `subject_group_id`가 필수인데 누락되어 타입 에러가 발생했습니다.
+
+### 해결
+새로 추가하는 `required_subject` 객체에 `subject_group_id: ""`를 추가했습니다.
+
+```typescript
+// 수정 전
+required_subjects: [
+  ...(currentConstraints.required_subjects || []),
+  { subject_category: "", min_count: 1 },
+],
+
+// 수정 후
+required_subjects: [
+  ...(currentConstraints.required_subjects || []),
+  { subject_group_id: "", subject_category: "", min_count: 1 },
+],
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+33. 커밋 해시: `680ada7`
+    - 커밋 메시지: "fix: performanceStart 변수 스코프 수정"
+
+34. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: required_subjects에 subject_group_id 필수 속성 추가"
+
+## 추가 문제 34 및 해결
+
+서른네 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step4RecommendedContents/Step4RecommendedContentsRefactored.tsx:347:9
+Type error: Property 'availableSubjects' does not exist on type 'IntrinsicAttributes & RequiredSubjectsSectionProps'. Did you mean 'availableSubjectGroups'?
+```
+
+### 원인
+`RequiredSubjectsSection` 컴포넌트는 `availableSubjectGroups`와 `curriculumRevisions`를 props로 받아야 하는데, `availableSubjects`와 `detailSubjects`를 전달하고 있어 타입 에러가 발생했습니다.
+
+### 해결
+1. `getSubjectGroupsAction`과 `getCurriculumRevisionsAction`을 사용해서 데이터를 가져오도록 수정했습니다.
+2. `useEffect`를 사용해서 컴포넌트 마운트 시 데이터를 로드합니다.
+3. `onLoadSubjects` 함수를 만들어서 `getSubjectsByGroupAction`을 호출하도록 했습니다.
+4. `RequiredSubjectsSection`에 올바른 props를 전달하도록 수정했습니다:
+   - `availableSubjectGroups` (SubjectGroup[])
+   - `curriculumRevisions` (CurriculumRevision[])
+   - `onLoadSubjects` (함수)
+   - `isTemplateMode`, `isCampMode`, `studentId` 추가
+
+```typescript
+// 수정 전
+<RequiredSubjectsSection
+  data={data}
+  availableSubjects={AVAILABLE_SUBJECTS}
+  detailSubjects={detailSubjects}
+  loadingDetailSubjects={loadingDetailSubjects}
+  onUpdate={onUpdate}
+  onLoadDetailSubjects={handleLoadDetailSubjects}
+  // ...
+/>
+
+// 수정 후
+const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
+const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+
+useEffect(() => {
+  const loadSubjectGroups = async () => {
+    const groups = await getSubjectGroupsAction();
+    setAvailableSubjectGroups(groups);
+  };
+  const loadCurriculumRevisions = async () => {
+    const revisions = await getCurriculumRevisionsAction();
+    setCurriculumRevisions(revisions);
+  };
+  loadSubjectGroups();
+  loadCurriculumRevisions();
+}, []);
+
+const handleLoadSubjects = useCallback(
+  async (subjectGroupId: string, curriculumRevisionId: string) => {
+    const subjects = await getSubjectsByGroupAction(subjectGroupId);
+    return subjects.map((subject) => ({ id: subject.id, name: subject.name }));
+  },
+  []
+);
+
+<RequiredSubjectsSection
+  data={data}
+  availableSubjectGroups={availableSubjectGroups}
+  curriculumRevisions={curriculumRevisions}
+  onLoadSubjects={handleLoadSubjects}
+  // ...
+/>
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+34. 커밋 해시: `3789430`
+    - 커밋 메시지: "fix: required_subjects에 subject_group_id 필수 속성 추가"
+
+35. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: RequiredSubjectsSection에 올바른 props 전달"
+
+## 추가 문제 35 및 해결
+
+서른다섯 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step4RecommendedContents/Step4RecommendedContentsRefactored.tsx:373:8
+Type error: Property 'onUpdate' is missing in type '{ ... }' but required in type 'RequiredSubjectsSectionProps'.
+```
+
+### 원인
+`RequiredSubjectsSection` 컴포넌트의 필수 prop인 `onUpdate`가 누락되어 타입 에러가 발생했습니다.
+
+### 해결
+`RequiredSubjectsSection`에 `onUpdate={onUpdate}` prop을 추가했습니다.
+
+```typescript
+// 수정 전
+<RequiredSubjectsSection
+  data={data}
+  availableSubjectGroups={availableSubjectGroups}
+  curriculumRevisions={curriculumRevisions}
+  onLoadSubjects={handleLoadSubjects}
+  // onUpdate 누락
+  // ...
+/>
+
+// 수정 후
+<RequiredSubjectsSection
+  data={data}
+  availableSubjectGroups={availableSubjectGroups}
+  curriculumRevisions={curriculumRevisions}
+  onUpdate={onUpdate}
+  onLoadSubjects={handleLoadSubjects}
+  // ...
+/>
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+35. 커밋 해시: `f27cea2`
+    - 커밋 메시지: "fix: RequiredSubjectsSection에 올바른 props 전달"
+
+36. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: RequiredSubjectsSection에 onUpdate prop 추가"
+
+## 추가 문제 36 및 해결
+
+서른여섯 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step4RecommendedContents/Step4RecommendedContentsRefactored.tsx:420:10
+Type error: Property 'contentTotals' is missing in type '{ ... }' but required in type 'AddedContentsListProps'.
+```
+
+### 원인
+`AddedContentsList` 컴포넌트의 필수 prop인 `contentTotals`가 누락되어 타입 에러가 발생했습니다.
+
+### 해결
+1. `useRangeEditor` 훅에서 `contentTotals`를 destructure해서 가져오도록 수정했습니다.
+2. `AddedContentsList`에 `contentTotals={contentTotals}` prop을 추가했습니다.
+
+```typescript
+// 수정 전
+const {
+  editingRangeIndex,
+  editingRange,
+  contentDetails,
+  loadingDetails,
+  // contentTotals 누락
+  startDetailId,
+  // ...
+} = useRangeEditor({ data, onUpdate });
+
+<AddedContentsList
+  contents={data.recommended_contents}
+  // contentTotals 누락
+  // ...
+/>
+
+// 수정 후
+const {
+  editingRangeIndex,
+  editingRange,
+  contentDetails,
+  loadingDetails,
+  contentTotals, // 추가
+  startDetailId,
+  // ...
+} = useRangeEditor({ data, onUpdate });
+
+<AddedContentsList
+  contents={data.recommended_contents}
+  contentTotals={contentTotals} // 추가
+  // ...
+/>
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+36. 커밋 해시: `b078f81`
+    - 커밋 메시지: "fix: RequiredSubjectsSection에 onUpdate prop 추가"
+
+37. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: AddedContentsList에 contentTotals prop 추가"
+
+## 추가 문제 37 및 해결
+
+서른일곱 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step4RecommendedContents/hooks/useRecommendations.ts:314:13
+Type error: Object literal may only specify known properties, and 'is_auto_recommended' does not exist in type '{ content_type: "book" | "lecture"; content_id: string; start_range: number; end_range: number; title?: string | undefined; subject_category?: string | undefined; }'.
+```
+
+### 원인
+`useRecommendations` 훅에서 `is_auto_recommended`와 `recommendation_source` 속성을 사용하는데, `WizardData` 타입의 `recommended_contents`에 이 속성들이 정의되어 있지 않아 타입 에러가 발생했습니다.
+
+### 해결
+`WizardData` 타입의 `recommended_contents` 배열에 `is_auto_recommended`와 `recommendation_source` 속성을 선택적 속성으로 추가했습니다.
+
+```typescript
+// 수정 전
+recommended_contents: Array<{
+  content_type: "book" | "lecture";
+  content_id: string;
+  start_range: number;
+  end_range: number;
+  start_detail_id?: string | null;
+  end_detail_id?: string | null;
+  title?: string;
+  subject_category?: string;
+  subject?: string;
+}>;
+
+// 수정 후
+recommended_contents: Array<{
+  content_type: "book" | "lecture";
+  content_id: string;
+  start_range: number;
+  end_range: number;
+  start_detail_id?: string | null;
+  end_detail_id?: string | null;
+  title?: string;
+  subject_category?: string;
+  subject?: string;
+  is_auto_recommended?: boolean; // 자동 배정 플래그
+  recommendation_source?: "auto" | "admin" | "template" | null; // 자동 배정 소스
+}>;
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+37. 커밋 해시: `d697c56`
+    - 커밋 메시지: "fix: AddedContentsList에 contentTotals prop 추가"
+
+38. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: WizardData의 recommended_contents에 is_auto_recommended와 recommendation_source 속성 추가"
+
+## 추가 문제 38 및 해결
+
+서른여덟 번째 수정 후 Vercel 배포에서 동일한 TypeScript 에러가 다시 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step4RecommendedContents/hooks/useRecommendations.ts:314:13
+Type error: Object literal may only specify known properties, and 'is_auto_recommended' does not exist in type '{ content_type: "book" | "lecture"; content_id: string; start_range: number; end_range: number; title?: string | undefined; subject_category?: string | undefined; }'.
+```
+
+### 원인
+`WizardData` 타입에는 `is_auto_recommended`와 `recommendation_source`를 추가했지만, `useRecommendations.ts`의 `contentsToAutoAdd` 배열 타입 정의에는 이 속성들이 없어 타입 에러가 발생했습니다.
+
+### 해결
+`useRecommendations.ts`의 `contentsToAutoAdd` 배열 타입 정의에 `is_auto_recommended`와 `recommendation_source` 속성을 선택적 속성으로 추가했습니다.
+
+```typescript
+// 수정 전
+const contentsToAutoAdd: Array<{
+  content_type: "book" | "lecture";
+  content_id: string;
+  start_range: number;
+  end_range: number;
+  title?: string;
+  subject_category?: string;
+}> = [];
+
+// 수정 후
+const contentsToAutoAdd: Array<{
+  content_type: "book" | "lecture";
+  content_id: string;
+  start_range: number;
+  end_range: number;
+  title?: string;
+  subject_category?: string;
+  is_auto_recommended?: boolean;
+  recommendation_source?: "auto" | "admin" | "template" | null;
+}> = [];
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+38. 커밋 해시: `00f7896`
+    - 커밋 메시지: "fix: WizardData의 recommended_contents에 is_auto_recommended와 recommendation_source 속성 추가"
+
+39. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: contentsToAutoAdd 타입에 is_auto_recommended와 recommendation_source 속성 추가"
+
+## 추가 문제 39 및 해결
+
+서른아홉 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step6FinalReview.tsx:158:26
+Type error: This comparison appears to be unintentional because the types '"book" | "lecture"' and '"custom"' have no overlap.
+```
+
+### 원인
+`ContentInfo` 타입의 `content_type`은 `"book" | "lecture"`만 포함하는데, `"custom"`과 비교하려고 해서 타입 에러가 발생했습니다.
+
+### 해결
+`ContentInfo` 타입에는 `"custom"`이 없으므로 불필요한 체크를 제거했습니다.
+
+```typescript
+// 수정 전
+if (!metadata && content.content_type !== "custom") {
+  // ...
+}
+
+// 수정 후
+// ContentInfo 타입은 "book" | "lecture"만 포함하므로 "custom" 체크 불필요
+if (!metadata) {
+  // ...
+}
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+39. 커밋 해시: `18f07aa`
+    - 커밋 메시지: "fix: contentsToAutoAdd 타입에 is_auto_recommended와 recommendation_source 속성 추가"
+
+40. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: Step6FinalReview에서 불필요한 custom 타입 체크 제거"
+
+## 추가 문제 40 및 해결
+
+마흔 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step6FinalReview.tsx:3105:17
+Type error: Type 'ContentInfo[]' is not assignable to type '{ content_type: "book" | "lecture"; content_id: string; title: string; subject_category: string | null; isRecommended: boolean; }[]'.
+Types of property 'subject_category' are incompatible.
+Type 'string | undefined' is not assignable to type 'string | null'.
+Type 'undefined' is not assignable to type 'string | null'.
+```
+
+### 원인
+`ContentInfo` 타입의 `subject_category`는 `string | undefined`인데, `SubjectAllocationUI`와 `ContentAllocationUI`는 `string | null`을 기대하고 있어 타입 에러가 발생했습니다.
+
+### 해결
+1. `ContentInfo` 타입의 `subject_category`를 `string | null`로 변경했습니다.
+2. `SubjectAllocationUI`와 `ContentAllocationUI`에 전달할 때 `undefined`를 `null`로 변환하도록 수정했습니다.
+
+```typescript
+// 수정 전
+type ContentInfo = {
+  // ...
+  subject_category?: string;
+  // ...
+};
+
+<SubjectAllocationUI
+  contentInfos={contentInfos}
+/>
+
+// 수정 후
+type ContentInfo = {
+  // ...
+  subject_category?: string | null;
+  // ...
+};
+
+<SubjectAllocationUI
+  contentInfos={contentInfos.map((info) => ({
+    ...info,
+    subject_category: info.subject_category ?? null,
+  }))}
+/>
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+40. 커밋 해시: `affc64e`
+    - 커밋 메시지: "fix: Step6FinalReview에서 불필요한 custom 타입 체크 제거"
+
+41. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: ContentInfo의 subject_category 타입을 string | null로 변경하고 undefined를 null로 변환"
+
+## 추가 문제 41 및 해결
+
+마흔한 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView.tsx:397:23
+Type error: Property 'note' does not exist on type 'DailySchedule'.
+```
+
+### 원인
+`ScheduleTableView`에서 `schedule.note`를 사용하는데, `DailySchedule` 타입에 `note` 속성이 정의되어 있지 않아 타입 에러가 발생했습니다.
+
+### 해결
+`DailySchedule` 타입에 `note?: string` 속성을 추가했습니다.
+
+```typescript
+// 수정 전
+type DailySchedule = {
+  date: string;
+  day_type: string;
+  study_hours: number;
+  week_number?: number;
+  time_slots?: Array<{...}>;
+  exclusion?: {...} | null;
+  academy_schedules?: Array<{...}>;
+};
+
+// 수정 후
+type DailySchedule = {
+  date: string;
+  day_type: string;
+  study_hours: number;
+  week_number?: number;
+  time_slots?: Array<{...}>;
+  exclusion?: {...} | null;
+  academy_schedules?: Array<{...}>;
+  note?: string; // 일정 메모
+};
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+41. 커밋 해시: `f12c6f3`
+    - 커밋 메시지: "fix: ContentInfo의 subject_category 타입을 string | null로 변경하고 undefined를 null로 변환"
+
+42. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: DailySchedule 타입에 note 속성 추가"
+
+## 추가 문제 42 및 해결
+
+마흔두 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/plan/new-group/_components/Step7ScheduleResult/TimelineBar.tsx:91:92
+Type error: Property 'start' does not exist on type '{ type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습"; durationMinutes: number; durationHours: number; label: string | undefined; }'.
+```
+
+### 원인
+`TimelineBar`에서 `slot.start`와 `slot.end`를 사용하는데, `slotData` 배열에 이 속성들이 포함되어 있지 않아 타입 에러가 발생했습니다.
+
+### 해결
+`slotData` 생성 시 `start`와 `end` 속성을 포함하도록 수정했습니다.
+
+```typescript
+// 수정 전
+const slotData = timeSlots.map((slot) => {
+  const startMinutes = timeToMinutes(slot.start);
+  const endMinutes = timeToMinutes(slot.end);
+  const durationMinutes = endMinutes - startMinutes;
+  const durationHours = durationMinutes / 60;
+
+  return {
+    type: slot.type,
+    durationMinutes,
+    durationHours,
+    label: slot.label,
+  };
+});
+
+// 수정 후
+const slotData = timeSlots.map((slot) => {
+  const startMinutes = timeToMinutes(slot.start);
+  const endMinutes = timeToMinutes(slot.end);
+  const durationMinutes = endMinutes - startMinutes;
+  const durationHours = durationMinutes / 60;
+
+  return {
+    type: slot.type,
+    durationMinutes,
+    durationHours,
+    label: slot.label,
+    start: slot.start,
+    end: slot.end,
+  };
+});
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+42. 커밋 해시: `5203c38`
+    - 커밋 메시지: "fix: DailySchedule 타입에 note 속성 추가"
+
+43. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: TimelineBar의 slotData에 start와 end 속성 추가"
+
+## 추가 문제 43 및 해결
+
+마흔세 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/scores/_components/ScoreCard.tsx:85:43
+Type error: 'score.raw_score' is possibly 'undefined'.
+```
+
+### 원인
+`score.raw_score`가 `undefined`일 수 있는데, `!== null`만 체크하여 `undefined`를 처리하지 못해 타입 에러가 발생했습니다.
+
+### 해결
+`!== null` 대신 `!= null`을 사용하여 `null`과 `undefined`를 모두 체크하도록 수정했습니다.
+
+```typescript
+// 수정 전
+{score.raw_score !== null ? score.raw_score.toLocaleString() : "-"}
+
+// 수정 후
+{score.raw_score != null ? score.raw_score.toLocaleString() : "-"}
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+43. 커밋 해시: `d41b34b`
+    - 커밋 메시지: "fix: TimelineBar의 slotData에 start와 end 속성 추가"
+
+44. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: ScoreCard에서 raw_score의 undefined 체크 추가"
+
+## 추가 문제 44 및 해결
+
+마흔네 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/scores/_components/ScoreCard.tsx:102:18
+Type error: Property 'class_rank' does not exist on type 'SchoolScore'.
+```
+
+### 원인
+`ScoreCard`에서 `score.class_rank`를 사용하는데, `SchoolScore` 타입에 `class_rank` 속성이 정의되어 있지 않아 타입 에러가 발생했습니다.
+
+### 해결
+`SchoolScore` 타입에 `class_rank?: number | null` 속성을 추가했습니다.
+
+```typescript
+// 수정 전
+export type SchoolScore = {
+  // ...
+  rank_grade?: number | null;
+  created_at?: string | null;
+};
+
+// 수정 후
+export type SchoolScore = {
+  // ...
+  rank_grade?: number | null;
+  class_rank?: number | null;
+  created_at?: string | null;
+};
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+44. 커밋 해시: `d69d17a`
+    - 커밋 메시지: "fix: ScoreCard에서 raw_score의 undefined 체크 추가"
+
+45. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: SchoolScore 타입에 class_rank 속성 추가"
+
+## 추가 문제 45 및 해결
+
+마흔다섯 번째 수정 후 Vercel 배포에서 TypeScript 에러 발생:
+
+```
+./app/(student)/scores/analysis/_components/MockComparisonTable.tsx:121:24
+Type error: 'subject.previous_score' is possibly 'null'.
+```
+
+### 원인
+`subject.previous_score`가 `null`일 수 있는데, 옵셔널 체이닝(`?.`)으로 체크한 후에도 `subject.previous_score.percentile`에 직접 접근하여 타입 에러가 발생했습니다.
+
+### 해결
+옵셔널 체이닝을 사용하여 안전하게 접근하도록 수정했습니다.
+
+```typescript
+// 수정 전
+{subject.previous_score?.percentile !== null
+  ? `${subject.previous_score.percentile}%`
+  : "-"}
+
+// 수정 후
+{subject.previous_score?.percentile != null
+  ? `${subject.previous_score?.percentile}%`
+  : "-"}
+```
+
+## 최종 커밋 정보
+
+... (이전 커밋들)
+
+45. 커밋 해시: `063b330`
+    - 커밋 메시지: "fix: SchoolScore 타입에 class_rank 속성 추가"
+
+46. 커밋 해시: `[최신 커밋 해시]`
+    - 커밋 메시지: "fix: MockComparisonTable에서 previous_score의 null 체크 수정"

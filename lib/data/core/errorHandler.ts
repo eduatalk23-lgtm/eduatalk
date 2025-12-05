@@ -76,7 +76,7 @@ export function handleQueryError(
     // 에러 객체의 모든 열거 가능한 속성 추출
     try {
       Object.keys(error).forEach((key) => {
-        const value = (error as Record<string, unknown>)[key];
+        const value = (error as unknown as Record<string, unknown>)[key];
         // 순환 참조 방지 및 직렬화 가능한 값만 포함
         if (value !== null && typeof value !== "function" && typeof value !== "object") {
           errorInfo[key] = value;

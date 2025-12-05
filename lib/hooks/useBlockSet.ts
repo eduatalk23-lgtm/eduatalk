@@ -80,7 +80,9 @@ export type UseBlockSetReturn = {
 /**
  * 블록 세트 관리 훅
  */
-export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn {
+export function useBlockSet(
+  options: UseBlockSetOptions = {}
+): UseBlockSetReturn {
   const {
     initialBlockSets = [],
     onBlockSetCreated,
@@ -89,8 +91,12 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
 
   const [blockSets, setBlockSets] = useState<BlockSetItem[]>(initialBlockSets);
   const [mode, setMode] = useState<BlockSetMode>("select");
-  const [selectedBlockSetId, setSelectedBlockSetId] = useState<string | null>(null);
-  const [editingBlockSetId, setEditingBlockSetId] = useState<string | null>(null);
+  const [selectedBlockSetId, setSelectedBlockSetId] = useState<string | null>(
+    null
+  );
+  const [editingBlockSetId, setEditingBlockSetId] = useState<string | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -107,10 +113,8 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
     setIsLoading(true);
     try {
       const result = await getBlockSets();
-      if (result.success && result.data) {
-        setBlockSets(result.data);
-        onBlockSetsLoaded?.(result.data);
-      }
+      setBlockSets(result);
+      onBlockSetsLoaded?.(result);
     } catch (error) {
       console.error("[useBlockSet] 블록 세트 로드 실패:", error);
     } finally {
@@ -139,42 +143,33 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
     return new Promise((resolve) => {
       startTransition(async () => {
         try {
-          const result = await createBlockSet(
-            newBlockSetName,
-            addedBlocks.map((block) => ({
+          const formData = new FormData();
+          formData.append("name", newBlockSetName);
+          const result = await createBlockSet(formData);
+
+          const newBlockSet = {
+            id: result.blockSetId,
+            name: result.name,
+            blocks: addedBlocks.map((block) => ({
+              id: crypto.randomUUID(),
               day_of_week: block.day,
               start_time: block.startTime,
               end_time: block.endTime,
-            }))
-          );
+            })),
+          };
 
-          if (result.success && result.data) {
-            const newBlockSet = {
-              id: result.data.id,
-              name: result.data.name,
-              blocks: addedBlocks.map((block) => ({
-                id: crypto.randomUUID(),
-                day_of_week: block.day,
-                start_time: block.startTime,
-                end_time: block.endTime,
-              })),
-            };
+          setBlockSets((prev) => [...prev, newBlockSet]);
+          onBlockSetCreated?.({ id: result.blockSetId, name: result.name });
 
-            setBlockSets((prev) => [...prev, newBlockSet]);
-            onBlockSetCreated?.({ id: result.data.id, name: result.data.name });
+          // 상태 초기화
+          setNewBlockSetName("");
+          setAddedBlocks([]);
+          setSelectedWeekdays([]);
+          setBlockStartTime("");
+          setBlockEndTime("");
+          setMode("select");
 
-            // 상태 초기화
-            setNewBlockSetName("");
-            setAddedBlocks([]);
-            setSelectedWeekdays([]);
-            setBlockStartTime("");
-            setBlockEndTime("");
-            setMode("select");
-
-            resolve({ success: true });
-          } else {
-            resolve({ success: false, error: result.error || "생성에 실패했습니다." });
-          }
+          resolve({ success: true });
         } catch (error) {
           console.error("[useBlockSet] 블록 세트 생성 실패:", error);
           resolve({ success: false, error: "생성 중 오류가 발생했습니다." });
@@ -189,7 +184,10 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
     error?: string;
   }> => {
     if (!editingBlockSetId) {
-      return { success: false, error: "수정할 블록 세트가 선택되지 않았습니다." };
+      return {
+        success: false,
+        error: "수정할 블록 세트가 선택되지 않았습니다.",
+      };
     }
 
     if (!editingBlockSetName.trim()) {
@@ -199,28 +197,25 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
     return new Promise((resolve) => {
       startTransition(async () => {
         try {
-          const result = await updateBlockSet(editingBlockSetId, {
-            name: editingBlockSetName,
-          });
+          const formData = new FormData();
+          formData.append("id", editingBlockSetId);
+          formData.append("name", editingBlockSetName);
+          await updateBlockSet(formData);
 
-          if (result.success) {
-            setBlockSets((prev) =>
-              prev.map((bs) =>
-                bs.id === editingBlockSetId
-                  ? { ...bs, name: editingBlockSetName }
-                  : bs
-              )
-            );
+          setBlockSets((prev) =>
+            prev.map((bs) =>
+              bs.id === editingBlockSetId
+                ? { ...bs, name: editingBlockSetName }
+                : bs
+            )
+          );
 
-            // 상태 초기화
-            setEditingBlockSetId(null);
-            setEditingBlockSetName("");
-            setMode("select");
+          // 상태 초기화
+          setEditingBlockSetId(null);
+          setEditingBlockSetName("");
+          setMode("select");
 
-            resolve({ success: true });
-          } else {
-            resolve({ success: false, error: result.error || "수정에 실패했습니다." });
-          }
+          resolve({ success: true });
         } catch (error) {
           console.error("[useBlockSet] 블록 세트 수정 실패:", error);
           resolve({ success: false, error: "수정 중 오류가 발생했습니다." });
@@ -250,11 +245,7 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
 
   // 시간 블록 추가
   const addTimeBlock = useCallback(() => {
-    if (
-      selectedWeekdays.length === 0 ||
-      !blockStartTime ||
-      !blockEndTime
-    ) {
+    if (selectedWeekdays.length === 0 || !blockStartTime || !blockEndTime) {
       return;
     }
 
@@ -317,4 +308,3 @@ export function useBlockSet(options: UseBlockSetOptions = {}): UseBlockSetReturn
     clearAddedBlocks,
   };
 }
-

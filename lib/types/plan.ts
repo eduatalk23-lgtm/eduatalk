@@ -532,6 +532,11 @@ export type RequiredSubject = {
   subject_category: string; // 교과 (예: 국어, 수학, 영어)
   subject?: string; // 세부 과목 (선택사항, 예: 화법과 작문, 미적분)
   min_count: number; // 최소 개수 (기본값: 1)
+  subjects_by_curriculum?: Array<{
+    curriculum_revision_id: string;
+    subject_id: string;
+    subject_name?: string;
+  }>; // 개정교육과정별 세부 과목
 };
 
 export type SubjectConstraints = {

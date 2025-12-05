@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
 
-type UserRole = "student" | "consultant" | "admin" | "parent" | "superadmin" | null;
+export type UserRole = "student" | "consultant" | "admin" | "parent" | "superadmin" | null;
 
 export type CurrentUserRole = {
   userId: string | null;

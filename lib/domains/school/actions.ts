@@ -16,10 +16,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSchoolSchema, updateSchoolSchema } from "./validation";
 import * as service from "./service";
-import {
-  parseFormString,
-  parseFormStringOrNull,
-} from "@/lib/utils/formData";
+import { parseFormString, parseFormStringOrNull } from "@/lib/utils/formData";
 import type {
   School,
   Region,
@@ -27,6 +24,7 @@ import type {
   SchoolSimple,
   SchoolActionResult,
 } from "./types";
+import { toLegacySchool } from "./types";
 
 // ============================================
 // 조회 Actions (모든 사용자 접근 가능)
@@ -39,7 +37,15 @@ export async function getSchoolsAction(options?: {
   regionId?: string;
   type?: SchoolType;
 }): Promise<School[]> {
-  return service.getAllSchools(options);
+  const schools = await service.getAllSchools(
+    options
+      ? {
+          region: options.regionId,
+          schoolType: options.type,
+        }
+      : undefined
+  );
+  return schools.map(toLegacySchool);
 }
 
 /**
@@ -48,7 +54,8 @@ export async function getSchoolsAction(options?: {
 export async function getSchoolByIdAction(
   schoolId: string
 ): Promise<School | null> {
-  return service.getSchoolById(schoolId);
+  const school = await service.getSchoolByUnifiedId(schoolId);
+  return school ? toLegacySchool(school) : null;
 }
 
 /**
@@ -58,7 +65,8 @@ export async function getSchoolByNameAction(
   name: string,
   type?: SchoolType
 ): Promise<School | null> {
-  return service.getSchoolByName(name, type);
+  const school = await service.getSchoolByName(name, type);
+  return school ? toLegacySchool(school) : null;
 }
 
 /**
@@ -68,7 +76,10 @@ export async function searchSchoolsAction(
   query: string,
   type?: SchoolType
 ): Promise<SchoolSimple[]> {
-  return service.searchSchools(query, type);
+  return service.searchSchools({
+    query,
+    schoolType: type,
+  });
 }
 
 /**
@@ -143,8 +154,8 @@ export async function createSchoolAction(
     };
   }
 
-  // Service 호출
-  const result = await service.createSchool(validation.data);
+  // Service 호출 (deprecated: 읽기 전용)
+  const result = await service.createSchool();
 
   // Cache 무효화
   if (result.success) {
@@ -198,8 +209,8 @@ export async function updateSchoolAction(
     };
   }
 
-  // Service 호출
-  const result = await service.updateSchool(validation.data);
+  // Service 호출 (deprecated: 읽기 전용)
+  const result = await service.updateSchool();
 
   // Cache 무효화
   if (result.success) {
@@ -222,8 +233,8 @@ export async function deleteSchoolAction(
     return { success: false, error: "권한이 없습니다." };
   }
 
-  // Service 호출
-  const result = await service.deleteSchool(schoolId);
+  // Service 호출 (deprecated: 읽기 전용)
+  const result = await service.deleteSchool();
 
   // Cache 무효화
   if (result.success) {
@@ -245,5 +256,6 @@ export async function autoRegisterSchoolAction(
   type: SchoolType,
   region?: string | null
 ): Promise<SchoolSimple | null> {
-  return service.autoRegisterSchool(name, type, region);
+  // deprecated: 읽기 전용
+  return service.autoRegisterSchool();
 }

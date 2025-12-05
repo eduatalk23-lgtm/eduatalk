@@ -50,10 +50,6 @@ export async function GET(request: NextRequest) {
 
     // 검색 실행
     const result = await searchMasterBooks({
-      subject_category,
-      semester,
-      revision,
-      difficulty_level,
       search,
       limit,
       offset,

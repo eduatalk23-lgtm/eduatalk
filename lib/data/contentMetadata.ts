@@ -3,8 +3,7 @@
  * TODO 주석 해결: 마스터 콘텐츠의 subject_category를 올바르게 조회
  */
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabasePublicClient } from "@/lib/supabase/client";
+import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 

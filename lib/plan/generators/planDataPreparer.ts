@@ -366,7 +366,7 @@ export async function prepareContentDuration(
             .maybeSingle();
 
           if (studentBookByMaster) {
-            studentBook = { data: studentBookByMaster, error: null };
+            studentBook = { data: studentBookByMaster, error: null } as typeof studentBook;
           }
         }
       }
@@ -423,7 +423,7 @@ export async function prepareContentDuration(
             .maybeSingle();
 
           if (studentLectureByMaster) {
-            studentLecture = { data: studentLectureByMaster, error: null };
+            studentLecture = { data: studentLectureByMaster, error: null } as typeof studentLecture;
           }
         }
       }

@@ -51,11 +51,6 @@ export async function GET(request: NextRequest) {
 
     // 검색 실행
     const result = await searchMasterLectures({
-      subject_category,
-      semester,
-      revision,
-      difficulty_level,
-      platform,
       search,
       limit,
       offset,

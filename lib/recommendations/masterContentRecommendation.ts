@@ -89,7 +89,7 @@ function buildRecommendationReason(
   if (schoolSummary?.averageGrade !== null) {
     reasons.push(`내신 평균 ${schoolSummary.averageGrade.toFixed(2)}등급`);
   }
-  if (schoolSummary?.recentGrade !== null && schoolSummary.averageGrade !== null) {
+  if (schoolSummary?.recentGrade !== null && schoolSummary?.averageGrade !== null) {
     if (schoolSummary.recentGrade > schoolSummary.averageGrade) {
       const decline = schoolSummary.recentGrade - schoolSummary.averageGrade;
       reasons.push(`최근 ${decline.toFixed(2)}단계 하락`);

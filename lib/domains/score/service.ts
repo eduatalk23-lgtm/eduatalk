@@ -209,8 +209,8 @@ export async function createMockScore(
       return { success: false, error: "올바른 학년을 입력하세요. (1-3)" };
     }
 
-    if (!input.exam_type) {
-      return { success: false, error: "시험 유형이 필요합니다." };
+    if (!input.exam_date || !input.exam_title) {
+      return { success: false, error: "시험 날짜와 시험명이 필요합니다." };
     }
 
     // 등급 검증
@@ -382,4 +382,3 @@ export async function getScoreTrendBySubject(
     return { school: [], mock: [] };
   }
 }
-

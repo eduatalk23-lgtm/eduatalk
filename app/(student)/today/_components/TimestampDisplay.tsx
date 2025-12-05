@@ -64,10 +64,10 @@ export function TimestampDisplay({
         </div>
       )}
 
-      {pauseCount !== null && pauseCount > 0 && (
+      {pauseCount != null && pauseCount > 0 && (
         <div className="text-xs text-gray-500">
           일시정지: {pauseCount}회
-          {pausedDurationSeconds !== null &&
+          {pausedDurationSeconds != null &&
             pausedDurationSeconds > 0 &&
             ` (${formatTime(pausedDurationSeconds)})`}
         </div>

@@ -45,7 +45,7 @@ function MockScoreCardComponent({
             <div className="flex flex-col gap-2 flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-bold text-gray-900 truncate">
-                  {subjectName || score.subject_name || "-"}
+                  {subjectName || "-"}
                 </h3>
                 {score.grade_score !== null && (
                   <div
@@ -70,7 +70,7 @@ function MockScoreCardComponent({
                   </span>
                 )}
                 <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
-                  {score.grade}학년 {score.exam_round}월 {score.exam_type}
+                  {score.grade}학년 {new Date(score.exam_date).getMonth() + 1}월 {score.exam_title}
                 </span>
               </div>
             </div>
@@ -158,13 +158,13 @@ function MockScoreCardComponent({
             <div>
               <span className="text-xs text-gray-500">과목명</span>
               <p className="mt-1 text-sm font-medium text-gray-900">
-                {subjectName || score.subject_name || "-"}
+                {subjectName || "-"}
               </p>
             </div>
             <div>
               <span className="text-xs text-gray-500">교과</span>
               <p className="mt-1 text-sm font-medium text-gray-900">
-                {subjectGroupName || score.subject_group || "-"}
+                {subjectGroupName || "-"}
               </p>
             </div>
             <div>
@@ -176,7 +176,7 @@ function MockScoreCardComponent({
             <div>
               <span className="text-xs text-gray-500">학년/회차/시험유형</span>
               <p className="mt-1 text-sm font-medium text-gray-900">
-                {score.grade}학년 {score.exam_round}월 {score.exam_type}
+                {score.grade}학년 {new Date(score.exam_date).getMonth() + 1}월 {score.exam_title}
               </p>
             </div>
           </div>

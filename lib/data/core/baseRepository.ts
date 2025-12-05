@@ -68,12 +68,14 @@ export abstract class BaseRepository<T extends { id: string }> {
   async findById(id: string): Promise<T | null> {
     const supabase = await this.getSupabase();
     return executeSingleQuery<T>(
-      () =>
-        supabase
+      async () => {
+        const result = await supabase
           .from(this.tableName)
           .select("*")
           .eq("id", id)
-          .maybeSingle(),
+          .maybeSingle();
+        return result;
+      },
       {
         context: this.context,
         defaultValue: null,
@@ -91,11 +93,13 @@ export abstract class BaseRepository<T extends { id: string }> {
 
     const supabase = await this.getSupabase();
     const result = await executeQuery<T[]>(
-      () =>
-        supabase
+      async () => {
+        const queryResult = await supabase
           .from(this.tableName)
           .select("*")
-          .in("id", ids),
+          .in("id", ids);
+        return queryResult;
+      },
       {
         context: this.context,
         defaultValue: [],

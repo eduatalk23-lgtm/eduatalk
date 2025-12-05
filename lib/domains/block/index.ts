@@ -9,30 +9,28 @@
 
 // 블록 세트 re-export
 export {
-  getBlockSets,
-  getBlockSetById,
-  getBlockSetsByTenant,
-  createBlockSet,
-  updateBlockSet,
-  deleteBlockSet,
-  duplicateBlockSet,
+  fetchBlockSetsWithBlocks,
+  type BlockSetWithBlocks,
 } from "@/lib/data/blockSets";
 
 // 블록 유틸리티 re-export
 export {
   calculateBlockStatistics,
-  getBlockTotalTime,
+  calculateDayDistribution,
+  calculateTimeDistribution,
+  calculateHourlyDistribution,
+  isValidBlock,
+  findInvalidBlocks,
 } from "@/lib/blocks/statistics";
 
 export {
-  parseTimeRange,
-  formatTimeRange,
-  isValidTimeRange,
+  calculateAutoTimeRange,
+  createManualTimeRange,
 } from "@/lib/blocks/timeRange";
 
 export {
-  validateBlockSet,
-  validateBlock,
+  checkBlockOverlap,
+  calculateBlockDuration,
 } from "@/lib/blocks/validation";
 
 /**

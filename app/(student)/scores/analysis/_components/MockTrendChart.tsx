@@ -33,7 +33,8 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
     }, {} as Record<string, { exam_date: string; exam_title: string; label: string; scores: number[] }>);
 
     // 평균 백분위 계산
-    return Object.values(groupedByExam)
+    type ExamGroup = { exam_date: string; exam_title: string; label: string; scores: number[] };
+    return (Object.values(groupedByExam) as ExamGroup[])
       .map((exam) => ({
         label: exam.label,
         exam_date: exam.exam_date,

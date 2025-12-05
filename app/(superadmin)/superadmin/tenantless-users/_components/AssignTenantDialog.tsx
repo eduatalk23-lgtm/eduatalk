@@ -95,7 +95,7 @@ export function AssignTenantDialog({
           alert(
             userId
               ? "테넌트가 할당되었습니다."
-              : `${result.assignedCount || 0}명의 사용자에 테넌트가 할당되었습니다.`
+              : `${(result as { assignedCount?: number }).assignedCount || 0}명의 사용자에 테넌트가 할당되었습니다.`
           );
         } else {
           setError(result.error || "테넌트 할당에 실패했습니다.");

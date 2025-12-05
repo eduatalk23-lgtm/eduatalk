@@ -21,9 +21,6 @@ export {
   getBooks,
   getLectures,
   getCustomContents,
-  getBookById,
-  // getLectureById,  // 제거: studentContents.ts에 존재하지 않음
-  getCustomContentById,
   createBook,
   createLecture,
   createCustomContent,
@@ -33,6 +30,9 @@ export {
   deleteBook,
   deleteLecture,
   deleteCustomContent,
+  type Book,
+  type Lecture,
+  type CustomContent,
 } from "@/lib/data/studentContents";
 
 // 콘텐츠 메타데이터 re-export

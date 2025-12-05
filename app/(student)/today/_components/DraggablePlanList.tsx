@@ -13,7 +13,7 @@ import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 type PlanWithContent = Plan & {
   content?: Book | Lecture | CustomContent;
   progress?: number | null;
-  session?: { isPaused: boolean };
+  session?: { isPaused: boolean; pausedAt?: string | null };
 };
 
 type DraggablePlanListProps = {

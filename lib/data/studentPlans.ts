@@ -78,28 +78,19 @@ export async function getPlansForStudent(
 
   if (filters.planDate) {
     // planDate를 문자열로 변환 (YYYY-MM-DD 형식)
-    const planDateStr =
-      typeof filters.planDate === "string"
-        ? filters.planDate.slice(0, 10)
-        : filters.planDate instanceof Date
-        ? filters.planDate.toISOString().slice(0, 10)
-        : String(filters.planDate).slice(0, 10);
+    const planDateStr = typeof filters.planDate === "string"
+      ? filters.planDate.slice(0, 10)
+      : String(filters.planDate).slice(0, 10);
     query = query.eq("plan_date", planDateStr);
   } else if (filters.dateRange) {
     // dateRange의 start와 end를 문자열로 변환 (YYYY-MM-DD 형식)
-    const startStr =
-      typeof filters.dateRange.start === "string"
-        ? filters.dateRange.start.slice(0, 10)
-        : filters.dateRange.start instanceof Date
-        ? filters.dateRange.start.toISOString().slice(0, 10)
-        : String(filters.dateRange.start).slice(0, 10);
+    const startStr = typeof filters.dateRange.start === "string"
+      ? filters.dateRange.start.slice(0, 10)
+      : String(filters.dateRange.start).slice(0, 10);
 
-    const endStr =
-      typeof filters.dateRange.end === "string"
-        ? filters.dateRange.end.slice(0, 10)
-        : filters.dateRange.end instanceof Date
-        ? filters.dateRange.end.toISOString().slice(0, 10)
-        : String(filters.dateRange.end).slice(0, 10);
+    const endStr = typeof filters.dateRange.end === "string"
+      ? filters.dateRange.end.slice(0, 10)
+      : String(filters.dateRange.end).slice(0, 10);
 
     query = query.gte("plan_date", startStr).lte("plan_date", endStr);
   }
@@ -149,8 +140,6 @@ export async function getPlansForStudent(
       const planDateStr =
         typeof filters.planDate === "string"
           ? filters.planDate.slice(0, 10)
-          : filters.planDate instanceof Date
-          ? filters.planDate.toISOString().slice(0, 10)
           : String(filters.planDate).slice(0, 10);
       fallbackQuery = fallbackQuery.eq("plan_date", planDateStr);
     } else if (filters.dateRange) {
@@ -158,15 +147,11 @@ export async function getPlansForStudent(
       const startStr =
         typeof filters.dateRange.start === "string"
           ? filters.dateRange.start.slice(0, 10)
-          : filters.dateRange.start instanceof Date
-          ? filters.dateRange.start.toISOString().slice(0, 10)
           : String(filters.dateRange.start).slice(0, 10);
 
       const endStr =
         typeof filters.dateRange.end === "string"
           ? filters.dateRange.end.slice(0, 10)
-          : filters.dateRange.end instanceof Date
-          ? filters.dateRange.end.toISOString().slice(0, 10)
           : String(filters.dateRange.end).slice(0, 10);
 
       fallbackQuery = fallbackQuery
@@ -227,26 +212,17 @@ export async function getPlansForStudent(
           }
           
           if (filters.planDate) {
-            const planDateStr =
-              typeof filters.planDate === "string"
-                ? filters.planDate.slice(0, 10)
-                : filters.planDate instanceof Date
-                ? filters.planDate.toISOString().slice(0, 10)
-                : String(filters.planDate).slice(0, 10);
+            const planDateStr = typeof filters.planDate === "string"
+              ? filters.planDate.slice(0, 10)
+              : String(filters.planDate).slice(0, 10);
             retryQuery.eq("plan_date", planDateStr);
           } else if (filters.dateRange) {
-            const startStr =
-              typeof filters.dateRange.start === "string"
-                ? filters.dateRange.start.slice(0, 10)
-                : filters.dateRange.start instanceof Date
-                ? filters.dateRange.start.toISOString().slice(0, 10)
-                : String(filters.dateRange.start).slice(0, 10);
-            const endStr =
-              typeof filters.dateRange.end === "string"
-                ? filters.dateRange.end.slice(0, 10)
-                : filters.dateRange.end instanceof Date
-                ? filters.dateRange.end.toISOString().slice(0, 10)
-                : String(filters.dateRange.end).slice(0, 10);
+            const startStr = typeof filters.dateRange.start === "string"
+              ? filters.dateRange.start.slice(0, 10)
+              : String(filters.dateRange.start).slice(0, 10);
+            const endStr = typeof filters.dateRange.end === "string"
+              ? filters.dateRange.end.slice(0, 10)
+              : String(filters.dateRange.end).slice(0, 10);
             retryQuery.gte("plan_date", startStr).lte("plan_date", endStr);
           }
           
@@ -304,24 +280,16 @@ export async function getPlansForStudent(
         planDate: filters.planDate
           ? typeof filters.planDate === "string"
             ? filters.planDate.slice(0, 10)
-            : filters.planDate instanceof Date
-            ? filters.planDate.toISOString().slice(0, 10)
             : String(filters.planDate).slice(0, 10)
           : undefined,
         dateRange: filters.dateRange
           ? {
-              start:
-                typeof filters.dateRange.start === "string"
-                  ? filters.dateRange.start.slice(0, 10)
-                  : filters.dateRange.start instanceof Date
-                  ? filters.dateRange.start.toISOString().slice(0, 10)
-                  : String(filters.dateRange.start).slice(0, 10),
-              end:
-                typeof filters.dateRange.end === "string"
-                  ? filters.dateRange.end.slice(0, 10)
-                  : filters.dateRange.end instanceof Date
-                  ? filters.dateRange.end.toISOString().slice(0, 10)
-                  : String(filters.dateRange.end).slice(0, 10),
+              start: typeof filters.dateRange.start === "string"
+                ? filters.dateRange.start.slice(0, 10)
+                : String(filters.dateRange.start).slice(0, 10),
+              end: typeof filters.dateRange.end === "string"
+                ? filters.dateRange.end.slice(0, 10)
+                : String(filters.dateRange.end).slice(0, 10),
             }
           : undefined,
         contentType: filters.contentType,

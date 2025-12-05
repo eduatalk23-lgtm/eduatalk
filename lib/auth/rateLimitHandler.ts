@@ -70,8 +70,8 @@ export async function retryWithBackoff<T>(
         const delay = baseDelay + Math.random() * 1000;
         
         console.warn(`[rateLimit] 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 후)`, {
-          code: error.code,
-          status: error.status,
+          code: (error as any).code,
+          status: (error as any).status,
         });
         
         await new Promise((resolve) => setTimeout(resolve, delay));

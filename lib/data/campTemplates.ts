@@ -425,11 +425,12 @@ export async function deleteCampInvitations(
   }
 
   // 2. 초대 일괄 삭제
-  const { error, count } = await supabase
+  const { error } = await supabase
     .from("camp_invitations")
     .delete()
-    .in("id", invitationIds)
-    .select("id", { count: "exact", head: false });
+    .in("id", invitationIds);
+  
+  const count = error ? 0 : invitationIds.length;
 
   if (error) {
     console.error("[data/campTemplates] 초대 일괄 삭제 실패", error);

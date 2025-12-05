@@ -13,10 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import * as service from "./service";
-import {
-  parseFormString,
-  parseFormNumberOrNull,
-} from "@/lib/utils/formData";
+import { parseFormString, parseFormNumberOrNull } from "@/lib/utils/formData";
 import type {
   SchoolScore,
   MockScore,
@@ -63,7 +60,7 @@ export async function createSchoolScoreAction(
 
   const input = {
     tenant_id: parseFormString(formData.get("tenant_id")) || null,
-    student_id: parseFormString(formData.get("student_id")) || user.id,
+    student_id: parseFormString(formData.get("student_id")) || user.userId,
     grade: parseFormNumberOrNull(formData.get("grade")) || 1,
     semester: parseFormNumberOrNull(formData.get("semester")) || 1,
     subject_group_id: parseFormString(formData.get("subject_group_id")) || null,
@@ -75,7 +72,9 @@ export async function createSchoolScoreAction(
     credit_hours: parseFormNumberOrNull(formData.get("credit_hours")),
     raw_score: parseFormNumberOrNull(formData.get("raw_score")),
     subject_average: parseFormNumberOrNull(formData.get("subject_average")),
-    standard_deviation: parseFormNumberOrNull(formData.get("standard_deviation")),
+    standard_deviation: parseFormNumberOrNull(
+      formData.get("standard_deviation")
+    ),
     grade_score: parseFormNumberOrNull(formData.get("grade_score")),
     total_students: parseFormNumberOrNull(formData.get("total_students")),
     rank_grade: parseFormNumberOrNull(formData.get("rank_grade")),
@@ -103,7 +102,7 @@ export async function updateSchoolScoreAction(
   }
 
   const scoreId = parseFormString(formData.get("id"));
-  const studentId = parseFormString(formData.get("student_id")) || user.id;
+  const studentId = parseFormString(formData.get("student_id")) || user.userId;
 
   if (!scoreId) {
     return { success: false, error: "성적 ID가 필요합니다." };
@@ -112,16 +111,20 @@ export async function updateSchoolScoreAction(
   const updates = {
     grade: parseFormNumberOrNull(formData.get("grade")) || undefined,
     semester: parseFormNumberOrNull(formData.get("semester")) || undefined,
-    subject_group_id: parseFormString(formData.get("subject_group_id")) || undefined,
+    subject_group_id:
+      parseFormString(formData.get("subject_group_id")) || undefined,
     subject_id: parseFormString(formData.get("subject_id")) || undefined,
-    subject_type_id: parseFormString(formData.get("subject_type_id")) || undefined,
+    subject_type_id:
+      parseFormString(formData.get("subject_type_id")) || undefined,
     subject_group: parseFormString(formData.get("subject_group")) || undefined,
     subject_type: parseFormString(formData.get("subject_type")) || undefined,
     subject_name: parseFormString(formData.get("subject_name")) || undefined,
     credit_hours: parseFormNumberOrNull(formData.get("credit_hours")),
     raw_score: parseFormNumberOrNull(formData.get("raw_score")),
     subject_average: parseFormNumberOrNull(formData.get("subject_average")),
-    standard_deviation: parseFormNumberOrNull(formData.get("standard_deviation")),
+    standard_deviation: parseFormNumberOrNull(
+      formData.get("standard_deviation")
+    ),
     grade_score: parseFormNumberOrNull(formData.get("grade_score")),
     total_students: parseFormNumberOrNull(formData.get("total_students")),
     rank_grade: parseFormNumberOrNull(formData.get("rank_grade")),
@@ -149,7 +152,7 @@ export async function deleteSchoolScoreAction(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
-  const targetStudentId = studentId || user.id;
+  const targetStudentId = studentId || user.userId;
   const result = await service.deleteSchoolScore(scoreId, targetStudentId);
 
   if (result.success) {
@@ -196,21 +199,40 @@ export async function createMockScoreAction(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
+  // exam_date와 exam_title 가져오기
+  const examDate =
+    parseFormString(formData.get("exam_date")) ||
+    new Date().toISOString().split("T")[0];
+  const examTitle =
+    parseFormString(formData.get("exam_title")) ||
+    parseFormString(formData.get("exam_type")) ||
+    "모의고사";
+
+  // curriculum_revision_id 가져오기
+  const { getActiveCurriculumRevision } = await import("@/lib/data/subjects");
+  const curriculumRevision = await getActiveCurriculumRevision();
+  if (!curriculumRevision) {
+    return {
+      success: false,
+      error: "개정교육과정을 찾을 수 없습니다. 관리자에게 문의해주세요.",
+    };
+  }
+
   const input = {
-    tenant_id: parseFormString(formData.get("tenant_id")) || null,
-    student_id: parseFormString(formData.get("student_id")) || user.id,
+    tenant_id:
+      parseFormString(formData.get("tenant_id")) || user.tenantId || "",
+    student_id: parseFormString(formData.get("student_id")) || user.userId,
+    exam_date: examDate,
+    exam_title: examTitle,
     grade: parseFormNumberOrNull(formData.get("grade")) || 1,
-    exam_type: parseFormString(formData.get("exam_type")),
-    subject_group_id: parseFormString(formData.get("subject_group_id")) || null,
-    subject_id: parseFormString(formData.get("subject_id")) || null,
-    subject_type_id: parseFormString(formData.get("subject_type_id")) || null,
-    subject_group: parseFormString(formData.get("subject_group")) || null,
-    subject_name: parseFormString(formData.get("subject_name")) || null,
+    subject_id: parseFormString(formData.get("subject_id")) || "",
+    subject_group_id: parseFormString(formData.get("subject_group_id")) || "",
+    curriculum_revision_id: curriculumRevision.id,
     raw_score: parseFormNumberOrNull(formData.get("raw_score")),
     standard_score: parseFormNumberOrNull(formData.get("standard_score")),
     percentile: parseFormNumberOrNull(formData.get("percentile")),
     grade_score: parseFormNumberOrNull(formData.get("grade_score")),
-    exam_round: parseFormString(formData.get("exam_round")) || null,
+    semester: parseFormNumberOrNull(formData.get("semester")) ?? undefined,
   };
 
   const result = await service.createMockScore(input);
@@ -235,7 +257,7 @@ export async function updateMockScoreAction(
   }
 
   const scoreId = parseFormString(formData.get("id"));
-  const studentId = parseFormString(formData.get("student_id")) || user.id;
+  const studentId = parseFormString(formData.get("student_id")) || user.userId;
 
   if (!scoreId) {
     return { success: false, error: "성적 ID가 필요합니다." };
@@ -244,9 +266,11 @@ export async function updateMockScoreAction(
   const updates = {
     grade: parseFormNumberOrNull(formData.get("grade")) || undefined,
     exam_type: parseFormString(formData.get("exam_type")) || undefined,
-    subject_group_id: parseFormString(formData.get("subject_group_id")) || undefined,
+    subject_group_id:
+      parseFormString(formData.get("subject_group_id")) || undefined,
     subject_id: parseFormString(formData.get("subject_id")) || undefined,
-    subject_type_id: parseFormString(formData.get("subject_type_id")) || undefined,
+    subject_type_id:
+      parseFormString(formData.get("subject_type_id")) || undefined,
     subject_group: parseFormString(formData.get("subject_group")) || undefined,
     subject_name: parseFormString(formData.get("subject_name")) || undefined,
     raw_score: parseFormNumberOrNull(formData.get("raw_score")),
@@ -278,7 +302,7 @@ export async function deleteMockScoreAction(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
-  const targetStudentId = studentId || user.id;
+  const targetStudentId = studentId || user.userId;
   const result = await service.deleteMockScore(scoreId, targetStudentId);
 
   if (result.success) {

@@ -149,7 +149,7 @@ function DataTableComponent<T>({
 
 export const DataTable = memo(DataTableComponent) as <T>(
   props: DataTableProps<T>
-) => JSX.Element;
+) => React.ReactElement;
 
 export default DataTable;
 

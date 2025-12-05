@@ -8,17 +8,6 @@ import type { SupabaseServerClient } from "./types";
 import { handleQueryError, isColumnNotFoundError } from "./errorHandler";
 
 /**
- * 쿼리 빌더 타입
- */
-export type QueryBuilder<T> = PostgrestQueryBuilder<
-  unknown,
-  T,
-  unknown[],
-  unknown,
-  unknown
->;
-
-/**
  * 쿼리 실행 옵션
  */
 export type QueryOptions = {

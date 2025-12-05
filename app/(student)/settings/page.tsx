@@ -93,7 +93,7 @@ export default function SettingsPage() {
 
   // Student 데이터를 FormData로 변환하는 헬퍼 함수
   const transformStudentToFormData = useCallback(
-    async (studentData: Student & { desired_career_field?: string }): Promise<StudentFormData> => {
+    async (studentData: Student & Partial<import("@/lib/data/studentProfiles").StudentProfile> & Partial<import("@/lib/data/studentCareerGoals").StudentCareerGoal> & { desired_career_field?: string | null }): Promise<StudentFormData> => {
       const supabase = (await import("@/lib/supabase/client")).supabase;
       const {
         data: { user },
@@ -113,17 +113,17 @@ export default function SettingsPage() {
         school_id: studentData.school_id || "",
         grade: gradeNumber,
         birth_date: studentData.birth_date || "",
-        gender: toFormDataValue(studentData.gender, isGender),
-        phone: studentData.phone || "",
-        mother_phone: studentData.mother_phone || "",
-        father_phone: studentData.father_phone || "",
-        exam_year: studentData.exam_year?.toString() || "",
+        gender: toFormDataValue((studentData as any).gender, isGender),
+        phone: (studentData as any).phone || "",
+        mother_phone: (studentData as any).mother_phone || "",
+        father_phone: (studentData as any).father_phone || "",
+        exam_year: (studentData as any).exam_year?.toString() || "",
         curriculum_revision: toFormDataValue(
-          studentData.curriculum_revision,
+          (studentData as any).curriculum_revision,
           isCurriculumRevision
         ),
-        desired_university_ids: studentData.desired_university_ids || [],
-        desired_career_field: toFormDataValue(studentData.desired_career_field, isCareerField),
+        desired_university_ids: (studentData as any).desired_university_ids || [],
+        desired_career_field: toFormDataValue((studentData as any).desired_career_field, isCareerField) as "" | import("./types").CareerField,
       };
     },
     []
@@ -449,9 +449,9 @@ export default function SettingsPage() {
       ];
 
       for (const field of requiredFields) {
-        const error = validateFormField(field, formData[field]);
+        const error = validateFormField(field, formData[field] as string);
         if (error) {
-          newErrors[field] = error;
+          (newErrors as any)[field] = error;
         }
       }
 
@@ -459,10 +459,10 @@ export default function SettingsPage() {
       ["phone", "mother_phone", "father_phone"].forEach((field) => {
         const error = validateFormField(
           field,
-          formData[field as keyof StudentFormData]
+          formData[field as keyof StudentFormData] as string
         );
         if (error) {
-          newErrors[field as keyof StudentFormData] = error;
+          (newErrors as any)[field] = error;
         }
       });
 

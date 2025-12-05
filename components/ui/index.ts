@@ -67,12 +67,12 @@ export { ToastProvider, useToast } from "./ToastProvider";
 // ============================================
 
 // Form 관련 (기존 유지)
-export { FormMessage } from "./FormMessage";
-export { FormSubmitButton } from "./FormSubmitButton";
+export { default as FormMessage } from "./FormMessage";
+export { default as FormSubmitButton } from "./FormSubmitButton";
 
 // 도메인 특화 컴포넌트 (기존 유지)
-export { SchoolSelect } from "./SchoolSelect";
-export { SchoolMultiSelect } from "./SchoolMultiSelect";
+export { default as SchoolSelect } from "./SchoolSelect";
+export { default as SchoolMultiSelect } from "./SchoolMultiSelect";
 export { TimeRangeInput } from "./TimeRangeInput";
 export { SkeletonForm } from "./SkeletonForm";
 

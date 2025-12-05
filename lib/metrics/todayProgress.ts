@@ -10,7 +10,9 @@ import {
 } from "@/lib/metrics/studyTime";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;
 
 export type TodayProgress = {
   todayStudyMinutes: number; // 오늘 학습 시간 (분)
@@ -42,7 +44,7 @@ export async function calculateTodayProgress(
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayDate = targetDate || today.toISOString().slice(0, 10);
-    
+
     // 계산할 날짜 설정
     const target = new Date(todayDate + "T00:00:00");
     const targetEnd = new Date(target);
@@ -70,11 +72,14 @@ export async function calculateTodayProgress(
       studentId,
       tenantId,
       planDate: todayDate,
-      planGroupIds: planGroupIds && planGroupIds.length > 0 ? planGroupIds : undefined,
+      planGroupIds:
+        planGroupIds && planGroupIds.length > 0 ? planGroupIds : undefined,
     });
 
     const planTotalCount = plans.length;
-    const planCompletedCount = plans.filter((plan) => !!plan.actual_end_time).length;
+    const planCompletedCount = plans.filter(
+      (plan) => !!plan.actual_end_time
+    ).length;
 
     // 2. 해당 날짜의 세션 조회 및 학습 시간 계산
     const sessions = await getSessionsInRange({
@@ -92,7 +97,12 @@ export async function calculateTodayProgress(
       return (
         total +
         calculatePlanStudySeconds(
-          plan,
+          {
+            actual_start_time: plan.actual_start_time,
+            actual_end_time: plan.actual_end_time,
+            total_duration_seconds: plan.total_duration_seconds,
+            paused_duration_seconds: plan.paused_duration_seconds,
+          },
           nowMs,
           plan.actual_end_time ? undefined : activeSessionMap.get(plan.id)
         )
@@ -185,5 +195,3 @@ export async function calculateTodayProgress(
     };
   }
 }
-
-

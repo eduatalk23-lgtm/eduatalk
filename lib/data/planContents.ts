@@ -583,7 +583,7 @@ export async function classifyPlanContents(
           title: masterBookFromPlan.title || "제목 없음",
           subject_category: masterBookFromPlan.subject_category || masterBookFromPlan.subject || null,
           isRecommended: isMasterContentId, // content_id가 마스터 ID면 추천 콘텐츠
-          masterContentId: content.master_content_id,
+          masterContentId: content.master_content_id ?? undefined,
           // 자동 추천 정보 전달
           is_auto_recommended: content.is_auto_recommended ?? false,
           recommendation_source: content.recommendation_source ?? null,
@@ -677,7 +677,7 @@ export async function classifyPlanContents(
           title: masterLectureFromPlan.title || "제목 없음",
           subject_category: masterLectureFromPlan.subject_category || masterLectureFromPlan.subject || null,
           isRecommended: isMasterContentId, // content_id가 마스터 ID면 추천 콘텐츠
-          masterContentId: content.master_content_id,
+          masterContentId: content.master_content_id ?? undefined,
           // 자동 추천 정보 전달
           is_auto_recommended: content.is_auto_recommended ?? false,
           recommendation_source: content.recommendation_source ?? null,

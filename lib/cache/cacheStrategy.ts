@@ -126,9 +126,9 @@ export async function invalidateCache(
   ...additionalTags: string[]
 ): Promise<void> {
   const { revalidateTag } = await import("next/cache");
-  revalidateTag(tag);
+  (revalidateTag as (tag: string) => void)(tag);
   for (const additionalTag of additionalTags) {
-    revalidateTag(additionalTag);
+    (revalidateTag as (tag: string) => void)(additionalTag);
   }
 }
 

@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       if (contentType === "book") {
         const details = bookDetailsMap.get(content.contentId) || [];
         response[content.contentId] = {
-          details: details.map((d) => ({
+          details: details.map((d: { id: string; page_number: number | null; major_unit: string | null; minor_unit: string | null }) => ({
             id: d.id,
             page_number: d.page_number,
             major_unit: d.major_unit,
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       } else {
         const episodes = lectureEpisodesMap.get(content.contentId) || [];
         response[content.contentId] = {
-          episodes: episodes.map((e) => ({
+          episodes: episodes.map((e: { id: string; episode_number: number; title: string | null; duration: number | null }) => ({
             id: e.id,
             episode_number: e.episode_number,
             title: e.title,

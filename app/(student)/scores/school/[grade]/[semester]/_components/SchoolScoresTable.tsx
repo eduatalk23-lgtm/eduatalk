@@ -95,7 +95,7 @@ export default function SchoolScoresTable({
         // 교과 그룹이 없으면 빈 행
         // 교과 그룹이 없으면 빈 값
         return {
-          subject_type: "",
+          subject_type_id: "",
           subject_group_id: "",
           subject_id: "",
           credit_hours: "",
