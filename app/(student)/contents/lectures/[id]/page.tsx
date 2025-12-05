@@ -76,8 +76,8 @@ export default async function LectureDetailPage({
           episode_analysis: lecture.episode_analysis || master.episode_analysis || null,
           overall_difficulty: lecture.overall_difficulty || master.overall_difficulty || null,
           target_exam_type: lecture.target_exam_type || null, // MasterLecture에는 target_exam_type 필드가 없음
-          tags: lecture.tags || master.tags || null,
-          is_active: lecture.is_active ?? master.is_active ?? true,
+          tags: lecture.tags || null, // MasterLecture에는 tags 필드가 없음
+          is_active: lecture.is_active ?? true, // MasterLecture에는 is_active 필드가 없음
           // 플랫폼명도 병합 (platform이 없으면 platform_name 사용)
           platform: lecture.platform || master.platform_name || master.platform || null,
         };
