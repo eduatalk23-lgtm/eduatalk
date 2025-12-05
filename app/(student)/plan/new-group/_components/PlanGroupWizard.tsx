@@ -615,12 +615,12 @@ export function PlanGroupWizard({
 
     // Step 5 (학습범위 점검)에서 다음 버튼 클릭 시
     if (currentStep === 5) {
-      // 일반 모드: 플랜 생성 후 Step 6으로 이동
+      // 일반 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 6 → Step 7 전환 시)
       // 캠프 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 7에서)
       if (isAdminContinueMode) {
         handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
       } else {
-        handleSubmit(true); // 플랜 생성 후 Step 6으로 이동
+        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장 (플랜은 Step 6 → Step 7 전환 시 생성)
       }
       return;
     }
@@ -628,11 +628,11 @@ export function PlanGroupWizard({
     // Step 6 (최종 확인)에서 다음 버튼 클릭 시
     if (currentStep === 6) {
       // 관리자 continue 모드: 데이터만 저장 후 Step 7로 이동
-      // 일반 모드: Step 7로 이동 (플랜은 이미 Step 5에서 생성됨)
+      // 일반 모드: 플랜 생성 후 Step 7로 이동
       if (isAdminContinueMode) {
         handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
       } else {
-        setCurrentStep(7); // Step 7로 이동
+        handleSubmit(true); // 플랜 생성 후 Step 7로 이동
       }
       return;
     }
@@ -1094,7 +1094,7 @@ export function PlanGroupWizard({
         if (currentStep === 5) {
           setDraftGroupId(finalGroupId);
           setCurrentStep(6);
-          toast.showSuccess("저장되었습니다.");
+          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
           return;
         }
 
