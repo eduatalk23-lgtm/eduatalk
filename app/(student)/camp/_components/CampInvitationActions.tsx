@@ -48,7 +48,7 @@ export function CampInvitationActions({
           <>
             {invitation.planGroupStatus === "active" ? (
               <Link
-                href="/today"
+                href="/camp/today"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 shadow-sm"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -76,7 +76,7 @@ export function CampInvitationActions({
             ) : invitation.planGroupStatus === "paused" ? (
               <>
                 <Link
-                  href="/today"
+                  href="/camp/today"
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 shadow-sm"
                   onClick={(e) => e.stopPropagation()}
                 >
