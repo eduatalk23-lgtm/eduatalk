@@ -466,6 +466,7 @@ export function PlanGroupWizard({
   const [validationErrors, setValidationErrors] = useState<string[]>(initialValidationErrors || []);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
+  const isSubmittingRef = useRef(false); // 중복 호출 방지용
   const [draftGroupId, setDraftGroupId] = useState<string | null>(
     initialData?.groupId || null
   );
@@ -802,6 +803,11 @@ export function PlanGroupWizard({
   );
 
   const handleSubmit = (generatePlans: boolean = true) => {
+    // 중복 호출 방지: 이미 실행 중이면 무시
+    if (isSubmittingRef.current || isPending) {
+      return;
+    }
+
     // Step 6 검증 (학습 분량 관련만)
     if (currentStep === 6) {
       if (!validateStep(6)) {
@@ -813,6 +819,8 @@ export function PlanGroupWizard({
         return;
       }
     }
+
+    isSubmittingRef.current = true;
 
     startTransition(async () => {
       try {
@@ -1152,6 +1160,9 @@ export function PlanGroupWizard({
         if (!isRecoverableError(planGroupError)) {
           console.error("[PlanGroupWizard] 플랜 그룹 저장 실패:", planGroupError);
         }
+      } finally {
+        // 실행 완료 후 플래그 해제
+        isSubmittingRef.current = false;
       }
     });
   };
