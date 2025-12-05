@@ -393,6 +393,7 @@ export default async function CampParticipationPage({
         }}
         isCampMode={true}
         campInvitationId={invitationId}
+        isEditMode={true}
       />
     </section>
   );

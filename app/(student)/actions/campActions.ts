@@ -347,16 +347,19 @@ export const submitCampParticipation = withErrorHandling(
       templateBlockSetId,
       mergedData_scheduler_options_before: mergedData.scheduler_options,
     });
-    
+
     if (blockSetId) {
       if (!mergedData.scheduler_options) {
         mergedData.scheduler_options = {};
       }
       (mergedData.scheduler_options as any).template_block_set_id = blockSetId;
-      console.log("[campActions] mergedData.scheduler_options에 template_block_set_id 추가:", {
-        template_block_set_id: blockSetId,
-        scheduler_options: mergedData.scheduler_options,
-      });
+      console.log(
+        "[campActions] mergedData.scheduler_options에 template_block_set_id 추가:",
+        {
+          template_block_set_id: blockSetId,
+          scheduler_options: mergedData.scheduler_options,
+        }
+      );
     }
 
     // 플랜 그룹 생성 (기존 액션 재사용)
@@ -364,10 +367,11 @@ export const submitCampParticipation = withErrorHandling(
       "@/lib/utils/planGroupDataSync"
     );
     const creationData = syncWizardDataToCreationData(mergedData as WizardData);
-    
+
     console.log("[campActions] syncWizardDataToCreationData 호출 후:", {
       creationData_scheduler_options: creationData.scheduler_options,
-      has_template_block_set_id: !!(creationData.scheduler_options as any)?.template_block_set_id,
+      has_template_block_set_id: !!(creationData.scheduler_options as any)
+        ?.template_block_set_id,
     });
 
     // 디버깅: 병합된 학원 일정 확인
@@ -537,22 +541,32 @@ export const submitCampParticipation = withErrorHandling(
     // syncWizardDataToCreationData에서 scheduler_options를 병합할 때 보존됨
     // 추가 확인: creationData.scheduler_options에 template_block_set_id가 있는지 확인
     if (!creationData.scheduler_options?.template_block_set_id && blockSetId) {
-      console.warn("[campActions] creationData.scheduler_options에 template_block_set_id가 없어 추가:", {
-        blockSetId,
-        creationData_scheduler_options: creationData.scheduler_options,
-      });
+      console.warn(
+        "[campActions] creationData.scheduler_options에 template_block_set_id가 없어 추가:",
+        {
+          blockSetId,
+          creationData_scheduler_options: creationData.scheduler_options,
+        }
+      );
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
       (creationData.scheduler_options as any).template_block_set_id =
         blockSetId;
-      console.log("[campActions] creationData.scheduler_options에 template_block_set_id 추가 완료:", {
-        scheduler_options: creationData.scheduler_options,
-      });
+      console.log(
+        "[campActions] creationData.scheduler_options에 template_block_set_id 추가 완료:",
+        {
+          scheduler_options: creationData.scheduler_options,
+        }
+      );
     } else {
-      console.log("[campActions] creationData.scheduler_options에 template_block_set_id 확인됨:", {
-        template_block_set_id: (creationData.scheduler_options as any)?.template_block_set_id,
-      });
+      console.log(
+        "[campActions] creationData.scheduler_options에 template_block_set_id 확인됨:",
+        {
+          template_block_set_id: (creationData.scheduler_options as any)
+            ?.template_block_set_id,
+        }
+      );
     }
 
     // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
@@ -671,13 +685,15 @@ export const submitCampParticipation = withErrorHandling(
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
       };
-      
+
       console.log("[campActions] 플랜 그룹 업데이트 전 최종 데이터 확인:", {
         scheduler_options: updateData.scheduler_options,
-        has_template_block_set_id: !!(updateData.scheduler_options as any)?.template_block_set_id,
-        template_block_set_id: (updateData.scheduler_options as any)?.template_block_set_id,
+        has_template_block_set_id: !!(updateData.scheduler_options as any)
+          ?.template_block_set_id,
+        template_block_set_id: (updateData.scheduler_options as any)
+          ?.template_block_set_id,
       });
-      
+
       await updatePlanGroupDraftAction(existingGroup.id, updateData);
       groupId = existingGroup.id;
     } else {
@@ -689,19 +705,18 @@ export const submitCampParticipation = withErrorHandling(
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
       };
-      
+
       console.log("[campActions] 플랜 그룹 생성 전 최종 데이터 확인:", {
         scheduler_options: planGroupData.scheduler_options,
-        has_template_block_set_id: !!(planGroupData.scheduler_options as any)?.template_block_set_id,
-        template_block_set_id: (planGroupData.scheduler_options as any)?.template_block_set_id,
+        has_template_block_set_id: !!(planGroupData.scheduler_options as any)
+          ?.template_block_set_id,
+        template_block_set_id: (planGroupData.scheduler_options as any)
+          ?.template_block_set_id,
       });
-      
-      const result = await createPlanGroupAction(
-        planGroupData,
-        {
-          skipContentValidation: true, // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
-        }
-      );
+
+      const result = await createPlanGroupAction(planGroupData, {
+        skipContentValidation: true, // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
+      });
 
       if (!result.groupId) {
         // 플랜 그룹 생성 실패 시 초대 상태를 업데이트하지 않음

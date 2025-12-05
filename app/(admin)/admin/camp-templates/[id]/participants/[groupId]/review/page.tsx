@@ -35,6 +35,7 @@ export default async function CampPlanGroupReviewPage({
       academySchedules={result.academySchedules}
       templateBlocks={result.templateBlocks || []}
       templateBlockSetName={result.templateBlockSetName || null}
+      templateBlockSetId={result.templateBlockSetId || null}
       studentInfo={studentInfo ? {
         name: studentInfo.name || "이름 없음",
         grade: studentInfo.grade || null,

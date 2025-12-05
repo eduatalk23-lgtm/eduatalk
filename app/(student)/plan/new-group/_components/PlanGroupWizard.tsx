@@ -1307,7 +1307,7 @@ export function PlanGroupWizard({
             isTemplateMode={isTemplateMode}
             isEditMode={isEditMode}
             studentId={(initialData as any)?.student_id}
-            editable={isAdminContinueMode || !isCampMode}
+            editable={isEditMode || isAdminContinueMode || !isCampMode}
             isAdminContinueMode={isAdminContinueMode}
           />
         )}

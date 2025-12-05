@@ -1380,6 +1380,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
       end_time: string;
     }> = [];
     let templateBlockSetName: string | null = null;
+    let templateBlockSetId: string | null = null;
 
     if (result.group.camp_template_id) {
       const supabase = await createSupabaseServerClient();
@@ -1402,44 +1403,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
           result.group.camp_template_id
         );
       } else {
-        // scheduler_options에서 template_block_set_id 확인 (우선)
-        const schedulerOptions = (result.group.scheduler_options as any) || {};
-        let templateBlockSetId = schedulerOptions.template_block_set_id;
-
-        console.log("[getCampPlanGroupForReview] 템플릿 블록 세트 ID 조회:", {
-          fromSchedulerOptions: templateBlockSetId,
-          schedulerOptions: JSON.stringify(schedulerOptions),
-          hasTemplateData: !!template.template_data,
-        });
-
-        // scheduler_options에 없으면 template_data에서 확인
-        if (!templateBlockSetId && template.template_data) {
-          try {
-            let templateData: any = null;
-            if (typeof template.template_data === "string") {
-              templateData = JSON.parse(template.template_data);
-            } else {
-              templateData = template.template_data;
-            }
-
-            templateBlockSetId = templateData?.block_set_id;
-
-            console.log("[getCampPlanGroupForReview] template_data에서 조회:", {
-              block_set_id: templateBlockSetId,
-              templateDataKeys: templateData ? Object.keys(templateData) : [],
-            });
-          } catch (parseError) {
-            console.error(
-              "[getCampPlanGroupForReview] template_data 파싱 에러:",
-              parseError
-            );
-          }
-        }
-
-        // 새로운 연결 테이블 방식으로 블록 세트 조회
+        // block_set_id 찾기: camp_template_id로 직접 조회 (가장 간단하고 명확한 방법)
         let tenantBlockSetId: string | null = null;
         
-        // 1. 연결 테이블에서 템플릿에 연결된 블록 세트 조회
+        // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
         const { data: templateBlockSetLink, error: linkError } = await supabase
           .from("camp_template_block_sets")
           .select("tenant_block_set_id")
@@ -1453,10 +1420,45 @@ export const getCampPlanGroupForReview = withErrorHandling(
           );
         } else if (templateBlockSetLink) {
           tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
-        } else {
-          // 하위 호환성: templateBlockSetId가 이미 tenant_block_sets의 ID일 수 있음
-          // 또는 template_data.block_set_id 확인 (마이그레이션 전 데이터용)
-          tenantBlockSetId = templateBlockSetId;
+          console.log("[getCampPlanGroupForReview] 연결 테이블에서 block_set_id 발견:", tenantBlockSetId);
+        }
+
+        // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
+        if (!tenantBlockSetId) {
+          const schedulerOptions = (result.group.scheduler_options as any) || {};
+          let templateBlockSetId = schedulerOptions.template_block_set_id;
+
+          console.log("[getCampPlanGroupForReview] scheduler_options에서 조회:", {
+            fromSchedulerOptions: templateBlockSetId,
+            schedulerOptions: JSON.stringify(schedulerOptions),
+          });
+
+          if (templateBlockSetId) {
+            tenantBlockSetId = templateBlockSetId;
+            console.log("[getCampPlanGroupForReview] scheduler_options에서 template_block_set_id 발견 (Fallback):", tenantBlockSetId);
+          }
+        }
+
+        // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
+        if (!tenantBlockSetId && template.template_data) {
+          try {
+            let templateData: any = null;
+            if (typeof template.template_data === "string") {
+              templateData = JSON.parse(template.template_data);
+            } else {
+              templateData = template.template_data;
+            }
+
+            if (templateData?.block_set_id) {
+              tenantBlockSetId = templateData.block_set_id;
+              console.log("[getCampPlanGroupForReview] template_data에서 block_set_id 발견 (하위 호환성):", tenantBlockSetId);
+            }
+          } catch (parseError) {
+            console.error(
+              "[getCampPlanGroupForReview] template_data 파싱 에러:",
+              parseError
+            );
+          }
         }
 
         if (tenantBlockSetId) {
@@ -1480,6 +1482,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
             );
           } else if (templateBlockSet) {
             templateBlockSetName = templateBlockSet.name;
+            templateBlockSetId = templateBlockSet.id;
 
             // 3. tenant_blocks 테이블에서 블록 조회
             const { data: blocks, error: blocksError } = await supabase
@@ -1691,6 +1694,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
       academySchedules: result.academySchedules,
       templateBlocks,
       templateBlockSetName,
+      templateBlockSetId,
       student_id: result.group.student_id, // 관리자 모드에서 Step6FinalReview에 전달하기 위해
     };
   }

@@ -32,7 +32,10 @@ export default async function CampSubmissionDetailPage({
   // 초대 및 템플릿 정보 조회 (직접 조회하여 권한 체크 문제 회피)
   const invitation = await getCampInvitation(invitationId);
   if (!invitation) {
-    console.warn("[CampSubmissionDetailPage] 초대를 찾을 수 없음:", invitationId);
+    console.warn(
+      "[CampSubmissionDetailPage] 초대를 찾을 수 없음:",
+      invitationId
+    );
     notFound();
   }
 
@@ -47,7 +50,10 @@ export default async function CampSubmissionDetailPage({
 
   const template = await getCampTemplate(invitation.camp_template_id);
   if (!template) {
-    console.warn("[CampSubmissionDetailPage] 템플릿을 찾을 수 없음:", invitation.camp_template_id);
+    console.warn(
+      "[CampSubmissionDetailPage] 템플릿을 찾을 수 없음:",
+      invitation.camp_template_id
+    );
     notFound();
   }
 
@@ -66,12 +72,18 @@ export default async function CampSubmissionDetailPage({
     .maybeSingle();
 
   if (planGroupError) {
-    console.error("[CampSubmissionDetailPage] 플랜 그룹 조회 에러:", planGroupError);
+    console.error(
+      "[CampSubmissionDetailPage] 플랜 그룹 조회 에러:",
+      planGroupError
+    );
     notFound();
   }
 
   if (!planGroup) {
-    console.warn("[CampSubmissionDetailPage] 플랜 그룹을 찾을 수 없음:", invitationId);
+    console.warn(
+      "[CampSubmissionDetailPage] 플랜 그룹을 찾을 수 없음:",
+      invitationId
+    );
     notFound();
   }
 
@@ -91,12 +103,18 @@ export default async function CampSubmissionDetailPage({
     exclusions = result.exclusions;
     academySchedules = result.academySchedules;
   } catch (error) {
-    console.error("[CampSubmissionDetailPage] 플랜 그룹 상세 조회 에러:", error);
+    console.error(
+      "[CampSubmissionDetailPage] 플랜 그룹 상세 조회 에러:",
+      error
+    );
     notFound();
   }
 
   if (!group) {
-    console.warn("[CampSubmissionDetailPage] 플랜 그룹 상세를 찾을 수 없음:", planGroup.id);
+    console.warn(
+      "[CampSubmissionDetailPage] 플랜 그룹 상세를 찾을 수 없음:",
+      planGroup.id
+    );
     notFound();
   }
 
@@ -147,6 +165,7 @@ export default async function CampSubmissionDetailPage({
     end_time: string;
   }> = [];
   let templateBlockSetName: string | null = null;
+  let templateBlockSetId: string | null = null;
 
   // 디버깅: group 객체 확인
   console.log("[CampSubmissionDetailPage] group 객체 확인:", {
@@ -168,20 +187,25 @@ export default async function CampSubmissionDetailPage({
         group_id: group.id,
         group_keys: Object.keys(group),
       });
-      
+
       // scheduler_options가 실제로 조회되었는지 확인
       if (group.scheduler_options === undefined) {
-        console.warn("[CampSubmissionDetailPage] scheduler_options가 undefined - getPlanGroupWithDetails에서 조회되지 않았을 수 있음");
-        
+        console.warn(
+          "[CampSubmissionDetailPage] scheduler_options가 undefined - getPlanGroupWithDetails에서 조회되지 않았을 수 있음"
+        );
+
         // 직접 조회 시도
         const { data: directGroup, error: directError } = await supabase
           .from("plan_groups")
           .select("scheduler_options")
           .eq("id", group.id)
           .maybeSingle();
-        
+
         if (directError) {
-          console.error("[CampSubmissionDetailPage] 직접 조회 에러:", directError);
+          console.error(
+            "[CampSubmissionDetailPage] 직접 조회 에러:",
+            directError
+          );
         } else if (directGroup) {
           console.log("[CampSubmissionDetailPage] 직접 조회 결과:", {
             scheduler_options: directGroup.scheduler_options,
@@ -199,7 +223,10 @@ export default async function CampSubmissionDetailPage({
           try {
             templateData = JSON.parse(template.template_data);
           } catch (parseError) {
-            console.error("[CampSubmissionDetailPage] template_data 파싱 에러:", parseError);
+            console.error(
+              "[CampSubmissionDetailPage] template_data 파싱 에러:",
+              parseError
+            );
             templateData = null;
           }
         } else {
@@ -214,7 +241,7 @@ export default async function CampSubmissionDetailPage({
 
       // block_set_id 찾기: camp_template_id로 직접 조회 (가장 직접적이고 명확한 방법)
       let blockSetId: string | null = null;
-      
+
       // 1. 연결 테이블에서 직접 조회 (가장 직접적이고 명확한 방법)
       if (group.camp_template_id) {
         const { data: templateBlockSetLink } = await supabase
@@ -225,52 +252,78 @@ export default async function CampSubmissionDetailPage({
 
         if (templateBlockSetLink) {
           blockSetId = templateBlockSetLink.tenant_block_set_id;
-          console.log("[CampSubmissionDetailPage] 연결 테이블에서 block_set_id 발견:", blockSetId);
+          console.log(
+            "[CampSubmissionDetailPage] 연결 테이블에서 block_set_id 발견:",
+            blockSetId
+          );
         } else {
-          console.warn("[CampSubmissionDetailPage] 연결 테이블에서 block_set_id를 찾을 수 없음:", {
-            camp_template_id: group.camp_template_id,
-          });
+          console.warn(
+            "[CampSubmissionDetailPage] 연결 테이블에서 block_set_id를 찾을 수 없음:",
+            {
+              camp_template_id: group.camp_template_id,
+            }
+          );
         }
       }
-      
+
       // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
       if (!blockSetId && group.scheduler_options) {
         let schedulerOptions: any = null;
         if (typeof group.scheduler_options === "string") {
           try {
             schedulerOptions = JSON.parse(group.scheduler_options);
-            console.log("[CampSubmissionDetailPage] scheduler_options 파싱 성공 (string):", schedulerOptions);
+            console.log(
+              "[CampSubmissionDetailPage] scheduler_options 파싱 성공 (string):",
+              schedulerOptions
+            );
           } catch (parseError) {
-            console.error("[CampSubmissionDetailPage] scheduler_options 파싱 에러:", parseError);
+            console.error(
+              "[CampSubmissionDetailPage] scheduler_options 파싱 에러:",
+              parseError
+            );
           }
         } else {
           schedulerOptions = group.scheduler_options;
-          console.log("[CampSubmissionDetailPage] scheduler_options (object):", schedulerOptions);
+          console.log(
+            "[CampSubmissionDetailPage] scheduler_options (object):",
+            schedulerOptions
+          );
         }
-        
+
         if (schedulerOptions?.template_block_set_id) {
           blockSetId = schedulerOptions.template_block_set_id;
-          console.log("[CampSubmissionDetailPage] scheduler_options에서 template_block_set_id 발견 (Fallback):", blockSetId);
+          console.log(
+            "[CampSubmissionDetailPage] scheduler_options에서 template_block_set_id 발견 (Fallback):",
+            blockSetId
+          );
         } else {
-          console.warn("[CampSubmissionDetailPage] scheduler_options에 template_block_set_id 없음:", {
-            scheduler_options_keys: schedulerOptions ? Object.keys(schedulerOptions) : [],
-            scheduler_options: schedulerOptions,
-          });
+          console.warn(
+            "[CampSubmissionDetailPage] scheduler_options에 template_block_set_id 없음:",
+            {
+              scheduler_options_keys: schedulerOptions
+                ? Object.keys(schedulerOptions)
+                : [],
+              scheduler_options: schedulerOptions,
+            }
+          );
         }
       }
-      
+
       // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
       if (!blockSetId && templateData?.block_set_id) {
         blockSetId = templateData.block_set_id;
-        console.log("[CampSubmissionDetailPage] template_data에서 block_set_id 발견 (하위 호환성):", blockSetId);
+        console.log(
+          "[CampSubmissionDetailPage] template_data에서 block_set_id 발견 (하위 호환성):",
+          blockSetId
+        );
       }
-      
+
       console.log("[CampSubmissionDetailPage] 최종 blockSetId:", blockSetId);
 
       if (blockSetId) {
         // 테넌트 블록 세트 조회
         let templateBlockSet: { id: string; name: string } | null = null;
-        
+
         // tenant_id로 조회 (보안을 위해)
         if (tenantContext?.tenantId) {
           const { data: blockSetData, error: blockSetError } = await supabase
@@ -289,28 +342,38 @@ export default async function CampSubmissionDetailPage({
           });
 
           if (blockSetError) {
-            console.error("[CampSubmissionDetailPage] 테넌트 블록 세트 조회 에러:", {
-              error: blockSetError,
-              block_set_id: blockSetId,
-              tenant_id: tenantContext.tenantId,
-            });
+            console.error(
+              "[CampSubmissionDetailPage] 테넌트 블록 세트 조회 에러:",
+              {
+                error: blockSetError,
+                block_set_id: blockSetId,
+                tenant_id: tenantContext.tenantId,
+              }
+            );
           } else if (blockSetData) {
             templateBlockSet = blockSetData;
+            templateBlockSetId = blockSetData.id;
           } else {
-            console.warn("[CampSubmissionDetailPage] 블록 세트를 찾을 수 없습니다:", {
-              block_set_id: blockSetId,
-              tenant_id: tenantContext.tenantId,
-            });
+            console.warn(
+              "[CampSubmissionDetailPage] 블록 세트를 찾을 수 없습니다:",
+              {
+                block_set_id: blockSetId,
+                tenant_id: tenantContext.tenantId,
+              }
+            );
           }
         }
 
         // 블록 세트를 찾았으면 블록 조회
         if (templateBlockSet) {
           templateBlockSetName = templateBlockSet.name;
-          console.log("[CampSubmissionDetailPage] 테넌트 블록 세트 조회 성공:", {
-            id: templateBlockSet.id,
-            name: templateBlockSet.name,
-          });
+          console.log(
+            "[CampSubmissionDetailPage] 테넌트 블록 세트 조회 성공:",
+            {
+              id: templateBlockSet.id,
+              name: templateBlockSet.name,
+            }
+          );
 
           // 테넌트 블록 조회
           const { data: blocks, error: blocksError } = await supabase
@@ -351,16 +414,23 @@ export default async function CampSubmissionDetailPage({
           }
         }
       } else {
-        console.warn("[CampSubmissionDetailPage] block_set_id를 찾을 수 없음:", {
-          template_id: group.camp_template_id,
-          template_data_has_block_set_id: !!templateData?.block_set_id,
-          scheduler_options_has_template_block_set_id: !!(typeof group.scheduler_options === "object" 
-            ? (group.scheduler_options as any)?.template_block_set_id 
-            : null),
-        });
+        console.warn(
+          "[CampSubmissionDetailPage] block_set_id를 찾을 수 없음:",
+          {
+            template_id: group.camp_template_id,
+            template_data_has_block_set_id: !!templateData?.block_set_id,
+            scheduler_options_has_template_block_set_id:
+              !!(typeof group.scheduler_options === "object"
+                ? (group.scheduler_options as any)?.template_block_set_id
+                : null),
+          }
+        );
       }
     } catch (error) {
-      console.error("[CampSubmissionDetailPage] 템플릿 블록 조회 중 에러:", error);
+      console.error(
+        "[CampSubmissionDetailPage] 템플릿 블록 조회 중 에러:",
+        error
+      );
     }
   }
 
@@ -479,8 +549,7 @@ export default async function CampSubmissionDetailPage({
               <dt className="text-xs font-medium text-gray-500">플랜 목적</dt>
               <dd className="mt-1 text-sm font-semibold text-gray-900">
                 {group.plan_purpose
-                  ? planPurposeLabels[group.plan_purpose] ||
-                    group.plan_purpose
+                  ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
                   : "—"}
               </dd>
             </div>
@@ -499,21 +568,25 @@ export default async function CampSubmissionDetailPage({
               <dt className="text-xs font-medium text-gray-500">학습 기간</dt>
               <dd className="mt-1 text-sm font-semibold text-gray-900">
                 {group.period_start && group.period_end
-                  ? `${new Date(group.period_start).toLocaleDateString("ko-KR", {
-                      month: "short",
-                      day: "numeric",
-                    })} ~ ${new Date(group.period_end).toLocaleDateString("ko-KR", {
-                      month: "short",
-                      day: "numeric",
-                    })}`
+                  ? `${new Date(group.period_start).toLocaleDateString(
+                      "ko-KR",
+                      {
+                        month: "short",
+                        day: "numeric",
+                      }
+                    )} ~ ${new Date(group.period_end).toLocaleDateString(
+                      "ko-KR",
+                      {
+                        month: "short",
+                        day: "numeric",
+                      }
+                    )}`
                   : "—"}
               </dd>
             </div>
             {group.target_date && (
               <div>
-                <dt className="text-xs font-medium text-gray-500">
-                  목표 날짜
-                </dt>
+                <dt className="text-xs font-medium text-gray-500">목표 날짜</dt>
                 <dd className="mt-1 text-sm font-semibold text-gray-900">
                   {new Date(group.target_date).toLocaleDateString("ko-KR")}
                 </dd>
@@ -524,10 +597,14 @@ export default async function CampSubmissionDetailPage({
           {/* 블록 세트 정보 */}
           {templateBlockSetName && (
             <div className="mt-6 border-t border-gray-100 pt-4">
-              <label className="text-xs font-medium text-gray-500">블록 세트</label>
+              <label className="text-xs font-medium text-gray-500">
+                블록 세트
+              </label>
               <div className="mt-2 space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{templateBlockSetName}</p>
+                  <p className="text-sm font-semibold text-gray-900">
+                    {templateBlockSetName}
+                  </p>
                 </div>
                 {templateBlocks.length > 0 ? (
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -537,7 +614,17 @@ export default async function CampSubmissionDetailPage({
                         className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
                       >
                         <div className="text-sm font-medium text-gray-900">
-                          {["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"][block.day_of_week]}
+                          {
+                            [
+                              "일요일",
+                              "월요일",
+                              "화요일",
+                              "수요일",
+                              "목요일",
+                              "금요일",
+                              "토요일",
+                            ][block.day_of_week]
+                          }
                         </div>
                         <div className="text-xs text-gray-600">
                           {block.start_time} ~ {block.end_time}
@@ -546,7 +633,9 @@ export default async function CampSubmissionDetailPage({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">등록된 시간 블록이 없습니다.</p>
+                  <p className="text-sm text-gray-500">
+                    등록된 시간 블록이 없습니다.
+                  </p>
                 )}
               </div>
             </div>
@@ -567,10 +656,11 @@ export default async function CampSubmissionDetailPage({
             campSubmissionMode={true}
             templateBlocks={templateBlocks}
             templateBlockSetName={templateBlockSetName}
+            templateBlockSetId={templateBlockSetId}
+            campTemplateId={group.camp_template_id}
           />
         </div>
       </div>
     </section>
   );
 }
-
