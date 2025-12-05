@@ -334,9 +334,11 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const isOtherStudent = isAdminOrConsultant && targetStudentId !== userRole.userId;
   const queryClient = isOtherStudent ? createSupabaseAdminClient() : supabase;
   
-  if (isOtherStudent && !queryClient) {
+  if (!queryClient) {
     throw new AppError(
-      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      isOtherStudent
+        ? "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요."
+        : "Supabase 클라이언트를 생성할 수 없습니다.",
       ErrorCode.INTERNAL_ERROR,
       500,
       false
