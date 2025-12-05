@@ -66,10 +66,11 @@ export async function getSchoolScoreSummary(
         errorMessage = error.message;
       } else if (typeof error === "object" && error !== null) {
         // Supabase PostgREST 에러 객체 처리
-        errorMessage = "message" in error ? String(error.message) : undefined;
-        errorCode = "code" in error ? String(error.code) : undefined;
-        errorDetails = "details" in error ? error.details : undefined;
-        errorHint = "hint" in error ? String(error.hint) : undefined;
+        const errorObj = error as Record<string, unknown>;
+        errorMessage = "message" in errorObj ? String(errorObj.message) : undefined;
+        errorCode = "code" in errorObj ? String(errorObj.code) : undefined;
+        errorDetails = "details" in errorObj ? errorObj.details : undefined;
+        errorHint = "hint" in errorObj ? String(errorObj.hint) : undefined;
       } else {
         errorMessage = String(error);
       }

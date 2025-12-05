@@ -14,7 +14,7 @@ export type RecommendedMasterContent = {
   title: string;
   subject_category: string | null;
   subject: string | null;
-  semester: string | null;
+  semester?: string | null;
   revision: string | null;
   publisher?: string | null;
   platform?: string | null;
@@ -86,19 +86,19 @@ function buildRecommendationReason(
   }
 
   // 구체적인 성적 정보 추가
-  if (schoolSummary?.averageGrade !== null) {
+  if (schoolSummary?.averageGrade !== null && schoolSummary?.averageGrade !== undefined) {
     reasons.push(`내신 평균 ${schoolSummary.averageGrade.toFixed(2)}등급`);
   }
-  if (schoolSummary?.recentGrade !== null && schoolSummary?.averageGrade !== null) {
+  if (schoolSummary && schoolSummary.recentGrade !== null && schoolSummary.averageGrade !== null) {
     if (schoolSummary.recentGrade > schoolSummary.averageGrade) {
       const decline = schoolSummary.recentGrade - schoolSummary.averageGrade;
       reasons.push(`최근 ${decline.toFixed(2)}단계 하락`);
     }
   }
-  if (mockSummary?.recentPercentile !== null) {
+  if (mockSummary && mockSummary.recentPercentile !== null) {
     reasons.push(`모의고사 백분위 ${mockSummary.recentPercentile.toFixed(2)}%`);
   }
-  if (mockSummary?.recentGrade !== null) {
+  if (mockSummary && mockSummary.recentGrade !== null) {
     reasons.push(`모의고사 ${mockSummary.recentGrade.toFixed(2)}등급`);
   }
   if (riskInfo && riskInfo.riskScore >= 50) {
@@ -238,12 +238,12 @@ export async function getRecommendedMasterContents(
       
       const [booksResult, lecturesResult] = await Promise.all([
         searchMasterBooks({
-          subject_category: subject,
+          search: subject,
           tenantId,
           limit: 10, // 더 많이 가져와서 필터링
         }, supabase),
         searchMasterLectures({
-          subject_category: subject,
+          search: subject,
           tenantId,
           limit: 10,
         }, supabase),
@@ -301,11 +301,10 @@ export async function getRecommendedMasterContents(
             id: book.id,
             contentType: "book",
             title: book.title,
-            subject_category: book.subject_category,
-            subject: book.subject,
-            semester: book.semester,
+            subject_category: book.subject_category ?? null,
+            subject: book.subject ?? null,
             revision: book.revision,
-            publisher: book.publisher,
+            publisher: book.publisher_name || null,
             difficulty_level: book.difficulty_level,
             reason,
             priority: i * 4 + 1, // 취약 과목당 4개 슬롯 (교재 2-3개, 강의 1-2개)
@@ -338,11 +337,10 @@ export async function getRecommendedMasterContents(
             id: lecture.id,
             contentType: "lecture",
             title: lecture.title,
-            subject_category: lecture.subject_category,
-            subject: lecture.subject,
-            semester: lecture.semester,
+            subject_category: lecture.subject_category ?? null,
+            subject: lecture.subject ?? null,
             revision: lecture.revision,
-            platform: lecture.platform,
+            platform: lecture.platform || null,
             difficulty_level: lecture.difficulty_level,
             reason,
             priority: i * 4 + 2 + (filteredLectures.indexOf(lecture) % 2), // 강의는 +2, +3
@@ -399,12 +397,12 @@ export async function getRecommendedMasterContents(
 
       const [booksResult, lecturesResult] = await Promise.all([
         searchMasterBooks({
-          subject_category: subject,
+          search: subject,
           tenantId,
           limit: 10,
         }, supabase),
         searchMasterLectures({
-          subject_category: subject,
+          search: subject,
           tenantId,
           limit: 10,
         }, supabase),
@@ -441,11 +439,10 @@ export async function getRecommendedMasterContents(
             id: book.id,
             contentType: "book",
             title: book.title,
-            subject_category: book.subject_category,
-            subject: book.subject,
-            semester: book.semester,
+            subject_category: book.subject_category ?? null,
+            subject: book.subject ?? null,
             revision: book.revision,
-            publisher: book.publisher,
+            publisher: book.publisher_name || null,
             difficulty_level: book.difficulty_level,
             reason,
             priority: riskPriorityOffset,
@@ -477,11 +474,10 @@ export async function getRecommendedMasterContents(
             id: lecture.id,
             contentType: "lecture",
             title: lecture.title,
-            subject_category: lecture.subject_category,
-            subject: lecture.subject,
-            semester: lecture.semester,
+            subject_category: lecture.subject_category ?? null,
+            subject: lecture.subject ?? null,
             revision: lecture.revision,
-            platform: lecture.platform,
+            platform: lecture.platform || null,
             difficulty_level: lecture.difficulty_level,
             reason,
             priority: riskPriorityOffset,
@@ -519,12 +515,12 @@ export async function getRecommendedMasterContents(
 
         const [booksResult, lecturesResult] = await Promise.all([
           searchMasterBooks({
-            subject_category: requiredSubject,
+            search: requiredSubject,
             tenantId,
             limit: 5,
           }),
           searchMasterLectures({
-            subject_category: requiredSubject,
+            search: requiredSubject,
             tenantId,
             limit: 5,
           }),
@@ -560,9 +556,8 @@ export async function getRecommendedMasterContents(
               title: book.title,
               subject_category: book.subject_category,
               subject: book.subject,
-              semester: book.semester,
               revision: book.revision,
-              publisher: book.publisher,
+              publisher: book.publisher_name || null,
               difficulty_level: book.difficulty_level,
               reason,
               priority: requiredPriorityOffset,
@@ -588,11 +583,10 @@ export async function getRecommendedMasterContents(
               id: lecture.id,
               contentType: "lecture",
               title: lecture.title,
-              subject_category: lecture.subject_category,
-              subject: lecture.subject,
-              semester: lecture.semester,
+              subject_category: lecture.subject_category ?? null,
+              subject: lecture.subject ?? null,
               revision: lecture.revision,
-              platform: lecture.platform,
+              platform: lecture.platform || null,
               difficulty_level: lecture.difficulty_level,
               reason,
               priority: requiredPriorityOffset,
@@ -627,12 +621,12 @@ export async function getRecommendedMasterContents(
           
           const [booksResult, lecturesResult] = await Promise.all([
             searchMasterBooks({
-              subject_category: requiredSubject,
+              search: requiredSubject,
               tenantId,
               limit: 3,
             }, supabase),
             searchMasterLectures({
-              subject_category: requiredSubject,
+              search: requiredSubject,
               tenantId,
               limit: 3,
             }, supabase),
@@ -659,9 +653,8 @@ export async function getRecommendedMasterContents(
                 title: book.title,
                 subject_category: book.subject_category,
                 subject: book.subject,
-                semester: book.semester,
                 revision: book.revision,
-                publisher: book.publisher,
+                publisher: book.publisher_name || null,
                 difficulty_level: book.difficulty_level,
                 reason: `필수 과목 "${requiredSubject}" (성적 데이터가 없어 기본 추천)`,
                 priority: 51 + requiredSubjects.indexOf(requiredSubject),
@@ -675,11 +668,10 @@ export async function getRecommendedMasterContents(
                 id: lecture.id,
                 contentType: "lecture",
                 title: lecture.title,
-                subject_category: lecture.subject_category,
-                subject: lecture.subject,
-                semester: lecture.semester,
+                subject_category: lecture.subject_category ?? null,
+                subject: lecture.subject ?? null,
                 revision: lecture.revision,
-                platform: lecture.platform,
+                platform: lecture.platform || null,
                 difficulty_level: lecture.difficulty_level,
                 reason: `필수 과목 "${requiredSubject}" (성적 데이터가 없어 기본 추천)`,
                 priority: 51 + requiredSubjects.indexOf(requiredSubject),
@@ -741,8 +733,10 @@ export async function getRecommendedMasterContents(
       totalRecommendations: finalRecommendations.length,
       bySubject: Array.from(
         finalRecommendations.reduce((acc, r) => {
-          const count = acc.get(r.subject_category) || 0;
-          acc.set(r.subject_category, count + 1);
+          if (r.subject_category) {
+            const count = acc.get(r.subject_category) || 0;
+            acc.set(r.subject_category, count + 1);
+          }
           return acc;
         }, new Map<string, number>())
       ).map(([subject, count]) => ({ subject, count })),
@@ -784,7 +778,7 @@ export async function getRecommendedMasterContents(
       for (const subject of requiredSubjects) {
         const [booksResult] = await Promise.all([
           searchMasterBooks({
-            subject_category: subject,
+            search: subject,
             tenantId,
             limit: 1,
           }, supabase),
@@ -796,11 +790,10 @@ export async function getRecommendedMasterContents(
             id: book.id,
             contentType: "book",
             title: book.title,
-            subject_category: book.subject_category,
-            subject: book.subject,
-            semester: book.semester,
+            subject_category: book.subject_category ?? null,
+            subject: book.subject ?? null,
             revision: book.revision,
-            publisher: book.publisher_name || book.publisher || null,
+            publisher: book.publisher_name || null,
             difficulty_level: book.difficulty_level,
             reason: `필수 과목 "${subject}" (기본 추천)`,
             priority: 100 + fallbackRecommendations.length,
