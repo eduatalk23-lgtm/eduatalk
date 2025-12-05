@@ -1090,19 +1090,46 @@ export function PlanGroupWizard({
           console.warn("[PlanGroupWizard] 플랜 그룹 상태 변경 실패:", planGroupError);
         }
 
-        // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동 (플랜 생성은 Step 7에서)
+        // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동 (플랜 생성은 Step 6 → Step 7 전환 시)
         if (currentStep === 5) {
           setDraftGroupId(finalGroupId);
           setCurrentStep(6);
-          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
+          toast.showSuccess("저장되었습니다.");
           return;
         }
 
-        // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
+        // Step 6에서 호출된 경우 플랜 생성 후 Step 7로 이동
         if (currentStep === 6) {
           setDraftGroupId(finalGroupId);
+          
+          // 플랜이 이미 생성되었는지 확인
+          try {
+            const checkResult = await checkPlansExistAction(finalGroupId);
+            if (!checkResult.hasPlans) {
+              // 플랜이 없으면 생성
+              try {
+                await generatePlansFromGroupAction(finalGroupId);
+                toast.showSuccess("플랜이 생성되었습니다.");
+              } catch (generateError) {
+                const errorMessage = generateError instanceof Error 
+                  ? generateError.message 
+                  : "플랜 생성 중 오류가 발생했습니다.";
+                toast.showError(`플랜 생성 실패: ${errorMessage}`);
+                // 플랜 생성 실패 시 Step 7로 이동하지 않음
+                return;
+              }
+            } else {
+              // 플랜이 이미 있으면 그대로 진행
+              toast.showSuccess("저장되었습니다.");
+            }
+          } catch (checkError) {
+            // 플랜 확인 실패는 경고만 표시하고 계속 진행
+            console.warn("[PlanGroupWizard] 플랜 확인 실패:", checkError);
+            toast.showError("플랜 확인 중 오류가 발생했습니다. 다시 시도해주세요.");
+            return;
+          }
+          
           setCurrentStep(7);
-          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
           return;
         }
 
@@ -1375,12 +1402,12 @@ export function PlanGroupWizard({
               }
 
               // 일반 모드(학생 모드)에서는 플랜이 생성되었는지 확인만 수행
-              // 플랜 생성은 Step7ScheduleResult에서 처리하므로 여기서는 확인만
+              // 플랜 생성은 Step 6 → Step 7 전환 시 이미 완료되므로 여기서는 확인만
               try {
                 const checkResult = await checkPlansExistAction(draftGroupId);
                 if (!checkResult.hasPlans) {
-                  // 플랜이 없으면 경고만 표시 (Step7ScheduleResult에서 생성해야 함)
-                  alert("플랜이 생성되지 않았습니다. 완료 버튼을 눌러 플랜을 생성해주세요.");
+                  // 플랜이 없으면 경고만 표시 (Step 6에서 이미 생성되어야 함)
+                  alert("플랜이 생성되지 않았습니다. 이전 단계로 돌아가서 다시 시도해주세요.");
                   return;
                 }
               } catch (error) {

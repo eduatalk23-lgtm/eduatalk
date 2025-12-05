@@ -136,33 +136,21 @@ export function Step7ScheduleResult({
     );
   }
 
-  // 플랜이 없을 때 UI 표시
+  // 플랜이 없을 때 에러 표시 (Step 6에서 이미 생성되어야 함)
   if (!data && !isLoadingData && !isGenerating) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">스케줄 결과</h2>
           <p className="mt-1 text-sm text-gray-500">
-            플랜을 생성하면 학습 스케줄을 확인할 수 있습니다.
+            생성된 학습 플랜을 확인할 수 있습니다.
           </p>
         </div>
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <p className="mb-4 text-sm text-gray-600">
-            아직 플랜이 생성되지 않았습니다. 아래 버튼을 클릭하여 플랜을 생성하세요.
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-red-800">오류</h3>
+          <p className="text-sm text-red-700">
+            플랜이 생성되지 않았습니다. 이전 단계로 돌아가서 다시 시도해주세요.
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (generatePlansMutation.isPending || generatePlansMutation.isSuccess) {
-                return;
-              }
-              generatePlansMutation.mutate();
-            }}
-            disabled={generatePlansMutation.isPending || generatePlansMutation.isSuccess}
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
-          >
-            {generatePlansMutation.isPending ? "플랜 생성 중..." : "플랜 생성하기"}
-          </button>
         </div>
       </div>
     );
@@ -206,34 +194,22 @@ export function Step7ScheduleResult({
         <button
           type="button"
           onClick={() => {
-            // 플랜이 생성 중이거나 이미 생성 완료된 경우 완료 버튼 비활성화
-            if (generatePlansMutation.isPending || generatePlansMutation.isSuccess) {
+            // 플랜이 생성 중이면 완료 버튼 비활성화
+            if (generatePlansMutation.isPending) {
               return;
             }
-            // 플랜이 없으면 생성 후 완료
+            // 플랜이 있는지 확인 (Step 6에서 이미 생성되어야 함)
             if (!plansCheck?.hasPlans) {
-              generatePlansMutation.mutate(undefined, {
-                onSuccess: () => {
-                  // 플랜 생성 후 완료 핸들러 호출
-                  onComplete();
-                },
-                onError: (error) => {
-                  alert(
-                    error instanceof Error
-                      ? `플랜 생성 실패: ${error.message}`
-                      : "플랜 생성에 실패했습니다."
-                  );
-                },
-              });
+              alert("플랜이 생성되지 않았습니다. 이전 단계로 돌아가서 다시 시도해주세요.");
               return;
             }
-            // 플랜이 있으면 바로 완료
+            // 플랜이 있으면 바로 완료 (플랜 상세보기로 이동)
             onComplete();
           }}
-          disabled={generatePlansMutation.isPending || generatePlansMutation.isSuccess || isLoadingData}
+          disabled={generatePlansMutation.isPending || isLoadingData}
           className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
         >
-          {generatePlansMutation.isPending ? "플랜 생성 중..." : "완료"}
+          완료
         </button>
       </div>
     </div>
