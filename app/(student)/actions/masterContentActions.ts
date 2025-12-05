@@ -375,7 +375,7 @@ export async function addMasterLecture(formData: FormData) {
         await createLectureEpisode({
           lecture_id: lecture.id,
           episode_number: episode.episode_number,
-          title: episode.title || null,  // 변경: episode_title → title
+          episode_title: episode.title || null,
           duration: episode.duration ? minutesToSeconds(episode.duration) : null,
           display_order: episode.display_order,
         });

@@ -37,6 +37,12 @@ Type error: Object literal may only specify known properties, but 'publisher' do
 Type error: Type '{ ... }' is missing the following properties from type 'Omit<MasterBook, "id" | "updated_at" | "created_at">': curriculum_revision_id, subject_group_id, subject_id, publisher_id, and 23 more.
 ```
 
+### 에러 6
+```
+./app/(student)/actions/masterContentActions.ts:375:36
+Type error: Property 'episode_title' is missing in type '{ lecture_id: string; episode_number: number; title: string | null; duration: number | null; display_order: number; }' but required in type 'Omit<LectureEpisode, "id" | "created_at">'.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -53,6 +59,9 @@ Type error: Type '{ ... }' is missing the following properties from type 'Omit<M
 
 ### 에러 5
 `Omit<MasterBook, "id" | "created_at" | "updated_at">` 타입을 사용할 때, `MasterBook`의 많은 optional 속성들이 필수로 요구되어 에러가 발생했습니다. `lectureData`와 동일하게 `Partial`을 사용하고 필수 속성만 명시해야 합니다.
+
+### 에러 6
+`createLectureEpisode` 함수는 `Omit<LectureEpisode, "id" | "created_at">` 타입을 받는데, `LectureEpisode` 타입에는 `episode_title` 필드가 있습니다. 하지만 코드에서는 `title` 필드를 사용하고 있어서 타입 에러가 발생했습니다.
 
 ## 수정 내용
 
@@ -142,6 +151,29 @@ const book = await createMasterBook(bookData);
 const book = await createMasterBook(bookData as Omit<MasterBook, "id" | "created_at" | "updated_at">);
 ```
 
+#### 수정 6: createLectureEpisode 호출 시 title을 episode_title로 변경
+`LectureEpisode` 타입에는 `episode_title` 필드가 있는데, 코드에서 `title` 필드를 사용하고 있어서 타입 에러가 발생했습니다. `title`을 `episode_title`로 변경했습니다.
+
+```typescript
+// 수정 전
+await createLectureEpisode({
+  lecture_id: lecture.id,
+  episode_number: episode.episode_number,
+  title: episode.title || null,  // 변경: episode_title → title
+  duration: episode.duration ? minutesToSeconds(episode.duration) : null,
+  display_order: episode.display_order,
+});
+
+// 수정 후
+await createLectureEpisode({
+  lecture_id: lecture.id,
+  episode_number: episode.episode_number,
+  episode_title: episode.title || null,
+  duration: episode.duration ? minutesToSeconds(episode.duration) : null,
+  display_order: episode.display_order,
+});
+```
+
 ## 검증
 - TypeScript 컴파일 에러 해결 확인
 - 린터 에러 없음 확인
@@ -155,4 +187,6 @@ const book = await createMasterBook(bookData as Omit<MasterBook, "id" | "created
 - `createMasterLecture` 함수는 `Omit<MasterLecture, "id" | "created_at" | "updated_at">` 타입을 기대하므로, `Partial` 타입을 전달할 때는 타입 단언이 필요합니다.
 - `MasterBook` 타입은 `lib/types/plan.ts`에 정의되어 있으며, `publisher` 필드 대신 `publisher_name` 필드를 사용합니다.
 - `MasterBook` 타입의 필수 속성: `id`, `is_active`, `title`, `created_at`, `updated_at`
+- `LectureEpisode` 타입은 `lib/types/lecture.ts`에 정의되어 있으며, `episode_title` 필드를 사용합니다.
+- `createLectureEpisode` 함수는 `Omit<LectureEpisode, "id" | "created_at">` 타입을 받습니다.
 
