@@ -158,6 +158,30 @@ export function PlanGroupDetailView({
     const { studentContents: studentContentsFormatted, recommendedContents: recommendedContentsFormatted } = 
       contentsToWizardFormat(contentsWithDetails);
     
+    // WizardData는 "book" | "lecture"만 허용하므로 "custom" 타입 필터링
+    const filteredStudentContents = studentContentsFormatted.filter(
+      (c) => c.content_type === "book" || c.content_type === "lecture"
+    ) as Array<{
+      content_type: "book" | "lecture";
+      content_id: string;
+      start_range: number;
+      end_range: number;
+      subject_category?: string;
+      title?: string;
+    }>;
+    
+    const filteredRecommendedContents = recommendedContentsFormatted.filter(
+      (c) => c.content_type === "book" || c.content_type === "lecture"
+    ) as Array<{
+      content_type: "book" | "lecture";
+      content_id: string;
+      start_range: number;
+      end_range: number;
+      subject_category?: string;
+      title?: string;
+      is_auto_recommended?: boolean;
+    }>;
+    
     // 캠프 모드일 때 템플릿 블록 세트 ID를 block_set_id로 설정
     const blockSetId = campTemplateId && templateBlockSetId 
       ? templateBlockSetId 
@@ -166,8 +190,8 @@ export function PlanGroupDetailView({
     return {
       ...baseData,
       block_set_id: blockSetId,
-      student_contents: studentContentsFormatted,
-      recommended_contents: recommendedContentsFormatted,
+      student_contents: filteredStudentContents,
+      recommended_contents: filteredRecommendedContents,
     };
   }, [group, exclusions, academySchedules, contentsWithDetails, campTemplateId, templateBlockSetId]);
 
