@@ -268,7 +268,6 @@ export async function addMasterLecture(formData: FormData) {
       tenant_id: student?.tenant_id || null,
       revision: formData.get("revision")?.toString() || null,
       content_category: formData.get("content_category")?.toString() || null,
-      semester: formData.get("semester")?.toString() || null,
       subject_category: formData.get("subject_category")?.toString() || null,
       subject: formData.get("subject")?.toString() || null,
       title: formData.get("title")?.toString() || "",
@@ -403,7 +402,6 @@ export async function updateMasterLectureAction(
   > = {
     revision: formData.get("revision")?.toString() || null,
     content_category: formData.get("content_category")?.toString() || null,
-    semester: formData.get("semester")?.toString() || null,
     subject_category: formData.get("subject_category")?.toString() || null,
     subject: formData.get("subject")?.toString() || null,
     title: formData.get("title")?.toString(),
