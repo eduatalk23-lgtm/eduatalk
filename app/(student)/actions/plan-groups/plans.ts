@@ -59,7 +59,7 @@ async function _generatePlansFromGroup(
 
   const bypassStatusCheck = shouldBypassStatusCheck(
     access.role,
-    group.plan_type
+    group.plan_type ?? null
   );
 
   if (!bypassStatusCheck) {
