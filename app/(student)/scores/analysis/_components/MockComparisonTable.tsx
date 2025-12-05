@@ -117,8 +117,8 @@ export default function MockComparisonTable({ data }: MockComparisonTableProps) 
                 )}
               </td>
               <td className="px-4 py-3 text-gray-600">
-                {subject.previous_score?.percentile !== null
-                  ? `${subject.previous_score.percentile}%`
+                {subject.previous_score?.percentile != null
+                  ? `${subject.previous_score?.percentile}%`
                   : "-"}
               </td>
               <td className="px-4 py-3">
