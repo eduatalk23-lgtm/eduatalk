@@ -374,6 +374,7 @@ export default function Step4RecommendedContents({
         data={data}
         availableSubjectGroups={availableSubjectGroups}
         curriculumRevisions={curriculumRevisions}
+        onUpdate={onUpdate}
         onLoadSubjects={handleLoadSubjects}
         onAddRequiredSubject={handleAddRequiredSubject}
         onUpdateRequiredSubject={handleRequiredSubjectUpdate}
