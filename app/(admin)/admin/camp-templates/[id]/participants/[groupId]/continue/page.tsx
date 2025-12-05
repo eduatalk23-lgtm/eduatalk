@@ -248,11 +248,17 @@ export default async function CampContinuePage({
   
   // 남은 단계 진행 시에는 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
   // student_contents는 그대로 유지 (학생이 추가한 콘텐츠는 보존)
+  // 단, 빈 배열인 경우 undefined로 설정하여 continueCampStepsForAdmin에서 기존 학생 콘텐츠가 보존되도록 함
+  // (빈 배열로 설정하면 hasStudentContents가 true이지만 length > 0이 false가 되어 기존 학생 콘텐츠가 보존되지 않음)
   // recommended_contents를 undefined로 설정하여 continueCampStepsForAdmin에서 기존 추천 콘텐츠가 보존되도록 함
   // (빈 배열로 설정하면 hasRecommendedContents가 true가 되어 기존 추천 콘텐츠가 삭제됨)
   const filteredWizardData = {
     ...wizardData,
-    student_contents: wizardData.student_contents, // 학생 콘텐츠는 그대로 유지
+    // student_contents가 빈 배열이면 undefined로 설정하여 기존 학생 콘텐츠 보존
+    // 빈 배열을 전달하면 hasStudentContents는 true이지만 length > 0이 false가 되어 보존되지 않음
+    student_contents: wizardData.student_contents && wizardData.student_contents.length > 0
+      ? wizardData.student_contents
+      : undefined,
     recommended_contents: undefined, // undefined로 설정하여 기존 추천 콘텐츠 보존 (Step 4에서 새로 선택 가능)
   };
   
@@ -260,15 +266,17 @@ export default async function CampContinuePage({
   console.log("[CampContinuePage] 필터링 후 최종 결과:", {
     groupId,
     studentId,
-    finalStudentContentsCount: filteredWizardData.student_contents.length,
+    originalStudentContentsCount: wizardData.student_contents.length,
+    finalStudentContentsCount: filteredWizardData.student_contents?.length ?? 0,
     finalRecommendedContentsCount: filteredWizardData.recommended_contents?.length ?? 0,
     originalRecommendedContentsCount: wizardData.recommended_contents.length,
+    studentContentsWillBePreserved: filteredWizardData.student_contents === undefined,
     recommendedContentsWillBePreserved: filteredWizardData.recommended_contents === undefined,
-    finalStudentContents: filteredWizardData.student_contents.map((c) => ({
+    finalStudentContents: filteredWizardData.student_contents?.map((c) => ({
       content_id: c.content_id,
       content_type: c.content_type,
       title: c.title,
-    })),
+    })) || [],
   });
 
   // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가

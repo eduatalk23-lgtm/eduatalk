@@ -1899,6 +1899,17 @@ export const continueCampStepsForAdmin = withErrorHandling(
       const hasStudentContents = wizardData.student_contents !== undefined;
       const hasRecommendedContents = wizardData.recommended_contents !== undefined;
       
+      console.log("[continueCampStepsForAdmin] 콘텐츠 업데이트 시작:", {
+        groupId,
+        step,
+        hasStudentContents,
+        studentContentsLength: wizardData.student_contents?.length ?? 0,
+        hasRecommendedContents,
+        recommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
+        studentContentsIsEmptyArray: hasStudentContents && wizardData.student_contents?.length === 0,
+        recommendedContentsIsEmptyArray: hasRecommendedContents && wizardData.recommended_contents?.length === 0,
+      });
+      
       // 기존 콘텐츠 조회 (보존할 콘텐츠 확인용)
       const { data: existingPlanContents } = await supabase
         .from("plan_contents")
@@ -1922,6 +1933,13 @@ export const continueCampStepsForAdmin = withErrorHandling(
           }
         }
       }
+      
+      console.log("[continueCampStepsForAdmin] 기존 콘텐츠 조회 결과:", {
+        groupId,
+        existingTotalCount: existingPlanContents?.length ?? 0,
+        existingStudentContentsCount: existingStudentContents.length,
+        existingRecommendedContentsCount: existingRecommendedContents.length,
+      });
 
       // 콘텐츠 업데이트가 필요한 경우에만 처리
       if (hasStudentContents || hasRecommendedContents) {
@@ -1970,8 +1988,12 @@ export const continueCampStepsForAdmin = withErrorHandling(
             recommendation_metadata: null,
           }));
           contentsToSave.push(...studentContentsForCreation);
-        } else if (!hasStudentContents && existingStudentContents.length > 0) {
-          // wizardData에 student_contents가 없으면 기존 학생 콘텐츠 보존
+        } else if (
+          (!hasStudentContents || (hasStudentContents && wizardData.student_contents && wizardData.student_contents.length === 0)) &&
+          existingStudentContents.length > 0
+        ) {
+          // wizardData에 student_contents가 없거나 빈 배열인 경우 기존 학생 콘텐츠 보존
+          // 빈 배열을 전달하면 hasStudentContents는 true이지만 length > 0이 false가 되어 보존되지 않는 문제 해결
           const preservedStudentContents = existingStudentContents.map((c) => ({
             content_type: c.content_type,
             content_id: c.content_id,
@@ -1985,6 +2007,14 @@ export const continueCampStepsForAdmin = withErrorHandling(
             recommendation_metadata: null,
           }));
           contentsToSave.push(...preservedStudentContents);
+          
+          console.log("[continueCampStepsForAdmin] 기존 학생 콘텐츠 보존:", {
+            groupId,
+            hasStudentContents,
+            wizardDataStudentContentsLength: wizardData.student_contents?.length ?? 0,
+            existingStudentContentsCount: existingStudentContents.length,
+            preservedCount: preservedStudentContents.length,
+          });
         }
 
         // 추천 콘텐츠 처리
@@ -2015,8 +2045,12 @@ export const continueCampStepsForAdmin = withErrorHandling(
             recommendation_metadata: (c as any).recommendation_metadata || null,
           }));
           contentsToSave.push(...recommendedContentsForCreation);
-        } else if (!hasRecommendedContents && existingRecommendedContents.length > 0) {
-          // wizardData에 recommended_contents가 없으면 기존 추천 콘텐츠 보존
+        } else if (
+          (!hasRecommendedContents || (hasRecommendedContents && wizardData.recommended_contents && wizardData.recommended_contents.length === 0)) &&
+          existingRecommendedContents.length > 0
+        ) {
+          // wizardData에 recommended_contents가 없거나 빈 배열인 경우 기존 추천 콘텐츠 보존
+          // 빈 배열을 전달하면 hasRecommendedContents는 true이지만 length > 0이 false가 되어 보존되지 않는 문제 해결
           const preservedRecommendedContents = existingRecommendedContents.map((c) => ({
             content_type: c.content_type,
             content_id: c.content_id,
@@ -2030,8 +2064,23 @@ export const continueCampStepsForAdmin = withErrorHandling(
             recommendation_metadata: (c as any).recommendation_metadata || null,
           }));
           contentsToSave.push(...preservedRecommendedContents);
+          
+          console.log("[continueCampStepsForAdmin] 기존 추천 콘텐츠 보존:", {
+            groupId,
+            hasRecommendedContents,
+            wizardDataRecommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
+            existingRecommendedContentsCount: existingRecommendedContents.length,
+            preservedCount: preservedRecommendedContents.length,
+          });
         }
 
+        console.log("[continueCampStepsForAdmin] 저장할 콘텐츠 목록:", {
+          groupId,
+          totalContentsToSave: contentsToSave.length,
+          studentContentsToSave: contentsToSave.filter((c) => !c.is_auto_recommended && !c.recommendation_source).length,
+          recommendedContentsToSave: contentsToSave.filter((c) => c.is_auto_recommended || c.recommendation_source).length,
+        });
+        
         if (contentsToSave.length > 0) {
           // 학생이 실제로 가지고 있는 콘텐츠만 필터링
           const studentId = result.group.student_id;
@@ -2227,7 +2276,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
             });
 
             // 검증: 기존 학생 콘텐츠가 보존되었는지 확인
-            if (!hasStudentContents && existingStudentContents.length > 0) {
+            // hasStudentContents가 false이거나 빈 배열인 경우 기존 콘텐츠가 보존되어야 함
+            if (
+              (!hasStudentContents || (hasStudentContents && wizardData.student_contents && wizardData.student_contents.length === 0)) &&
+              existingStudentContents.length > 0
+            ) {
               const preservedCount = savedStudentContents.filter((saved) =>
                 existingStudentContents.some(
                   (existing) =>
@@ -2254,7 +2307,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
             }
 
             // 검증: 기존 추천 콘텐츠가 보존되었는지 확인
-            if (!hasRecommendedContents && existingRecommendedContents.length > 0) {
+            // hasRecommendedContents가 false이거나 빈 배열인 경우 기존 콘텐츠가 보존되어야 함
+            if (
+              (!hasRecommendedContents || (hasRecommendedContents && wizardData.recommended_contents && wizardData.recommended_contents.length === 0)) &&
+              existingRecommendedContents.length > 0
+            ) {
               const preservedCount = savedRecommendedContents.filter((saved) =>
                 existingRecommendedContents.some(
                   (existing) =>
@@ -2271,6 +2328,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
                     actual: preservedCount,
                     groupId,
                     studentId,
+                    hasRecommendedContents,
+                    wizardDataRecommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
                   }
                 );
               } else {
