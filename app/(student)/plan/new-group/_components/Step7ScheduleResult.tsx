@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   getScheduleResultDataAction,
@@ -53,25 +52,6 @@ export function Step7ScheduleResult({
 
     generatePlansMutation.mutate();
   };
-
-  // 플랜 생성이 필요한 경우 자동 생성
-  useEffect(() => {
-    if (
-      plansCheck &&
-      !plansCheck.hasPlans &&
-      !generatePlansMutation.isPending &&
-      !generatePlansMutation.isSuccess &&
-      !isCheckingPlans
-    ) {
-      generatePlansMutation.mutate();
-    }
-  }, [
-    plansCheck,
-    generatePlansMutation.isPending,
-    generatePlansMutation.isSuccess,
-    isCheckingPlans,
-    generatePlansMutation,
-  ]);
 
   // 스케줄 결과 데이터 조회 (기존 PlanScheduleView와 동일한 queryKey 사용)
   const {
@@ -191,8 +171,8 @@ export function Step7ScheduleResult({
         <button
           type="button"
           onClick={() => {
-            // 플랜이 생성 중이면 완료 버튼 비활성화
-            if (generatePlansMutation.isPending) {
+            // 플랜이 생성 중이거나 이미 생성 완료된 경우 완료 버튼 비활성화
+            if (generatePlansMutation.isPending || generatePlansMutation.isSuccess) {
               return;
             }
             // 플랜이 없으면 생성 후 완료
@@ -215,7 +195,7 @@ export function Step7ScheduleResult({
             // 플랜이 있으면 바로 완료
             onComplete();
           }}
-          disabled={generatePlansMutation.isPending || isLoadingData}
+          disabled={generatePlansMutation.isPending || generatePlansMutation.isSuccess || isLoadingData}
           className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
         >
           {generatePlansMutation.isPending ? "플랜 생성 중..." : "완료"}

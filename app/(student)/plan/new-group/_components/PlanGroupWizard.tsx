@@ -1374,37 +1374,18 @@ export function PlanGroupWizard({
                 return;
               }
 
-              // 일반 모드(학생 모드)에서는 플랜 생성 후 활성화
-              // 플랜이 실제로 생성되었는지 확인
+              // 일반 모드(학생 모드)에서는 플랜이 생성되었는지 확인만 수행
+              // 플랜 생성은 Step7ScheduleResult에서 처리하므로 여기서는 확인만
               try {
                 const checkResult = await checkPlansExistAction(draftGroupId);
                 if (!checkResult.hasPlans) {
-                  // 플랜이 없으면 생성
-                  try {
-                    await generatePlansFromGroupAction(draftGroupId);
-                    toast.showSuccess("플랜이 생성되었습니다.");
-                    
-                    // 플랜 생성 후 다시 확인
-                    const recheckResult = await checkPlansExistAction(draftGroupId);
-                    if (!recheckResult.hasPlans) {
-                      alert("플랜 생성에 실패했습니다. 다시 시도해주세요.");
-                      return;
-                    }
-                  } catch (generateError) {
-                    const errorMessage = generateError instanceof Error 
-                      ? generateError.message 
-                      : "플랜 생성 중 오류가 발생했습니다.";
-                    alert(`플랜 생성 실패: ${errorMessage}`);
-                    return;
-                  }
+                  // 플랜이 없으면 경고만 표시 (Step7ScheduleResult에서 생성해야 함)
+                  alert("플랜이 생성되지 않았습니다. 완료 버튼을 눌러 플랜을 생성해주세요.");
+                  return;
                 }
               } catch (error) {
-                alert(
-                  error instanceof Error
-                    ? `플랜 확인 중 오류: ${error.message}`
-                    : "플랜 확인 중 오류가 발생했습니다."
-                );
-                return;
+                // 플랜 확인 실패는 경고만 표시하고 계속 진행
+                console.warn("[PlanGroupWizard] 플랜 확인 실패:", error);
               }
 
               // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
