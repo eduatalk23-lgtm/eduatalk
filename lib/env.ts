@@ -14,20 +14,38 @@ const envSchema = z.object({
 /**
  * 검증된 환경 변수
  * 앱 시작 시 자동으로 검증됩니다.
+ * 
+ * 빌드 시점에는 환경 변수가 없을 수 있으므로, 런타임에 실제 사용 시점에 검증합니다.
  */
 export const env = (() => {
   try {
     const envValues = {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      NODE_ENV: process.env.NODE_ENV,
+      NODE_ENV: process.env.NODE_ENV || "development",
     };
 
+    // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
+    const isBuildTime = process.env.NEXT_PHASE === "phase-production-build" || 
+                        process.env.NEXT_PHASE === "phase-development-server" ||
+                        !process.env.VERCEL_ENV; // Vercel이 아닌 환경에서 빌드 시
+
     // 디버깅: 개발 환경에서만 환경 변수 값 확인
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === "development" && !isBuildTime) {
       console.log("[env.ts] 환경 변수 확인:");
       console.log("  NEXT_PUBLIC_SUPABASE_URL:", envValues.NEXT_PUBLIC_SUPABASE_URL ? "✓ 설정됨" : "✗ 없음");
       console.log("  NEXT_PUBLIC_SUPABASE_ANON_KEY:", envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓ 설정됨" : "✗ 없음");
+    }
+
+    // 빌드 시점에는 환경 변수가 없어도 빌드는 진행 (런타임에 검증)
+    if (isBuildTime && (!envValues.NEXT_PUBLIC_SUPABASE_URL || !envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
+      console.warn("[env.ts] 빌드 시점: 환경 변수가 설정되지 않았습니다. 런타임에 검증됩니다.");
+      // 빌드 시점에는 기본값 반환 (런타임에 실제 사용 시 오류 발생)
+      return {
+        NEXT_PUBLIC_SUPABASE_URL: envValues.NEXT_PUBLIC_SUPABASE_URL || "",
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+        NODE_ENV: envValues.NODE_ENV as "development" | "production" | "test",
+      };
     }
 
     return envSchema.parse(envValues);
