@@ -657,7 +657,13 @@ async function _generatePlansFromGroup(
             .maybeSingle();
 
           if (studentBookByMaster) {
-            studentBook = { data: studentBookByMaster, error: null };
+            // studentBook을 다시 쿼리하여 올바른 타입으로 설정
+            studentBook = await studentContentClient
+              .from("books")
+              .select("id, total_pages, master_content_id")
+              .eq("id", studentBookByMaster.id)
+              .eq("student_id", studentId)
+              .maybeSingle();
           } else {
             // 마스터 교재를 학생 교재로 복사 (캠프 모드에서 자동 복사)
             try {
@@ -671,15 +677,14 @@ async function _generatePlansFromGroup(
               );
 
               // 복사된 교재 조회 (Admin 클라이언트 사용)
-              const { data: copiedBook } = await studentContentClient
+              studentBook = await studentContentClient
                 .from("books")
                 .select("id, total_pages, master_content_id")
                 .eq("id", bookId)
                 .eq("student_id", studentId)
                 .maybeSingle();
 
-              if (copiedBook) {
-                studentBook = { data: copiedBook, error: null };
+              if (studentBook.data) {
                 console.log(
                   `[planGroupActions] 마스터 교재(${finalContentId})를 학생 교재(${bookId})로 복사했습니다.`
                 );
@@ -790,7 +795,13 @@ async function _generatePlansFromGroup(
             .maybeSingle();
 
           if (studentLectureByMaster) {
-            studentLecture = { data: studentLectureByMaster, error: null };
+            // studentLecture를 다시 쿼리하여 올바른 타입으로 설정
+            studentLecture = await studentContentClient
+              .from("lectures")
+              .select("id, duration, master_content_id")
+              .eq("id", studentLectureByMaster.id)
+              .eq("student_id", studentId)
+              .maybeSingle();
           } else {
             // 마스터 강의를 학생 강의로 복사 (캠프 모드에서 자동 복사)
             try {
@@ -804,15 +815,14 @@ async function _generatePlansFromGroup(
               );
 
               // 복사된 강의 조회 (Admin 클라이언트 사용)
-              const { data: copiedLecture } = await studentContentClient
+              studentLecture = await studentContentClient
                 .from("lectures")
                 .select("id, duration, master_content_id")
                 .eq("id", lectureId)
                 .eq("student_id", studentId)
                 .maybeSingle();
 
-              if (copiedLecture) {
-                studentLecture = { data: copiedLecture, error: null };
+              if (studentLecture.data) {
                 console.log(
                   `[planGroupActions] 마스터 강의(${finalContentId})를 학생 강의(${lectureId})로 복사했습니다.`
                 );

@@ -24,6 +24,13 @@ Type error: Property 'camp_self_study_hours' does not exist on type '{ study_day
 Type error: 'studentContentClient' is possibly 'null'.
 ```
 
+### 에러 4
+```
+./app/(student)/actions/plan-groups/plans.ts:660:13
+Type error: Type '{ data: { id: any; total_pages: any; master_content_id: any; }; error: null; }' is not assignable to type 'PostgrestSingleResponse<{ id: any; total_pages: any; master_content_id: any; } | null>'.
+Type '{ data: { id: any; total_pages: any; master_content_id: any; }; error: null; }' is missing the following properties from type 'PostgrestResponseSuccess<{ id: any; total_pages: any; master_content_id: any; } | null>': count, status, statusText
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -34,6 +41,9 @@ Type error: 'studentContentClient' is possibly 'null'.
 
 ### 에러 3
 `getSupabaseClientForStudent` 함수는 `SupabaseClientForStudentQuery` 타입을 반환하는데, 이 타입은 `SupabaseServerClient | SupabaseAdminClient`입니다. `SupabaseAdminClient`는 `null`을 포함할 수 있어서 TypeScript가 `studentContentClient`가 `null`일 수 있다고 판단했습니다. 실제로는 `ensureAdminClient()`가 `null`이 아닌 것을 보장하지만, 타입 시스템이 이를 인식하지 못합니다.
+
+### 에러 4
+`studentBook`과 `studentLecture` 변수에 수동으로 만든 객체(`{ data: ..., error: null }`)를 할당하려고 했지만, `PostgrestSingleResponse` 타입은 `count`, `status`, `statusText` 속성도 필요합니다. 수동으로 만든 객체는 이 속성들이 없어서 타입 에러가 발생했습니다.
 
 ## 수정 내용
 
@@ -50,6 +60,9 @@ Type error: 'studentContentClient' is possibly 'null'.
 
 #### 수정 3: studentContentClient null 체크 추가
 `studentContentClient`가 `null`일 수 있다는 타입 에러를 해결하기 위해 null 체크를 추가했습니다. `null`인 경우 `AppError`를 던지도록 했습니다.
+
+#### 수정 4: studentBook과 studentLecture를 다시 쿼리하도록 수정
+`studentBook`과 `studentLecture` 변수에 수동으로 만든 객체를 할당하는 대신, 다시 쿼리하여 올바른 `PostgrestSingleResponse` 타입을 반환하도록 수정했습니다. 이렇게 하면 `count`, `status`, `statusText` 속성이 포함된 올바른 타입의 객체를 얻을 수 있습니다.
 
 ```typescript
 // 수정 전
@@ -97,4 +110,6 @@ Type error: 'studentContentClient' is possibly 'null'.
 - `getSupabaseClientForStudent` 함수는 `SupabaseClientForStudentQuery` 타입을 반환하며, 이 타입은 `SupabaseServerClient | SupabaseAdminClient`입니다.
 - `SupabaseAdminClient`는 `null`을 포함할 수 있지만, `ensureAdminClient()`가 `null`이 아닌 것을 보장합니다.
 - 타입 시스템이 이를 인식하지 못하므로, null 체크를 추가하여 타입 에러를 해결했습니다.
+- `PostgrestSingleResponse` 타입은 `data`, `error` 외에도 `count`, `status`, `statusText` 속성을 포함합니다.
+- 수동으로 만든 객체는 이 속성들이 없어서 타입 에러가 발생하므로, 다시 쿼리하여 올바른 타입의 객체를 얻도록 수정했습니다.
 
