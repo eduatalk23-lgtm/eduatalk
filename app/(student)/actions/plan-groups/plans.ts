@@ -151,7 +151,7 @@ async function _generatePlansFromGroup(
         (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
       lunch_time: schedulerOptions.lunch_time,
       camp_study_hours: schedulerOptions.camp_study_hours,
-      camp_self_study_hours: schedulerOptions.camp_self_study_hours,
+      camp_self_study_hours: schedulerOptions.self_study_hours,
       designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
       non_study_time_blocks: (group as any).non_study_time_blocks || undefined,
     }

@@ -6,14 +6,25 @@
 ## 문제 상황
 Vercel 프로덕션 빌드 중 TypeScript 에러 발생:
 
-### 에러
+### 에러 1
 ```
 ./app/(student)/actions/plan-groups/plans.ts:149:26
 Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ study_days: number; review_days: number; weak_subject_focus: boolean | WeakSubjectFocus | undefined; review_scope: ReviewScope | undefined; lunch_time: TimeRange | undefined; camp_study_hours: TimeRange | undefined; self_study_hours: TimeRange | undefined; }'.
 ```
 
+### 에러 2
+```
+./app/(student)/actions/plan-groups/plans.ts:154:47
+Type error: Property 'camp_self_study_hours' does not exist on type '{ study_days: number; review_days: number; weak_subject_focus: boolean | WeakSubjectFocus | undefined; review_scope: ReviewScope | undefined; lunch_time: TimeRange | undefined; camp_study_hours: TimeRange | undefined; self_study_hours: TimeRange | undefined; }'. Did you mean 'camp_study_hours'?
+```
+
 ## 원인 분석
+
+### 에러 1
 `schedulerOptions` 객체는 `mergedSettings`에서 일부 속성만 가져와서 만든 객체입니다. `enable_self_study_for_holidays`, `enable_self_study_for_study_days`, `designated_holiday_hours` 속성은 `mergedSettings`에 없고, `group.scheduler_options`에만 있습니다. 하지만 `schedulerOptions` 객체에서 이 속성들을 접근하려고 해서 타입 에러가 발생했습니다.
+
+### 에러 2
+`schedulerOptions` 객체에는 `self_study_hours` 속성만 있고 `camp_self_study_hours` 속성은 없습니다. `CalculateOptions` 타입에서는 `camp_self_study_hours`를 요구하므로, `self_study_hours`를 `camp_self_study_hours`로 매핑해야 합니다.
 
 ## 수정 내용
 
@@ -22,8 +33,11 @@ Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ 
 
 ### 변경 사항
 
-#### 수정: group.scheduler_options에서 직접 속성 가져오기
+#### 수정 1: group.scheduler_options에서 직접 속성 가져오기
 `enable_self_study_for_holidays`, `enable_self_study_for_study_days`, `designated_holiday_hours` 속성을 `group.scheduler_options`에서 직접 가져오도록 수정했습니다.
+
+#### 수정 2: camp_self_study_hours를 self_study_hours로 매핑
+`schedulerOptions`에는 `self_study_hours` 속성만 있으므로, 이를 `camp_self_study_hours`로 매핑했습니다.
 
 ```typescript
 // 수정 전
@@ -35,10 +49,10 @@ Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ 
     schedulerOptions.enable_self_study_for_holidays === true,
   enable_self_study_for_study_days:
     schedulerOptions.enable_self_study_for_study_days === true,
-  lunch_time: schedulerOptions.lunch_time,
-  camp_study_hours: schedulerOptions.camp_study_hours,
-  camp_self_study_hours: schedulerOptions.camp_self_study_hours,
-  designated_holiday_hours: schedulerOptions.designated_holiday_hours,
+      lunch_time: schedulerOptions.lunch_time,
+      camp_study_hours: schedulerOptions.camp_study_hours,
+      camp_self_study_hours: schedulerOptions.self_study_hours,
+      designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
   non_study_time_blocks: (group as any).non_study_time_blocks || undefined,
 }
 
@@ -67,4 +81,5 @@ Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ 
 - `schedulerOptions`는 `mergedSettings`에서 일부 속성만 가져온 객체입니다.
 - `enable_self_study_for_holidays`, `enable_self_study_for_study_days`, `designated_holiday_hours` 속성은 `group.scheduler_options`에만 있습니다.
 - `group.scheduler_options`는 `Record<string, unknown>` 타입이므로 타입 단언(`as any`)을 사용했습니다.
+- `schedulerOptions`에는 `self_study_hours` 속성만 있고, `CalculateOptions` 타입에서는 `camp_self_study_hours`를 요구하므로 `self_study_hours`를 `camp_self_study_hours`로 매핑했습니다.
 
