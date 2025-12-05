@@ -289,7 +289,7 @@ export async function addMasterLecture(formData: FormData) {
     throw new Error("강의명과 총 회차는 필수입니다.");
   }
 
-  const lecture = await createMasterLecture(lectureData);
+  const lecture = await createMasterLecture(lectureData as Omit<MasterLecture, "id" | "created_at" | "updated_at">);
 
   // 연결된 교재 생성 (있는 경우)
   const bookTitle = formData.get("book_title")?.toString();

@@ -18,6 +18,13 @@ Type error: Object literal may only specify known properties, and 'semester' doe
 Type error: Type '{ ... }' is missing the following properties from type 'Omit<MasterLecture, "id" | "updated_at" | "created_at">': grade_min, grade_max, source_url, lecture_source_url, and 3 more.
 ```
 
+### 에러 3
+```
+./app/(student)/actions/masterContentActions.ts:292:45
+Type error: Type 'string | null | undefined' is not assignable to type 'string | null'.
+Type 'undefined' is not assignable to type 'string | null'.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -25,6 +32,9 @@ Type error: Type '{ ... }' is missing the following properties from type 'Omit<M
 
 ### 에러 2
 `Omit<MasterLecture, "id" | "created_at" | "updated_at">` 타입을 사용할 때, `MasterLecture`의 필수 속성인 `is_active`가 누락되었고, TypeScript가 모든 optional 속성도 포함해야 한다고 판단하여 에러가 발생했습니다.
+
+### 에러 3
+`Partial`을 사용한 타입이 `createMasterLecture` 함수에 전달될 때, `Partial`로 인해 모든 속성이 `undefined`를 포함할 수 있어서 타입 호환성 문제가 발생했습니다. 특히 `tenant_id`가 `string | null | undefined`가 되어 `string | null`을 기대하는 함수와 호환되지 않았습니다.
 
 ## 수정 내용
 
@@ -67,6 +77,17 @@ const lectureData: Partial<Omit<MasterLecture, "id" | "created_at" | "updated_at
 #### 수정 2: 타입 수정 및 is_active 추가
 타입을 `Partial`로 변경하고 필수 속성(`is_active`, `title`, `total_episodes`)을 명시적으로 포함하도록 수정했습니다.
 
+#### 수정 3: createMasterLecture 호출 시 타입 단언 추가
+`Partial` 타입을 `createMasterLecture` 함수에 전달할 때 타입 단언을 추가하여 타입 호환성 문제를 해결했습니다.
+
+```typescript
+// 수정 전
+const lecture = await createMasterLecture(lectureData);
+
+// 수정 후
+const lecture = await createMasterLecture(lectureData as Omit<MasterLecture, "id" | "created_at" | "updated_at">);
+```
+
 ## 검증
 - TypeScript 컴파일 에러 해결 확인
 - 린터 에러 없음 확인
@@ -77,4 +98,5 @@ const lectureData: Partial<Omit<MasterLecture, "id" | "created_at" | "updated_at
 - `MasterLecture` 타입은 `lib/types/lecture.ts`에 정의되어 있습니다.
 - `MasterLecture` 타입의 필수 속성: `id`, `is_active`, `title`, `total_episodes`, `created_at`, `updated_at`
 - `Partial`을 사용하여 optional 속성들을 선택적으로 포함할 수 있도록 했습니다.
+- `createMasterLecture` 함수는 `Omit<MasterLecture, "id" | "created_at" | "updated_at">` 타입을 기대하므로, `Partial` 타입을 전달할 때는 타입 단언이 필요합니다.
 
