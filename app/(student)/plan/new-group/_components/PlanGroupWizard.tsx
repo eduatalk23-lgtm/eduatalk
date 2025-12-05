@@ -904,10 +904,17 @@ export function PlanGroupWizard({
                   setCurrentStep(5);
                   return;
                 }
+                // Step 5에서 호출된 경우 플랜 생성 후 Step 6으로 이동
+                if (currentStep === 5 && generatePlans) {
+                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
+                  setCurrentStep(6);
+                  return;
+                }
                 // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
                 if (currentStep === 6) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
                   setCurrentStep(7);
+                  return;
                 }
                 // Step 7에서 완료 후 참여자 목록으로 이동
                 if (currentStep === 7) {
@@ -918,6 +925,7 @@ export function PlanGroupWizard({
                   } else {
                     router.push(`/admin/camp-templates`, { scroll: true });
                   }
+                  return;
                 }
               } else {
                 const errorMessage = result.error || "저장에 실패했습니다.";
