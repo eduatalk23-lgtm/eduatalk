@@ -15,6 +15,7 @@ import {
 import { recordHistory } from "@/lib/history/record";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSubjectById, getSubjectGroupById, getActiveCurriculumRevision } from "@/lib/data/subjects";
+import type { MockScore } from "@/lib/domains/score/types";
 
 // 내신 성적 등록
 export async function addSchoolScore(formData: FormData): Promise<void> {
