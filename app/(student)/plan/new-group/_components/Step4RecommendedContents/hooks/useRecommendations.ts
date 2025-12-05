@@ -219,6 +219,8 @@ export function useRecommendations({
         end_range: number;
         title?: string;
         subject_category?: string;
+        is_auto_recommended?: boolean;
+        recommendation_source?: "auto" | "admin" | "template" | null;
       }> = [];
 
       for (const r of recommendations) {
