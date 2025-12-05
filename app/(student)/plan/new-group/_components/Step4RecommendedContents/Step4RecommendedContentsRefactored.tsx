@@ -5,10 +5,13 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { WizardData } from "../PlanGroupWizard";
 import { ProgressIndicator } from "../_shared/ProgressIndicator";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
+import { getSubjectGroupsAction, getCurriculumRevisionsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
+import type { SubjectGroup } from "@/lib/data/subjects";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 // Hooks
 import { useRecommendations } from "./hooks/useRecommendations";
@@ -24,7 +27,7 @@ import RequiredSubjectsSection from "./components/RequiredSubjectsSection";
 
 // Types & Constants
 import { Step4RecommendedContentsProps } from "./types";
-import { AVAILABLE_SUBJECTS, ERROR_MESSAGES, CONFIRM_MESSAGES } from "./constants";
+import { ERROR_MESSAGES, CONFIRM_MESSAGES } from "./constants";
 
 export default function Step4RecommendedContents({
   data,
@@ -121,35 +124,60 @@ export default function Step4RecommendedContents({
   // ============================================================================
   // 필수 교과 설정 관리
   // ============================================================================
-  const [detailSubjects, setDetailSubjects] = useState<Map<string, string[]>>(
-    new Map()
-  );
-  const [loadingDetailSubjects, setLoadingDetailSubjects] = useState<
-    Set<string>
-  >(new Set());
+  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
+  const [loadingSubjectGroups, setLoadingSubjectGroups] = useState(false);
+  const [loadingCurriculumRevisions, setLoadingCurriculumRevisions] = useState(false);
+
+  // ============================================================================
+  // 필수 교과 데이터 로드
+  // ============================================================================
+  useEffect(() => {
+    const loadSubjectGroups = async () => {
+      setLoadingSubjectGroups(true);
+      try {
+        const groups = await getSubjectGroupsAction();
+        setAvailableSubjectGroups(groups);
+      } catch (error) {
+        console.error("교과 그룹 조회 실패:", error);
+      } finally {
+        setLoadingSubjectGroups(false);
+      }
+    };
+
+    const loadCurriculumRevisions = async () => {
+      setLoadingCurriculumRevisions(true);
+      try {
+        const revisions = await getCurriculumRevisionsAction();
+        setCurriculumRevisions(revisions);
+      } catch (error) {
+        console.error("개정교육과정 조회 실패:", error);
+      } finally {
+        setLoadingCurriculumRevisions(false);
+      }
+    };
+
+    loadSubjectGroups();
+    loadCurriculumRevisions();
+  }, []);
 
   // ============================================================================
   // 필수 교과 핸들러
   // ============================================================================
-  const handleLoadDetailSubjects = useCallback(
-    async (category: string) => {
-      if (detailSubjects.has(category)) return;
-
-      setLoadingDetailSubjects((prev) => new Set(prev).add(category));
+  const handleLoadSubjects = useCallback(
+    async (subjectGroupId: string, curriculumRevisionId: string): Promise<Array<{ id: string; name: string }>> => {
       try {
-        const subjects = await fetchDetailSubjects(category);
-        setDetailSubjects((prev) => new Map(prev).set(category, subjects));
+        const subjects = await getSubjectsByGroupAction(subjectGroupId);
+        return subjects.map((subject) => ({
+          id: subject.id,
+          name: subject.name,
+        }));
       } catch (error) {
-        console.error("세부 과목 조회 실패:", error);
-      } finally {
-        setLoadingDetailSubjects((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(category);
-          return newSet;
-        });
+        console.error("과목 조회 실패:", error);
+        return [];
       }
     },
-    [detailSubjects]
+    []
   );
 
   const handleAddRequiredSubject = useCallback(() => {
@@ -344,15 +372,16 @@ export default function Step4RecommendedContents({
       {/* 필수 교과 설정 섹션 */}
       <RequiredSubjectsSection
         data={data}
-        availableSubjects={AVAILABLE_SUBJECTS}
-        detailSubjects={detailSubjects}
-        loadingDetailSubjects={loadingDetailSubjects}
-        onUpdate={onUpdate}
-        onLoadDetailSubjects={handleLoadDetailSubjects}
+        availableSubjectGroups={availableSubjectGroups}
+        curriculumRevisions={curriculumRevisions}
+        onLoadSubjects={handleLoadSubjects}
         onAddRequiredSubject={handleAddRequiredSubject}
         onUpdateRequiredSubject={handleRequiredSubjectUpdate}
         onRemoveRequiredSubject={handleRequiredSubjectRemove}
         onConstraintHandlingChange={handleConstraintHandlingChange}
+        isTemplateMode={false}
+        isCampMode={isCampMode}
+        studentId={studentId}
       />
 
       <div>
