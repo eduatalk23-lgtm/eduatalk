@@ -390,14 +390,19 @@ export async function addMockScore(formData: FormData): Promise<void> {
     throw new Error("백분위는 0~100 사이의 숫자여야 합니다.");
   }
 
+  // subjectGroupId와 subjectId가 빈 문자열이 아닐 때만 전달
+  if (!subjectGroupId || !subjectId) {
+    throw new Error("교과와 과목을 모두 선택해주세요.");
+  }
+
   const result = await createMockScore({
     tenant_id: tenantContext.tenantId,
     student_id: user.userId,
     grade,
     exam_type: examType,
     // FK 필드 (우선 사용)
-    subject_group_id: subjectGroupId || undefined,
-    subject_id: subjectId || undefined,
+    subject_group_id: subjectGroupId,
+    subject_id: subjectId,
     subject_type_id: subjectTypeId || undefined,
     // 하위 호환성을 위한 텍스트 필드 (deprecated)
     subject_group: subjectGroup || undefined,
