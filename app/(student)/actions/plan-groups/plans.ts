@@ -1984,6 +1984,15 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       ? ensureAdminClient()
       : supabase;
 
+    if (!queryClient) {
+      throw new AppError(
+        "Supabase 클라이언트를 생성할 수 없습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
     if (!masterQueryClient) {
       throw new AppError(
         "Supabase 클라이언트를 생성할 수 없습니다.",

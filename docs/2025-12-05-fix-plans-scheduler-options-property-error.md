@@ -43,6 +43,12 @@ Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ 
 Type error: 'masterQueryClient' is possibly 'null'.
 ```
 
+### 에러 7
+```
+./app/(student)/actions/plan-groups/plans.ts:2184:50
+Type error: 'queryClient' is possibly 'null'.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -62,6 +68,9 @@ Type error: 'masterQueryClient' is possibly 'null'.
 
 ### 에러 6
 `masterQueryClient`는 `ensureAdminClient()` 또는 `supabase`를 할당받습니다. `ensureAdminClient()`는 타입상 `null`을 반환할 수 있지만, 실제로는 에러를 던지므로 `null`이 반환되지 않습니다. 하지만 TypeScript 타입 시스템은 이를 인식하지 못하여 `masterQueryClient`가 `null`일 수 있다고 판단했습니다.
+
+### 에러 7
+에러 3과 동일한 문제입니다. `queryClient`는 `getSupabaseClientForStudent` 함수의 반환값인데, 이 함수는 `SupabaseClientForStudentQuery` 타입을 반환하며 이 타입은 `null`을 포함할 수 있습니다. TypeScript가 `queryClient`가 `null`일 수 있다고 판단했습니다.
 
 ## 수정 내용
 
@@ -87,6 +96,9 @@ Type error: 'masterQueryClient' is possibly 'null'.
 
 #### 수정 6: masterQueryClient null 체크 추가
 `masterQueryClient`가 `null`일 수 있다는 타입 에러를 해결하기 위해 null 체크를 추가했습니다. `null`인 경우 `AppError`를 던지도록 했습니다.
+
+#### 수정 7: queryClient null 체크 추가
+에러 3과 동일한 문제입니다. `queryClient`가 `null`일 수 있다는 타입 에러를 해결하기 위해 null 체크를 추가했습니다. `null`인 경우 `AppError`를 던지도록 했습니다.
 
 ```typescript
 // 수정 전
@@ -138,4 +150,6 @@ Type error: 'masterQueryClient' is possibly 'null'.
 - 수동으로 만든 객체는 이 속성들이 없어서 타입 에러가 발생하므로, 다시 쿼리하여 올바른 타입의 객체를 얻도록 수정했습니다.
 - `ensureAdminClient()`는 타입상 `null`을 반환할 수 있지만, 실제로는 에러를 던지므로 `null`이 반환되지 않습니다.
 - TypeScript 타입 시스템이 이를 인식하지 못하므로, null 체크를 추가하여 타입 에러를 해결했습니다.
+- `getSupabaseClientForStudent` 함수는 `SupabaseClientForStudentQuery` 타입을 반환하며, 이 타입은 `null`을 포함할 수 있습니다.
+- `queryClient`와 `masterQueryClient` 모두 null 체크를 추가하여 타입 에러를 해결했습니다.
 
