@@ -31,6 +31,12 @@ Type error: Type '{ data: { id: any; total_pages: any; master_content_id: any; }
 Type '{ data: { id: any; total_pages: any; master_content_id: any; }; error: null; }' is missing the following properties from type 'PostgrestResponseSuccess<{ id: any; total_pages: any; master_content_id: any; } | null>': count, status, statusText
 ```
 
+### 에러 5
+```
+./app/(student)/actions/plan-groups/plans.ts:1518:24
+Type error: Property 'enable_self_study_for_holidays' does not exist on type '{ study_days: number; review_days: number; weak_subject_focus: boolean | WeakSubjectFocus | undefined; review_scope: ReviewScope | undefined; lunch_time: TimeRange | undefined; camp_study_hours: TimeRange | undefined; self_study_hours: TimeRange | undefined; }'.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -44,6 +50,9 @@ Type '{ data: { id: any; total_pages: any; master_content_id: any; }; error: nul
 
 ### 에러 4
 `studentBook`과 `studentLecture` 변수에 수동으로 만든 객체(`{ data: ..., error: null }`)를 할당하려고 했지만, `PostgrestSingleResponse` 타입은 `count`, `status`, `statusText` 속성도 필요합니다. 수동으로 만든 객체는 이 속성들이 없어서 타입 에러가 발생했습니다.
+
+### 에러 5
+에러 1과 동일한 문제입니다. `schedulerOptions` 객체에는 `enable_self_study_for_holidays` 속성이 없는데, 코드에서 이 속성에 접근하려고 해서 타입 에러가 발생했습니다.
 
 ## 수정 내용
 
@@ -63,6 +72,9 @@ Type '{ data: { id: any; total_pages: any; master_content_id: any; }; error: nul
 
 #### 수정 4: studentBook과 studentLecture를 다시 쿼리하도록 수정
 `studentBook`과 `studentLecture` 변수에 수동으로 만든 객체를 할당하는 대신, 다시 쿼리하여 올바른 `PostgrestSingleResponse` 타입을 반환하도록 수정했습니다. 이렇게 하면 `count`, `status`, `statusText` 속성이 포함된 올바른 타입의 객체를 얻을 수 있습니다.
+
+#### 수정 5: enable_self_study_for_holidays를 group.scheduler_options에서 직접 가져오기
+에러 1과 동일한 문제입니다. `schedulerOptions` 객체에는 `enable_self_study_for_holidays` 속성이 없으므로, `group.scheduler_options`에서 직접 가져오도록 수정했습니다.
 
 ```typescript
 // 수정 전

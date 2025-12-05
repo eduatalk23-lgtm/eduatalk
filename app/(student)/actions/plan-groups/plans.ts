@@ -1515,7 +1515,7 @@ async function _generatePlansFromGroup(
     // 지정휴일의 경우 배정된 학습시간을 자율학습으로 저장
     // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
     const enableSelfStudyForHolidays =
-      schedulerOptions.enable_self_study_for_holidays === true;
+      (group.scheduler_options as any)?.enable_self_study_for_holidays === true;
     if (
       dateMetadata.day_type === "지정휴일" &&
       studyTimeSlots.length > 0 &&
