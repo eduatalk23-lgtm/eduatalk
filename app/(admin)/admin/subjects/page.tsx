@@ -112,8 +112,12 @@ export default function SubjectsPage() {
   }
 
   const sortedRevisions = [...revisions].sort(
-    (a, b) =>
-      a.display_order - b.display_order || a.name.localeCompare(b.name)
+    (a, b) => {
+      const orderA = a.display_order ?? 0;
+      const orderB = b.display_order ?? 0;
+      const orderDiff = orderA - orderB;
+      return orderDiff !== 0 ? orderDiff : a.name.localeCompare(b.name);
+    }
   );
 
   return (
