@@ -29,7 +29,7 @@ type ContentInfo = {
   content_type: "book" | "lecture";
   content_id: string;
   title: string;
-  subject_category?: string;
+  subject_category?: string | null;
   start_range: number;
   end_range: number;
   isRecommended: boolean;
@@ -3102,7 +3102,10 @@ export function Step6FinalReview({
               <SubjectAllocationUI
                 data={data}
                 onUpdate={onUpdate}
-                contentInfos={contentInfos}
+                contentInfos={contentInfos.map((info) => ({
+                  ...info,
+                  subject_category: info.subject_category ?? null,
+                }))}
               />
             )}
 
@@ -3111,7 +3114,10 @@ export function Step6FinalReview({
               <ContentAllocationUI
                 data={data}
                 onUpdate={onUpdate}
-                contentInfos={contentInfos}
+                contentInfos={contentInfos.map((info) => ({
+                  ...info,
+                  subject_category: info.subject_category ?? null,
+                }))}
               />
             )}
           </div>
