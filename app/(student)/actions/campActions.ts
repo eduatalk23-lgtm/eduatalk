@@ -681,7 +681,7 @@ export const submitCampParticipation = withErrorHandling(
       const { updatePlanGroupDraftAction } = await import("./planGroupActions");
       const updateData = {
         ...creationData,
-        plan_type: "camp",
+        plan_type: "camp" as const,
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
       };
@@ -701,7 +701,7 @@ export const submitCampParticipation = withErrorHandling(
       // 캠프 모드에서 Step 3 제출 시 콘텐츠가 없어도 제출 가능하도록 콘텐츠 검증 건너뛰기
       const planGroupData = {
         ...creationData,
-        plan_type: "camp",
+        plan_type: "camp" as const,
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
       };
