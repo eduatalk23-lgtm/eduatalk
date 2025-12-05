@@ -100,10 +100,25 @@ export default async function CampPage() {
 
             const detailLink = getDetailLink();
 
+            // template의 null 값을 undefined로 변환하여 타입 호환성 확보
+            const invitationForCard = {
+              ...invitation,
+              template: invitation.template
+                ? {
+                    name: invitation.template.name,
+                    program_type: invitation.template.program_type || undefined,
+                    description: invitation.template.description ?? undefined,
+                    camp_location: invitation.template.camp_location ?? undefined,
+                    camp_start_date: invitation.template.camp_start_date ?? undefined,
+                    camp_end_date: invitation.template.camp_end_date ?? undefined,
+                  }
+                : null,
+            };
+
             return (
               <CampInvitationCard
                 key={invitation.id}
-                invitation={invitation}
+                invitation={invitationForCard}
                 detailLink={detailLink}
               />
             );
