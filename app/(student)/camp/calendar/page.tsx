@@ -4,13 +4,14 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getPlanGroupsForStudent,
-  getStudentExclusions,
-  getStudentAcademySchedules,
+  getPlanExclusions,
+  getAcademySchedules,
 } from "@/lib/data/planGroups";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { PlanCalendarView } from "@/app/(student)/plan/calendar/_components/PlanCalendarView";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { getCampTemplate } from "@/lib/data/campTemplates";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 
 type CampCalendarPageProps = {
   searchParams: Promise<{ view?: string }>;
@@ -31,6 +32,9 @@ export default async function CampCalendarPage({
   const params = await searchParams;
   const view =
     params.view === "week" ? "week" : params.view === "day" ? "day" : "month";
+
+  // 테넌트 컨텍스트 조회
+  const tenantContext = await requireTenantContext();
 
   try {
     // 활성화된 플랜 그룹 조회
@@ -235,11 +239,43 @@ export default async function CampCalendarPage({
             .sort()[0] || new Date().toISOString().slice(0, 10)
         : new Date().toISOString().slice(0, 10);
 
-    // 휴일(제외일) 조회
-    const exclusions = await getStudentExclusions(user.id);
+    // 제외일 조회 (플랜 그룹별 관리)
+    // 활성 플랜 그룹들의 제외일 조회 후 병합
+    const exclusionsPromises = activePlanGroups.map((group) =>
+      getPlanExclusions(group.id, tenantContext.tenantId)
+    );
+    const exclusionsArrays = await Promise.all(exclusionsPromises);
+    
+    // 중복 제거: exclusion_date:exclusion_type 조합이 같은 것은 하나만 표시
+    const exclusionsMap = new Map();
+    for (const exclusions of exclusionsArrays) {
+      for (const exclusion of exclusions) {
+        const key = `${exclusion.exclusion_date}:${exclusion.exclusion_type}`;
+        if (!exclusionsMap.has(key)) {
+          exclusionsMap.set(key, exclusion);
+        }
+      }
+    }
+    const exclusions = Array.from(exclusionsMap.values());
 
-    // 학원일정 조회
-    const academySchedules = await getStudentAcademySchedules(user.id);
+    // 학원일정 조회 (플랜 그룹별 관리)
+    // 활성 플랜 그룹들의 학원 일정 조회 후 병합
+    const academySchedulesPromises = activePlanGroups.map((group) =>
+      getAcademySchedules(group.id, tenantContext.tenantId)
+    );
+    const academySchedulesArrays = await Promise.all(academySchedulesPromises);
+    
+    // 중복 제거: day_of_week:start_time:end_time 조합이 같은 것은 하나만 표시
+    const academySchedulesMap = new Map();
+    for (const schedules of academySchedulesArrays) {
+      for (const schedule of schedules) {
+        const key = `${schedule.day_of_week}:${schedule.start_time}:${schedule.end_time}`;
+        if (!academySchedulesMap.has(key)) {
+          academySchedulesMap.set(key, schedule);
+        }
+      }
+    }
+    const academySchedules = Array.from(academySchedulesMap.values());
 
     // 플랜 그룹의 daily_schedule에서 날짜별 일정 타입 정보 추출
     // Step7에서 생성된 정보를 그대로 사용 (재계산 불필요)
