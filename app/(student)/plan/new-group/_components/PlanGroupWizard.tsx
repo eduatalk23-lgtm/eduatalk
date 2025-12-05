@@ -1132,6 +1132,17 @@ export function PlanGroupWizard({
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
 
+  // 마지막 단계 판단
+  const isLastStep = useMemo(() => {
+    if (isTemplateMode) {
+      return currentStep === 4; // 템플릿 모드는 Step 4가 마지막
+    }
+    if (isCampMode && !isAdminContinueMode) {
+      return currentStep === 4; // 캠프 모드 (학생)는 Step 4가 마지막
+    }
+    return currentStep === 7; // 일반 모드와 캠프 모드 (관리자)는 Step 7이 마지막
+  }, [currentStep, isTemplateMode, isCampMode, isAdminContinueMode]);
+
   // handleSaveDraft를 ref로 저장하여 최신 함수를 참조
   const handleSaveDraftRef = useRef(handleSaveDraft);
   useEffect(() => {
@@ -1467,16 +1478,8 @@ export function PlanGroupWizard({
         >
           {isPending
             ? "저장 중..."
-            : currentStep === 4 && isTemplateMode
-            ? "템플릿 저장하기"
-            : currentStep === 4 && isCampMode && !isAdminContinueMode
-            ? "참여 제출하기"
-            : currentStep === 5
-            ? isAdminContinueMode
-              ? "다음 단계로"
-              : "스케줄 미리보기로 이동"
-            : currentStep === 6
-            ? "스케줄 결과 보기"
+            : isLastStep
+            ? "완료"
             : "다음"}
         </button>
       </div>
