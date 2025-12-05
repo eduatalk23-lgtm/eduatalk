@@ -2125,7 +2125,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
                   const { data: studentBookByMaster } = await supabase
                     .from("books")
-                    .select("id")
+                    .select("id, master_content_id")
                     .eq("student_id", studentId)
                     .eq("master_content_id", content.content_id)
                     .maybeSingle();
@@ -2134,9 +2134,30 @@ export const continueCampStepsForAdmin = withErrorHandling(
                     isValidContent = true;
                     actualContentId = studentBookByMaster.id;
                   } else {
-                    console.warn(
-                      `[campTemplateActions] 학생(${studentId})이 마스터 교재(${content.content_id})를 가지고 있지 않습니다. 콘텐츠에서 제외합니다.`
-                    );
+                    // 마스터 교재를 학생 교재로 복사 (캠프 모드에서 자동 복사)
+                    try {
+                      const { copyMasterBookToStudent } = await import(
+                        "@/lib/data/contentMasters"
+                      );
+                      const { bookId } = await copyMasterBookToStudent(
+                        content.content_id,
+                        studentId,
+                        tenantContext.tenantId
+                      );
+                      isValidContent = true;
+                      actualContentId = bookId;
+                      console.log(
+                        `[campTemplateActions] 마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
+                      );
+                    } catch (copyError) {
+                      console.error(
+                        `[campTemplateActions] 마스터 교재 복사 실패: ${content.content_id}`,
+                        copyError
+                      );
+                      // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
+                      isValidContent = true;
+                      actualContentId = content.content_id;
+                    }
                   }
                 } else {
                   console.warn(
@@ -2168,7 +2189,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
                   const { data: studentLectureByMaster } = await supabase
                     .from("lectures")
-                    .select("id")
+                    .select("id, master_content_id")
                     .eq("student_id", studentId)
                     .eq("master_content_id", content.content_id)
                     .maybeSingle();
@@ -2177,9 +2198,30 @@ export const continueCampStepsForAdmin = withErrorHandling(
                     isValidContent = true;
                     actualContentId = studentLectureByMaster.id;
                   } else {
-                    console.warn(
-                      `[campTemplateActions] 학생(${studentId})이 마스터 강의(${content.content_id})를 가지고 있지 않습니다. 콘텐츠에서 제외합니다.`
-                    );
+                    // 마스터 강의를 학생 강의로 복사 (캠프 모드에서 자동 복사)
+                    try {
+                      const { copyMasterLectureToStudent } = await import(
+                        "@/lib/data/contentMasters"
+                      );
+                      const { lectureId } = await copyMasterLectureToStudent(
+                        content.content_id,
+                        studentId,
+                        tenantContext.tenantId
+                      );
+                      isValidContent = true;
+                      actualContentId = lectureId;
+                      console.log(
+                        `[campTemplateActions] 마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
+                      );
+                    } catch (copyError) {
+                      console.error(
+                        `[campTemplateActions] 마스터 강의 복사 실패: ${content.content_id}`,
+                        copyError
+                      );
+                      // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
+                      isValidContent = true;
+                      actualContentId = content.content_id;
+                    }
                   }
                 } else {
                   console.warn(
