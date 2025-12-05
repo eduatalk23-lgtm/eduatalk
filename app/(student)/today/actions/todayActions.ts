@@ -6,6 +6,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanById, updatePlan } from "@/lib/data/studentPlans";
 import { startStudySession, endStudySession } from "@/app/(student)/actions/studySessionActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatDateString } from "@/lib/date/calendarUtils";
 
 type PlanRecordPayload = {
   startPageOrTime: number;
@@ -415,7 +416,7 @@ export async function postponePlan(
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
-    const tomorrowDate = tomorrow.toISOString().slice(0, 10);
+    const tomorrowDate = formatDateString(tomorrow);
 
     await updatePlan(planId, user.userId, {
       plan_date: tomorrowDate,

@@ -49,9 +49,11 @@ export function getLastWeekRange(): { weekStart: Date; weekEnd: Date } {
  * @param weekEnd 주 종료일
  * @returns "YYYY-MM-DD ~ YYYY-MM-DD" 형식
  */
+import { formatDateString } from "./calendarUtils";
+
 export function formatWeekRange(weekStart: Date, weekEnd: Date): string {
-  const startStr = weekStart.toISOString().slice(0, 10);
-  const endStr = weekEnd.toISOString().slice(0, 10);
+  const startStr = formatDateString(weekStart);
+  const endStr = formatDateString(weekEnd);
   return `${startStr} ~ ${endStr}`;
 }
 

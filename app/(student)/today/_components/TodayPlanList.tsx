@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { TodayPlanListView } from "./TodayPlanListView";
 import { groupPlansByPlanNumber, PlanWithContent } from "../_utils/planGroupUtils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatDateString } from "@/lib/date/calendarUtils";
 
 type ProgressRow = {
   content_type?: string | null;
@@ -82,7 +83,7 @@ export async function TodayPlanList() {
     const tenantContext = await getTenantContext();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayDate = today.toISOString().slice(0, 10);
+    const todayDate = formatDateString(today);
 
     // 1. 오늘 플랜 조회
     const [todayPlansResult, progressMapResult] = await Promise.allSettled([
@@ -110,7 +111,7 @@ export async function TodayPlanList() {
       // 먼저 30일 범위로 조회 (성능 최적화)
       const shortRangeEndDate = new Date(today);
       shortRangeEndDate.setDate(shortRangeEndDate.getDate() + 30);
-      const shortRangeEndDateStr = shortRangeEndDate.toISOString().slice(0, 10);
+      const shortRangeEndDateStr = formatDateString(shortRangeEndDate);
 
       let futurePlansResult = await getPlansForStudent({
         studentId: user.userId,
@@ -125,7 +126,7 @@ export async function TodayPlanList() {
       if (futurePlansResult.length === 0) {
         const longRangeEndDate = new Date(today);
         longRangeEndDate.setDate(longRangeEndDate.getDate() + 180); // 180일 후까지 조회
-        const longRangeEndDateStr = longRangeEndDate.toISOString().slice(0, 10);
+        const longRangeEndDateStr = formatDateString(longRangeEndDate);
 
         futurePlansResult = await getPlansForStudent({
           studentId: user.userId,

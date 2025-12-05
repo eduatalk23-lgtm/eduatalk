@@ -11,6 +11,7 @@ import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { PlanCalendarView } from "./_components/PlanCalendarView";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import { formatDateString } from "@/lib/date/calendarUtils";
 
 type PlanCalendarPageProps = {
   searchParams: Promise<{ view?: string }>;
@@ -100,7 +101,7 @@ export default async function PlanCalendarPage({
       // 유효하지 않은 범위가 있어도 빈 범위로 진행 (에러 UI는 catch에서 처리)
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = formatDateString(new Date());
     
     // 날짜 비교를 위해 문자열로 변환된 날짜들만 사용
     const minDate =
@@ -120,8 +121,8 @@ export default async function PlanCalendarPage({
         : today;
     
     // 최종적으로 문자열로 변환 보장
-    const minDateStr = typeof minDate === "string" ? minDate : new Date(minDate).toISOString().slice(0, 10);
-    const maxDateStr = typeof maxDate === "string" ? maxDate : new Date(maxDate).toISOString().slice(0, 10);
+    const minDateStr = typeof minDate === "string" ? minDate : formatDateString(new Date(minDate));
+    const maxDateStr = typeof maxDate === "string" ? maxDate : formatDateString(new Date(maxDate));
 
     // 활성 플랜 그룹 ID 목록
     const activeGroupIds = activePlanGroups.map((g) => g.id);
@@ -218,7 +219,7 @@ export default async function PlanCalendarPage({
         ? plansWithContent
             .map((plan) => plan.plan_date)
             .filter((date): date is string => date !== null)
-            .sort()[0] || new Date().toISOString().slice(0, 10)
+            .sort()[0] || formatDateString(new Date())
         : new Date().toISOString().slice(0, 10);
 
     // 제외일 조회 (플랜 그룹별 관리)

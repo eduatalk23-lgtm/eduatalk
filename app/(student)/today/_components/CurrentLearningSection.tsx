@@ -2,6 +2,7 @@ import { fetchActivePlan } from "@/app/(student)/dashboard/_utils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ActiveLearningWidget } from "@/app/(student)/dashboard/_components/ActiveLearningWidget";
+import { formatDateString } from "@/lib/date/calendarUtils";
 
 export async function CurrentLearningSection() {
   try {
@@ -13,7 +14,7 @@ export async function CurrentLearningSection() {
     const supabase = await createSupabaseServerClient();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayDate = today.toISOString().slice(0, 10);
+    const todayDate = formatDateString(today);
 
     const activePlan = await fetchActivePlan(supabase, user.userId, todayDate);
 

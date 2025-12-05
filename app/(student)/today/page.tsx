@@ -10,6 +10,7 @@ import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPageContent } from "./_components/TodayPageContent";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
+import { formatDateString } from "@/lib/date/calendarUtils";
 
 type TodayPageProps = {
   searchParams?:
@@ -100,7 +101,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   // 오늘 날짜 계산
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayDate = today.toISOString().slice(0, 10);
+  const todayDate = formatDateString(today);
 
   const targetProgressDate = requestedDate ?? todayDate;
 

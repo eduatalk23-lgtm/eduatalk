@@ -75,9 +75,11 @@ export function getRelativeDateLabel(
   return formatKoreanDate(targetDateStr);
 }
 
+import { formatDateString } from "@/lib/date/calendarUtils";
+
 export function getTodayISODate(): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return today.toISOString().slice(0, 10);
+  return formatDateString(today);
 }
 
