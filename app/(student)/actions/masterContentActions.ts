@@ -446,7 +446,7 @@ export async function updateMasterLectureAction(
         await createLectureEpisode({
           lecture_id: lectureId,
           episode_number: episode.episode_number,
-          title: episode.title || null,  // 변경: episode_title → title
+          episode_title: episode.title || null,
           duration: episode.duration ? minutesToSeconds(episode.duration) : null,
           display_order: episode.display_order,
         });

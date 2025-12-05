@@ -43,6 +43,12 @@ Type error: Type '{ ... }' is missing the following properties from type 'Omit<M
 Type error: Property 'episode_title' is missing in type '{ lecture_id: string; episode_number: number; title: string | null; duration: number | null; display_order: number; }' but required in type 'Omit<LectureEpisode, "id" | "created_at">'.
 ```
 
+### 에러 7
+```
+./app/(student)/actions/masterContentActions.ts:446:36
+Type error: Property 'episode_title' is missing in type '{ lecture_id: string; episode_number: number; title: string | null; duration: number | null; display_order: number; }' but required in type 'Omit<LectureEpisode, "id" | "created_at">'.
+```
+
 ## 원인 분석
 
 ### 에러 1
@@ -62,6 +68,9 @@ Type error: Property 'episode_title' is missing in type '{ lecture_id: string; e
 
 ### 에러 6
 `createLectureEpisode` 함수는 `Omit<LectureEpisode, "id" | "created_at">` 타입을 받는데, `LectureEpisode` 타입에는 `episode_title` 필드가 있습니다. 하지만 코드에서는 `title` 필드를 사용하고 있어서 타입 에러가 발생했습니다.
+
+### 에러 7
+에러 6과 동일한 문제가 `updateMasterLectureAction` 함수 내부의 `createLectureEpisode` 호출에서도 발생했습니다.
 
 ## 수정 내용
 
@@ -151,8 +160,8 @@ const book = await createMasterBook(bookData);
 const book = await createMasterBook(bookData as Omit<MasterBook, "id" | "created_at" | "updated_at">);
 ```
 
-#### 수정 6: createLectureEpisode 호출 시 title을 episode_title로 변경
-`LectureEpisode` 타입에는 `episode_title` 필드가 있는데, 코드에서 `title` 필드를 사용하고 있어서 타입 에러가 발생했습니다. `title`을 `episode_title`로 변경했습니다.
+#### 수정 6: createLectureEpisode 호출 시 title을 episode_title로 변경 (1)
+`createMasterLectureAction` 함수 내부에서 `createLectureEpisode` 호출 시 `title` 필드를 `episode_title`로 변경했습니다.
 
 ```typescript
 // 수정 전
@@ -167,6 +176,29 @@ await createLectureEpisode({
 // 수정 후
 await createLectureEpisode({
   lecture_id: lecture.id,
+  episode_number: episode.episode_number,
+  episode_title: episode.title || null,
+  duration: episode.duration ? minutesToSeconds(episode.duration) : null,
+  display_order: episode.display_order,
+});
+```
+
+#### 수정 7: createLectureEpisode 호출 시 title을 episode_title로 변경 (2)
+`updateMasterLectureAction` 함수 내부에서도 동일한 문제가 발생했습니다. `title` 필드를 `episode_title`로 변경했습니다.
+
+```typescript
+// 수정 전
+await createLectureEpisode({
+  lecture_id: lectureId,
+  episode_number: episode.episode_number,
+  title: episode.title || null,  // 변경: episode_title → title
+  duration: episode.duration ? minutesToSeconds(episode.duration) : null,
+  display_order: episode.display_order,
+});
+
+// 수정 후
+await createLectureEpisode({
+  lecture_id: lectureId,
   episode_number: episode.episode_number,
   episode_title: episode.title || null,
   duration: episode.duration ? minutesToSeconds(episode.duration) : null,
