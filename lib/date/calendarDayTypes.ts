@@ -65,12 +65,31 @@ export const DAY_TYPE_INFO: Record<DayType, DayTypeInfo> = {
  * 플랜 그룹의 daily_schedule에서 날짜별 일정 타입 맵 생성
  * 
  * @param dailySchedules 플랜 그룹들의 daily_schedule 배열
+ * @param exclusions 플랜 그룹에 저장된 제외일 목록 (필터링용)
  * @returns 날짜별 일정 타입 맵 (날짜 -> DayTypeInfo)
  */
 export function buildDayTypesFromDailySchedule(
-  dailySchedules: Array<DailyScheduleInfo[] | null | undefined>
+  dailySchedules: Array<DailyScheduleInfo[] | null | undefined>,
+  exclusions?: Array<{
+    exclusion_date: string;
+    exclusion_type: string;
+    reason?: string | null;
+  }>
 ): Map<string, DayTypeInfo> {
   const dayTypeMap = new Map<string, DayTypeInfo>();
+
+  // 제외일 맵 생성 (빠른 조회를 위해)
+  const exclusionsMap = new Map<string, {
+    exclusion_date: string;
+    exclusion_type: string;
+    reason?: string | null;
+  }>();
+  if (exclusions) {
+    exclusions.forEach((exclusion) => {
+      const dateStr = exclusion.exclusion_date.slice(0, 10);
+      exclusionsMap.set(dateStr, exclusion);
+    });
+  }
 
   // 모든 플랜 그룹의 daily_schedule을 순회하며 날짜별 타입 정보 수집
   dailySchedules.forEach((schedule) => {
@@ -85,6 +104,16 @@ export function buildDayTypesFromDailySchedule(
 
       const dateStr = daily.date.slice(0, 10); // YYYY-MM-DD 형식 보장
       
+      // 제외일 타입인 경우, 실제 제외일 목록에 있는지 확인
+      // 플랜 생성 시 추가하지 않은 제외일은 캘린더에 표시하지 않음
+      if (daily.day_type === "지정휴일" || daily.day_type === "휴가" || daily.day_type === "개인일정") {
+        const matchingExclusion = exclusionsMap.get(dateStr);
+        // 제외일 목록에 없으면 제외일 타입으로 표시하지 않음
+        if (!matchingExclusion) {
+          return; // 이 날짜는 제외일로 표시하지 않음
+        }
+      }
+      
       // 이미 존재하는 경우, 우선순위에 따라 덮어쓰기
       // 우선순위: 지정휴일/휴가/개인일정 > 학습일 > 복습일 > 일반
       const existing = dayTypeMap.get(dateStr);
@@ -95,10 +124,19 @@ export function buildDayTypesFromDailySchedule(
       if (!existing || currentPriority > existingPriority) {
         const dayTypeInfo = DAY_TYPE_INFO[daily.day_type] || DAY_TYPE_INFO.normal;
         
+        // 제외일 정보는 실제 제외일 목록에서 가져오기
+        const exclusion = daily.day_type === "지정휴일" || daily.day_type === "휴가" || daily.day_type === "개인일정"
+          ? (exclusionsMap.get(dateStr) ? {
+              exclusion_date: exclusionsMap.get(dateStr)!.exclusion_date,
+              exclusion_type: exclusionsMap.get(dateStr)!.exclusion_type,
+              reason: exclusionsMap.get(dateStr)!.reason || null,
+            } : null)
+          : (daily.exclusion || null);
+        
         dayTypeMap.set(dateStr, {
           ...dayTypeInfo,
           type: daily.day_type as DayType,
-          exclusion: daily.exclusion || null,
+          exclusion,
         });
       }
     });

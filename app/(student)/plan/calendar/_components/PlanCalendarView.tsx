@@ -73,9 +73,10 @@ export function PlanCalendarView({
 
   // 플랜 그룹의 daily_schedule에서 날짜별 일정 타입 정보 생성
   // Step7에서 생성된 정보를 그대로 사용 (재계산 불필요)
+  // 단, 제외일은 실제 제외일 목록(exclusions)에 있는 것만 표시
   const dayTypes = useMemo(() => {
-    return buildDayTypesFromDailySchedule(dailySchedules);
-  }, [dailySchedules]);
+    return buildDayTypesFromDailySchedule(dailySchedules, exclusions);
+  }, [dailySchedules, exclusions]);
 
   // 날짜별 daily_schedule 맵 생성 (타임라인 정보 포함)
   const dailyScheduleMap = useMemo(() => {
