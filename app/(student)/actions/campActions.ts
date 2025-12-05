@@ -341,11 +341,22 @@ export const submitCampParticipation = withErrorHandling(
     // 템플릿 블록 세트 ID를 scheduler_options에 먼저 추가
     // syncWizardDataToCreationData 호출 전에 추가하여 보존되도록 함
     const blockSetId = mergedData.block_set_id || templateBlockSetId;
+    console.log("[campActions] template_block_set_id 저장 준비:", {
+      blockSetId,
+      mergedData_block_set_id: mergedData.block_set_id,
+      templateBlockSetId,
+      mergedData_scheduler_options_before: mergedData.scheduler_options,
+    });
+    
     if (blockSetId) {
       if (!mergedData.scheduler_options) {
         mergedData.scheduler_options = {};
       }
       (mergedData.scheduler_options as any).template_block_set_id = blockSetId;
+      console.log("[campActions] mergedData.scheduler_options에 template_block_set_id 추가:", {
+        template_block_set_id: blockSetId,
+        scheduler_options: mergedData.scheduler_options,
+      });
     }
 
     // 플랜 그룹 생성 (기존 액션 재사용)
@@ -353,6 +364,11 @@ export const submitCampParticipation = withErrorHandling(
       "@/lib/utils/planGroupDataSync"
     );
     const creationData = syncWizardDataToCreationData(mergedData as WizardData);
+    
+    console.log("[campActions] syncWizardDataToCreationData 호출 후:", {
+      creationData_scheduler_options: creationData.scheduler_options,
+      has_template_block_set_id: !!(creationData.scheduler_options as any)?.template_block_set_id,
+    });
 
     // 디버깅: 병합된 학원 일정 확인
     console.log("[campActions] 병합된 학원 일정:", {
@@ -521,10 +537,22 @@ export const submitCampParticipation = withErrorHandling(
     // syncWizardDataToCreationData에서 scheduler_options를 병합할 때 보존됨
     // 추가 확인: creationData.scheduler_options에 template_block_set_id가 있는지 확인
     if (!creationData.scheduler_options?.template_block_set_id && blockSetId) {
+      console.warn("[campActions] creationData.scheduler_options에 template_block_set_id가 없어 추가:", {
+        blockSetId,
+        creationData_scheduler_options: creationData.scheduler_options,
+      });
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
-      (creationData.scheduler_options as any).template_block_set_id = blockSetId;
+      (creationData.scheduler_options as any).template_block_set_id =
+        blockSetId;
+      console.log("[campActions] creationData.scheduler_options에 template_block_set_id 추가 완료:", {
+        scheduler_options: creationData.scheduler_options,
+      });
+    } else {
+      console.log("[campActions] creationData.scheduler_options에 template_block_set_id 확인됨:", {
+        template_block_set_id: (creationData.scheduler_options as any)?.template_block_set_id,
+      });
     }
 
     // 캠프 모드: 템플릿 학원 일정을 반드시 저장하기 위해 기존 학원 일정 삭제
@@ -637,23 +665,39 @@ export const submitCampParticipation = withErrorHandling(
     if (existingGroup && existingGroup.status === "draft") {
       // 기존 draft 업데이트
       const { updatePlanGroupDraftAction } = await import("./planGroupActions");
-      await updatePlanGroupDraftAction(existingGroup.id, {
+      const updateData = {
         ...creationData,
         plan_type: "camp",
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
+      };
+      
+      console.log("[campActions] 플랜 그룹 업데이트 전 최종 데이터 확인:", {
+        scheduler_options: updateData.scheduler_options,
+        has_template_block_set_id: !!(updateData.scheduler_options as any)?.template_block_set_id,
+        template_block_set_id: (updateData.scheduler_options as any)?.template_block_set_id,
       });
+      
+      await updatePlanGroupDraftAction(existingGroup.id, updateData);
       groupId = existingGroup.id;
     } else {
       // 새 플랜 그룹 생성
       // 캠프 모드에서 Step 3 제출 시 콘텐츠가 없어도 제출 가능하도록 콘텐츠 검증 건너뛰기
+      const planGroupData = {
+        ...creationData,
+        plan_type: "camp",
+        camp_template_id: invitation.camp_template_id,
+        camp_invitation_id: invitationId,
+      };
+      
+      console.log("[campActions] 플랜 그룹 생성 전 최종 데이터 확인:", {
+        scheduler_options: planGroupData.scheduler_options,
+        has_template_block_set_id: !!(planGroupData.scheduler_options as any)?.template_block_set_id,
+        template_block_set_id: (planGroupData.scheduler_options as any)?.template_block_set_id,
+      });
+      
       const result = await createPlanGroupAction(
-        {
-          ...creationData,
-          plan_type: "camp",
-          camp_template_id: invitation.camp_template_id,
-          camp_invitation_id: invitationId,
-        },
+        planGroupData,
         {
           skipContentValidation: true, // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
         }

@@ -20,6 +20,14 @@ export function syncWizardDataToCreationData(
       ...(wizardData.scheduler_options || {}),
     };
 
+    // 디버깅: scheduler_options 초기 상태 확인
+    if ((wizardData.scheduler_options as any)?.template_block_set_id) {
+      console.log("[planGroupDataSync] wizardData.scheduler_options에 template_block_set_id 있음:", {
+        template_block_set_id: (wizardData.scheduler_options as any).template_block_set_id,
+        scheduler_options_keys: Object.keys(wizardData.scheduler_options || {}),
+      });
+    }
+
     // study_review_cycle을 scheduler_options에 병합
     if (wizardData.study_review_cycle) {
       schedulerOptions.study_days = wizardData.study_review_cycle.study_days;
@@ -31,8 +39,24 @@ export function syncWizardDataToCreationData(
     }
 
     // time_settings를 scheduler_options에 병합
+    // 주의: Object.assign은 기존 속성을 덮어쓰므로, template_block_set_id는 보존됨
     if (wizardData.time_settings) {
+      const templateBlockSetIdBefore = (schedulerOptions as any).template_block_set_id;
       Object.assign(schedulerOptions, wizardData.time_settings);
+      // template_block_set_id가 덮어씌워졌는지 확인
+      if (templateBlockSetIdBefore && !(schedulerOptions as any).template_block_set_id) {
+        console.warn("[planGroupDataSync] template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원:", {
+          template_block_set_id: templateBlockSetIdBefore,
+        });
+        (schedulerOptions as any).template_block_set_id = templateBlockSetIdBefore;
+      }
+    }
+    
+    // 최종 확인
+    if ((schedulerOptions as any).template_block_set_id) {
+      console.log("[planGroupDataSync] 최종 scheduler_options에 template_block_set_id 보존됨:", {
+        template_block_set_id: (schedulerOptions as any).template_block_set_id,
+      });
     }
 
     // 2. daily_schedule 유효성 검증 및 필터링

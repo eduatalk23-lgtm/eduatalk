@@ -86,11 +86,30 @@ async function _updatePlanGroupDraft(
   // 플랜 그룹 메타데이터 업데이트
   // time_settings를 scheduler_options에 병합
   let mergedSchedulerOptions = data.scheduler_options || {};
+  
+  // template_block_set_id 보호 (캠프 모드에서 중요)
+  const templateBlockSetId = (mergedSchedulerOptions as any).template_block_set_id;
+  
   if (data.time_settings) {
     mergedSchedulerOptions = {
       ...mergedSchedulerOptions,
       ...data.time_settings,
     };
+    
+    // template_block_set_id가 덮어씌워졌는지 확인하고 복원
+    if (templateBlockSetId && !(mergedSchedulerOptions as any).template_block_set_id) {
+      console.warn("[_updatePlanGroupDraft] template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원:", {
+        template_block_set_id: templateBlockSetId,
+      });
+      (mergedSchedulerOptions as any).template_block_set_id = templateBlockSetId;
+    }
+  }
+  
+  // 최종 확인
+  if ((mergedSchedulerOptions as any).template_block_set_id) {
+    console.log("[_updatePlanGroupDraft] 최종 mergedSchedulerOptions에 template_block_set_id 보존됨:", {
+      template_block_set_id: (mergedSchedulerOptions as any).template_block_set_id,
+    });
   }
 
   if (
