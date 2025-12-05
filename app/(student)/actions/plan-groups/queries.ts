@@ -257,8 +257,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const tenantId = tenantContext?.tenantId || null;
 
   // 관리자/컨설턴트인 경우 플랜 그룹을 먼저 조회하여 student_id 가져오기
-  let targetStudentId: string;
-  
   // Admin/Consultant가 다른 학생의 데이터를 조회할 때는 Admin 클라이언트 사용
   const isAdminOrConsultant = userRole.role === "admin" || userRole.role === "consultant";
   const groupQueryClient = isAdminOrConsultant ? createSupabaseAdminClient() : supabase;
@@ -282,7 +280,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
   // 학생인 경우 student_id로 필터링
   if (userRole.role === "student") {
     groupQuery = groupQuery.eq("student_id", userRole.userId);
-    targetStudentId = userRole.userId;
   } else {
     // 관리자/컨설턴트인 경우 tenant_id로 필터링
     if (tenantId) {
@@ -316,8 +313,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
     );
   }
 
-  // 관리자/컨설턴트인 경우 플랜 그룹의 student_id 사용
-  if (userRole.role !== "student") {
+  // targetStudentId 결정: 학생인 경우 userId, 관리자/컨설턴트인 경우 group의 student_id
+  let targetStudentId: string;
+  if (userRole.role === "student") {
+    targetStudentId = userRole.userId;
+  } else {
+    // 관리자/컨설턴트인 경우 플랜 그룹의 student_id 사용
     if (!group.student_id) {
       throw new AppError(
         "플랜 그룹에 학생 정보가 없습니다.",
