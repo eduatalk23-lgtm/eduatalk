@@ -1351,9 +1351,10 @@ export function PlanGroupWizard({
                       // templateId를 initialData에서 가져오기
                       const templateId = initialData?.templateId;
                       if (templateId) {
-                        router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
+                        // 서버 사이드 리다이렉트를 우회하기 위해 window.location 사용
+                        window.location.href = `/admin/camp-templates/${templateId}/participants`;
                       } else {
-                        router.push(`/admin/camp-templates`, { scroll: true });
+                        window.location.href = `/admin/camp-templates`;
                       }
                     } else {
                       const errorMessage = result.error || "저장에 실패했습니다.";
