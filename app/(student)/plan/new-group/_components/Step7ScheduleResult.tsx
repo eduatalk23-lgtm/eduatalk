@@ -190,10 +190,35 @@ export function Step7ScheduleResult({
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={onComplete}
-          className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800"
+          onClick={() => {
+            // 플랜이 생성 중이면 완료 버튼 비활성화
+            if (generatePlansMutation.isPending) {
+              return;
+            }
+            // 플랜이 없으면 생성 후 완료
+            if (!plansCheck?.hasPlans) {
+              generatePlansMutation.mutate(undefined, {
+                onSuccess: () => {
+                  // 플랜 생성 후 완료 핸들러 호출
+                  onComplete();
+                },
+                onError: (error) => {
+                  alert(
+                    error instanceof Error
+                      ? `플랜 생성 실패: ${error.message}`
+                      : "플랜 생성에 실패했습니다."
+                  );
+                },
+              });
+              return;
+            }
+            // 플랜이 있으면 바로 완료
+            onComplete();
+          }}
+          disabled={generatePlansMutation.isPending || isLoadingData}
+          className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
         >
-          완료
+          {generatePlansMutation.isPending ? "플랜 생성 중..." : "완료"}
         </button>
       </div>
     </div>

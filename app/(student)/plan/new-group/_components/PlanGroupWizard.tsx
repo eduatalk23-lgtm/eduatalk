@@ -1090,10 +1090,12 @@ export function PlanGroupWizard({
           console.warn("[PlanGroupWizard] 플랜 그룹 상태 변경 실패:", planGroupError);
         }
 
-        // Step 5에서 호출된 경우 플랜 생성 후 Step 6으로 이동
-        if (currentStep === 5 && generatePlans) {
-          // 플랜 생성은 아래에서 처리됨
-          // Step 6으로 이동은 플랜 생성 후에 처리
+        // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동 (플랜 생성은 Step 7에서)
+        if (currentStep === 5) {
+          setDraftGroupId(finalGroupId);
+          setCurrentStep(6);
+          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
+          return;
         }
 
         // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
@@ -1104,56 +1106,12 @@ export function PlanGroupWizard({
           return;
         }
 
-        // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
+        // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동
         if (currentStep === 4 && !generatePlans) {
           setDraftGroupId(finalGroupId);
           setCurrentStep(5);
           toast.showSuccess("저장되었습니다.");
           return;
-        }
-
-        // 플랜 생성 (템플릿 모드가 아닐 때만, generatePlans가 true일 때만)
-        if (!isTemplateMode && generatePlans) {
-          try {
-            await generatePlansFromGroupAction(finalGroupId);
-            setDraftGroupId(finalGroupId);
-            
-            // Step 5에서 호출된 경우 Step 6으로 이동, 그 외에는 Step 7로 이동
-            if (currentStep === 5) {
-              setCurrentStep(6);
-            } else {
-              setCurrentStep(7);
-            }
-          
-          // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
-          // (자동 활성화는 하지 않음 - 사용자가 완료 버튼을 눌렀을 때만 활성화)
-          try {
-            const activeGroups = await getActivePlanGroups(finalGroupId);
-            if (activeGroups.length > 0) {
-              // 다른 활성 플랜 그룹이 있으면 이름 저장 (완료 버튼 클릭 시 다이얼로그 표시)
-              setActiveGroupNames(activeGroups.map(g => g.name || "플랜 그룹"));
-            }
-            // 다른 활성 플랜 그룹이 없어도 자동 활성화하지 않음
-            // 사용자가 완료 버튼을 눌렀을 때만 활성화됨
-          } catch (error) {
-            // 활성 그룹 확인 실패는 경고만 (필수가 아니므로)
-            const planGroupError = toPlanGroupError(
-              error,
-              PlanGroupErrorCodes.UNKNOWN_ERROR
-            );
-            console.warn("[PlanGroupWizard] 플랜 그룹 활성 그룹 확인 실패:", planGroupError);
-          }
-          } catch (error) {
-            // 플랜 생성 실패 시에도 Step 7로 이동 (에러 표시)
-            const planGroupError = toPlanGroupError(
-              error,
-              PlanGroupErrorCodes.PLAN_GENERATION_FAILED
-            );
-            setDraftGroupId(finalGroupId);
-            setCurrentStep(7);
-            setValidationErrors([planGroupError.userMessage]);
-            toast.showError(planGroupError.userMessage);
-          }
         }
       } catch (error) {
         const planGroupError = toPlanGroupError(
@@ -1405,13 +1363,29 @@ export function PlanGroupWizard({
                 return;
               }
 
-              // 일반 모드(학생 모드)에서는 기존 로직 유지
+              // 일반 모드(학생 모드)에서는 플랜 생성 후 활성화
               // 플랜이 실제로 생성되었는지 확인
               try {
                 const checkResult = await checkPlansExistAction(draftGroupId);
                 if (!checkResult.hasPlans) {
-                  alert("플랜이 생성되지 않았습니다. 플랜을 먼저 생성해주세요.");
-                  return;
+                  // 플랜이 없으면 생성
+                  try {
+                    await generatePlansFromGroupAction(draftGroupId);
+                    toast.showSuccess("플랜이 생성되었습니다.");
+                    
+                    // 플랜 생성 후 다시 확인
+                    const recheckResult = await checkPlansExistAction(draftGroupId);
+                    if (!recheckResult.hasPlans) {
+                      alert("플랜 생성에 실패했습니다. 다시 시도해주세요.");
+                      return;
+                    }
+                  } catch (generateError) {
+                    const errorMessage = generateError instanceof Error 
+                      ? generateError.message 
+                      : "플랜 생성 중 오류가 발생했습니다.";
+                    alert(`플랜 생성 실패: ${errorMessage}`);
+                    return;
+                  }
                 }
               } catch (error) {
                 alert(
@@ -1420,6 +1394,25 @@ export function PlanGroupWizard({
                     : "플랜 확인 중 오류가 발생했습니다."
                 );
                 return;
+              }
+
+              // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
+              // (자동 활성화는 하지 않음 - 사용자가 완료 버튼을 눌렀을 때만 활성화)
+              try {
+                const activeGroups = await getActivePlanGroups(draftGroupId);
+                if (activeGroups.length > 0) {
+                  // 다른 활성 플랜 그룹이 있으면 이름 저장 (완료 버튼 클릭 시 다이얼로그 표시)
+                  setActiveGroupNames(activeGroups.map(g => g.name || "플랜 그룹"));
+                }
+                // 다른 활성 플랜 그룹이 없어도 자동 활성화하지 않음
+                // 사용자가 완료 버튼을 눌렀을 때만 활성화됨
+              } catch (error) {
+                // 활성 그룹 확인 실패는 경고만 (필수가 아니므로)
+                const planGroupError = toPlanGroupError(
+                  error,
+                  PlanGroupErrorCodes.UNKNOWN_ERROR
+                );
+                console.warn("[PlanGroupWizard] 플랜 그룹 활성 그룹 확인 실패:", planGroupError);
               }
 
               // 완료 버튼을 눌렀을 때만 활성화 및 리다이렉트
@@ -1481,9 +1474,7 @@ export function PlanGroupWizard({
             : currentStep === 5
             ? isAdminContinueMode
               ? "다음 단계로"
-              : isEditMode
-              ? "수정 및 플랜 생성"
-              : "플랜 생성하기"
+              : "스케줄 미리보기로 이동"
             : currentStep === 6
             ? "스케줄 미리보기로 이동"
             : "다음"}
