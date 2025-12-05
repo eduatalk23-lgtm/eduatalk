@@ -61,21 +61,21 @@ export default async function LectureDetailPage({
           instructor_name: lecture.instructor_name || master.instructor_name || null,
           description: lecture.description || null, // MasterLecture에는 description 필드가 없음
           toc: lecture.toc || null, // MasterLecture에는 toc 필드가 없음
-          curriculum_revision_id: lecture.curriculum_revision_id || master.curriculum_revision_id || null,
-          subject_id: lecture.subject_id || master.subject_id || null,
-          subject_group_id: lecture.subject_group_id || master.subject_group_id || null,
+          curriculum_revision_id: lecture.curriculum_revision_id || null, // MasterLecture에는 curriculum_revision_id 필드가 없음
+          subject_id: lecture.subject_id || null, // MasterLecture에는 subject_id 필드가 없음
+          subject_group_id: lecture.subject_group_id || null, // MasterLecture에는 subject_group_id 필드가 없음
           grade_level: lecture.grade_level || master.grade_level || null,
           platform_id: lecture.platform_id || master.platform_id || null,
           lecture_source_url: lecture.lecture_source_url || master.lecture_source_url || null,
-          source: lecture.source || master.source || null,
-          source_product_code: lecture.source_product_code || master.source_product_code || null,
-          cover_image_url: lecture.cover_image_url || master.cover_image_url || null,
+          source: lecture.source || null, // MasterLecture에는 source 필드가 없음
+          source_product_code: lecture.source_product_code || null, // MasterLecture에는 source_product_code 필드가 없음
+          cover_image_url: lecture.cover_image_url || null, // MasterLecture에는 cover_image_url 필드가 없음
           total_duration: lecture.total_duration || master.total_duration || null,
           video_url: lecture.video_url || master.video_url || null,
           transcript: lecture.transcript || master.transcript || null,
           episode_analysis: lecture.episode_analysis || master.episode_analysis || null,
           overall_difficulty: lecture.overall_difficulty || master.overall_difficulty || null,
-          target_exam_type: lecture.target_exam_type || master.target_exam_type || null,
+          target_exam_type: lecture.target_exam_type || null, // MasterLecture에는 target_exam_type 필드가 없음
           tags: lecture.tags || master.tags || null,
           is_active: lecture.is_active ?? master.is_active ?? true,
           // 플랫폼명도 병합 (platform이 없으면 platform_name 사용)
