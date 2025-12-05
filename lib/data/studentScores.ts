@@ -66,6 +66,7 @@ export type SchoolScore = {
   grade_score?: number | null;
   total_students?: number | null;
   rank_grade?: number | null;
+  class_rank?: number | null;
   created_at?: string | null;
 };
 
