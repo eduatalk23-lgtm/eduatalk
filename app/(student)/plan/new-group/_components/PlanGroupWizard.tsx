@@ -1336,26 +1336,42 @@ export function PlanGroupWizard({
             onComplete={async () => {
               // 관리자 continue 모드에서는 플랜 생성 및 페이지 이동 처리
               if (isAdminContinueMode) {
+                console.log("[PlanGroupWizard] Step 7 완료 - 관리자 continue 모드", {
+                  draftGroupId,
+                  initialDataGroupId: initialData?.groupId,
+                  initialDataTemplateId: initialData?.templateId,
+                  currentStep,
+                });
+
                 try {
                   const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
+                  
+                  console.log("[PlanGroupWizard] continueCampStepsForAdmin 호출 시작");
                   const result = await continueCampStepsForAdmin(
                     draftGroupId || (initialData?.groupId as string),
                     wizardData,
                     currentStep
                   );
+                  console.log("[PlanGroupWizard] continueCampStepsForAdmin 결과:", result);
 
                   if (result.success) {
                     toast.showSuccess("저장되었습니다.");
                     // templateId를 initialData에서 가져오기
                     const templateId = initialData?.templateId;
+                    console.log("[PlanGroupWizard] 페이지 이동 준비:", { templateId });
+                    
                     if (templateId) {
+                      const targetUrl = `/admin/camp-templates/${templateId}/participants`;
+                      console.log("[PlanGroupWizard] 페이지 이동:", targetUrl);
                       // 서버 사이드 리다이렉트를 우회하기 위해 window.location 사용
-                      window.location.href = `/admin/camp-templates/${templateId}/participants`;
+                      window.location.href = targetUrl;
                     } else {
+                      console.log("[PlanGroupWizard] templateId 없음, 기본 경로로 이동");
                       window.location.href = `/admin/camp-templates`;
                     }
                   } else {
                     const errorMessage = result.error || "저장에 실패했습니다.";
+                    console.error("[PlanGroupWizard] 저장 실패:", errorMessage);
                     setValidationErrors([errorMessage]);
                     toast.showError(errorMessage);
                   }
