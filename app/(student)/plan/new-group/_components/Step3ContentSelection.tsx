@@ -223,9 +223,11 @@ export function Step3ContentSelection({
     try {
       // 과목과 개수 배열로 변환
       const subjects = Array.from(recommendationSettings.selectedSubjects);
-      const counts = subjects.map(
-        (s) => recommendationSettings.recommendationCounts.get(s) || 1
-      );
+      // Record<string, number> 형식으로 변환
+      const counts: Record<string, number> = {};
+      subjects.forEach((subject) => {
+        counts[subject] = recommendationSettings.recommendationCounts.get(subject) || 1;
+      });
 
       // API 호출
       const result = await getRecommendedMasterContentsAction(
