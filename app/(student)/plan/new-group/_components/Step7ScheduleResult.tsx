@@ -33,10 +33,12 @@ export function Step7ScheduleResult({
   // 플랜 생성 뮤테이션
   const generatePlansMutation = useMutation({
     mutationFn: () => generatePlansFromGroupAction(groupId),
-    onSuccess: () => {
-      // 플랜 생성 후 관련 쿼리 캐시 무효화
-      queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["planSchedule", groupId] });
+    onSuccess: async () => {
+      // 플랜 생성 후 관련 쿼리 캐시 무효화 및 재조회
+      await queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["planSchedule", groupId] });
+      // plansCheck를 즉시 재조회하여 hasPlans 상태 업데이트
+      await queryClient.refetchQueries({ queryKey: ["plansExist", groupId] });
     },
   });
 
@@ -134,6 +136,39 @@ export function Step7ScheduleResult({
     );
   }
 
+  // 플랜이 없을 때 UI 표시
+  if (!data && !isLoadingData && !isGenerating) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">스케줄 결과</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            플랜을 생성하면 학습 스케줄을 확인할 수 있습니다.
+          </p>
+        </div>
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+          <p className="mb-4 text-sm text-gray-600">
+            아직 플랜이 생성되지 않았습니다. 아래 버튼을 클릭하여 플랜을 생성하세요.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (generatePlansMutation.isPending || generatePlansMutation.isSuccess) {
+                return;
+              }
+              generatePlansMutation.mutate();
+            }}
+            disabled={generatePlansMutation.isPending || generatePlansMutation.isSuccess}
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
+          >
+            {generatePlansMutation.isPending ? "플랜 생성 중..." : "플랜 생성하기"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 플랜이 있을 때 스케줄 결과 표시
   if (!data) {
     return null;
   }
