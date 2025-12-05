@@ -699,12 +699,11 @@ export function Step6Simplified({
         </CollapsibleSection>
 
         {/* 5. 전략/취약 과목 */}
-        {/* 관리자 모드에서는 항상 표시, 일반 모드에서는 캠프 모드이고 1730_timetable이고 subject_allocations가 있을 때만 표시 */}
+        {/* 관리자 모드에서는 항상 표시, 일반 모드에서는 1730_timetable이고 subject_allocations가 있을 때 표시 */}
         {(isAdminContinueMode ||
-          (isCampMode &&
-            data.scheduler_type === "1730_timetable" &&
-              data.subject_allocations &&
-              data.subject_allocations.length > 0)) && (
+          (data.scheduler_type === "1730_timetable" &&
+            data.subject_allocations &&
+            data.subject_allocations.length > 0)) && (
             <CollapsibleSection title="전략과목/취약과목" defaultOpen={false}>
             {isAdminContinueMode && onUpdate && contents ? (
               <SubjectAllocationEditor

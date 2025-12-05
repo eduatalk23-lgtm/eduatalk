@@ -1476,7 +1476,7 @@ export function PlanGroupWizard({
               ? "다음 단계로"
               : "스케줄 미리보기로 이동"
             : currentStep === 6
-            ? "스케줄 미리보기로 이동"
+            ? "스케줄 결과 보기"
             : "다음"}
         </button>
       </div>
