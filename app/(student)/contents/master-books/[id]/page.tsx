@@ -31,14 +31,14 @@ export default async function StudentMasterBookDetailPage({
 
         <ContentDetailTable
           rows={[
-            { label: "개정교육과정", value: book.revision },
-            { label: "교과", value: book.subject_category },
-            { label: "과목", value: book.subject },
-            { label: "출판사", value: book.publisher },
-            { label: "총 페이지", value: `${book.total_pages}p` },
-            { label: "난이도", value: book.difficulty_level },
-            { label: "메모", value: book.notes },
-            { label: "출처 URL", value: book.source_url, isUrl: true },
+            { label: "개정교육과정", value: book.revision ?? null },
+            { label: "교과", value: book.subject_category ?? null },
+            { label: "과목", value: book.subject ?? null },
+            { label: "출판사", value: book.publisher ?? null },
+            { label: "총 페이지", value: book.total_pages ? `${book.total_pages}p` : null },
+            { label: "난이도", value: book.difficulty_level ?? null },
+            { label: "메모", value: book.notes ?? null },
+            { label: "출처 URL", value: book.source_url ?? null, isUrl: !!book.source_url },
           ]}
         />
 
