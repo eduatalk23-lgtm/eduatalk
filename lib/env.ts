@@ -39,14 +39,39 @@ export const env = (() => {
         return `  - ${path}: ${message}`;
       }).join("\n");
       
+      const isCI = process.env.CI === "true" || process.env.VERCEL === "1";
+      const isVercel = process.env.VERCEL === "1";
+      
+      let solutionGuide = "";
+      if (isVercel) {
+        solutionGuide = 
+          "Vercel 배포 환경 변수 설정:\n" +
+          "1. Vercel 대시보드 → 프로젝트 → Settings → Environment Variables\n" +
+          "2. 다음 환경 변수를 추가:\n" +
+          "   - NEXT_PUBLIC_SUPABASE_URL\n" +
+          "   - NEXT_PUBLIC_SUPABASE_ANON_KEY\n" +
+          "3. Production, Preview, Development 환경 모두 선택\n" +
+          "4. Save 후 배포 재시도\n\n" +
+          "Supabase 키 확인: Supabase 대시보드 → Settings → API\n";
+      } else if (isCI) {
+        solutionGuide = 
+          "CI/CD 환경 변수 설정:\n" +
+          "1. 배포 플랫폼의 환경 변수 설정에서 다음 변수를 추가:\n" +
+          "   - NEXT_PUBLIC_SUPABASE_URL\n" +
+          "   - NEXT_PUBLIC_SUPABASE_ANON_KEY\n" +
+          "2. 배포 재시도\n";
+      } else {
+        solutionGuide = 
+          "로컬 개발 환경 해결 방법:\n" +
+          "1. .env.local 파일이 프로젝트 루트(eduatalk/)에 있는지 확인\n" +
+          "2. 환경 변수 이름이 정확한지 확인 (대소문자 구분)\n" +
+          "3. 값에 따옴표가 없는지 확인\n" +
+          "4. 개발 서버를 재시작 (pnpm dev)\n" +
+          "5. .next 폴더 삭제 후 재시작: rm -rf .next && pnpm dev\n";
+      }
+      
       throw new Error(
-        `환경 변수 검증 실패:\n${issues}\n\n` +
-        "해결 방법:\n" +
-        "1. .env.local 파일이 프로젝트 루트(eduatalk/)에 있는지 확인\n" +
-        "2. 환경 변수 이름이 정확한지 확인 (대소문자 구분)\n" +
-        "3. 값에 따옴표가 없는지 확인\n" +
-        "4. 개발 서버를 재시작 (pnpm dev)\n" +
-        "5. .next 폴더 삭제 후 재시작: rm -rf .next && pnpm dev"
+        `환경 변수 검증 실패:\n${issues}\n\n${solutionGuide}`
       );
     }
     throw error;
