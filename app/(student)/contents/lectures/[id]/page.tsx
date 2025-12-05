@@ -56,11 +56,11 @@ export default async function LectureDetailPage({
           ...lecture,
           content_category: lecture.content_category || master.content_category || null,
           lecture_type: lecture.lecture_type || master.lecture_type || null,
-          subtitle: lecture.subtitle || master.subtitle || null,
-          series_name: lecture.series_name || master.series_name || null,
+          subtitle: lecture.subtitle || null, // MasterLecture에는 subtitle 필드가 없음
+          series_name: lecture.series_name || null, // MasterLecture에는 series_name 필드가 없음
           instructor_name: lecture.instructor_name || master.instructor_name || null,
-          description: lecture.description || master.description || null,
-          toc: lecture.toc || master.toc || null,
+          description: lecture.description || null, // MasterLecture에는 description 필드가 없음
+          toc: lecture.toc || null, // MasterLecture에는 toc 필드가 없음
           curriculum_revision_id: lecture.curriculum_revision_id || master.curriculum_revision_id || null,
           subject_id: lecture.subject_id || master.subject_id || null,
           subject_group_id: lecture.subject_group_id || master.subject_group_id || null,
