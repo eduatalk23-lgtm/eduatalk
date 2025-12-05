@@ -187,17 +187,65 @@ export default async function CampContinuePage({
   // 남은 단계 진행 시에는 기존 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
   // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 변환
   const contentsForWizard = originalContents || contents;
+  
+  // 필터링 전 콘텐츠 개수 및 상세 정보 로깅
+  console.log("[CampContinuePage] 필터링 전 콘텐츠 정보:", {
+    groupId,
+    studentId,
+    totalContentsCount: contentsForWizard.length,
+    contents: contentsForWizard.map((c) => ({
+      content_id: c.content_id,
+      content_type: c.content_type,
+      is_auto_recommended: c.is_auto_recommended,
+      recommendation_source: c.recommendation_source,
+      isStudentContent: c.is_auto_recommended === false && (!c.recommendation_source || c.recommendation_source === null),
+      isRecommendedContent: c.is_auto_recommended === true || (c.recommendation_source && ["auto", "admin", "template"].includes(c.recommendation_source)),
+    })),
+  });
+  
+  // 필터링: 학생 콘텐츠는 보존하고 추천 콘텐츠만 필터링
+  const filteredContents = contentsForWizard.filter((c) => {
+    // 학생이 추가한 콘텐츠는 항상 포함
+    // is_auto_recommended가 false이고 recommendation_source가 null이거나 없는 경우
+    if (c.is_auto_recommended === false && (!c.recommendation_source || c.recommendation_source === null)) {
+      return true;
+    }
+    
+    // 추천 콘텐츠는 필터링 (제거)
+    // is_auto_recommended가 true이거나 recommendation_source가 "auto", "admin", "template"인 경우
+    // - is_auto_recommended: true, recommendation_source: "auto" → Step 4에서 자동 배정된 콘텐츠
+    // - is_auto_recommended: false, recommendation_source: "admin" → 관리자가 일괄 적용한 콘텐츠
+    // - recommendation_source: "template" → 템플릿에서 추천된 콘텐츠
+    // 남은 단계 진행 시에는 Step 4에서 새로운 추천 콘텐츠를 선택할 수 있도록 함
+    // DB에는 여전히 존재하지만, 위저드에서는 제외하여 Step 4에서 새로 선택 가능
+    return false;
+  });
+  
+  // 필터링 후 콘텐츠 개수 및 상세 정보 로깅
+  console.log("[CampContinuePage] 필터링 후 콘텐츠 정보:", {
+    groupId,
+    studentId,
+    filteredContentsCount: filteredContents.length,
+    removedContentsCount: contentsForWizard.length - filteredContents.length,
+    filteredContents: filteredContents.map((c) => ({
+      content_id: c.content_id,
+      content_type: c.content_type,
+      is_auto_recommended: c.is_auto_recommended,
+      recommendation_source: c.recommendation_source,
+    })),
+    removedContents: contentsForWizard
+      .filter((c) => !filteredContents.some((fc) => fc.content_id === c.content_id))
+      .map((c) => ({
+        content_id: c.content_id,
+        content_type: c.content_type,
+        is_auto_recommended: c.is_auto_recommended,
+        recommendation_source: c.recommendation_source,
+      })),
+  });
+  
   const wizardData = syncCreationDataToWizardData({
     group,
-    contents: contentsForWizard
-      .filter((c) => {
-        // 추천 콘텐츠 필터링: is_auto_recommended가 true이거나 recommendation_source가 있는 경우 제거
-        // - is_auto_recommended: true, recommendation_source: "auto" → Step 4에서 자동 배정된 콘텐츠
-        // - is_auto_recommended: false, recommendation_source: "admin" → 관리자가 일괄 적용한 콘텐츠
-        // 남은 단계 진행 시에는 Step 4에서 새로운 추천 콘텐츠를 선택할 수 있도록 함
-        // DB에는 여전히 존재하지만, 위저드에서는 제외하여 Step 4에서 새로 선택 가능
-        return !(c.is_auto_recommended || c.recommendation_source);
-      })
+    contents: filteredContents
       .map((c) => {
         // classifyPlanContents에서 조회한 정보를 우선적으로 사용
         const classifiedContent = contentsMap.get(c.content_id);
