@@ -626,7 +626,10 @@ export function PlanGroupWizard({
 
     // Step 6 (최종확인)에서 다음 버튼 클릭 시 데이터 저장 및 Step 7로 이동 (플랜 생성은 Step 7에서)
     if (currentStep === 6) {
-      handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
+      // 관리자 continue 모드에서만 handleSubmit 호출 (일반 모드에서는 Step 5에서 이미 처리)
+      if (isAdminContinueMode) {
+        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
+      }
       return;
     }
 
@@ -1337,7 +1340,8 @@ export function PlanGroupWizard({
             isAdminContinueMode={isAdminContinueMode}
           />
         )}
-        {currentStep === 5 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
+        {/* Step 5 또는 Step 6에서 최종 확인 표시 (관리자 continue 모드에서는 Step 5, 6 모두에서 표시) */}
+        {((currentStep === 5 || currentStep === 6) && !isTemplateMode && (!isCampMode || isAdminContinueMode)) && (
           <Step6Simplified
             data={wizardData}
             onEditStep={(step) => setCurrentStep(step)}
@@ -1467,7 +1471,9 @@ export function PlanGroupWizard({
               ? "수정 및 플랜 생성"
               : "플랜 생성하기"
             : currentStep === 6
-            ? "스케줄 미리보기로 이동"
+            ? isAdminContinueMode
+              ? "스케줄 미리보기로 이동"
+              : "다음"
             : "다음"}
         </button>
       </div>
