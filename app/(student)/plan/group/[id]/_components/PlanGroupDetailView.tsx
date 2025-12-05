@@ -195,6 +195,37 @@ export function PlanGroupDetailView({
     };
   }, [group, exclusions, academySchedules, contentsWithDetails, campTemplateId, templateBlockSetId]);
 
+  // contentsWithDetails를 Step3ContentSelection에 필요한 형식으로 변환
+  const contents = useMemo(() => {
+    const books = contentsWithDetails
+      .filter((c) => c.content_type === "book")
+      .map((c) => ({
+        id: c.content_id,
+        title: c.contentTitle || "알 수 없음",
+        subtitle: c.contentSubtitle,
+        master_content_id: (c as any).master_content_id || null,
+      }));
+    
+    const lectures = contentsWithDetails
+      .filter((c) => c.content_type === "lecture")
+      .map((c) => ({
+        id: c.content_id,
+        title: c.contentTitle || "알 수 없음",
+        subtitle: c.contentSubtitle,
+        master_content_id: (c as any).master_content_id || null,
+      }));
+    
+    const custom = contentsWithDetails
+      .filter((c) => c.content_type === "custom")
+      .map((c) => ({
+        id: c.content_id,
+        title: c.contentTitle || "알 수 없음",
+        subtitle: c.contentSubtitle,
+      }));
+    
+    return { books, lectures, custom };
+  }, [contentsWithDetails]);
+
   // 탭 변경 핸들러 메모이제이션
   const handleTabChange = useCallback((tab: number) => {
     // 캠프 제출 모드일 때 허용되지 않은 탭으로 변경 시도 시 무시
@@ -266,6 +297,7 @@ export function PlanGroupDetailView({
               <Step3ContentSelection 
                 data={wizardData}
                 onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
+                contents={contents}
                 isCampMode={!!campTemplateId} // 캠프 템플릿이 있으면 캠프 모드
                 isEditMode={false}
                 studentId={group.student_id}
