@@ -164,7 +164,7 @@ export default function Step4RecommendedContents({
         ...currentConstraints,
         required_subjects: [
           ...(currentConstraints.required_subjects || []),
-          { subject_category: "", min_count: 1 },
+          { subject_group_id: "", subject_category: "", min_count: 1 },
         ],
       },
     });
