@@ -2329,7 +2329,12 @@ export function Step1BasicInfo({
               data.block_set_id && blockSets
                 ? blockSets.find((set) => set.id === data.block_set_id)
                 : null;
-            const blocks = selectedSet?.blocks ?? [];
+            const rawBlocks = selectedSet?.blocks ?? [];
+            // BlockSetTimeline에 필요한 block_index 추가
+            const blocks = rawBlocks.map((block, index) => ({
+              ...block,
+              block_index: index,
+            }));
             const name = selectedSet?.name || "블록 세트를 선택해주세요";
 
             return <BlockSetTimeline blocks={blocks} name={name} />;
