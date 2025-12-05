@@ -212,11 +212,29 @@ export default async function CampSubmissionDetailPage({
         block_set_id: templateData?.block_set_id,
       });
 
-      // block_set_id 찾기: scheduler_options에서 먼저 확인 (실제 저장된 값), 없으면 template_data에서 확인
+      // block_set_id 찾기: camp_template_id로 직접 조회 (가장 직접적이고 명확한 방법)
       let blockSetId: string | null = null;
       
-      // 1. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로 - 우선 확인)
-      if (group.scheduler_options) {
+      // 1. 연결 테이블에서 직접 조회 (가장 직접적이고 명확한 방법)
+      if (group.camp_template_id) {
+        const { data: templateBlockSetLink } = await supabase
+          .from("camp_template_block_sets")
+          .select("tenant_block_set_id")
+          .eq("camp_template_id", group.camp_template_id)
+          .maybeSingle();
+
+        if (templateBlockSetLink) {
+          blockSetId = templateBlockSetLink.tenant_block_set_id;
+          console.log("[CampSubmissionDetailPage] 연결 테이블에서 block_set_id 발견:", blockSetId);
+        } else {
+          console.warn("[CampSubmissionDetailPage] 연결 테이블에서 block_set_id를 찾을 수 없음:", {
+            camp_template_id: group.camp_template_id,
+          });
+        }
+      }
+      
+      // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
+      if (!blockSetId && group.scheduler_options) {
         let schedulerOptions: any = null;
         if (typeof group.scheduler_options === "string") {
           try {
@@ -232,28 +250,12 @@ export default async function CampSubmissionDetailPage({
         
         if (schedulerOptions?.template_block_set_id) {
           blockSetId = schedulerOptions.template_block_set_id;
-          console.log("[CampSubmissionDetailPage] scheduler_options에서 template_block_set_id 발견:", blockSetId);
+          console.log("[CampSubmissionDetailPage] scheduler_options에서 template_block_set_id 발견 (Fallback):", blockSetId);
         } else {
           console.warn("[CampSubmissionDetailPage] scheduler_options에 template_block_set_id 없음:", {
             scheduler_options_keys: schedulerOptions ? Object.keys(schedulerOptions) : [],
             scheduler_options: schedulerOptions,
           });
-        }
-      } else {
-        console.warn("[CampSubmissionDetailPage] scheduler_options가 null 또는 undefined");
-      }
-      
-      // 2. 연결 테이블에서 block_set_id 확인
-      if (!blockSetId && group.camp_template_id) {
-        const { data: templateBlockSetLink } = await supabase
-          .from("camp_template_block_sets")
-          .select("tenant_block_set_id")
-          .eq("camp_template_id", group.camp_template_id)
-          .maybeSingle();
-
-        if (templateBlockSetLink) {
-          blockSetId = templateBlockSetLink.tenant_block_set_id;
-          console.log("[CampSubmissionDetailPage] 연결 테이블에서 block_set_id 발견:", blockSetId);
         }
       }
       
@@ -361,6 +363,16 @@ export default async function CampSubmissionDetailPage({
       console.error("[CampSubmissionDetailPage] 템플릿 블록 조회 중 에러:", error);
     }
   }
+
+  // 디버깅: 렌더링 직전 값 확인
+  console.log("[CampSubmissionDetailPage] 렌더링 직전 값 확인:", {
+    templateBlockSetName,
+    templateBlocks_length: templateBlocks.length,
+    templateBlocks,
+    will_render: !!templateBlockSetName,
+    plan_type: group.plan_type,
+    camp_template_id: group.camp_template_id,
+  });
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
