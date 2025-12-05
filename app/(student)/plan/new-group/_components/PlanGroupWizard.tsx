@@ -26,6 +26,7 @@ import { Step1BasicInfo } from "./Step1BasicInfo";
 import { Step2TimeSettings } from "./Step2TimeSettings";
 import { Step3SchedulePreview } from "./Step3SchedulePreview";
 import { Step3ContentSelection } from "./Step3ContentSelection";
+import { Step6FinalReview } from "./Step6FinalReview";
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./Step7ScheduleResult";
 
@@ -612,14 +613,26 @@ export function PlanGroupWizard({
       return;
     }
 
-    // Step 5 (최종 확인)에서 다음 버튼 클릭 시
+    // Step 5 (학습범위 점검)에서 다음 버튼 클릭 시
     if (currentStep === 5) {
-      // 관리자 continue 모드에서는 플랜 생성하지 않고 데이터만 저장 후 Step 7로 이동
-      // 일반 모드에서는 플랜 생성 후 Step 6으로 이동
+      // 일반 모드: 플랜 생성 후 Step 6으로 이동
+      // 캠프 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 7에서)
       if (isAdminContinueMode) {
-        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장 (Step 7에서 플랜 생성)
+        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
       } else {
         handleSubmit(true); // 플랜 생성 후 Step 6으로 이동
+      }
+      return;
+    }
+
+    // Step 6 (최종 확인)에서 다음 버튼 클릭 시
+    if (currentStep === 6) {
+      // 관리자 continue 모드: 데이터만 저장 후 Step 7로 이동
+      // 일반 모드: Step 7로 이동 (플랜은 이미 Step 5에서 생성됨)
+      if (isAdminContinueMode) {
+        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
+      } else {
+        setCurrentStep(7); // Step 7로 이동
       }
       return;
     }
@@ -910,8 +923,22 @@ export function PlanGroupWizard({
                   setCurrentStep(5);
                   return;
                 }
-                // Step 5에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
+                // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동
                 if (currentStep === 5) {
+                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
+                  // URL에 step=6 파라미터 추가하여 페이지 리렌더링 시에도 Step 6 유지
+                  const templateId = initialData?.templateId;
+                  const groupId = draftGroupId || (initialData?.groupId as string);
+                  if (templateId && groupId) {
+                    // window.location.href로 확실한 페이지 이동 보장
+                    window.location.href = `/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=6`;
+                  } else {
+                    setCurrentStep(6);
+                  }
+                  return;
+                }
+                // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
+                if (currentStep === 6) {
                   setDraftGroupId(draftGroupId || (initialData?.groupId as string));
                   // URL에 step=7 파라미터 추가하여 페이지 리렌더링 시에도 Step 7 유지
                   const templateId = initialData?.templateId;
@@ -1317,8 +1344,18 @@ export function PlanGroupWizard({
             isAdminContinueMode={isAdminContinueMode}
           />
         )}
-        {/* Step 5에서 최종 확인 표시 */}
-        {currentStep === 5 && !isTemplateMode && (!isCampMode || isAdminContinueMode) && (
+        {/* Step 5: 학습범위 점검 (학습 분량 설정) */}
+        {currentStep === 5 && !isTemplateMode && (
+          <Step6FinalReview
+            data={wizardData}
+            onUpdate={updateWizardData}
+            contents={initialContents}
+            isCampMode={isCampMode}
+            studentId={(initialData as any)?.student_id}
+          />
+        )}
+        {/* Step 6: 최종 확인 */}
+        {currentStep === 6 && !isTemplateMode && (
           <Step6Simplified
             data={wizardData}
             onEditStep={(step) => setCurrentStep(step)}
@@ -1329,7 +1366,7 @@ export function PlanGroupWizard({
             studentId={(initialData as any)?.student_id}
           />
         )}
-        {currentStep === 7 && draftGroupId && (!isCampMode || isAdminContinueMode) && (
+        {currentStep === 7 && draftGroupId && !isTemplateMode && (
           <Step7ScheduleResult
             groupId={draftGroupId}
             onComplete={async () => {
@@ -1443,10 +1480,12 @@ export function PlanGroupWizard({
             ? "참여 제출하기"
             : currentStep === 5
             ? isAdminContinueMode
-              ? "스케줄 미리보기로 이동"
+              ? "다음 단계로"
               : isEditMode
               ? "수정 및 플랜 생성"
               : "플랜 생성하기"
+            : currentStep === 6
+            ? "스케줄 미리보기로 이동"
             : "다음"}
         </button>
       </div>
