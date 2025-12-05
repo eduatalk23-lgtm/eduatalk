@@ -2709,22 +2709,36 @@ export const continueCampStepsForAdmin = withErrorHandling(
           });
         }
 
-        // 최종 콘텐츠 검증 (plan_contents 테이블 확인)
-        const { data: finalPlanContents } = await supabase
-          .from("plan_contents")
-          .select("id")
-          .eq("plan_group_id", groupId)
-          .limit(1);
+        // 최종 콘텐츠 검증
+        // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
+        const finalStudentContents = wizardData.student_contents || [];
+        const finalRecommendedContents = wizardData.recommended_contents || [];
+        const finalTotalContents = finalStudentContents.length + finalRecommendedContents.length;
 
         console.log("[campTemplateActions] Step 6 최종 콘텐츠 검증:", {
-          finalPlanContentsCount: finalPlanContents?.length || 0,
-          hasFinalPlanContents: finalPlanContents && finalPlanContents.length > 0,
+          wizardDataStudentContents: finalStudentContents.length,
+          wizardDataRecommendedContents: finalRecommendedContents.length,
+          wizardDataTotalContents: finalTotalContents,
         });
 
-        if (!finalPlanContents || finalPlanContents.length === 0) {
-          validationErrors.push(
-            "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
-          );
+        // wizardData에 콘텐츠가 없으면 plan_contents 테이블 확인 (이미 저장된 경우를 대비)
+        if (finalTotalContents === 0) {
+          const { data: finalPlanContents } = await supabase
+            .from("plan_contents")
+            .select("id")
+            .eq("plan_group_id", groupId)
+            .limit(1);
+
+          console.log("[campTemplateActions] Step 6 plan_contents 테이블 확인:", {
+            finalPlanContentsCount: finalPlanContents?.length || 0,
+            hasFinalPlanContents: finalPlanContents && finalPlanContents.length > 0,
+          });
+
+          if (!finalPlanContents || finalPlanContents.length === 0) {
+            validationErrors.push(
+              "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
+            );
+          }
         }
 
         // 3. 템플릿 블록 세트 검증 (캠프 모드)
