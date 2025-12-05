@@ -60,7 +60,7 @@ export function planGroupToWizardData(
 
   return {
     // Step 1: 기본 정보
-    name: group.name,
+    name: group.name || "",
     plan_purpose: (group.plan_purpose as any) || "",
     scheduler_type: (group.scheduler_type as any) || "",
     scheduler_options: {
@@ -70,8 +70,7 @@ export function planGroupToWizardData(
     period_start: group.period_start,
     period_end: group.period_end,
     target_date: group.target_date || undefined,
-    block_set_id: group.block_set_id,
-    block_set_name: templateBlockSetName || undefined,
+    block_set_id: group.block_set_id || "",
 
     // Step 2: 제외일 및 학원 일정
     exclusions: exclusions.map((e) => ({
@@ -90,7 +89,6 @@ export function planGroupToWizardData(
     })),
     time_settings: timeSettings,
     non_study_time_blocks: [],
-    blocks: templateBlocks || [],
 
     // Step 3: 콘텐츠
     student_contents: studentContents,

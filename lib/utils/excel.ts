@@ -166,7 +166,8 @@ export function convertDataToSheet(
  */
 export function excelBufferToFormData(fileBuffer: Buffer): FormData {
   const formData = new FormData();
-  const blob = new Blob([fileBuffer], {
+  // Buffer를 Uint8Array로 변환하여 Blob에 전달
+  const blob = new Blob([new Uint8Array(fileBuffer)], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   formData.append("file", blob, "upload.xlsx");

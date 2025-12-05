@@ -316,7 +316,9 @@ export async function transformPlanGroupToWizardData(
         : undefined,
     student_level: (group.scheduler_options as any)?.student_level,
     subject_allocations: (group.scheduler_options as any)?.subject_allocations,
-    subject_constraints: group.subject_constraints || undefined,
+    subject_constraints: group.subject_constraints
+      ? (group.subject_constraints as any) // 타입 변환 필요 시 any 사용
+      : undefined,
     additional_period_reallocation: group.additional_period_reallocation || undefined,
     non_study_time_blocks: group.non_study_time_blocks || undefined,
   };

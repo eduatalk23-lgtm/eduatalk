@@ -712,6 +712,10 @@ async function createStudentA(
     2
   );
 
+  if (!metadata.curriculumRevisionId) {
+    throw new Error("curriculumRevisionId가 설정되지 않았습니다.");
+  }
+
   const schoolYear = 2025;
   const termInfo = await getStudentTermInfo(
     metadata.tenantId,
@@ -779,7 +783,7 @@ async function createStudentA(
       tenantId: metadata.tenantId,
       studentId,
       studentTermId: termInfo.studentTermId,
-      curriculumRevisionId: metadata.curriculumRevisionId,
+      curriculumRevisionId: metadata.curriculumRevisionId!,
       subjectGroupId: sgId,
       subjectTypeId: metadata.commonSubjectTypeId,
       subjectId,
@@ -885,6 +889,10 @@ async function createStudentB(
     2
   );
 
+  if (!metadata.curriculumRevisionId) {
+    throw new Error("curriculumRevisionId가 설정되지 않았습니다.");
+  }
+
   const schoolYear = 2025;
   const termInfo = await getStudentTermInfo(
     metadata.tenantId,
@@ -952,7 +960,7 @@ async function createStudentB(
       tenantId: metadata.tenantId,
       studentId,
       studentTermId: termInfo.studentTermId,
-      curriculumRevisionId: metadata.curriculumRevisionId,
+      curriculumRevisionId: metadata.curriculumRevisionId!,
       subjectGroupId: sgId,
       subjectTypeId: metadata.commonSubjectTypeId,
       subjectId,
@@ -1058,6 +1066,10 @@ async function createStudentC(
     2
   );
 
+  if (!metadata.curriculumRevisionId) {
+    throw new Error("curriculumRevisionId가 설정되지 않았습니다.");
+  }
+
   const schoolYear = 2025;
   const termInfo = await getStudentTermInfo(
     metadata.tenantId,
@@ -1125,7 +1137,7 @@ async function createStudentC(
       tenantId: metadata.tenantId,
       studentId,
       studentTermId: termInfo.studentTermId,
-      curriculumRevisionId: metadata.curriculumRevisionId,
+      curriculumRevisionId: metadata.curriculumRevisionId!,
       subjectGroupId: sgId,
       subjectTypeId: metadata.commonSubjectTypeId,
       subjectId,

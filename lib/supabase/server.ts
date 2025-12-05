@@ -1,8 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { cookies, type ReadonlyRequestCookies } from "next/headers";
+import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
+
+type ReadonlyRequestCookies = Awaited<ReturnType<typeof cookies>>;
 
 /**
  * Rate limit을 고려한 fetch wrapper

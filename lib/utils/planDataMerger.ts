@@ -227,7 +227,8 @@ export function validateMergedData(
   }
 
   // 블록 세트 검증
-  if (!mergedData.block_set_id && mergedData.plan_type !== "camp") {
+  // plan_type은 WizardData에 없으므로 block_set_id만 체크
+  if (!mergedData.block_set_id) {
     errors.push("블록 세트를 선택해주세요.");
   }
 

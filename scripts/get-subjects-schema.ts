@@ -24,6 +24,9 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 }
 
 function createSupabaseAdminClient() {
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error("환경 변수가 설정되지 않았습니다.");
+  }
   return createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,

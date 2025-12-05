@@ -45,9 +45,9 @@ export async function getTenantContext(): Promise<TenantContext | null> {
           .from("admin_users")
           .select("id,role")
           .eq("id", user.id)
-          .maybeSingle<{ id: string; role?: string }>();
+          .maybeSingle<{ id: string; role?: string; tenant_id?: string | null }>();
       const fallbackResult = await fallbackSelect();
-      admin = fallbackResult.data;
+      admin = fallbackResult.data ? { ...fallbackResult.data, tenant_id: null, role: fallbackResult.data.role || undefined } : null;
     }
 
     if (adminError && adminError.code !== "PGRST116" && adminError.code !== "42703") {

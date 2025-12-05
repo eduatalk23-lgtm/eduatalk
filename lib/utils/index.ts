@@ -37,5 +37,5 @@ export {
 export { formatNumber, formatNumberClean } from "./formatNumber";
 
 // 캐시 관련
-export { createCache, CacheEntry } from "./cache";
+export { setCache, getCache, clearCache, createCacheKey, type CacheEntry } from "./cache";
 

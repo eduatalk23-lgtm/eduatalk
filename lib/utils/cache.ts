@@ -3,7 +3,7 @@
  * 브라우저의 sessionStorage를 활용한 간단한 캐싱
  */
 
-type CacheEntry<T> = {
+export type CacheEntry<T> = {
   data: T;
   timestamp: number;
   ttl: number; // Time to live in milliseconds

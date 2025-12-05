@@ -197,7 +197,7 @@ export class WizardValidator {
         // subject_allocations가 있을 때만 과목 일치 검증 수행
         // subject_allocations의 모든 과목이 콘텐츠에 포함되어 있는지 검증
         const allocatedSubjects = new Set(
-          wizardData.subject_allocations.map((a) => a.subject_name)
+          (wizardData.subject_allocations || []).map((a) => a.subject_name)
         );
         const contentSubjects = new Set([
           ...wizardData.student_contents
@@ -247,13 +247,38 @@ export class WizardValidator {
         ...wizardData.recommended_contents,
       ];
 
+      // WizardData의 subject_constraints를 SubjectConstraints 타입으로 변환
+      const subjectConstraints: import("@/lib/types/plan").SubjectConstraints | undefined = wizardData.subject_constraints
+        ? {
+            required_subjects: wizardData.subject_constraints.required_subjects?.map((req) => ({
+              subject_category: req.subject_category,
+              subject: req.subject_category, // fallback
+              min_count: req.min_count,
+              subjects_by_curriculum: req.subjects_by_curriculum
+                ?.filter((s) => s.subject_id) // subject_id가 있는 것만 필터링
+                .map((s) => ({
+                  curriculum_revision_id: s.curriculum_revision_id,
+                  subject_id: s.subject_id!, // 필터링했으므로 non-null assertion 가능
+                  subject_name: s.subject_name,
+                })),
+            })),
+            excluded_subjects: wizardData.subject_constraints.excluded_subjects,
+            constraint_handling: wizardData.subject_constraints.constraint_handling,
+          }
+        : undefined;
+
+      if (!subjectConstraints) {
+        // subject_constraints가 없으면 검증 통과
+        return { valid: true, errors: [], warnings: [] };
+      }
+
       const constraintValidation = validateSubjectConstraints(
         allContents.map((c) => ({
           subject_id: c.subject_category || "",
           subject_name: c.subject_category || "",
           detail_subject: c.subject || undefined, // 세부 과목 추가
         })),
-        wizardData.subject_constraints
+        subjectConstraints
       );
 
       if (!constraintValidation.valid) {

@@ -508,24 +508,6 @@ export type SelfStudyHours = {
 };
 
 /**
- * 학습 시간 설정
- */
-export type StudyHours = {
-  start_time: string; // HH:mm
-  end_time: string; // HH:mm
-};
-
-/**
- * 자율학습 시간 설정
- */
-export type SelfStudyHours = {
-  enabled: boolean; // 자율학습 시간 사용 여부
-  start_time: string; // HH:mm
-  end_time: string; // HH:mm
-  allow_on_holiday?: boolean; // 지정휴일에 자율학습 시간 배정 여부
-};
-
-/**
  * 교과 제약 조건
  */
 export type RequiredSubject = {

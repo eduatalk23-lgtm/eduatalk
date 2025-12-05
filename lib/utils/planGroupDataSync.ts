@@ -194,16 +194,33 @@ export function syncWizardDataToCreationData(
         day_of_week: s.day_of_week,
         start_time: s.start_time,
         end_time: s.end_time,
-        academy_name: s.academy_name || null,
-        subject: s.subject || null,
+        academy_name: s.academy_name || undefined,
+        subject: s.subject || undefined,
         travel_time: s.travel_time,
       })),
       // 1730 Timetable 추가 필드
       study_review_cycle: wizardData.study_review_cycle,
       student_level: wizardData.student_level,
       subject_allocations: wizardData.subject_allocations,
-      content_allocations: wizardData.content_allocations,
-      subject_constraints: wizardData.subject_constraints,
+      subject_constraints: wizardData.subject_constraints
+        ? {
+            ...wizardData.subject_constraints,
+            required_subjects: wizardData.subject_constraints.required_subjects?.map(
+              (req) => ({
+                subject_category: req.subject_category,
+                subject: req.subject_category, // fallback
+                min_count: req.min_count,
+                subjects_by_curriculum: req.subjects_by_curriculum
+                  ?.filter((s) => s.subject_id) // subject_id가 있는 것만 필터링
+                  .map((s) => ({
+                    curriculum_revision_id: s.curriculum_revision_id,
+                    subject_id: s.subject_id!, // 필터링했으므로 non-null assertion 가능
+                    subject_name: s.subject_name,
+                  })),
+              })
+            ),
+          }
+        : undefined,
       additional_period_reallocation: wizardData.additional_period_reallocation,
       non_study_time_blocks: wizardData.non_study_time_blocks,
       // Step 2.5에서 생성된 일별 스케줄 정보

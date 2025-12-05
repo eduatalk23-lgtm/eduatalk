@@ -7,14 +7,22 @@ async function checkStudentScores() {
   // 이메일로 사용자 찾기
   const email = "ghkdwp2282@naver.com";
   
-  const { data: authUser, error: authError } = await supabase.auth.admin.getUserByEmail(email);
+  // getUserByEmail이 없으므로 listUsers로 필터링
+  const { data: usersData, error: authError } = await supabase.auth.admin.listUsers();
   
-  if (authError || !authUser?.user) {
-    console.error("사용자를 찾을 수 없습니다:", authError);
+  if (authError || !usersData?.users) {
+    console.error("사용자 목록을 가져올 수 없습니다:", authError);
     return;
   }
   
-  const studentId = authUser.user.id;
+  const authUser = usersData.users.find((u) => u.email === email);
+  
+  if (!authUser) {
+    console.error("사용자를 찾을 수 없습니다:", email);
+    return;
+  }
+  
+  const studentId = authUser.id;
   console.log(`\n=== ${email} (${studentId}) 성적 데이터 분석 ===\n`);
   
   // 1. 내신 성적 조회
