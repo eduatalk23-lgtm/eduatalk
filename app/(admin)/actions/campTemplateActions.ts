@@ -2483,13 +2483,19 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
         // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
         // wizardData가 undefined이면 DB에서 콘텐츠를 로드하여 wizardData에 채움
-        let studentContents = wizardData.student_contents || [];
-        let recommendedContents = wizardData.recommended_contents || [];
+        // continue/page.tsx에서 빈 배열을 undefined로 변환하여 전달하므로, undefined인 경우 DB에서 로드 필요
+        let studentContents = wizardData.student_contents;
+        let recommendedContents = wizardData.recommended_contents;
         
-        // wizardData에 콘텐츠가 없고 DB에 콘텐츠가 있으면 DB에서 로드
+        // wizardData에 콘텐츠가 없고(undefined) DB에 콘텐츠가 있으면 DB에서 로드
+        // 또는 wizardData에 콘텐츠가 빈 배열이고 DB에 콘텐츠가 있으면 DB에서 로드
+        const hasWizardDataContents = 
+          (wizardData.student_contents !== undefined && wizardData.student_contents.length > 0) ||
+          (wizardData.recommended_contents !== undefined && wizardData.recommended_contents.length > 0);
+        
         if (
-          (wizardData.student_contents === undefined || wizardData.recommended_contents === undefined) &&
-          hasPlanContents
+          (!hasWizardDataContents && hasPlanContents) ||
+          (wizardData.student_contents === undefined || wizardData.recommended_contents === undefined)
         ) {
           console.log("[campTemplateActions] Step 6 DB에서 콘텐츠 로드:", {
             wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
@@ -2533,6 +2539,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
             });
           }
         }
+        
+        // undefined인 경우 빈 배열로 변환 (계산을 위해)
+        if (studentContents === undefined) studentContents = [];
+        if (recommendedContents === undefined) recommendedContents = [];
         
         const totalContents = studentContents.length + recommendedContents.length;
 
@@ -2853,15 +2863,15 @@ export const continueCampStepsForAdmin = withErrorHandling(
         });
 
         // 검증: DB에 콘텐츠가 없고 wizardData에도 콘텐츠가 없는 경우에만 에러
-        const hasPlanContents = finalPlanContents && finalPlanContents.length > 0;
+        const hasFinalPlanContents = finalPlanContents && finalPlanContents.length > 0;
         const hasWizardContents = finalTotalContents > 0;
 
-        if (!hasPlanContents && !hasWizardContents) {
+        if (!hasFinalPlanContents && !hasWizardContents) {
           // DB에 콘텐츠가 없고 wizardData에도 콘텐츠가 없는 경우
           validationErrors.push(
             "플랜에 포함될 콘텐츠가 없습니다. Step 3 또는 Step 4에서 콘텐츠를 선택해주세요."
           );
-        } else if (!hasPlanContents && hasWizardContents) {
+        } else if (!hasFinalPlanContents && hasWizardContents) {
           // wizardData에 콘텐츠가 있지만 DB에 저장되지 않은 경우
           // (콘텐츠 저장 과정에서 모든 콘텐츠가 필터링되었을 수 있음)
           console.warn(
@@ -2876,7 +2886,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           // 단, 경고 로그만 남기고 검증 에러는 발생시키지 않음
         } else {
           console.log("[campTemplateActions] Step 6 최종 검증: 콘텐츠가 있어 플랜 생성 가능:", {
-            hasPlanContents,
+            hasFinalPlanContents,
             hasWizardContents,
             finalPlanContentsCount: finalPlanContents?.length || 0,
             wizardDataTotalContents: finalTotalContents,
