@@ -14,6 +14,7 @@ import {
 } from "../actions/todayActions";
 import { Clock } from "lucide-react";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanRunState = "idle" | "running" | "paused" | "completed";
 type PendingAction = "start" | "pause" | "resume" | "complete";
@@ -42,6 +43,7 @@ export function PlanCard({
   serverNow = Date.now(),
 }: PlanCardProps) {
   const router = useRouter();
+  const { showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const timerStore = usePlanTimerStore();
@@ -293,7 +295,7 @@ export function PlanCard({
       const result = await preparePlanCompletion(targetPlanId);
       
       if (!result.success) {
-        alert(result.error || "플랜 완료 준비에 실패했습니다.");
+        showError(result.error || "플랜 완료 준비에 실패했습니다.");
         return;
       }
 
@@ -304,7 +306,7 @@ export function PlanCard({
       router.push(`/today/plan/${targetPlanId}`);
     } catch (error) {
       console.error("[PlanCard] 완료 처리 오류:", error);
-      alert("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);

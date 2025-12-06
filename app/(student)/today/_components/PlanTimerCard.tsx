@@ -9,6 +9,7 @@ import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
 import { TimerDisplay } from "./timer/TimerDisplay";
 import { TimerControls } from "./timer/TimerControls";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -52,6 +53,7 @@ export function PlanTimerCard({
   serverNow = Date.now(),
 }: PlanTimerCardProps) {
   const router = useRouter();
+  const { showError } = useToast();
   const timerStore = usePlanTimerStore();
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
@@ -167,7 +169,7 @@ export function PlanTimerCard({
           timerStore.startTimer(planId, result.serverNow, result.startedAt);
         }
       } else {
-        alert(result.error || "플랜 시작에 실패했습니다.");
+        showError(result.error || "플랜 시작에 실패했습니다.");
       }
     } catch (error) {
       alert("오류가 발생했습니다.");
@@ -193,7 +195,7 @@ export function PlanTimerCard({
         }
       } else {
         if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
-          alert(result.error || "플랜 일시정지에 실패했습니다.");
+          showError(result.error || "플랜 일시정지에 실패했습니다.");
         }
       }
     } catch (error) {
@@ -215,7 +217,7 @@ export function PlanTimerCard({
           timerStore.startTimer(planId, result.serverNow, result.startedAt);
         }
       } else {
-        alert(result.error || "플랜 재개에 실패했습니다.");
+        showError(result.error || "플랜 재개에 실패했습니다.");
       }
     } catch (error) {
       alert("오류가 발생했습니다.");
@@ -241,7 +243,7 @@ export function PlanTimerCard({
       const result = await preparePlanCompletion(planId);
       
       if (!result.success) {
-        alert(result.error || "플랜 완료 준비에 실패했습니다.");
+        showError(result.error || "플랜 완료 준비에 실패했습니다.");
         return;
       }
 
@@ -252,7 +254,7 @@ export function PlanTimerCard({
       router.push(`/today/plan/${planId}`);
     } catch (error) {
       console.error("[PlanTimerCard] 완료 처리 오류:", error);
-      alert("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);

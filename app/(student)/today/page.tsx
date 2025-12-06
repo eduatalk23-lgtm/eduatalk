@@ -11,6 +11,7 @@ import { TodayPageContent } from "./_components/TodayPageContent";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { formatDateString } from "@/lib/date/calendarUtils";
+import { getPlanById } from "@/lib/data/studentPlans";
 
 type TodayPageProps = {
   searchParams?:
@@ -89,6 +90,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const dateParam = getParam("date");
   const viewParam = getParam("view");
+  const completedPlanIdParam = getParam("completedPlanId");
 
   const requestedDate =
     typeof dateParam === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
@@ -158,6 +160,23 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     };
   });
 
+  // 완료된 플랜 정보 조회 (토스트용)
+  let completedPlanTitle: string | null = null;
+  if (completedPlanIdParam) {
+    try {
+      const completedPlan = await getPlanById(
+        completedPlanIdParam,
+        userId,
+        tenantContext?.tenantId || null
+      );
+      if (completedPlan) {
+        completedPlanTitle = completedPlan.content_title || null;
+      }
+    } catch (error) {
+      console.error("[TodayPage] 완료된 플랜 정보 조회 실패", error);
+    }
+  }
+
   const [todayProgress] = await Promise.all([todayProgressPromise]);
 
   return (
@@ -174,6 +193,8 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               initialProgress={todayProgress}
               showAchievements={false}
               userId={userId}
+              completedPlanId={completedPlanIdParam}
+              completedPlanTitle={completedPlanTitle}
             />
           </div>
           <div className="lg:col-span-4">
@@ -185,6 +206,8 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
                 initialProgress={todayProgress}
                 showPlans={false}
                 userId={userId}
+                completedPlanId={completedPlanIdParam}
+                completedPlanTitle={completedPlanTitle}
               />
             </div>
           </div>

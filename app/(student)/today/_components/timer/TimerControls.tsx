@@ -113,7 +113,7 @@ export function TimerControls({
               ) : (
                 <Square className={iconSize} />
               )}
-              완료하기
+              학습 결과 입력
             </button>
           </>
         )}
@@ -148,7 +148,7 @@ export function TimerControls({
               ) : (
                 <Square className={iconSize} />
               )}
-              완료하기
+              학습 결과 입력
             </button>
           </>
         )}

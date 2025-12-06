@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { PlanViewContainer, type ViewMode } from "./PlanViewContainer";
 import { TodayAchievements } from "./TodayAchievements";
+import { CompletionToast } from "./CompletionToast";
 
 type TodayPageContentProps = {
   initialMode: ViewMode;
@@ -14,6 +15,8 @@ type TodayPageContentProps = {
   showAchievements?: boolean;
   userId?: string;
   campMode?: boolean;
+  completedPlanId?: string | null;
+  completedPlanTitle?: string | null;
 };
 
 type ProgressResponse = {
@@ -30,6 +33,8 @@ export function TodayPageContent({
   showAchievements = true,
   userId,
   campMode = false,
+  completedPlanId,
+  completedPlanTitle,
 }: TodayPageContentProps) {
   const fallbackDate = initialPlanDate ?? initialProgressDate;
   const [selectedDate, setSelectedDate] = useState<string>(fallbackDate);
@@ -90,6 +95,7 @@ export function TodayPageContent({
 
   return (
     <div className="flex flex-col gap-6">
+      <CompletionToast completedPlanId={completedPlanId} planTitle={completedPlanTitle} />
       {showPlans && (
         <PlanViewContainer
           initialMode={initialMode}
