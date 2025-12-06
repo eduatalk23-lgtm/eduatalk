@@ -19,7 +19,13 @@ type PendingAction = "start" | "pause" | "resume" | "complete";
 
 type PlanCardProps = {
   group: PlanGroup;
-  sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
+  sessions: Map<string, { 
+    isPaused: boolean; 
+    startedAt?: string | null;
+    pausedAt?: string | null; 
+    resumedAt?: string | null;
+    pausedDurationSeconds?: number | null;
+  }>;
   planDate: string;
   viewMode: "single" | "daily";
   onViewDetail?: () => void;
@@ -82,6 +88,81 @@ export function PlanCard({
     () => getTimeStats([group.plan], activePlan, sessions),
     [group.plan, activePlan, sessions]
   );
+
+  // 서버에서 계산된 초기 타이머 상태 계산
+  const initialTimerState = useMemo(() => {
+    const plan = group.plan;
+    const session = sessions.get(plan.id);
+
+    // 완료된 경우
+    if (plan.actual_end_time && plan.total_duration_seconds !== null && plan.total_duration_seconds !== undefined) {
+      return {
+        initialDuration: plan.total_duration_seconds,
+        isInitiallyRunning: false,
+      };
+    }
+
+    // 시작하지 않은 경우
+    if (!plan.actual_start_time) {
+      return {
+        initialDuration: 0,
+        isInitiallyRunning: false,
+      };
+    }
+
+    const startMs = new Date(plan.actual_start_time).getTime();
+    if (!Number.isFinite(startMs)) {
+      return {
+        initialDuration: 0,
+        isInitiallyRunning: false,
+      };
+    }
+
+    const now = Date.now();
+
+    // 활성 세션이 있고 일시정지 중인 경우
+    if (session && session.isPaused && session.pausedAt) {
+      const pausedAtMs = new Date(session.pausedAt).getTime();
+      if (Number.isFinite(pausedAtMs)) {
+        // 일시정지 시점까지의 경과 시간 계산
+        const elapsedUntilPause = Math.floor((pausedAtMs - startMs) / 1000);
+        const sessionPausedDuration = session.pausedDurationSeconds || 0;
+        const planPausedDuration = plan.paused_duration_seconds || 0;
+        const accumulatedSeconds = Math.max(0, elapsedUntilPause - sessionPausedDuration - planPausedDuration);
+
+        return {
+          initialDuration: accumulatedSeconds,
+          isInitiallyRunning: false,
+        };
+      }
+    }
+
+    // 실행 중인 경우
+    if (session && session.startedAt) {
+      const sessionStartMs = new Date(session.startedAt).getTime();
+      if (Number.isFinite(sessionStartMs)) {
+        const elapsed = Math.floor((now - sessionStartMs) / 1000);
+        const sessionPausedDuration = session.pausedDurationSeconds || 0;
+        const planPausedDuration = plan.paused_duration_seconds || 0;
+        const accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
+
+        return {
+          initialDuration: accumulatedSeconds,
+          isInitiallyRunning: true,
+        };
+      }
+    }
+
+    // 활성 세션이 없지만 플랜이 시작된 경우
+    const elapsed = Math.floor((now - startMs) / 1000);
+    const pausedDuration = plan.paused_duration_seconds || 0;
+    const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
+
+    return {
+      initialDuration: accumulatedSeconds,
+      isInitiallyRunning: true,
+    };
+  }, [group.plan, sessions]);
 
   const handlePostponePlan = async (planId: string) => {
     if (isLoading) return;
@@ -280,6 +361,8 @@ export function PlanCard({
               : undefined
           }
           canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
+          initialDuration={initialTimerState.initialDuration}
+          isInitiallyRunning={initialTimerState.isInitiallyRunning}
         />
 
 
@@ -346,6 +429,8 @@ export function PlanCard({
           }
           canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
           compact
+          initialDuration={initialTimerState.initialDuration}
+          isInitiallyRunning={initialTimerState.isInitiallyRunning}
         />
 
       </div>

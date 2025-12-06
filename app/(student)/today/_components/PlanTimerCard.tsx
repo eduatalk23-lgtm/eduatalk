@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Play, Pause, Square, Clock } from "lucide-react";
 import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
-import { formatTime, calculateStudyTimeFromTimestamps, formatTimestamp } from "../_utils/planGroupUtils";
+import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
+import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -23,6 +24,9 @@ type PlanTimerCardProps = {
   isPaused?: boolean;
   currentPausedAt?: string | null; // 현재 일시정지 시작 시간
   allowTimerControl?: boolean;
+  // 세션 정보 (타이머 초기값 계산용)
+  sessionStartedAt?: string | null;
+  sessionPausedDurationSeconds?: number | null;
 };
 
 export function PlanTimerCard({
@@ -40,6 +44,8 @@ export function PlanTimerCard({
   isPaused: initialIsPaused = false,
   currentPausedAt,
   allowTimerControl = true,
+  sessionStartedAt,
+  sessionPausedDurationSeconds,
 }: PlanTimerCardProps) {
   const router = useRouter();
   const [isRunning, setIsRunning] = useState(!!actualStartTime && !actualEndTime && !initialIsPaused);
@@ -47,19 +53,103 @@ export function PlanTimerCard({
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
-  // 타임스탬프 기반 시간 계산 (현재 일시정지 중인 경우 고려)
-  const elapsedSeconds = calculateStudyTimeFromTimestamps(
+  // 서버에서 계산된 초기 타이머 상태 계산
+  const initialTimerState = useMemo(() => {
+    // 완료된 경우
+    if (actualEndTime && totalDurationSeconds !== null && totalDurationSeconds !== undefined) {
+      return {
+        initialDuration: totalDurationSeconds,
+        isInitiallyRunning: false,
+      };
+    }
+
+    // 시작하지 않은 경우
+    if (!actualStartTime) {
+      return {
+        initialDuration: 0,
+        isInitiallyRunning: false,
+      };
+    }
+
+    const startMs = new Date(actualStartTime).getTime();
+    if (!Number.isFinite(startMs)) {
+      return {
+        initialDuration: 0,
+        isInitiallyRunning: false,
+      };
+    }
+
+    const now = Date.now();
+
+    // 일시정지 중인 경우
+    if (initialIsPaused && currentPausedAt) {
+      const pausedAtMs = new Date(currentPausedAt).getTime();
+      if (Number.isFinite(pausedAtMs)) {
+        // 일시정지 시점까지의 경과 시간 계산
+        const elapsedUntilPause = Math.floor((pausedAtMs - startMs) / 1000);
+        const sessionPausedDuration = sessionPausedDurationSeconds || 0;
+        const planPausedDuration = pausedDurationSeconds || 0;
+        const accumulatedSeconds = Math.max(0, elapsedUntilPause - sessionPausedDuration - planPausedDuration);
+
+        return {
+          initialDuration: accumulatedSeconds,
+          isInitiallyRunning: false,
+        };
+      }
+    }
+
+    // 실행 중인 경우
+    if (sessionStartedAt) {
+      const sessionStartMs = new Date(sessionStartedAt).getTime();
+      if (Number.isFinite(sessionStartMs)) {
+        const elapsed = Math.floor((now - sessionStartMs) / 1000);
+        const sessionPausedDuration = sessionPausedDurationSeconds || 0;
+        const planPausedDuration = pausedDurationSeconds || 0;
+        const accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
+
+        return {
+          initialDuration: accumulatedSeconds,
+          isInitiallyRunning: true,
+        };
+      }
+    }
+
+    // 활성 세션이 없지만 플랜이 시작된 경우
+    const elapsed = Math.floor((now - startMs) / 1000);
+    const pausedDuration = pausedDurationSeconds || 0;
+    const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
+
+    return {
+      initialDuration: accumulatedSeconds,
+      isInitiallyRunning: true,
+    };
+  }, [
     actualStartTime,
     actualEndTime,
+    totalDurationSeconds,
     pausedDurationSeconds,
-    isPaused,
-    currentPausedAt
-  );
-  const completedStudySeconds = calculateStudyTimeFromTimestamps(
-    actualStartTime,
-    actualEndTime,
-    pausedDurationSeconds
-  );
+    initialIsPaused,
+    currentPausedAt,
+    sessionStartedAt,
+    sessionPausedDurationSeconds,
+  ]);
+
+  // 타이머 훅 사용
+  const { seconds: elapsedSeconds } = usePlanTimer({
+    initialDuration: initialTimerState.initialDuration,
+    isInitiallyRunning: initialTimerState.isInitiallyRunning,
+    isPaused: initialIsPaused,
+    isCompleted: !!actualEndTime,
+  });
+
+  // 완료된 학습 시간 계산 (표시용)
+  const completedStudySeconds = useMemo(() => {
+    if (actualEndTime && totalDurationSeconds !== null && totalDurationSeconds !== undefined) {
+      return totalDurationSeconds;
+    }
+    return elapsedSeconds;
+  }, [actualEndTime, totalDurationSeconds, elapsedSeconds]);
+
   const formattedStartTime = actualStartTime ? formatTimestamp(actualStartTime) : "-";
   const formattedEndTime = actualEndTime ? formatTimestamp(actualEndTime) : "-";
   const formattedPureStudyTime = formatTime(Math.max(0, completedStudySeconds));

@@ -182,6 +182,8 @@ export function DraggablePlanList({ plans: initialPlans, planDate }: DraggablePl
                   isPaused={plan.session?.isPaused || false}
                   currentPausedAt={plan.session?.pausedAt ?? null}
                   allowTimerControl={primaryPlanIds.has(plan.id)}
+                  sessionStartedAt={plan.session?.startedAt ?? null}
+                  sessionPausedDurationSeconds={plan.session?.pausedDurationSeconds ?? null}
                 />
               </div>
             );

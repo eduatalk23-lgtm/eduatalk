@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Play, Pause, Square, Clock, CheckCircle2 } from "lucide-react";
 import { formatTime, TimeStats, formatTimestamp } from "../_utils/planGroupUtils";
 import { cn } from "@/lib/cn";
-import { CircularProgress } from "./CircularProgress";
+import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
+import { useMemo } from "react";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -23,6 +23,11 @@ type PlanTimerProps = {
   compact?: boolean;
 };
 
+type PlanTimerPropsWithInitial = PlanTimerProps & {
+  initialDuration: number;
+  isInitiallyRunning: boolean;
+};
+
 export function PlanTimer({
   timeStats,
   isPaused,
@@ -36,8 +41,18 @@ export function PlanTimer({
   canPostpone = false,
   pendingAction = null,
   compact = false,
-}: PlanTimerProps) {
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  initialDuration,
+  isInitiallyRunning,
+}: PlanTimerPropsWithInitial) {
+
+  // 타이머 훅 사용
+  const { seconds } = usePlanTimer({
+    initialDuration,
+    isInitiallyRunning,
+    isPaused,
+    isCompleted: timeStats.isCompleted,
+  });
+
   const formattedStartTime = timeStats.firstStartTime
     ? formatTimestamp(timeStats.firstStartTime)
     : "-";
@@ -45,33 +60,6 @@ export function PlanTimer({
     ? formatTimestamp(timeStats.lastEndTime)
     : "-";
   const formattedPureStudyTime = formatTime(Math.max(0, timeStats.pureStudyTime || 0));
-
-  // 실시간 시간 업데이트
-  useEffect(() => {
-    if (!isActive || isPaused || timeStats.isCompleted) {
-      // 타임스탬프 기반 계산
-      const start = timeStats.firstStartTime ? new Date(timeStats.firstStartTime).getTime() : 0;
-      const end = timeStats.lastEndTime ? new Date(timeStats.lastEndTime).getTime() : Date.now();
-      const totalSeconds = start > 0 ? Math.floor((end - start) / 1000) : 0;
-      const pausedSeconds = timeStats.pausedDuration || 0;
-      const currentPausedSeconds = timeStats.currentPausedAt && isPaused
-        ? Math.floor((Date.now() - new Date(timeStats.currentPausedAt).getTime()) / 1000)
-        : 0;
-      setElapsedSeconds(Math.max(0, totalSeconds - pausedSeconds - currentPausedSeconds));
-      return;
-    }
-
-    // 활성 상태일 때만 실시간 업데이트
-    const interval = setInterval(() => {
-      const start = timeStats.firstStartTime ? new Date(timeStats.firstStartTime).getTime() : 0;
-      const now = Date.now();
-      const totalSeconds = start > 0 ? Math.floor((now - start) / 1000) : 0;
-      const pausedSeconds = timeStats.pausedDuration || 0;
-      setElapsedSeconds(Math.max(0, totalSeconds - pausedSeconds));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isActive, isPaused, timeStats, timeStats.isCompleted]);
 
   const isCompleted = timeStats.isCompleted;
   const showTimer = isActive || isPaused || isCompleted;

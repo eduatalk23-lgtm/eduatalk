@@ -30,8 +30,10 @@ type PlanViewContainerProps = {
 
 type SessionState = {
   isPaused: boolean;
+  startedAt?: string | null;
   pausedAt?: string | null;
   resumedAt?: string | null;
+  pausedDurationSeconds?: number | null;
 };
 
 type PlansResponse = {

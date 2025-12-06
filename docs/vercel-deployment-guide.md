@@ -55,12 +55,14 @@ npx vercel
 환경 변수를 설정한 후 다음 중 하나의 방법으로 배포를 재시작하세요:
 
 **방법 1: Vercel 대시보드에서 재배포**
+
 1. Vercel 대시보드 → 프로젝트 → **Deployments** 탭
 2. 최신 배포 항목의 **⋯** 메뉴 클릭
 3. **Redeploy** 선택
 4. **Redeploy** 버튼 클릭
 
 **방법 2: GitHub에 푸시**
+
 ```bash
 # 빈 커밋으로 재배포 트리거
 git commit --allow-empty -m "chore: trigger redeploy after env vars update"
@@ -68,6 +70,7 @@ git push origin main
 ```
 
 **방법 3: Vercel CLI 사용**
+
 ```bash
 npx vercel --prod
 ```
@@ -128,19 +131,23 @@ Error: 환경 변수 검증 실패:
 **해결 방법**:
 
 1. **환경 변수 확인**:
+
    - Vercel 대시보드 → 프로젝트 → Settings → Environment Variables
    - `NEXT_PUBLIC_SUPABASE_URL`과 `NEXT_PUBLIC_SUPABASE_ANON_KEY`가 올바르게 설정되었는지 확인
    - 값이 비어있지 않은지 확인 (공백만 있는 경우도 오류 발생)
 
 2. **환경 변수 이름 확인**:
+
    - 정확한 이름: `NEXT_PUBLIC_SUPABASE_URL` (대소문자 정확히 일치)
    - 정확한 이름: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (대소문자 정확히 일치)
 
 3. **환경 선택 확인**:
+
    - Production, Preview, Development 환경 모두 선택했는지 확인
    - 각 환경 변수마다 개별적으로 환경을 선택해야 함
 
 4. **배포 재시작**:
+
    - 환경 변수를 설정한 후 **반드시 배포를 재시작**해야 함
    - Vercel 대시보드 → Deployments → 최신 배포 → Redeploy
    - 또는 GitHub에 푸시하여 자동 배포 트리거

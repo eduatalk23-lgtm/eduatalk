@@ -201,21 +201,29 @@ export async function GET(request: Request) {
       }
     });
 
-    // 활성 세션 조회
+    // 활성 세션 조회 (타이머 초기값 계산을 위해 started_at도 포함)
     const { data: activeSessions } = await supabase
       .from("student_study_sessions")
-      .select("plan_id,paused_at,resumed_at")
+      .select("plan_id,started_at,paused_at,resumed_at,paused_duration_seconds")
       .eq("student_id", user.userId)
       .is("ended_at", null);
 
-    const sessionMap = new Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>();
+    const sessionMap = new Map<string, { 
+      isPaused: boolean; 
+      startedAt?: string | null;
+      pausedAt?: string | null; 
+      resumedAt?: string | null;
+      pausedDurationSeconds?: number | null;
+    }>();
     activeSessions?.forEach((session) => {
       if (session.plan_id) {
         const isPaused = !!session.paused_at && !session.resumed_at;
         sessionMap.set(session.plan_id, {
           isPaused,
+          startedAt: session.started_at,
           pausedAt: session.paused_at,
           resumedAt: session.resumed_at,
+          pausedDurationSeconds: session.paused_duration_seconds,
         });
       }
     });
@@ -242,14 +250,22 @@ export async function GET(request: Request) {
         progress,
         session: session ? {
           isPaused: session.isPaused,
+          startedAt: session.startedAt,
           pausedAt: session.pausedAt,
           resumedAt: session.resumedAt,
+          pausedDurationSeconds: session.pausedDurationSeconds,
         } : undefined,
       };
     });
 
     // 세션 데이터를 객체로 변환
-    const sessionsObj: Record<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }> = {};
+    const sessionsObj: Record<string, { 
+      isPaused: boolean; 
+      startedAt?: string | null;
+      pausedAt?: string | null; 
+      resumedAt?: string | null;
+      pausedDurationSeconds?: number | null;
+    }> = {};
     sessionMap.forEach((value, key) => {
       sessionsObj[key] = value;
     });

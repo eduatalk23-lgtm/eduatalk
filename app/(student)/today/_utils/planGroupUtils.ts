@@ -6,8 +6,10 @@ export type PlanWithContent = Plan & {
   progress?: number | null;
   session?: { 
     isPaused: boolean;
+    startedAt?: string | null;
     pausedAt?: string | null;
     resumedAt?: string | null;
+    pausedDurationSeconds?: number | null;
   };
 };
 
