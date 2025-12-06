@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { PlanWithContent, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -34,8 +34,6 @@ export function PlanItem({
   const isPaused = plan.session?.isPaused ?? false;
   const isActive = !!plan.actual_start_time && !plan.actual_end_time;
   const isRunning = isActive && !isPaused;
-
-
   const isCompleted = !!plan.actual_end_time;
 
   // 타임스탬프 기반 시간 계산 (메모이제이션으로 최적화)
@@ -144,8 +142,8 @@ export function PlanItem({
 
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(plan.id);
-      
-      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+
+      // 완료 입력 페이지로 이동
       router.push(buildPlanExecutionUrl(plan.id, campMode));
     } catch (error) {
       console.error("[PlanItem] 완료 처리 오류:", error);

@@ -252,8 +252,8 @@ export function PlanTimerCard({
 
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(planId);
-      
-      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+
+      // 완료 입력 페이지로 이동
       router.push(buildPlanExecutionUrl(planId, campMode));
     } catch (error) {
       console.error("[PlanTimerCard] 완료 처리 오류:", error);

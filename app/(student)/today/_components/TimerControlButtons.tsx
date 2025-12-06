@@ -43,13 +43,9 @@ export function TimerControlButtons({
   };
 
   if (isCompleted) {
-    const navigateToPlan = () => {
-      router.push(buildPlanExecutionUrl(planId, campMode));
-    };
-
     return (
       <button
-        onClick={navigateToPlan}
+        onClick={() => router.push(buildPlanExecutionUrl(planId, campMode))}
         aria-label="완료한 플랜 상세보기"
         className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 ${
           className || ""

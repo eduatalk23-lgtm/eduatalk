@@ -257,8 +257,8 @@ function PlanGroupCardComponent({
 
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(targetPlanId);
-      
-      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+
+      // 완료 입력 페이지로 이동
       router.push(buildPlanExecutionUrl(targetPlanId, campMode));
     } catch (error) {
       console.error("[PlanGroupCard] 완료 처리 오류:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { Clock, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -65,9 +65,6 @@ export function TimeCheckSection({
   const isActiveState = Boolean(isActive);
   const hasStartTime = normalizedStartTime !== null && normalizedStartTime !== undefined;
   const isPausedState = Boolean(isPaused);
-
-
-
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

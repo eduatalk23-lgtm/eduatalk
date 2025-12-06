@@ -43,29 +43,31 @@ export function DailyPlanView({
   }
 
   // 그룹 렌더링 결과를 메모이제이션하여 중복 렌더링 방지
-  const renderedGroups = useMemo(() =>
-    groups.map((group, index) => {
-      const contentKey = group.plan
-        ? `${group.plan.content_type}:${group.plan.content_id}`
-        : "";
-      const totalPages = totalPagesMap.get(contentKey);
-      const memo = memos.get(group.planNumber);
+  const renderedGroups = useMemo(
+    () =>
+      groups.map((group, index) => {
+        const contentKey = group.plan
+          ? `${group.plan.content_type}:${group.plan.content_id}`
+          : "";
+        const totalPages = totalPagesMap.get(contentKey);
+        const memo = memos.get(group.planNumber);
 
-      return (
-        <div key={`group-${group.planNumber}-${index}`}>
-          <PlanGroupCard
-            group={group}
-            viewMode="daily"
-            sessions={sessions}
-            planDate={planDate}
-            memo={memo}
-            totalPages={totalPages}
-            onViewDetail={() => onViewDetail(group.planNumber)}
-            campMode={campMode}
-          />
-        </div>
-      );
-    }), [groups, sessions, planDate, memos, totalPagesMap, onViewDetail]
+        return (
+          <div key={`group-${group.planNumber}-${index}`}>
+            <PlanGroupCard
+              group={group}
+              viewMode="daily"
+              sessions={sessions}
+              planDate={planDate}
+              memo={memo}
+              totalPages={totalPages}
+              onViewDetail={() => onViewDetail(group.planNumber)}
+              campMode={campMode}
+            />
+          </div>
+        );
+      }),
+    [groups, sessions, planDate, memos, totalPagesMap, onViewDetail, campMode]
   );
 
   return (

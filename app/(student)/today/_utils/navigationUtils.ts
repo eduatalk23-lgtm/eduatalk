@@ -9,7 +9,10 @@
  * @param campMode - 캠프 모드 여부 (기본값: false)
  * @returns 플랜 실행 페이지 URL
  */
-export function buildPlanExecutionUrl(planId: string, campMode?: boolean): string {
+export function buildPlanExecutionUrl(
+  planId: string,
+  campMode: boolean = false
+): string {
   const query = campMode ? "?mode=camp" : "";
   return `/today/plan/${planId}${query}`;
 }
