@@ -169,6 +169,8 @@ export async function GET(request: Request) {
 
     // 콘텐츠 정보 조회 (최적화: 필요한 ID만 조회)
     console.time("[todayPlans] db - contents");
+    const supabase = await createSupabaseServerClient();
+    
     const bookIds = [...new Set(
       plans
         .filter((p) => p.content_type === "book" && p.content_id)
@@ -245,7 +247,6 @@ export async function GET(request: Request) {
 
     // 진행률 조회 (최적화: 필요한 콘텐츠만 조회)
     console.time("[todayPlans] db - progress (narrowed)");
-    const supabase = await createSupabaseServerClient();
     
     // 필요한 콘텐츠의 (content_type, content_id) 쌍만 조회
     const contentKeys = new Set<string>();

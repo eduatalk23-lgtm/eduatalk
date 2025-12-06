@@ -161,7 +161,26 @@ export function PlanViewContainer({
         const response = await fetch(`/api/today/plans${query}`, {
           cache: "no-store",
         });
-        if (!response.ok) throw new Error("플랜 조회 실패");
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = "플랜 조회 실패";
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error?.message || errorMessage;
+          } catch {
+            // JSON 파싱 실패 시 원본 텍스트 사용
+            if (errorText) {
+              errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
+            }
+          }
+          console.error("[PlanViewContainer] API 에러:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText,
+          });
+          throw new Error(errorMessage);
+        }
 
         const responseData = await response.json();
         // API 응답이 { success: true, data: { plans, sessions, ... } } 형식인지 확인
