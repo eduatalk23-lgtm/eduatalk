@@ -370,7 +370,9 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 1: todayPlans 로직을 공유 함수로 추출
 
 **구현 내용**:
+
 1. `/api/today/plans`의 전체 로직을 `lib/data/todayPlans.ts`의 `getTodayPlans` 함수로 이동:
+
    - Wave 1 병렬 쿼리 (planGroups + goals)
    - Wave 2 병렬 쿼리 (activeSessions + fullDaySessions)
    - todayProgress 인라인 계산
@@ -386,11 +388,14 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 2: /camp/today에서 공유 함수 사용
 
 **구현 내용**:
+
 1. `/camp/today` 서버 컴포넌트에서 `getTodayPlans` 호출:
+
    - `includeProgress: true`로 설정하여 todayProgress 포함
    - `narrowQueries: true`로 최적화된 쿼리 사용
 
 2. `todayProgress`는 `getTodayPlans` 결과에서 추출:
+
    - 별도의 `calculateTodayProgress` 호출 제거
    - ~0.6-1.28s 절약
 
@@ -399,6 +404,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
    - `PlanViewContainer`에서 `initialData`가 있으면 네트워크 요청 스킵
 
 **효과**:
+
 - `/camp/today`에서 중복 계산 제거
 - 클라이언트 사이드 네트워크 요청 제거 (서버에서 이미 로드됨)
 - 전체 페이지 로드 시간 개선
@@ -406,7 +412,9 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 3: 중복 "progress" DB 작업 제거
 
 **구현 내용**:
+
 1. `/camp/today`에서 `calculateTodayProgress` 호출 제거:
+
    - 이전: 별도 DB 쿼리로 ~0.6-1.28s 소요
    - 현재: `getTodayPlans` 결과의 `todayProgress` 사용 (JS 계산, ~0.01-0.08ms)
 
@@ -419,6 +427,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 4: 계측 유지 및 before/after 비교
 
 **유지된 타이밍 로그**:
+
 - `[camp/today] db - planGroups`
 - `[camp/today] db - templates`
 - `[camp/today] db - todayPlans` (이제 `getTodayPlans` 호출 시간)
@@ -426,6 +435,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 - `[todayPlans] ...` (모든 하위 타이밍 로그 유지)
 
 **제거된 타이밍 로그**:
+
 - `[camp/today] progress` (더 이상 별도 쿼리 없음)
 
 ## Round 3: Enrich 최적화 및 Progress 통합 (완료)
