@@ -1,6 +1,6 @@
 /**
  * Singleton Timer Store
- * 
+ *
  * 하나의 interval만 유지하여 모든 플랜 타이머를 관리합니다.
  * Drift-free 알고리즘을 사용하여 정확한 시간 계산을 보장합니다.
  */
@@ -63,7 +63,7 @@ let isGlobalIntervalRunning = false;
 
 /**
  * Drift-free 시간 계산
- * 
+ *
  * @param startedAt 시작 시각 (밀리초)
  * @param baseAccumulated 시작 시점의 누적 시간 (초)
  * @param timeOffset 서버 시간 오프셋 (밀리초)
@@ -87,7 +87,7 @@ function calculateDriftFreeSeconds(
 
 /**
  * 모든 활성 타이머 업데이트
- * 
+ *
  * @param getStore Zustand store의 get 함수
  */
 function updateAllTimers(getStore: () => PlanTimerStore) {
@@ -104,7 +104,7 @@ function updateAllTimers(getStore: () => PlanTimerStore) {
         timer.timeOffset,
         now
       );
-      
+
       // 상태가 변경된 경우에만 업데이트
       if (newSeconds !== timer.seconds) {
         updates.push({ planId, seconds: newSeconds });
@@ -160,32 +160,35 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
 
       set({ isVisible });
 
-        if (isVisible) {
-          // 탭이 다시 보이면 모든 실행 중인 타이머 동기화
-          store.timers.forEach((timer, planId) => {
-            if (timer.status === "RUNNING" && timer.isRunning) {
-              // 서버 시간은 현재 클라이언트 시간으로 대체 (실제로는 서버에서 받아야 함)
-              const now = Date.now();
-              const serverNow = now + timer.timeOffset;
-              store.syncNow(planId, serverNow);
-            }
-          });
-          startGlobalInterval(get);
-        } else {
-          // 탭이 숨겨지면 interval 정지
-          stopGlobalInterval();
-        }
+      if (isVisible) {
+        // 탭이 다시 보이면 모든 실행 중인 타이머 동기화
+        store.timers.forEach((timer, planId) => {
+          if (timer.status === "RUNNING" && timer.isRunning) {
+            // 서버 시간은 현재 클라이언트 시간으로 대체 (실제로는 서버에서 받아야 함)
+            const now = Date.now();
+            const serverNow = now + timer.timeOffset;
+            store.syncNow(planId, serverNow);
+          }
+        });
+        startGlobalInterval(get);
+      } else {
+        // 탭이 숨겨지면 interval 정지
+        stopGlobalInterval();
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    
+
     // 초기 상태 설정
     set({ isVisible: document.visibilityState === "visible" });
   }
 
   return {
     timers: new Map(),
-    isVisible: typeof document !== "undefined" ? document.visibilityState === "visible" : true,
+    isVisible:
+      typeof document !== "undefined"
+        ? document.visibilityState === "visible"
+        : true,
 
     initPlanTimer: (planId, options) => {
       const { status, accumulatedSeconds, startedAt, serverNow } = options;
@@ -412,4 +415,3 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
     },
   };
 });
-

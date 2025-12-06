@@ -666,14 +666,15 @@ export async function resumePlan(
       })
       .eq("id", activeSession.id);
 
-    // 플랜의 paused_duration_seconds 업데이트 (한 번의 쿼리로 조회 및 업데이트)
+    // 플랜의 paused_duration_seconds 업데이트 및 현재 누적 시간 계산을 위한 조회
     const { data: planData } = await supabase
       .from("student_plan")
-      .select("paused_duration_seconds")
+      .select("actual_start_time, paused_duration_seconds")
       .eq("id", planId)
       .eq("student_id", user.userId)
       .maybeSingle();
 
+    // 플랜의 paused_duration_seconds 업데이트
     const planPausedDuration = planData?.paused_duration_seconds || 0;
     await supabase
       .from("student_plan")
@@ -685,14 +686,6 @@ export async function resumePlan(
 
     // 서버 현재 시간 반환
     const serverNow = Date.now();
-
-    // 플랜의 현재 누적 시간 계산
-    const { data: planData } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, paused_duration_seconds")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
 
     let accumulatedSeconds = 0;
     let startedAt: string | null = null;
