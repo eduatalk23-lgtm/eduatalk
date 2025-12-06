@@ -191,21 +191,30 @@ export function PlanExecutionForm({
   };
 
   const handlePostpone = async () => {
-    if (!confirm("이 플랜을 내일로 미루시겠습니까?")) {
+    if (!confirm("이 플랜을 내일 일정으로 미루시겠습니까?")) {
       return;
     }
 
     setIsLoading(true);
     setErrors({});
+
     try {
       const result = await postponePlan(plan.id);
+
       if (result.success) {
         const params = new URLSearchParams();
         if (plan.plan_date) {
           params.set("date", plan.plan_date);
         }
         const query = params.toString();
-        router.push(query ? `/today?${query}` : "/today");
+
+        // 모드에 따른 리다이렉트 분기
+        if (mode === "camp") {
+          router.push(query ? `/camp/today?${query}` : "/camp/today");
+        } else {
+          router.push(query ? `/today?${query}` : "/today");
+        }
+
         router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 미루기에 실패했습니다." });
