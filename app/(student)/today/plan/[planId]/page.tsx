@@ -12,11 +12,17 @@ import {
   formatTimestamp,
 } from "@/app/(student)/today/_utils/planGroupUtils";
 
+type PlanCompletionMode = "today" | "camp";
+
 type PlanExecutionPageProps = {
   params: Promise<{ planId: string }>;
+  searchParams: Promise<{ mode?: string }>;
 };
 
-export default async function PlanExecutionPage({ params }: PlanExecutionPageProps) {
+export default async function PlanExecutionPage({ 
+  params,
+  searchParams,
+}: PlanExecutionPageProps) {
   const { planId } = await params;
   const user = await getCurrentUser();
 
@@ -105,14 +111,23 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
     : 0;
   const formattedPureStudyTime = hasCompletedTimer ? formatTime(Math.max(0, pureStudySeconds)) : null;
 
+  // 모드 읽기 (기본값: "today")
+  const resolvedSearchParams = await searchParams;
+  const modeParam = resolvedSearchParams?.mode;
+  const mode: PlanCompletionMode = modeParam === "camp" ? "camp" : "today";
+
+  // 모드에 따른 뒤로가기 링크
+  const backLinkHref = mode === "camp" ? "/camp/today" : "/today";
+  const backLinkText = mode === "camp" ? "캠프 일정으로 돌아가기" : "Today로 돌아가기";
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
       <Link
-        href="/today"
+        href={backLinkHref}
         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-gray-900"
       >
         <span>←</span>
-        <span>Today로 돌아가기</span>
+        <span>{backLinkText}</span>
       </Link>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
@@ -174,6 +189,7 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
         )}
 
         <PlanExecutionForm
+          mode={mode}
           plan={plan}
           content={content}
           activeSession={activeSession}

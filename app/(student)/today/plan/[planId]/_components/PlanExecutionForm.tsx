@@ -9,7 +9,10 @@ import { startPlan, completePlan, postponePlan, preparePlanCompletion } from "@/
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
 
+type PlanCompletionMode = "today" | "camp";
+
 type PlanExecutionFormProps = {
+  mode?: PlanCompletionMode;
   plan: Plan;
   content: Book | Lecture | CustomContent;
   activeSession: StudySession | null;
@@ -24,6 +27,7 @@ type FormErrors = {
 };
 
 export function PlanExecutionForm({
+  mode = "today",
   plan,
   content,
   activeSession,
@@ -144,13 +148,26 @@ export function PlanExecutionForm({
         // 타이머 스토어에서 제거
         timerStore.removeTimer(plan.id);
         
-        const params = new URLSearchParams();
-        params.set("completedPlanId", plan.id);
-        if (plan.plan_date) {
-          params.set("date", plan.plan_date);
+        // 모드에 따른 리다이렉트
+        if (mode === "camp") {
+          // 캠프 모드: /camp/today로 리다이렉트
+          const params = new URLSearchParams();
+          params.set("completedPlanId", plan.id);
+          if (plan.plan_date) {
+            params.set("date", plan.plan_date);
+          }
+          const query = params.toString();
+          router.push(query ? `/camp/today?${query}` : "/camp/today");
+        } else {
+          // Today 모드: /today로 리다이렉트
+          const params = new URLSearchParams();
+          params.set("completedPlanId", plan.id);
+          if (plan.plan_date) {
+            params.set("date", plan.plan_date);
+          }
+          const query = params.toString();
+          router.push(query ? `/today?${query}` : "/today");
         }
-        const query = params.toString();
-        router.push(query ? `/today?${query}` : "/today");
         router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 완료에 실패했습니다." });
@@ -446,7 +463,9 @@ export function PlanExecutionForm({
             <div>
               <h3 className="text-sm font-semibold text-gray-700">연결된 학습 블록</h3>
               <p className="mt-1 text-xs text-gray-500">
-                이 페이지에서 완료 처리되는 것은 <strong className="font-semibold text-gray-700">현재 블록</strong>만입니다. 다른 블록의 상태는 변경되지 않습니다.
+                {mode === "camp" 
+                  ? "이 캠프 세션에서 실제로 학습한 범위를 입력하면 이 블록이 완료 처리됩니다. 다른 블록의 상태는 변경되지 않습니다."
+                  : "이 페이지에서 완료 처리되는 것은 <strong className=\"font-semibold text-gray-700\">현재 블록</strong>만입니다. 다른 블록의 상태는 변경되지 않습니다."}
               </p>
             </div>
             <div className="flex flex-col gap-2">

@@ -33,7 +33,7 @@ export function TimerControlButtons({
   const router = useRouter();
 
   const handleComplete = () => {
-    if (!confirm("플랜을 완료하시겠습니까?")) {
+    if (!confirm("지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요?")) {
       return;
     }
     onComplete();

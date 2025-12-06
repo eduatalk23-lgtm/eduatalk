@@ -5,8 +5,10 @@ import { PlanWithContent, calculateStudyTimeFromTimestamps } from "../_utils/pla
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
-import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
+import { startPlan, pausePlan, resumePlan, preparePlanCompletion } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
+import { usePlanTimerStore } from "@/lib/store/planTimerStore";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanItemProps = {
   plan: PlanWithContent;
@@ -118,8 +120,36 @@ export function PlanItem({
     }
   };
 
-  const handleComplete = () => {
-    router.push(`/today/plan/${plan.id}`);
+  const handleComplete = async () => {
+    // 확인 다이얼로그
+    const confirmed = confirm(
+      "지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요?"
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await preparePlanCompletion(plan.id);
+      
+      if (!result.success) {
+        showError(result.error || "플랜 완료 준비에 실패했습니다.");
+        return;
+      }
+
+      // 타이머 정지 (스토어에서 제거)
+      timerStore.removeTimer(plan.id);
+      
+      // 완료 입력 페이지로 이동 (CAMP 모드)
+      router.push(`/today/plan/${plan.id}?mode=camp`);
+    } catch (error) {
+      console.error("[PlanItem] 완료 처리 오류:", error);
+      showError("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const contentTypeIcon =

@@ -16,13 +16,15 @@ import { PlanMemoModal } from "./PlanMemoModal";
 import { PlanRangeAdjustModal } from "./PlanRangeAdjustModal";
 import { PlanDetailInfo } from "./PlanDetailInfo";
 import { TimeCheckSection } from "./TimeCheckSection";
-import { startPlan, pausePlan, resumePlan, stopAllActiveSessionsForPlan } from "../actions/todayActions";
+import { startPlan, pausePlan, resumePlan, preparePlanCompletion } from "../actions/todayActions";
 import { savePlanMemo } from "../actions/planMemoActions";
 import { adjustPlanRanges } from "../actions/planRangeActions";
 import { resetPlanTimer } from "../actions/timerResetActions";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useTransition, useMemo, memo } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
+import { usePlanTimerStore } from "@/lib/store/planTimerStore";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -44,6 +46,8 @@ function PlanGroupCardComponent({
   onViewDetail,
 }: PlanGroupCardProps) {
   const router = useRouter();
+  const timerStore = usePlanTimerStore();
+  const { showError } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -228,34 +232,34 @@ function PlanGroupCardComponent({
   };
 
   const handleGroupComplete = async () => {
-    // 완료 버튼을 누르면 활성 세션을 먼저 종료하여 타이머 중지
-    const activePlan = aggregatedInfo.activePlan;
-    if (!activePlan) {
-      // 활성 플랜이 없으면 상세보기 페이지로 이동
-      router.push(`/today/plan/${group.plan.id}`);
+    const targetPlanId = aggregatedInfo.activePlan?.id || group.plan.id;
+    
+    // 확인 다이얼로그
+    const confirmed = confirm(
+      "지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요?"
+    );
+    
+    if (!confirmed) {
       return;
     }
 
     setIsLoading(true);
     try {
-      // 활성 플랜의 모든 활성 세션 종료
-      const result = await stopAllActiveSessionsForPlan(activePlan.id);
+      const result = await preparePlanCompletion(targetPlanId);
       
       if (!result.success) {
-        alert(result.error || "세션 종료에 실패했습니다.");
+        showError(result.error || "플랜 완료 준비에 실패했습니다.");
         return;
       }
 
-      // 같은 plan_number를 가진 플랜은 하나만 있으므로 다른 플랜 종료 불필요
-
-      // 페이지 새로고침하여 타이머 중지 확인
-      router.refresh();
-
-      // 상세보기 페이지로 이동
-      router.push(`/today/plan/${activePlan.id}`);
+      // 타이머 정지 (스토어에서 제거)
+      timerStore.removeTimer(targetPlanId);
+      
+      // 완료 입력 페이지로 이동 (CAMP 모드)
+      router.push(`/today/plan/${targetPlanId}?mode=camp`);
     } catch (error) {
       console.error("[PlanGroupCard] 완료 처리 오류:", error);
-      alert("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
