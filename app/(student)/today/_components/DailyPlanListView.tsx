@@ -12,6 +12,7 @@ type DailyPlanListViewProps = {
   >;
   planDate: string;
   onViewDetail: (planNumber: number | null) => void;
+  serverNow?: number;
 };
 
 export function DailyPlanListView({
@@ -19,6 +20,7 @@ export function DailyPlanListView({
   sessions,
   planDate,
   onViewDetail,
+  serverNow = Date.now(),
 }: DailyPlanListViewProps) {
   if (groups.length === 0) {
     const formattedDate = planDate
@@ -52,6 +54,7 @@ export function DailyPlanListView({
           planDate={planDate}
           viewMode="daily"
           onViewDetail={() => onViewDetail(group.planNumber)}
+          serverNow={serverNow}
         />
       ))}
     </div>

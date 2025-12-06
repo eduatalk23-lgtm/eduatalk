@@ -13,6 +13,7 @@ import {
   postponePlan,
 } from "../actions/todayActions";
 import { Clock } from "lucide-react";
+import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 
 type PlanRunState = "idle" | "running" | "paused" | "completed";
 type PendingAction = "start" | "pause" | "resume" | "complete";
@@ -29,6 +30,7 @@ type PlanCardProps = {
   planDate: string;
   viewMode: "single" | "daily";
   onViewDetail?: () => void;
+  serverNow?: number;
 };
 
 export function PlanCard({
@@ -37,10 +39,12 @@ export function PlanCard({
   planDate,
   viewMode,
   onViewDetail,
+  serverNow = Date.now(),
 }: PlanCardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const timerStore = usePlanTimerStore();
 
   // 콘텐츠 정보
   const contentInfo = useMemo(
@@ -89,57 +93,51 @@ export function PlanCard({
     [group.plan, activePlan, sessions]
   );
 
-  // 서버에서 계산된 초기 타이머 상태 계산
-  const initialTimerState = useMemo(() => {
+  // 서버에서 계산된 초기 타이머 상태 계산 (새로운 시스템 사용)
+  const timerState = useMemo(() => {
     const plan = group.plan;
     const session = sessions.get(plan.id);
 
     // 완료된 경우
     if (plan.actual_end_time && plan.total_duration_seconds !== null && plan.total_duration_seconds !== undefined) {
       return {
-        initialDuration: plan.total_duration_seconds,
-        isInitiallyRunning: false,
+        status: "COMPLETED" as const,
+        accumulatedSeconds: plan.total_duration_seconds,
+        startedAt: null,
       };
     }
 
     // 시작하지 않은 경우
     if (!plan.actual_start_time) {
       return {
-        initialDuration: 0,
-        isInitiallyRunning: false,
+        status: "NOT_STARTED" as const,
+        accumulatedSeconds: 0,
+        startedAt: null,
       };
     }
 
-    const startMs = new Date(plan.actual_start_time).getTime();
-    if (!Number.isFinite(startMs)) {
-      return {
-        initialDuration: 0,
-        isInitiallyRunning: false,
-      };
-    }
-
-    const now = Date.now();
-
-    // 활성 세션이 있고 일시정지 중인 경우
+    // 일시정지 중인 경우
     if (session && session.isPaused && session.pausedAt) {
+      const startMs = new Date(plan.actual_start_time).getTime();
       const pausedAtMs = new Date(session.pausedAt).getTime();
-      if (Number.isFinite(pausedAtMs)) {
-        // 일시정지 시점까지의 경과 시간 계산
+      if (Number.isFinite(startMs) && Number.isFinite(pausedAtMs)) {
         const elapsedUntilPause = Math.floor((pausedAtMs - startMs) / 1000);
         const sessionPausedDuration = session.pausedDurationSeconds || 0;
         const planPausedDuration = plan.paused_duration_seconds || 0;
         const accumulatedSeconds = Math.max(0, elapsedUntilPause - sessionPausedDuration - planPausedDuration);
 
         return {
-          initialDuration: accumulatedSeconds,
-          isInitiallyRunning: false,
+          status: "PAUSED" as const,
+          accumulatedSeconds,
+          startedAt: null,
         };
       }
     }
 
-    // 실행 중인 경우
+    // 실행 중인 경우 - 서버에서 계산된 누적 시간 사용
     if (session && session.startedAt) {
       const sessionStartMs = new Date(session.startedAt).getTime();
+      const now = Date.now();
       if (Number.isFinite(sessionStartMs)) {
         const elapsed = Math.floor((now - sessionStartMs) / 1000);
         const sessionPausedDuration = session.pausedDurationSeconds || 0;
@@ -147,20 +145,22 @@ export function PlanCard({
         const accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
 
         return {
-          initialDuration: accumulatedSeconds,
-          isInitiallyRunning: true,
+          status: "RUNNING" as const,
+          accumulatedSeconds,
+          startedAt: session.startedAt,
         };
       }
     }
 
     // 활성 세션이 없지만 플랜이 시작된 경우
-    const elapsed = Math.floor((now - startMs) / 1000);
+    const elapsed = Math.floor((Date.now() - startMs) / 1000);
     const pausedDuration = plan.paused_duration_seconds || 0;
     const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
 
     return {
-      initialDuration: accumulatedSeconds,
-      isInitiallyRunning: true,
+      status: "RUNNING" as const,
+      accumulatedSeconds,
+      startedAt: plan.actual_start_time,
     };
   }, [group.plan, sessions]);
 
@@ -204,6 +204,9 @@ export function PlanCard({
       if (!result.success) {
         alert(result.error || "플랜 시작에 실패했습니다.");
         setOptimisticStatus(null);
+      } else if (result.serverNow && result.status && result.startedAt) {
+        // 스토어에 타이머 시작
+        timerStore.startTimer(waitingPlan.id, result.serverNow);
       }
     } catch (error) {
       setOptimisticStatus(null);
@@ -231,6 +234,9 @@ export function PlanCard({
       if (!result.success) {
         setOptimisticStatus(null);
         alert(result.error || "플랜 일시정지에 실패했습니다.");
+      } else if (result.serverNow && result.accumulatedSeconds !== undefined) {
+        // 스토어에 타이머 일시정지
+        timerStore.pauseTimer(plan.id, result.accumulatedSeconds);
       }
     } catch (error) {
       setOptimisticStatus(null);
@@ -257,6 +263,9 @@ export function PlanCard({
       if (!result.success) {
         setOptimisticStatus(null);
         alert(result.error || "플랜 재개에 실패했습니다.");
+      } else if (result.serverNow && result.status && result.startedAt) {
+        // 스토어에 타이머 재개
+        timerStore.startTimer(plan.id, result.serverNow);
       }
     } catch (error) {
       setOptimisticStatus(null);
@@ -277,6 +286,8 @@ export function PlanCard({
     setPendingAction("complete");
     try {
       await stopAllActiveSessionsForPlan(activePlan.id);
+      // 완료 시 타이머 정지 (스토어에서 제거)
+      timerStore.removeTimer(activePlan.id);
       router.refresh();
       router.push(`/today/plan/${activePlan.id}`);
     } catch (error) {
@@ -346,6 +357,7 @@ export function PlanCard({
 
         {/* 타이머 */}
         <PlanTimer
+          planId={group.plan.id}
           timeStats={timeStats}
           isPaused={isPausedState}
           isActive={isRunning}
@@ -361,8 +373,10 @@ export function PlanCard({
               : undefined
           }
           canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
-          initialDuration={initialTimerState.initialDuration}
-          isInitiallyRunning={initialTimerState.isInitiallyRunning}
+          status={timerState.status}
+          accumulatedSeconds={timerState.accumulatedSeconds}
+          startedAt={timerState.startedAt}
+          serverNow={serverNow}
         />
 
 
@@ -413,6 +427,7 @@ export function PlanCard({
 
         {/* 타이머 */}
         <PlanTimer
+          planId={group.plan.id}
           timeStats={timeStats}
           isPaused={isPausedState}
           isActive={isRunning}
@@ -429,8 +444,10 @@ export function PlanCard({
           }
           canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
           compact
-          initialDuration={initialTimerState.initialDuration}
-          isInitiallyRunning={initialTimerState.isInitiallyRunning}
+          status={timerState.status}
+          accumulatedSeconds={timerState.accumulatedSeconds}
+          startedAt={timerState.startedAt}
+          serverNow={serverNow}
         />
 
       </div>

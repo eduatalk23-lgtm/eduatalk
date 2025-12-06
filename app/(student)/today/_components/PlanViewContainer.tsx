@@ -41,6 +41,7 @@ type PlansResponse = {
   sessions: Record<string, SessionState>;
   planDate: string;
   isToday?: boolean;
+  serverNow?: number;
 };
 
 const SESSION_REFRESH_INTERVAL_MS = 30000;
@@ -93,6 +94,7 @@ export function PlanViewContainer({
   const [isToday, setIsToday] = useState(true);
   const [loading, setLoading] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [serverNow, setServerNow] = useState<number>(Date.now());
 
   const queryDateRef = useRef<string | null>(null);
 
@@ -144,6 +146,12 @@ export function PlanViewContainer({
         queryDateRef.current = resolvedDate || null;
         const resolvedIsToday = Boolean(data?.isToday);
         setIsToday(resolvedIsToday);
+        
+        // serverNow 저장
+        if (data?.serverNow) {
+          setServerNow(data.serverNow);
+        }
+        
         if (resolvedDate) {
           onDateChange?.(resolvedDate, { isToday: resolvedIsToday });
         }
@@ -248,6 +256,7 @@ export function PlanViewContainer({
           sessions={sessions}
           planDate={planDate}
           onViewDetail={handleViewDetail}
+          serverNow={serverNow}
         />
       ) : (
         <SinglePlanView
@@ -256,6 +265,7 @@ export function PlanViewContainer({
           planDate={planDate}
           selectedPlanNumber={selectedPlanNumber}
           onSelectPlan={setSelectedPlanNumber}
+          serverNow={serverNow}
         />
       )}
     </div>

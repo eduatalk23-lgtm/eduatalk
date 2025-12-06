@@ -75,9 +75,19 @@ export async function startPlan(
       .eq("student_id", user.userId)
       .is("actual_start_time", null); // 처음 시작하는 경우만 업데이트
 
+    // 서버 현재 시간 반환
+    const serverNow = Date.now();
+
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
-    return { success: true, sessionId: result.sessionId };
+    return { 
+      success: true, 
+      sessionId: result.sessionId,
+      serverNow,
+      status: "RUNNING" as const,
+      accumulatedSeconds: 0,
+      startedAt: startTime,
+    };
   } catch (error) {
     console.error("[todayActions] 플랜 시작 실패", error);
     return {
@@ -372,11 +382,20 @@ export async function completePlan(
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
     const finalDuration = totalDurationSeconds ? Math.max(0, totalDurationSeconds - totalPausedDuration) : 0;
 
+    // 서버 현재 시간 반환
+    const serverNow = Date.now();
+
     // 필요한 경로만 재검증 (성능 최적화)
     // 완료 시에는 대시보드도 업데이트 필요
     revalidatePath("/today");
     revalidatePath("/dashboard");
-    return { success: true };
+    return { 
+      success: true,
+      serverNow,
+      status: "COMPLETED" as const,
+      accumulatedSeconds: finalDuration,
+      startedAt: null,
+    };
   } catch (error) {
     console.error("[todayActions] 플랜 완료 실패", error);
     return {
@@ -542,11 +561,35 @@ export async function pausePlan(
       // 일시정지는 성공했으므로 경고만 로그하고 계속 진행
     }
 
-    // duration 계산은 클라이언트에서 타임스탬프 기반으로 수행하므로 서버에서 불필요
+    // 서버 현재 시간 반환
+    const serverNow = Date.now();
+
+    // 플랜의 현재 누적 시간 계산
+    const { data: planData } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, paused_duration_seconds")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    let accumulatedSeconds = 0;
+    if (planData?.actual_start_time) {
+      const startMs = new Date(planData.actual_start_time).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - startMs) / 1000);
+      const pausedDuration = planData.paused_duration_seconds || 0;
+      accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
+    }
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
-    return { success: true };
+    return { 
+      success: true,
+      serverNow,
+      status: "PAUSED" as const,
+      accumulatedSeconds,
+      startedAt: null,
+    };
   } catch (error) {
     console.error("[todayActions] 플랜 일시정지 실패", error);
     return {
@@ -574,7 +617,7 @@ export async function resumePlan(
     // 활성 세션 조회 (최신 세션만 조회하여 최적화)
     const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, paused_at, paused_duration_seconds, resumed_at")
+      .select("id, started_at, paused_at, paused_duration_seconds, resumed_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
@@ -623,11 +666,38 @@ export async function resumePlan(
       .eq("id", planId)
       .eq("student_id", user.userId);
 
-    // duration 계산은 클라이언트에서 타임스탬프 기반으로 수행하므로 서버에서 불필요
+    // 서버 현재 시간 반환
+    const serverNow = Date.now();
+
+    // 플랜의 현재 누적 시간 계산
+    const { data: planData } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, paused_duration_seconds")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    let accumulatedSeconds = 0;
+    let startedAt: string | null = null;
+    if (planData?.actual_start_time && activeSession?.started_at) {
+      const sessionStartMs = new Date(activeSession.started_at).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - sessionStartMs) / 1000);
+      const sessionPausedDuration = activeSession.paused_duration_seconds || 0;
+      const planPausedDuration = planData.paused_duration_seconds || 0;
+      accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
+      startedAt = activeSession.started_at;
+    }
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
-    return { success: true };
+    return { 
+      success: true,
+      serverNow,
+      status: "RUNNING" as const,
+      accumulatedSeconds,
+      startedAt,
+    };
   } catch (error) {
     console.error("[todayActions] 플랜 재개 실패", error);
     return {

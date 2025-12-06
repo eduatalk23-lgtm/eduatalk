@@ -1,11 +1,14 @@
 /**
- * 타이머 초기값 계산 유틸리티
- * 서버에서 클라이언트로 전달할 초기 타이머 상태를 계산합니다.
+ * Drift-free Timer Utilities
+ * 
+ * 서버 시간과 클라이언트 시간의 차이를 보정하여 정확한 시간 계산을 보장합니다.
  */
+
+export type TimerStatus = "NOT_STARTED" | "RUNNING" | "PAUSED" | "COMPLETED";
 
 export type PlanTimerState = {
   /** 서버 기준 상태 */
-  status: "NOT_STARTED" | "RUNNING" | "PAUSED" | "COMPLETED";
+  status: TimerStatus;
   /** 누적된 학습 시간 (초) */
   accumulatedSeconds: number;
   /** 마지막 시작 시각 (UTC ISO 타임스탬프, RUNNING일 때만 존재) */
@@ -17,14 +20,53 @@ export type PlanTimerState = {
 };
 
 /**
+ * 서버 시간 오프셋 계산
+ * 
+ * @param serverNow 서버 현재 시간 (밀리초)
+ * @param clientNow 클라이언트 현재 시간 (밀리초, 기본값: Date.now())
+ * @returns 서버 시간 오프셋 (밀리초)
+ */
+export function calculateServerTimeOffset(
+  serverNow: number,
+  clientNow: number = Date.now()
+): number {
+  return serverNow - clientNow;
+}
+
+/**
+ * Drift-free 시간 계산
+ * 
+ * @param startedAt 시작 시각 (밀리초, 서버 시간 기준)
+ * @param baseAccumulated 시작 시점의 누적 시간 (초)
+ * @param timeOffset 서버 시간 오프셋 (밀리초)
+ * @param now 현재 시간 (밀리초, 기본값: Date.now())
+ * @returns 현재 경과 시간 (초)
+ */
+export function calculateDriftFreeSeconds(
+  startedAt: number | null,
+  baseAccumulated: number,
+  timeOffset: number,
+  now: number = Date.now()
+): number {
+  if (!startedAt) {
+    return baseAccumulated;
+  }
+
+  const serverNow = now + timeOffset;
+  const elapsed = Math.floor((serverNow - startedAt) / 1000);
+  return baseAccumulated + elapsed;
+}
+
+/**
  * 플랜의 타이머 초기 상태를 계산합니다.
  * 
  * @param plan 플랜 정보
  * @param activeSession 활성 세션 정보 (선택)
- * @param now 현재 시간 (밀리초, 기본값: Date.now())
+ * @param serverNow 서버 현재 시간 (밀리초)
+ * @param clientNow 클라이언트 현재 시간 (밀리초, 기본값: Date.now())
  * @returns 타이머 초기 상태
  */
-export function calculatePlanTimerState(
+export function computeInitialTimerState(
   plan: {
     actual_start_time: string | null | undefined;
     actual_end_time: string | null | undefined;
@@ -37,7 +79,8 @@ export function calculatePlanTimerState(
     resumed_at?: string | null;
     paused_duration_seconds?: number | null;
   } | null,
-  now: number = Date.now()
+  serverNow: number,
+  clientNow: number = Date.now()
 ): PlanTimerState {
   // 완료된 경우
   if (plan.actual_end_time && plan.total_duration_seconds !== null && plan.total_duration_seconds !== undefined) {
@@ -96,7 +139,10 @@ export function calculatePlanTimerState(
   if (activeSession && activeSession.started_at) {
     const sessionStartMs = new Date(activeSession.started_at).getTime();
     if (Number.isFinite(sessionStartMs)) {
-      const elapsed = Math.floor((now - sessionStartMs) / 1000);
+      // 서버 시간 기준으로 계산
+      const timeOffset = calculateServerTimeOffset(serverNow, clientNow);
+      const serverNowAdjusted = clientNow + timeOffset;
+      const elapsed = Math.floor((serverNowAdjusted - sessionStartMs) / 1000);
       const sessionPausedDuration = activeSession.paused_duration_seconds || 0;
       const planPausedDuration = plan.paused_duration_seconds || 0;
       const accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
@@ -111,9 +157,10 @@ export function calculatePlanTimerState(
     }
   }
 
-  // 활성 세션이 없지만 플랜이 시작된 경우 (이론적으로는 발생하지 않아야 함)
-  // 기존 accumulated_seconds를 사용
-  const elapsed = Math.floor((now - startMs) / 1000);
+  // 활성 세션이 없지만 플랜이 시작된 경우
+  const timeOffset = calculateServerTimeOffset(serverNow, clientNow);
+  const serverNowAdjusted = clientNow + timeOffset;
+  const elapsed = Math.floor((serverNowAdjusted - startMs) / 1000);
   const pausedDuration = plan.paused_duration_seconds || 0;
   const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
 
@@ -125,4 +172,3 @@ export function calculatePlanTimerState(
     isInitiallyRunning: true,
   };
 }
-

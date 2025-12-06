@@ -4,11 +4,12 @@ import { Play, Pause, Square, Clock, CheckCircle2 } from "lucide-react";
 import { formatTime, TimeStats, formatTimestamp } from "../_utils/planGroupUtils";
 import { cn } from "@/lib/cn";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
-import { useMemo } from "react";
+import type { TimerStatus } from "@/lib/store/planTimerStore";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
 type PlanTimerProps = {
+  planId: string;
   timeStats: TimeStats;
   isPaused: boolean;
   isActive: boolean;
@@ -21,14 +22,14 @@ type PlanTimerProps = {
   canPostpone?: boolean;
   pendingAction?: PendingAction;
   compact?: boolean;
-};
-
-type PlanTimerPropsWithInitial = PlanTimerProps & {
-  initialDuration: number;
-  isInitiallyRunning: boolean;
+  status: TimerStatus;
+  accumulatedSeconds: number;
+  startedAt: string | null;
+  serverNow: number;
 };
 
 export function PlanTimer({
+  planId,
   timeStats,
   isPaused,
   isActive,
@@ -41,15 +42,18 @@ export function PlanTimer({
   canPostpone = false,
   pendingAction = null,
   compact = false,
-  initialDuration,
-  isInitiallyRunning,
-}: PlanTimerPropsWithInitial) {
-
-  // 타이머 훅 사용
+  status,
+  accumulatedSeconds,
+  startedAt,
+  serverNow,
+}: PlanTimerProps) {
+  // 새로운 스토어 기반 타이머 훅 사용
   const { seconds } = usePlanTimer({
-    initialDuration,
-    isInitiallyRunning,
-    isPaused,
+    planId,
+    status,
+    accumulatedSeconds,
+    startedAt,
+    serverNow,
     isCompleted: timeStats.isCompleted,
   });
 
@@ -86,7 +90,7 @@ export function PlanTimer({
                 <Clock className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">학습 시간</span>
               </div>
-              <div className="text-lg font-bold text-indigo-600">{formatTime(elapsedSeconds)}</div>
+              <div className="text-lg font-bold text-indigo-600">{formatTime(seconds)}</div>
             </div>
             {currentPendingMessage && (
               <div className="text-right text-[11px] font-semibold text-indigo-600">{currentPendingMessage}</div>
@@ -204,7 +208,7 @@ export function PlanTimer({
                 <Clock className="h-5 w-5 text-gray-500" />
                 <span className="text-base font-medium text-gray-700">학습 시간</span>
               </div>
-              <div className="text-2xl font-bold text-indigo-600">{formatTime(elapsedSeconds)}</div>
+              <div className="text-2xl font-bold text-indigo-600">{formatTime(seconds)}</div>
             </div>
             {currentPendingMessage && (
               <div className="mt-2 text-sm font-semibold text-indigo-600">{currentPendingMessage}</div>

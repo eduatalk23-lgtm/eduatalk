@@ -327,6 +327,7 @@ export async function TodayPlanList() {
         totalPagesMap={totalPagesMap}
         initialMode="daily"
         initialSelectedPlanNumber={groups[0]?.planNumber ?? null}
+        serverNow={Date.now()}
       />
     </div>
   );

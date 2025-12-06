@@ -19,9 +19,10 @@ type PlanWithContent = Plan & {
 type DraggablePlanListProps = {
   plans: PlanWithContent[];
   planDate: string;
+  serverNow?: number;
 };
 
-export function DraggablePlanList({ plans: initialPlans, planDate }: DraggablePlanListProps) {
+export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = Date.now() }: DraggablePlanListProps) {
   const router = useRouter();
   const [plans, setPlans] = useState(initialPlans);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -184,6 +185,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate }: DraggablePl
                   allowTimerControl={primaryPlanIds.has(plan.id)}
                   sessionStartedAt={plan.session?.startedAt ?? null}
                   sessionPausedDurationSeconds={plan.session?.pausedDurationSeconds ?? null}
+                  serverNow={serverNow}
                 />
               </div>
             );

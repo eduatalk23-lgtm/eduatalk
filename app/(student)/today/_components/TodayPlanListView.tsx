@@ -14,6 +14,7 @@ type TodayPlanListViewProps = {
   totalPagesMap: Map<string, number>; // contentKey -> totalPages
   initialMode?: ViewMode;
   initialSelectedPlanNumber?: number | null;
+  serverNow?: number;
 };
 
 export function TodayPlanListView({
@@ -24,6 +25,7 @@ export function TodayPlanListView({
   totalPagesMap,
   initialMode = "single",
   initialSelectedPlanNumber = null,
+  serverNow = Date.now(),
 }: TodayPlanListViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
@@ -65,6 +67,7 @@ export function TodayPlanListView({
           onSelectPlan={setSelectedPlanNumber}
           sessions={sessions}
           planDate={planDate}
+          serverNow={serverNow}
         />
       )}
     </div>

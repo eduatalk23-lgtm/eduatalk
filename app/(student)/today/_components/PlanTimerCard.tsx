@@ -6,6 +6,8 @@ import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
+import { usePlanTimerStore } from "@/lib/store/planTimerStore";
+import type { TimerStatus } from "@/lib/store/planTimerStore";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -27,6 +29,8 @@ type PlanTimerCardProps = {
   // 세션 정보 (타이머 초기값 계산용)
   sessionStartedAt?: string | null;
   sessionPausedDurationSeconds?: number | null;
+  // 서버 현재 시간 (밀리초)
+  serverNow?: number;
 };
 
 export function PlanTimerCard({
@@ -46,6 +50,7 @@ export function PlanTimerCard({
   allowTimerControl = true,
   sessionStartedAt,
   sessionPausedDurationSeconds,
+  serverNow = Date.now(),
 }: PlanTimerCardProps) {
   const router = useRouter();
   const [isRunning, setIsRunning] = useState(!!actualStartTime && !actualEndTime && !initialIsPaused);
@@ -54,28 +59,31 @@ export function PlanTimerCard({
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
   // 서버에서 계산된 초기 타이머 상태 계산
-  const initialTimerState = useMemo(() => {
+  const timerState = useMemo(() => {
     // 완료된 경우
     if (actualEndTime && totalDurationSeconds !== null && totalDurationSeconds !== undefined) {
       return {
-        initialDuration: totalDurationSeconds,
-        isInitiallyRunning: false,
+        status: "COMPLETED" as TimerStatus,
+        accumulatedSeconds: totalDurationSeconds,
+        startedAt: null,
       };
     }
 
     // 시작하지 않은 경우
     if (!actualStartTime) {
       return {
-        initialDuration: 0,
-        isInitiallyRunning: false,
+        status: "NOT_STARTED" as TimerStatus,
+        accumulatedSeconds: 0,
+        startedAt: null,
       };
     }
 
     const startMs = new Date(actualStartTime).getTime();
     if (!Number.isFinite(startMs)) {
       return {
-        initialDuration: 0,
-        isInitiallyRunning: false,
+        status: "NOT_STARTED" as TimerStatus,
+        accumulatedSeconds: 0,
+        startedAt: null,
       };
     }
 
@@ -92,8 +100,9 @@ export function PlanTimerCard({
         const accumulatedSeconds = Math.max(0, elapsedUntilPause - sessionPausedDuration - planPausedDuration);
 
         return {
-          initialDuration: accumulatedSeconds,
-          isInitiallyRunning: false,
+          status: "PAUSED" as TimerStatus,
+          accumulatedSeconds,
+          startedAt: null,
         };
       }
     }
@@ -108,8 +117,9 @@ export function PlanTimerCard({
         const accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
 
         return {
-          initialDuration: accumulatedSeconds,
-          isInitiallyRunning: true,
+          status: "RUNNING" as TimerStatus,
+          accumulatedSeconds,
+          startedAt: sessionStartedAt,
         };
       }
     }
@@ -120,8 +130,9 @@ export function PlanTimerCard({
     const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
 
     return {
-      initialDuration: accumulatedSeconds,
-      isInitiallyRunning: true,
+      status: "RUNNING" as TimerStatus,
+      accumulatedSeconds,
+      startedAt: actualStartTime,
     };
   }, [
     actualStartTime,
@@ -134,11 +145,13 @@ export function PlanTimerCard({
     sessionPausedDurationSeconds,
   ]);
 
-  // 타이머 훅 사용
+  // 새로운 스토어 기반 타이머 훅 사용
   const { seconds: elapsedSeconds } = usePlanTimer({
-    initialDuration: initialTimerState.initialDuration,
-    isInitiallyRunning: initialTimerState.isInitiallyRunning,
-    isPaused: initialIsPaused,
+    planId,
+    status: timerState.status,
+    accumulatedSeconds: timerState.accumulatedSeconds,
+    startedAt: timerState.startedAt,
+    serverNow,
     isCompleted: !!actualEndTime,
   });
 
@@ -165,7 +178,10 @@ export function PlanTimerCard({
       if (result.success) {
         setIsRunning(true);
         setIsPaused(false);
-        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // 스토어에 타이머 시작
+        if (result.serverNow && result.status && result.startedAt) {
+          timerStore.startTimer(planId, result.serverNow);
+        }
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
       }
@@ -192,7 +208,10 @@ export function PlanTimerCard({
       if (result.success) {
         setIsPaused(true);
         setIsRunning(false);
-        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // 스토어에 타이머 일시정지
+        if (result.serverNow && result.accumulatedSeconds !== undefined) {
+          timerStore.pauseTimer(planId, result.accumulatedSeconds);
+        }
       } else {
         // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
         if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
@@ -217,7 +236,10 @@ export function PlanTimerCard({
       if (result.success) {
         setIsPaused(false);
         setIsRunning(true);
-        // 서버 액션에서 이미 revalidatePath를 호출하므로 router.refresh() 불필요
+        // 스토어에 타이머 재개
+        if (result.serverNow && result.status && result.startedAt) {
+          timerStore.startTimer(planId, result.serverNow);
+        }
       } else {
         alert(result.error || "플랜 재개에 실패했습니다.");
       }

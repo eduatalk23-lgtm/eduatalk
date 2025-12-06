@@ -36,6 +36,7 @@ type TodayPlansResponse = {
   sessions: Record<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
   planDate: string;
   isToday: boolean;
+  serverNow: number;
 };
 
 /**
@@ -270,11 +271,15 @@ export async function GET(request: Request) {
       sessionsObj[key] = value;
     });
 
+    // 서버 현재 시간 추가
+    const serverNow = Date.now();
+
     return apiSuccess<TodayPlansResponse>({
       plans: plansWithContent,
       sessions: sessionsObj,
       planDate: displayDate,
       isToday,
+      serverNow,
     });
   } catch (error) {
     return handleApiError(error, "[api/today/plans] 오류");
