@@ -11,7 +11,9 @@
 
 ## 적용된 최적화
 
-### 1. 성능 측정 도구 추가
+### Round 1: 성능 측정 및 기본 최적화 (완료)
+
+#### 1. 성능 측정 도구 추가
 
 #### `/api/today/plans` API 라우트
 - `[todayPlans] total` - 전체 요청 시간
@@ -52,19 +54,66 @@ const books = await supabase
 
 **예상 효과**: 학생이 많은 콘텐츠를 가지고 있을 경우, 조회 데이터량이 크게 감소
 
-### 3. 중복 Fetch 패턴 발견 및 개선 제안
+### Round 2: 구체적 최적화 구현 (완료)
 
-**문제**: `/camp/today` 페이지에서 `TodayPageContent`가 두 번 렌더링됨 (메인 + 사이드바)
-- 각 인스턴스가 `PlanViewContainer`를 포함
-- `PlanViewContainer`는 마운트 시 `/api/today/plans`를 호출
-- 결과: 동일한 날짜/사용자/캠프 플래그에 대해 API가 2번 호출됨
+#### 3. 데이터베이스 인덱스 추가
 
-**개선 제안** (TODO로 표시됨):
-1. `/camp/today/page.tsx`에서 서버 사이드에서 플랜 데이터를 한 번만 조회
-2. 조회한 데이터를 `TodayPageContent`에 props로 전달
-3. `TodayPageContent`는 `initialPlans` prop이 있으면 클라이언트 사이드 fetch를 스킵
+**마이그레이션**: `supabase/migrations/20250105000000_add_performance_indexes_for_today_plans.sql`
 
-**예상 효과**: API 호출 횟수 50% 감소, 페이지 로드 시간 개선
+추가된 인덱스:
+- `student_plan(student_id, plan_date, plan_group_id)` - 플랜 조회 최적화
+- `student_study_sessions(student_id, ended_at) WHERE ended_at IS NULL` - 활성 세션 조회 최적화
+- `student_content_progress(student_id, content_type, content_id)` - 진행률 조회 최적화
+- `books(student_id, id)`, `lectures(student_id, id)`, `student_custom_contents(student_id, id)` - 콘텐츠 조회 최적화
+
+**효과**: 쿼리 실행 계획 개선, 인덱스 스캔을 통한 빠른 데이터 조회
+
+#### 4. 중복 Fetch 제거 구현
+
+**구현 내용**:
+1. `lib/data/todayPlans.ts` - 서버 사이드 헬퍼 함수 생성
+   - `getTodayPlans()` 함수로 API 라우트 로직 재사용
+   - `narrowQueries` 옵션으로 progress/session 쿼리 최적화 지원
+
+2. `/camp/today/page.tsx` - 서버 사이드 단일 fetch
+   - 페이지 렌더링 전에 `getTodayPlans()` 한 번만 호출
+   - 조회한 데이터를 `TodayPageContent`에 `initialPlansData` prop으로 전달
+
+3. `PlanViewContainer` - `initialData` prop 추가
+   - `initialData`가 제공되면 클라이언트 사이드 fetch 스킵
+   - 상태를 서버에서 받은 데이터로 초기화
+
+4. `TodayPageContent` - `initialPlansData` prop 추가
+   - `PlanViewContainer`에 `initialData`로 전달
+
+**효과**: 
+- `/camp/today` 페이지 로드 시 `/api/today/plans` 호출 2회 → 0회 (서버 사이드 fetch로 대체)
+- 네트워크 요청 감소, 페이지 로드 시간 개선
+
+#### 5. Progress 및 Session 쿼리 최적화
+
+**구현 내용**:
+1. **Progress 쿼리 최적화**:
+   - 이전: 학생의 모든 진행률 조회 후 메모리에서 필터링
+   - 현재: 플랜에 사용된 콘텐츠의 `(content_type, content_id)` 쌍만 조회
+   - `content_type`별로 그룹화하여 `.in("content_id", ids)` 쿼리 사용
+
+2. **Session 쿼리 최적화**:
+   - 이전: 학생의 모든 활성 세션 조회 후 메모리에서 필터링
+   - 현재: 해당 날짜의 플랜 ID만 `.in("plan_id", planIds)` 쿼리로 필터링
+
+3. **적용 위치**:
+   - `lib/data/todayPlans.ts` - `narrowQueries: true` 옵션으로 구현
+   - `/api/today/plans/route.ts` - 항상 최적화된 쿼리 사용
+
+**효과**:
+- 진행률 데이터가 많을 경우: 조회 데이터량 크게 감소
+- 활성 세션이 많을 경우: 조회 데이터량 크게 감소
+- 쿼리 실행 시간 단축
+
+### Round 1: 성능 측정 및 기본 최적화 (완료)
+
+#### 1. 성능 측정 도구 추가
 
 ## 데이터베이스 쿼리 분석
 
@@ -257,35 +306,67 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 
 ## 다음 단계 권장 사항
 
-### 우선순위 높음
+### 우선순위 높음 (완료 ✅)
 
-1. **인덱스 추가**
-   - `student_plan(student_id, plan_date, plan_group_id)` - 복합 인덱스
-   - `student_study_sessions(student_id, ended_at)` - 복합 인덱스
-   - `student_content_progress(student_id, content_type, content_id)` - 복합 인덱스
-
-2. **중복 Fetch 제거**
-   - `/camp/today`에서 서버 사이드 단일 fetch 구현
-   - 예상 효과: API 호출 50% 감소
+1. ✅ **인덱스 추가** - 마이그레이션으로 구현 완료
+2. ✅ **중복 Fetch 제거** - 서버 사이드 단일 fetch 구현 완료
+3. ✅ **진행률 조회 최적화** - 필요한 콘텐츠만 조회하도록 구현 완료
+4. ✅ **세션 조회 최적화** - 해당 플랜 ID만 필터링하도록 구현 완료
 
 ### 우선순위 중간
-
-3. **진행률 조회 최적화**
-   - 필요한 콘텐츠의 진행률만 조회
-   - 예상 효과: 진행률 데이터가 많을 경우 조회량 감소
-
-4. **세션 조회 최적화**
-   - 해당 날짜의 플랜 ID만 필터링
-   - 예상 효과: 활성 세션이 많을 경우 조회량 감소
 
 ### 우선순위 낮음
 
 5. **캐싱 전략**
    - React Query 캐싱 활용 (이미 설정됨)
    - 서버 사이드 캐싱 고려 (Next.js `unstable_cache`)
+   - 진행률 데이터는 자주 변경되지 않으므로 캐싱 후보
 
 6. **데이터베이스 쿼리 최적화**
    - JOIN을 통한 단일 쿼리로 통합 (복잡도 증가 vs 성능 향상 트레이드오프)
+   - 현재는 배치 조회로 충분히 효율적
+
+## Round 2 최적화 요약
+
+### 변경된 파일
+
+1. **supabase/migrations/20250105000000_add_performance_indexes_for_today_plans.sql** (신규)
+   - 성능 최적화를 위한 6개 인덱스 추가
+
+2. **lib/data/todayPlans.ts** (신규)
+   - 서버 사이드 헬퍼 함수 `getTodayPlans()` 구현
+   - `narrowQueries` 옵션으로 progress/session 쿼리 최적화
+
+3. **app/(student)/camp/today/page.tsx**
+   - 서버 사이드에서 `getTodayPlans()` 한 번만 호출
+   - 조회한 데이터를 `TodayPageContent`에 전달
+
+4. **app/(student)/today/_components/PlanViewContainer.tsx**
+   - `initialData` prop 추가
+   - 제공되면 클라이언트 사이드 fetch 스킵
+
+5. **app/(student)/today/_components/TodayPageContent.tsx**
+   - `initialPlansData` prop 추가
+   - `PlanViewContainer`에 전달
+
+6. **app/api/today/plans/route.ts**
+   - Progress 쿼리 최적화: 필요한 콘텐츠만 조회
+   - Session 쿼리 최적화: 해당 플랜 ID만 필터링
+
+### 예상 성능 개선
+
+- **인덱스 추가**: 쿼리 실행 시간 20-50% 감소 (데이터량에 따라 다름)
+- **중복 Fetch 제거**: `/camp/today` 페이지 로드 시 네트워크 요청 2회 → 0회
+- **Progress/Session 쿼리 최적화**: 조회 데이터량 50-90% 감소 (학생의 데이터량에 따라 다름)
+
+### 측정 방법
+
+개발 환경에서 다음 타이밍 로그를 확인:
+- `[camp/today] db - todayPlans` - 서버 사이드 fetch 시간
+- `[todayPlans] db - progress (narrowed)` - 최적화된 진행률 조회 시간
+- `[todayPlans] db - sessions (narrowed)` - 최적화된 세션 조회 시간
+
+이전 로그와 비교하여 개선 효과를 확인할 수 있습니다.
 
 ## 측정 방법
 

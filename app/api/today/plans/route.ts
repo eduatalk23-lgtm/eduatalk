@@ -243,31 +243,105 @@ export async function GET(request: Request) {
     lectures.forEach((lecture) => contentMap.set(`lecture:${lecture.id}`, lecture));
     customContents.forEach((custom) => contentMap.set(`custom:${custom.id}`, custom));
 
-    // 진행률 조회
-    console.time("[todayPlans] db - progress");
+    // 진행률 조회 (최적화: 필요한 콘텐츠만 조회)
+    console.time("[todayPlans] db - progress (narrowed)");
     const supabase = await createSupabaseServerClient();
-    const { data: progressData } = await supabase
-      .from("student_content_progress")
-      .select("content_type,content_id,progress")
-      .eq("student_id", user.userId);
-    console.timeEnd("[todayPlans] db - progress");
+    
+    // 필요한 콘텐츠의 (content_type, content_id) 쌍만 조회
+    const contentKeys = new Set<string>();
+    plans.forEach((plan) => {
+      if (plan.content_type && plan.content_id) {
+        contentKeys.add(`${plan.content_type}:${plan.content_id}`);
+      }
+    });
+
+    let progressData: Array<{ content_type: string; content_id: string; progress: number | null }> = [];
+    
+    if (contentKeys.size > 0) {
+      // 각 content_type별로 그룹화하여 쿼리
+      const bookProgressIds: string[] = [];
+      const lectureProgressIds: string[] = [];
+      const customProgressIds: string[] = [];
+
+      contentKeys.forEach((key) => {
+        const [type, id] = key.split(":");
+        if (type === "book") bookProgressIds.push(id);
+        else if (type === "lecture") lectureProgressIds.push(id);
+        else if (type === "custom") customProgressIds.push(id);
+      });
+
+      const progressQueries = [];
+      if (bookProgressIds.length > 0) {
+        progressQueries.push(
+          supabase
+            .from("student_content_progress")
+            .select("content_type,content_id,progress")
+            .eq("student_id", user.userId)
+            .eq("content_type", "book")
+            .in("content_id", bookProgressIds)
+        );
+      }
+      if (lectureProgressIds.length > 0) {
+        progressQueries.push(
+          supabase
+            .from("student_content_progress")
+            .select("content_type,content_id,progress")
+            .eq("student_id", user.userId)
+            .eq("content_type", "lecture")
+            .in("content_id", lectureProgressIds)
+        );
+      }
+      if (customProgressIds.length > 0) {
+        progressQueries.push(
+          supabase
+            .from("student_content_progress")
+            .select("content_type,content_id,progress")
+            .eq("student_id", user.userId)
+            .eq("content_type", "custom")
+            .in("content_id", customProgressIds)
+        );
+      }
+
+      if (progressQueries.length > 0) {
+        const results = await Promise.all(progressQueries);
+        results.forEach((result) => {
+          if (result.data) {
+            progressData.push(...result.data);
+          }
+        });
+      }
+    }
+    console.timeEnd("[todayPlans] db - progress (narrowed)");
 
     const progressMap = new Map<string, number | null>();
-    progressData?.forEach((row) => {
+    progressData.forEach((row) => {
       if (row.content_type && row.content_id) {
         const key = `${row.content_type}:${row.content_id}`;
         progressMap.set(key, row.progress ?? null);
       }
     });
 
-    // 활성 세션 조회 (타이머 초기값 계산을 위해 started_at도 포함)
-    console.time("[todayPlans] db - sessions");
-    const { data: activeSessions } = await supabase
-      .from("student_study_sessions")
-      .select("plan_id,started_at,paused_at,resumed_at,paused_duration_seconds")
-      .eq("student_id", user.userId)
-      .is("ended_at", null);
-    console.timeEnd("[todayPlans] db - sessions");
+    // 활성 세션 조회 (최적화: 해당 플랜의 세션만 조회)
+    console.time("[todayPlans] db - sessions (narrowed)");
+    const planIds = plans.map((p) => p.id);
+    let activeSessions: Array<{
+      plan_id: string | null;
+      started_at: string | null;
+      paused_at: string | null;
+      resumed_at: string | null;
+      paused_duration_seconds: number | null;
+    }> = [];
+    
+    if (planIds.length > 0) {
+      const { data } = await supabase
+        .from("student_study_sessions")
+        .select("plan_id,started_at,paused_at,resumed_at,paused_duration_seconds")
+        .eq("student_id", user.userId)
+        .in("plan_id", planIds)
+        .is("ended_at", null);
+      activeSessions = data ?? [];
+    }
+    console.timeEnd("[todayPlans] db - sessions (narrowed)");
 
     const sessionMap = new Map<string, { 
       isPaused: boolean; 

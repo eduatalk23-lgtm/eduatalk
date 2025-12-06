@@ -26,6 +26,12 @@ type PlanViewContainerProps = {
   onDateChange?: (date: string, options?: { isToday: boolean }) => void;
   userId?: string;
   campMode?: boolean;
+  /**
+   * If provided, initializes state from this data and skips the client-side fetch.
+   * This is used to avoid double-fetch on pages like /camp/today where the data
+   * is already fetched on the server side.
+   */
+  initialData?: PlansResponse;
 };
 
 type SessionState = {
@@ -80,21 +86,50 @@ export function PlanViewContainer({
   onDateChange,
   userId,
   campMode = false,
+  initialData,
 }: PlanViewContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
     initialSelectedPlanNumber
   );
 
-  const [groups, setGroups] = useState<PlanGroup[]>([]);
-  const [sessions, setSessions] = useState<Map<string, SessionState>>(
-    new Map()
-  );
-  const [planDate, setPlanDate] = useState<string>("");
-  const [isToday, setIsToday] = useState(true);
-  const [loading, setLoading] = useState(true);
+  // If initialData is provided, initialize state from it to avoid double-fetch
+  const [groups, setGroups] = useState<PlanGroup[]>(() => {
+    if (initialData) {
+      return groupPlansByPlanNumber(initialData.plans);
+    }
+    return [];
+  });
+  const [sessions, setSessions] = useState<Map<string, SessionState>>(() => {
+    if (initialData) {
+      const sessionEntries = Object.entries(initialData.sessions || {}) as [
+        string,
+        SessionState,
+      ][];
+      return new Map(sessionEntries);
+    }
+    return new Map();
+  });
+  const [planDate, setPlanDate] = useState<string>(() => {
+    if (initialData) {
+      return initialData.planDate || "";
+    }
+    return "";
+  });
+  const [isToday, setIsToday] = useState(() => {
+    if (initialData) {
+      return Boolean(initialData.isToday);
+    }
+    return true;
+  });
+  const [loading, setLoading] = useState(!initialData);
   const [isNavigating, setIsNavigating] = useState(false);
-  const [serverNow, setServerNow] = useState<number>(Date.now());
+  const [serverNow, setServerNow] = useState<number>(() => {
+    if (initialData?.serverNow) {
+      return initialData.serverNow;
+    }
+    return Date.now();
+  });
 
   const queryDateRef = useRef<string | null>(null);
 
@@ -177,6 +212,16 @@ export function PlanViewContainer({
   );
 
   useEffect(() => {
+    // If initialData is provided, skip the fetch (data already loaded from server)
+    if (initialData) {
+      queryDateRef.current = initialData.planDate || null;
+      if (initialData.planDate) {
+        onDateChange?.(initialData.planDate, { isToday: Boolean(initialData.isToday) });
+      }
+      return;
+    }
+
+    // Otherwise, fetch data as usual
     if (initialPlanDate) {
       queryDateRef.current = initialPlanDate;
       loadData(initialPlanDate);
@@ -184,7 +229,7 @@ export function PlanViewContainer({
       loadData();
     }
     // Realtime 구독으로 대체하여 폴링 제거
-  }, [initialPlanDate, loadData]);
+  }, [initialPlanDate, loadData, initialData, onDateChange]);
 
   const handleViewDetail = (planNumber: number | null) => {
     setSelectedPlanNumber(planNumber);

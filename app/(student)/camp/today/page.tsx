@@ -14,6 +14,7 @@ import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import { getPlanById } from "@/lib/data/studentPlans";
+import { getTodayPlans } from "@/lib/data/todayPlans";
 
 type CampTodayPageProps = {
   searchParams?:
@@ -212,17 +213,18 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   const [todayProgress] = await Promise.all([todayProgressPromise]);
   console.timeEnd("[camp/today] progress");
 
-  // TODO: Double-fetch optimization
-  // Currently, TodayPageContent is rendered twice (main + sidebar), and each instance
-  // triggers its own fetch via PlanViewContainer -> /api/today/plans
-  // 
-  // Design proposal:
-  // 1. Fetch plans data ONCE in this server component
-  // 2. Pass the fetched data as props to TodayPageContent
-  // 3. TodayPageContent should accept initialPlans prop and skip client-side fetch if provided
-  // 4. This would eliminate the duplicate API call for the same date/user/camp flag
-  // 
-  // Expected impact: ~50% reduction in /api/today/plans calls on /camp/today page load
+  // Single server-side fetch for today's plans to avoid double-fetch
+  // TodayPageContent is rendered twice (main + sidebar), and without this,
+  // each instance would trigger its own client-side fetch via PlanViewContainer
+  console.time("[camp/today] db - todayPlans");
+  const todayPlansData = await getTodayPlans({
+    studentId: userId,
+    tenantId: tenantContext?.tenantId || null,
+    date: requestedDate,
+    camp: true,
+    narrowQueries: true, // Optimize: only fetch progress/sessions for relevant plans
+  });
+  console.timeEnd("[camp/today] db - todayPlans");
 
   console.timeEnd("[camp/today] total");
   return (
@@ -248,6 +250,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
               showAchievements={false}
               userId={userId}
               campMode={true}
+              initialPlansData={todayPlansData}
             />
           </div>
           <div className="lg:col-span-4">
@@ -260,6 +263,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
                 showPlans={false}
                 userId={userId}
                 campMode={true}
+                initialPlansData={todayPlansData}
               />
             </div>
           </div>

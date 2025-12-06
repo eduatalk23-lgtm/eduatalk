@@ -4,6 +4,21 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { PlanViewContainer, type ViewMode } from "./PlanViewContainer";
 import { TodayAchievements } from "./TodayAchievements";
+import type { PlanWithContent } from "../_utils/planGroupUtils";
+
+type PlansResponse = {
+  plans: PlanWithContent[];
+  sessions: Record<string, {
+    isPaused: boolean;
+    startedAt?: string | null;
+    pausedAt?: string | null;
+    resumedAt?: string | null;
+    pausedDurationSeconds?: number | null;
+  }>;
+  planDate: string;
+  isToday?: boolean;
+  serverNow?: number;
+};
 
 type TodayPageContentProps = {
   initialMode: ViewMode;
@@ -14,6 +29,11 @@ type TodayPageContentProps = {
   showAchievements?: boolean;
   userId?: string;
   campMode?: boolean;
+  /**
+   * If provided, passes this data to PlanViewContainer to avoid client-side fetch.
+   * Used on pages like /camp/today where data is already fetched on the server.
+   */
+  initialPlansData?: PlansResponse;
 };
 
 type ProgressResponse = {
@@ -30,6 +50,7 @@ export function TodayPageContent({
   showAchievements = true,
   userId,
   campMode = false,
+  initialPlansData,
 }: TodayPageContentProps) {
   const fallbackDate = initialPlanDate ?? initialProgressDate;
   const [selectedDate, setSelectedDate] = useState<string>(fallbackDate);
@@ -97,6 +118,7 @@ export function TodayPageContent({
           onDateChange={handleDateChange}
           userId={userId}
           campMode={campMode}
+          initialData={initialPlansData}
         />
       )}
       {showAchievements && <TodayAchievements {...achievementsProps} />}
