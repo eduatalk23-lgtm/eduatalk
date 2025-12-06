@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Play, Pause, Square, Clock } from "lucide-react";
 import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
+import { TimerDisplay } from "./timer/TimerDisplay";
+import { TimerControls } from "./timer/TimerControls";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -24,12 +25,10 @@ type PlanTimerCardProps = {
   pauseCount?: number | null;
   activeSessionId?: string | null;
   isPaused?: boolean;
-  currentPausedAt?: string | null; // 현재 일시정지 시작 시간
+  currentPausedAt?: string | null;
   allowTimerControl?: boolean;
-  // 세션 정보 (타이머 초기값 계산용)
   sessionStartedAt?: string | null;
   sessionPausedDurationSeconds?: number | null;
-  // 서버 현재 시간 (밀리초)
   serverNow?: number;
 };
 
@@ -53,8 +52,7 @@ export function PlanTimerCard({
   serverNow = Date.now(),
 }: PlanTimerCardProps) {
   const router = useRouter();
-  const [isRunning, setIsRunning] = useState(!!actualStartTime && !actualEndTime && !initialIsPaused);
-  const [isPaused, setIsPaused] = useState(initialIsPaused);
+  const timerStore = usePlanTimerStore();
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
@@ -93,7 +91,6 @@ export function PlanTimerCard({
     if (initialIsPaused && currentPausedAt) {
       const pausedAtMs = new Date(currentPausedAt).getTime();
       if (Number.isFinite(pausedAtMs)) {
-        // 일시정지 시점까지의 경과 시간 계산
         const elapsedUntilPause = Math.floor((pausedAtMs - startMs) / 1000);
         const sessionPausedDuration = sessionPausedDurationSeconds || 0;
         const planPausedDuration = pausedDurationSeconds || 0;
@@ -146,7 +143,7 @@ export function PlanTimerCard({
   ]);
 
   // 새로운 스토어 기반 타이머 훅 사용
-  const { seconds: elapsedSeconds } = usePlanTimer({
+  const { seconds, status: timerStatus } = usePlanTimer({
     planId,
     status: timerState.status,
     accumulatedSeconds: timerState.accumulatedSeconds,
@@ -155,30 +152,17 @@ export function PlanTimerCard({
     isCompleted: !!actualEndTime,
   });
 
-  // 완료된 학습 시간 계산 (표시용)
-  const completedStudySeconds = useMemo(() => {
-    if (actualEndTime && totalDurationSeconds !== null && totalDurationSeconds !== undefined) {
-      return totalDurationSeconds;
-    }
-    return elapsedSeconds;
-  }, [actualEndTime, totalDurationSeconds, elapsedSeconds]);
-
   const formattedStartTime = actualStartTime ? formatTimestamp(actualStartTime) : "-";
   const formattedEndTime = actualEndTime ? formatTimestamp(actualEndTime) : "-";
-  const formattedPureStudyTime = formatTime(Math.max(0, completedStudySeconds));
-
+  const formattedPureStudyTime = formatTime(Math.max(0, seconds));
 
   const handleStart = async () => {
     setIsLoading(true);
     setPendingAction("start");
     try {
-      // 클라이언트에서 타임스탬프 생성
       const timestamp = new Date().toISOString();
       const result = await startPlan(planId, timestamp);
       if (result.success) {
-        setIsRunning(true);
-        setIsPaused(false);
-        // 스토어에 타이머 시작
         if (result.serverNow && result.status && result.startedAt) {
           timerStore.startTimer(planId, result.serverNow, result.startedAt);
         }
@@ -194,26 +178,20 @@ export function PlanTimerCard({
   };
 
   const handlePause = async () => {
-    // 이미 로딩 중이거나 일시정지된 상태면 중복 호출 방지
-    if (isLoading || isPaused) {
+    if (isLoading || timerStatus === "PAUSED") {
       return;
     }
 
     setIsLoading(true);
     setPendingAction("pause");
     try {
-      // 클라이언트에서 타임스탬프 생성
       const timestamp = new Date().toISOString();
       const result = await pausePlan(planId, timestamp);
       if (result.success) {
-        setIsPaused(true);
-        setIsRunning(false);
-        // 스토어에 타이머 일시정지
         if (result.serverNow && result.accumulatedSeconds !== undefined) {
           timerStore.pauseTimer(planId, result.accumulatedSeconds);
         }
       } else {
-        // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
         if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
           alert(result.error || "플랜 일시정지에 실패했습니다.");
         }
@@ -230,13 +208,9 @@ export function PlanTimerCard({
     setIsLoading(true);
     setPendingAction("resume");
     try {
-      // 클라이언트에서 타임스탬프 생성
       const timestamp = new Date().toISOString();
       const result = await resumePlan(planId, timestamp);
       if (result.success) {
-        setIsPaused(false);
-        setIsRunning(true);
-        // 스토어에 타이머 재개
         if (result.serverNow && result.status && result.startedAt) {
           timerStore.startTimer(planId, result.serverNow, result.startedAt);
         }
@@ -259,7 +233,6 @@ export function PlanTimerCard({
     setIsLoading(true);
     setPendingAction("complete");
     try {
-      // 완료 페이지로 이동 (실제 완료는 완료 페이지에서 처리)
       router.push(`/today/plan/${planId}`);
     } catch (error) {
       alert("오류가 발생했습니다.");
@@ -271,9 +244,9 @@ export function PlanTimerCard({
 
   const isCompleted = !!actualEndTime;
   const showCompletionMeta = isCompleted && actualStartTime && actualEndTime;
-  const showTimer = isRunning || isPaused || isCompleted;
+  const showTimer = timerStatus === "RUNNING" || timerStatus === "PAUSED" || timerStatus === "COMPLETED";
 
-  if (!allowTimerControl && !isRunning && !isPaused && !isCompleted) {
+  if (!allowTimerControl && timerStatus === "NOT_STARTED") {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-3">
@@ -292,15 +265,6 @@ export function PlanTimerCard({
     );
   }
 
-  const pendingMessages: Record<Exclude<PendingAction, null>, string> = {
-    start: "학습 중...",
-    resume: "학습 중...",
-    pause: "일시정지 중...",
-    complete: "완료 처리 중...",
-  };
-  const currentPendingMessage =
-    isLoading && pendingAction ? pendingMessages[pendingAction as Exclude<PendingAction, null>] : null;
-
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-3">
@@ -318,17 +282,14 @@ export function PlanTimerCard({
       </div>
 
       {showTimer && (
-        <div className="mb-3 rounded-lg bg-gray-50 p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">학습 시간</span>
-            </div>
-            <div className="text-lg font-bold text-indigo-600">{formatTime(elapsedSeconds)}</div>
-          </div>
-          {currentPendingMessage && (
-            <div className="mt-2 text-xs font-semibold text-indigo-600">{currentPendingMessage}</div>
-          )}
+        <div className="mb-3">
+          <TimerDisplay
+            seconds={seconds}
+            status={timerStatus}
+            subtitle="학습 시간"
+            showStatusBadge={true}
+            compact={true}
+          />
           {pauseCount != null && pauseCount > 0 && (
             <div className="mt-2 text-xs text-gray-500">
               일시정지: {pauseCount}회
@@ -354,70 +315,25 @@ export function PlanTimerCard({
         </div>
       )}
 
-      <div className="flex gap-2">
-        {!isRunning && !isPaused && !isCompleted && (
-          <button
-            onClick={handleStart}
-            disabled={isLoading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Play className="h-4 w-4" />
-            시작하기
-          </button>
-        )}
+      <TimerControls
+        status={timerStatus}
+        isLoading={isLoading}
+        pendingAction={pendingAction}
+        onStart={handleStart}
+        onPause={handlePause}
+        onResume={handleResume}
+        onComplete={handleComplete}
+        compact={true}
+      />
 
-        {isRunning && !isPaused && (
-          <>
-            <button
-              onClick={handlePause}
-              disabled={isLoading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-yellow-700 disabled:opacity-50"
-            >
-              <Pause className="h-4 w-4" />
-              일시정지
-            </button>
-            <button
-              onClick={handleComplete}
-              disabled={isLoading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-            >
-              <Square className="h-4 w-4" />
-              완료하기
-            </button>
-          </>
-        )}
-
-        {isPaused && (
-          <>
-            <button
-              onClick={handleResume}
-              disabled={isLoading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-            >
-              <Play className="h-4 w-4" />
-              다시시작
-            </button>
-            <button
-              onClick={handleComplete}
-              disabled={isLoading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-            >
-              <Square className="h-4 w-4" />
-              완료하기
-            </button>
-          </>
-        )}
-
-        {isCompleted && (
-          <button
-            onClick={() => router.push(`/today/plan/${planId}`)}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
-          >
-            상세보기
-          </button>
-        )}
-      </div>
+      {isCompleted && (
+        <button
+          onClick={() => router.push(`/today/plan/${planId}`)}
+          className="mt-2 w-full rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
+        >
+          상세보기
+        </button>
+      )}
     </div>
   );
 }
-

@@ -1,10 +1,10 @@
 "use client";
 
-import { Play, Pause, Square, Clock, CheckCircle2 } from "lucide-react";
 import { formatTime, TimeStats, formatTimestamp } from "../_utils/planGroupUtils";
-import { cn } from "@/lib/cn";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
+import { TimerDisplay } from "./timer/TimerDisplay";
+import { TimerControls } from "./timer/TimerControls";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -31,8 +31,6 @@ type PlanTimerProps = {
 export function PlanTimer({
   planId,
   timeStats,
-  isPaused,
-  isActive,
   isLoading,
   onStart,
   onPause,
@@ -48,7 +46,7 @@ export function PlanTimer({
   serverNow,
 }: PlanTimerProps) {
   // 새로운 스토어 기반 타이머 훅 사용
-  const { seconds } = usePlanTimer({
+  const { seconds, status: timerStatus } = usePlanTimer({
     planId,
     status,
     accumulatedSeconds,
@@ -66,36 +64,20 @@ export function PlanTimer({
   const formattedPureStudyTime = formatTime(Math.max(0, timeStats.pureStudyTime || 0));
 
   const isCompleted = timeStats.isCompleted;
-  const showTimer = isActive || isPaused || isCompleted;
+  const showTimer = status === "RUNNING" || status === "PAUSED" || status === "COMPLETED";
   const showCompletionMeta = isCompleted && (timeStats.firstStartTime || timeStats.lastEndTime);
-  const pendingMessages: Record<Exclude<PendingAction, null>, string> = {
-    start: "학습 중...",
-    resume: "학습 중...",
-    pause: "일시정지 중...",
-    complete: "완료 처리 중...",
-  };
-  const currentPendingMessage =
-    isLoading && pendingAction ? pendingMessages[pendingAction as Exclude<PendingAction, null>] : null;
-
-  const completionBannerClass =
-    "flex flex-1 items-center justify-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-2 font-semibold text-emerald-700";
 
   if (compact) {
     return (
       <div className="flex flex-col gap-2">
         {showTimer && (
-          <div className="flex flex-col gap-1 rounded-lg bg-gray-50 p-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">학습 시간</span>
-              </div>
-              <div className="text-lg font-bold text-indigo-600">{formatTime(seconds)}</div>
-            </div>
-            {currentPendingMessage && (
-              <div className="text-right text-[11px] font-semibold text-indigo-600">{currentPendingMessage}</div>
-            )}
-          </div>
+          <TimerDisplay
+            seconds={seconds}
+            status={timerStatus}
+            subtitle="학습 시간"
+            showStatusBadge={true}
+            compact={true}
+          />
         )}
 
         {showCompletionMeta && (
@@ -112,86 +94,24 @@ export function PlanTimer({
           </div>
         )}
 
-        <div className="flex gap-2">
-          {!isActive && !isPaused && !isCompleted && (
-            <button
-              onClick={onStart}
-              disabled={isLoading}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-              )}
-            >
-              <Play className="h-4 w-4" />
-              시작하기
-            </button>
-          )}
+        <TimerControls
+          status={timerStatus}
+          isLoading={isLoading}
+          pendingAction={pendingAction}
+          onStart={onStart}
+          onPause={onPause}
+          onResume={onResume}
+          onComplete={onComplete}
+          onPostpone={onPostpone}
+          canPostpone={canPostpone}
+          compact={true}
+        />
 
-          {isActive && !isPaused && (
-            <>
-              <button
-                onClick={onPause}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-yellow-700 disabled:opacity-50"
-                )}
-              >
-                <Pause className="h-4 w-4" />
-                일시정지
-              </button>
-              <button
-                onClick={onComplete}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                )}
-              >
-                <Square className="h-4 w-4" />
-                완료하기
-              </button>
-            </>
-          )}
-
-          {isPaused && (
-            <>
-              <button
-                onClick={onResume}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                )}
-              >
-                <Play className="h-4 w-4" />
-                다시시작
-              </button>
-              <button
-                onClick={onComplete}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                )}
-              >
-                <Square className="h-4 w-4" />
-                완료하기
-              </button>
-            </>
-          )}
-
-          {isCompleted && (
-            <div className={cn(completionBannerClass, "text-sm")}>
-              <CheckCircle2 className="h-4 w-4" />
-              완료됨
-            </div>
-          )}
-        </div>
-
-        {canPostpone && onPostpone && (
-          <button
-            onClick={onPostpone}
-            disabled={isLoading}
-            className="w-full rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-100 disabled:opacity-50"
-          >
-            오늘 일정 미루기
-          </button>
+        {timeStats.pauseCount > 0 && showTimer && (
+          <div className="text-xs text-gray-500">
+            일시정지: {timeStats.pauseCount}회
+            {timeStats.pausedDuration > 0 && <span> ({formatTime(timeStats.pausedDuration)})</span>}
+          </div>
         )}
       </div>
     );
@@ -202,24 +122,13 @@ export function PlanTimer({
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-4">
         {showTimer && (
-          <div className="rounded-lg bg-gray-50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-gray-500" />
-                <span className="text-base font-medium text-gray-700">학습 시간</span>
-              </div>
-              <div className="text-2xl font-bold text-indigo-600">{formatTime(seconds)}</div>
-            </div>
-            {currentPendingMessage && (
-              <div className="mt-2 text-sm font-semibold text-indigo-600">{currentPendingMessage}</div>
-            )}
-            {timeStats.pauseCount > 0 && (
-              <div className="mt-2 text-xs text-gray-500">
-                일시정지: {timeStats.pauseCount}회
-                {timeStats.pausedDuration > 0 && <span> ({formatTime(timeStats.pausedDuration)})</span>}
-              </div>
-            )}
-          </div>
+          <TimerDisplay
+            seconds={seconds}
+            status={timerStatus}
+            subtitle="학습 시간"
+            showStatusBadge={true}
+            compact={false}
+          />
         )}
 
         {showCompletionMeta && (
@@ -242,89 +151,26 @@ export function PlanTimer({
           </div>
         )}
 
-        <div className="flex gap-2">
-          {!isActive && !isPaused && !isCompleted && (
-            <button
-              onClick={onStart}
-              disabled={isLoading}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-              )}
-            >
-              <Play className="h-4 w-4" />
-              시작하기
-            </button>
-          )}
-
-          {isActive && !isPaused && (
-            <>
-              <button
-                onClick={onPause}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-yellow-700 disabled:opacity-50"
-                )}
-              >
-                <Pause className="h-4 w-4" />
-                일시정지
-              </button>
-              <button
-                onClick={onComplete}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                )}
-              >
-                <Square className="h-4 w-4" />
-                완료하기
-              </button>
-            </>
-          )}
-
-          {isPaused && (
-            <>
-              <button
-                onClick={onResume}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                )}
-              >
-                <Play className="h-4 w-4" />
-                다시시작
-              </button>
-              <button
-                onClick={onComplete}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
-                )}
-              >
-                <Square className="h-4 w-4" />
-                완료하기
-              </button>
-            </>
-          )}
-
-          {isCompleted && (
-            <div className={cn(completionBannerClass, "text-sm")}>
-              <CheckCircle2 className="h-4 w-4" />
-              완료됨
-            </div>
-          )}
-        </div>
-
-        {canPostpone && onPostpone && (
-          <button
-            onClick={onPostpone}
-            disabled={isLoading}
-            className="w-full rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-semibold text-orange-700 transition hover:bg-orange-100 disabled:opacity-50"
-          >
-            오늘 일정 미루기
-          </button>
+        {timeStats.pauseCount > 0 && showTimer && (
+          <div className="text-xs text-gray-500">
+            일시정지: {timeStats.pauseCount}회
+            {timeStats.pausedDuration > 0 && <span> ({formatTime(timeStats.pausedDuration)})</span>}
+          </div>
         )}
+
+        <TimerControls
+          status={timerStatus}
+          isLoading={isLoading}
+          pendingAction={pendingAction}
+          onStart={onStart}
+          onPause={onPause}
+          onResume={onResume}
+          onComplete={onComplete}
+          onPostpone={onPostpone}
+          canPostpone={canPostpone}
+          compact={false}
+        />
       </div>
     </div>
   );
 }
-

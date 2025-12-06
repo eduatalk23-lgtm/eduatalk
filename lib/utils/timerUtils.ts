@@ -4,6 +4,23 @@
  * 서버 시간과 클라이언트 시간의 차이를 보정하여 정확한 시간 계산을 보장합니다.
  */
 
+/**
+ * 초를 HH:MM:SS 형식으로 포맷팅
+ * 
+ * @param totalSeconds 총 초
+ * @returns HH:MM:SS 또는 MM:SS 형식 문자열
+ */
+export function formatSecondsToHHMMSS(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
 export type TimerStatus = "NOT_STARTED" | "RUNNING" | "PAUSED" | "COMPLETED";
 
 export type PlanTimerState = {
