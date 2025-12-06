@@ -17,12 +17,14 @@
 ### 2. PlanExecutionForm 섹션 순서 조정
 
 **변경 전 순서**:
+
 1. 타이머 · 일정 제어
 2. 연결된 학습 블록
 3. 학습 기록 폼
 4. 확인 완료 버튼
 
 **변경 후 순서** (Primary Action 우선):
+
 1. 학습 기록 폼 (Primary)
 2. 완료 확정 버튼 (Primary CTA)
 3. 타이머 · 일정 제어 (Secondary)
@@ -72,21 +74,26 @@
 ### 수정된 파일
 
 2. **`app/(student)/today/_components/timer/TimerControls.tsx`**
+
    - 완료 버튼 레이블: "완료하기" → "학습 결과 입력"
 
 3. **`app/(student)/today/_components/PlanCard.tsx`**
+
    - 에러 처리: alert → toast
    - useToast 훅 사용
 
 4. **`app/(student)/today/_components/PlanTimerCard.tsx`**
+
    - 에러 처리: alert → toast
    - useToast 훅 사용
 
 5. **`app/(student)/today/_components/TodayPageContent.tsx`**
+
    - CompletionToast 컴포넌트 추가
    - completedPlanId, completedPlanTitle props 추가
 
 6. **`app/(student)/today/page.tsx`**
+
    - completedPlanId 쿼리 파라미터 처리
    - 완료된 플랜 정보 조회
    - TodayPageContent에 props 전달
@@ -160,15 +167,18 @@ URL에서 completedPlanId 제거
 ### State A: 미완료 + 활성 세션 없음
 
 1. **학습 기록 폼** (Primary)
+
    - 시작 값 입력 (필수)
    - 종료 값 입력 (필수)
    - 메모 입력 (선택)
    - 인라인 에러 메시지
 
 2. **완료 확정 버튼** (Primary CTA)
+
    - "완료 확정" (녹색, 큰 버튼)
 
 3. **타이머 · 일정 제어** (Secondary)
+
    - 타이머 다시 실행
    - 오늘 일정 미루기 (조건부)
 
@@ -179,6 +189,7 @@ URL에서 completedPlanId 제거
 ### State B: 미완료 + 활성 세션 있음
 
 1. **타이머 실행 중 안내 카드**
+
    - "현재 이 플랜의 타이머가 실행 중입니다..."
    - [타이머 정리 후 기록하기] 버튼
 
@@ -226,4 +237,3 @@ URL에서 completedPlanId 제거
 - 모든 완료 로직은 서버 사이드에서 원자적으로 처리
 - 에러 처리는 일관된 Toast 시스템 사용
 - Primary Action (학습 기록 폼)이 시각적으로 우선순위를 가짐
-

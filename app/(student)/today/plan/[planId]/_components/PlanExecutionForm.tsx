@@ -258,40 +258,40 @@ export function PlanExecutionForm({
           </button>
         </div>
 
-        {/* 학습 기록 폼 (비활성화) */}
+        {/* 학습 기록 폼 (비활성화) - 타이머 정리 전까지 비활성화 */}
         <div className="opacity-50">
           <h2 className="mb-4 text-lg font-semibold text-gray-900">학습 기록</h2>
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">
                 시작 {unitLabel}
               </label>
               <input
                 type="number"
                 value={startPageOrTime}
                 disabled
-                className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                className="w-full rounded-lg border-2 border-gray-300 bg-gray-100 px-4 py-3 text-base"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">
                 종료 {unitLabel}
               </label>
               <input
                 type="number"
                 value={endPageOrTime}
                 disabled
-                className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                className="w-full rounded-lg border-2 border-gray-300 bg-gray-100 px-4 py-3 text-base"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">
                 메모 (선택)
               </label>
               <textarea
                 value={memo}
                 disabled
-                className="w-full rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                className="w-full rounded-lg border-2 border-gray-300 bg-gray-100 px-4 py-3 text-base"
                 rows={3}
               />
             </div>
@@ -299,9 +299,9 @@ export function PlanExecutionForm({
           <div className="mt-4">
             <button
               disabled
-              className="w-full rounded-lg bg-gray-400 px-4 py-2.5 text-sm font-semibold text-white"
+              className="w-full rounded-lg bg-gray-400 px-4 py-3 text-base font-semibold text-white"
             >
-              확인 완료
+              완료 확정
             </button>
           </div>
         </div>
