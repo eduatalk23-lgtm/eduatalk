@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { startPlan, pausePlan, resumePlan } from "../actions/todayActions";
+import { startPlan, pausePlan, resumePlan, preparePlanCompletion } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
@@ -226,15 +226,32 @@ export function PlanTimerCard({
   };
 
   const handleComplete = async () => {
-    if (!confirm("플랜을 완료하시겠습니까?")) {
+    // 확인 다이얼로그
+    const confirmed = confirm(
+      "플랜을 완료하시겠습니까?\n\n지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요? 이후에 학습 범위와 메모를 입력해 최종 완료할 수 있어요."
+    );
+    
+    if (!confirmed) {
       return;
     }
 
     setIsLoading(true);
     setPendingAction("complete");
     try {
+      const result = await preparePlanCompletion(planId);
+      
+      if (!result.success) {
+        alert(result.error || "플랜 완료 준비에 실패했습니다.");
+        return;
+      }
+
+      // 타이머 정지 (스토어에서 제거)
+      timerStore.removeTimer(planId);
+      
+      // 완료 입력 페이지로 이동
       router.push(`/today/plan/${planId}`);
     } catch (error) {
+      console.error("[PlanTimerCard] 완료 처리 오류:", error);
       alert("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);

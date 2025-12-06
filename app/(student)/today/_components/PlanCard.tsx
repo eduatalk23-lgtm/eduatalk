@@ -9,7 +9,7 @@ import {
   startPlan,
   pausePlan,
   resumePlan,
-  stopAllActiveSessionsForPlan,
+  preparePlanCompletion,
   postponePlan,
 } from "../actions/todayActions";
 import { Clock } from "lucide-react";
@@ -276,20 +276,34 @@ export function PlanCard({
   };
 
   const handleComplete = async () => {
-    if (!activePlan) {
-      router.push(`/today/plan/${group.plan.id}`);
+    const targetPlanId = activePlan?.id || group.plan.id;
+    
+    // 확인 다이얼로그
+    const confirmed = confirm(
+      "플랜을 완료하시겠습니까?\n\n지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요? 이후에 학습 범위와 메모를 입력해 최종 완료할 수 있어요."
+    );
+    
+    if (!confirmed) {
       return;
     }
 
     setIsLoading(true);
     setPendingAction("complete");
     try {
-      await stopAllActiveSessionsForPlan(activePlan.id);
-      // 완료 시 타이머 정지 (스토어에서 제거)
-      timerStore.removeTimer(activePlan.id);
-      // stopAllActiveSessionsForPlan은 Server Action에서 revalidatePath를 호출하므로 router.refresh() 불필요
-      router.push(`/today/plan/${activePlan.id}`);
+      const result = await preparePlanCompletion(targetPlanId);
+      
+      if (!result.success) {
+        alert(result.error || "플랜 완료 준비에 실패했습니다.");
+        return;
+      }
+
+      // 타이머 정지 (스토어에서 제거)
+      timerStore.removeTimer(targetPlanId);
+      
+      // 완료 입력 페이지로 이동
+      router.push(`/today/plan/${targetPlanId}`);
     } catch (error) {
+      console.error("[PlanCard] 완료 처리 오류:", error);
       alert("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);

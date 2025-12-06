@@ -718,7 +718,189 @@ export async function resumePlan(
 }
 
 /**
+ * 플랜 완료 준비 (활성 세션 정리 및 메타데이터 반환)
+ * 
+ * Today 화면에서 "학습 완료" 버튼 클릭 시 호출됩니다.
+ * 활성 세션을 종료하고 완료 입력 페이지에 필요한 정보를 반환합니다.
+ */
+export async function preparePlanCompletion(
+  planId: string
+): Promise<{
+  success: boolean;
+  error?: string;
+  plan?: {
+    id: string;
+    content_type: string;
+    content_id: string;
+    chapter: string | null;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    actual_start_time: string | null;
+    actual_end_time: string | null;
+    total_duration_seconds: number | null;
+    paused_duration_seconds: number | null;
+    is_reschedulable: boolean;
+    plan_date: string;
+  };
+  hasActiveSession: boolean;
+  isAlreadyCompleted: boolean;
+}> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") {
+    return { success: false, error: "로그인이 필요합니다.", hasActiveSession: false, isAlreadyCompleted: false };
+  }
+
+  const tenantContext = await getTenantContext();
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const now = new Date();
+
+    // 플랜 정보 조회
+    const plan = await getPlanById(
+      planId,
+      user.userId,
+      tenantContext?.tenantId || null
+    );
+
+    if (!plan) {
+      return { success: false, error: "플랜을 찾을 수 없습니다.", hasActiveSession: false, isAlreadyCompleted: false };
+    }
+
+    // 이미 완료된 경우
+    if (plan.actual_end_time) {
+      return {
+        success: true,
+        plan: {
+          id: plan.id,
+          content_type: plan.content_type || "",
+          content_id: plan.content_id || "",
+          chapter: plan.chapter,
+          planned_start_page_or_time: plan.planned_start_page_or_time,
+          planned_end_page_or_time: plan.planned_end_page_or_time,
+          actual_start_time: plan.actual_start_time,
+          actual_end_time: plan.actual_end_time,
+          total_duration_seconds: plan.total_duration_seconds,
+          paused_duration_seconds: plan.paused_duration_seconds,
+          is_reschedulable: plan.is_reschedulable || false,
+          plan_date: plan.plan_date,
+        },
+        hasActiveSession: false,
+        isAlreadyCompleted: true,
+      };
+    }
+
+    // 활성 세션 조회
+    const { data: activeSessions, error: sessionError } = await supabase
+      .from("student_study_sessions")
+      .select("id, paused_duration_seconds, paused_at, resumed_at, started_at")
+      .eq("plan_id", planId)
+      .eq("student_id", user.userId)
+      .is("ended_at", null);
+
+    if (sessionError) {
+      console.error("[todayActions] 세션 조회 오류:", sessionError);
+      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}`, hasActiveSession: false, isAlreadyCompleted: false };
+    }
+
+    const hasActiveSession = activeSessions && activeSessions.length > 0;
+
+    // 활성 세션이 있으면 종료
+    if (hasActiveSession && activeSessions) {
+      let newlyAccumulatedPausedSeconds = 0;
+
+      for (const session of activeSessions) {
+        let pausedSeconds = session.paused_duration_seconds || 0;
+
+        // 현재 일시정지 중이었다면 추가 계산
+        if (session.paused_at && !session.resumed_at) {
+          const pausedAt = new Date(session.paused_at);
+          const currentPause = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
+          pausedSeconds += currentPause;
+        }
+
+        newlyAccumulatedPausedSeconds += pausedSeconds;
+        await endStudySession(session.id);
+      }
+
+      // 플랜의 paused_duration_seconds 업데이트
+      const planPausedDuration = plan.paused_duration_seconds || 0;
+      const updatedPausedDuration = planPausedDuration + newlyAccumulatedPausedSeconds;
+
+      await supabase
+        .from("student_plan")
+        .update({
+          paused_duration_seconds: updatedPausedDuration,
+        })
+        .eq("id", planId)
+        .eq("student_id", user.userId);
+
+      // 업데이트된 플랜 정보 다시 조회
+      const updatedPlan = await getPlanById(
+        planId,
+        user.userId,
+        tenantContext?.tenantId || null
+      );
+
+      if (updatedPlan) {
+        revalidatePath("/today");
+        return {
+          success: true,
+          plan: {
+            id: updatedPlan.id,
+            content_type: updatedPlan.content_type || "",
+            content_id: updatedPlan.content_id || "",
+            chapter: updatedPlan.chapter,
+            planned_start_page_or_time: updatedPlan.planned_start_page_or_time,
+            planned_end_page_or_time: updatedPlan.planned_end_page_or_time,
+            actual_start_time: updatedPlan.actual_start_time,
+            actual_end_time: updatedPlan.actual_end_time,
+            total_duration_seconds: updatedPlan.total_duration_seconds,
+            paused_duration_seconds: updatedPlan.paused_duration_seconds,
+            is_reschedulable: updatedPlan.is_reschedulable || false,
+            plan_date: updatedPlan.plan_date,
+          },
+          hasActiveSession: false, // 종료했으므로 false
+          isAlreadyCompleted: false,
+        };
+      }
+    }
+
+    // 활성 세션이 없는 경우
+    revalidatePath("/today");
+    return {
+      success: true,
+      plan: {
+        id: plan.id,
+        content_type: plan.content_type || "",
+        content_id: plan.content_id || "",
+        chapter: plan.chapter,
+        planned_start_page_or_time: plan.planned_start_page_or_time,
+        planned_end_page_or_time: plan.planned_end_page_or_time,
+        actual_start_time: plan.actual_start_time,
+        actual_end_time: plan.actual_end_time,
+        total_duration_seconds: plan.total_duration_seconds,
+        paused_duration_seconds: plan.paused_duration_seconds,
+        is_reschedulable: plan.is_reschedulable || false,
+        plan_date: plan.plan_date,
+      },
+      hasActiveSession: false,
+      isAlreadyCompleted: false,
+    };
+  } catch (error) {
+    console.error("[todayActions] 플랜 완료 준비 실패", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "플랜 완료 준비에 실패했습니다.",
+      hasActiveSession: false,
+      isAlreadyCompleted: false,
+    };
+  }
+}
+
+/**
  * 플랜의 모든 활성 세션 종료 (완료 버튼 클릭 시 타이머 중지용)
+ * @deprecated Use preparePlanCompletion instead for new code
  */
 export async function stopAllActiveSessionsForPlan(
   planId: string

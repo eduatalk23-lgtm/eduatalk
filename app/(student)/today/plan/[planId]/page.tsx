@@ -51,11 +51,15 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
     notFound();
   }
 
-  // 활성 세션 확인
-  const activeSession = await getActiveSession(
-    user.userId,
-    tenantContext?.tenantId || null
-  );
+  // 특정 플랜의 활성 세션 확인
+  const { getSessionsInRange } = await import("@/lib/data/studentSessions");
+  const activeSessionsForPlan = await getSessionsInRange({
+    studentId: user.userId,
+    tenantId: tenantContext?.tenantId || null,
+    planId: planId,
+    isActive: true,
+  });
+  const activeSession = activeSessionsForPlan.length > 0 ? activeSessionsForPlan[0] : null;
 
   let relatedPlans: Plan[] = [plan];
   if (plan.plan_number !== null && plan.plan_number !== undefined) {
