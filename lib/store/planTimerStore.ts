@@ -49,6 +49,8 @@ type PlanTimerStore = {
   stopTimer: (planId: string, accumulatedSeconds: number) => void;
   /** 현재 시간으로 동기화 */
   syncNow: (planId: string, serverNow: number) => void;
+  /** 타이머의 seconds만 업데이트 (interval 내부에서 사용) */
+  updateTimerSeconds: (planId: string, seconds: number) => void;
   /** 타이머 제거 */
   removeTimer: (planId: string) => void;
   /** 모든 타이머 정리 */
@@ -242,7 +244,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
           newTimers.set(planId, timerData);
 
           if (state.isVisible) {
-            startGlobalInterval({ ...state, timers: newTimers });
+            startGlobalInterval(get);
           }
 
           return { timers: newTimers };
