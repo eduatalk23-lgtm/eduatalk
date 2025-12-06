@@ -374,6 +374,7 @@ function PlanGroupCardComponent({
           onResume={handleGroupResume}
           onComplete={handleGroupComplete}
           onReset={handleResetTimer}
+          campMode={campMode}
         />
 
 

@@ -20,6 +20,7 @@ type TimeCheckSectionProps = {
   onResume: (timestamp?: string) => void; // 재개 핸들러 (타임스탬프 전달)
   onComplete: () => void; // 완료 핸들러
   onReset?: () => void; // 초기화 핸들러
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function TimeCheckSection({
@@ -37,6 +38,7 @@ export function TimeCheckSection({
   onResume,
   onComplete,
   onReset,
+  campMode = false,
 }: TimeCheckSectionProps) {
   const [isPending, startTransition] = useTransition();
   
@@ -195,6 +197,7 @@ export function TimeCheckSection({
           onPause={onPause}
           onResume={onResume}
           onComplete={onComplete}
+          campMode={campMode}
         />
       </div>
 

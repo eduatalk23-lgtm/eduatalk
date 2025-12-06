@@ -25,14 +25,19 @@
 모든 컴포넌트에서 `/today/plan/[planId]`로의 네비게이션이 `buildPlanExecutionUrl` 헬퍼 함수를 사용하도록 통일되었습니다:
 
 **헬퍼 함수** (`app/(student)/today/_utils/navigationUtils.ts`):
+
 ```typescript
-export function buildPlanExecutionUrl(planId: string, campMode?: boolean): string {
+export function buildPlanExecutionUrl(
+  planId: string,
+  campMode?: boolean
+): string {
   const query = campMode ? "?mode=camp" : "";
   return `/today/plan/${planId}${query}`;
 }
 ```
 
 **적용된 컴포넌트**:
+
 - ✅ `PlanItem.tsx`: `handleComplete`에서 사용
 - ✅ `PlanGroupCard.tsx`: `handleGroupComplete`에서 사용
 - ✅ `TimerControlButtons.tsx`: 완료된 플랜 상세보기에서 사용
@@ -54,6 +59,7 @@ export function buildPlanExecutionUrl(planId: string, campMode?: boolean): strin
 `campMode` prop이 올바르게 전달되는지 확인:
 
 **전달 경로 1: PlanViewContainer → DailyPlanListView / SinglePlanView**
+
 ```
 PlanViewContainer (campMode)
   ├─ DailyPlanListView (campMode)
@@ -63,6 +69,7 @@ PlanViewContainer (campMode)
 ```
 
 **전달 경로 2: PlanViewContainer → TodayPlanListView → DailyPlanView / SinglePlanView**
+
 ```
 PlanViewContainer (campMode)
   └─ TodayPlanListView (campMode)
@@ -78,16 +85,19 @@ PlanViewContainer (campMode)
 ### 5. 사용처 확인
 
 **일반 Today 모드** (`/today/page.tsx`):
+
 - ✅ `TodayPageContent`에 `campMode` prop 전달하지 않음 (기본값 `false` 사용)
 - ✅ 모든 네비게이션 → `/today/plan/[id]` (쿼리 파라미터 없음)
 
 **캠프 학습 관리 모드** (`/camp/today/page.tsx`):
+
 - ✅ `TodayPageContent`에 `campMode={true}` 전달
 - ✅ 모든 네비게이션 → `/today/plan/[id]?mode=camp`
 
 ## 🔧 수정된 파일 목록
 
 ### 핵심 컴포넌트 (5개)
+
 1. `app/(student)/today/_components/PlanItem.tsx`
 2. `app/(student)/today/_components/PlanGroupCard.tsx`
 3. `app/(student)/today/_components/TimerControlButtons.tsx`
@@ -95,12 +105,14 @@ PlanViewContainer (campMode)
 5. `app/(student)/today/_components/PlanTimerCard.tsx`
 
 ### 중간 컴포넌트 (4개)
+
 6. `app/(student)/today/_components/DailyPlanView.tsx`
 7. `app/(student)/today/_components/SinglePlanView.tsx`
 8. `app/(student)/today/_components/DailyPlanListView.tsx`
 9. `app/(student)/today/_components/TodayPlanListView.tsx`
 
 ### 유틸리티 (1개)
+
 10. `app/(student)/today/_utils/navigationUtils.ts` (신규 생성)
 
 ## 🎯 추출된 헬퍼 함수
@@ -110,11 +122,16 @@ PlanViewContainer (campMode)
 **위치**: `app/(student)/today/_utils/navigationUtils.ts`
 
 **시그니처**:
+
 ```typescript
-export function buildPlanExecutionUrl(planId: string, campMode?: boolean): string
+export function buildPlanExecutionUrl(
+  planId: string,
+  campMode?: boolean
+): string;
 ```
 
-**사용처**: 
+**사용처**:
+
 - `PlanItem.tsx` (1곳)
 - `PlanGroupCard.tsx` (1곳)
 - `TimerControlButtons.tsx` (1곳)
@@ -163,4 +180,3 @@ export function buildPlanExecutionUrl(planId: string, campMode?: boolean): strin
 
 **검토 날짜**: 2025년 1월 27일  
 **검토자**: AI Assistant
-
