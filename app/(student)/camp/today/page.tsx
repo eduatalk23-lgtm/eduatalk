@@ -9,9 +9,11 @@ import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
 import { TodayPageContent } from "@/app/(student)/today/_components/TodayPageContent";
 import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";
+import { CompletionToast } from "@/app/(student)/today/_components/CompletionToast";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCampTemplate } from "@/lib/data/campTemplates";
+import { getPlanById } from "@/lib/data/studentPlans";
 
 type CampTodayPageProps = {
   searchParams?:
@@ -90,6 +92,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
 
   const dateParam = getParam("date");
   const viewParam = getParam("view");
+  const completedPlanIdParam = getParam("completedPlanId");
 
   const requestedDate =
     typeof dateParam === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
@@ -181,6 +184,23 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     };
   });
 
+  // 완료된 플랜 정보 조회 (토스트용)
+  let completedPlanTitle: string | null = null;
+  if (completedPlanIdParam) {
+    try {
+      const completedPlan = await getPlanById(
+        completedPlanIdParam,
+        userId,
+        tenantContext?.tenantId || null
+      );
+      if (completedPlan) {
+        completedPlanTitle = completedPlan.content_title || null;
+      }
+    } catch (error) {
+      console.error("[CampTodayPage] 완료된 플랜 정보 조회 실패", error);
+    }
+  }
+
   const [todayProgress] = await Promise.all([todayProgressPromise]);
 
   return (
@@ -195,6 +215,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
           </div>
         </div>
         <CurrentLearningSection campMode={true} />
+        <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="lg:col-span-8">
             <TodayPageContent

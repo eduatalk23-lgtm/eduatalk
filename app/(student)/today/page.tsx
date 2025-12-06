@@ -9,6 +9,7 @@ import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPageContent } from "./_components/TodayPageContent";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
+import { CompletionToast } from "./_components/CompletionToast";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { getPlanById } from "@/lib/data/studentPlans";
@@ -184,6 +185,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       <div className="flex flex-col gap-6">
         <TodayHeader />
         <CurrentLearningSection />
+        <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="lg:col-span-8">
             <TodayPageContent
@@ -193,8 +195,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               initialProgress={todayProgress}
               showAchievements={false}
               userId={userId}
-              completedPlanId={completedPlanIdParam}
-              completedPlanTitle={completedPlanTitle}
             />
           </div>
           <div className="lg:col-span-4">
@@ -206,8 +206,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
                 initialProgress={todayProgress}
                 showPlans={false}
                 userId={userId}
-                completedPlanId={completedPlanIdParam}
-                completedPlanTitle={completedPlanTitle}
               />
             </div>
           </div>
