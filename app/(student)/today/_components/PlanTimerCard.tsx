@@ -31,6 +31,7 @@ type PlanTimerCardProps = {
   sessionStartedAt?: string | null;
   sessionPausedDurationSeconds?: number | null;
   serverNow?: number;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function PlanTimerCard({
@@ -51,6 +52,7 @@ export function PlanTimerCard({
   sessionStartedAt,
   sessionPausedDurationSeconds,
   serverNow = Date.now(),
+  campMode = false,
 }: PlanTimerCardProps) {
   const router = useRouter();
   const { showError } = useToast();
@@ -250,8 +252,9 @@ export function PlanTimerCard({
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(planId);
       
-      // 완료 입력 페이지로 이동
-      router.push(`/today/plan/${planId}`);
+      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+      const query = campMode ? "?mode=camp" : "";
+      router.push(`/today/plan/${planId}${query}`);
     } catch (error) {
       console.error("[PlanTimerCard] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");
@@ -275,7 +278,10 @@ export function PlanTimerCard({
           </p>
         </div>
         <button
-          onClick={() => router.push(`/today/plan/${planId}`)}
+          onClick={() => {
+            const query = campMode ? "?mode=camp" : "";
+            router.push(`/today/plan/${planId}${query}`);
+          }}
           className="w-full rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
         >
           상세보기

@@ -15,6 +15,7 @@ type TodayPlanListViewProps = {
   initialMode?: ViewMode;
   initialSelectedPlanNumber?: number | null;
   serverNow?: number;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function TodayPlanListView({
@@ -26,6 +27,7 @@ export function TodayPlanListView({
   initialMode = "single",
   initialSelectedPlanNumber = null,
   serverNow = Date.now(),
+  campMode = false,
 }: TodayPlanListViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
@@ -59,6 +61,7 @@ export function TodayPlanListView({
           memos={memos}
           totalPagesMap={totalPagesMap}
           onViewDetail={handleViewDetail}
+          campMode={campMode}
         />
       ) : (
         <SinglePlanView
@@ -68,6 +71,7 @@ export function TodayPlanListView({
           sessions={sessions}
           planDate={planDate}
           serverNow={serverNow}
+          campMode={campMode}
         />
       )}
     </div>

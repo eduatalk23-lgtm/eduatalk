@@ -15,6 +15,7 @@ type SinglePlanViewProps = {
   selectedPlanNumber: number | null;
   onSelectPlan: (planNumber: number | null) => void;
   serverNow?: number;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function SinglePlanView({
@@ -24,6 +25,7 @@ export function SinglePlanView({
   selectedPlanNumber,
   onSelectPlan,
   serverNow = Date.now(),
+  campMode = false,
 }: SinglePlanViewProps) {
   const selectedGroup =
     groups.find((g) => g.planNumber === selectedPlanNumber) || groups[0];
@@ -63,6 +65,7 @@ export function SinglePlanView({
         planDate={planDate}
         viewMode="single"
         serverNow={serverNow}
+        campMode={campMode}
       />
     </div>
   );

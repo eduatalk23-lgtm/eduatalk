@@ -12,6 +12,7 @@ type DailyPlanViewProps = {
   memos: Map<number | null, string | null>; // planNumber -> memo
   totalPagesMap: Map<string, number>; // contentKey -> totalPages
   onViewDetail: (planNumber: number | null) => void;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function DailyPlanView({
@@ -21,6 +22,7 @@ export function DailyPlanView({
   memos,
   totalPagesMap,
   onViewDetail,
+  campMode = false,
 }: DailyPlanViewProps) {
   if (groups.length === 0) {
     return (
@@ -59,6 +61,7 @@ export function DailyPlanView({
             memo={memo}
             totalPages={totalPages}
             onViewDetail={() => onViewDetail(group.planNumber)}
+            campMode={campMode}
           />
         </div>
       );

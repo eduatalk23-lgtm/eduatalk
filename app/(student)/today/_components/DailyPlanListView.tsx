@@ -13,6 +13,7 @@ type DailyPlanListViewProps = {
   planDate: string;
   onViewDetail: (planNumber: number | null) => void;
   serverNow?: number;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function DailyPlanListView({
@@ -21,6 +22,7 @@ export function DailyPlanListView({
   planDate,
   onViewDetail,
   serverNow = Date.now(),
+  campMode = false,
 }: DailyPlanListViewProps) {
   if (groups.length === 0) {
     const formattedDate = planDate
@@ -55,6 +57,7 @@ export function DailyPlanListView({
           viewMode="daily"
           onViewDetail={() => onViewDetail(group.planNumber)}
           serverNow={serverNow}
+          campMode={campMode}
         />
       ))}
     </div>

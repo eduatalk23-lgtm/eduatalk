@@ -34,6 +34,7 @@ type PlanGroupCardProps = {
   memo?: string | null; // 메모 내용
   totalPages?: number; // 콘텐츠 총량 (범위 조정용)
   onViewDetail?: () => void; // 일일 뷰에서 단일 뷰로 전환할 때
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 function PlanGroupCardComponent({
@@ -44,6 +45,7 @@ function PlanGroupCardComponent({
   memo,
   totalPages,
   onViewDetail,
+  campMode = false,
 }: PlanGroupCardProps) {
   const router = useRouter();
   const timerStore = usePlanTimerStore();
@@ -255,8 +257,9 @@ function PlanGroupCardComponent({
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(targetPlanId);
       
-      // 완료 입력 페이지로 이동 (CAMP 모드)
-      router.push(`/today/plan/${targetPlanId}?mode=camp`);
+      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+      const query = campMode ? "?mode=camp" : "";
+      router.push(`/today/plan/${targetPlanId}${query}`);
     } catch (error) {
       console.error("[PlanGroupCard] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");
@@ -472,6 +475,7 @@ function PlanGroupCardComponent({
                   sessions.has(plan.id)
                 }
                 viewMode="daily"
+                campMode={campMode}
               />
             );
           })()}
@@ -511,6 +515,7 @@ function PlanGroupCardComponent({
         onPause={handleGroupPause}
         onResume={handleGroupResume}
         onComplete={handleGroupComplete}
+        campMode={campMode}
       />
 
       {/* 메모 모달 */}

@@ -32,6 +32,7 @@ type PlanCardProps = {
   viewMode: "single" | "daily";
   onViewDetail?: () => void;
   serverNow?: number;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function PlanCard({
@@ -41,6 +42,7 @@ export function PlanCard({
   viewMode,
   onViewDetail,
   serverNow = Date.now(),
+  campMode = false,
 }: PlanCardProps) {
   const router = useRouter();
   const { showError } = useToast();
@@ -312,8 +314,9 @@ export function PlanCard({
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(targetPlanId);
       
-      // 완료 입력 페이지로 이동
-      router.push(`/today/plan/${targetPlanId}`);
+      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+      const query = campMode ? "?mode=camp" : "";
+      router.push(`/today/plan/${targetPlanId}${query}`);
     } catch (error) {
       console.error("[PlanCard] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");

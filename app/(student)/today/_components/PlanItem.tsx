@@ -15,6 +15,7 @@ type PlanItemProps = {
   isGrouped: boolean; // 같은 plan_number를 가진 그룹의 일부인지
   showTimer?: boolean; // 타이머 표시 여부
   viewMode?: "daily" | "single"; // 뷰 모드에 따라 레이아웃 다름
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function PlanItem({
@@ -22,6 +23,7 @@ export function PlanItem({
   isGrouped,
   showTimer = false,
   viewMode = "daily",
+  campMode = false,
 }: PlanItemProps) {
   const router = useRouter();
 
@@ -142,8 +144,9 @@ export function PlanItem({
       // 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(plan.id);
       
-      // 완료 입력 페이지로 이동 (CAMP 모드)
-      router.push(`/today/plan/${plan.id}?mode=camp`);
+      // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
+      const query = campMode ? "?mode=camp" : "";
+      router.push(`/today/plan/${plan.id}${query}`);
     } catch (error) {
       console.error("[PlanItem] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");
@@ -238,6 +241,7 @@ export function PlanItem({
             onPause={handlePause}
             onResume={handleResume}
             onComplete={handleComplete}
+            campMode={campMode}
           />
         </div>
       </div>

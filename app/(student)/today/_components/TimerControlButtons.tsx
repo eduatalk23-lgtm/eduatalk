@@ -15,6 +15,7 @@ type TimerControlButtonsProps = {
   onResume: () => void;
   onComplete: () => void;
   className?: string;
+  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function TimerControlButtons({
@@ -29,6 +30,7 @@ export function TimerControlButtons({
   onResume,
   onComplete,
   className,
+  campMode = false,
 }: TimerControlButtonsProps) {
   const router = useRouter();
 
@@ -40,9 +42,14 @@ export function TimerControlButtons({
   };
 
   if (isCompleted) {
+    const navigateToPlan = () => {
+      const query = campMode ? "?mode=camp" : "";
+      router.push(`/today/plan/${planId}${query}`);
+    };
+
     return (
       <button
-        onClick={() => router.push(`/today/plan/${planId}`)}
+        onClick={navigateToPlan}
         aria-label="완료한 플랜 상세보기"
         className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 ${
           className || ""

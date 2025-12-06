@@ -257,6 +257,7 @@ export function PlanViewContainer({
           planDate={planDate}
           onViewDetail={handleViewDetail}
           serverNow={serverNow}
+          campMode={campMode}
         />
       ) : (
         <SinglePlanView
@@ -266,6 +267,7 @@ export function PlanViewContainer({
           selectedPlanNumber={selectedPlanNumber}
           onSelectPlan={setSelectedPlanNumber}
           serverNow={serverNow}
+          campMode={campMode}
         />
       )}
     </div>
