@@ -8,6 +8,7 @@ import { StudySession } from "@/lib/data/studentSessions";
 import { startPlan, completePlan, postponePlan, preparePlanCompletion } from "@/app/(student)/today/actions/todayActions";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanCompletionMode = "today" | "camp";
 
@@ -36,6 +37,7 @@ export function PlanExecutionForm({
 }: PlanExecutionFormProps) {
   const router = useRouter();
   const timerStore = usePlanTimerStore();
+  const { showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isClearingSession, setIsClearingSession] = useState(false);
@@ -61,6 +63,7 @@ export function PlanExecutionForm({
       
       if (!result.success) {
         setErrors({ general: result.error || "타이머 정리에 실패했습니다." });
+        showError(result.error || "타이머 정리에 실패했습니다.");
         return;
       }
 
@@ -71,6 +74,7 @@ export function PlanExecutionForm({
     } catch (error) {
       console.error("[PlanExecutionForm] 타이머 정리 오류:", error);
       setErrors({ general: "오류가 발생했습니다." });
+      showError("오류가 발생했습니다.");
     } finally {
       setIsClearingSession(false);
     }
@@ -86,9 +90,11 @@ export function PlanExecutionForm({
         router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 시작에 실패했습니다." });
+        showError(result.error || "플랜 시작에 실패했습니다.");
       }
     } catch (error) {
       setErrors({ general: "오류가 발생했습니다." });
+      showError("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -171,11 +177,13 @@ export function PlanExecutionForm({
         router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 완료에 실패했습니다." });
+        showError(result.error || "플랜 완료에 실패했습니다.");
         setIsCompleting(false);
       }
     } catch (error) {
       console.error("[PlanExecutionForm] 완료 처리 오류:", error);
       setErrors({ general: "오류가 발생했습니다." });
+      showError("오류가 발생했습니다.");
       setIsCompleting(false);
     } finally {
       setIsLoading(false);
@@ -201,15 +209,17 @@ export function PlanExecutionForm({
         router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 미루기에 실패했습니다." });
+        showError(result.error || "플랜 미루기에 실패했습니다.");
       }
     } catch (error) {
       setErrors({ general: "오류가 발생했습니다." });
+      showError("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 상태 1: 이미 완료됨 - 완료 상태를 명확히 표시
+  // 상태 D: 이미 완료됨
   if (isAlreadyCompleted) {
     return (
       <div className="space-y-4">
@@ -217,14 +227,14 @@ export function PlanExecutionForm({
           <div className="flex flex-col items-center justify-center gap-3 text-center">
             <StatusBadge status="COMPLETED" size="lg" />
             <span className="text-base font-bold text-emerald-900">이 플랜은 이미 완료되었습니다.</span>
-            <p className="text-sm text-emerald-700">학습 기록을 확인하거나 다른 플랜을 진행하세요.</p>
+            <p className="text-sm text-emerald-700">아래에서 완료된 학습 기록을 확인할 수 있습니다.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // 상태 2: 완료 처리 중 - 로딩 상태를 명확히 표시
+  // 상태 C: 완료 처리 중
   if (isCompleting) {
     return (
       <div className="space-y-4">
@@ -232,14 +242,13 @@ export function PlanExecutionForm({
           <div className="mb-4 flex justify-center">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
           </div>
-          <p className="text-base font-bold text-indigo-900">완료 데이터를 정리하고 있어요...</p>
-          <p className="mt-2 text-sm text-indigo-700">잠시만 기다려주세요.</p>
+          <p className="text-base font-bold text-indigo-900">학습 기록을 정리하고 있어요… 잠시만 기다려 주세요.</p>
         </div>
       </div>
     );
   }
 
-  // 상태 3: 미완료 + 활성 세션 있음
+  // 상태 B: 미완료 + 활성 세션 있음
   if (hasActiveSession) {
     return (
       <div className="space-y-4">
@@ -253,10 +262,10 @@ export function PlanExecutionForm({
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-2">
               <StatusBadge status="RUNNING" size="md" />
-              <h3 className="text-base font-bold text-yellow-900">타이머 실행 중</h3>
+              <h3 className="text-base font-bold text-yellow-900">현재 이 플랜의 타이머가 실행 중이에요</h3>
             </div>
             <p className="text-sm text-yellow-800">
-              현재 이 플랜의 타이머가 실행 중입니다. 먼저 타이머를 정리한 후 학습 기록을 입력할 수 있어요.
+              학습 기록을 입력하려면 먼저 타이머를 종료해야 합니다.
             </p>
           </div>
           <button
@@ -343,9 +352,18 @@ export function PlanExecutionForm({
             필수
           </span>
         </div>
-        <p className="mb-5 text-sm text-gray-600">
-          학습한 범위와 메모를 입력해주세요.
-        </p>
+        <div className="mb-5 space-y-2">
+          <p className="text-sm font-medium text-gray-900">
+            {mode === "camp" 
+              ? "이 캠프 세션에서 실제로 학습한 범위를 입력해 주세요."
+              : "이번 플랜에서 실제로 학습한 범위를 입력해 주세요."}
+          </p>
+          <p className="text-xs text-gray-600">
+            {mode === "camp" 
+              ? "입력한 내용은 현재 블록의 학습 결과로 기록됩니다."
+              : "입력한 내용은 오늘의 학습 기록으로 저장되며 나중에 다시 확인할 수 있습니다."}
+          </p>
+        </div>
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-gray-700">
@@ -394,20 +412,37 @@ export function PlanExecutionForm({
             {errors.endPageOrTime && (
               <p className="mt-1.5 text-sm font-medium text-red-600">{errors.endPageOrTime}</p>
             )}
+            <p className="mt-1.5 text-xs text-gray-500">
+              {mode === "camp" 
+                ? "해당 블록에서 실제로 완료한 학습 범위를 입력하세요. 시작 값은 0 이상이어야 하며, 종료 값은 시작 값 이상이어야 합니다. 다른 블록의 상태는 변경되지 않습니다."
+                : "플랜에서 실제로 학습한 시작·종료 범위를 입력하세요. 시작 값은 0 이상이어야 하며, 종료 값은 시작 값 이상이어야 합니다."}
+            </p>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-              메모 (선택)
+              메모 {mode === "camp" ? "(선택 입력)" : "(선택)"}
             </label>
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-medium transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               rows={3}
-              placeholder="학습 메모를 입력하세요 (선택사항)"
+              placeholder={mode === "camp" 
+                ? "캠프 진행 중 느낀 점이나 필요했던 보완 학습을 기록해 두면 다음 블록 학습에 도움이 됩니다."
+                : "선택사항: 학습 중 느낀 점이나 중요한 내용을 적어 두면 복습에 도움이 됩니다."}
             />
           </div>
         </div>
+      </div>
+
+      {/* 상태 A 안내 메시지 */}
+      <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+        <p className="text-sm font-medium text-indigo-900">
+          이 플랜의 학습이 종료되었습니다.
+        </p>
+        <p className="mt-1 text-xs text-indigo-700">
+          이제 실제로 학습한 범위를 입력하고 완료를 확정해 주세요.
+        </p>
       </div>
 
       {/* Primary CTA: 완료 확정 - 가장 눈에 띄는 버튼 (모바일 터치 친화적: 최소 44px 높이) */}
@@ -423,7 +458,7 @@ export function PlanExecutionForm({
               처리 중...
             </span>
           ) : (
-            "완료 확정"
+            mode === "camp" ? "블록 완료 확정" : "완료 확정"
           )}
         </button>
       </div>
@@ -464,8 +499,8 @@ export function PlanExecutionForm({
               <h3 className="text-sm font-semibold text-gray-700">연결된 학습 블록</h3>
               <p className="mt-1 text-xs text-gray-500">
                 {mode === "camp" 
-                  ? "이 캠프 세션에서 실제로 학습한 범위를 입력하면 이 블록이 완료 처리됩니다. 다른 블록의 상태는 변경되지 않습니다."
-                  : "이 페이지에서 완료 처리되는 것은 <strong className=\"font-semibold text-gray-700\">현재 블록</strong>만입니다. 다른 블록의 상태는 변경되지 않습니다."}
+                  ? "이 캠프 내에서 이어지는 학습 블록들이에요. 현재 블록만 완료되며, 다른 블록의 상태는 변경되지 않습니다."
+                  : "같은 플랜 번호로 묶인 블록들이에요. 이 페이지에서 완료 처리되는 것은 현재 블록만이며, 다른 블록의 상태는 변경되지 않습니다."}
               </p>
             </div>
             <div className="flex flex-col gap-2">
