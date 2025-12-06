@@ -365,6 +365,69 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
    - JOIN을 통한 단일 쿼리로 통합 (복잡도 증가 vs 성능 향상 트레이드오프)
    - 현재는 배치 조회로 충분히 효율적
 
+## Round 4: 중복 작업 제거 및 서버 사이드 fetch 통합 (완료)
+
+### Task 1: todayPlans 로직을 공유 함수로 추출
+
+**구현 내용**:
+1. `/api/today/plans`의 전체 로직을 `lib/data/todayPlans.ts`의 `getTodayPlans` 함수로 이동:
+   - Wave 1 병렬 쿼리 (planGroups + goals)
+   - Wave 2 병렬 쿼리 (activeSessions + fullDaySessions)
+   - todayProgress 인라인 계산
+   - Enrich 단계 전체
+
+2. `/api/today/plans` 라우트 간소화:
+   - 파라미터 파싱만 수행
+   - `getTodayPlans` 호출
+   - JSON 응답 반환
+
+**효과**: 코드 중복 제거, 서버 컴포넌트와 API 라우트에서 동일한 로직 재사용
+
+### Task 2: /camp/today에서 공유 함수 사용
+
+**구현 내용**:
+1. `/camp/today` 서버 컴포넌트에서 `getTodayPlans` 호출:
+   - `includeProgress: true`로 설정하여 todayProgress 포함
+   - `narrowQueries: true`로 최적화된 쿼리 사용
+
+2. `todayProgress`는 `getTodayPlans` 결과에서 추출:
+   - 별도의 `calculateTodayProgress` 호출 제거
+   - ~0.6-1.28s 절약
+
+3. `initialPlansData`로 클라이언트에 전달:
+   - `TodayPageContent`에 `initialPlansData` prop 전달
+   - `PlanViewContainer`에서 `initialData`가 있으면 네트워크 요청 스킵
+
+**효과**:
+- `/camp/today`에서 중복 계산 제거
+- 클라이언트 사이드 네트워크 요청 제거 (서버에서 이미 로드됨)
+- 전체 페이지 로드 시간 개선
+
+### Task 3: 중복 "progress" DB 작업 제거
+
+**구현 내용**:
+1. `/camp/today`에서 `calculateTodayProgress` 호출 제거:
+   - 이전: 별도 DB 쿼리로 ~0.6-1.28s 소요
+   - 현재: `getTodayPlans` 결과의 `todayProgress` 사용 (JS 계산, ~0.01-0.08ms)
+
+2. `[camp/today] progress` 타이밍 로그 제거:
+   - 더 이상 별도 progress 쿼리가 없음
+   - progress는 `getTodayPlans` 내부에서 계산됨
+
+**효과**: ~0.6-1.28s 절약 (중복 DB 쿼리 제거)
+
+### Task 4: 계측 유지 및 before/after 비교
+
+**유지된 타이밍 로그**:
+- `[camp/today] db - planGroups`
+- `[camp/today] db - templates`
+- `[camp/today] db - todayPlans` (이제 `getTodayPlans` 호출 시간)
+- `[camp/today] total`
+- `[todayPlans] ...` (모든 하위 타이밍 로그 유지)
+
+**제거된 타이밍 로그**:
+- `[camp/today] progress` (더 이상 별도 쿼리 없음)
+
 ## Round 3: Enrich 최적화 및 Progress 통합 (완료)
 
 ### Task 1: Enrich 단계 세분화 및 최적화
@@ -464,6 +527,13 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 6. **app/api/today/plans/route.ts**
    - Progress 쿼리 최적화: 필요한 콘텐츠만 조회
    - Session 쿼리 최적화: 해당 플랜 ID만 필터링
+
+### Round 4 예상 성능 개선
+
+- **중복 작업 제거**: `/camp/today`에서 todayPlans 계산 1회만 수행 (서버 + 클라이언트 → 서버만)
+- **Progress 쿼리 제거**: `calculateTodayProgress` 호출 제거, ~0.6-1.28s 절약
+- **네트워크 요청 제거**: 클라이언트 사이드 `/api/today/plans` 호출 스킵, ~2.5-2.8s 절약
+- **전체 예상**: `/camp/today` 페이지 로드 시간 ~3.1-7.4s → ~1.5-3.0s (약 50% 개선)
 
 ### Round 3 예상 성능 개선
 

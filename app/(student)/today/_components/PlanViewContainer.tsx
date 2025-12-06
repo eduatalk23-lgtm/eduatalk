@@ -242,8 +242,16 @@ export function PlanViewContainer({
   );
 
   useEffect(() => {
-    // If initialData is provided, skip the fetch (data already loaded from server)
+    // If initialData is provided, use it and skip client-side fetch
+    // This avoids double-fetch on pages like /camp/today where data is already fetched on the server
     if (initialData) {
+      const grouped = groupPlansByPlanNumber(initialData.plans);
+      setGroups(grouped);
+      setSessions(new Map(Object.entries(initialData.sessions || {})));
+      setPlanDate(initialData.planDate || "");
+      setIsToday(Boolean(initialData.isToday));
+      setServerNow(initialData.serverNow || Date.now());
+      setLoading(false); // Data is already loaded
       queryDateRef.current = initialData.planDate || null;
       if (initialData.planDate) {
         // Pass todayProgress from initialData to avoid separate /api/today/progress call
@@ -252,6 +260,11 @@ export function PlanViewContainer({
           todayProgress: initialData.todayProgress,
         });
       }
+      setSelectedPlanNumber((prev) => {
+        if (grouped.length === 0) return null;
+        if (prev != null && grouped.some((g) => g.planNumber === prev)) return prev;
+        return grouped[0]?.planNumber ?? null;
+      });
       return;
     }
 

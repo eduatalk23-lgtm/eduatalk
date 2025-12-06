@@ -5,7 +5,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
+import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
 import { TodayPageContent } from "@/app/(student)/today/_components/TodayPageContent";
 import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";
@@ -173,24 +173,6 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     );
   }
 
-  // 진행률 계산 (캠프 모드 필터링은 calculateTodayProgress 내부에서 처리 필요)
-  // TODO: calculateTodayProgress에 캠프 모드 필터링 추가 필요
-  console.time("[camp/today] progress");
-  const todayProgressPromise = calculateTodayProgress(
-    userId,
-    tenantContext?.tenantId || null,
-    targetProgressDate
-  ).catch((error) => {
-    console.error("[CampTodayPage] 진행률 계산 실패", error);
-    return {
-      todayStudyMinutes: 0,
-      planCompletedCount: 0,
-      planTotalCount: 0,
-      goalProgressSummary: [],
-      achievementScore: 0,
-    };
-  });
-
   // 완료된 플랜 정보 조회 (토스트용)
   let completedPlanTitle: string | null = null;
   if (completedPlanIdParam) {
@@ -210,21 +192,30 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     console.timeEnd("[camp/today] db - completedPlan");
   }
 
-  const [todayProgress] = await Promise.all([todayProgressPromise]);
-  console.timeEnd("[camp/today] progress");
-
   // Single server-side fetch for today's plans to avoid double-fetch
   // TodayPageContent is rendered twice (main + sidebar), and without this,
   // each instance would trigger its own client-side fetch via PlanViewContainer
+  // This also includes todayProgress calculation, eliminating the need for a separate progress query
   console.time("[camp/today] db - todayPlans");
   const todayPlansData = await getTodayPlans({
     studentId: userId,
     tenantId: tenantContext?.tenantId || null,
     date: requestedDate,
     camp: true,
+    includeProgress: true, // Include progress to avoid separate /api/today/progress call
     narrowQueries: true, // Optimize: only fetch progress/sessions for relevant plans
   });
   console.timeEnd("[camp/today] db - todayPlans");
+
+  // Extract todayProgress from the result (computed in-memory, no additional DB query)
+  // This replaces the previous ~0.6-1.28s calculateTodayProgress call
+  const todayProgress: TodayProgress = todayPlansData.todayProgress ?? {
+    todayStudyMinutes: 0,
+    planCompletedCount: 0,
+    planTotalCount: 0,
+    goalProgressSummary: [],
+    achievementScore: 0,
+  };
 
   console.timeEnd("[camp/today] total");
   return (
