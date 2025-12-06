@@ -56,31 +56,36 @@ export function usePlanTimer({
 
   // 초기화 또는 상태 동기화
   useEffect(() => {
-    // 완료된 경우 타이머 제거
+    // 완료된 경우 타이머 제거하고 더 이상 실행하지 않음
     if (isCompleted || status === "COMPLETED") {
       store.removeTimer(planId);
       return;
     }
 
+    // 현재 타이머 상태 확인 (effect 실행 시점의 값)
+    const currentTimer = store.timers.get(planId);
+
     // 타이머가 없거나 상태가 변경된 경우 초기화
-    if (!timer || timer.status !== status) {
+    if (!currentTimer || currentTimer.status !== status) {
       store.initPlanTimer(planId, {
         status,
         accumulatedSeconds,
         startedAt,
         serverNow,
       });
-    } else {
-      // 상태가 같아도 서버 데이터가 변경되었을 수 있으므로 동기화
-      const currentSeconds = timer.seconds;
-      const expectedSeconds = accumulatedSeconds;
-
-      // 차이가 크면 (예: 5초 이상) 동기화
-      if (Math.abs(currentSeconds - expectedSeconds) > 5) {
-        store.syncNow(planId, serverNow);
-      }
+      return;
     }
-  }, [planId, status, accumulatedSeconds, startedAt, serverNow, isCompleted, timer, store]);
+
+    // 상태가 같아도 서버 데이터가 변경되었을 수 있으므로 동기화
+    const currentSeconds = currentTimer.seconds;
+    const expectedSeconds = accumulatedSeconds;
+
+    // 차이가 크면 (예: 5초 이상) 동기화
+    if (Math.abs(currentSeconds - expectedSeconds) > 5) {
+      store.syncNow(planId, serverNow);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planId, status, accumulatedSeconds, startedAt, serverNow, isCompleted]);
 
   // 컴포넌트 언마운트 시 타이머 제거 (선택사항 - 여러 탭에서 사용 중이면 제거하지 않음)
   // useEffect(() => {
