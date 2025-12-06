@@ -174,7 +174,6 @@ export function PlanExecutionForm({
           const query = params.toString();
           router.push(query ? `/today?${query}` : "/today");
         }
-        router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 완료에 실패했습니다." });
         showError(result.error || "플랜 완료에 실패했습니다.");
@@ -214,8 +213,6 @@ export function PlanExecutionForm({
         } else {
           router.push(query ? `/today?${query}` : "/today");
         }
-
-        router.refresh();
       } else {
         setErrors({ general: result.error || "플랜 미루기에 실패했습니다." });
         showError(result.error || "플랜 미루기에 실패했습니다.");
