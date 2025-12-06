@@ -370,7 +370,9 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 1: Enrich 단계 세분화 및 최적화
 
 **구현 내용**:
+
 1. Enrich 단계를 5개 하위 단계로 분리:
+
    - `[todayPlans] enrich - buildMaps` - 콘텐츠 맵 생성
    - `[todayPlans] enrich - buildProgressMap` - 진행률 맵 생성
    - `[todayPlans] enrich - buildSessionMap` - 세션 맵 생성
@@ -387,12 +389,15 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 2: Contents 쿼리 강화
 
 **구현 내용**:
+
 1. 각 콘텐츠 타입별 타이밍 분리:
+
    - `[todayPlans] db - contents-books`
    - `[todayPlans] db - contents-lectures`
    - `[todayPlans] db - contents-custom`
 
 2. 방어 코드 추가:
+
    - 빈 배열 체크 강화 (null/undefined/empty 필터링)
    - IN clause 크기 제한 (MAX 500개)
    - 예외 처리 강화 (try-catch per query)
@@ -406,12 +411,15 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 ### Task 3: /api/today/progress 통합
 
 **구현 내용**:
+
 1. `/api/today/plans` 응답에 `todayProgress` 필드 추가:
+
    - `includeProgress=true` 파라미터로 제어 (기본값: true)
    - `calculateTodayProgress`를 비동기로 호출 (non-blocking)
    - 계산 실패 시에도 응답은 정상 반환 (progress만 null)
 
 2. 클라이언트 사이드 통합:
+
    - `PlanViewContainer`에서 `/api/today/plans` 호출 시 `includeProgress=true` 추가
    - 응답의 `todayProgress`를 `onDateChange` 콜백으로 전달
    - `TodayPageContent`에서 `todayProgress`가 제공되면 `/api/today/progress` 호출 스킵
@@ -421,6 +429,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
    - `includeProgress=false`로 기존 동작 유지 가능
 
 **효과**:
+
 - Today/Camp Today 페이지에서 API 호출 2회 → 1회로 감소
 - 네트워크 요청 감소, 페이지 로드 시간 개선 (~2.1-2.3s 절약)
 
@@ -473,6 +482,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 개발 환경에서 다음 타이밍 로그를 확인:
 
 **Round 3 새로운 로그**:
+
 - `[todayPlans] enrich - buildMaps` - 콘텐츠 맵 생성 시간
 - `[todayPlans] enrich - buildProgressMap` - 진행률 맵 생성 시간
 - `[todayPlans] enrich - buildSessionMap` - 세션 맵 생성 시간
@@ -484,6 +494,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 - `[todayPlans] db - todayProgress` - 오늘 진행률 계산 시간
 
 **기존 로그**:
+
 - `[camp/today] db - todayPlans` - 서버 사이드 fetch 시간
 - `[todayPlans] db - progress (narrowed)` - 최적화된 진행률 조회 시간
 - `[todayPlans] db - sessions (narrowed)` - 최적화된 세션 조회 시간
@@ -495,6 +506,7 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 개발 환경에서 다음 새로운 타이밍 로그를 확인할 수 있습니다:
 
 **Enrich 단계 세분화**:
+
 - `[todayPlans] enrich - buildMaps` - 콘텐츠 맵 생성 시간
 - `[todayPlans] enrich - buildProgressMap` - 진행률 맵 생성 시간
 - `[todayPlans] enrich - buildSessionMap` - 세션 맵 생성 시간
@@ -502,11 +514,13 @@ const { bookIds, lectureIds, customIds } = plans.reduce(
 - `[todayPlans] enrich - finalize` - 최종 객체 변환 시간
 
 **Contents 쿼리 분리**:
+
 - `[todayPlans] db - contents-books` - 책 조회 시간
 - `[todayPlans] db - contents-lectures` - 강의 조회 시간
 - `[todayPlans] db - contents-custom` - 커스텀 콘텐츠 조회 시간
 
 **Progress 통합**:
+
 - `[todayPlans] db - todayProgress` - 오늘 진행률 계산 시간
 
 ## 측정 방법

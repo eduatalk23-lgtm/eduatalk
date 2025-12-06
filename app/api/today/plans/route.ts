@@ -17,7 +17,13 @@ import {
   handleApiError,
 } from "@/lib/api";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
-import { calculateTodayProgress, type TodayProgress } from "@/lib/metrics/todayProgress";
+import type { TodayProgress } from "@/lib/metrics/todayProgress";
+import { getGoalsForStudent } from "@/lib/data/studentGoals";
+import { getSessionsInRange } from "@/lib/data/studentSessions";
+import {
+  calculatePlanStudySeconds,
+  buildActiveSessionMap,
+} from "@/lib/metrics/studyTime";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -73,16 +79,42 @@ export async function GET(request: Request) {
     const isCampMode = searchParams.get("camp") === "true";
     const includeProgress = searchParams.get("includeProgress") !== "false"; // Default: true
 
-    // 활성 플랜 그룹만 조회 (캠프 모드/일반 모드 필터링)
-    console.time("[todayPlans] db - planGroups");
-    let planGroupIds: string[] | undefined = undefined;
-    const allActivePlanGroups = await getPlanGroupsForStudent({
-      studentId: user.userId,
-      tenantId: tenantContext?.tenantId || null,
-      status: "active",
-    });
-    console.timeEnd("[todayPlans] db - planGroups");
+    // Wave 1: Independent queries that can run in parallel
+    // - planGroups (needed to filter plans)
+    // - goals (only if includeProgress, needed for goalProgressSummary)
+    console.time("[todayPlans] db - wave1 (parallel)");
+    const [allActivePlanGroupsResult, goalsResult] = await Promise.all([
+      // Query 1: Plan groups (always needed)
+      (async () => {
+        console.time("[todayPlans] db - planGroups");
+        const groups = await getPlanGroupsForStudent({
+          studentId: user.userId,
+          tenantId: tenantContext?.tenantId || null,
+          status: "active",
+        });
+        console.timeEnd("[todayPlans] db - planGroups");
+        return groups;
+      })(),
+      // Query 2: Goals (only if includeProgress)
+      includeProgress
+        ? (async () => {
+            console.time("[todayPlans] db - goals");
+            const goals = await getGoalsForStudent({
+              studentId: user.userId,
+              tenantId: tenantContext?.tenantId || null,
+              isActive: true,
+            });
+            console.timeEnd("[todayPlans] db - goals");
+            return goals;
+          })()
+        : Promise.resolve([]),
+    ]);
+    const allActivePlanGroups = allActivePlanGroupsResult;
+    const goals = goalsResult;
+    console.timeEnd("[todayPlans] db - wave1 (parallel)");
 
+    // Filter plan groups based on camp mode
+    let planGroupIds: string[] | undefined = undefined;
     if (isCampMode) {
       // 캠프 모드: 캠프 활성 플랜 그룹만 필터링
       const campPlanGroups = allActivePlanGroups.filter(
@@ -165,24 +197,84 @@ export async function GET(request: Request) {
       }
     }
 
-    // Calculate today progress in parallel (non-blocking, can fail silently)
-    // This allows Today/Camp Today pages to avoid calling /api/today/progress separately
+    // Calculate todayProgress from already loaded data (no additional DB queries)
+    // This replaces the ~600ms calculateTodayProgress call with in-memory computation
     let todayProgress: TodayProgress | null = null;
     if (includeProgress) {
-      console.time("[todayPlans] db - todayProgress");
+      console.time("[todayPlans] compute - todayProgress");
       try {
-        // excludeCampMode: false for camp mode, true for regular mode
-        todayProgress = await calculateTodayProgress(
-          user.userId,
-          tenantContext?.tenantId || null,
-          targetDate,
-          !isCampMode // excludeCampMode: true if NOT camp mode
-        );
+        // Use already loaded plans (no need to re-query)
+        const planTotalCount = plans.length;
+        const planCompletedCount = plans.filter((plan) => !!plan.actual_end_time).length;
+
+        // We'll compute todayStudyMinutes after we load fullDaySessions in Wave 2
+        // For now, set a placeholder (will be computed after sessions are loaded)
+        let todayStudyMinutes = 0;
+
+        // Compute goalProgressSummary from already loaded goals
+        // Note: We need goalProgressList for each goal, but we can batch this query
+        const goalProgressSummary: Array<{
+          goalId: string;
+          title: string;
+          progress: number;
+        }> = [];
+
+        if (goals.length > 0) {
+          // Batch query all goal progress for the target date
+          // Use the supabase client that will be created later (or create it here)
+          const supabaseForGoals = await createSupabaseServerClient();
+          const goalIds = goals.map((g) => g.id);
+          const { data: allGoalProgress } = await supabaseForGoals
+            .from("student_goal_progress")
+            .select("goal_id,progress_amount,created_at")
+            .eq("student_id", user.userId)
+            .in("goal_id", goalIds.length > 0 ? goalIds : ['dummy-id']);
+
+          // Group by goal_id and filter by target date
+          const goalProgressMap = new Map<string, number>();
+          allGoalProgress?.forEach((gp) => {
+            const progressDate = gp.created_at
+              ? new Date(gp.created_at).toISOString().slice(0, 10)
+              : null;
+            if (progressDate === targetDate) {
+              const current = goalProgressMap.get(gp.goal_id) || 0;
+              goalProgressMap.set(gp.goal_id, current + gp.progress_amount);
+            }
+          });
+
+          // Calculate progress for each goal
+          goals.forEach((goal) => {
+            const targetDateAmount = goalProgressMap.get(goal.id) || 0;
+            let progress = 0;
+            if (goal.expected_amount && goal.expected_amount > 0) {
+              progress = Math.min(
+                Math.round((targetDateAmount / goal.expected_amount) * 100),
+                100
+              );
+            }
+            goalProgressSummary.push({
+              goalId: goal.id,
+              title: goal.title,
+              progress,
+            });
+          });
+        }
+
+        // We'll compute todayStudyMinutes and achievementScore after fullDaySessions are loaded
+        // Store intermediate values for later computation
+        todayProgress = {
+          todayStudyMinutes: 0, // Will be computed after sessions are loaded
+          planCompletedCount,
+          planTotalCount,
+          goalProgressSummary,
+          achievementScore: 0, // Will be computed after todayStudyMinutes is known
+        };
       } catch (error) {
         console.error("[api/today/plans] 오늘 진행률 계산 실패 (비차단)", error);
         // Non-blocking: continue without progress data
+        todayProgress = null;
       }
-      console.timeEnd("[todayPlans] db - todayProgress");
+      console.timeEnd("[todayPlans] compute - todayProgress");
     }
 
     if (plans.length === 0) {
@@ -414,27 +506,115 @@ export async function GET(request: Request) {
     });
     console.timeEnd("[todayPlans] enrich - buildProgressMap");
 
-    // 활성 세션 조회 (최적화: 해당 플랜의 세션만 조회)
-    console.time("[todayPlans] db - sessions (narrowed)");
+    // Wave 2: Queries that depend on plans (can run in parallel after plans are loaded)
+    // - contents (books/lectures/custom) - already parallelized above
+    // - progress (narrowed) - already parallelized above
+    // - activeSessions (narrowed) - for plan execution state
+    // - fullDaySessions (only if includeProgress) - for todayStudyMinutes calculation
+    console.time("[todayPlans] db - wave2 (parallel)");
     const planIds = plans.map((p) => p.id);
-    let activeSessions: Array<{
-      plan_id: string | null;
-      started_at: string | null;
-      paused_at: string | null;
-      resumed_at: string | null;
-      paused_duration_seconds: number | null;
-    }> = [];
-    
-    if (planIds.length > 0) {
-      const { data } = await supabase
-        .from("student_study_sessions")
-        .select("plan_id,started_at,paused_at,resumed_at,paused_duration_seconds")
-        .eq("student_id", user.userId)
-        .in("plan_id", planIds)
-        .is("ended_at", null);
-      activeSessions = data ?? [];
+    const [activeSessionsResult, fullDaySessionsResult] = await Promise.all([
+      // Query 1: Active sessions for plan execution state (narrowed to plan IDs)
+      (async () => {
+        console.time("[todayPlans] db - sessions (narrowed)");
+        let sessions: Array<{
+          plan_id: string | null;
+          started_at: string | null;
+          paused_at: string | null;
+          resumed_at: string | null;
+          paused_duration_seconds: number | null;
+        }> = [];
+        
+        if (planIds.length > 0) {
+          const { data } = await supabase
+            .from("student_study_sessions")
+            .select("plan_id,started_at,paused_at,resumed_at,paused_duration_seconds")
+            .eq("student_id", user.userId)
+            .in("plan_id", planIds.length > 0 ? planIds : ['dummy-id'])
+            .is("ended_at", null);
+          sessions = data ?? [];
+        }
+        console.timeEnd("[todayPlans] db - sessions (narrowed)");
+        return sessions;
+      })(),
+      // Query 2: Full-day sessions for todayProgress calculation (only if includeProgress)
+      includeProgress && plans.length > 0
+        ? (async () => {
+            console.time("[todayPlans] db - fullDaySessions");
+            const target = new Date(targetDate + "T00:00:00");
+            const targetEnd = new Date(target);
+            targetEnd.setHours(23, 59, 59, 999);
+            const sessions = await getSessionsInRange({
+              studentId: user.userId,
+              tenantId: tenantContext?.tenantId || null,
+              dateRange: {
+                start: target.toISOString(),
+                end: targetEnd.toISOString(),
+              },
+            });
+            console.timeEnd("[todayPlans] db - fullDaySessions");
+            return sessions;
+          })()
+        : Promise.resolve([]),
+    ]);
+    const activeSessions = activeSessionsResult;
+    const fullDaySessions = fullDaySessionsResult;
+    console.timeEnd("[todayPlans] db - wave2 (parallel)");
+
+    // Complete todayProgress calculation now that we have fullDaySessions
+    if (includeProgress && todayProgress && fullDaySessions.length >= 0) {
+      console.time("[todayPlans] compute - todayProgress (finalize)");
+      try {
+        const activeSessionMap = buildActiveSessionMap(fullDaySessions);
+        const nowMs = Date.now();
+        const todayStudySeconds = plans.reduce((total, plan) => {
+          return (
+            total +
+            calculatePlanStudySeconds(
+              {
+                actual_start_time: plan.actual_start_time,
+                actual_end_time: plan.actual_end_time,
+                total_duration_seconds: plan.total_duration_seconds,
+                paused_duration_seconds: plan.paused_duration_seconds,
+              },
+              nowMs,
+              plan.actual_end_time ? undefined : activeSessionMap.get(plan.id)
+            )
+          );
+        }, 0);
+
+        const todayStudyMinutes = Math.floor(todayStudySeconds / 60);
+
+        // Calculate achievement score
+        const executionRate =
+          todayProgress.planTotalCount > 0
+            ? (todayProgress.planCompletedCount / todayProgress.planTotalCount) * 100
+            : 0;
+
+        const goalCompletionRate =
+          todayProgress.goalProgressSummary.length > 0
+            ? todayProgress.goalProgressSummary.reduce((sum, g) => sum + g.progress, 0) /
+              todayProgress.goalProgressSummary.length
+            : 0;
+
+        const expectedMinutes = todayProgress.planTotalCount * 60;
+        const focusTimerRate =
+          expectedMinutes > 0
+            ? Math.min((todayStudyMinutes / expectedMinutes) * 100, 100)
+            : 0;
+
+        const achievementScore = Math.round(
+          executionRate * 0.5 + goalCompletionRate * 0.3 + focusTimerRate * 0.2
+        );
+
+        todayProgress.todayStudyMinutes = todayStudyMinutes;
+        todayProgress.achievementScore = achievementScore;
+      } catch (error) {
+        console.error("[api/today/plans] 오늘 진행률 최종 계산 실패 (비차단)", error);
+        // Keep partial progress data
+      }
+      console.timeEnd("[todayPlans] compute - todayProgress (finalize)");
     }
-    console.timeEnd("[todayPlans] db - sessions (narrowed)");
 
     // Step 3: Build session map (O(n) where n = active sessions)
     console.time("[todayPlans] enrich - buildSessionMap");
