@@ -170,9 +170,6 @@ export function TimeCheckSection({
         )}
       </div>
 
-
-
-
       {/* 완료 상태 표시 */}
       {timeStats.isCompleted && (
         <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-green-50 p-3">

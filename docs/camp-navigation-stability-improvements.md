@@ -11,14 +11,19 @@
 **파일**: `app/(student)/today/_utils/navigationUtils.ts`
 
 **변경 전**:
+
 ```typescript
-export function buildPlanExecutionUrl(planId: string, campMode?: boolean): string {
+export function buildPlanExecutionUrl(
+  planId: string,
+  campMode?: boolean
+): string {
   const query = campMode ? "?mode=camp" : "";
   return `/today/plan/${planId}${query}`;
 }
 ```
 
 **변경 후**:
+
 ```typescript
 export function buildPlanExecutionUrl(
   planId: string,
@@ -30,6 +35,7 @@ export function buildPlanExecutionUrl(
 ```
 
 **개선 효과**:
+
 - 기본값 파라미터로 타입 안전성 향상
 - `campMode`가 항상 `boolean` 타입으로 보장됨
 - `undefined` 체크 불필요
@@ -37,9 +43,11 @@ export function buildPlanExecutionUrl(
 ### 2. 사용하지 않는 Import 제거
 
 **PlanItem.tsx**:
+
 - ❌ `useEffect` import 제거 (사용되지 않음)
 
 **TimeCheckSection.tsx**:
+
 - ❌ `useEffect` import 제거 (사용되지 않음)
 
 ### 3. 불필요한 래퍼 함수 제거
@@ -47,6 +55,7 @@ export function buildPlanExecutionUrl(
 **TimerControlButtons.tsx**:
 
 **변경 전**:
+
 ```typescript
 if (isCompleted) {
   const navigateToPlan = () => {
@@ -62,6 +71,7 @@ if (isCompleted) {
 ```
 
 **변경 후**:
+
 ```typescript
 if (isCompleted) {
   return (
@@ -76,6 +86,7 @@ if (isCompleted) {
 ```
 
 **개선 효과**:
+
 - 불필요한 함수 래핑 제거
 - 코드 간소화 및 가독성 향상
 
@@ -84,6 +95,7 @@ if (isCompleted) {
 **DailyPlanView.tsx**:
 
 **변경 전**:
+
 ```typescript
 const renderedGroups = useMemo(() =>
   groups.map(...),
@@ -92,6 +104,7 @@ const renderedGroups = useMemo(() =>
 ```
 
 **변경 후**:
+
 ```typescript
 const renderedGroups = useMemo(
   () => groups.map(...),
@@ -100,6 +113,7 @@ const renderedGroups = useMemo(
 ```
 
 **개선 효과**:
+
 - `campMode`가 dependency 배열에 누락되어 있던 문제 수정
 - React Hook 규칙 준수
 - 메모이제이션 정확성 향상
@@ -107,11 +121,13 @@ const renderedGroups = useMemo(
 ### 5. 주석 및 공백 정리
 
 **모든 컴포넌트**:
+
 - 중복된 주석 제거 ("campMode에 따라 쿼리 파라미터 추가" → "완료 입력 페이지로 이동")
 - 불필요한 공백 라인 제거
 - 일관된 주석 스타일 적용
 
 **변경 전**:
+
 ```typescript
 // 타이머 정지 (스토어에서 제거)
 timerStore.removeTimer(plan.id);
@@ -121,6 +137,7 @@ router.push(buildPlanExecutionUrl(plan.id, campMode));
 ```
 
 **변경 후**:
+
 ```typescript
 // 타이머 정지 (스토어에서 제거)
 timerStore.removeTimer(plan.id);
@@ -132,18 +149,20 @@ router.push(buildPlanExecutionUrl(plan.id, campMode));
 ### 6. 코드 일관성 개선
 
 **PlanItem.tsx**:
+
 - 불필요한 공백 라인 제거
 - 변수 선언 간 일관성 유지
 
 **변경 전**:
+
 ```typescript
 const isRunning = isActive && !isPaused;
-
 
 const isCompleted = !!plan.actual_end_time;
 ```
 
 **변경 후**:
+
 ```typescript
 const isRunning = isActive && !isPaused;
 const isCompleted = !!plan.actual_end_time;
@@ -151,22 +170,23 @@ const isCompleted = !!plan.actual_end_time;
 
 ## 📊 수정된 파일 통계
 
-| 파일 | 변경 라인 | 주요 개선 사항 |
-|------|----------|--------------|
-| `navigationUtils.ts` | +2, -1 | 타입 안전성 향상 (기본값 파라미터) |
-| `PlanItem.tsx` | +2, -4 | 사용하지 않는 import 제거, 공백 정리 |
-| `TimerControlButtons.tsx` | +1, -5 | 불필요한 래퍼 함수 제거 |
-| `DailyPlanView.tsx` | +1, -1 | useMemo dependency 배열 수정 |
-| `PlanCard.tsx` | +1, -1 | 주석 간소화 |
-| `PlanGroupCard.tsx` | +1, -1 | 주석 간소화 |
-| `PlanTimerCard.tsx` | +1, -1 | 주석 간소화 |
-| `TimeCheckSection.tsx` | +1, -1 | 사용하지 않는 import 제거 |
+| 파일                      | 변경 라인 | 주요 개선 사항                       |
+| ------------------------- | --------- | ------------------------------------ |
+| `navigationUtils.ts`      | +2, -1    | 타입 안전성 향상 (기본값 파라미터)   |
+| `PlanItem.tsx`            | +2, -4    | 사용하지 않는 import 제거, 공백 정리 |
+| `TimerControlButtons.tsx` | +1, -5    | 불필요한 래퍼 함수 제거              |
+| `DailyPlanView.tsx`       | +1, -1    | useMemo dependency 배열 수정         |
+| `PlanCard.tsx`            | +1, -1    | 주석 간소화                          |
+| `PlanGroupCard.tsx`       | +1, -1    | 주석 간소화                          |
+| `PlanTimerCard.tsx`       | +1, -1    | 주석 간소화                          |
+| `TimeCheckSection.tsx`    | +1, -1    | 사용하지 않는 import 제거            |
 
 **총 변경**: 8개 파일, 39줄 추가, 43줄 삭제
 
 ## ✅ 검증 완료 사항
 
 ### 기능 정확성
+
 - ✅ 모든 네비게이션이 `buildPlanExecutionUrl` 사용
 - ✅ `campMode` prop 전달 체인 유지
 - ✅ 일반 모드: `/today/plan/[id]` (쿼리 파라미터 없음)
@@ -174,6 +194,7 @@ const isCompleted = !!plan.actual_end_time;
 - ✅ 기존 기능 회귀 없음
 
 ### 코드 품질
+
 - ✅ 사용하지 않는 import 제거
 - ✅ 불필요한 코드 제거
 - ✅ 타입 안전성 향상
@@ -181,6 +202,7 @@ const isCompleted = !!plan.actual_end_time;
 - ✅ 일관된 코드 스타일
 
 ### 타입 안전성
+
 - ✅ 헬퍼 함수에 기본값 파라미터 추가
 - ✅ `campMode`가 항상 `boolean` 타입 보장
 - ✅ TypeScript 컴파일 에러 없음
@@ -211,4 +233,3 @@ const isCompleted = !!plan.actual_end_time;
 **개선 날짜**: 2025년 1월 27일  
 **상태**: ✅ 완료  
 **동작 변경**: 없음 (기능 동일성 유지)
-
