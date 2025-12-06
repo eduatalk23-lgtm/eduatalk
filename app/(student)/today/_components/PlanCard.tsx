@@ -155,14 +155,24 @@ export function PlanCard({
     }
 
     // 활성 세션이 없지만 플랜이 시작된 경우
-    const elapsed = Math.floor((Date.now() - startMs) / 1000);
-    const pausedDuration = plan.paused_duration_seconds || 0;
-    const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
+    const startMs = new Date(plan.actual_start_time).getTime();
+    if (Number.isFinite(startMs)) {
+      const elapsed = Math.floor((Date.now() - startMs) / 1000);
+      const pausedDuration = plan.paused_duration_seconds || 0;
+      const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
 
+      return {
+        status: "RUNNING" as const,
+        accumulatedSeconds,
+        startedAt: plan.actual_start_time,
+      };
+    }
+
+    // fallback: 시작 시간이 유효하지 않은 경우
     return {
-      status: "RUNNING" as const,
-      accumulatedSeconds,
-      startedAt: plan.actual_start_time,
+      status: "NOT_STARTED" as const,
+      accumulatedSeconds: 0,
+      startedAt: null,
     };
   }, [group.plan, sessions]);
 
