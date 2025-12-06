@@ -179,9 +179,8 @@ export function PlanCard({
       const result = await postponePlan(planId);
       if (!result.success) {
         alert(result.error || "일정을 미루는 중 오류가 발생했습니다.");
-      } else {
-        router.refresh();
       }
+      // postponePlan은 Server Action에서 revalidatePath를 호출하므로 router.refresh() 불필요
     } catch (error) {
       alert("오류가 발생했습니다.");
     } finally {
@@ -206,7 +205,7 @@ export function PlanCard({
         setOptimisticStatus(null);
       } else if (result.serverNow && result.status && result.startedAt) {
         // 스토어에 타이머 시작
-        timerStore.startTimer(waitingPlan.id, result.serverNow);
+        timerStore.startTimer(waitingPlan.id, result.serverNow, result.startedAt);
       }
     } catch (error) {
       setOptimisticStatus(null);
@@ -265,7 +264,7 @@ export function PlanCard({
         alert(result.error || "플랜 재개에 실패했습니다.");
       } else if (result.serverNow && result.status && result.startedAt) {
         // 스토어에 타이머 재개
-        timerStore.startTimer(plan.id, result.serverNow);
+        timerStore.startTimer(plan.id, result.serverNow, result.startedAt);
       }
     } catch (error) {
       setOptimisticStatus(null);
@@ -288,7 +287,7 @@ export function PlanCard({
       await stopAllActiveSessionsForPlan(activePlan.id);
       // 완료 시 타이머 정지 (스토어에서 제거)
       timerStore.removeTimer(activePlan.id);
-      router.refresh();
+      // stopAllActiveSessionsForPlan은 Server Action에서 revalidatePath를 호출하므로 router.refresh() 불필요
       router.push(`/today/plan/${activePlan.id}`);
     } catch (error) {
       alert("오류가 발생했습니다.");

@@ -180,7 +180,7 @@ export function PlanTimerCard({
         setIsPaused(false);
         // 스토어에 타이머 시작
         if (result.serverNow && result.status && result.startedAt) {
-          timerStore.startTimer(planId, result.serverNow);
+          timerStore.startTimer(planId, result.serverNow, result.startedAt);
         }
       } else {
         alert(result.error || "플랜 시작에 실패했습니다.");
@@ -238,7 +238,7 @@ export function PlanTimerCard({
         setIsRunning(true);
         // 스토어에 타이머 재개
         if (result.serverNow && result.status && result.startedAt) {
-          timerStore.startTimer(planId, result.serverNow);
+          timerStore.startTimer(planId, result.serverNow, result.startedAt);
         }
       } else {
         alert(result.error || "플랜 재개에 실패했습니다.");

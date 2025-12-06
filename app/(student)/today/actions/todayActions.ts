@@ -75,6 +75,20 @@ export async function startPlan(
       .eq("student_id", user.userId)
       .is("actual_start_time", null); // 처음 시작하는 경우만 업데이트
 
+    // 세션의 started_at 조회 (정확한 시작 시각 사용)
+    let sessionStartedAt = startTime;
+    if (result.sessionId) {
+      const { data: session } = await supabase
+        .from("student_study_sessions")
+        .select("started_at")
+        .eq("id", result.sessionId)
+        .maybeSingle();
+      
+      if (session?.started_at) {
+        sessionStartedAt = session.started_at;
+      }
+    }
+
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
@@ -86,7 +100,7 @@ export async function startPlan(
       serverNow,
       status: "RUNNING" as const,
       accumulatedSeconds: 0,
-      startedAt: startTime,
+      startedAt: sessionStartedAt,
     };
   } catch (error) {
     console.error("[todayActions] 플랜 시작 실패", error);
@@ -510,7 +524,7 @@ export async function pausePlan(
     // 활성 세션 조회 (최신 세션만 조회하여 최적화)
     const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, paused_at, resumed_at")
+      .select("id, started_at, paused_at, resumed_at, paused_duration_seconds")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
@@ -564,21 +578,24 @@ export async function pausePlan(
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 플랜의 현재 누적 시간 계산
-    const { data: planData } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, paused_duration_seconds")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
-
+    // 플랜의 현재 누적 시간 계산 (세션 정보 사용)
     let accumulatedSeconds = 0;
-    if (planData?.actual_start_time) {
-      const startMs = new Date(planData.actual_start_time).getTime();
+    if (activeSession?.started_at) {
+      const sessionStartMs = new Date(activeSession.started_at).getTime();
       const now = Date.now();
-      const elapsed = Math.floor((now - startMs) / 1000);
-      const pausedDuration = planData.paused_duration_seconds || 0;
-      accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
+      const elapsed = Math.floor((now - sessionStartMs) / 1000);
+      const sessionPausedDuration = activeSession.paused_duration_seconds || 0;
+      
+      // 플랜의 paused_duration_seconds도 고려
+      const { data: planData } = await supabase
+        .from("student_plan")
+        .select("paused_duration_seconds")
+        .eq("id", planId)
+        .eq("student_id", user.userId)
+        .maybeSingle();
+      
+      const planPausedDuration = planData?.paused_duration_seconds || 0;
+      accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
     }
 
     // 필요한 경로만 재검증 (성능 최적화)

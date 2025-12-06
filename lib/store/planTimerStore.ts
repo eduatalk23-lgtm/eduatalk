@@ -42,7 +42,7 @@ type PlanTimerStore = {
     }
   ) => void;
   /** 타이머 시작 */
-  startTimer: (planId: string, serverNow: number) => void;
+  startTimer: (planId: string, serverNow: number, startedAt: string) => void;
   /** 타이머 일시정지 */
   pauseTimer: (planId: string, accumulatedSeconds: number) => void;
   /** 타이머 정지 (완료) */
@@ -85,10 +85,14 @@ function calculateDriftFreeSeconds(
 
 /**
  * 모든 활성 타이머 업데이트
+ * 
+ * @param getStore Zustand store의 get 함수
  */
-function updateAllTimers(store: PlanTimerStore) {
+function updateAllTimers(getStore: () => PlanTimerStore) {
+  const store = getStore();
   const now = Date.now();
   let hasActiveTimers = false;
+  const updates: Array<{ planId: string; seconds: number }> = [];
 
   store.timers.forEach((timer, planId) => {
     if (timer.status === "RUNNING" && timer.isRunning && store.isVisible) {
@@ -101,36 +105,36 @@ function updateAllTimers(store: PlanTimerStore) {
       
       // 상태가 변경된 경우에만 업데이트
       if (newSeconds !== timer.seconds) {
-        store.timers.set(planId, {
-          ...timer,
-          seconds: newSeconds,
-        });
-        hasActiveTimers = true;
-      } else {
-        hasActiveTimers = true;
+        updates.push({ planId, seconds: newSeconds });
       }
+      hasActiveTimers = true;
     }
   });
 
+  // 업데이트가 있으면 store의 updateTimerSeconds 메서드 사용
+  if (updates.length > 0) {
+    updates.forEach(({ planId, seconds }) => {
+      store.updateTimerSeconds(planId, seconds);
+    });
+  }
+
   // 활성 타이머가 없으면 global interval 정지
   if (!hasActiveTimers && globalIntervalId) {
-    clearInterval(globalIntervalId);
-    globalIntervalId = null;
-    isGlobalIntervalRunning = false;
+    stopGlobalInterval();
   }
 }
 
 /**
  * Global interval 시작
  */
-function startGlobalInterval(store: PlanTimerStore) {
+function startGlobalInterval(getStore: () => PlanTimerStore) {
   if (isGlobalIntervalRunning) {
     return;
   }
 
   isGlobalIntervalRunning = true;
   globalIntervalId = setInterval(() => {
-    updateAllTimers(store);
+    updateAllTimers(getStore);
   }, 1000);
 }
 
@@ -154,21 +158,21 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
 
       set({ isVisible });
 
-      if (isVisible) {
-        // 탭이 다시 보이면 모든 실행 중인 타이머 동기화
-        store.timers.forEach((timer, planId) => {
-          if (timer.status === "RUNNING" && timer.isRunning) {
-            // 서버 시간은 현재 클라이언트 시간으로 대체 (실제로는 서버에서 받아야 함)
-            const now = Date.now();
-            const serverNow = now + timer.timeOffset;
-            store.syncNow(planId, serverNow);
-          }
-        });
-        startGlobalInterval(store);
-      } else {
-        // 탭이 숨겨지면 interval 정지
-        stopGlobalInterval();
-      }
+        if (isVisible) {
+          // 탭이 다시 보이면 모든 실행 중인 타이머 동기화
+          store.timers.forEach((timer, planId) => {
+            if (timer.status === "RUNNING" && timer.isRunning) {
+              // 서버 시간은 현재 클라이언트 시간으로 대체 (실제로는 서버에서 받아야 함)
+              const now = Date.now();
+              const serverNow = now + timer.timeOffset;
+              store.syncNow(planId, serverNow);
+            }
+          });
+          startGlobalInterval(get);
+        } else {
+          // 탭이 숨겨지면 interval 정지
+          stopGlobalInterval();
+        }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -204,27 +208,50 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
 
         // RUNNING 상태이고 visible이면 global interval 시작
         if (status === "RUNNING" && state.isVisible) {
-          startGlobalInterval({ ...state, timers: newTimers });
+          startGlobalInterval(get);
         }
 
         return { timers: newTimers };
       });
     },
 
-    startTimer: (planId, serverNow) => {
+    startTimer: (planId, serverNow, startedAt) => {
       const now = Date.now();
       const timeOffset = serverNow - now;
+      const startedAtMs = new Date(startedAt).getTime();
+
+      if (!Number.isFinite(startedAtMs)) {
+        console.error("[planTimerStore] Invalid startedAt:", startedAt);
+        return;
+      }
 
       set((state) => {
         const timer = state.timers.get(planId);
         if (!timer) {
-          return state;
+          // 타이머가 없으면 초기화 후 시작
+          const timerData: PlanTimerData = {
+            seconds: 0,
+            isRunning: true,
+            startedAt: startedAtMs,
+            baseAccumulated: 0,
+            timeOffset,
+            status: "RUNNING",
+            intervalId: null,
+          };
+          const newTimers = new Map(state.timers);
+          newTimers.set(planId, timerData);
+
+          if (state.isVisible) {
+            startGlobalInterval({ ...state, timers: newTimers });
+          }
+
+          return { timers: newTimers };
         }
 
         const newTimer: PlanTimerData = {
           ...timer,
           isRunning: true,
-          startedAt: now + timeOffset, // 서버 시간 기준
+          startedAt: startedAtMs, // 서버에서 받은 실제 시작 시각 사용
           baseAccumulated: timer.seconds, // 현재 시간을 base로 설정
           timeOffset,
           status: "RUNNING",
@@ -234,7 +261,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
         newTimers.set(planId, newTimer);
 
         if (state.isVisible) {
-          startGlobalInterval({ ...state, timers: newTimers });
+          startGlobalInterval(get);
         }
 
         return { timers: newTimers };
@@ -335,6 +362,25 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
           baseAccumulated: newSeconds, // 동기화 시점의 시간을 base로 설정
           startedAt: now + timeOffset, // 새로운 시작 시점
           timeOffset,
+        };
+
+        const newTimers = new Map(state.timers);
+        newTimers.set(planId, newTimer);
+
+        return { timers: newTimers };
+      });
+    },
+
+    updateTimerSeconds: (planId, seconds) => {
+      set((state) => {
+        const timer = state.timers.get(planId);
+        if (!timer) {
+          return state;
+        }
+
+        const newTimer: PlanTimerData = {
+          ...timer,
+          seconds,
         };
 
         const newTimers = new Map(state.timers);
