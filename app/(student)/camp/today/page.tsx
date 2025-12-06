@@ -28,6 +28,7 @@ type CampTodayPageProps = {
 };
 
 export default async function CampTodayPage({ searchParams }: CampTodayPageProps) {
+  console.time("[camp/today] total");
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "student") {
@@ -110,11 +111,13 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   const targetProgressDate = requestedDate ?? todayDate;
 
   // 활성화된 캠프 플랜 그룹 확인
+  console.time("[camp/today] db - planGroups");
   const supabase = await createSupabaseServerClient();
   const allActivePlanGroups = await getPlanGroupsForStudent({
     studentId: userId,
     status: "active",
   });
+  console.timeEnd("[camp/today] db - planGroups");
 
   // 캠프 모드 플랜 그룹만 필터링
   const campModePlanGroups = allActivePlanGroups.filter(
@@ -125,6 +128,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   );
 
   // 템플릿 존재 여부 확인 (삭제된 템플릿의 플랜 그룹 제외)
+  console.time("[camp/today] db - templates");
   const activeCampPlanGroups = await Promise.all(
     campModePlanGroups.map(async (group) => {
       // camp_template_id가 있는 경우 템플릿 존재 여부 확인
@@ -137,6 +141,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
       return group;
     })
   ).then((groups) => groups.filter((group): group is NonNullable<typeof group> => group !== null));
+  console.timeEnd("[camp/today] db - templates");
 
   // 활성 캠프 플랜 그룹이 없을 때 안내 메시지 표시
   if (activeCampPlanGroups.length === 0) {
@@ -169,6 +174,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
 
   // 진행률 계산 (캠프 모드 필터링은 calculateTodayProgress 내부에서 처리 필요)
   // TODO: calculateTodayProgress에 캠프 모드 필터링 추가 필요
+  console.time("[camp/today] progress");
   const todayProgressPromise = calculateTodayProgress(
     userId,
     tenantContext?.tenantId || null,
@@ -187,6 +193,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   // 완료된 플랜 정보 조회 (토스트용)
   let completedPlanTitle: string | null = null;
   if (completedPlanIdParam) {
+    console.time("[camp/today] db - completedPlan");
     try {
       const completedPlan = await getPlanById(
         completedPlanIdParam,
@@ -199,10 +206,25 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     } catch (error) {
       console.error("[CampTodayPage] 완료된 플랜 정보 조회 실패", error);
     }
+    console.timeEnd("[camp/today] db - completedPlan");
   }
 
   const [todayProgress] = await Promise.all([todayProgressPromise]);
+  console.timeEnd("[camp/today] progress");
 
+  // TODO: Double-fetch optimization
+  // Currently, TodayPageContent is rendered twice (main + sidebar), and each instance
+  // triggers its own fetch via PlanViewContainer -> /api/today/plans
+  // 
+  // Design proposal:
+  // 1. Fetch plans data ONCE in this server component
+  // 2. Pass the fetched data as props to TodayPageContent
+  // 3. TodayPageContent should accept initialPlans prop and skip client-side fetch if provided
+  // 4. This would eliminate the duplicate API call for the same date/user/camp flag
+  // 
+  // Expected impact: ~50% reduction in /api/today/plans calls on /camp/today page load
+
+  console.timeEnd("[camp/today] total");
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
