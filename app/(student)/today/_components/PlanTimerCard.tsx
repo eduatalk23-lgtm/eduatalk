@@ -10,6 +10,7 @@ import type { TimerStatus } from "@/lib/store/planTimerStore";
 import { TimerDisplay } from "./timer/TimerDisplay";
 import { TimerControls } from "./timer/TimerControls";
 import { useToast } from "@/components/ui/ToastProvider";
+import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -253,8 +254,7 @@ export function PlanTimerCard({
       timerStore.removeTimer(planId);
       
       // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
-      const query = campMode ? "?mode=camp" : "";
-      router.push(`/today/plan/${planId}${query}`);
+      router.push(buildPlanExecutionUrl(planId, campMode));
     } catch (error) {
       console.error("[PlanTimerCard] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");
@@ -278,10 +278,7 @@ export function PlanTimerCard({
           </p>
         </div>
         <button
-          onClick={() => {
-            const query = campMode ? "?mode=camp" : "";
-            router.push(`/today/plan/${planId}${query}`);
-          }}
+          onClick={() => router.push(buildPlanExecutionUrl(planId, campMode))}
           className="w-full rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
         >
           상세보기
@@ -353,7 +350,7 @@ export function PlanTimerCard({
 
       {isCompleted && (
         <button
-          onClick={() => router.push(`/today/plan/${planId}`)}
+          onClick={() => router.push(buildPlanExecutionUrl(planId, campMode))}
           className="mt-2 w-full rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
         >
           상세보기

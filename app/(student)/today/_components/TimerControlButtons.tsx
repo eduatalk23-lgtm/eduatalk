@@ -2,6 +2,7 @@
 
 import { Play, Pause, Square, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 
 type TimerControlButtonsProps = {
   planId: string;
@@ -43,8 +44,7 @@ export function TimerControlButtons({
 
   if (isCompleted) {
     const navigateToPlan = () => {
-      const query = campMode ? "?mode=camp" : "";
-      router.push(`/today/plan/${planId}${query}`);
+      router.push(buildPlanExecutionUrl(planId, campMode));
     };
 
     return (

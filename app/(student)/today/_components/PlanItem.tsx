@@ -9,6 +9,7 @@ import { startPlan, pausePlan, resumePlan, preparePlanCompletion } from "../acti
 import { useRouter } from "next/navigation";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
+import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 
 type PlanItemProps = {
   plan: PlanWithContent;
@@ -145,8 +146,7 @@ export function PlanItem({
       timerStore.removeTimer(plan.id);
       
       // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
-      const query = campMode ? "?mode=camp" : "";
-      router.push(`/today/plan/${plan.id}${query}`);
+      router.push(buildPlanExecutionUrl(plan.id, campMode));
     } catch (error) {
       console.error("[PlanItem] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");
@@ -314,6 +314,7 @@ export function PlanItem({
           onPause={handlePause}
           onResume={handleResume}
           onComplete={handleComplete}
+          campMode={campMode}
         />
       </div>
     </div>

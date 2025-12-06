@@ -8,6 +8,7 @@ import {
   getCompletedPlansCount,
   formatTime,
 } from "../_utils/planGroupUtils";
+import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 import { PlanItem } from "./PlanItem";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -258,8 +259,7 @@ function PlanGroupCardComponent({
       timerStore.removeTimer(targetPlanId);
       
       // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
-      const query = campMode ? "?mode=camp" : "";
-      router.push(`/today/plan/${targetPlanId}${query}`);
+      router.push(buildPlanExecutionUrl(targetPlanId, campMode));
     } catch (error) {
       console.error("[PlanGroupCard] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");

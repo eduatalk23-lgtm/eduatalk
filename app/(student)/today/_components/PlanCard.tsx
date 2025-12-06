@@ -15,6 +15,7 @@ import {
 import { Clock } from "lucide-react";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
+import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 
 type PlanRunState = "idle" | "running" | "paused" | "completed";
 type PendingAction = "start" | "pause" | "resume" | "complete";
@@ -315,8 +316,7 @@ export function PlanCard({
       timerStore.removeTimer(targetPlanId);
       
       // 완료 입력 페이지로 이동 (campMode에 따라 쿼리 파라미터 추가)
-      const query = campMode ? "?mode=camp" : "";
-      router.push(`/today/plan/${targetPlanId}${query}`);
+      router.push(buildPlanExecutionUrl(targetPlanId, campMode));
     } catch (error) {
       console.error("[PlanCard] 완료 처리 오류:", error);
       showError("오류가 발생했습니다.");
