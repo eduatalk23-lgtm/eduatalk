@@ -36,9 +36,14 @@ export default function SignupPage() {
     const loadTenants = async () => {
       try {
         const data = await getTenantOptionsForSignup();
+        if (data.length === 0) {
+          console.warn("[signup] 등록된 기관이 없습니다.");
+        }
         setTenants(data);
       } catch (error) {
-        console.error("Failed to load tenants:", error);
+        console.error("[signup] 기관 목록 로드 실패:", error);
+        // 에러 발생 시 빈 배열로 설정하여 UI가 적절히 표시되도록 함
+        setTenants([]);
       } finally {
         setLoadingTenants(false);
       }
