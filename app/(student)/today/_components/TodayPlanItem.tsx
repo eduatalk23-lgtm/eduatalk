@@ -5,12 +5,14 @@ import { Plan } from "@/lib/data/studentPlans";
 import { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 
 type TodayPlanItemProps = {
   plan: Plan & {
     content?: Book | Lecture | CustomContent;
     progress?: number | null;
   };
+  campMode?: boolean;
 };
 
 const contentTypeLabels: Record<string, string> = {
@@ -51,7 +53,7 @@ function getStatusVariant(status: keyof typeof statusLabels): "success" | "info"
   }
 }
 
-export function TodayPlanItem({ plan }: TodayPlanItemProps) {
+export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
   const status = getPlanStatus(plan);
   const statusLabel = statusLabels[status];
   const statusVariant = getStatusVariant(status);
@@ -98,7 +100,7 @@ export function TodayPlanItem({ plan }: TodayPlanItemProps) {
               )}
           </div>
           <Link
-            href={`/today/plan/${plan.id}`}
+            href={buildPlanExecutionUrl(plan.id, campMode)}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             {status === "completed" ? "보기" : "시작하기"}

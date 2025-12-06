@@ -5,6 +5,7 @@ import { Clock, Pause, Play } from "lucide-react";
 import { pausePlan, resumePlan } from "@/app/(student)/today/actions/todayActions";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { buildPlanExecutionUrl } from "@/app/(student)/today/_utils/navigationUtils";
 
 type ActivePlan = {
   id: string;
@@ -18,9 +19,10 @@ type ActivePlan = {
 
 type ActiveLearningWidgetProps = {
   activePlan: ActivePlan | null;
+  campMode?: boolean;
 };
 
-export function ActiveLearningWidget({ activePlan: initialActivePlan }: ActiveLearningWidgetProps) {
+export function ActiveLearningWidget({ activePlan: initialActivePlan, campMode = false }: ActiveLearningWidgetProps) {
   const router = useRouter();
   const [activePlan, setActivePlan] = useState(initialActivePlan);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -157,7 +159,7 @@ export function ActiveLearningWidget({ activePlan: initialActivePlan }: ActiveLe
           </button>
         )}
         <Link
-          href={`/today/plan/${activePlan.id}`}
+          href={buildPlanExecutionUrl(activePlan.id, campMode)}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
         >
           상세보기

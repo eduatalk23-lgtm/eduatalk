@@ -20,9 +20,10 @@ type DraggablePlanListProps = {
   plans: PlanWithContent[];
   planDate: string;
   serverNow?: number;
+  campMode?: boolean;
 };
 
-export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = Date.now() }: DraggablePlanListProps) {
+export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = Date.now(), campMode = false }: DraggablePlanListProps) {
   const router = useRouter();
   const [plans, setPlans] = useState(initialPlans);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -186,6 +187,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
                   sessionStartedAt={plan.session?.startedAt ?? null}
                   sessionPausedDurationSeconds={plan.session?.pausedDurationSeconds ?? null}
                   serverNow={serverNow}
+                  campMode={campMode}
                 />
               </div>
             );
@@ -238,6 +240,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
                     content: plan.content,
                     progress: plan.progress,
                   }}
+                  campMode={campMode}
                 />
               </div>
             </div>

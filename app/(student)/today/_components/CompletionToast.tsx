@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type CompletionToastProps = {
@@ -12,6 +12,7 @@ type CompletionToastProps = {
 export function CompletionToast({ completedPlanId, planTitle }: CompletionToastProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { showSuccess } = useToast();
   const planId = completedPlanId || searchParams.get("completedPlanId");
 
@@ -20,17 +21,21 @@ export function CompletionToast({ completedPlanId, planTitle }: CompletionToastP
       return;
     }
 
+    // 현재 경로 기준으로 캠프 모드 여부 판단
+    const isCampMode = pathname?.startsWith("/camp/today");
+    const basePath = isCampMode ? "/camp/today" : "/today";
+
     // URL에서 completedPlanId 제거
     const params = new URLSearchParams(searchParams.toString());
     params.delete("completedPlanId");
     const newSearch = params.toString();
-    const newUrl = newSearch ? `/today?${newSearch}` : "/today";
+    const newUrl = newSearch ? `${basePath}?${newSearch}` : basePath;
     router.replace(newUrl, { scroll: false });
 
     // 토스트 표시
     const title = planTitle || "플랜";
     showSuccess(`${title} 플랜이 완료 처리되었습니다.`);
-  }, [planId, planTitle, searchParams, router, showSuccess]);
+  }, [planId, planTitle, searchParams, router, pathname, showSuccess]);
 
   return null;
 }

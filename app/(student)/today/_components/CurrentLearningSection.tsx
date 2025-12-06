@@ -4,7 +4,11 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ActiveLearningWidget } from "@/app/(student)/dashboard/_components/ActiveLearningWidget";
 import { formatDateString } from "@/lib/date/calendarUtils";
 
-export async function CurrentLearningSection() {
+type CurrentLearningSectionProps = {
+  campMode?: boolean;
+};
+
+export async function CurrentLearningSection({ campMode = false }: CurrentLearningSectionProps) {
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
@@ -24,7 +28,7 @@ export async function CurrentLearningSection() {
 
     return (
       <div className="mb-6">
-        <ActiveLearningWidget activePlan={activePlan} />
+        <ActiveLearningWidget activePlan={activePlan} campMode={campMode} />
       </div>
     );
   } catch (error) {
