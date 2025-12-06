@@ -15,19 +15,19 @@ const statusConfig: Record<
 > = {
   NOT_STARTED: {
     label: "대기",
-    className: "bg-gray-100 text-gray-700 border-gray-200",
+    className: "bg-gray-100 text-gray-800 border-gray-300",
   },
   RUNNING: {
     label: "진행 중",
-    className: "bg-blue-100 text-blue-700 border-blue-200",
+    className: "bg-blue-100 text-blue-800 border-blue-300",
   },
   PAUSED: {
     label: "일시정지",
-    className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    className: "bg-yellow-100 text-yellow-800 border-yellow-300",
   },
   COMPLETED: {
     label: "완료",
-    className: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    className: "bg-emerald-100 text-emerald-800 border-emerald-300",
   },
 };
 
@@ -48,7 +48,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border font-semibold",
+        "inline-flex items-center rounded-full border-2 font-bold shadow-sm",
         config.className,
         sizeClass,
         className

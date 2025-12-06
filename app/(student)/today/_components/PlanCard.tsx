@@ -399,10 +399,10 @@ export function PlanCard({
     );
   }
 
-  // 일일 뷰
+  // 일일 뷰 - 모바일 친화적 카드 레이아웃
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5">
+      <div className="flex flex-col gap-4 sm:gap-5">
         {/* 카드 헤더 */}
         <div className="flex flex-col gap-3 text-center sm:text-left">
           {planTimeRange && (

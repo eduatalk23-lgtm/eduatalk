@@ -106,34 +106,37 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
   const formattedPureStudyTime = hasCompletedTimer ? formatTime(Math.max(0, pureStudySeconds)) : null;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
       <Link
         href="/today"
-        className="mb-4 inline-flex items-center text-sm text-gray-600 transition hover:text-gray-900"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-gray-900"
       >
-        ← Today로 돌아가기
+        <span>←</span>
+        <span>Today로 돌아가기</span>
       </Link>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-6">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-8">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700">
               {contentTypeLabels[plan.content_type]}
             </span>
             {plan.chapter && (
-              <span className="text-sm text-gray-600">챕터: {plan.chapter}</span>
+              <span className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
+                챕터: {plan.chapter}
+              </span>
             )}
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-gray-900">{content.title}</h1>
+          <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">{content.title}</h1>
           {content.subject && (
-            <p className="text-sm text-gray-600">과목: {content.subject}</p>
+            <p className="text-sm font-medium text-gray-600">과목: {content.subject}</p>
           )}
         </div>
 
-        <div className="mb-6 space-y-3 rounded-lg bg-gray-50 p-4">
+        <div className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-5">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">예상 범위</span>
-            <span className="font-semibold text-gray-900">
+            <span className="font-medium text-gray-600">예상 범위</span>
+            <span className="font-bold text-gray-900">
               {plan.planned_start_page_or_time !== null &&
               plan.planned_end_page_or_time !== null
                 ? `${plan.planned_start_page_or_time} ~ ${plan.planned_end_page_or_time} ${unitLabel}`
@@ -142,8 +145,8 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
           </div>
           {estimatedMinutes !== null && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">예상 소요 시간</span>
-              <span className="font-semibold text-gray-900">
+              <span className="font-medium text-gray-600">예상 소요 시간</span>
+              <span className="font-bold text-gray-900">
                 약 {estimatedMinutes} {unitLabel}
               </span>
             </div>
@@ -151,20 +154,20 @@ export default async function PlanExecutionPage({ params }: PlanExecutionPagePro
         </div>
 
         {hasCompletedTimer && formattedActualStart && formattedActualEnd && formattedPureStudyTime && (
-          <div className="mb-6 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
-            <h2 className="text-sm font-semibold text-indigo-900">학습 완료 기록</h2>
-            <div className="mt-3 grid gap-3 text-sm text-indigo-950 md:grid-cols-3">
-              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
-                <span className="text-xs text-indigo-600">시작 시간</span>
-                <span className="text-sm font-semibold">{formattedActualStart}</span>
+          <div className="mb-6 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-md">
+            <h2 className="mb-4 text-base font-bold text-emerald-900">학습 완료 기록</h2>
+            <div className="grid gap-3 text-sm text-emerald-950 sm:grid-cols-3">
+              <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
+                <span className="text-xs font-medium text-emerald-600">시작 시간</span>
+                <span className="text-sm font-bold">{formattedActualStart}</span>
               </div>
-              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
-                <span className="text-xs text-indigo-600">종료 시간</span>
-                <span className="text-sm font-semibold">{formattedActualEnd}</span>
+              <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
+                <span className="text-xs font-medium text-emerald-600">종료 시간</span>
+                <span className="text-sm font-bold">{formattedActualEnd}</span>
               </div>
-              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
-                <span className="text-xs text-indigo-600">총 학습 시간 (일시정지 제외)</span>
-                <span className="text-lg font-bold text-indigo-900">{formattedPureStudyTime}</span>
+              <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
+                <span className="text-xs font-medium text-emerald-600">총 학습 시간 (일시정지 제외)</span>
+                <span className="text-lg font-bold text-emerald-900">{formattedPureStudyTime}</span>
               </div>
             </div>
           </div>

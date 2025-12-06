@@ -48,7 +48,8 @@ export function TimerControls({
       ? pendingMessages[pendingAction as Exclude<PendingAction, null>]
       : null;
 
-  const buttonSize = compact ? "text-sm px-3 py-1.5" : "text-sm px-4 py-2";
+  // 모바일 터치 친화적 버튼 크기 (최소 44px 높이)
+  const buttonSize = compact ? "text-sm px-3 py-2 min-h-[36px]" : "text-sm px-4 py-3 min-h-[44px]";
   const iconSize = compact ? "h-3.5 w-3.5" : "h-4 w-4";
 
   return (
@@ -70,7 +71,7 @@ export function TimerControls({
             onClick={onStart}
             disabled={isLoading}
             className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50",
+              "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 font-bold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md disabled:opacity-50 active:scale-[0.98]",
               buttonSize
             )}
           >
@@ -89,7 +90,7 @@ export function TimerControls({
               onClick={onPause}
               disabled={isLoading}
               className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 font-semibold text-white transition hover:bg-yellow-700 disabled:opacity-50",
+                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 font-bold text-white shadow-sm transition hover:bg-yellow-700 hover:shadow-md disabled:opacity-50 active:scale-[0.98]",
                 buttonSize
               )}
             >
@@ -104,7 +105,7 @@ export function TimerControls({
               onClick={onComplete}
               disabled={isLoading}
               className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 font-semibold text-white transition hover:bg-green-700 disabled:opacity-50",
+                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 font-bold text-white shadow-md transition hover:from-green-700 hover:to-green-800 hover:shadow-lg disabled:opacity-50 active:scale-[0.98]",
                 buttonSize
               )}
             >
@@ -139,7 +140,7 @@ export function TimerControls({
               onClick={onComplete}
               disabled={isLoading}
               className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 font-semibold text-white transition hover:bg-green-700 disabled:opacity-50",
+                "flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 font-bold text-white shadow-md transition hover:from-green-700 hover:to-green-800 hover:shadow-lg disabled:opacity-50 active:scale-[0.98]",
                 buttonSize
               )}
             >
