@@ -42,7 +42,7 @@ export function CompletionToast({ completedPlanId, planTitle }: CompletionToastP
     // 토스트 표시
     const title = planTitle || "플랜";
     showSuccess(`${title} 플랜이 완료 처리되었습니다.`);
-  }, [planId, planTitle, handled, pathname, router, showSuccess, searchParams]);
+  }, [planId, planTitle, handled, pathname, router, showSuccess]);
 
   return null;
 }
