@@ -102,7 +102,7 @@ export function CampInvitationActions({
                   학습 재개하기
                 </Link>
                 <Link
-                  href={`/plan/group/${invitation.planGroupId}`}
+                  href={`/plan/group/${invitation.planGroupId}?camp=true`}
                   className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -111,7 +111,7 @@ export function CampInvitationActions({
               </>
             ) : (
               <Link
-                href={`/plan/group/${invitation.planGroupId}`}
+                href={`/plan/group/${invitation.planGroupId}?camp=true`}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                 onClick={(e) => e.stopPropagation()}
               >

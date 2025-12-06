@@ -19,10 +19,12 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 
 type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ camp?: string }>;
 };
 
 export default async function PlanGroupDetailPage({
   params,
+  searchParams,
 }: PlanGroupDetailPageProps) {
   const { id } = await params;
 
@@ -130,7 +132,10 @@ export default async function PlanGroupDetailPage({
   const displayStatus = getDisplayStatus();
 
   // 캠프 모드 확인
-  const isCampMode = group.plan_type === "camp";
+  // plan_type을 우선으로 하되, URL 쿼리 파라미터도 확인하여 명시적으로 캠프 모드 강제 가능
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const campParam = resolvedSearchParams?.camp;
+  const isCampMode = group.plan_type === "camp" || campParam === "true";
 
   // 캠프 모드일 때 템플릿 블록 세트 정보 조회
   let templateBlocks: Array<{
