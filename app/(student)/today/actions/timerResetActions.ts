@@ -110,6 +110,7 @@ export async function resetPlanTimer(
     }
 
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {

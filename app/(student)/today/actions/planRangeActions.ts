@@ -76,6 +76,7 @@ export async function adjustPlanRanges(
     }
 
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {
     console.error("[planRangeActions] 범위 조정 실패", error);

@@ -111,6 +111,7 @@ export async function savePlanMemo(
     }
 
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {
     console.error("[planMemoActions] 메모 저장 실패", error);

@@ -94,6 +94,7 @@ export async function startPlan(
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { 
       success: true, 
       sessionId: result.sessionId,
@@ -402,6 +403,7 @@ export async function completePlan(
     // 필요한 경로만 재검증 (성능 최적화)
     // 완료 시에는 대시보드도 업데이트 필요
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     revalidatePath("/dashboard");
     return { 
       success: true,
@@ -456,6 +458,7 @@ export async function postponePlan(
     });
 
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 플랜 미루기 실패", error);
@@ -495,6 +498,7 @@ export async function endTimer(
   try {
     const result = await endStudySession(sessionId);
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     revalidatePath("/dashboard");
     return result;
   } catch (error) {
@@ -600,6 +604,7 @@ export async function pausePlan(
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { 
       success: true,
       serverNow,
@@ -701,6 +706,7 @@ export async function resumePlan(
 
     // 필요한 경로만 재검증 (성능 최적화)
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { 
       success: true,
       serverNow,
@@ -844,6 +850,7 @@ export async function preparePlanCompletion(
 
       if (updatedPlan) {
         revalidatePath("/today");
+        revalidatePath("/camp/today");
         return {
           success: true,
           plan: {
@@ -868,6 +875,7 @@ export async function preparePlanCompletion(
 
     // 활성 세션이 없는 경우
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return {
       success: true,
       plan: {
@@ -981,6 +989,7 @@ export async function stopAllActiveSessionsForPlan(
       .eq("student_id", user.userId);
 
     revalidatePath("/today");
+    revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 세션 종료 실패", error);
