@@ -18,6 +18,11 @@ type PlansResponse = {
   planDate: string;
   isToday?: boolean;
   serverNow?: number;
+  /**
+   * Today progress summary (from /api/today/plans).
+   * If provided, we skip calling /api/today/progress separately.
+   */
+  todayProgress?: TodayProgress | null;
 };
 
 type TodayPageContentProps = {
@@ -54,10 +59,17 @@ export function TodayPageContent({
 }: TodayPageContentProps) {
   const fallbackDate = initialPlanDate ?? initialProgressDate;
   const [selectedDate, setSelectedDate] = useState<string>(fallbackDate);
-  const [progress, setProgress] = useState<TodayProgress>(initialProgress);
+  
+  // If initialPlansData includes todayProgress, use it instead of initialProgress
+  // This avoids the need for a separate /api/today/progress call
+  const effectiveInitialProgress = initialPlansData?.todayProgress ?? initialProgress;
+  const [progress, setProgress] = useState<TodayProgress>(effectiveInitialProgress);
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState<string | null>(null);
   const lastFetchedDateRef = useRef<string>(fallbackDate);
+  
+  // Track if we should skip progress fetch (when data comes from /api/today/plans)
+  const shouldSkipProgressFetch = Boolean(initialPlansData?.todayProgress);
 
   const fetchProgress = useCallback(async (date: string) => {
     if (!date) {
@@ -87,11 +99,20 @@ export function TodayPageContent({
   }, []);
 
   const handleDateChange = useCallback(
-    (date: string, _options?: { isToday: boolean }) => {
+    (date: string, options?: { isToday: boolean; todayProgress?: TodayProgress | null }) => {
       if (!date) {
         return;
       }
       setSelectedDate(date);
+      
+      // If todayProgress is provided from /api/today/plans response, use it
+      if (options?.todayProgress) {
+        setProgress(options.todayProgress);
+        lastFetchedDateRef.current = date;
+        return;
+      }
+      
+      // Otherwise, fetch progress separately (only if date changed)
       if (lastFetchedDateRef.current !== date) {
         fetchProgress(date);
       }

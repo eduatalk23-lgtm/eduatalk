@@ -23,7 +23,7 @@ type PlanViewContainerProps = {
   initialMode?: ViewMode;
   initialSelectedPlanNumber?: number | null;
   initialPlanDate?: string | null;
-  onDateChange?: (date: string, options?: { isToday: boolean }) => void;
+  onDateChange?: (date: string, options?: { isToday: boolean; todayProgress?: PlansResponse["todayProgress"] }) => void;
   userId?: string;
   campMode?: boolean;
   /**
@@ -48,6 +48,11 @@ type PlansResponse = {
   planDate: string;
   isToday?: boolean;
   serverNow?: number;
+  /**
+   * Today progress summary (from /api/today/plans).
+   * If provided, TodayPageContent can skip calling /api/today/progress separately.
+   */
+  todayProgress?: import("@/lib/metrics/todayProgress").TodayProgress | null;
 };
 
 const SESSION_REFRESH_INTERVAL_MS = 30000;
@@ -157,6 +162,8 @@ export function PlanViewContainer({
         if (campMode) {
           queryParams.set("camp", "true");
         }
+        // Include progress data to avoid separate /api/today/progress call
+        queryParams.set("includeProgress", "true");
         const query = queryParams.toString() ? `?${queryParams.toString()}` : "";
         const response = await fetch(`/api/today/plans${query}`, {
           cache: "no-store",
@@ -207,7 +214,11 @@ export function PlanViewContainer({
         }
         
         if (resolvedDate) {
-          onDateChange?.(resolvedDate, { isToday: resolvedIsToday });
+          // Pass todayProgress if available to avoid separate /api/today/progress call
+          onDateChange?.(resolvedDate, { 
+            isToday: resolvedIsToday,
+            todayProgress: data?.todayProgress,
+          });
         }
         setSelectedPlanNumber((prev) => {
           if (grouped.length === 0) {
@@ -235,7 +246,11 @@ export function PlanViewContainer({
     if (initialData) {
       queryDateRef.current = initialData.planDate || null;
       if (initialData.planDate) {
-        onDateChange?.(initialData.planDate, { isToday: Boolean(initialData.isToday) });
+        // Pass todayProgress from initialData to avoid separate /api/today/progress call
+        onDateChange?.(initialData.planDate, { 
+          isToday: Boolean(initialData.isToday),
+          todayProgress: initialData.todayProgress,
+        });
       }
       return;
     }

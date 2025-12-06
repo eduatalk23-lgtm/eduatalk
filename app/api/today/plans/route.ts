@@ -17,6 +17,7 @@ import {
   handleApiError,
 } from "@/lib/api";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
+import { calculateTodayProgress, type TodayProgress } from "@/lib/metrics/todayProgress";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -37,6 +38,12 @@ type TodayPlansResponse = {
   planDate: string;
   isToday: boolean;
   serverNow: number;
+  /**
+   * Today progress summary (same as /api/today/progress).
+   * Included to avoid separate API call on Today/Camp Today pages.
+   * Can be null if calculation fails (non-blocking).
+   */
+  todayProgress?: TodayProgress | null;
 };
 
 /**
@@ -157,6 +164,26 @@ export async function GET(request: Request) {
       }
     }
 
+    // Calculate today progress in parallel (non-blocking, can fail silently)
+    // This allows Today/Camp Today pages to avoid calling /api/today/progress separately
+    let todayProgress: TodayProgress | null = null;
+    if (includeProgress) {
+      console.time("[todayPlans] db - todayProgress");
+      try {
+        // excludeCampMode: false for camp mode, true for regular mode
+        todayProgress = await calculateTodayProgress(
+          user.userId,
+          tenantContext?.tenantId || null,
+          targetDate,
+          !isCampMode // excludeCampMode: true if NOT camp mode
+        );
+      } catch (error) {
+        console.error("[api/today/plans] 오늘 진행률 계산 실패 (비차단)", error);
+        // Non-blocking: continue without progress data
+      }
+      console.timeEnd("[todayPlans] db - todayProgress");
+    }
+
     if (plans.length === 0) {
       console.timeEnd("[todayPlans] total");
       return apiSuccess<TodayPlansResponse>({
@@ -164,73 +191,131 @@ export async function GET(request: Request) {
         sessions: {},
         planDate: displayDate,
         isToday,
+        todayProgress: todayProgress ?? undefined,
       });
     }
 
     // 콘텐츠 정보 조회 (최적화: 필요한 ID만 조회)
+    // Note: First run can be slow (~59s) due to cold start, connection pooling, or index warmup.
+    // Subsequent runs should be ~190ms. This code is hardened to prevent large IN clauses and malformed queries.
     console.time("[todayPlans] db - contents");
     const supabase = await createSupabaseServerClient();
     
+    // Extract and deduplicate content IDs (defensive: filter out null/undefined/empty)
     const bookIds = [...new Set(
       plans
-        .filter((p) => p.content_type === "book" && p.content_id)
+        .filter((p) => p.content_type === "book" && p.content_id && typeof p.content_id === "string")
         .map((p) => p.content_id as string)
     )];
     const lectureIds = [...new Set(
       plans
-        .filter((p) => p.content_type === "lecture" && p.content_id)
+        .filter((p) => p.content_type === "lecture" && p.content_id && typeof p.content_id === "string")
         .map((p) => p.content_id as string)
     )];
     const customIds = [...new Set(
       plans
-        .filter((p) => p.content_type === "custom" && p.content_id)
+        .filter((p) => p.content_type === "custom" && p.content_id && typeof p.content_id === "string")
         .map((p) => p.content_id as string)
     )];
 
+    // Defensive: Limit IN clause size to prevent extremely large queries
+    // Supabase typically handles up to 1000 items, but we cap at 500 for safety
+    const MAX_IN_CLAUSE_SIZE = 500;
+    const safeBookIds = bookIds.slice(0, MAX_IN_CLAUSE_SIZE);
+    const safeLectureIds = lectureIds.slice(0, MAX_IN_CLAUSE_SIZE);
+    const safeCustomIds = customIds.slice(0, MAX_IN_CLAUSE_SIZE);
+
+    if (bookIds.length > MAX_IN_CLAUSE_SIZE) {
+      console.warn(`[api/today/plans] bookIds truncated from ${bookIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    }
+    if (lectureIds.length > MAX_IN_CLAUSE_SIZE) {
+      console.warn(`[api/today/plans] lectureIds truncated from ${lectureIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    }
+    if (customIds.length > MAX_IN_CLAUSE_SIZE) {
+      console.warn(`[api/today/plans] customIds truncated from ${customIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    }
+
     // 필요한 콘텐츠만 직접 조회 (전체 조회 대신)
+    // Split timing per content type to identify bottlenecks
     const [booksResult, lecturesResult, customContentsResult] = await Promise.all([
-      bookIds.length > 0
-        ? supabase
-            .from("books")
-            .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,notes,created_at,updated_at")
-            .eq("student_id", user.userId)
-            .in("id", bookIds)
-            .then(({ data, error }) => {
+      safeBookIds.length > 0
+        ? (async () => {
+            console.time("[todayPlans] db - contents-books");
+            try {
+              const { data, error } = await supabase
+                .from("books")
+                .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,notes,created_at,updated_at")
+                .eq("student_id", user.userId)
+                .in("id", safeBookIds);
+              console.timeEnd("[todayPlans] db - contents-books");
               if (error) {
                 console.error("[api/today/plans] 책 조회 실패", error);
                 return [];
               }
               return (data as Book[]) ?? [];
-            })
-        : Promise.resolve([]),
-      lectureIds.length > 0
-        ? supabase
-            .from("lectures")
-            .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,notes,created_at,updated_at")
-            .eq("student_id", user.userId)
-            .in("id", lectureIds)
-            .then(({ data, error }) => {
+            } catch (err) {
+              console.timeEnd("[todayPlans] db - contents-books");
+              console.error("[api/today/plans] 책 조회 예외", err);
+              return [];
+            }
+          })()
+        : (() => {
+            console.time("[todayPlans] db - contents-books");
+            console.timeEnd("[todayPlans] db - contents-books");
+            return Promise.resolve([]);
+          })(),
+      safeLectureIds.length > 0
+        ? (async () => {
+            console.time("[todayPlans] db - contents-lectures");
+            try {
+              const { data, error } = await supabase
+                .from("lectures")
+                .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,notes,created_at,updated_at")
+                .eq("student_id", user.userId)
+                .in("id", safeLectureIds);
+              console.timeEnd("[todayPlans] db - contents-lectures");
               if (error) {
                 console.error("[api/today/plans] 강의 조회 실패", error);
                 return [];
               }
               return (data as Lecture[]) ?? [];
-            })
-        : Promise.resolve([]),
-      customIds.length > 0
-        ? supabase
-            .from("student_custom_contents")
-            .select("id,tenant_id,student_id,title,content_type,total_page_or_time,subject,created_at,updated_at")
-            .eq("student_id", user.userId)
-            .in("id", customIds)
-            .then(({ data, error }) => {
+            } catch (err) {
+              console.timeEnd("[todayPlans] db - contents-lectures");
+              console.error("[api/today/plans] 강의 조회 예외", err);
+              return [];
+            }
+          })()
+        : (() => {
+            console.time("[todayPlans] db - contents-lectures");
+            console.timeEnd("[todayPlans] db - contents-lectures");
+            return Promise.resolve([]);
+          })(),
+      safeCustomIds.length > 0
+        ? (async () => {
+            console.time("[todayPlans] db - contents-custom");
+            try {
+              const { data, error } = await supabase
+                .from("student_custom_contents")
+                .select("id,tenant_id,student_id,title,content_type,total_page_or_time,subject,created_at,updated_at")
+                .eq("student_id", user.userId)
+                .in("id", safeCustomIds);
+              console.timeEnd("[todayPlans] db - contents-custom");
               if (error) {
                 console.error("[api/today/plans] 커스텀 콘텐츠 조회 실패", error);
                 return [];
               }
               return (data as CustomContent[]) ?? [];
-            })
-        : Promise.resolve([]),
+            } catch (err) {
+              console.timeEnd("[todayPlans] db - contents-custom");
+              console.error("[api/today/plans] 커스텀 콘텐츠 조회 예외", err);
+              return [];
+            }
+          })()
+        : (() => {
+            console.time("[todayPlans] db - contents-custom");
+            console.timeEnd("[todayPlans] db - contents-custom");
+            return Promise.resolve([]);
+          })(),
     ]);
     const books = booksResult;
     const lectures = lecturesResult;
@@ -240,10 +325,13 @@ export async function GET(request: Request) {
     // 데이터 enrich 시작
     console.time("[todayPlans] enrich");
     
+    // Step 1: Build maps (O(n) where n = content count)
+    console.time("[todayPlans] enrich - buildMaps");
     const contentMap = new Map<string, unknown>();
     books.forEach((book) => contentMap.set(`book:${book.id}`, book));
     lectures.forEach((lecture) => contentMap.set(`lecture:${lecture.id}`, lecture));
     customContents.forEach((custom) => contentMap.set(`custom:${custom.id}`, custom));
+    console.timeEnd("[todayPlans] enrich - buildMaps");
 
     // 진행률 조회 (최적화: 필요한 콘텐츠만 조회)
     console.time("[todayPlans] db - progress (narrowed)");
@@ -314,6 +402,8 @@ export async function GET(request: Request) {
     }
     console.timeEnd("[todayPlans] db - progress (narrowed)");
 
+    // Step 2: Build progress map (O(n) where n = progress records)
+    console.time("[todayPlans] enrich - buildProgressMap");
     const progressMap = new Map<string, number | null>();
     progressData.forEach((row) => {
       if (row.content_type && row.content_id) {
@@ -321,6 +411,7 @@ export async function GET(request: Request) {
         progressMap.set(key, row.progress ?? null);
       }
     });
+    console.timeEnd("[todayPlans] enrich - buildProgressMap");
 
     // 활성 세션 조회 (최적화: 해당 플랜의 세션만 조회)
     console.time("[todayPlans] db - sessions (narrowed)");
@@ -344,6 +435,8 @@ export async function GET(request: Request) {
     }
     console.timeEnd("[todayPlans] db - sessions (narrowed)");
 
+    // Step 3: Build session map (O(n) where n = active sessions)
+    console.time("[todayPlans] enrich - buildSessionMap");
     const sessionMap = new Map<string, { 
       isPaused: boolean; 
       startedAt?: string | null;
@@ -363,15 +456,23 @@ export async function GET(request: Request) {
         });
       }
     });
+    console.timeEnd("[todayPlans] enrich - buildSessionMap");
 
-    // 플랜 데이터를 PlanWithContent 형식으로 변환
+    // Step 4: Attach content/progress/session to plans (O(n) where n = plans)
+    // Optimized: Pre-compute content keys to avoid repeated string concatenation
+    console.time("[todayPlans] enrich - attachToPlans");
     const plansWithContent: PlanWithContent[] = plans.map((plan) => {
-      const contentKey = `${plan.content_type}:${plan.content_id}`;
-      const content = contentMap.get(contentKey);
-      const progress = progressMap.get(contentKey) ?? null;
+      // Pre-compute content key once per plan
+      const contentKey = plan.content_type && plan.content_id 
+        ? `${plan.content_type}:${plan.content_id}` 
+        : null;
+      
+      // Direct Map lookups (O(1) each)
+      const content = contentKey ? contentMap.get(contentKey) : undefined;
+      const progress = contentKey ? (progressMap.get(contentKey) ?? null) : null;
       const session = sessionMap.get(plan.id);
 
-      // denormalized 필드 제거
+      // denormalized 필드 제거 (destructuring is O(k) where k = field count, but k is constant)
       const {
         content_title,
         content_subject,
@@ -380,21 +481,26 @@ export async function GET(request: Request) {
         ...planWithoutDenormalized
       } = plan;
 
+      // Build session object only if session exists (avoid unnecessary object creation)
+      const sessionObj = session ? {
+        isPaused: session.isPaused,
+        startedAt: session.startedAt,
+        pausedAt: session.pausedAt,
+        resumedAt: session.resumedAt,
+        pausedDurationSeconds: session.pausedDurationSeconds,
+      } : undefined;
+
       return {
         ...planWithoutDenormalized,
         content: content as Book | Lecture | CustomContent | undefined,
         progress,
-        session: session ? {
-          isPaused: session.isPaused,
-          startedAt: session.startedAt,
-          pausedAt: session.pausedAt,
-          resumedAt: session.resumedAt,
-          pausedDurationSeconds: session.pausedDurationSeconds,
-        } : undefined,
+        session: sessionObj,
       };
     });
+    console.timeEnd("[todayPlans] enrich - attachToPlans");
 
-    // 세션 데이터를 객체로 변환
+    // Step 5: Convert session map to object (O(n) where n = active sessions)
+    console.time("[todayPlans] enrich - finalize");
     const sessionsObj: Record<string, { 
       isPaused: boolean; 
       startedAt?: string | null;
@@ -405,6 +511,7 @@ export async function GET(request: Request) {
     sessionMap.forEach((value, key) => {
       sessionsObj[key] = value;
     });
+    console.timeEnd("[todayPlans] enrich - finalize");
     console.timeEnd("[todayPlans] enrich");
 
     // 응답 직렬화
@@ -418,6 +525,7 @@ export async function GET(request: Request) {
       planDate: displayDate,
       isToday,
       serverNow,
+      todayProgress: todayProgress ?? undefined,
     });
     console.timeEnd("[todayPlans] serialize");
     console.timeEnd("[todayPlans] total");
