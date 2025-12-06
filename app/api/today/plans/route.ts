@@ -71,6 +71,7 @@ export async function GET(request: Request) {
     const requestedDateParam = normalizeIsoDate(searchParams.get("date"));
     const targetDate = requestedDateParam ?? todayDate;
     const isCampMode = searchParams.get("camp") === "true";
+    const includeProgress = searchParams.get("includeProgress") !== "false"; // Default: true
 
     // 활성 플랜 그룹만 조회 (캠프 모드/일반 모드 필터링)
     console.time("[todayPlans] db - planGroups");
