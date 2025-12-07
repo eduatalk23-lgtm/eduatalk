@@ -104,6 +104,7 @@ export async function getTodayPlans(
       const supabase = await createSupabaseServerClient();
       
       // Build cache query with tenant_id handling (NULL-safe)
+      // Use partial index: one for NULL tenant_id, one for non-NULL
       let cacheQuery = supabase
         .from("today_plans_cache")
         .select("payload, expires_at")
@@ -119,13 +120,13 @@ export async function getTodayPlans(
         cacheQuery = cacheQuery.is("tenant_id", null);
       }
       
-      const { data: cacheRows, error: cacheError } = await cacheQuery.maybeSingle();
+      const { data: cacheRow, error: cacheError } = await cacheQuery.maybeSingle();
       
-      if (!cacheError && cacheRows) {
+      if (!cacheError && cacheRow) {
         console.log(`[todayPlans] cache hit - student: ${studentId}, date: ${targetDate}, camp: ${camp}`);
         console.timeEnd("[todayPlans] cache - lookup");
         // Return cached result
-        return cacheRows.payload as TodayPlansResponse;
+        return cacheRow.payload as TodayPlansResponse;
       }
       
       if (cacheError && cacheError.code !== "PGRST116") {
@@ -710,45 +711,28 @@ export async function getTodayPlans(
       const now = new Date();
       const expiresAt = new Date(now.getTime() + (cacheTtlSeconds * 1000));
       
-      // Use delete + insert pattern for upsert
-      // This handles NULL tenant_id case properly (PostgreSQL unique index with NULLs)
-      const cacheKey = {
-        tenant_id: tenantId ?? null,
-        student_id: studentId,
-        plan_date: targetDate,
-        is_camp_mode: !!camp,
-      };
+      // Determine conflict target based on tenant_id
+      // - If tenant_id is not null: use (tenant_id, student_id, plan_date, is_camp_mode)
+      // - If tenant_id is null: use (student_id, plan_date, is_camp_mode)
+      const conflictTarget = tenantId != null
+        ? "tenant_id,student_id,plan_date,is_camp_mode"
+        : "student_id,plan_date,is_camp_mode";
 
-      // Delete existing entry (if any) - handles both NULL and non-NULL tenant_id
-      let deleteQuery = supabase
-        .from("today_plans_cache")
-        .delete()
-        .eq("student_id", studentId)
-        .eq("plan_date", targetDate)
-        .eq("is_camp_mode", !!camp);
-      
-      if (tenantId) {
-        deleteQuery = deleteQuery.eq("tenant_id", tenantId);
-      } else {
-        deleteQuery = deleteQuery.is("tenant_id", null);
-      }
-
-      const { error: deleteError } = await deleteQuery;
-
-      // Insert new entry
+      // Use upsert with proper conflict resolution
       const { error: cacheError } = await supabase
         .from("today_plans_cache")
-        .insert({
-          ...cacheKey,
+        .upsert({
+          tenant_id: tenantId ?? null,
+          student_id: studentId,
+          plan_date: targetDate,
+          is_camp_mode: !!camp,
           payload: result,
           computed_at: now.toISOString(),
           expires_at: expiresAt.toISOString(),
           updated_at: now.toISOString(),
+        }, {
+          onConflict: conflictTarget,
         });
-
-      if (deleteError && deleteError.code !== "PGRST116") {
-        console.warn("[todayPlans] cache delete error (non-blocking):", deleteError);
-      }
 
       if (cacheError) {
         console.warn("[todayPlans] cache store error (non-blocking):", cacheError);
