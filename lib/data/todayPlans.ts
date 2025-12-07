@@ -448,10 +448,8 @@ export async function getTodayPlans(
       });
     }
   }
-  console.timeEnd("[todayPlans] db - progress (narrowed)");
 
   // Step 2: Build progress map (O(n) where n = progress records)
-  console.time("[todayPlans] enrich - buildProgressMap");
   const progressMap = new Map<string, number | null>();
   progressData.forEach((row) => {
     if (row.content_type && row.content_id) {
