@@ -144,7 +144,7 @@ function summarizeTodayPlansOptimized(
     : 0;
 
   const completedPlans = plans.filter(
-    (plan) => plan.progress !== null && plan.progress >= 100
+    (plan) => plan.progress !== null && plan.progress !== undefined && plan.progress >= 100
   ).length;
   const incompletePlans = plans.length - completedPlans;
 
@@ -180,8 +180,8 @@ function summarizeTodayPlansOptimized(
           },
           nowMs,
           session ? {
-            paused_at: session.pausedAt || null,
-            resumed_at: session.resumedAt || null,
+            paused_at: session.paused_at || null,
+            resumed_at: session.resumed_at || null,
           } as any : undefined
         );
         
