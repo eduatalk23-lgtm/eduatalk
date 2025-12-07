@@ -15,6 +15,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import { getPlanById } from "@/lib/data/studentPlans";
 import { getTodayPlans } from "@/lib/data/todayPlans";
+import { perfTime } from "@/lib/utils/perfLog";
 
 type CampTodayPageProps = {
   searchParams?:
@@ -29,7 +30,7 @@ type CampTodayPageProps = {
 };
 
 export default async function CampTodayPage({ searchParams }: CampTodayPageProps) {
-  console.time("[camp/today] render - page");
+  const pageTimer = perfTime("[camp/today] render - page");
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "student") {
@@ -112,7 +113,6 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   const targetProgressDate = requestedDate ?? todayDate;
 
   // 활성화된 캠프 플랜 그룹 확인 및 템플릿 검증
-  console.time("[camp/today] data - planGroups+templates");
   const supabase = await createSupabaseServerClient();
   const allActivePlanGroups = await getPlanGroupsForStudent({
     studentId: userId,
@@ -140,7 +140,6 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
       return group;
     })
   ).then((groups) => groups.filter((group): group is NonNullable<typeof group> => group !== null));
-  console.timeEnd("[camp/today] data - planGroups+templates");
 
   // 활성 캠프 플랜 그룹이 없을 때 안내 메시지 표시
   if (activeCampPlanGroups.length === 0) {
@@ -174,7 +173,6 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   // 완료된 플랜 정보 조회 (토스트용)
   let completedPlanTitle: string | null = null;
   if (completedPlanIdParam) {
-    console.time("[camp/today] db - completedPlan");
     try {
       const completedPlan = await getPlanById(
         completedPlanIdParam,
@@ -187,14 +185,13 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     } catch (error) {
       console.error("[CampTodayPage] 완료된 플랜 정보 조회 실패", error);
     }
-    console.timeEnd("[camp/today] db - completedPlan");
   }
 
   // Single server-side fetch for today's plans to avoid double-fetch
   // TodayPageContent is rendered twice (main + sidebar), and without this,
   // each instance would trigger its own client-side fetch via PlanViewContainer
   // This also includes todayProgress calculation, eliminating the need for a separate progress query
-  console.time("[camp/today] data - todayPlans");
+  const todayPlansTimer = perfTime("[camp/today] data - todayPlans");
   const todayPlansData = await getTodayPlans({
     studentId: userId,
     tenantId: tenantContext?.tenantId || null,
@@ -205,7 +202,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     useCache: true, // Use cache for repeated calls
     cacheTtlSeconds: 60, // 1 minute TTL for camp mode (shorter than default)
   });
-  console.timeEnd("[camp/today] data - todayPlans");
+  todayPlansTimer.end();
 
   // Extract todayProgress from the result (computed in-memory, no additional DB query)
   // This replaces the previous ~0.6-1.28s calculateTodayProgress call
@@ -216,7 +213,6 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     achievementScore: 0,
   };
 
-  console.time("[camp/today] render - TodayPageContent");
   const page = (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
@@ -261,8 +257,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
       </div>
     </div>
   );
-  console.timeEnd("[camp/today] render - TodayPageContent");
-  console.timeEnd("[camp/today] render - page");
+  pageTimer.end();
   return page;
 }
 

@@ -6,6 +6,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getTodayPlans } from "@/lib/data/todayPlans";
+import { perfTime } from "@/lib/utils/perfLog";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPageContent } from "./_components/TodayPageContent";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
@@ -27,7 +28,7 @@ type TodayPageProps = {
 };
 
 export default async function TodayPage({ searchParams }: TodayPageProps) {
-  console.time("[today] render - page");
+  const pageTimer = perfTime("[today] render - page");
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "student") {
@@ -146,7 +147,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   }
 
   // Step 4: todayPlans 캐시 사용
-  console.time("[today] data - todayPlans");
+  const todayPlansTimer = perfTime("[today] data - todayPlans");
   const todayPlansDataPromise = getTodayPlans({
     studentId: userId,
     tenantId: tenantContext?.tenantId || null,
@@ -179,7 +180,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   }
 
   const [todayPlansData] = await Promise.all([todayPlansDataPromise]);
-  console.timeEnd("[today] data - todayPlans");
+  todayPlansTimer.end();
 
   // todayPlansData에서 todayProgress 추출 (없으면 기본값)
   const todayProgress = todayPlansData?.todayProgress ?? {
@@ -189,7 +190,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     achievementScore: 0,
   };
 
-  console.time("[today] render - TodayPageContent");
   const page = (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
@@ -223,7 +223,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       </div>
     </div>
   );
-  console.timeEnd("[today] render - TodayPageContent");
-  console.timeEnd("[today] render - page");
+  pageTimer.end();
   return page;
 }

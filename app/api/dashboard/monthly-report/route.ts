@@ -6,6 +6,7 @@ import {
   apiUnauthorized,
   handleApiError,
 } from "@/lib/api";
+import { perfTime } from "@/lib/utils/perfLog";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,11 @@ export const dynamic = "force-dynamic";
  * 에러: { success: false, error: { code, message } }
  */
 export async function GET(request: Request) {
+  const timer = perfTime("[dashboard] api - monthlyReport");
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
+      timer.end();
       return apiUnauthorized();
     }
 
@@ -33,6 +36,7 @@ export async function GET(request: Request) {
       : new Date();
 
     if (Number.isNaN(monthDate.getTime())) {
+      timer.end();
       return handleApiError(
         new Error("Invalid monthDate parameter"),
         "[api/dashboard/monthly-report] 잘못된 날짜 형식"
@@ -46,8 +50,10 @@ export async function GET(request: Request) {
       monthDate
     );
 
+    timer.end();
     return apiSuccess(monthlyReport);
   } catch (error) {
+    timer.end();
     return handleApiError(error, "[api/dashboard/monthly-report] 오류");
   }
 }

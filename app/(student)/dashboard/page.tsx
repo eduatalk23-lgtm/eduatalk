@@ -35,6 +35,7 @@ import {
   calculatePlanStudySeconds,
 } from "@/lib/metrics/studyTime";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { perfTime } from "@/lib/utils/perfLog";
 
 type StudentRow = {
   id: string;
@@ -219,7 +220,7 @@ function summarizeTodayPlansOptimized(
 }
 
 export default async function DashboardPage() {
-  console.time("[dashboard] render - page");
+  const pageTimer = perfTime("[dashboard] render - page");
   const supabase = await createSupabaseServerClient();
 
   // 현재 로그인 사용자 가져오기
@@ -264,7 +265,7 @@ export default async function DashboardPage() {
   monthStart.setHours(0, 0, 0, 0);
 
   // 오늘 플랜 및 통계 조회 (개별 실패 처리)
-  console.time("[dashboard] data - overview");
+  const overviewTimer = perfTime("[dashboard] data - overview");
   
   // Step 3: todayPlans 캐시 재사용
   const tenantContext = await getTenantContext();
@@ -350,9 +351,9 @@ export default async function DashboardPage() {
       customMap,
     }),
   ]);
-  console.timeEnd("[dashboard] data - overview");
+  overviewTimer.end();
 
-  console.time("[dashboard] data - weeklyReport");
+  const weeklyReportTimer = perfTime("[dashboard] data - weeklyReport");
   const [
     weeklyStudyTimeResult,
     weeklyPlanSummaryResult,
@@ -362,7 +363,7 @@ export default async function DashboardPage() {
     getWeeklyPlanSummary(supabase, user.id, weekStart, weekEnd),
     getWeeklyGoalProgress(supabase, user.id, weekStart, weekEnd),
   ]);
-  console.timeEnd("[dashboard] data - weeklyReport");
+  weeklyReportTimer.end();
 
   // Monthly Report는 lazy load로 분리 (Step 1)
 
@@ -394,7 +395,7 @@ export default async function DashboardPage() {
   const activePlan =
     activePlanResult.status === "fulfilled" ? activePlanResult.value : null;
 
-  console.time("[dashboard] data - todayPlansSummary");
+  const todayPlansSummaryTimer = perfTime("[dashboard] data - todayPlansSummary");
   const {
     todayProgress,
     completedPlans,
@@ -405,11 +406,11 @@ export default async function DashboardPage() {
     todayPlansData.sessions,
     todayDate
   );
-  console.timeEnd("[dashboard] data - todayPlansSummary");
+  todayPlansSummaryTimer.end();
 
   const studentName = student?.name ?? "학생";
 
-  console.time("[dashboard] render - DashboardContent");
+  const renderTimer = perfTime("[dashboard] render - DashboardContent");
   const page = (
     <>
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -773,8 +774,8 @@ export default async function DashboardPage() {
       </section>
     </>
   );
-  console.timeEnd("[dashboard] render - DashboardContent");
-  console.timeEnd("[dashboard] render - page");
+  renderTimer.end();
+  pageTimer.end();
   return page;
 }
 

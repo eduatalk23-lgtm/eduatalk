@@ -9,6 +9,7 @@ import {
   calculatePlanStudySeconds,
   buildActiveSessionMap,
 } from "@/lib/metrics/studyTime";
+import { perfTime } from "@/lib/utils/perfLog";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -79,6 +80,9 @@ export type GetTodayPlansOptions = {
 export async function getTodayPlans(
   options: GetTodayPlansOptions
 ): Promise<TodayPlansResponse> {
+  // 항상 남길 핵심 메트릭
+  console.time("[todayPlans] total");
+  
   const { 
     studentId, 
     tenantId, 
@@ -97,9 +101,9 @@ export async function getTodayPlans(
   const requestedDateParam = normalizeIsoDate(date ?? null);
   const targetDate = requestedDateParam ?? todayDate;
 
-  // Cache lookup (if enabled)
+  // Cache lookup (if enabled) - 디버그 모드에서만
   if (useCache) {
-    console.time("[todayPlans] cache - lookup");
+    const lookupTimer = perfTime("[todayPlans] cache - lookup");
     try {
       const supabase = await createSupabaseServerClient();
       
@@ -123,36 +127,30 @@ export async function getTodayPlans(
       const { data: cacheRow, error: cacheError } = await cacheQuery.maybeSingle();
       
       if (!cacheError && cacheRow) {
-        console.log(`[todayPlans] cache hit - student: ${studentId}, date: ${targetDate}, camp: ${camp}`);
-        console.timeEnd("[todayPlans] cache - lookup");
+        lookupTimer.end();
         // Return cached result
+        console.timeEnd("[todayPlans] total");
         return cacheRow.payload as TodayPlansResponse;
       }
       
       if (cacheError && cacheError.code !== "PGRST116") {
         // PGRST116 = no rows found (expected for cache miss)
         console.warn("[todayPlans] cache lookup error (non-blocking):", cacheError);
-      } else {
-        console.log(`[todayPlans] cache miss - student: ${studentId}, date: ${targetDate}, camp: ${camp}`);
       }
     } catch (error) {
       console.warn("[todayPlans] cache lookup failed (non-blocking):", error);
       // Continue with normal execution on cache error
     }
-    console.timeEnd("[todayPlans] cache - lookup");
+    lookupTimer.end();
   }
 
   // Wave 1: Independent queries that can run in parallel
   // - planGroups (needed to filter plans)
-  console.time("[todayPlans] db - wave1 (parallel)");
-  console.time("[todayPlans] db - planGroups");
   const allActivePlanGroups = await getPlanGroupsForStudent({
     studentId,
     tenantId,
     status: "active",
   });
-  console.timeEnd("[todayPlans] db - planGroups");
-  console.timeEnd("[todayPlans] db - wave1 (parallel)");
 
   // Filter plan groups based on camp mode
   let planGroupIds: string[] | undefined = undefined;
@@ -177,21 +175,18 @@ export async function getTodayPlans(
   }
 
   // 선택한 날짜 플랜 조회
-  console.time("[todayPlans] db - plans");
   let plans = await getPlansForStudent({
     studentId,
     tenantId,
     planDate: targetDate,
     planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
   });
-  console.timeEnd("[todayPlans] db - plans");
 
   let displayDate = targetDate;
   let isToday = targetDate === todayDate;
 
   // 오늘 플랜이 없으면 가장 가까운 미래 날짜의 플랜 찾기
   if (!requestedDateParam && plans.length === 0) {
-    console.time("[todayPlans] db - futurePlans");
     const shortRangeEndDate = new Date(today);
     shortRangeEndDate.setDate(shortRangeEndDate.getDate() + 30);
     const shortRangeEndDateStr = shortRangeEndDate.toISOString().slice(0, 10);
@@ -221,7 +216,6 @@ export async function getTodayPlans(
         planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
       });
     }
-    console.timeEnd("[todayPlans] db - futurePlans");
 
     if (futurePlans.length > 0) {
       const sortedPlans = futurePlans.sort((a, b) => {
@@ -242,7 +236,6 @@ export async function getTodayPlans(
   // This replaces the ~600ms calculateTodayProgress call with in-memory computation
   let todayProgress: TodayProgress | null = null;
   if (includeProgress) {
-    console.time("[todayPlans] compute - todayProgress");
     try {
       // Use already loaded plans (no need to re-query)
       const planTotalCount = plans.length;
@@ -261,7 +254,6 @@ export async function getTodayPlans(
       // Non-blocking: continue without progress data
       todayProgress = null;
     }
-    console.timeEnd("[todayPlans] compute - todayProgress");
   }
 
   if (plans.length === 0) {
@@ -284,7 +276,6 @@ export async function getTodayPlans(
   // 콘텐츠 정보 조회 (최적화: 필요한 ID만 조회)
   // Note: First run can be slow (~59s) due to cold start, connection pooling, or index warmup.
   // Subsequent runs should be ~190ms. This code is hardened to prevent large IN clauses and malformed queries.
-  console.time("[todayPlans] db - contents");
   const supabase = await createSupabaseServerClient();
   
   // Extract and deduplicate content IDs (defensive: filter out null/undefined/empty)
@@ -322,106 +313,77 @@ export async function getTodayPlans(
   }
 
   // 필요한 콘텐츠만 직접 조회 (전체 조회 대신)
-  // Split timing per content type to identify bottlenecks
   const [booksResult, lecturesResult, customContentsResult] = await Promise.all([
     safeBookIds.length > 0
       ? (async () => {
-          console.time("[todayPlans] db - contents-books");
           try {
             const { data, error } = await supabase
               .from("books")
               .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,notes,created_at,updated_at")
               .eq("student_id", studentId)
               .in("id", safeBookIds);
-            console.timeEnd("[todayPlans] db - contents-books");
             if (error) {
               console.error("[data/todayPlans] 책 조회 실패", error);
               return [];
             }
             return (data as Book[]) ?? [];
           } catch (err) {
-            console.timeEnd("[todayPlans] db - contents-books");
             console.error("[data/todayPlans] 책 조회 예외", err);
             return [];
           }
         })()
-      : (() => {
-          console.time("[todayPlans] db - contents-books");
-          console.timeEnd("[todayPlans] db - contents-books");
-          return Promise.resolve([]);
-        })(),
+      : Promise.resolve([]),
     safeLectureIds.length > 0
       ? (async () => {
-          console.time("[todayPlans] db - contents-lectures");
           try {
             const { data, error } = await supabase
               .from("lectures")
               .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,notes,created_at,updated_at")
               .eq("student_id", studentId)
               .in("id", safeLectureIds);
-            console.timeEnd("[todayPlans] db - contents-lectures");
             if (error) {
               console.error("[data/todayPlans] 강의 조회 실패", error);
               return [];
             }
             return (data as Lecture[]) ?? [];
           } catch (err) {
-            console.timeEnd("[todayPlans] db - contents-lectures");
             console.error("[data/todayPlans] 강의 조회 예외", err);
             return [];
           }
         })()
-      : (() => {
-          console.time("[todayPlans] db - contents-lectures");
-          console.timeEnd("[todayPlans] db - contents-lectures");
-          return Promise.resolve([]);
-        })(),
+      : Promise.resolve([]),
     safeCustomIds.length > 0
       ? (async () => {
-          console.time("[todayPlans] db - contents-custom");
           try {
             const { data, error } = await supabase
               .from("student_custom_contents")
               .select("id,tenant_id,student_id,title,content_type,total_page_or_time,subject,created_at,updated_at")
               .eq("student_id", studentId)
               .in("id", safeCustomIds);
-            console.timeEnd("[todayPlans] db - contents-custom");
             if (error) {
               console.error("[data/todayPlans] 커스텀 콘텐츠 조회 실패", error);
               return [];
             }
             return (data as CustomContent[]) ?? [];
           } catch (err) {
-            console.timeEnd("[todayPlans] db - contents-custom");
             console.error("[data/todayPlans] 커스텀 콘텐츠 조회 예외", err);
             return [];
           }
         })()
-      : (() => {
-          console.time("[todayPlans] db - contents-custom");
-          console.timeEnd("[todayPlans] db - contents-custom");
-          return Promise.resolve([]);
-        })(),
+      : Promise.resolve([]),
   ]);
   const books = booksResult;
   const lectures = lecturesResult;
   const customContents = customContentsResult;
-  console.timeEnd("[todayPlans] db - contents");
 
   // 데이터 enrich 시작 (메모리 연산만 측정, DB 쿼리는 별도 측정)
-  console.time("[todayPlans] enrich");
-  
   // Step 1: Build maps (O(n) where n = content count)
-  console.time("[todayPlans] enrich - buildMaps");
   const contentMap = new Map<string, unknown>();
   books.forEach((book) => contentMap.set(`book:${book.id}`, book));
   lectures.forEach((lecture) => contentMap.set(`lecture:${lecture.id}`, lecture));
   customContents.forEach((custom) => contentMap.set(`custom:${custom.id}`, custom));
-  console.timeEnd("[todayPlans] enrich - buildMaps");
 
   // 진행률 조회 (최적화: 필요한 콘텐츠만 조회)
-  console.time("[todayPlans] db - progress (narrowed)");
-  
   // 필요한 콘텐츠의 (content_type, content_id) 쌍만 조회
   const contentKeys = new Set<string>();
   plans.forEach((plan) => {
@@ -504,12 +466,10 @@ export async function getTodayPlans(
   // - progress (narrowed) - already parallelized above
   // - activeSessions (narrowed) - for plan execution state
   // - fullDaySessions (only if includeProgress) - for todayStudyMinutes calculation
-  console.time("[todayPlans] db - wave2 (parallel)");
   const planIds = plans.map((p) => p.id);
   const [activeSessionsResult, fullDaySessionsResult] = await Promise.all([
     // Query 1: Active sessions for plan execution state (narrowed to plan IDs)
     (async () => {
-      console.time("[todayPlans] db - sessions (narrowed)");
       let sessions: Array<{
         plan_id: string | null;
         started_at: string | null;
@@ -527,13 +487,11 @@ export async function getTodayPlans(
           .is("ended_at", null);
         sessions = data ?? [];
       }
-      console.timeEnd("[todayPlans] db - sessions (narrowed)");
       return sessions;
     })(),
     // Query 2: Full-day sessions for todayProgress calculation (only if includeProgress)
     includeProgress && plans.length > 0
       ? (async () => {
-          console.time("[todayPlans] db - fullDaySessions");
           const target = new Date(targetDate + "T00:00:00");
           const targetEnd = new Date(target);
           targetEnd.setHours(23, 59, 59, 999);
@@ -545,18 +503,15 @@ export async function getTodayPlans(
               end: targetEnd.toISOString(),
             },
           });
-          console.timeEnd("[todayPlans] db - fullDaySessions");
           return sessions;
         })()
       : Promise.resolve([]),
   ]);
   const activeSessions = activeSessionsResult;
   const fullDaySessions = fullDaySessionsResult;
-  console.timeEnd("[todayPlans] db - wave2 (parallel)");
 
   // Complete todayProgress calculation now that we have fullDaySessions
   if (includeProgress && todayProgress && fullDaySessions.length >= 0) {
-    console.time("[todayPlans] compute - todayProgress (finalize)");
     try {
       const activeSessionMap = buildActiveSessionMap(fullDaySessions);
       const nowMs = Date.now();
@@ -601,11 +556,9 @@ export async function getTodayPlans(
       console.error("[data/todayPlans] 오늘 진행률 최종 계산 실패 (비차단)", error);
       // Keep partial progress data
     }
-    console.timeEnd("[todayPlans] compute - todayProgress (finalize)");
   }
 
   // Step 3: Build session map (O(n) where n = active sessions)
-  console.time("[todayPlans] enrich - buildSessionMap");
   const sessionMap = new Map<string, { 
     isPaused: boolean; 
     startedAt?: string | null;
@@ -625,11 +578,9 @@ export async function getTodayPlans(
       });
     }
   });
-  console.timeEnd("[todayPlans] enrich - buildSessionMap");
 
   // Step 4: Attach content/progress/session to plans (O(n) where n = plans)
   // Optimized: Remove destructuring and spread operations for better performance
-  console.time("[todayPlans] enrich - attachToPlans");
   
   // Helper function to exclude denormalized fields (more efficient than destructuring)
   const excludeFields = <T extends Record<string, any>>(
@@ -677,10 +628,8 @@ export async function getTodayPlans(
 
     return result;
   });
-  console.timeEnd("[todayPlans] enrich - attachToPlans");
 
   // Step 5: Convert session map to object (O(n) where n = active sessions)
-  console.time("[todayPlans] enrich - finalize");
   const sessionsObj: Record<string, { 
     isPaused: boolean; 
     startedAt?: string | null;
@@ -691,8 +640,6 @@ export async function getTodayPlans(
   sessionMap.forEach((value, key) => {
     sessionsObj[key] = value;
   });
-  console.timeEnd("[todayPlans] enrich - finalize");
-  console.timeEnd("[todayPlans] enrich");
 
   const result: TodayPlansResponse = {
     plans: plansWithContent,
@@ -703,9 +650,9 @@ export async function getTodayPlans(
     todayProgress: todayProgress ?? undefined,
   };
 
-  // Cache store (if enabled and result is valid)
+  // Cache store (if enabled and result is valid) - 디버그 모드에서만
   if (useCache && result) {
-    console.time("[todayPlans] cache - store");
+    const storeTimer = perfTime("[todayPlans] cache - store");
     try {
       const supabase = await createSupabaseServerClient();
       const now = new Date();
@@ -731,15 +678,14 @@ export async function getTodayPlans(
 
       if (cacheError) {
         console.warn("[todayPlans] cache store error (non-blocking):", cacheError);
-      } else {
-        console.log(`[todayPlans] cache stored - student: ${studentId}, date: ${targetDate}, camp: ${camp}, expires: ${expiresAt.toISOString()}`);
       }
     } catch (error) {
       console.warn("[todayPlans] cache store failed (non-blocking):", error);
       // Continue without caching - result is still valid
     }
-    console.timeEnd("[todayPlans] cache - store");
+    storeTimer.end();
   }
 
+  console.timeEnd("[todayPlans] total");
   return result;
 }
