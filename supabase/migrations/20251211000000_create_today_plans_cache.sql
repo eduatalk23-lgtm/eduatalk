@@ -39,13 +39,15 @@ WHERE tenant_id IS NULL;
 
 -- Create index for cache lookup (includes expires_at for efficient filtering)
 -- Two partial indexes for NULL and non-NULL tenant_id cases
+-- Note: expires_at > now() condition is handled in query WHERE clause, not in index predicate
+-- (now() is not IMMUTABLE, so it cannot be used in index predicates)
 CREATE INDEX IF NOT EXISTS idx_today_plans_cache_lookup_with_tenant
 ON today_plans_cache (tenant_id, student_id, plan_date, is_camp_mode, expires_at)
-WHERE tenant_id IS NOT NULL AND expires_at > now();
+WHERE tenant_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_today_plans_cache_lookup_null_tenant
 ON today_plans_cache (student_id, plan_date, is_camp_mode, expires_at)
-WHERE tenant_id IS NULL AND expires_at > now();
+WHERE tenant_id IS NULL;
 
 -- Create index for cache cleanup (expired entries)
 CREATE INDEX IF NOT EXISTS idx_today_plans_cache_expires_at
