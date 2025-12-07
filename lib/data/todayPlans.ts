@@ -711,14 +711,9 @@ export async function getTodayPlans(
       const now = new Date();
       const expiresAt = new Date(now.getTime() + (cacheTtlSeconds * 1000));
       
-      // Determine conflict target based on tenant_id
-      // - If tenant_id is not null: use (tenant_id, student_id, plan_date, is_camp_mode)
-      // - If tenant_id is null: use (student_id, plan_date, is_camp_mode)
-      const conflictTarget = tenantId != null
-        ? "tenant_id,student_id,plan_date,is_camp_mode"
-        : "student_id,plan_date,is_camp_mode";
-
-      // Use upsert with proper conflict resolution
+      // Use upsert with single UNIQUE constraint
+      // Constraint: today_plans_cache_unique_key (tenant_id, student_id, plan_date, is_camp_mode)
+      // Always use all 4 columns for onConflict, regardless of tenant_id being NULL or not
       const { error: cacheError } = await supabase
         .from("today_plans_cache")
         .upsert({
@@ -731,7 +726,7 @@ export async function getTodayPlans(
           expires_at: expiresAt.toISOString(),
           updated_at: now.toISOString(),
         }, {
-          onConflict: conflictTarget,
+          onConflict: "tenant_id,student_id,plan_date,is_camp_mode",
         });
 
       if (cacheError) {
