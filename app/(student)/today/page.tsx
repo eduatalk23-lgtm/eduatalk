@@ -27,6 +27,7 @@ type TodayPageProps = {
 };
 
 export default async function TodayPage({ searchParams }: TodayPageProps) {
+  console.time("[today] render - page");
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "student") {
@@ -178,8 +179,10 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   }
 
   const [todayProgress] = await Promise.all([todayProgressPromise]);
+  console.timeEnd("[today] data - todayPlans");
 
-  return (
+  console.time("[today] render - TodayPageContent");
+  const page = (
     <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
       <div className="flex flex-col gap-6">
         <TodayHeader />
@@ -212,4 +215,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       </div>
     </div>
   );
+  console.timeEnd("[today] render - TodayPageContent");
+  console.timeEnd("[today] render - page");
+  return page;
 }

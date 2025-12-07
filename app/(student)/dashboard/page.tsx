@@ -189,6 +189,7 @@ async function summarizeTodayPlans(
 }
 
 export default async function DashboardPage() {
+  console.time("[dashboard] render - page");
   const supabase = await createSupabaseServerClient();
 
   // 현재 로그인 사용자 가져오기
@@ -233,27 +234,39 @@ export default async function DashboardPage() {
   monthStart.setHours(0, 0, 0, 0);
 
   // 오늘 플랜 및 통계 조회 (개별 실패 처리)
+  console.time("[dashboard] data - overview");
   const [
     todayPlansResult,
     statisticsResult,
     weeklyBlocksResult,
     contentTypeProgressResult,
-    weeklyStudyTimeResult,
-    weeklyPlanSummaryResult,
-    weeklyGoalProgressResult,
-    monthlyReportResult,
     activePlanResult,
   ] = await Promise.allSettled([
     fetchTodayPlans(supabase, user.id, todayDate, dayOfWeek),
     fetchLearningStatistics(supabase, user.id),
     fetchWeeklyBlockCounts(supabase, user.id),
     fetchContentTypeProgress(supabase, user.id),
+    fetchActivePlan(supabase, user.id, todayDate),
+  ]);
+  console.timeEnd("[dashboard] data - overview");
+
+  console.time("[dashboard] data - weeklyReport");
+  const [
+    weeklyStudyTimeResult,
+    weeklyPlanSummaryResult,
+    weeklyGoalProgressResult,
+  ] = await Promise.allSettled([
     getWeeklyStudyTimeSummary(supabase, user.id, weekStart, weekEnd),
     getWeeklyPlanSummary(supabase, user.id, weekStart, weekEnd),
     getWeeklyGoalProgress(supabase, user.id, weekStart, weekEnd),
-    getMonthlyReportData(supabase, user.id, today),
-    fetchActivePlan(supabase, user.id, todayDate),
   ]);
+  console.timeEnd("[dashboard] data - weeklyReport");
+
+  console.time("[dashboard] data - monthlyReport");
+  const [monthlyReportResult] = await Promise.allSettled([
+    getMonthlyReportData(supabase, user.id, today),
+  ]);
+  console.timeEnd("[dashboard] data - monthlyReport");
 
   // 결과 추출 및 기본값 설정
   const todayPlans =
@@ -289,16 +302,19 @@ export default async function DashboardPage() {
   const activePlan =
     activePlanResult.status === "fulfilled" ? activePlanResult.value : null;
 
+  console.time("[dashboard] data - todayPlansSummary");
   const {
     todayProgress,
     completedPlans,
     incompletePlans,
     timeStats: todayTimeStats,
   } = await summarizeTodayPlans(todayPlans, user.id, todayDate);
+  console.timeEnd("[dashboard] data - todayPlansSummary");
 
   const studentName = student?.name ?? "학생";
 
-  return (
+  console.time("[dashboard] render - DashboardContent");
+  const page = (
     <>
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
         <div className="flex flex-col gap-8">
@@ -693,6 +709,9 @@ export default async function DashboardPage() {
       </section>
     </>
   );
+  console.timeEnd("[dashboard] render - DashboardContent");
+  console.timeEnd("[dashboard] render - page");
+  return page;
 }
 
 function TodayPlanCard({ plan }: { plan: TodayPlan }) {
