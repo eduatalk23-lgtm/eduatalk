@@ -4,7 +4,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { getGoalsForStudent } from "@/lib/data/studentGoals";
 import { getSessionsInRange } from "@/lib/data/studentSessions";
 import {
   calculatePlanStudySeconds,
@@ -56,6 +55,16 @@ export type GetTodayPlansOptions = {
    * This optimization reduces query time when the student has many progress records or active sessions.
    */
   narrowQueries?: boolean;
+  /**
+   * If true, uses cache for todayPlans results.
+   * Default: true
+   */
+  useCache?: boolean;
+  /**
+   * Cache TTL in seconds.
+   * Default: 120 (2 minutes)
+   */
+  cacheTtlSeconds?: number;
 };
 
 /**
@@ -70,7 +79,16 @@ export type GetTodayPlansOptions = {
 export async function getTodayPlans(
   options: GetTodayPlansOptions
 ): Promise<TodayPlansResponse> {
-  const { studentId, tenantId, date, camp = false, includeProgress = true, narrowQueries = false } = options;
+  const { 
+    studentId, 
+    tenantId, 
+    date, 
+    camp = false, 
+    includeProgress = true, 
+    narrowQueries = false,
+    useCache = true,
+    cacheTtlSeconds = 120
+  } = options;
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -79,38 +97,60 @@ export async function getTodayPlans(
   const requestedDateParam = normalizeIsoDate(date ?? null);
   const targetDate = requestedDateParam ?? todayDate;
 
+  // Cache lookup (if enabled)
+  if (useCache) {
+    console.time("[todayPlans] cache - lookup");
+    try {
+      const supabase = await createSupabaseServerClient();
+      
+      // Build cache query with tenant_id handling (NULL-safe)
+      let cacheQuery = supabase
+        .from("today_plans_cache")
+        .select("payload, expires_at")
+        .eq("student_id", studentId)
+        .eq("plan_date", targetDate)
+        .eq("is_camp_mode", !!camp)
+        .gt("expires_at", new Date().toISOString()); // Only valid (non-expired) cache
+      
+      // Handle tenant_id (NULL or value)
+      if (tenantId) {
+        cacheQuery = cacheQuery.eq("tenant_id", tenantId);
+      } else {
+        cacheQuery = cacheQuery.is("tenant_id", null);
+      }
+      
+      const { data: cacheRows, error: cacheError } = await cacheQuery.maybeSingle();
+      
+      if (!cacheError && cacheRows) {
+        console.log(`[todayPlans] cache hit - student: ${studentId}, date: ${targetDate}, camp: ${camp}`);
+        console.timeEnd("[todayPlans] cache - lookup");
+        // Return cached result
+        return cacheRows.payload as TodayPlansResponse;
+      }
+      
+      if (cacheError && cacheError.code !== "PGRST116") {
+        // PGRST116 = no rows found (expected for cache miss)
+        console.warn("[todayPlans] cache lookup error (non-blocking):", cacheError);
+      } else {
+        console.log(`[todayPlans] cache miss - student: ${studentId}, date: ${targetDate}, camp: ${camp}`);
+      }
+    } catch (error) {
+      console.warn("[todayPlans] cache lookup failed (non-blocking):", error);
+      // Continue with normal execution on cache error
+    }
+    console.timeEnd("[todayPlans] cache - lookup");
+  }
+
   // Wave 1: Independent queries that can run in parallel
   // - planGroups (needed to filter plans)
-  // - goals (only if includeProgress, needed for goalProgressSummary)
   console.time("[todayPlans] db - wave1 (parallel)");
-  const [allActivePlanGroupsResult, goalsResult] = await Promise.all([
-    // Query 1: Plan groups (always needed)
-    (async () => {
-      console.time("[todayPlans] db - planGroups");
-      const groups = await getPlanGroupsForStudent({
-        studentId,
-        tenantId,
-        status: "active",
-      });
-      console.timeEnd("[todayPlans] db - planGroups");
-      return groups;
-    })(),
-    // Query 2: Goals (only if includeProgress)
-    includeProgress
-      ? (async () => {
-          console.time("[todayPlans] db - goals");
-          const goals = await getGoalsForStudent({
-            studentId,
-            tenantId,
-            isActive: true,
-          });
-          console.timeEnd("[todayPlans] db - goals");
-          return goals;
-        })()
-      : Promise.resolve([]),
-  ]);
-  const allActivePlanGroups = allActivePlanGroupsResult;
-  const goals = goalsResult;
+  console.time("[todayPlans] db - planGroups");
+  const allActivePlanGroups = await getPlanGroupsForStudent({
+    studentId,
+    tenantId,
+    status: "active",
+  });
+  console.timeEnd("[todayPlans] db - planGroups");
   console.timeEnd("[todayPlans] db - wave1 (parallel)");
 
   // Filter plan groups based on camp mode
@@ -207,66 +247,12 @@ export async function getTodayPlans(
       const planTotalCount = plans.length;
       const planCompletedCount = plans.filter((plan) => !!plan.actual_end_time).length;
 
-      // We'll compute todayStudyMinutes after we load fullDaySessions in Wave 2
-      // For now, set a placeholder (will be computed after sessions are loaded)
-      let todayStudyMinutes = 0;
-
-      // Compute goalProgressSummary from already loaded goals
-      // Note: We need goalProgressList for each goal, but we can batch this query
-      const goalProgressSummary: Array<{
-        goalId: string;
-        title: string;
-        progress: number;
-      }> = [];
-
-      if (goals.length > 0) {
-        // Batch query all goal progress for the target date
-        // Use the supabase client that will be created later (or create it here)
-        const supabaseForGoals = await createSupabaseServerClient();
-        const goalIds = goals.map((g) => g.id);
-        const { data: allGoalProgress } = await supabaseForGoals
-          .from("student_goal_progress")
-          .select("goal_id,progress_amount,created_at")
-          .eq("student_id", studentId)
-          .in("goal_id", goalIds.length > 0 ? goalIds : ['dummy-id']);
-
-        // Group by goal_id and filter by target date
-        const goalProgressMap = new Map<string, number>();
-        allGoalProgress?.forEach((gp) => {
-          const progressDate = gp.created_at
-            ? new Date(gp.created_at).toISOString().slice(0, 10)
-            : null;
-          if (progressDate === targetDate) {
-            const current = goalProgressMap.get(gp.goal_id) || 0;
-            goalProgressMap.set(gp.goal_id, current + gp.progress_amount);
-          }
-        });
-
-        // Calculate progress for each goal
-        goals.forEach((goal) => {
-          const targetDateAmount = goalProgressMap.get(goal.id) || 0;
-          let progress = 0;
-          if (goal.expected_amount && goal.expected_amount > 0) {
-            progress = Math.min(
-              Math.round((targetDateAmount / goal.expected_amount) * 100),
-              100
-            );
-          }
-          goalProgressSummary.push({
-            goalId: goal.id,
-            title: goal.title,
-            progress,
-          });
-        });
-      }
-
       // We'll compute todayStudyMinutes and achievementScore after fullDaySessions are loaded
       // Store intermediate values for later computation
       todayProgress = {
         todayStudyMinutes: 0, // Will be computed after sessions are loaded
         planCompletedCount,
         planTotalCount,
-        goalProgressSummary,
         achievementScore: 0, // Will be computed after todayStudyMinutes is known
       };
     } catch (error) {
@@ -421,7 +407,7 @@ export async function getTodayPlans(
   const customContents = customContentsResult;
   console.timeEnd("[todayPlans] db - contents");
 
-  // 데이터 enrich 시작
+  // 데이터 enrich 시작 (메모리 연산만 측정, DB 쿼리는 별도 측정)
   console.time("[todayPlans] enrich");
   
   // Step 1: Build maps (O(n) where n = content count)
@@ -592,15 +578,10 @@ export async function getTodayPlans(
       const todayStudyMinutes = Math.floor(todayStudySeconds / 60);
 
       // Calculate achievement score
+      // (오늘 실행률 * 0.7) + (집중 타이머 누적/예상 * 0.3)
       const executionRate =
         todayProgress.planTotalCount > 0
           ? (todayProgress.planCompletedCount / todayProgress.planTotalCount) * 100
-          : 0;
-
-      const goalCompletionRate =
-        todayProgress.goalProgressSummary.length > 0
-          ? todayProgress.goalProgressSummary.reduce((sum, g) => sum + g.progress, 0) /
-            todayProgress.goalProgressSummary.length
           : 0;
 
       const expectedMinutes = todayProgress.planTotalCount * 60;
@@ -610,7 +591,7 @@ export async function getTodayPlans(
           : 0;
 
       const achievementScore = Math.round(
-        executionRate * 0.5 + goalCompletionRate * 0.3 + focusTimerRate * 0.2
+        executionRate * 0.7 + focusTimerRate * 0.3
       );
 
       todayProgress.todayStudyMinutes = todayStudyMinutes;
@@ -646,8 +627,30 @@ export async function getTodayPlans(
   console.timeEnd("[todayPlans] enrich - buildSessionMap");
 
   // Step 4: Attach content/progress/session to plans (O(n) where n = plans)
-  // Optimized: Pre-compute content keys to avoid repeated string concatenation
+  // Optimized: Remove destructuring and spread operations for better performance
   console.time("[todayPlans] enrich - attachToPlans");
+  
+  // Helper function to exclude denormalized fields (more efficient than destructuring)
+  const excludeFields = <T extends Record<string, any>>(
+    obj: T,
+    fieldsToExclude: Set<string>
+  ): Omit<T, keyof T & string> => {
+    const result: any = {};
+    for (const key in obj) {
+      if (!fieldsToExclude.has(key)) {
+        result[key] = obj[key];
+      }
+    }
+    return result;
+  };
+
+  const denormalizedFields = new Set([
+    'content_title',
+    'content_subject',
+    'content_subject_category',
+    'content_category'
+  ]);
+
   const plansWithContent: PlanWithContent[] = plans.map((plan) => {
     // Pre-compute content key once per plan
     const contentKey = plan.content_type && plan.content_id 
@@ -659,30 +662,19 @@ export async function getTodayPlans(
     const progress = contentKey ? (progressMap.get(contentKey) ?? null) : null;
     const session = sessionMap.get(plan.id);
 
-    // denormalized 필드 제거 (destructuring is O(k) where k = field count, but k is constant)
-    const {
-      content_title,
-      content_subject,
-      content_subject_category,
-      content_category,
-      ...planWithoutDenormalized
-    } = plan;
+    // Optimized: Use helper function for field exclusion (more efficient than destructuring)
+    const planWithoutDenormalized = excludeFields(plan, denormalizedFields);
 
-    // Build session object only if session exists (avoid unnecessary object creation)
-    const sessionObj = session ? {
-      isPaused: session.isPaused,
-      startedAt: session.startedAt,
-      pausedAt: session.pausedAt,
-      resumedAt: session.resumedAt,
-      pausedDurationSeconds: session.pausedDurationSeconds,
-    } : undefined;
-
-    return {
-      ...planWithoutDenormalized,
+    // Optimized: Reuse session object from sessionMap (no need to recreate)
+    // sessionMap already contains the properly formatted object
+    // Optimized: Use Object.assign for better performance than spread
+    const result = Object.assign({}, planWithoutDenormalized, {
       content: content as Book | Lecture | CustomContent | undefined,
-      progress,
-      session: sessionObj,
-    };
+      progress: progress ?? plan.progress ?? null,
+      session: session,
+    }) as PlanWithContent;
+
+    return result;
   });
   console.timeEnd("[todayPlans] enrich - attachToPlans");
 
@@ -701,7 +693,7 @@ export async function getTodayPlans(
   console.timeEnd("[todayPlans] enrich - finalize");
   console.timeEnd("[todayPlans] enrich");
 
-  return {
+  const result: TodayPlansResponse = {
     plans: plansWithContent,
     sessions: sessionsObj,
     planDate: displayDate,
@@ -709,4 +701,66 @@ export async function getTodayPlans(
     serverNow: Date.now(),
     todayProgress: todayProgress ?? undefined,
   };
+
+  // Cache store (if enabled and result is valid)
+  if (useCache && result) {
+    console.time("[todayPlans] cache - store");
+    try {
+      const supabase = await createSupabaseServerClient();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + (cacheTtlSeconds * 1000));
+      
+      // Use delete + insert pattern for upsert
+      // This handles NULL tenant_id case properly (PostgreSQL unique index with NULLs)
+      const cacheKey = {
+        tenant_id: tenantId ?? null,
+        student_id: studentId,
+        plan_date: targetDate,
+        is_camp_mode: !!camp,
+      };
+
+      // Delete existing entry (if any) - handles both NULL and non-NULL tenant_id
+      let deleteQuery = supabase
+        .from("today_plans_cache")
+        .delete()
+        .eq("student_id", studentId)
+        .eq("plan_date", targetDate)
+        .eq("is_camp_mode", !!camp);
+      
+      if (tenantId) {
+        deleteQuery = deleteQuery.eq("tenant_id", tenantId);
+      } else {
+        deleteQuery = deleteQuery.is("tenant_id", null);
+      }
+
+      const { error: deleteError } = await deleteQuery;
+
+      // Insert new entry
+      const { error: cacheError } = await supabase
+        .from("today_plans_cache")
+        .insert({
+          ...cacheKey,
+          payload: result,
+          computed_at: now.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          updated_at: now.toISOString(),
+        });
+
+      if (deleteError && deleteError.code !== "PGRST116") {
+        console.warn("[todayPlans] cache delete error (non-blocking):", deleteError);
+      }
+
+      if (cacheError) {
+        console.warn("[todayPlans] cache store error (non-blocking):", cacheError);
+      } else {
+        console.log(`[todayPlans] cache stored - student: ${studentId}, date: ${targetDate}, camp: ${camp}, expires: ${expiresAt.toISOString()}`);
+      }
+    } catch (error) {
+      console.warn("[todayPlans] cache store failed (non-blocking):", error);
+      // Continue without caching - result is still valid
+    }
+    console.timeEnd("[todayPlans] cache - store");
+  }
+
+  return result;
 }

@@ -46,6 +46,9 @@ export async function GET(request: Request) {
     const targetDate = requestedDateParam ?? todayDate;
     const isCampMode = searchParams.get("camp") === "true";
     const includeProgress = searchParams.get("includeProgress") !== "false"; // Default: true
+    const noCache = searchParams.get("noCache") === "true"; // Allow cache bypass
+    const useCache = !noCache; // Default: true (use cache)
+    const cacheTtlSeconds = parseInt(searchParams.get("cacheTtl") || "120", 10); // Default: 120 seconds
 
     // Call the shared getTodayPlans function
     // This function contains all the DB queries, enrich logic, and todayProgress calculation
@@ -56,6 +59,8 @@ export async function GET(request: Request) {
       camp: isCampMode,
       includeProgress,
       narrowQueries: true, // Always use narrow queries for API endpoint
+      useCache,
+      cacheTtlSeconds,
     });
 
     console.timeEnd("[todayPlans] total");

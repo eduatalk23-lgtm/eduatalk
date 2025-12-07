@@ -156,7 +156,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       todayStudyMinutes: 0,
       planCompletedCount: 0,
       planTotalCount: 0,
-      goalProgressSummary: [],
       achievementScore: 0,
     };
   });

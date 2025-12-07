@@ -7,14 +7,7 @@ import { updatePlanOrder } from "../actions/planOrderActions";
 import { PlanTimerCard } from "./PlanTimerCard";
 import { TodayPlanItem } from "./TodayPlanItem";
 import { cn } from "@/lib/cn";
-import type { Plan } from "@/lib/data/studentPlans";
-import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
-
-type PlanWithContent = Plan & {
-  content?: Book | Lecture | CustomContent;
-  progress?: number | null;
-  session?: { isPaused: boolean; pausedAt?: string | null };
-};
+import type { PlanWithContent } from "../_utils/planGroupUtils";
 
 type DraggablePlanListProps = {
   plans: PlanWithContent[];

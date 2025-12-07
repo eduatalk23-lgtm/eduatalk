@@ -204,6 +204,8 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     camp: true,
     includeProgress: true, // Include progress to avoid separate /api/today/progress call
     narrowQueries: true, // Optimize: only fetch progress/sessions for relevant plans
+    useCache: true, // Use cache for repeated calls
+    cacheTtlSeconds: 60, // 1 minute TTL for camp mode (shorter than default)
   });
   console.timeEnd("[camp/today] db - todayPlans");
 
@@ -213,7 +215,6 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     todayStudyMinutes: 0,
     planCompletedCount: 0,
     planTotalCount: 0,
-    goalProgressSummary: [],
     achievementScore: 0,
   };
 
