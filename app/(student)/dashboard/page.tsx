@@ -4,18 +4,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  fetchTodayPlans,
   calculateTodayProgress,
   fetchLearningStatistics,
   fetchWeeklyBlockCounts,
   fetchContentTypeProgress,
   fetchActivePlan,
-  type TodayPlan,
+  fetchContentMap,
   type LearningStatistics,
   type WeeklyBlockCount,
   type ContentTypeProgress,
   type ActivePlan,
 } from "./_utils";
+import { getTodayPlans } from "@/lib/data/todayPlans";
 import {
   getWeeklyStudyTimeSummary,
   getWeeklyPlanSummary,
@@ -31,10 +31,8 @@ import { MonthlyReportSection } from "./_components/MonthlyReportSection";
 import { RecommendationCard } from "./_components/RecommendationCard";
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { TimeStatistics } from "./_components/TimeStatistics";
-import { getSessionsInRange } from "@/lib/data/studentSessions";
 import {
   calculatePlanStudySeconds,
-  buildActiveSessionMap,
 } from "@/lib/metrics/studyTime";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -116,33 +114,55 @@ type TodayPlanSummary = {
   };
 };
 
-async function summarizeTodayPlans(
-  plans: TodayPlan[],
-  studentId: string,
+/**
+ * todayPlans 캐시를 활용한 최적화된 요약 함수 (Step 3)
+ * 세션 재조회 없이 todayPlansData에서 추출한 정보만 사용
+ */
+function summarizeTodayPlansOptimized(
+  plans: Array<{
+    id: string;
+    progress?: number | null;
+    actual_start_time?: string | null;
+    actual_end_time?: string | null;
+    total_duration_seconds?: number | null;
+    paused_duration_seconds?: number | null;
+  }>,
+  sessions: Record<string, {
+    isPaused: boolean;
+    startedAt?: string | null;
+    pausedAt?: string | null;
+    resumedAt?: string | null;
+    pausedDurationSeconds?: number | null;
+  }>,
   todayDate: string
-): Promise<TodayPlanSummary> {
-  const todayProgress = calculateTodayProgress(plans);
+): TodayPlanSummary {
+  // 진행률 계산
+  const todayProgress = plans.length > 0
+    ? Math.round(
+        plans.reduce((sum, plan) => sum + (plan.progress ?? 0), 0) / plans.length
+      )
+    : 0;
+
   const completedPlans = plans.filter(
     (plan) => plan.progress !== null && plan.progress >= 100
   ).length;
   const incompletePlans = plans.length - completedPlans;
 
-  // 세션 조회 (활성 세션 확인을 위해)
-  const tenantContext = await getTenantContext();
-  const today = new Date(todayDate + "T00:00:00");
-  const todayEnd = new Date(today);
-  todayEnd.setHours(23, 59, 59, 999);
-  
-  const sessions = await getSessionsInRange({
-    studentId,
-    tenantId: tenantContext?.tenantId || null,
-    dateRange: {
-      start: today.toISOString(),
-      end: todayEnd.toISOString(),
-    },
+  // 세션 맵 생성 (todayPlansData.sessions에서 추출)
+  // calculatePlanStudySeconds가 받는 StudySession 형태로 변환
+  const activeSessionMap = new Map<string, {
+    paused_at?: string | null;
+    resumed_at?: string | null;
+  }>();
+  Object.entries(sessions).forEach(([planId, session]) => {
+    if (session.isPaused || session.pausedAt || session.resumedAt) {
+      activeSessionMap.set(planId, {
+        paused_at: session.pausedAt,
+        resumed_at: session.resumedAt,
+      });
+    }
   });
 
-  const activeSessionMap = buildActiveSessionMap(sessions);
   const nowMs = Date.now();
 
   // Today 페이지와 동일한 로직으로 학습 시간 계산
@@ -150,10 +170,19 @@ async function summarizeTodayPlans(
     (acc, plan) => {
       // actual_start_time이 있는 플랜만 계산 (Today 페이지와 동일)
       if (plan.actual_start_time) {
+        const session = plan.actual_end_time ? undefined : activeSessionMap.get(plan.id);
         const studySeconds = calculatePlanStudySeconds(
-          plan,
+          {
+            actual_start_time: plan.actual_start_time,
+            actual_end_time: plan.actual_end_time,
+            total_duration_seconds: plan.total_duration_seconds,
+            paused_duration_seconds: plan.paused_duration_seconds,
+          },
           nowMs,
-          plan.actual_end_time ? undefined : activeSessionMap.get(plan.id)
+          session ? {
+            paused_at: session.pausedAt || null,
+            resumed_at: session.resumedAt || null,
+          } as any : undefined
         );
         
         // total_duration_seconds는 표시용으로만 사용
@@ -237,8 +266,69 @@ export default async function DashboardPage() {
   // 오늘 플랜 및 통계 조회 (개별 실패 처리)
   console.time("[dashboard] data - overview");
   
-  // 콘텐츠 맵을 한 번만 조회하고 재사용 (Step 2)
+  // Step 3: todayPlans 캐시 재사용
   const tenantContext = await getTenantContext();
+  const todayPlansData = await getTodayPlans({
+    studentId: user.id,
+    tenantId: tenantContext?.tenantId || null,
+    date: todayDate,
+    camp: false,
+    includeProgress: true,
+    narrowQueries: true,
+    useCache: true,
+    cacheTtlSeconds: 120,
+  });
+
+  // todayPlansData에서 TodayPlan 형태로 변환
+  const todayPlans: Array<{
+    id: string;
+    block_index: number;
+    content_type: "book" | "lecture" | "custom";
+    content_id: string;
+    title: string;
+    subject: string | null;
+    difficulty_level: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    progress: number | null;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    actual_start_time: string | null;
+    actual_end_time: string | null;
+    total_duration_seconds: number | null;
+    paused_duration_seconds: number | null;
+    pause_count: number | null;
+  }> = todayPlansData.plans.map((plan) => {
+    // PlanWithContent에서 content 객체 또는 denormalized 필드에서 정보 추출
+    const contentTitle = plan.content?.title || plan.content_title || "";
+    const contentSubject = plan.content?.subject || plan.content_subject || null;
+    const contentDifficulty = 
+      (plan.content && "difficulty_level" in plan.content 
+        ? plan.content.difficulty_level 
+        : null) || null;
+    
+    return {
+      id: plan.id,
+      block_index: plan.block_index || 0,
+      content_type: plan.content_type,
+      content_id: plan.content_id,
+      title: contentTitle,
+      subject: contentSubject,
+      difficulty_level: contentDifficulty,
+      start_time: plan.start_time || null,
+      end_time: plan.end_time || null,
+      progress: plan.progress || null,
+      planned_start_page_or_time: plan.planned_start_page_or_time || null,
+      planned_end_page_or_time: plan.planned_end_page_or_time || null,
+      actual_start_time: plan.actual_start_time || null,
+      actual_end_time: plan.actual_end_time || null,
+      total_duration_seconds: plan.total_duration_seconds || null,
+      paused_duration_seconds: plan.paused_duration_seconds || null,
+      pause_count: plan.pause_count || null,
+    };
+  });
+
+  // 콘텐츠 맵을 한 번만 조회하고 재사용 (Step 2)
   const [bookMap, lectureMap, customMap] = await Promise.all([
     fetchContentMap(supabase, user.id, "books"),
     fetchContentMap(supabase, user.id, "lectures"),
@@ -246,13 +336,11 @@ export default async function DashboardPage() {
   ]);
 
   const [
-    todayPlansResult,
     statisticsResult,
     weeklyBlocksResult,
     contentTypeProgressResult,
     activePlanResult,
   ] = await Promise.allSettled([
-    fetchTodayPlans(supabase, user.id, todayDate, dayOfWeek), // N+1 제거됨
     fetchLearningStatistics(supabase, user.id),
     fetchWeeklyBlockCounts(supabase, user.id),
     fetchContentTypeProgress(supabase, user.id),
@@ -279,8 +367,6 @@ export default async function DashboardPage() {
   // Monthly Report는 lazy load로 분리 (Step 1)
 
   // 결과 추출 및 기본값 설정
-  const todayPlans =
-    todayPlansResult.status === "fulfilled" ? todayPlansResult.value : [];
   const statistics =
     statisticsResult.status === "fulfilled"
       ? statisticsResult.value
@@ -314,7 +400,11 @@ export default async function DashboardPage() {
     completedPlans,
     incompletePlans,
     timeStats: todayTimeStats,
-  } = await summarizeTodayPlans(todayPlans, user.id, todayDate);
+  } = summarizeTodayPlansOptimized(
+    todayPlansData.plans,
+    todayPlansData.sessions,
+    todayDate
+  );
   console.timeEnd("[dashboard] data - todayPlansSummary");
 
   const studentName = student?.name ?? "학생";
@@ -688,7 +778,21 @@ export default async function DashboardPage() {
   return page;
 }
 
-function TodayPlanCard({ plan }: { plan: TodayPlan }) {
+function TodayPlanCard({ plan }: { 
+  plan: {
+    id: string;
+    block_index: number;
+    content_type: "book" | "lecture" | "custom";
+    title: string;
+    subject: string | null;
+    difficulty_level: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    progress: number | null;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+  }
+}) {
   const contentTypeLabel = contentTypeLabels[plan.content_type] ?? "콘텐츠";
   const difficultyLabel = plan.difficulty_level
     ? difficultyLabels[plan.difficulty_level] ?? plan.difficulty_level

@@ -831,9 +831,9 @@ export async function fetchActivePlan(
     } else {
       // fallback: 없으면 새로 조회
       [bookMap, lectureMap, customMap] = await Promise.all([
-        fetchContentMap(supabase, "books", studentId),
-        fetchContentMap(supabase, "lectures", studentId),
-        fetchContentMap(supabase, "student_custom_contents", studentId),
+        fetchContentMap(supabase, studentId, "books"),
+        fetchContentMap(supabase, studentId, "lectures"),
+        fetchContentMap(supabase, studentId, "student_custom_contents"),
       ]);
     }
 
