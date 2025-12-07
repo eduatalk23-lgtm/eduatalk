@@ -62,7 +62,7 @@ const books = await supabase
 
 #### 3. 데이터베이스 인덱스 추가
 
-**마이그레이션**: `supabase/migrations/20250105000000_add_performance_indexes_for_today_plans.sql`
+**마이그레이션 1**: `supabase/migrations/20250105000000_add_performance_indexes_for_today_plans.sql`
 
 추가된 인덱스:
 
@@ -71,7 +71,17 @@ const books = await supabase
 - `student_content_progress(student_id, content_type, content_id)` - 진행률 조회 최적화
 - `books(student_id, id)`, `lectures(student_id, id)`, `student_custom_contents(student_id, id)` - 콘텐츠 조회 최적화
 
-**효과**: 쿼리 실행 계획 개선, 인덱스 스캔을 통한 빠른 데이터 조회
+**마이그레이션 2**: `supabase/migrations/20250107000000_optimize_today_plans_indexes.sql` (2025-01-07 적용)
+
+추가/개선된 인덱스:
+
+- `idx_student_plan_tenant_student_date_group` - tenant_id 포함 복합 인덱스 (tenant_id가 있는 경우)
+- `idx_student_plan_student_date_group_null_tenant` - tenant_id가 없는 경우를 위한 인덱스
+- `idx_student_plan_student_date_block_include` - ORDER BY 최적화를 위한 인덱스 (INCLUDE 컬럼 포함)
+- `idx_study_sessions_student_plan_ended` - plan_id IN 조건 지원을 위한 인덱스
+- `idx_study_sessions_student_started_desc` - started_at range query 지원을 위한 인덱스
+
+**효과**: 쿼리 실행 계획 개선, 인덱스 스캔을 통한 빠른 데이터 조회, tenant_id 기반 쿼리 최적화
 
 #### 4. 중복 Fetch 제거 구현
 
