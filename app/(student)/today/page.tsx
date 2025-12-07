@@ -5,7 +5,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
+import { getTodayPlans } from "@/lib/data/todayPlans";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPageContent } from "./_components/TodayPageContent";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
@@ -145,20 +145,20 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     );
   }
 
-  // 진행률 계산 (캠프 모드 제외)
-  const todayProgressPromise = calculateTodayProgress(
-    userId,
-    tenantContext?.tenantId || null,
-    targetProgressDate,
-    true // excludeCampMode: true
-  ).catch((error) => {
-    console.error("[TodayPage] 진행률 계산 실패", error);
-    return {
-      todayStudyMinutes: 0,
-      planCompletedCount: 0,
-      planTotalCount: 0,
-      achievementScore: 0,
-    };
+  // Step 4: todayPlans 캐시 사용
+  console.time("[today] data - todayPlans");
+  const todayPlansDataPromise = getTodayPlans({
+    studentId: userId,
+    tenantId: tenantContext?.tenantId || null,
+    date: targetProgressDate,
+    camp: false, // 일반 모드
+    includeProgress: true,
+    narrowQueries: true,
+    useCache: true,
+    cacheTtlSeconds: 120,
+  }).catch((error) => {
+    console.error("[TodayPage] todayPlans 조회 실패", error);
+    return null;
   });
 
   // 완료된 플랜 정보 조회 (토스트용)
@@ -178,8 +178,16 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     }
   }
 
-  const [todayProgress] = await Promise.all([todayProgressPromise]);
+  const [todayPlansData] = await Promise.all([todayPlansDataPromise]);
   console.timeEnd("[today] data - todayPlans");
+
+  // todayPlansData에서 todayProgress 추출 (없으면 기본값)
+  const todayProgress = todayPlansData?.todayProgress ?? {
+    todayStudyMinutes: 0,
+    planCompletedCount: 0,
+    planTotalCount: 0,
+    achievementScore: 0,
+  };
 
   console.time("[today] render - TodayPageContent");
   const page = (
