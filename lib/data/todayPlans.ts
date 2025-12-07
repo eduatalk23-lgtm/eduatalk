@@ -459,7 +459,6 @@ export async function getTodayPlans(
       progressMap.set(key, row.progress ?? null);
     }
   });
-  console.timeEnd("[todayPlans] enrich - buildProgressMap");
 
   // Wave 2: Queries that depend on plans (can run in parallel after plans are loaded)
   // - contents (books/lectures/custom) - already parallelized above
