@@ -26,7 +26,8 @@ import type {
   WeeklyStudyTimeSummary,
   WeeklyGoalProgress,
 } from "@/lib/reports/weekly";
-import { getMonthlyReportData } from "@/lib/reports/monthly";
+import { Suspense } from "react";
+import { MonthlyReportSection } from "./_components/MonthlyReportSection";
 import { RecommendationCard } from "./_components/RecommendationCard";
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { TimeStatistics } from "./_components/TimeStatistics";
@@ -262,11 +263,7 @@ export default async function DashboardPage() {
   ]);
   console.timeEnd("[dashboard] data - weeklyReport");
 
-  console.time("[dashboard] data - monthlyReport");
-  const [monthlyReportResult] = await Promise.allSettled([
-    getMonthlyReportData(supabase, user.id, today),
-  ]);
-  console.timeEnd("[dashboard] data - monthlyReport");
+  // Monthly Report는 lazy load로 분리 (Step 1)
 
   // 결과 추출 및 기본값 설정
   const todayPlans =
@@ -295,10 +292,6 @@ export default async function DashboardPage() {
     weeklyGoalProgressResult.status === "fulfilled"
       ? weeklyGoalProgressResult.value
       : DEFAULT_WEEKLY_GOAL_PROGRESS;
-  const monthlyReport =
-    monthlyReportResult.status === "fulfilled"
-      ? monthlyReportResult.value
-      : null;
   const activePlan =
     activePlanResult.status === "fulfilled" ? activePlanResult.value : null;
 
@@ -583,13 +576,11 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* 월간 요약 하이라이트 */}
-          {monthlyReport && (
+          {/* 월간 요약 하이라이트 - Lazy Load (Step 1) */}
+          <Suspense fallback={
             <div className="flex flex-col gap-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-h2 text-gray-900">
-                  이번 달 요약
-                </h2>
+                <h2 className="text-h2 text-gray-900">이번 달 요약</h2>
                 <div className="flex items-center gap-3">
                   <Link
                     href="/report/monthly"
@@ -600,44 +591,14 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-6 shadow-sm">
-                <div className="grid gap-4 sm:grid-cols-4">
-                  <div className="flex flex-col gap-1 text-center">
-                    <div className="text-sm font-medium text-gray-600">
-                      총 학습시간
-                    </div>
-                    <div className="text-2xl font-bold text-purple-600">
-                      {Math.floor(monthlyReport.totals.studyMinutes / 60)}시간{" "}
-                      {monthlyReport.totals.studyMinutes % 60}분
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 text-center">
-                    <div className="text-sm font-medium text-gray-600">
-                      플랜 실행률
-                    </div>
-                    <div className="text-2xl font-bold text-indigo-600">
-                      {monthlyReport.totals.completionRate}%
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 text-center">
-                    <div className="text-sm font-medium text-gray-600">
-                      목표 달성률
-                    </div>
-                    <div className="text-2xl font-bold text-emerald-600">
-                      {monthlyReport.totals.goalRate}%
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <Link
-                      href="/report/monthly"
-                      className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                    >
-                      월간 리포트 보기
-                    </Link>
-                  </div>
+                <div className="flex items-center justify-center py-8">
+                  <p className="text-sm text-gray-500">월간 리포트 로딩 중...</p>
                 </div>
               </div>
             </div>
-          )}
+          }>
+            <MonthlyReportSection studentId={user.id} monthDate={today} />
+          </Suspense>
 
           {/* 학습 통계 요약 카드 3개 */}
           <div className="flex flex-col gap-4">
