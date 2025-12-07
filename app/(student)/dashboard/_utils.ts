@@ -76,12 +76,12 @@ export async function fetchTodayPlans(
   dayOfWeek: number
 ): Promise<TodayPlan[]> {
   try {
-    // 1. 오늘 날짜의 플랜 조회
+    // 1. 오늘 날짜의 플랜 조회 (timing 정보 포함하여 N+1 제거)
     const selectPlans = () =>
       supabase
         .from("student_plan")
         .select(
-          "id,block_index,content_type,content_id,planned_start_page_or_time,planned_end_page_or_time"
+          "id,block_index,content_type,content_id,planned_start_page_or_time,planned_end_page_or_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count"
         )
         .eq("plan_date", todayDate)
         .order("block_index", { ascending: true });
@@ -112,9 +112,9 @@ export async function fetchTodayPlans(
 
     // 3. 콘텐츠 정보 조회
     const [bookMap, lectureMap, customMap] = await Promise.all([
-      fetchContentMap(supabase, "books", studentId),
-      fetchContentMap(supabase, "lectures", studentId),
-      fetchContentMap(supabase, "student_custom_contents", studentId),
+      fetchContentMap(supabase, studentId, "books"),
+      fetchContentMap(supabase, studentId, "lectures"),
+      fetchContentMap(supabase, studentId, "student_custom_contents"),
     ]);
 
     // 4. 진행률 조회
@@ -147,18 +147,15 @@ export async function fetchTodayPlans(
       const progressKey = `${contentType}:${contentId}`;
       const progress = progressMap[progressKey] ?? null;
 
-      // 플랜의 시간 측정 정보 조회
-      const { data: planTiming, error: timingError } = await supabase
-        .from("student_plan")
-        .select("actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count")
-        .eq("id", plan.id)
-        .eq("student_id", studentId)
-        .maybeSingle();
-
+      // N+1 제거: timing 정보는 이미 조회한 plan 객체에서 가져옴
       // 컬럼이 없는 경우 (42703 에러) null 값으로 처리
-      if (timingError && timingError.code === "42703") {
-        console.warn("[dashboard] actual_start_time 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
-      }
+      const planWithTiming = plan as PlanRow & {
+        actual_start_time?: string | null;
+        actual_end_time?: string | null;
+        total_duration_seconds?: number | null;
+        paused_duration_seconds?: number | null;
+        pause_count?: number | null;
+      };
 
       todayPlans.push({
         id: plan.id,
@@ -173,11 +170,11 @@ export async function fetchTodayPlans(
         progress,
         planned_start_page_or_time: plan.planned_start_page_or_time ?? null,
         planned_end_page_or_time: plan.planned_end_page_or_time ?? null,
-        actual_start_time: planTiming?.actual_start_time ?? null,
-        actual_end_time: planTiming?.actual_end_time ?? null,
-        total_duration_seconds: planTiming?.total_duration_seconds ?? null,
-        paused_duration_seconds: planTiming?.paused_duration_seconds ?? null,
-        pause_count: planTiming?.pause_count ?? null,
+        actual_start_time: planWithTiming?.actual_start_time ?? null,
+        actual_end_time: planWithTiming?.actual_end_time ?? null,
+        total_duration_seconds: planWithTiming?.total_duration_seconds ?? null,
+        paused_duration_seconds: planWithTiming?.paused_duration_seconds ?? null,
+        pause_count: planWithTiming?.pause_count ?? null,
       });
     }
 
@@ -280,10 +277,10 @@ async function fetchBlocksForDay(
   }
 }
 
-async function fetchContentMap(
+export async function fetchContentMap(
   supabase: SupabaseServerClient,
-  table: "books" | "lectures" | "student_custom_contents",
-  studentId: string
+  studentId: string,
+  table: "books" | "lectures" | "student_custom_contents"
 ): Promise<Record<string, ContentRow>> {
   try {
     const selectContents = () =>
@@ -771,7 +768,12 @@ export async function fetchContentTypeProgress(
 export async function fetchActivePlan(
   supabase: SupabaseServerClient,
   studentId: string,
-  todayDate: string
+  todayDate: string,
+  contentMaps?: {
+    bookMap: Record<string, ContentRow>;
+    lectureMap: Record<string, ContentRow>;
+    customMap: Record<string, ContentRow>;
+  }
 ): Promise<ActivePlan | null> {
   try {
     // 오늘 날짜의 플랜 중 시작했지만 완료하지 않은 플랜 조회
@@ -817,13 +819,23 @@ export async function fetchActivePlan(
 
     const isPaused = activeSession?.paused_at && !activeSession?.resumed_at;
 
-    // 콘텐츠 정보 조회
+    // 콘텐츠 정보 조회 (재사용 또는 새로 조회)
     const contentType = toContentType(plan.content_type);
-    const [bookMap, lectureMap, customMap] = await Promise.all([
-      fetchContentMap(supabase, "books", studentId),
-      fetchContentMap(supabase, "lectures", studentId),
-      fetchContentMap(supabase, "student_custom_contents", studentId),
-    ]);
+    let bookMap: Record<string, ContentRow>;
+    let lectureMap: Record<string, ContentRow>;
+    let customMap: Record<string, ContentRow>;
+
+    if (contentMaps) {
+      // 전달받은 콘텐츠 맵 재사용
+      ({ bookMap, lectureMap, customMap } = contentMaps);
+    } else {
+      // fallback: 없으면 새로 조회
+      [bookMap, lectureMap, customMap] = await Promise.all([
+        fetchContentMap(supabase, "books", studentId),
+        fetchContentMap(supabase, "lectures", studentId),
+        fetchContentMap(supabase, "student_custom_contents", studentId),
+      ]);
+    }
 
     const contentMeta = resolveContentMeta(
       plan.content_id,

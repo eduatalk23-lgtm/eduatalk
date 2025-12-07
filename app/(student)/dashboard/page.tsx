@@ -236,6 +236,15 @@ export default async function DashboardPage() {
 
   // 오늘 플랜 및 통계 조회 (개별 실패 처리)
   console.time("[dashboard] data - overview");
+  
+  // 콘텐츠 맵을 한 번만 조회하고 재사용 (Step 2)
+  const tenantContext = await getTenantContext();
+  const [bookMap, lectureMap, customMap] = await Promise.all([
+    fetchContentMap(supabase, user.id, "books"),
+    fetchContentMap(supabase, user.id, "lectures"),
+    fetchContentMap(supabase, user.id, "student_custom_contents"),
+  ]);
+
   const [
     todayPlansResult,
     statisticsResult,
@@ -243,11 +252,15 @@ export default async function DashboardPage() {
     contentTypeProgressResult,
     activePlanResult,
   ] = await Promise.allSettled([
-    fetchTodayPlans(supabase, user.id, todayDate, dayOfWeek),
+    fetchTodayPlans(supabase, user.id, todayDate, dayOfWeek), // N+1 제거됨
     fetchLearningStatistics(supabase, user.id),
     fetchWeeklyBlockCounts(supabase, user.id),
     fetchContentTypeProgress(supabase, user.id),
-    fetchActivePlan(supabase, user.id, todayDate),
+    fetchActivePlan(supabase, user.id, todayDate, { // 콘텐츠 맵 재사용
+      bookMap,
+      lectureMap,
+      customMap,
+    }),
   ]);
   console.timeEnd("[dashboard] data - overview");
 
