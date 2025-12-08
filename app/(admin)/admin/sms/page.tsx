@@ -78,7 +78,7 @@ export default async function AdminSMSPage({
 
   let { data: logs, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error?.code === "42703") {
     ({ data: logs, error } = await selectLogs());
   }
 

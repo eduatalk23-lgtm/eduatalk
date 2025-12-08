@@ -216,7 +216,7 @@ export async function getAttendanceRecordsAction(
   }>;
   error?: string;
 }> {
-  return await withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     await requireAdminAuth();
 
     const records = await getAttendanceRecords(filters);
@@ -237,6 +237,7 @@ export async function getAttendanceRecordsAction(
       })),
     };
   });
+  return await handler();
 }
 
 /**
@@ -258,7 +259,7 @@ export async function getAttendanceByStudentAction(
   }>;
   error?: string;
 }> {
-  return await withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     await requireAdminAuth();
 
     const records = await getAttendanceByStudent(studentId, startDate, endDate);
@@ -275,6 +276,7 @@ export async function getAttendanceByStudentAction(
       })),
     };
   });
+  return await handler();
 }
 
 /**
@@ -299,7 +301,7 @@ export async function getAttendanceStatisticsAction(
   };
   error?: string;
 }> {
-  return await withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     await requireAdminAuth();
 
     const stats = await calculateAttendanceStats(
@@ -313,6 +315,7 @@ export async function getAttendanceStatisticsAction(
       data: stats,
     };
   });
+  return await handler();
 }
 
 /**
@@ -322,7 +325,7 @@ export async function deleteAttendanceRecordAction(
   recordId: string,
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
-  return await withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     await requireAdminAuth();
 
     await deleteRecord(recordId);
@@ -331,5 +334,5 @@ export async function deleteAttendanceRecordAction(
     revalidatePath(`/admin/students/${studentId}`);
     return { success: true };
   });
+  return await handler();
 }
-
