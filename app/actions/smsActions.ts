@@ -36,8 +36,27 @@ export async function sendAttendanceSMS(
       );
     }
 
-    // 학생 정보 조회 (mother_phone, father_phone 사용)
+    // 테넌트 SMS 수신자 설정 조회
     const supabase = await createSupabaseServerClient();
+    const { data: tenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("attendance_sms_recipient")
+      .eq("id", tenantContext.tenantId)
+      .single();
+
+    if (tenantError) {
+      console.error("[SMS] 테넌트 설정 조회 실패:", tenantError);
+      throw new AppError(
+        "테넌트 설정을 조회하는 중 오류가 발생했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    const recipientSetting = (tenant?.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto';
+
+    // 학생 정보 조회 (mother_phone, father_phone 사용)
     const { data: student, error: studentError } = await supabase
       .from("students")
       .select("id, name, mother_phone, father_phone")
@@ -63,8 +82,39 @@ export async function sendAttendanceSMS(
       );
     }
 
-    const parentContact = student.mother_phone || student.father_phone;
-    if (!parentContact) {
+    // 설정에 따라 수신자 결정
+    let recipientPhones: string[] = [];
+    
+    switch (recipientSetting) {
+      case 'mother':
+        if (student.mother_phone) {
+          recipientPhones = [student.mother_phone];
+        }
+        break;
+      case 'father':
+        if (student.father_phone) {
+          recipientPhones = [student.father_phone];
+        }
+        break;
+      case 'both':
+        if (student.mother_phone) {
+          recipientPhones.push(student.mother_phone);
+        }
+        if (student.father_phone) {
+          recipientPhones.push(student.father_phone);
+        }
+        break;
+      case 'auto':
+      default:
+        // 기존 로직: 먼저 있는 번호 사용
+        const parentContact = student.mother_phone || student.father_phone;
+        if (parentContact) {
+          recipientPhones = [parentContact];
+        }
+        break;
+    }
+
+    if (recipientPhones.length === 0) {
       throw new AppError(
         "학부모 연락처가 등록되지 않았습니다.",
         ErrorCode.VALIDATION_ERROR,
@@ -79,25 +129,30 @@ export async function sendAttendanceSMS(
       학생명: student.name || "학생",
     });
 
-    // SMS 발송
-    const result = await sendSMS({
-      recipientPhone: parentContact,
-      message,
-      recipientId: studentId,
-      tenantId: tenantContext.tenantId,
-    });
+    // SMS 발송 (여러 수신자인 경우 각각 발송)
+    let lastMsgId: string | undefined;
+    for (const recipientPhone of recipientPhones) {
+      const result = await sendSMS({
+        recipientPhone,
+        message,
+        recipientId: studentId,
+        tenantId: tenantContext.tenantId,
+      });
 
-    if (!result.success) {
-      throw new AppError(
-        result.error || "SMS 발송에 실패했습니다.",
-        ErrorCode.EXTERNAL_SERVICE_ERROR,
-        500,
-        true
-      );
+      if (!result.success) {
+        throw new AppError(
+          result.error || "SMS 발송에 실패했습니다.",
+          ErrorCode.EXTERNAL_SERVICE_ERROR,
+          500,
+          true
+        );
+      }
+
+      lastMsgId = result.messageKey;
     }
 
     revalidatePath("/admin/sms");
-    return { success: true, msgId: result.messageKey };
+    return { success: true, msgId: lastMsgId };
   });
 }
 
@@ -130,8 +185,27 @@ export async function sendBulkAttendanceSMS(
       );
     }
 
-    // 학생 정보 일괄 조회 (phone, mother_phone, father_phone 모두 조회)
+    // 테넌트 SMS 수신자 설정 조회
     const supabase = await createSupabaseServerClient();
+    const { data: tenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("attendance_sms_recipient")
+      .eq("id", tenantContext.tenantId)
+      .single();
+
+    if (tenantError) {
+      console.error("[SMS] 테넌트 설정 조회 실패:", tenantError);
+      throw new AppError(
+        "테넌트 설정을 조회하는 중 오류가 발생했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    const recipientSetting = (tenant?.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto';
+
+    // 학생 정보 일괄 조회 (phone, mother_phone, father_phone 모두 조회)
     const { data: students, error: studentsError } = await supabase
       .from("students")
       .select("id, name, mother_phone, father_phone")
@@ -184,21 +258,58 @@ export async function sendBulkAttendanceSMS(
       );
     }
 
-    // SMS 발송 대상 준비 (mother_phone을 우선 사용, 없으면 father_phone 사용)
-    const recipients = studentsWithPhones
-      .map((student) => {
-        const parentContact = student.mother_phone || student.father_phone;
-        return { ...student, selectedPhone: parentContact };
-      })
-      .filter((student) => student.selectedPhone)
-      .map((student) => ({
-        phone: student.selectedPhone!,
-        message: formatSMSTemplate(templateType, {
-          ...variables,
-          학생명: student.name || "학생",
-        }),
-        recipientId: student.id,
-      }));
+    // 설정에 따라 SMS 발송 대상 준비
+    const recipients: Array<{
+      phone: string;
+      message: string;
+      recipientId: string;
+    }> = [];
+
+    for (const student of studentsWithPhones) {
+      // 설정에 따라 수신자 결정
+      let recipientPhones: string[] = [];
+      
+      switch (recipientSetting) {
+        case 'mother':
+          if (student.mother_phone) {
+            recipientPhones = [student.mother_phone];
+          }
+          break;
+        case 'father':
+          if (student.father_phone) {
+            recipientPhones = [student.father_phone];
+          }
+          break;
+        case 'both':
+          if (student.mother_phone) {
+            recipientPhones.push(student.mother_phone);
+          }
+          if (student.father_phone) {
+            recipientPhones.push(student.father_phone);
+          }
+          break;
+        case 'auto':
+        default:
+          // 기존 로직: 먼저 있는 번호 사용
+          const parentContact = student.mother_phone || student.father_phone;
+          if (parentContact) {
+            recipientPhones = [parentContact];
+          }
+          break;
+      }
+
+      // 각 수신자에게 SMS 발송 대상 추가
+      for (const recipientPhone of recipientPhones) {
+        recipients.push({
+          phone: recipientPhone,
+          message: formatSMSTemplate(templateType, {
+            ...variables,
+            학생명: student.name || "학생",
+          }),
+          recipientId: student.id,
+        });
+      }
+    }
 
     if (recipients.length === 0) {
       throw new AppError(

@@ -20,6 +20,7 @@ export function AttendanceSMSSettingsForm() {
     attendance_sms_absent_enabled: true,
     attendance_sms_late_enabled: true,
     attendance_sms_student_checkin_enabled: false,
+    attendance_sms_recipient: 'auto' as 'mother' | 'father' | 'both' | 'auto',
   });
 
   const loadSettings = useCallback(async () => {
@@ -38,6 +39,8 @@ export function AttendanceSMSSettingsForm() {
             result.data.attendance_sms_late_enabled ?? true,
           attendance_sms_student_checkin_enabled:
             result.data.attendance_sms_student_checkin_enabled ?? false,
+          attendance_sms_recipient:
+            result.data.attendance_sms_recipient ?? 'auto',
         });
       }
     } catch (err: any) {
@@ -212,6 +215,85 @@ export function AttendanceSMSSettingsForm() {
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
               </label>
+            </div>
+
+            <div className="pt-4 border-t">
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="sms_recipient">SMS 수신자 선택</Label>
+                  <p className="mt-1 text-xs text-gray-500">
+                    출석 알림 SMS를 받을 학부모를 선택하세요.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sms_recipient"
+                      value="auto"
+                      checked={formData.attendance_sms_recipient === 'auto'}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          attendance_sms_recipient: e.target.value as 'auto',
+                        })
+                      }
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      자동 (먼저 있는 번호)
+                    </span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sms_recipient"
+                      value="mother"
+                      checked={formData.attendance_sms_recipient === 'mother'}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          attendance_sms_recipient: e.target.value as 'mother',
+                        })
+                      }
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">어머니만</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sms_recipient"
+                      value="father"
+                      checked={formData.attendance_sms_recipient === 'father'}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          attendance_sms_recipient: e.target.value as 'father',
+                        })
+                      }
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">아버지만</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sms_recipient"
+                      value="both"
+                      checked={formData.attendance_sms_recipient === 'both'}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          attendance_sms_recipient: e.target.value as 'both',
+                        })
+                      }
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">둘 다</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 

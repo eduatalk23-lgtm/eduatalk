@@ -11,6 +11,7 @@ export type AttendanceSMSSettings = {
   attendance_sms_absent_enabled: boolean;
   attendance_sms_late_enabled: boolean;
   attendance_sms_student_checkin_enabled: boolean;
+  attendance_sms_recipient: 'mother' | 'father' | 'both' | 'auto';
 };
 
 /**

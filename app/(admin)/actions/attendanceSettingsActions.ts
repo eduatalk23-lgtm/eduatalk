@@ -243,7 +243,7 @@ export async function getAttendanceSMSSettings(): Promise<{
     const { data: tenant, error } = await supabase
       .from("tenants")
       .select(
-        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled"
+        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient"
       )
       .eq("id", tenantContext.tenantId)
       .single();
@@ -277,6 +277,8 @@ export async function getAttendanceSMSSettings(): Promise<{
         attendance_sms_late_enabled: tenant.attendance_sms_late_enabled ?? true,
         attendance_sms_student_checkin_enabled:
           tenant.attendance_sms_student_checkin_enabled ?? false,
+        attendance_sms_recipient:
+          (tenant.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto',
       },
     };
   } catch (error) {
@@ -327,29 +329,65 @@ export async function updateAttendanceSMSSettings(
 
     const supabase = await createSupabaseServerClient();
 
+    // 업데이트할 데이터 준비
+    const updateData = {
+      attendance_sms_check_in_enabled: input.attendance_sms_check_in_enabled,
+      attendance_sms_check_out_enabled:
+        input.attendance_sms_check_out_enabled,
+      attendance_sms_absent_enabled: input.attendance_sms_absent_enabled,
+      attendance_sms_late_enabled: input.attendance_sms_late_enabled,
+      attendance_sms_student_checkin_enabled:
+        input.attendance_sms_student_checkin_enabled,
+      attendance_sms_recipient: input.attendance_sms_recipient,
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log("[attendanceSettings] SMS 설정 업데이트 시작:", {
+      tenantId: tenantContext.tenantId,
+      updateData,
+    });
+
     // SMS 설정 업데이트
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from("tenants")
-      .update({
-        attendance_sms_check_in_enabled: input.attendance_sms_check_in_enabled,
-        attendance_sms_check_out_enabled:
-          input.attendance_sms_check_out_enabled,
-        attendance_sms_absent_enabled: input.attendance_sms_absent_enabled,
-        attendance_sms_late_enabled: input.attendance_sms_late_enabled,
-        attendance_sms_student_checkin_enabled:
-          input.attendance_sms_student_checkin_enabled,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", tenantContext.tenantId);
+      .update(updateData)
+      .eq("id", tenantContext.tenantId)
+      .select();
 
     if (error) {
-      console.error("[attendanceSettings] SMS 설정 업데이트 실패:", error);
+      console.error("[attendanceSettings] SMS 설정 업데이트 실패:", {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        tenantId: tenantContext.tenantId,
+        updateData,
+      });
       throw new AppError(
         error.message || "SMS 설정 업데이트에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
         500,
         true
       );
+    }
+
+    // 저장 성공 여부 확인 (재조회하여 검증)
+    const { data: verifyData, error: verifyError } = await supabase
+      .from("tenants")
+      .select(
+        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient"
+      )
+      .eq("id", tenantContext.tenantId)
+      .single();
+
+    if (verifyError) {
+      console.error("[attendanceSettings] SMS 설정 검증 실패:", verifyError);
+      // 검증 실패해도 업데이트는 성공했을 수 있으므로 경고만 로깅
+    } else if (verifyData) {
+      console.log("[attendanceSettings] SMS 설정 업데이트 성공 및 검증 완료:", {
+        tenantId: tenantContext.tenantId,
+        savedData: verifyData,
+      });
     }
 
     revalidatePath("/admin/attendance/settings");
