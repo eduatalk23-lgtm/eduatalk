@@ -44,10 +44,31 @@ export function perfTime(label: string) {
     };
   }
 
-  console.time(label);
+  let timerStarted = false;
+  try {
+    console.time(label);
+    timerStarted = true;
+  } catch (error) {
+    // console.time이 실패해도 계속 진행
+    console.warn(`[perfTime] Failed to start timer for "${label}":`, error);
+  }
+
   return {
     end() {
-      console.timeEnd(label);
+      if (timerStarted) {
+        try {
+          console.timeEnd(label);
+        } catch (error) {
+          // console.timeEnd가 실패해도 무시 (타이머가 시작되지 않았을 수 있음)
+          // 개발 환경에서만 경고 출력
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              `[perfTime] Failed to end timer for "${label}":`,
+              error
+            );
+          }
+        }
+      }
     },
   };
 }
