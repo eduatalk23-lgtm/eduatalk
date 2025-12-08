@@ -160,6 +160,37 @@ const studentCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "reports",
+    label: "학습 리포트",
+    icon: "📊",
+    items: [
+      {
+        id: "reports-weekly",
+        label: "주간 리포트",
+        href: "/reports?period=weekly",
+        icon: "📅",
+      },
+      {
+        id: "reports-monthly",
+        label: "월간 리포트",
+        href: "/reports?period=monthly",
+        icon: "📆",
+      },
+      {
+        id: "reports-weekly-detail",
+        label: "상세 주간 리포트",
+        href: "/report/weekly",
+        icon: "📈",
+      },
+      {
+        id: "reports-monthly-detail",
+        label: "상세 월간 리포트",
+        href: "/report/monthly",
+        icon: "📊",
+      },
+    ],
+  },
+  {
     id: "settings",
     label: "설정",
     icon: "⚙️",
