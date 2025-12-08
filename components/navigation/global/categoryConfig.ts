@@ -257,6 +257,18 @@ const adminCategories: NavigationCategory[] = [
         href: "/admin/attendance",
         icon: "✓",
       },
+      {
+        id: "admin-attendance-qr-code",
+        label: "QR 코드 생성",
+        href: "/admin/attendance/qr-code",
+        icon: "📱",
+      },
+      {
+        id: "admin-attendance-settings",
+        label: "출석 위치 설정",
+        href: "/admin/attendance/settings",
+        icon: "📍",
+      },
     ],
   },
   {

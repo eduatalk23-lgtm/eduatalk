@@ -90,8 +90,9 @@ export function SingleRecipientSearch({
         const phoneMatch = student.phone?.includes(query);
         const motherPhoneMatch = student.mother_phone?.includes(query);
         const fatherPhoneMatch = student.father_phone?.includes(query);
-        const gradeMatch = student.grade?.toLowerCase().includes(query);
-        const classMatch = student.class?.toLowerCase().includes(query);
+        // grade와 class는 문자열이 아닐 수 있으므로 String()으로 변환
+        const gradeMatch = student.grade ? String(student.grade).toLowerCase().includes(query) : false;
+        const classMatch = student.class ? String(student.class).toLowerCase().includes(query) : false;
 
         return nameMatch || phoneMatch || motherPhoneMatch || fatherPhoneMatch || gradeMatch || classMatch;
       })

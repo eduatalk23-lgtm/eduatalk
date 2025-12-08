@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   BookOpen,
   Users,
+  CheckCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,6 +39,11 @@ export const studentCategories: StudentCategory[] = [
     label: "캠프 참여",
     href: "/camp",
     icon: Users,
+  },
+  {
+    label: "출석 체크",
+    href: "/attendance/check-in",
+    icon: CheckCircle,
   },
 ];
 

@@ -30,7 +30,9 @@
     "tailwind-merge": "^3.4.0",
     "xlsx": "^0.18.5",
     "zod": "^4.1.12",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "qrcode": "^1.5.3",
+    "html5-qrcode": "^2.3.8"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.0.3",
@@ -40,6 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/xlsx": "^0.0.36",
+    "@types/qrcode": "^1.5.5",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",

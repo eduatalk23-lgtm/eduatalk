@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, useMemo, useCallback } from "react";
-import { sendGeneralSMS, sendBulkGeneralSMS } from "@/app/actions/smsActions";
 import {
   getAllSMSTemplates,
   formatSMSTemplate,
@@ -58,6 +57,20 @@ export function SMSSendForm({
   const [sendMode, setSendMode] = useState<"single" | "bulk">("bulk");
   // 전송 대상자 선택 (단일/일괄 발송 모두)
   const [recipientType, setRecipientType] = useState<RecipientType>("mother");
+
+  // 클라이언트 컴포넌트에 전달할 콜백 함수들 (useCallback으로 감싸기)
+  const handleSelectionChange = useCallback((selectedIds: Set<string>) => {
+    setSelectedStudentIds(selectedIds);
+  }, []);
+
+  const handleRecipientTypeChange = useCallback((type: RecipientType) => {
+    setRecipientType(type);
+  }, []);
+
+  const handleSingleRecipientSelect = useCallback((phone: string, studentName?: string) => {
+    setCustomPhone(phone);
+    setSelectedStudentName(studentName || "");
+  }, []);
 
   const templates = getAllSMSTemplates();
 
@@ -166,36 +179,57 @@ export function SMSSendForm({
     startTransition(async () => {
       try {
         if (sendMode === "single") {
-          // 단일 발송
-          const result = await sendGeneralSMS(
-            customPhone.trim(),
-            message.trim()
-          );
+          // 단일 발송 - API Route 호출
+          const response = await fetch("/api/purio/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "single",
+              phone: customPhone.trim(),
+              message: message.trim(),
+            }),
+          });
 
-          if (result.success) {
-            showSuccess("SMS가 성공적으로 발송되었습니다.");
-            // 폼 초기화
-            setMessage("");
-            setCustomPhone("");
-            setSelectedTemplate("");
-            setTemplateVariables({});
-          } else {
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
             showError(result.error || "SMS 발송에 실패했습니다.");
+            return;
           }
+
+          showSuccess("SMS가 성공적으로 발송되었습니다.");
+          // 폼 초기화
+          setMessage("");
+          setCustomPhone("");
+          setSelectedTemplate("");
+          setTemplateVariables({});
         } else {
-          // 일괄 발송
-          // 템플릿 변수에 학원명 추가
-          const variablesWithAcademy = {
-            ...templateVariables,
-            학원명: academyName,
-          };
-          
-          const result = await sendBulkGeneralSMS(
-            Array.from(selectedStudentIds),
-            message.trim(),
-            variablesWithAcademy,
-            recipientType
-          );
+          // 일괄 발송 - API Route 호출
+          const response = await fetch("/api/purio/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "bulk",
+              studentIds: Array.from(selectedStudentIds),
+              message: message.trim(),
+              templateVariables: {
+                ...templateVariables,
+                학원명: academyName,
+              },
+              recipientType,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            showError(result.error || "SMS 발송에 실패했습니다.");
+            return;
+          }
 
           if (result.success > 0) {
             showSuccess(
@@ -212,7 +246,7 @@ export function SMSSendForm({
             setTemplateVariables({});
           } else {
             showError(
-              result.errors.length > 0
+              result.errors && result.errors.length > 0
                 ? result.errors[0].error
                 : "SMS 발송에 실패했습니다."
             );
@@ -223,6 +257,7 @@ export function SMSSendForm({
         showError(error.message || "SMS 발송 중 오류가 발생했습니다.");
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     sendMode,
     customPhone,
@@ -231,9 +266,9 @@ export function SMSSendForm({
     templateVariables,
     recipientType,
     academyName,
-    showSuccess,
-    showError,
     startTransition,
+    // showSuccess와 showError는 useToast에서 가져온 안정적인 함수이므로
+    // dependency에 포함하지 않아도 됩니다 (클로저로 캡처됨)
   ]);
 
   // 선택된 템플릿
@@ -292,9 +327,9 @@ export function SMSSendForm({
                   <SMSRecipientSelector
                     students={students}
                     selectedStudentIds={selectedStudentIds}
-                    onSelectionChange={setSelectedStudentIds}
+                    onSelectionChange={handleSelectionChange}
                     recipientType={recipientType}
-                    onRecipientTypeChange={setRecipientType}
+                    onRecipientTypeChange={handleRecipientTypeChange}
                   />
                 </div>
               </div>
@@ -346,13 +381,10 @@ export function SMSSendForm({
               {/* 학생 검색 */}
               <SingleRecipientSearch
                 students={students}
-                onSelect={(phone, studentName) => {
-                  setCustomPhone(phone);
-                  setSelectedStudentName(studentName || "");
-                }}
+                onSelect={handleSingleRecipientSelect}
                 selectedPhone={customPhone}
                 recipientType={recipientType}
-                onRecipientTypeChange={setRecipientType}
+                onRecipientTypeChange={handleRecipientTypeChange}
               />
 
               {/* 수신자 전화번호 입력 */}
