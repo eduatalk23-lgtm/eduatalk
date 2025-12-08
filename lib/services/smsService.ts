@@ -337,19 +337,24 @@ export async function sendSMS(
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `API 요청 실패: ${response.status}`;
-
-      // 디버깅: 에러 응답 로깅
-      console.error("[SMS] API 에러 응답:", {
+    const responseText = await response.text();
+    
+    // 디버깅: 응답 로깅 (개발 환경에서만)
+    if (process.env.NODE_ENV === "development") {
+      console.log("[SMS] API 응답:", {
         status: response.status,
         statusText: response.statusText,
-        body: errorText,
+        body: responseText,
       });
+    }
+
+    if (!response.ok) {
+      let errorMessage = `API 요청 실패: ${response.status}`;
+      let errorCode: number | null = null;
 
       try {
-        const errorJson: ErrorResponse = JSON.parse(errorText);
+        const errorJson: ErrorResponse = JSON.parse(responseText);
+        errorCode = errorJson.code;
         errorMessage = errorJson.description || errorMessage;
 
         // 에러 코드별 처리
@@ -371,13 +376,29 @@ export async function sendSMS(
           errorMessage = errorCodeMessages[errorJson.code];
         }
       } catch {
-        errorMessage = `${errorMessage} - ${errorText}`;
+        errorMessage = `${errorMessage} - ${responseText}`;
       }
 
-      throw new Error(errorMessage);
+      // 재시도 불가능한 에러 코드 (클라이언트 에러: 2xxx, 3xxx, 4xxx)
+      const nonRetryableErrorCodes = [
+        2000, 2001, // 잘못된 요청
+        3001, 3002, 3003, 3004, 3005, 3006, // 인증/권한 에러
+        4004, 4006, 4007, // 설정 에러
+      ];
+
+      const error = new Error(errorMessage) as Error & { code?: number; isRetryable?: boolean };
+      error.code = errorCode || undefined;
+      error.isRetryable = errorCode ? !nonRetryableErrorCodes.includes(errorCode) : false;
+      
+      throw error;
     }
 
-    const result: MessageResponse = await response.json();
+    let result: MessageResponse;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      throw new Error(`응답 파싱 실패: ${responseText}`);
+    }
 
     // 4. 발송 결과 업데이트
     if (result.code === 1000 && result.messageKey) {
@@ -519,13 +540,39 @@ export async function sendSMS(
       hint: getHint(),
     });
 
-    // 네트워크 에러 등 재시도 가능한 에러인지 확인
+    // 재시도 가능한 에러인지 확인
+    const errorWithCode = error as Error & { code?: number; isRetryable?: boolean };
+    
+    // 명시적으로 재시도 불가능으로 표시된 경우 제외
+    if (errorWithCode.isRetryable === false) {
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    // 재시도 불가능한 에러 코드 (클라이언트 에러)
+    const nonRetryableErrorCodes = [
+      2000, 2001, // 잘못된 요청
+      3001, 3002, 3003, 3004, 3005, 3006, // 인증/권한 에러
+      4004, 4006, 4007, // 설정 에러
+    ];
+
+    if (errorWithCode.code && nonRetryableErrorCodes.includes(errorWithCode.code)) {
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    // 네트워크 에러, 타임아웃, 토큰 에러만 재시도
     const isRetryable =
       error instanceof Error &&
       (error.name === "AbortError" ||
         error.message.includes("fetch") ||
         error.message.includes("network") ||
-        error.message.includes("토큰"));
+        error.message.includes("토큰") ||
+        error.message.includes("시간이 초과"));
 
     if (isRetryable && retryCount < maxRetries) {
       // 토큰 관련 에러인 경우 토큰 캐시 초기화
@@ -538,7 +585,7 @@ export async function sendSMS(
       await new Promise((resolve) => setTimeout(resolve, delay));
 
       console.log(
-        `[SMS] 재시도 ${retryCount + 1}/${maxRetries} - ${normalizedPhone}`
+        `[SMS] 재시도 ${retryCount + 1}/${maxRetries} - ${normalizedPhone} (에러: ${error.message})`
       );
       return sendSMS(options, retryCount + 1, maxRetries);
     }
