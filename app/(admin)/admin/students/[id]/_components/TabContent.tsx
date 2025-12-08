@@ -1,3 +1,5 @@
+"use client";
+
 import { ReactNode } from "react";
 
 type TabKey =
@@ -18,4 +20,3 @@ export function TabContent({
 }) {
   return <div>{children}</div>;
 }
-
