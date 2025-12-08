@@ -141,12 +141,14 @@ export async function sendSMS(
 
   try {
     // 2. 뿌리오 API 호출
-    // API 엔드포인트: https://message.ppurio.com/v1/send
+    // API 엔드포인트: 환경 변수로 설정 가능, 기본값은 https://message.ppurio.com/v1/send
     // 헤더: X-PPURIO-USER-ID, X-PPURIO-API-KEY
+    const apiEndpoint = env.PPURIO_API_ENDPOINT || "https://message.ppurio.com/v1/send";
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-    const response = await fetch("https://message.ppurio.com/v1/send", {
+    const response = await fetch(apiEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -172,7 +174,7 @@ export async function sendSMS(
         400: "잘못된 요청입니다. 요청 형식을 확인해주세요.",
         401: "인증에 실패했습니다. API 키를 확인해주세요.",
         403: "접근이 거부되었습니다. 권한을 확인해주세요.",
-        404: "API 엔드포인트를 찾을 수 없습니다.",
+        404: `API 엔드포인트를 찾을 수 없습니다. (${apiEndpoint}) 엔드포인트 URL을 확인해주세요.`,
         429: "요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.",
         500: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         503: "서비스를 일시적으로 사용할 수 없습니다.",
@@ -187,6 +189,16 @@ export async function sendSMS(
         } catch {
           errorMessage = `${errorMessage} - ${errorText}`;
         }
+      }
+
+      // 404 에러인 경우 상세 로그 출력
+      if (response.status === 404) {
+        console.error("[SMS] API 엔드포인트 404 에러:", {
+          endpoint: apiEndpoint,
+          status: response.status,
+          errorText,
+          hint: "PPURIO_API_ENDPOINT 환경 변수를 확인하거나 뿌리오 API 문서를 참조하세요.",
+        });
       }
 
       throw new Error(errorMessage);

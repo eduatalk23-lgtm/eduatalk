@@ -17,6 +17,7 @@ const envSchema = z.object({
   PPURIO_USER_ID: z.string().optional(),
   PPURIO_API_KEY: z.string().optional(),
   PPURIO_SENDER_NUMBER: z.string().optional(),
+  PPURIO_API_ENDPOINT: z.string().url().optional(),
 });
 
 /**
@@ -34,6 +35,7 @@ export const env = (() => {
       PPURIO_USER_ID: process.env.PPURIO_USER_ID,
       PPURIO_API_KEY: process.env.PPURIO_API_KEY,
       PPURIO_SENDER_NUMBER: process.env.PPURIO_SENDER_NUMBER,
+      PPURIO_API_ENDPOINT: process.env.PPURIO_API_ENDPOINT,
     };
 
     // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
@@ -73,6 +75,7 @@ export const env = (() => {
         PPURIO_USER_ID: envValues.PPURIO_USER_ID,
         PPURIO_API_KEY: envValues.PPURIO_API_KEY,
         PPURIO_SENDER_NUMBER: envValues.PPURIO_SENDER_NUMBER,
+        PPURIO_API_ENDPOINT: envValues.PPURIO_API_ENDPOINT,
       };
     }
 
