@@ -201,44 +201,65 @@ export async function fetchSubjectGradeTrends(
     const endDateStr = endDate.toISOString().slice(0, 10);
 
     // 내신 성적과 모의고사 성적을 모두 조회
-    const [internalScoresResult, mockScoresResult] = await Promise.all([
-      handleSupabaseQueryArray<{
+    // 에러가 발생해도 빈 배열 반환하여 페이지가 크래시되지 않도록 함
+    let internalScoresResult: Array<{
+      subject_group?: string | null;
+      subject_name?: string | null;
+      grade_score?: number | null;
+      raw_score?: number | null;
+      test_date?: string | null;
+    }> = [];
+    let mockScoresResult: Array<{
+      subject_group?: string | null;
+      subject_name?: string | null;
+      grade_score?: number | null;
+      raw_score?: number | null;
+      exam_date?: string | null;
+    }> = [];
+
+    try {
+      const internalQuery = () =>
+        supabase
+          .from("student_internal_scores")
+          .select("subject_group,subject_name,grade_score,raw_score,test_date")
+          .gte("test_date", startDateStr)
+          .lte("test_date", endDateStr)
+          .eq("student_id", studentId)
+          .order("test_date", { ascending: true });
+
+      internalScoresResult = await handleSupabaseQueryArray<{
         subject_group?: string | null;
         subject_name?: string | null;
         grade_score?: number | null;
         raw_score?: number | null;
         test_date?: string | null;
-      }>(
-        () =>
-          supabase
-            .from("student_internal_scores")
-            .select("subject_group,subject_name,grade_score,raw_score,test_date")
-            .gte("test_date", startDateStr)
-            .lte("test_date", endDateStr)
-            .eq("student_id", studentId)
-            .order("test_date", { ascending: true }),
-        [],
-        { retryOnColumnError: true }
-      ),
-      handleSupabaseQueryArray<{
+      }>(internalQuery, [], { retryOnColumnError: true });
+    } catch (error) {
+      console.error("[reports] 내신 성적 조회 실패", error);
+      internalScoresResult = [];
+    }
+
+    try {
+      const mockQuery = () =>
+        supabase
+          .from("student_mock_scores")
+          .select("subject_group,subject_name,grade_score,raw_score,exam_date")
+          .gte("exam_date", startDateStr)
+          .lte("exam_date", endDateStr)
+          .eq("student_id", studentId)
+          .order("exam_date", { ascending: true });
+
+      mockScoresResult = await handleSupabaseQueryArray<{
         subject_group?: string | null;
         subject_name?: string | null;
         grade_score?: number | null;
         raw_score?: number | null;
         exam_date?: string | null;
-      }>(
-        () =>
-          supabase
-            .from("student_mock_scores")
-            .select("subject_group,subject_name,grade_score,raw_score,exam_date")
-            .gte("exam_date", startDateStr)
-            .lte("exam_date", endDateStr)
-            .eq("student_id", studentId)
-            .order("exam_date", { ascending: true }),
-        [],
-        { retryOnColumnError: true }
-      ),
-    ]);
+      }>(mockQuery, [], { retryOnColumnError: true });
+    } catch (error) {
+      console.error("[reports] 모의고사 성적 조회 실패", error);
+      mockScoresResult = [];
+    }
 
     // 과목별로 그룹화
     const subjectMap = new Map<string, Array<{
@@ -416,37 +437,61 @@ export async function fetchNextWeekSchedule(
     const startDateStr = nextWeekStart.toISOString().slice(0, 10);
     const endDateStr = nextWeekEnd.toISOString().slice(0, 10);
 
-    const selectPlans = () =>
-      supabase
-        .from("student_plan")
-        .select("id,plan_date,block_index,content_type,content_id")
-        .gte("plan_date", startDateStr)
-        .lte("plan_date", endDateStr)
-        .eq("student_id", studentId)
-        .order("plan_date", { ascending: true })
-        .order("block_index", { ascending: true });
-
-    const planRows = await handleSupabaseQueryArray<{
+    // 에러가 발생해도 빈 배열 반환하여 페이지가 크래시되지 않도록 함
+    let planRows: Array<{
       id: string;
       plan_date?: string | null;
       block_index?: number | null;
       content_type?: string | null;
       content_id?: string | null;
-    }>(selectPlans, [], { retryOnColumnError: true });
-
-    // 블록 정보 조회
-    const selectBlocks = () =>
-      supabase
-        .from("student_block_schedule")
-        .select("day_of_week,block_index,start_time,end_time")
-        .eq("student_id", studentId);
-
-    const blocks = await handleSupabaseQueryArray<{
+    }> = [];
+    let blocks: Array<{
       day_of_week?: number | null;
       block_index?: number | null;
       start_time?: string | null;
       end_time?: string | null;
-    }>(selectBlocks, [], { retryOnColumnError: true });
+    }> = [];
+
+    try {
+      const selectPlans = () =>
+        supabase
+          .from("student_plan")
+          .select("id,plan_date,block_index,content_type,content_id")
+          .gte("plan_date", startDateStr)
+          .lte("plan_date", endDateStr)
+          .eq("student_id", studentId)
+          .order("plan_date", { ascending: true })
+          .order("block_index", { ascending: true });
+
+      planRows = await handleSupabaseQueryArray<{
+        id: string;
+        plan_date?: string | null;
+        block_index?: number | null;
+        content_type?: string | null;
+        content_id?: string | null;
+      }>(selectPlans, [], { retryOnColumnError: true });
+    } catch (error) {
+      console.error("[reports] 다음주 플랜 조회 실패", error);
+      planRows = [];
+    }
+
+    try {
+      const selectBlocks = () =>
+        supabase
+          .from("student_block_schedule")
+          .select("day_of_week,block_index,start_time,end_time")
+          .eq("student_id", studentId);
+
+      blocks = await handleSupabaseQueryArray<{
+        day_of_week?: number | null;
+        block_index?: number | null;
+        start_time?: string | null;
+        end_time?: string | null;
+      }>(selectBlocks, [], { retryOnColumnError: true });
+    } catch (error) {
+      console.error("[reports] 블록 정보 조회 실패", error);
+      blocks = [];
+    }
 
     const blockMap = new Map<string, { start_time: string | null; end_time: string | null }>();
     blocks.forEach((block) => {

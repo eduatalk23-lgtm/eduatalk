@@ -53,19 +53,24 @@ export async function handleSupabaseQueryArray<T>(
     }
 
     if (error) {
-      console.error("[Supabase Query Error]", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        error,
-      });
+      // 에러 객체가 비어있는 경우를 대비한 안전한 로깅
+      const errorInfo = {
+        code: error?.code || "UNKNOWN",
+        message: error?.message || "Unknown error",
+        details: error?.details || null,
+        hint: error?.hint || null,
+        error: error ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : "Empty error object",
+      };
+      console.error("[Supabase Query Error]", errorInfo);
       return fallback;
     }
 
     return data ?? fallback;
   } catch (error) {
-    console.error("[Supabase Query Exception]", error);
+    console.error("[Supabase Query Exception]", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return fallback;
   }
 }
@@ -87,13 +92,15 @@ export async function handleSupabaseQuerySingle<T>(
     }
 
     if (error) {
-      console.error("[Supabase Query Error]", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        error,
-      });
+      // 에러 객체가 비어있는 경우를 대비한 안전한 로깅
+      const errorInfo = {
+        code: error?.code || "UNKNOWN",
+        message: error?.message || "Unknown error",
+        details: error?.details || null,
+        hint: error?.hint || null,
+        error: error || null,
+      };
+      console.error("[Supabase Query Error]", errorInfo);
       return fallback;
     }
 
