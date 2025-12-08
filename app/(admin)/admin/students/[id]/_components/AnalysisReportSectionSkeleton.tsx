@@ -14,4 +14,3 @@ export function AnalysisReportSectionSkeleton() {
     </div>
   );
 }
-

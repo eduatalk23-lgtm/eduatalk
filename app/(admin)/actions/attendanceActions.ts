@@ -22,9 +22,10 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 /**
  * 출석 기록 생성 또는 수정
  */
-const _recordAttendanceAction = async (
+export async function recordAttendanceAction(
   input: CreateAttendanceRecordInput
-): Promise<{ success: boolean; error?: string }> => {
+): Promise<{ success: boolean; error?: string }> {
+  const handler = withErrorHandling(async () => {
     await requireAdminAuth();
 
     // 입력 검증
@@ -191,6 +192,7 @@ const _recordAttendanceAction = async (
     revalidatePath(`/admin/students/${input.student_id}`);
     return { success: true };
   });
+  return await handler();
 }
 
 /**

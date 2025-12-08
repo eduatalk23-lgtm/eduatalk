@@ -69,7 +69,10 @@ export default async function AdminSMSPage({
   let query = selectLogs();
 
   // 상태 필터링
-  if (statusFilter && ["pending", "sent", "delivered", "failed"].includes(statusFilter)) {
+  if (
+    statusFilter &&
+    ["pending", "sent", "delivered", "failed"].includes(statusFilter)
+  ) {
     query = query.eq("status", statusFilter);
   }
 
@@ -84,15 +87,19 @@ export default async function AdminSMSPage({
     console.error("[admin/sms] SMS 로그 조회 실패 - 원본 에러:", error);
     console.error("[admin/sms] 에러 타입:", typeof error);
     console.error("[admin/sms] 에러 constructor:", error?.constructor?.name);
-    
+
     // Supabase 에러 객체의 주요 속성 추출
     const errorInfo: Record<string, unknown> = {
-      message: error?.message || error?.toString() || String(error) || "알 수 없는 에러",
+      message:
+        error?.message ||
+        error?.toString() ||
+        String(error) ||
+        "알 수 없는 에러",
       code: error?.code || "UNKNOWN",
       name: error?.name,
       stack: error?.stack,
     };
-    
+
     // Supabase PostgrestError 속성 확인
     if (error && typeof error === "object") {
       if ("details" in error) {
@@ -107,10 +114,12 @@ export default async function AdminSMSPage({
       // AppError 속성 확인
       if ("statusCode" in error && "code" in error) {
         errorInfo.appErrorCode = (error as { code?: unknown }).code;
-        errorInfo.appErrorStatusCode = (error as { statusCode?: unknown }).statusCode;
+        errorInfo.appErrorStatusCode = (
+          error as { statusCode?: unknown }
+        ).statusCode;
       }
     }
-    
+
     console.error("[admin/sms] SMS 로그 조회 실패 - 상세 정보:", errorInfo);
   }
 
@@ -140,7 +149,10 @@ export default async function AdminSMSPage({
             sms_logs 테이블은 ERD 스키마에 정의되어 있습니다.
           </p>
           <p className="mt-1 text-xs text-yellow-600">
-            Supabase CLI: <code className="bg-yellow-100 px-1 rounded">supabase migration up</code>
+            Supabase CLI:{" "}
+            <code className="bg-yellow-100 px-1 rounded">
+              supabase migration up
+            </code>
           </p>
         </div>
       </div>
@@ -165,10 +177,13 @@ export default async function AdminSMSPage({
   // SMS 발송 폼용 학생 목록 조회 (모든 학생, 연락처 포함)
   // RLS 정책이 자동으로 tenant_id 필터링을 처리합니다
   let studentsSelectFields = "id, name, grade, class";
-  
+
   // 학부모 연락처 컬럼 확인 (mother_phone, father_phone 사용)
   try {
-    const testQuery = supabase.from("students").select("mother_phone, father_phone").limit(1);
+    const testQuery = supabase
+      .from("students")
+      .select("mother_phone, father_phone")
+      .limit(1);
     const { error: testError } = await testQuery;
     if (!testError) {
       studentsSelectFields += ",mother_phone,father_phone";
@@ -176,7 +191,7 @@ export default async function AdminSMSPage({
   } catch (e) {
     // 컬럼이 없으면 무시
   }
-  
+
   try {
     // is_active 컬럼이 있는지 테스트
     const testQuery = supabase.from("students").select("is_active").limit(1);
@@ -195,15 +210,20 @@ export default async function AdminSMSPage({
 
   // student_profiles 테이블에서 phone 정보 조회 (학생 본인 연락처)
   const studentIds = (studentsForSMS ?? []).map((s: any) => s.id);
-  let profiles: Array<{ id: string; phone?: string | null; mother_phone?: string | null; father_phone?: string | null }> = [];
-  
+  let profiles: Array<{
+    id: string;
+    phone?: string | null;
+    mother_phone?: string | null;
+    father_phone?: string | null;
+  }> = [];
+
   if (studentIds.length > 0) {
     try {
       const { data: profilesData, error: profilesError } = await supabase
         .from("student_profiles")
         .select("id, phone, mother_phone, father_phone")
         .in("id", studentIds);
-      
+
       if (!profilesError && profilesData) {
         profiles = profilesData;
       }
@@ -227,10 +247,14 @@ export default async function AdminSMSPage({
   if (studentsError) {
     // 에러 객체의 속성을 안전하게 추출
     const errorInfo: Record<string, unknown> = {
-      message: studentsError?.message || studentsError?.toString() || String(studentsError) || "알 수 없는 에러",
+      message:
+        studentsError?.message ||
+        studentsError?.toString() ||
+        String(studentsError) ||
+        "알 수 없는 에러",
       code: studentsError?.code || "UNKNOWN",
     };
-    
+
     if (studentsError && typeof studentsError === "object") {
       if ("details" in studentsError) {
         errorInfo.details = (studentsError as { details?: unknown }).details;
@@ -239,10 +263,12 @@ export default async function AdminSMSPage({
         errorInfo.hint = (studentsError as { hint?: unknown }).hint;
       }
       if ("statusCode" in studentsError) {
-        errorInfo.statusCode = (studentsError as { statusCode?: unknown }).statusCode;
+        errorInfo.statusCode = (
+          studentsError as { statusCode?: unknown }
+        ).statusCode;
       }
     }
-    
+
     console.error("[admin/sms] 학생 목록 조회 실패:", errorInfo);
   }
 
@@ -259,13 +285,15 @@ export default async function AdminSMSPage({
       tenantId: tenantContext?.tenantId,
       hasError: !!studentsError,
       errorCode: studentsError?.code || null,
-      sampleStudent: studentsWithPhones[0] ? {
-        id: studentsWithPhones[0].id,
-        name: studentsWithPhones[0].name,
-        phone: studentsWithPhones[0].phone,
-        mother_phone: studentsWithPhones[0].mother_phone,
-        father_phone: studentsWithPhones[0].father_phone,
-      } : null,
+      sampleStudent: studentsWithPhones[0]
+        ? {
+            id: studentsWithPhones[0].id,
+            name: studentsWithPhones[0].name,
+            phone: studentsWithPhones[0].phone,
+            mother_phone: studentsWithPhones[0].mother_phone,
+            father_phone: studentsWithPhones[0].father_phone,
+          }
+        : null,
     });
   }
 
@@ -286,7 +314,8 @@ export default async function AdminSMSPage({
   let filteredLogs = logRows;
   if (searchQuery) {
     filteredLogs = logRows.filter((log) => {
-      const studentName = (studentMap.get(log.recipient_id ?? "") ?? "") as string;
+      const studentName = (studentMap.get(log.recipient_id ?? "") ??
+        "") as string;
       const phone = log.recipient_phone ?? "";
       const message = log.message_content ?? "";
       return (
@@ -354,7 +383,9 @@ export default async function AdminSMSPage({
             {studentsError.message || "알 수 없는 오류"}
           </p>
           {studentsError.hint && (
-            <p className="mt-1 text-xs text-red-600">힌트: {studentsError.hint}</p>
+            <p className="mt-1 text-xs text-red-600">
+              힌트: {studentsError.hint}
+            </p>
           )}
         </div>
       )}
@@ -394,7 +425,9 @@ export default async function AdminSMSPage({
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">대기 중</div>
-          <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {stats.pending}
+          </div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">발송 완료</div>
@@ -402,7 +435,9 @@ export default async function AdminSMSPage({
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">전달 완료</div>
-          <div className="text-2xl font-bold text-blue-600">{stats.delivered}</div>
+          <div className="text-2xl font-bold text-blue-600">
+            {stats.delivered}
+          </div>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">실패</div>
@@ -480,7 +515,9 @@ export default async function AdminSMSPage({
                       {log.recipient_phone ?? "-"}
                     </span>
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(log.status)}`}
+                      className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeClass(
+                        log.status
+                      )}`}
                     >
                       {getStatusLabel(log.status)}
                     </span>
@@ -501,7 +538,8 @@ export default async function AdminSMSPage({
                 )}
                 {log.delivered_at && (
                   <div className="text-xs text-gray-500">
-                    전달 시간: {new Date(log.delivered_at).toLocaleString("ko-KR")}
+                    전달 시간:{" "}
+                    {new Date(log.delivered_at).toLocaleString("ko-KR")}
                   </div>
                 )}
                 {log.error_message && (
@@ -517,4 +555,3 @@ export default async function AdminSMSPage({
     </div>
   );
 }
-
