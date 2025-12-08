@@ -13,6 +13,7 @@ const pwaConfig = withPWA({
   skipWaiting: true,
   disable: process.env.NODE_ENV === "development", // 개발 환경에서는 비활성화
   buildExcludes: [/app-build-manifest\.json$/],
+  publicExcludes: ["!sw.js", "!workbox-*.js", "!fallback-*.js"],
   runtimeCaching: [
     {
       urlPattern: /^https?.*/,
@@ -21,7 +22,9 @@ const pwaConfig = withPWA({
         cacheName: "offlineCache",
         expiration: {
           maxEntries: 200,
+          maxAgeSeconds: 86400, // 24시간
         },
+        networkTimeoutSeconds: 10,
       },
     },
   ],

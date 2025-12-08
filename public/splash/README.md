@@ -12,36 +12,36 @@
 
 다음 크기의 스플래시 이미지가 필요합니다:
 
-| 디바이스 | 크기 | 파일명 |
-|---------|------|--------|
-| iPhone SE (2nd gen), iPhone 8/7/6s/6 | 750x1334 | `apple-splash-750-1334.png` |
-| iPhone 8 Plus/7 Plus/6s Plus/6 Plus | 1242x2208 | `apple-splash-1242-2208.png` |
-| iPhone X/XS, iPhone 11 Pro, iPhone 12/13 mini | 1125x2436 | `apple-splash-1125-2436.png` |
-| iPhone XR, iPhone 11 | 828x1792 | `apple-splash-828-1792.png` |
-| iPhone XS Max, iPhone 11 Pro Max | 1242x2688 | `apple-splash-1242-2688.png` |
-| iPhone 12/12 Pro, iPhone 13/13 Pro, iPhone 14 | 1170x2532 | `apple-splash-1170-2532.png` |
+| 디바이스                                             | 크기      | 파일명                       |
+| ---------------------------------------------------- | --------- | ---------------------------- |
+| iPhone SE (2nd gen), iPhone 8/7/6s/6                 | 750x1334  | `apple-splash-750-1334.png`  |
+| iPhone 8 Plus/7 Plus/6s Plus/6 Plus                  | 1242x2208 | `apple-splash-1242-2208.png` |
+| iPhone X/XS, iPhone 11 Pro, iPhone 12/13 mini        | 1125x2436 | `apple-splash-1125-2436.png` |
+| iPhone XR, iPhone 11                                 | 828x1792  | `apple-splash-828-1792.png`  |
+| iPhone XS Max, iPhone 11 Pro Max                     | 1242x2688 | `apple-splash-1242-2688.png` |
+| iPhone 12/12 Pro, iPhone 13/13 Pro, iPhone 14        | 1170x2532 | `apple-splash-1170-2532.png` |
 | iPhone 12 Pro Max, iPhone 13 Pro Max, iPhone 14 Plus | 1284x2778 | `apple-splash-1284-2778.png` |
-| iPhone 14 Pro | 1179x2556 | `apple-splash-1179-2556.png` |
-| iPhone 14 Pro Max | 1290x2796 | `apple-splash-1290-2796.png` |
-| iPad | 768x1024 | `apple-splash-768-1024.png` |
-| iPad Pro 10.5" | 1112x1394 | `apple-splash-1112-1394.png` |
-| iPad Pro 11" | 1194x1668 | `apple-splash-1194-1668.png` |
-| iPad Pro 12.9" | 2048x2732 | `apple-splash-2048-2732.png` |
+| iPhone 14 Pro                                        | 1179x2556 | `apple-splash-1179-2556.png` |
+| iPhone 14 Pro Max                                    | 1290x2796 | `apple-splash-1290-2796.png` |
+| iPad                                                 | 768x1024  | `apple-splash-768-1024.png`  |
+| iPad Pro 10.5"                                       | 1112x1394 | `apple-splash-1112-1394.png` |
+| iPad Pro 11"                                         | 1194x1668 | `apple-splash-1194-1668.png` |
+| iPad Pro 12.9"                                       | 2048x2732 | `apple-splash-2048-2732.png` |
 
 ### Android/Chrome 스플래시 이미지
 
 다음 크기의 스플래시 이미지가 필요합니다:
 
-| 화면 크기 | 크기 | 파일명 | Form Factor |
-|----------|------|--------|-------------|
-| 작은 화면 | 640x1136 | `android-splash-640-1136.png` | narrow |
-| 중간 화면 | 750x1334 | `android-splash-750-1334.png` | narrow |
-| 큰 화면 | 828x1792 | `android-splash-828-1792.png` | narrow |
-| XL 화면 | 1125x2436 | `android-splash-1125-2436.png` | narrow |
-| XXL 화면 | 1170x2532 | `android-splash-1170-2532.png` | narrow |
-| XXXL 화면 | 1284x2778 | `android-splash-1284-2778.png` | narrow |
-| 태블릿 (작은) | 768x1024 | `android-splash-768-1024.png` | wide |
-| 태블릿 (큰) | 1536x2048 | `android-splash-1536-2048.png` | wide |
+| 화면 크기     | 크기      | 파일명                         | Form Factor |
+| ------------- | --------- | ------------------------------ | ----------- |
+| 작은 화면     | 640x1136  | `android-splash-640-1136.png`  | narrow      |
+| 중간 화면     | 750x1334  | `android-splash-750-1334.png`  | narrow      |
+| 큰 화면       | 828x1792  | `android-splash-828-1792.png`  | narrow      |
+| XL 화면       | 1125x2436 | `android-splash-1125-2436.png` | narrow      |
+| XXL 화면      | 1170x2532 | `android-splash-1170-2532.png` | narrow      |
+| XXXL 화면     | 1284x2778 | `android-splash-1284-2778.png` | narrow      |
+| 태블릿 (작은) | 768x1024  | `android-splash-768-1024.png`  | wide        |
+| 태블릿 (큰)   | 1536x2048 | `android-splash-1536-2048.png` | wide        |
 
 ## 🎨 스플래시 이미지 디자인 가이드라인
 
@@ -172,16 +172,19 @@ done
 스플래시 이미지를 추가한 후 다음을 확인하세요:
 
 ### iOS 확인
+
 - [ ] 모든 iOS 스플래시 이미지 파일이 존재하는가?
 - [ ] `app/layout.tsx`의 `appleWebApp.startupImage` 설정이 올바른가?
 - [ ] iOS Safari에서 PWA 설치 후 앱 실행 시 스플래시 화면이 표시되는가?
 
 ### Android 확인
+
 - [ ] 모든 Android 스플래시 이미지 파일이 존재하는가?
 - [ ] `manifest.json`의 `splash_screens` 설정이 올바른가?
 - [ ] Android Chrome에서 PWA 설치 후 앱 실행 시 스플래시 화면이 표시되는가?
 
 ### 공통 확인
+
 - [ ] 스플래시 이미지의 배경색이 `manifest.json`의 `background_color`와 일치하는가?
 - [ ] 파일명이 설정 파일의 경로와 일치하는가?
 - [ ] 이미지 파일이 올바른 형식(PNG)인가?
@@ -189,16 +192,19 @@ done
 ## 🔍 테스트 방법
 
 ### iOS 테스트
+
 1. iOS Safari에서 웹사이트 방문
 2. 공유 버튼 → "홈 화면에 추가" 선택
 3. 앱 실행 시 스플래시 화면 확인
 
 ### Android 테스트
+
 1. Android Chrome에서 웹사이트 방문
 2. 메뉴 → "홈 화면에 추가" 선택
 3. 앱 실행 시 스플래시 화면 확인
 
 ### 개발자 도구 확인
+
 - Chrome DevTools → Application → Manifest에서 스플래시 이미지 설정 확인
 - Network 탭에서 스플래시 이미지 파일이 로드되는지 확인
 
@@ -215,4 +221,3 @@ done
 2. **배경색 일치**: 스플래시 이미지의 배경색은 반드시 `manifest.json`의 `background_color`와 일치해야 합니다.
 3. **파일명 규칙**: 파일명은 설정 파일에서 참조하는 경로와 정확히 일치해야 합니다.
 4. **이미지 형식**: PNG 형식만 지원됩니다.
-

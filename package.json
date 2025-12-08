@@ -11,7 +11,8 @@
     "seed:score-dashboard-dummy": "tsx scripts/seedScoreDashboardDummy.ts",
     "cleanup:score-dashboard-dummy": "tsx scripts/cleanupScoreDashboardDummy.ts",
     "test:score-dashboard": "tsx scripts/testScoreDashboard.ts",
-    "test:ppurio-sms": "tsx scripts/test-ppurio-sms.ts"
+    "test:ppurio-sms": "tsx scripts/test-ppurio-sms.ts",
+    "generate:icons": "tsx scripts/generate-pwa-icons.ts"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
@@ -47,6 +48,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "next-pwa": "^5.6.0",
+    "sharp": "^0.34.5",
     "supabase": "^2.58.5",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
