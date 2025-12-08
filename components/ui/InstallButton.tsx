@@ -5,9 +5,11 @@ import { useInstallPrompt } from "@/lib/hooks/useInstallPrompt";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
 
+import type { ButtonVariant, ButtonSize } from "@/components/atoms/Button";
+
 interface InstallButtonProps {
-  variant?: "default" | "outline" | "ghost";
-  size?: "sm" | "md" | "lg";
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   className?: string;
   showIcon?: boolean;
 }
@@ -17,7 +19,7 @@ interface InstallButtonProps {
  * 수동으로 설치를 트리거할 때 사용합니다.
  */
 export default function InstallButton({
-  variant = "default",
+  variant = "primary",
   size = "md",
   className,
   showIcon = true,

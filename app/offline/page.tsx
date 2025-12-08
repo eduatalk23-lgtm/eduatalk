@@ -55,7 +55,7 @@ export default function OfflinePage() {
         <div className="flex flex-col gap-3">
           <Button
             onClick={handleRefresh}
-            variant="default"
+            variant="primary"
             className="w-full"
             disabled={!isOnline}
           >
