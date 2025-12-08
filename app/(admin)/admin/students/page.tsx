@@ -157,6 +157,7 @@ export default async function AdminStudentsPage({
   const params = await searchParams;
   const searchQuery = params.search?.trim() ?? "";
   const gradeFilter = params.grade?.trim() ?? "";
+  const classFilter = params.class?.trim() ?? "";
   const hasScoreFilter = params.has_score === "true";
   const showInactiveFilter = params.show_inactive === "true";
   const sortBy = params.sort || "name"; // name, created_at, grade
@@ -193,6 +194,10 @@ export default async function AdminStudentsPage({
 
   if (gradeFilter) {
     query = query.eq("grade", gradeFilter);
+  }
+
+  if (classFilter) {
+    query = query.eq("class", classFilter);
   }
 
   // is_active 필터링 (컬럼이 있을 때만)
@@ -290,6 +295,18 @@ export default async function AdminStudentsPage({
               name="grade"
               placeholder="전체"
               defaultValue={gradeFilter}
+              className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            />
+          </div>
+
+          {/* 반 필터 */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">반</label>
+            <input
+              type="text"
+              name="class"
+              placeholder="전체"
+              defaultValue={classFilter}
               className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
           </div>

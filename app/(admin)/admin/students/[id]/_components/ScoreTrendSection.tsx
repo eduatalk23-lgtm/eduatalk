@@ -11,8 +11,11 @@ export async function ScoreTrendSection({ studentId }: { studentId: string }) {
 
   if (!tenantContext?.tenantId) {
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">기관 정보를 찾을 수 없습니다.</p>
+      <div className="rounded-lg border border-dashed border-yellow-300 bg-yellow-50 p-6">
+        <p className="text-sm font-medium text-yellow-700">기관 정보를 찾을 수 없습니다.</p>
+        <p className="mt-1 text-xs text-yellow-600">
+          성적 분석을 보려면 학생이 속한 기관 정보가 필요합니다.
+        </p>
       </div>
     );
   }
@@ -26,9 +29,23 @@ export async function ScoreTrendSection({ studentId }: { studentId: string }) {
 
     const { internalAnalysis, mockAnalysis, strategyResult } = dashboardData;
 
+    const hasData =
+      internalAnalysis.totalGpa !== null ||
+      mockAnalysis.avgPercentile !== null ||
+      Object.keys(internalAnalysis.subjectStrength).length > 0;
+
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-xl font-semibold text-gray-900">성적 분석</h2>
+
+        {!hasData && (
+          <div className="mb-6 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <p className="text-sm font-medium text-gray-700">성적 데이터가 없습니다.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              학생의 내신 또는 모의고사 성적을 입력하면 분석 결과가 표시됩니다.
+            </p>
+          </div>
+        )}
 
         {/* 통계 */}
         <div className="mb-6 grid grid-cols-2 gap-4">
@@ -99,9 +116,12 @@ export async function ScoreTrendSection({ studentId }: { studentId: string }) {
     );
   } catch (error) {
     console.error("[ScoreTrendSection] 성적 변화 조회 실패", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">성적 정보를 불러오는 중 오류가 발생했습니다.</p>
+      <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
+        <p className="text-sm font-medium text-red-700">성적 정보를 불러오는 중 오류가 발생했습니다.</p>
+        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

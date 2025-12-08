@@ -46,7 +46,12 @@ export async function PlanListSection({
           </Link>
         </div>
         {recentPlans.length === 0 ? (
-          <p className="text-sm text-gray-500">등록된 플랜이 없습니다.</p>
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <p className="text-sm font-medium text-gray-700">등록된 학습 플랜이 없습니다.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              학생에게 학습 플랜을 생성하면 여기에 표시됩니다.
+            </p>
+          </div>
         ) : (
           <div className="space-y-3">
             {recentPlans.map((plan: Plan) => (
@@ -98,9 +103,12 @@ export async function PlanListSection({
     );
   } catch (error) {
     console.error("[PlanListSection] 플랜 조회 실패", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">플랜 정보를 불러오는 중 오류가 발생했습니다.</p>
+      <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
+        <p className="text-sm font-medium text-red-700">플랜 정보를 불러오는 중 오류가 발생했습니다.</p>
+        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

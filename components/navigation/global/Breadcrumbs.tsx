@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { getBreadcrumbChain } from "./resolveActiveCategory";
 import { getAllNavigationItems, type NavigationRole } from "./categoryConfig";
+import { useBreadcrumbLabels } from "@/lib/components/BreadcrumbContext";
 
 type BreadcrumbsProps = {
   role: NavigationRole;
@@ -13,8 +14,11 @@ type BreadcrumbsProps = {
   dynamicLabels?: Record<string, string>;
 };
 
-export function Breadcrumbs({ role, className, dynamicLabels }: BreadcrumbsProps) {
+export function Breadcrumbs({ role, className, dynamicLabels: propDynamicLabels }: BreadcrumbsProps) {
   const pathname = usePathname();
+  const contextLabels = useBreadcrumbLabels();
+  // props로 전달된 라벨이 우선, 없으면 Context에서 가져옴
+  const dynamicLabels = propDynamicLabels || contextLabels || {};
   const chain = getBreadcrumbChain(pathname || "", role);
   const allItems = getAllNavigationItems(role);
 

@@ -115,15 +115,23 @@ export async function AnalysisReportSection({ studentId }: { studentId: string }
           !analysis.weeklyStudyTime &&
           !analysis.monthlyReport &&
           analysis.riskAnalysis.length === 0 && (
-            <p className="text-sm text-gray-500">분석 데이터가 없습니다.</p>
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+              <p className="text-sm font-medium text-gray-700">분석 데이터가 없습니다.</p>
+              <p className="mt-1 text-xs text-gray-500">
+                학습 활동 데이터가 쌓이면 분석 리포트가 생성됩니다.
+              </p>
+            </div>
           )}
       </div>
     );
   } catch (error) {
     console.error("[AnalysisReportSection] 분석 리포트 조회 실패", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">분석 리포트를 불러오는 중 오류가 발생했습니다.</p>
+      <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
+        <p className="text-sm font-medium text-red-700">분석 리포트를 불러오는 중 오류가 발생했습니다.</p>
+        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

@@ -35,11 +35,24 @@ export async function SessionListSection({ studentId }: { studentId: string }) {
       return `${minutes}분`;
     };
 
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">학습 기록</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">학습 기록</h2>
+          <span className="text-xs text-gray-500">
+            {startDate.toLocaleDateString("ko-KR")} ~ {endDate.toLocaleDateString("ko-KR")}
+          </span>
+        </div>
         {recentSessions.length === 0 ? (
-          <p className="text-sm text-gray-500">최근 학습 기록이 없습니다.</p>
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <p className="text-sm font-medium text-gray-700">최근 30일간 학습 기록이 없습니다.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              학생이 학습을 시작하면 여기에 표시됩니다.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -100,9 +113,12 @@ export async function SessionListSection({ studentId }: { studentId: string }) {
     );
   } catch (error) {
     console.error("[SessionListSection] 학습 기록 조회 실패", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">학습 기록 정보를 불러오는 중 오류가 발생했습니다.</p>
+      <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
+        <p className="text-sm font-medium text-red-700">학습 기록 정보를 불러오는 중 오류가 발생했습니다.</p>
+        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

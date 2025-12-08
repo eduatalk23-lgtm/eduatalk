@@ -22,59 +22,119 @@ export async function ConsultingNotesSection({
 }) {
   const supabase = await createSupabaseServerClient();
 
-  const selectNotes = () =>
-    supabase
-      .from("student_consulting_notes")
-      .select("id,note,created_at,consultant_id")
-      .eq("student_id", studentId)
-      .order("created_at", { ascending: false })
-      .limit(10);
+  try {
+    const selectNotes = () =>
+      supabase
+        .from("student_consulting_notes")
+        .select("id,note,created_at,consultant_id")
+        .eq("student_id", studentId)
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-  let { data: notes, error } = await selectNotes();
+    let { data: notes, error } = await selectNotes();
 
-  if (error && error.code === "42703") {
-    ({ data: notes, error } = await selectNotes());
-  }
+    // 컬럼이 없으면 재시도 (하위 호환성)
+    if (error && error.code === "42703") {
+      console.warn("[ConsultingNotesSection] 컬럼 오류, 재시도:", error.message);
+      ({ data: notes, error } = await selectNotes());
+    }
 
-  if (error) {
-    console.error("[admin/students] 상담노트 조회 실패", error);
-  }
+    if (error) {
+      console.error("[ConsultingNotesSection] 상담노트 조회 실패", {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        studentId,
+      });
+    }
 
-  const noteRows = (notes as ConsultingNoteRow[] | null) ?? [];
+    const noteRows = (notes as ConsultingNoteRow[] | null) ?? [];
+    
+    // 디버깅 로그
+    console.log("[ConsultingNotesSection] 상담노트 조회 결과", {
+      studentId,
+      notesCount: noteRows.length,
+      hasError: !!error,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+    });
 
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900">상담노트</h2>
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-xl font-semibold text-gray-900">상담노트</h2>
 
-      {/* 상담노트 작성 폼 */}
-      <div className="mb-6">
-        <ConsultingNotesForm studentId={studentId} consultantId={consultantId} />
-      </div>
-
-      {/* 상담노트 목록 */}
-      {noteRows.length === 0 ? (
-        <p className="text-sm text-gray-500">상담노트가 없습니다.</p>
-      ) : (
-        <div className="space-y-3">
-          {noteRows.map((note) => (
-            <div
-              key={note.id}
-              className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:bg-gray-100"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs text-gray-500">
-                  {note.created_at
-                    ? new Date(note.created_at).toLocaleString("ko-KR")
-                    : "-"}
-                </span>
-                <ConsultingNoteDeleteButton noteId={note.id} studentId={studentId} />
-              </div>
-              <p className="whitespace-pre-wrap text-sm text-gray-900">{note.note ?? ""}</p>
-            </div>
-          ))}
+        {/* 상담노트 작성 폼 */}
+        <div className="mb-6">
+          <ConsultingNotesForm studentId={studentId} consultantId={consultantId} />
         </div>
-      )}
-    </div>
-  );
+
+        {/* 에러 메시지 */}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4">
+            <p className="text-sm font-medium text-red-700">
+              상담노트를 불러오는 중 오류가 발생했습니다.
+            </p>
+            <p className="mt-1 text-xs text-red-600">
+              {error.message || `에러 코드: ${error.code || "알 수 없음"}`}
+            </p>
+            {error.code === "42P01" && (
+              <p className="mt-2 text-xs text-red-600">
+                테이블이 존재하지 않습니다. 데이터베이스 마이그레이션이 필요할 수 있습니다.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 상담노트 목록 */}
+        {!error && noteRows.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <p className="text-sm font-medium text-gray-700">상담노트가 없습니다.</p>
+            <p className="mt-1 text-xs text-gray-500">
+              위 폼에서 상담 내용을 작성하면 여기에 표시됩니다.
+            </p>
+          </div>
+        ) : !error ? (
+          <div className="space-y-3">
+            {noteRows.map((note) => (
+              <div
+                key={note.id}
+                className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:bg-gray-100"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">
+                    {note.created_at
+                      ? new Date(note.created_at).toLocaleString("ko-KR")
+                      : "-"}
+                  </span>
+                  <ConsultingNoteDeleteButton noteId={note.id} studentId={studentId} />
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-gray-900">{note.note ?? ""}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  } catch (error) {
+    console.error("[ConsultingNotesSection] 예상치 못한 오류", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+    return (
+      <div className="rounded-lg border border-red-300 bg-red-50 p-6">
+        <h2 className="mb-4 text-xl font-semibold text-gray-900">상담노트</h2>
+        <div className="mb-6">
+          <ConsultingNotesForm studentId={studentId} consultantId={consultantId} />
+        </div>
+        <div className="rounded-lg border border-red-300 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-700">
+            상담노트를 불러오는 중 예상치 못한 오류가 발생했습니다.
+          </p>
+          <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+        </div>
+      </div>
+    );
+  }
 }
 

@@ -80,3 +80,37 @@ export async function deleteStudent(
   return { success: true };
 }
 
+/**
+ * 학생 반 정보 업데이트 (관리자 전용)
+ */
+export async function updateStudentClass(
+  studentId: string,
+  classValue: string | null
+): Promise<{ success: boolean; error?: string }> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 빈 문자열을 null로 변환
+  const normalizedClass = classValue?.trim() || null;
+
+  const { error } = await supabase
+    .from("students")
+    .update({ class: normalizedClass })
+    .eq("id", studentId);
+
+  if (error) {
+    console.error("[admin/studentManagement] 학생 반 정보 변경 실패", error);
+    return { success: false, error: error.message || "반 정보 변경에 실패했습니다." };
+  }
+
+  revalidatePath("/admin/students");
+  revalidatePath(`/admin/students/${studentId}`);
+
+  return { success: true };
+}
+

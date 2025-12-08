@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
+import { StudentDetailWrapper } from "./_components/StudentDetailWrapper";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
 import { TabContent } from "./_components/TabContent";
 import { BasicInfoSection } from "./_components/BasicInfoSection";
@@ -15,6 +15,12 @@ import { AnalysisReportSection } from "./_components/AnalysisReportSection";
 import { ConsultingNotesSection } from "./_components/ConsultingNotesSection";
 import { RiskCard } from "./_components/RiskCard";
 import { RecommendationPanel } from "./_components/RecommendationPanel";
+import { PlanListSectionSkeleton } from "./_components/PlanListSectionSkeleton";
+import { ContentListSectionSkeleton } from "./_components/ContentListSectionSkeleton";
+import { ScoreTrendSectionSkeleton } from "./_components/ScoreTrendSectionSkeleton";
+import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
+import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
+import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSectionSkeleton";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -50,18 +56,8 @@ export default async function AdminStudentDetailPage({
     notFound();
   }
 
-  // Breadcrumbs 동적 라벨 설정
-  const dynamicLabels = {
-    [`/admin/students/${studentId}`]: student.name ? `${student.name} 학생` : "학생 상세",
-  };
-
   return (
-    <>
-      {/* Breadcrumbs */}
-      <Suspense fallback={null}>
-        <Breadcrumbs role="admin" dynamicLabels={dynamicLabels} />
-      </Suspense>
-      
+    <StudentDetailWrapper studentId={studentId} studentName={student.name}>
       <div className="p-6 md:p-10">
       <div className="mb-8">
         <h1 className="text-h1 text-gray-900">
@@ -79,41 +75,53 @@ export default async function AdminStudentDetailPage({
       <StudentDetailTabs defaultTab={defaultTab}>
         {/* 기본정보 탭 */}
         <TabContent tab="basic">
-          <BasicInfoSection student={student} />
+          <BasicInfoSection student={student} isAdmin={role === "admin"} />
         </TabContent>
 
         {/* 학습계획 탭 */}
         <TabContent tab="plan">
-          <PlanListSection studentId={studentId} />
+          <Suspense fallback={<PlanListSectionSkeleton />}>
+            <PlanListSection studentId={studentId} />
+          </Suspense>
         </TabContent>
 
         {/* 콘텐츠 탭 */}
         <TabContent tab="content">
-          <ContentListSection studentId={studentId} />
+          <Suspense fallback={<ContentListSectionSkeleton />}>
+            <ContentListSection studentId={studentId} />
+          </Suspense>
         </TabContent>
 
         {/* 성적 탭 */}
         <TabContent tab="score">
-          <ScoreTrendSection studentId={studentId} />
+          <Suspense fallback={<ScoreTrendSectionSkeleton />}>
+            <ScoreTrendSection studentId={studentId} />
+          </Suspense>
         </TabContent>
 
         {/* 학습기록 탭 */}
         <TabContent tab="session">
-          <SessionListSection studentId={studentId} />
+          <Suspense fallback={<SessionListSectionSkeleton />}>
+            <SessionListSection studentId={studentId} />
+          </Suspense>
         </TabContent>
 
         {/* 분석 리포트 탭 */}
         <TabContent tab="analysis">
-          <AnalysisReportSection studentId={studentId} />
+          <Suspense fallback={<AnalysisReportSectionSkeleton />}>
+            <AnalysisReportSection studentId={studentId} />
+          </Suspense>
         </TabContent>
 
         {/* 상담노트 탭 */}
         <TabContent tab="consulting">
-          <ConsultingNotesSection studentId={studentId} consultantId={userId} />
+          <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
+            <ConsultingNotesSection studentId={studentId} consultantId={userId} />
+          </Suspense>
         </TabContent>
       </StudentDetailTabs>
-    </div>
-    </>
+      </div>
+    </StudentDetailWrapper>
   );
 }
 

@@ -155,6 +155,8 @@ export async function updateStudentProfile(formData: FormData): Promise<{ succes
     tenant_id: existingStudent.tenant_id ?? null,
     name: nameValue,
     grade,
+    // 반 필드는 관리자만 수정 가능하므로 항상 기존 값 유지
+    // 학생은 마이페이지에서 반 정보를 수정할 수 없음
     class: existingStudent.class || "",
     birth_date: birthDate,
     school_id: schoolId,
