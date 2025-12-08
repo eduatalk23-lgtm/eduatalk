@@ -29,9 +29,9 @@ export function ContentProgressSection({ progressList }: ContentProgressSectionP
       <div className="flex flex-col gap-4">
         <h3 className="text-lg font-semibold text-gray-900">콘텐츠 진행률</h3>
         <div className="flex flex-col gap-4">
-          {progressList.map((item) => (
+          {progressList.map((item, index) => (
             <div
-              key={`${item.contentType}:${item.contentId}`}
+              key={`${item.contentType}:${item.contentId}:${index}`}
               className="rounded-lg border border-gray-200 p-4"
             >
               <div className="flex flex-col gap-2">

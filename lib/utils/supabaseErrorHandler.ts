@@ -19,7 +19,13 @@ export async function handleSupabaseQuery<T>(
     }
 
     if (error) {
-      console.error("[Supabase Query Error]", error);
+      console.error("[Supabase Query Error]", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        error,
+      });
       return fallback;
     }
 
@@ -47,7 +53,13 @@ export async function handleSupabaseQueryArray<T>(
     }
 
     if (error) {
-      console.error("[Supabase Query Error]", error);
+      console.error("[Supabase Query Error]", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        error,
+      });
       return fallback;
     }
 
@@ -75,7 +87,13 @@ export async function handleSupabaseQuerySingle<T>(
     }
 
     if (error) {
-      console.error("[Supabase Query Error]", error);
+      console.error("[Supabase Query Error]", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        error,
+      });
       return fallback;
     }
 

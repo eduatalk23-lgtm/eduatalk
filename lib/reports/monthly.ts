@@ -661,23 +661,37 @@ export async function getMonthlyContentProgress(
       }
     });
 
-    // 진행률 리스트 생성
-    const progressList: MonthlyContentProgress["progressList"] = progressRows
-      .filter((p) => p.content_type && p.content_id)
-      .map((p) => {
-        const key = `${p.content_type}:${p.content_id}`;
-        const contentInfo = contentMap.get(key) ?? { title: "콘텐츠", subject: null };
-        const progressChange = progressChangeMap.get(key) ?? 0;
+    // 진행률 리스트 생성 (중복 제거)
+    const progressMap = new Map<string, {
+      contentType: "book" | "lecture" | "custom";
+      contentId: string;
+      title: string;
+      subject: string | null;
+      progress: number;
+      progressChange: number;
+    }>();
 
-        return {
-          contentType: (p.content_type as "book" | "lecture" | "custom") ?? "book",
-          contentId: p.content_id ?? "",
-          title: contentInfo.title,
-          subject: contentInfo.subject,
-          progress: p.progress ?? 0,
-          progressChange,
-        };
-      })
+    progressRows
+      .filter((p) => p.content_type && p.content_id)
+      .forEach((p) => {
+        const key = `${p.content_type}:${p.content_id}`;
+        // 이미 존재하는 경우 더 높은 진행률을 유지
+        if (!progressMap.has(key) || (progressMap.get(key)?.progress ?? 0) < (p.progress ?? 0)) {
+          const contentInfo = contentMap.get(key) ?? { title: "콘텐츠", subject: null };
+          const progressChange = progressChangeMap.get(key) ?? 0;
+
+          progressMap.set(key, {
+            contentType: (p.content_type as "book" | "lecture" | "custom") ?? "book",
+            contentId: p.content_id ?? "",
+            title: contentInfo.title,
+            subject: contentInfo.subject,
+            progress: p.progress ?? 0,
+            progressChange,
+          });
+        }
+      });
+
+    const progressList: MonthlyContentProgress["progressList"] = Array.from(progressMap.values())
       .sort((a, b) => b.progress - a.progress)
       .slice(0, 10); // 상위 10개
 
