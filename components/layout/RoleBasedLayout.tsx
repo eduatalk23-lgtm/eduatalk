@@ -111,8 +111,8 @@ export function RoleBasedLayout({
           </Suspense>
         )}
 
-        {/* 페이지 콘텐츠 */}
-        <div className="flex-1">
+        {/* 페이지 콘텐츠 - suppressHydrationWarning으로 hydration 불일치 방지 */}
+        <div className="flex-1" suppressHydrationWarning>
           {children}
         </div>
       </main>

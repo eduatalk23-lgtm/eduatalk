@@ -38,6 +38,7 @@ SMS 발송 시 다음과 같은 DNS 조회 실패 에러가 발생했습니다:
 ### 1. DNS 에러 감지 및 처리
 
 **`lib/services/smsService.ts`**
+
 - DNS 조회 실패(`ENOTFOUND`, `EAI_AGAIN`) 에러를 별도로 감지
 - DNS 에러인 경우 더 명확한 에러 메시지 제공
 - 실패한 호스트명 표시
@@ -46,6 +47,7 @@ SMS 발송 시 다음과 같은 DNS 조회 실패 에러가 발생했습니다:
 ### 2. 개선된 에러 메시지
 
 DNS 에러 발생 시:
+
 - 에러 타입: `dns_error`
 - 실패한 호스트명 표시
 - 에러 코드 (`ENOTFOUND`, `EAI_AGAIN`)
@@ -78,6 +80,7 @@ DNS 에러 발생 시:
 ### 1. 올바른 엔드포인트 확인
 
 뿌리오 API 문서에서 올바른 엔드포인트를 확인하세요:
+
 - 뿌리오 API 문서: https://www.ppurio.com/send-api/develop
 - 뿌리오 고객센터: 1588-5412
 
@@ -113,6 +116,7 @@ dig message.ppurio.com
 ### 4. 가능한 엔드포인트 후보
 
 뿌리오 API의 가능한 엔드포인트:
+
 - `https://message.ppurio.com/v1/send` (기본값, 권장)
 - `https://www.ppurio.com/api/v1/send` (확인 필요)
 
@@ -150,4 +154,3 @@ PPURIO_API_ENDPOINT=https://message.ppurio.com/v1/send
 - 뿌리오 고객센터: 1588-5412
 - 테스트 스크립트: `scripts/test-ppurio-sms.ts`
 - 기본 엔드포인트: `https://message.ppurio.com/v1/send`
-

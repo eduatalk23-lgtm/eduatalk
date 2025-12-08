@@ -295,7 +295,9 @@ export async function sendSMS(
             error.cause.code === "EAI_AGAIN");
 
         if (isDnsError) {
-          const cause = error.cause as { code?: string; hostname?: string } | undefined;
+          const cause = error.cause as
+            | { code?: string; hostname?: string }
+            | undefined;
           const hostname = cause?.hostname || "unknown";
           const code = cause?.code || "ENOTFOUND";
           errorMessage = `DNS 조회 실패: '${hostname}' 도메인을 찾을 수 없습니다. API 엔드포인트 URL을 확인해주세요.`;
