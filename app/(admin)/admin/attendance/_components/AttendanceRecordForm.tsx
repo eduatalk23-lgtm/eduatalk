@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { recordAttendanceAction } from "@/app/(admin)/actions/attendanceActions";
-import { Button } from "@/components/atoms/Button";
-import { Input } from "@/components/atoms/Input";
-import { Label } from "@/components/atoms/Label";
-import { Select } from "@/components/atoms/Select";
+import Button from "@/components/atoms/Button";
+import Input from "@/components/atoms/Input";
+import Label from "@/components/atoms/Label";
+import Select from "@/components/atoms/Select";
 import type { AttendanceStatus, CheckMethod } from "@/lib/domains/attendance/types";
 import {
   ATTENDANCE_STATUS_LABELS,
