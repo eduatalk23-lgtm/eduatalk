@@ -126,22 +126,33 @@ async function StudentContentFilterWrapper({
   activeTab: TabKey;
   params: Record<string, string | undefined>;
 }) {
-  // 필터 옵션 조회
-  const [curriculumRevisions, publishers, platforms, difficulties] = await Promise.all([
+  // 필터 옵션 조회 (에러 발생 시 빈 배열로 대체)
+  const [curriculumRevisions, publishers, platforms, difficulties] = await Promise.allSettled([
     getCurriculumRevisions(),
     activeTab === "books" ? getPublishersForFilter() : Promise.resolve([]),
     activeTab === "lectures" ? getPlatformsForFilter() : Promise.resolve([]),
     activeTab === "books" ? getDifficultiesForMasterBooks() : getDifficultiesForMasterLectures(),
-  ]);
+  ]).then((results) =>
+    results.map((result) => {
+      if (result.status === "fulfilled") {
+        return result.value;
+      } else {
+        console.error("[StudentContentFilterWrapper] 필터 옵션 조회 실패", result.reason);
+        return [];
+      }
+    })
+  );
 
   const filterOptions = {
-    curriculumRevisions: curriculumRevisions.map((rev) => ({
-      id: rev.id,
-      name: rev.name,
-    })),
-    publishers: activeTab === "books" ? publishers : undefined,
-    platforms: activeTab === "lectures" ? platforms : undefined,
-    difficulties,
+    curriculumRevisions: Array.isArray(curriculumRevisions)
+      ? curriculumRevisions.map((rev) => ({
+          id: rev.id,
+          name: rev.name,
+        }))
+      : [],
+    publishers: activeTab === "books" && Array.isArray(publishers) ? publishers : undefined,
+    platforms: activeTab === "lectures" && Array.isArray(platforms) ? platforms : undefined,
+    difficulties: Array.isArray(difficulties) ? difficulties : [],
   };
 
   const basePath = "/contents";

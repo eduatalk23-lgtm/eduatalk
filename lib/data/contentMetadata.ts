@@ -334,21 +334,50 @@ export type Publisher = {
 // ============================================
 
 export async function getCurriculumRevisions(): Promise<CurriculumRevision[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
-  
-  const { data, error } = await supabase
-    .from("curriculum_revisions")
-    .select("*")
-    .order("name", { ascending: true });
+  try {
+    // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
+    const supabaseAdmin = createSupabaseAdminClient();
+    const supabase = supabaseAdmin || await createSupabaseServerClient();
+    
+    const { data, error } = await supabase
+      .from("curriculum_revisions")
+      .select("*")
+      .order("name", { ascending: true });
 
-  if (error) {
-    console.error("[contentMetadata] 개정교육과정 조회 실패", error);
-    throw new Error(`개정교육과정 조회 실패: ${error.message}`);
+    if (error) {
+      // 에러 객체의 모든 속성을 상세히 로깅
+      console.error("[contentMetadata] 개정교육과정 조회 실패", {
+        error,
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        errorStringified: JSON.stringify(error, null, 2),
+      });
+      
+      // 에러 메시지가 없을 경우를 대비한 처리
+      const errorMessage = error.message || error.details || error.hint || "알 수 없는 오류";
+      throw new Error(`개정교육과정 조회 실패: ${errorMessage}`);
+    }
+
+    return (data as CurriculumRevision[]) ?? [];
+  } catch (error) {
+    // 예상치 못한 에러 처리
+    console.error("[contentMetadata] getCurriculumRevisions 예외 발생", {
+      error,
+      errorType: typeof error,
+      errorConstructor: error?.constructor?.name,
+      errorStringified: error instanceof Error 
+        ? JSON.stringify({ message: error.message, stack: error.stack }, null, 2)
+        : JSON.stringify(error, null, 2),
+    });
+    
+    if (error instanceof Error) {
+      throw error;
+    }
+    
+    throw new Error(`개정교육과정 조회 실패: ${String(error)}`);
   }
-
-  return (data as CurriculumRevision[]) ?? [];
 }
 
 export async function createCurriculumRevision(
