@@ -555,6 +555,120 @@ function CourseStatusBadge({
 }
 ```
 
+## 🛡 TypeScript 타입 안전성 (Type Safety)
+
+### ❌ `any` 타입 사용 금지
+
+`any` 타입은 TypeScript의 타입 검사를 무력화시키므로 **절대 사용하지 않습니다**.
+
+```typescript
+// ❌ 나쁜 예: any 사용
+function processData(data: any) {
+  return data.map((item: any) => item.id);
+}
+
+// ✅ 좋은 예: 명시적 타입 정의
+interface DataItem {
+  id: string;
+  name: string;
+}
+
+function processData(data: DataItem[]) {
+  return data.map((item) => item.id);
+}
+```
+
+#### `any` 대신 사용할 대안
+
+1. **`unknown`**: 타입을 모를 때 사용 (타입 검사 강제)
+2. **제네릭**: 재사용 가능한 타입 정의
+3. **명시적 인터페이스/타입**: 데이터 구조에 맞는 타입 정의
+4. **타입 단언 (`as`)**: 타입을 확실히 알 때 사용
+
+```typescript
+// ✅ unknown 사용
+function parseJSON(json: string): unknown {
+  return JSON.parse(json);
+}
+
+// ✅ 제네릭 사용
+function getArrayItem<T>(arr: T[], index: number): T | undefined {
+  return arr[index];
+}
+
+// ✅ 타입 단언 (확실할 때만)
+const element = document.getElementById("root") as HTMLDivElement;
+```
+
+### ❌ `null` 관련 오류 방지
+
+Supabase나 외부 API 응답에서 `null | Type` 형태가 자주 발생합니다. 적절한 null 체크를 수행합니다.
+
+```typescript
+// ❌ 나쁜 예: null 체크 없이 접근
+const { data, error } = await supabase.from("students").select("*");
+const firstStudent = data[0]; // Error: 'data' is possibly 'null'
+
+// ✅ 좋은 예: null 체크 후 접근
+const { data, error } = await supabase.from("students").select("*");
+if (error) {
+  console.error("Error:", error.message);
+  return;
+}
+const firstStudent = data?.[0]; // Optional chaining 사용
+```
+
+#### null 처리 패턴
+
+1. **Optional Chaining (`?.`)**: 안전한 프로퍼티 접근
+2. **Nullish Coalescing (`??`)**: 기본값 제공
+3. **조건부 타입 단언**: 조건문 내에서 타입 좁히기
+4. **명시적 타입 단언 (`as`)**: 타입이 확실할 때
+
+```typescript
+// Optional Chaining + Nullish Coalescing
+const studentName = student?.name ?? "이름 없음";
+
+// 조건문으로 타입 좁히기 (TypeScript narrowing)
+if (error) {
+  // 이 블록에서 error는 non-null
+  const errorDetail = error as PostgrestError; // 타입 단언으로 명확화
+  console.error(errorDetail.message);
+}
+
+// 배열 처리
+const students = (data ?? []) as StudentRow[]; // null이면 빈 배열
+```
+
+### Supabase 쿼리 타입 처리
+
+```typescript
+// ✅ 타입 정의 후 단언 사용
+type StudentRow = {
+  id: string;
+  name: string | null;
+  grade: string | null;
+};
+
+const { data: studentsRaw, error } = await supabase
+  .from("students")
+  .select("id, name, grade");
+
+// 타입 단언으로 명확화
+const students: StudentRow[] | null = studentsRaw as StudentRow[] | null;
+
+// null-safe 처리
+const studentList = students ?? [];
+```
+
+### ✅ 타입 안전성 체크리스트
+
+- [ ] `any` 타입을 사용하지 않았는가?
+- [ ] Supabase 응답에 명시적 타입을 정의했는가?
+- [ ] `null | undefined` 가능성을 처리했는가?
+- [ ] Optional Chaining (`?.`)을 적절히 사용했는가?
+- [ ] 타입 단언 시 조건 검사를 먼저 수행했는가?
+
 ### SOLID 원칙 적용
 
 #### SRP (단일 책임 원칙)
@@ -937,6 +1051,8 @@ export async function generateMetadata({
 - [ ] 불필요한 추상화를 하지 않았는가?
 - [ ] 일관된 네이밍 규칙을 따랐는가?
 - [ ] 적절한 spacing을 사용했는가?
+- [ ] `any` 타입을 사용하지 않았는가?
+- [ ] `null` 체크를 올바르게 수행했는가?
 
 ### Next.js 15 준수
 - [ ] 동적 라우트에서 `await params`를 사용했는가?

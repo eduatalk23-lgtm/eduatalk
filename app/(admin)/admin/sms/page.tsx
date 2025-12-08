@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { PostgrestError } from "@supabase/supabase-js";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -83,41 +84,26 @@ export default async function AdminSMSPage({
   }
 
   if (error) {
+    // error는 이 블록에서 non-null이므로 타입 단언 사용
+    const logsError = error as PostgrestError;
     // 에러 객체 전체를 먼저 로깅
-    console.error("[admin/sms] SMS 로그 조회 실패 - 원본 에러:", error);
-    console.error("[admin/sms] 에러 타입:", typeof error);
-    console.error("[admin/sms] 에러 constructor:", error?.constructor?.name);
+    console.error("[admin/sms] SMS 로그 조회 실패 - 원본 에러:", logsError);
+    console.error("[admin/sms] 에러 타입:", typeof logsError);
+    console.error("[admin/sms] 에러 constructor:", logsError.constructor?.name);
 
     // Supabase 에러 객체의 주요 속성 추출
     const errorInfo: Record<string, unknown> = {
-      message:
-        error?.message ||
-        error?.toString() ||
-        String(error) ||
-        "알 수 없는 에러",
-      code: error?.code || "UNKNOWN",
-      name: error?.name,
-      stack: error?.stack,
+      message: logsError.message || logsError.toString() || String(logsError) || "알 수 없는 에러",
+      code: logsError.code || "UNKNOWN",
+      name: logsError.name,
     };
 
     // Supabase PostgrestError 속성 확인
-    if (error && typeof error === "object") {
-      if ("details" in error) {
-        errorInfo.details = (error as { details?: unknown }).details;
-      }
-      if ("hint" in error) {
-        errorInfo.hint = (error as { hint?: unknown }).hint;
-      }
-      if ("statusCode" in error) {
-        errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
-      }
-      // AppError 속성 확인
-      if ("statusCode" in error && "code" in error) {
-        errorInfo.appErrorCode = (error as { code?: unknown }).code;
-        errorInfo.appErrorStatusCode = (
-          error as { statusCode?: unknown }
-        ).statusCode;
-      }
+    if (logsError.details) {
+      errorInfo.details = logsError.details;
+    }
+    if (logsError.hint) {
+      errorInfo.hint = logsError.hint;
     }
 
     console.error("[admin/sms] SMS 로그 조회 실패 - 상세 정보:", errorInfo);
@@ -203,38 +189,42 @@ export default async function AdminSMSPage({
     // 컬럼이 없으면 무시
   }
 
-  const { data: studentsForSMS, error: studentsError } = await supabase
+  const { data: studentsForSMSRaw, error: studentsError } = await supabase
     .from("students")
     .select(studentsSelectFields)
     .order("name", { ascending: true });
 
+  // 타입 단언으로 StudentRow[]로 변환
+  const studentsForSMS: StudentRow[] | null = studentsForSMSRaw as StudentRow[] | null;
+
   // student_profiles 테이블에서 phone 정보 조회 (학생 본인 연락처)
-  const studentIds = (studentsForSMS ?? []).map((s: any) => s.id);
-  let profiles: Array<{
+  type ProfileData = {
     id: string;
     phone?: string | null;
     mother_phone?: string | null;
     father_phone?: string | null;
-  }> = [];
+  };
+  const studentIdList = (studentsForSMS ?? []).map((s) => s.id);
+  let profiles: ProfileData[] = [];
 
-  if (studentIds.length > 0) {
+  if (studentIdList.length > 0) {
     try {
       const { data: profilesData, error: profilesError } = await supabase
         .from("student_profiles")
         .select("id, phone, mother_phone, father_phone")
-        .in("id", studentIds);
+        .in("id", studentIdList);
 
       if (!profilesError && profilesData) {
-        profiles = profilesData;
+        profiles = profilesData as ProfileData[];
       }
-    } catch (e) {
+    } catch {
       // student_profiles 테이블이 없으면 무시
     }
   }
 
   // 프로필 정보를 학생 정보와 병합 (student_profiles 우선, 없으면 students 테이블 사용)
-  const studentsWithPhones = (studentsForSMS ?? []).map((s: any) => {
-    const profile = profiles.find((p: any) => p.id === s.id);
+  const studentsWithPhones = (studentsForSMS ?? []).map((s) => {
+    const profile = profiles.find((p) => p.id === s.id);
     return {
       ...s,
       phone: profile?.phone ?? null, // student_profiles 우선
@@ -245,28 +235,19 @@ export default async function AdminSMSPage({
 
   // 에러 처리 및 디버깅
   if (studentsError) {
+    // studentsError는 이 블록에서 non-null이므로 타입 단언 사용
+    const studentsFetchError = studentsError as PostgrestError;
     // 에러 객체의 속성을 안전하게 추출
     const errorInfo: Record<string, unknown> = {
-      message:
-        studentsError?.message ||
-        studentsError?.toString() ||
-        String(studentsError) ||
-        "알 수 없는 에러",
-      code: studentsError?.code || "UNKNOWN",
+      message: studentsFetchError.message || studentsFetchError.toString() || String(studentsFetchError) || "알 수 없는 에러",
+      code: studentsFetchError.code || "UNKNOWN",
     };
 
-    if (studentsError && typeof studentsError === "object") {
-      if ("details" in studentsError) {
-        errorInfo.details = (studentsError as { details?: unknown }).details;
-      }
-      if ("hint" in studentsError) {
-        errorInfo.hint = (studentsError as { hint?: unknown }).hint;
-      }
-      if ("statusCode" in studentsError) {
-        errorInfo.statusCode = (
-          studentsError as { statusCode?: unknown }
-        ).statusCode;
-      }
+    if (studentsFetchError.details) {
+      errorInfo.details = studentsFetchError.details;
+    }
+    if (studentsFetchError.hint) {
+      errorInfo.hint = studentsFetchError.hint;
     }
 
     console.error("[admin/sms] 학생 목록 조회 실패:", errorInfo);
@@ -275,7 +256,7 @@ export default async function AdminSMSPage({
   // 디버깅: 학생 목록 조회 결과 확인
   if (process.env.NODE_ENV === "development") {
     const studentsWithAnyPhone = studentsWithPhones.filter(
-      (s: any) => s.phone || s.mother_phone || s.father_phone
+      (s) => s.phone || s.mother_phone || s.father_phone
     );
     console.log("[admin/sms] 학생 목록 조회 결과:", {
       count: studentsWithPhones.length,
@@ -284,7 +265,7 @@ export default async function AdminSMSPage({
       profilesCount: profiles.length,
       tenantId: tenantContext?.tenantId,
       hasError: !!studentsError,
-      errorCode: studentsError?.code || null,
+      errorCode: studentsError?.code ?? null,
       sampleStudent: studentsWithPhones[0]
         ? {
             id: studentsWithPhones[0].id,
@@ -299,14 +280,16 @@ export default async function AdminSMSPage({
 
   // 학원명 조회
   let academyName = "학원";
-  if (tenantContext?.tenantId) {
-    const { data: tenant } = await supabase
+  const currentTenantId = tenantContext?.tenantId;
+  if (currentTenantId) {
+    const { data: tenantData } = await supabase
       .from("tenants")
       .select("name")
-      .eq("id", tenantContext.tenantId)
+      .eq("id", currentTenantId)
       .single();
-    if (tenant?.name) {
-      academyName = tenant.name;
+    const tenantName = tenantData?.name;
+    if (tenantName) {
+      academyName = tenantName;
     }
   }
 
@@ -377,21 +360,21 @@ export default async function AdminSMSPage({
             학생 목록을 불러오는 중 오류가 발생했습니다.
           </p>
           <p className="mt-1 text-xs text-red-700">
-            에러 코드: {studentsError.code || "알 수 없음"}
+            에러 코드: {studentsError?.code ?? "알 수 없음"}
           </p>
           <p className="mt-1 text-xs text-red-600">
-            {studentsError.message || "알 수 없는 오류"}
+            {studentsError?.message ?? "알 수 없는 오류"}
           </p>
-          {studentsError.hint && (
+          {studentsError?.hint && (
             <p className="mt-1 text-xs text-red-600">
-              힌트: {studentsError.hint}
+              힌트: {studentsError?.hint}
             </p>
           )}
         </div>
       )}
 
       {/* 학생이 없는 경우 안내 */}
-      {!studentsError && (!studentsForSMS || studentsForSMS.length === 0) && (
+      {!studentsError && (!studentsForSMS?.length) && (
         <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
           <p className="text-sm font-medium text-yellow-800">
             등록된 학생이 없습니다.
@@ -404,7 +387,7 @@ export default async function AdminSMSPage({
 
       {/* SMS 발송 폼 - 항상 표시 */}
       <SMSSendForm
-        students={studentsWithPhones.map((s: any) => ({
+        students={studentsWithPhones.map((s) => ({
           id: s.id,
           name: s.name ?? null,
           grade: s.grade ?? null,
