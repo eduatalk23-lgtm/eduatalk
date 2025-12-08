@@ -27,7 +27,10 @@ export async function toggleStudentStatus(
 
   if (error) {
     console.error("[admin/studentManagement] 학생 상태 변경 실패", error);
-    return { success: false, error: error.message || "상태 변경에 실패했습니다." };
+    return {
+      success: false,
+      error: error.message || "상태 변경에 실패했습니다.",
+    };
   }
 
   revalidatePath("/admin/students");
@@ -58,16 +61,26 @@ export async function deleteStudent(
 
   if (updateError) {
     console.error("[admin/studentManagement] 학생 비활성화 실패", updateError);
-    return { success: false, error: updateError.message || "학생 삭제에 실패했습니다." };
+    return {
+      success: false,
+      error: updateError.message || "학생 삭제에 실패했습니다.",
+    };
   }
 
   // 2. auth.users에서도 삭제 (관리자 권한 필요)
   try {
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(studentId);
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(
+      studentId
+    );
     if (deleteError) {
-      console.error("[admin/studentManagement] 인증 사용자 삭제 실패", deleteError);
+      console.error(
+        "[admin/studentManagement] 인증 사용자 삭제 실패",
+        deleteError
+      );
       // 인증 사용자 삭제 실패해도 students 테이블은 업데이트되었으므로 경고만
-      console.warn("[admin/studentManagement] 인증 사용자 삭제 실패했지만 학생 정보는 비활성화되었습니다.");
+      console.warn(
+        "[admin/studentManagement] 인증 사용자 삭제 실패했지만 학생 정보는 비활성화되었습니다."
+      );
     }
   } catch (error) {
     console.error("[admin/studentManagement] 인증 사용자 삭제 중 오류", error);
@@ -105,7 +118,10 @@ export async function updateStudentClass(
 
   if (error) {
     console.error("[admin/studentManagement] 학생 반 정보 변경 실패", error);
-    return { success: false, error: error.message || "반 정보 변경에 실패했습니다." };
+    return {
+      success: false,
+      error: error.message || "반 정보 변경에 실패했습니다.",
+    };
   }
 
   revalidatePath("/admin/students");
@@ -113,4 +129,3 @@ export async function updateStudentClass(
 
   return { success: true };
 }
-

@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
@@ -105,12 +105,17 @@ async function getStudentWeeklyPlanCompletion(
 
     const completed = planRows.filter(
       (p: { completed_amount?: number | null }) =>
-        p.completed_amount !== null && p.completed_amount !== undefined && p.completed_amount > 0
+        p.completed_amount !== null &&
+        p.completed_amount !== undefined &&
+        p.completed_amount > 0
     ).length;
 
     return Math.round((completed / planRows.length) * 100);
   } catch (error) {
-    console.error(`[admin/students] 플랜 실행률 조회 실패 (${studentId})`, error);
+    console.error(
+      `[admin/students] 플랜 실행률 조회 실패 (${studentId})`,
+      error
+    );
     return 0;
   }
 }
@@ -137,7 +142,10 @@ async function getStudentLastActivity(
 
     return session?.started_at ?? null;
   } catch (error) {
-    console.error(`[admin/students] 최근 학습일 조회 실패 (${studentId})`, error);
+    console.error(
+      `[admin/students] 최근 학습일 조회 실패 (${studentId})`,
+      error
+    );
     return null;
   }
 }
@@ -182,9 +190,16 @@ export default async function AdminStudentsPage({
     supabase
       .from("students")
       .select(selectFields, { count: "exact" })
-      .order(sortBy === "created_at" ? "created_at" : sortBy === "grade" ? "grade" : "name", {
-        ascending: sortBy === "created_at" ? false : true,
-      });
+      .order(
+        sortBy === "created_at"
+          ? "created_at"
+          : sortBy === "grade"
+          ? "grade"
+          : "name",
+        {
+          ascending: sortBy === "created_at" ? false : true,
+        }
+      );
 
   let query = selectStudents();
 
@@ -242,7 +257,9 @@ export default async function AdminStudentsPage({
       if (s.student_id) studentIdsWithScores.add(s.student_id);
     });
 
-    filteredStudents = studentRows.filter((s) => studentIdsWithScores.has(s.id));
+    filteredStudents = studentRows.filter((s) =>
+      studentIdsWithScores.has(s.id)
+    );
   }
 
   // 이번 주 날짜 범위
@@ -250,7 +267,12 @@ export default async function AdminStudentsPage({
 
   // 배치 쿼리로 모든 학생 통계를 한 번에 조회 (N+1 문제 해결)
   const studentIds = filteredStudents.map((s) => s.id);
-  const statsMap = await getStudentsStatsBatch(supabase, studentIds, weekStart, weekEnd);
+  const statsMap = await getStudentsStatsBatch(
+    supabase,
+    studentIds,
+    weekStart,
+    weekEnd
+  );
 
   // 통계 데이터를 학생 정보와 결합
   const studentsWithStats = filteredStudents.map((student) => {
@@ -274,10 +296,15 @@ export default async function AdminStudentsPage({
 
       {/* 검색 및 필터 바 */}
       <div className="mb-6 space-y-4">
-        <form method="get" className="flex flex-col gap-4 md:flex-row md:items-end">
+        <form
+          method="get"
+          className="flex flex-col gap-4 md:flex-row md:items-end"
+        >
           {/* 검색 */}
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-gray-700">이름 검색</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              이름 검색
+            </label>
             <input
               type="text"
               name="search"
@@ -289,7 +316,9 @@ export default async function AdminStudentsPage({
 
           {/* 학년 필터 */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">학년</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              학년
+            </label>
             <input
               type="text"
               name="grade"
@@ -301,7 +330,9 @@ export default async function AdminStudentsPage({
 
           {/* 반 필터 */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">반</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              반
+            </label>
             <input
               type="text"
               name="class"
@@ -341,7 +372,9 @@ export default async function AdminStudentsPage({
 
           {/* 정렬 */}
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">정렬</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              정렬
+            </label>
             <select
               name="sort"
               defaultValue={sortBy}
@@ -362,7 +395,11 @@ export default async function AdminStudentsPage({
           </button>
 
           {/* 초기화 */}
-          {(searchQuery || gradeFilter || hasScoreFilter || showInactiveFilter || sortBy !== "name") && (
+          {(searchQuery ||
+            gradeFilter ||
+            hasScoreFilter ||
+            showInactiveFilter ||
+            sortBy !== "name") && (
             <Link
               href="/admin/students"
               className="rounded-lg border border-gray-300 bg-white px-6 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -441,7 +478,9 @@ export default async function AdminStudentsPage({
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                     {student.lastActivity
-                      ? new Date(student.lastActivity).toLocaleDateString("ko-KR")
+                      ? new Date(student.lastActivity).toLocaleDateString(
+                          "ko-KR"
+                        )
                       : "-"}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
@@ -522,4 +561,3 @@ export default async function AdminStudentsPage({
     </div>
   );
 }
-

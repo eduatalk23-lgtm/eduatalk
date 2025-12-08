@@ -12,6 +12,7 @@ import {
   normalizeError,
   getUserFacingMessage,
   logError,
+  withErrorHandling,
 } from "@/lib/errors";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
@@ -149,7 +150,7 @@ export async function checkInWithLocation(
   latitude: number,
   longitude: number
 ): Promise<{ success: boolean; error?: string; distance?: number }> {
-  return withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     const user = await requireStudentAuth();
 
     // 위치 검증
@@ -234,6 +235,7 @@ export async function checkInWithLocation(
       distance: verification.distance,
     };
   });
+  return await handler();
 }
 
 /**
@@ -243,7 +245,7 @@ export async function checkOut(): Promise<{
   success: boolean;
   error?: string;
 }> {
-  return withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     const user = await requireStudentAuth();
 
     const today = new Date().toISOString().slice(0, 10);
@@ -322,6 +324,7 @@ export async function checkOut(): Promise<{
     revalidatePath("/attendance/check-in");
     return { success: true };
   });
+  return await handler();
 }
 
 /**
@@ -340,7 +343,7 @@ export async function getTodayAttendance(): Promise<{
   } | null;
   error?: string;
 }> {
-  return withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     const user = await requireStudentAuth();
 
     const today = new Date().toISOString().slice(0, 10);
@@ -361,4 +364,5 @@ export async function getTodayAttendance(): Promise<{
         : null,
     };
   });
+  return await handler();
 }

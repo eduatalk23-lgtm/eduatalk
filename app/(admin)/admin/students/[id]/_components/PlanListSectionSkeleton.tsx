@@ -1,4 +1,4 @@
-import { CardSkeleton } from "@/components/ui/LoadingSkeleton";
+dimport { CardSkeleton } from "@/components/ui/LoadingSkeleton";
 
 export function PlanListSectionSkeleton() {
   return (

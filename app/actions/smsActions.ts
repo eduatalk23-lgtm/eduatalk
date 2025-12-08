@@ -23,7 +23,7 @@ export async function sendAttendanceSMS(
     | "attendance_late",
   variables: Record<string, string>
 ): Promise<{ success: boolean; msgId?: string; error?: string }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
@@ -172,7 +172,7 @@ export async function sendBulkAttendanceSMS(
   failed: number;
   errors: Array<{ studentId: string; error: string }>;
 }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
@@ -352,7 +352,7 @@ export async function sendGeneralSMS(
   message: string,
   recipientId?: string
 ): Promise<{ success: boolean; msgId?: string; error?: string }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
@@ -399,7 +399,7 @@ export async function sendBulkGeneralSMS(
   failed: number;
   errors: Array<{ studentId: string; error: string }>;
 }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
@@ -455,6 +455,36 @@ export async function sendBulkGeneralSMS(
       .single();
 
     const academyName = tenant?.name || "학원";
+
+    // student_profiles 테이블에서 phone 정보 조회 (학생 본인 연락처)
+    const studentIds = students.map((s: any) => s.id);
+    let profiles: Array<{ id: string; phone?: string | null; mother_phone?: string | null; father_phone?: string | null }> = [];
+    
+    if (studentIds.length > 0) {
+      try {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("student_profiles")
+          .select("id, phone, mother_phone, father_phone")
+          .in("id", studentIds);
+        
+        if (!profilesError && profilesData) {
+          profiles = profilesData;
+        }
+      } catch (e) {
+        // student_profiles 테이블이 없으면 무시
+      }
+    }
+
+    // 프로필 정보를 학생 정보와 병합 (student_profiles 우선, 없으면 students 테이블 사용)
+    const studentsWithPhones = students.map((s: any) => {
+      const profile = profiles.find((p: any) => p.id === s.id);
+      return {
+        ...s,
+        phone: profile?.phone ?? null,
+        mother_phone: profile?.mother_phone ?? s.mother_phone ?? null,
+        father_phone: profile?.father_phone ?? s.father_phone ?? null,
+      };
+    });
 
     // 전송 대상자에 따라 전화번호 선택
     const getPhoneByRecipientType = (student: any, type: "student" | "mother" | "father"): string | null => {

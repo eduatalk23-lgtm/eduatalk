@@ -1,10 +1,46 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SMSSendForm } from "./_components/SMSSendForm";
 
-export default async function AdminSMSPage() {
+type SMSLogRow = {
+  id: string;
+  tenant_id: string;
+  recipient_id: string | null;
+  recipient_phone: string | null;
+  message_content: string | null;
+  template_id: string | null;
+  status: string | null;
+  sent_at: string | null;
+  delivered_at: string | null;
+  error_message: string | null;
+  created_at: string;
+};
+
+type StudentRow = {
+  id: string;
+  name?: string | null;
+  grade?: string | null;
+  class?: string | null;
+  phone?: string | null;
+  mother_phone?: string | null;
+  father_phone?: string | null;
+  is_active?: boolean | null;
+};
+
+type AdminSMSPageProps = {
+  searchParams: Promise<Record<string, string | undefined>>;
+};
+
+export default async function AdminSMSPage({
+  searchParams,
+}: AdminSMSPageProps) {
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || !isAdminRole(role)) {
@@ -250,7 +286,7 @@ export default async function AdminSMSPage() {
   let filteredLogs = logRows;
   if (searchQuery) {
     filteredLogs = logRows.filter((log) => {
-      const studentName = studentMap.get(log.recipient_id ?? "") ?? "";
+      const studentName = (studentMap.get(log.recipient_id ?? "") ?? "") as string;
       const phone = log.recipient_phone ?? "";
       const message = log.message_content ?? "";
       return (

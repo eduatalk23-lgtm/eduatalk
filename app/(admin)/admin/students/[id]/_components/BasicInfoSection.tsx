@@ -21,7 +21,10 @@ type BasicInfoSectionProps = {
   isAdmin: boolean;
 };
 
-export function BasicInfoSection({ student: initialStudent, isAdmin }: BasicInfoSectionProps) {
+export function BasicInfoSection({
+  student: initialStudent,
+  isAdmin,
+}: BasicInfoSectionProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -55,7 +58,7 @@ export function BasicInfoSection({ student: initialStudent, isAdmin }: BasicInfo
 
     startTransition(async () => {
       const result = await updateStudentClass(student.id, classValue || null);
-      
+
       if (result.success) {
         setEditingClass(false);
         showSuccess("반 정보가 변경되었습니다.");

@@ -22,10 +22,9 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 /**
  * 출석 기록 생성 또는 수정
  */
-export async function recordAttendanceAction(
+const _recordAttendanceAction = async (
   input: CreateAttendanceRecordInput
-): Promise<{ success: boolean; error?: string }> {
-  return withErrorHandling(async () => {
+): Promise<{ success: boolean; error?: string }> => {
     await requireAdminAuth();
 
     // 입력 검증
@@ -93,7 +92,7 @@ export async function recordAttendanceAction(
       // 학부모 연락처가 있고, 출석 상태에 따라 SMS 발송
       if (hasParentContact && tenant?.name) {
         const academyName = tenant.name;
-        const studentName = student.name || "학생";
+        const studentName = student?.name || "학생";
         const attendanceDate = new Date(input.attendance_date).toLocaleDateString(
           "ko-KR",
           { month: "long", day: "numeric" }
@@ -215,7 +214,7 @@ export async function getAttendanceRecordsAction(
   }>;
   error?: string;
 }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
 
     const records = await getAttendanceRecords(filters);
@@ -257,7 +256,7 @@ export async function getAttendanceByStudentAction(
   }>;
   error?: string;
 }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
 
     const records = await getAttendanceByStudent(studentId, startDate, endDate);
@@ -298,7 +297,7 @@ export async function getAttendanceStatisticsAction(
   };
   error?: string;
 }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
 
     const stats = await calculateAttendanceStats(
@@ -321,7 +320,7 @@ export async function deleteAttendanceRecordAction(
   recordId: string,
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
-  return withErrorHandling(async () => {
+  return await withErrorHandling(async () => {
     await requireAdminAuth();
 
     await deleteRecord(recordId);

@@ -14,7 +14,10 @@ import {
 } from "./_components/AttendanceRecordForm";
 import { AttendanceList } from "./_components/AttendanceList";
 import { AttendanceStatistics } from "./_components/AttendanceStatistics";
-import type { AttendanceFilters } from "@/lib/domains/attendance/types";
+import type {
+  AttendanceFilters,
+  AttendanceRecord,
+} from "@/lib/domains/attendance/types";
 import { calculateAttendanceStats } from "@/lib/domains/attendance/service";
 
 type StudentRow = {
