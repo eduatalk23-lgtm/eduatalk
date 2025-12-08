@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       const supabase = await createSupabaseServerClient();
       const { data: students, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, parent_contact")
+        .select("id, name")
         .in("id", studentIds);
 
       if (studentsError) {

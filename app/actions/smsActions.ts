@@ -185,14 +185,14 @@ export async function sendBulkAttendanceSMS(
     }
 
     // SMS 발송 대상 준비 (mother_phone을 우선 사용, 없으면 father_phone 사용)
-    const recipients = students
+    const recipients = studentsWithPhones
       .map((student) => {
         const parentContact = student.mother_phone || student.father_phone;
-        return { ...student, parent_contact: parentContact };
+        return { ...student, selectedPhone: parentContact };
       })
-      .filter((student) => student.parent_contact)
+      .filter((student) => student.selectedPhone)
       .map((student) => ({
-        phone: student.parent_contact!,
+        phone: student.selectedPhone!,
         message: formatSMSTemplate(templateType, {
           ...variables,
           학생명: student.name || "학생",
@@ -314,7 +314,7 @@ export async function sendBulkGeneralSMS(
     const supabase = await createSupabaseServerClient();
     const { data: students, error: studentsError } = await supabase
       .from("students")
-      .select("id, name, parent_contact")
+      .select("id, name")
       .in("id", studentIds);
 
     if (studentsError) {

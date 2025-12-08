@@ -7,7 +7,9 @@ import { formatSMSTemplate, type SMSTemplateType } from "@/lib/services/smsTempl
 type Student = {
   id: string;
   name: string | null;
-  parent_contact: string | null;
+  phone?: string | null;
+  mother_phone?: string | null;
+  father_phone?: string | null;
 };
 
 type SMSPreviewModalProps = {
@@ -110,7 +112,7 @@ export function SMSPreviewModal({
                       {student.name || "이름 없음"}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {student.parent_contact}
+                      {student.mother_phone || student.father_phone || student.phone || "연락처 없음"}
                     </div>
                   </div>
                 </div>
