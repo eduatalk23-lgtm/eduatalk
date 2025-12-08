@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { generateQRCodeAction } from "@/app/(admin)/actions/qrCodeActions";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
@@ -10,7 +10,7 @@ export function QRCodeDisplay() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadQRCode = async () => {
+  const loadQRCode = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -25,11 +25,11 @@ export function QRCodeDisplay() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadQRCode();
-  }, []);
+  }, [loadQRCode]);
 
   const handleDownload = () => {
     if (!qrCodeUrl) return;
@@ -137,7 +137,11 @@ export function QRCodeDisplay() {
             <Button onClick={loadQRCode} variant="outline" className="flex-1">
               새로고침
             </Button>
-            <Button onClick={handleDownload} variant="outline" className="flex-1">
+            <Button
+              onClick={handleDownload}
+              variant="outline"
+              className="flex-1"
+            >
               다운로드
             </Button>
             <Button onClick={handlePrint} variant="outline" className="flex-1">
@@ -158,4 +162,3 @@ export function QRCodeDisplay() {
     </Card>
   );
 }
-
