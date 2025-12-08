@@ -6,6 +6,8 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents } from "../../_utils";
 import Link from "next/link";
 import { RoleChangeSection } from "./_components/RoleChangeSection";
+import { StudentAttendanceNotificationSettings } from "./_components/StudentAttendanceNotificationSettings";
+import { getStudentAttendanceNotificationSettings } from "@/app/(parent)/actions/parentSettingsActions";
 
 export default async function ParentSettingsPage() {
   const supabase = await createSupabaseServerClient();
@@ -104,6 +106,41 @@ export default async function ParentSettingsPage() {
             </div>
           )}
         </div>
+
+        {/* 자녀별 출석 알림 설정 */}
+        {linkedStudents.length > 0 && (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              출석 알림 설정
+            </h2>
+            <p className="mb-4 text-sm text-gray-500">
+              각 자녀별로 출석 관련 SMS 알림을 받을 항목을 설정할 수 있습니다. 기본값이면 학원 기본 설정을 따릅니다.
+            </p>
+            <div className="space-y-4">
+              {await Promise.all(
+                linkedStudents.map(async (student) => {
+                  const settingsResult =
+                    await getStudentAttendanceNotificationSettings(student.id);
+                  const settings = settingsResult.data || {
+                    attendance_check_in_enabled: null,
+                    attendance_check_out_enabled: null,
+                    attendance_absent_enabled: null,
+                    attendance_late_enabled: null,
+                  };
+
+                  return (
+                    <StudentAttendanceNotificationSettings
+                      key={student.id}
+                      studentId={student.id}
+                      studentName={student.name || "이름 없음"}
+                      initialSettings={settings}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 연결 추가 요청 코드 (추후 구현) */}
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">

@@ -16,11 +16,6 @@ type NotificationSettings = {
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;
   quiet_hours_end: string;
-  // 출석 알림 설정 (nullable - NULL이면 학원 기본 설정 사용)
-  attendance_check_in_enabled?: boolean | null;
-  attendance_check_out_enabled?: boolean | null;
-  attendance_absent_enabled?: boolean | null;
-  attendance_late_enabled?: boolean | null;
 };
 
 type NotificationSettingsViewProps = {
@@ -36,20 +31,8 @@ export function NotificationSettingsView({
   const [error, setError] = useState<string | null>(null);
 
   const handleToggle = (key: keyof NotificationSettings) => {
-    if (typeof settings[key] === "boolean" || settings[key] === null || settings[key] === undefined) {
-      // 출석 알림 설정의 경우: null -> true -> false -> null 순환
-      if (key.startsWith("attendance_")) {
-        const currentValue = settings[key];
-        if (currentValue === null || currentValue === undefined) {
-          setSettings((prev) => ({ ...prev, [key]: true }));
-        } else if (currentValue === true) {
-          setSettings((prev) => ({ ...prev, [key]: false }));
-        } else {
-          setSettings((prev) => ({ ...prev, [key]: null }));
-        }
-      } else {
-        setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-      }
+    if (typeof settings[key] === "boolean") {
+      setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
       setSuccess(false);
       setError(null);
     }
@@ -354,170 +337,6 @@ export function NotificationSettingsView({
         )}
       </div>
 
-      {/* 출석 알림 설정 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">출석 알림</h2>
-        <p className="mb-4 text-sm text-gray-500">
-          출석 관련 SMS 알림을 받을 항목을 설정합니다. 개별 설정이 없으면 학원 기본 설정을 따릅니다.
-        </p>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">입실 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                입실 시 학부모에게 SMS 발송 여부
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">
-                {settings.attendance_check_in_enabled === null || settings.attendance_check_in_enabled === undefined
-                  ? "기본값"
-                  : settings.attendance_check_in_enabled
-                  ? "ON"
-                  : "OFF"}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleToggle("attendance_check_in_enabled")}
-                className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                  settings.attendance_check_in_enabled === true
-                    ? "bg-indigo-600"
-                    : settings.attendance_check_in_enabled === false
-                    ? "bg-gray-400"
-                    : "bg-gray-200"
-                )}
-              >
-                <span
-                  className={cn(
-                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                    settings.attendance_check_in_enabled === true
-                      ? "translate-x-6"
-                      : "translate-x-1"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">퇴실 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                퇴실 시 학부모에게 SMS 발송 여부
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">
-                {settings.attendance_check_out_enabled === null || settings.attendance_check_out_enabled === undefined
-                  ? "기본값"
-                  : settings.attendance_check_out_enabled
-                  ? "ON"
-                  : "OFF"}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleToggle("attendance_check_out_enabled")}
-                className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                  settings.attendance_check_out_enabled === true
-                    ? "bg-indigo-600"
-                    : settings.attendance_check_out_enabled === false
-                    ? "bg-gray-400"
-                    : "bg-gray-200"
-                )}
-              >
-                <span
-                  className={cn(
-                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                    settings.attendance_check_out_enabled === true
-                      ? "translate-x-6"
-                      : "translate-x-1"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">결석 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                결석 시 학부모에게 SMS 발송 여부
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">
-                {settings.attendance_absent_enabled === null || settings.attendance_absent_enabled === undefined
-                  ? "기본값"
-                  : settings.attendance_absent_enabled
-                  ? "ON"
-                  : "OFF"}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleToggle("attendance_absent_enabled")}
-                className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                  settings.attendance_absent_enabled === true
-                    ? "bg-indigo-600"
-                    : settings.attendance_absent_enabled === false
-                    ? "bg-gray-400"
-                    : "bg-gray-200"
-                )}
-              >
-                <span
-                  className={cn(
-                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                    settings.attendance_absent_enabled === true
-                      ? "translate-x-6"
-                      : "translate-x-1"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">지각 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                지각 시 학부모에게 SMS 발송 여부
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">
-                {settings.attendance_late_enabled === null || settings.attendance_late_enabled === undefined
-                  ? "기본값"
-                  : settings.attendance_late_enabled
-                  ? "ON"
-                  : "OFF"}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleToggle("attendance_late_enabled")}
-                className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                  settings.attendance_late_enabled === true
-                    ? "bg-indigo-600"
-                    : settings.attendance_late_enabled === false
-                    ? "bg-gray-400"
-                    : "bg-gray-200"
-                )}
-              >
-                <span
-                  className={cn(
-                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                    settings.attendance_late_enabled === true
-                      ? "translate-x-6"
-                      : "translate-x-1"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 저장 버튼 */}
       <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-6">
