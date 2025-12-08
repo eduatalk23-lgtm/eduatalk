@@ -149,11 +149,10 @@ export default async function AdminSMSPage({
     (students ?? []).map((s: StudentRow) => [s.id, s.name ?? "이름 없음"])
   );
 
-  // SMS 발송 폼용 학생 목록 조회 (학부모 연락처 포함)
+  // SMS 발송 폼용 학생 목록 조회 (모든 학생, 학부모 연락처 포함)
   const { data: studentsForSMS } = await supabase
     .from("students")
     .select("id, name, parent_contact")
-    .not("parent_contact", "is", null)
     .order("name", { ascending: true });
 
   // 검색 필터링 (학생 이름, 전화번호, 메시지 내용으로)
@@ -215,16 +214,14 @@ export default async function AdminSMSPage({
         <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
       </div>
 
-      {/* SMS 발송 폼 */}
-      {studentsForSMS && studentsForSMS.length > 0 && (
-        <SMSSendForm
-          students={studentsForSMS.map((s) => ({
-            id: s.id,
-            name: s.name,
-            parent_contact: s.parent_contact,
-          }))}
-        />
-      )}
+      {/* SMS 발송 폼 - 항상 표시 */}
+      <SMSSendForm
+        students={(studentsForSMS || []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          parent_contact: s.parent_contact,
+        }))}
+      />
 
       {/* 통계 */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
