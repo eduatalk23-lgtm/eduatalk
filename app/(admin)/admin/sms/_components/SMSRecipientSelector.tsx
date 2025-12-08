@@ -6,12 +6,16 @@ import Input from "@/components/atoms/Input";
 import Select from "@/components/atoms/Select";
 import Button from "@/components/atoms/Button";
 
+import type { RecipientType } from "./SMSSendForm";
+
 type Student = {
   id: string;
   name: string | null;
   grade?: string | null;
   class?: string | null;
-  parent_contact: string | null;
+  phone: string | null;
+  mother_phone: string | null;
+  father_phone: string | null;
   is_active?: boolean | null;
 };
 
@@ -19,6 +23,8 @@ type SMSRecipientSelectorProps = {
   students: Student[];
   selectedStudentIds: Set<string>;
   onSelectionChange: (selectedIds: Set<string>) => void;
+  recipientType?: RecipientType;
+  onRecipientTypeChange?: (type: RecipientType) => void;
 };
 
 type StudentFilter = {
@@ -33,13 +39,15 @@ export function SMSRecipientSelector({
   students,
   selectedStudentIds,
   onSelectionChange,
+  recipientType = "mother",
+  onRecipientTypeChange,
 }: SMSRecipientSelectorProps) {
   const [filter, setFilter] = useState<StudentFilter>({
     search: "",
     grade: "",
     class: "",
     isActive: "all",
-    hasParentContact: "yes", // 기본값: 학부모 연락처가 있는 학생만
+    hasParentContact: "all", // 모든 학생 조회 가능하도록 변경
   });
 
   // 고유 학년 목록 추출
@@ -67,8 +75,10 @@ export function SMSRecipientSelector({
       if (filter.search) {
         const searchLower = filter.search.toLowerCase();
         const nameMatch = student.name?.toLowerCase().includes(searchLower);
-        const phoneMatch = student.parent_contact?.includes(filter.search);
-        if (!nameMatch && !phoneMatch) return false;
+        const phoneMatch = student.phone?.includes(filter.search);
+        const motherPhoneMatch = student.mother_phone?.includes(filter.search);
+        const fatherPhoneMatch = student.father_phone?.includes(filter.search);
+        if (!nameMatch && !phoneMatch && !motherPhoneMatch && !fatherPhoneMatch) return false;
       }
 
       // 학년 필터
@@ -89,22 +99,34 @@ export function SMSRecipientSelector({
         return false;
       }
 
-      // 학부모 연락처 필터
-      if (filter.hasParentContact === "yes" && !student.parent_contact) {
-        return false;
-      }
-      if (filter.hasParentContact === "no" && student.parent_contact) {
-        return false;
-      }
+      // 학부모 연락처 필터 (모든 학생 조회 가능하도록 변경)
+      // hasParentContact 필터는 더 이상 사용하지 않음 (모든 학생 조회)
 
       return true;
     });
   }, [students, filter]);
 
-  // 필터링된 학생 중 선택 가능한 학생 (학부모 연락처가 있는 학생)
+  // 전송 대상자에 따라 전화번호 선택
+  const getPhoneByRecipientType = (student: Student, type: RecipientType): string | null => {
+    switch (type) {
+      case "student":
+        return student.phone;
+      case "mother":
+        return student.mother_phone;
+      case "father":
+        return student.father_phone;
+      default:
+        return student.mother_phone ?? student.father_phone ?? student.phone;
+    }
+  };
+
+  // 필터링된 학생 중 선택 가능한 학생 (선택한 대상자 타입에 따라)
   const selectableStudents = useMemo(() => {
-    return filteredStudents.filter((s) => s.parent_contact);
-  }, [filteredStudents]);
+    return filteredStudents.filter((s) => {
+      const phone = getPhoneByRecipientType(s, recipientType);
+      return !!phone;
+    });
+  }, [filteredStudents, recipientType]);
 
   const handleToggleStudent = (studentId: string) => {
     const next = new Set(selectedStudentIds);
@@ -131,8 +153,27 @@ export function SMSRecipientSelector({
     <div className="space-y-4">
       {/* 필터 섹션 */}
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <h3 className="mb-3 text-sm font-semibold text-gray-900">발송 대상자 필터</h3>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">발송 대상자 필터</h3>
+          {onRecipientTypeChange && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="bulk-recipient-type" className="text-xs text-gray-600">
+                전송 대상:
+              </Label>
+              <Select
+                id="bulk-recipient-type"
+                value={recipientType}
+                onChange={(e) => onRecipientTypeChange(e.target.value as RecipientType)}
+                className="text-xs"
+              >
+                <option value="student">학생</option>
+                <option value="mother">어머니</option>
+                <option value="father">아버지</option>
+              </Select>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div>
             <Label htmlFor="filter-search">이름/전화번호 검색</Label>
             <Input
@@ -197,20 +238,6 @@ export function SMSRecipientSelector({
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="filter-contact">학부모 연락처</Label>
-            <Select
-              id="filter-contact"
-              value={filter.hasParentContact}
-              onChange={(e) =>
-                setFilter((prev) => ({ ...prev, hasParentContact: e.target.value }))
-              }
-            >
-              <option value="all">전체</option>
-              <option value="yes">있음</option>
-              <option value="no">없음</option>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -268,9 +295,17 @@ export function SMSRecipientSelector({
                       : student.grade
                       ? `${student.grade}학년`
                       : ""}
-                    {student.parent_contact && (
-                      <span className="ml-2">{student.parent_contact}</span>
-                    )}
+                    {(() => {
+                      const phone = getPhoneByRecipientType(student, recipientType);
+                      const recipientTypeLabel = 
+                        recipientType === "student" ? "학생" :
+                        recipientType === "mother" ? "어머니" : "아버지";
+                      return phone ? (
+                        <span className="ml-2">({recipientTypeLabel}) {phone}</span>
+                      ) : (
+                        <span className="ml-2 text-red-500">({recipientTypeLabel} 연락처 없음)</span>
+                      );
+                    })()}
                   </div>
                 </div>
               </label>
@@ -279,11 +314,15 @@ export function SMSRecipientSelector({
         )}
       </div>
 
-      {/* 필터링된 학생 중 연락처가 없는 학생 안내 */}
+      {/* 필터링된 학생 중 선택한 대상자 타입의 연락처가 없는 학생 안내 */}
       {filteredStudents.length > selectableStudents.length && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800">
-          학부모 연락처가 없는 학생 {filteredStudents.length - selectableStudents.length}명은
-          선택할 수 없습니다.
+          {(() => {
+            const recipientTypeLabel = 
+              recipientType === "student" ? "학생 본인" :
+              recipientType === "mother" ? "어머니" : "아버지";
+            return `${recipientTypeLabel} 연락처가 없는 학생 ${filteredStudents.length - selectableStudents.length}명은 선택할 수 없습니다.`;
+          })()}
         </div>
       )}
     </div>

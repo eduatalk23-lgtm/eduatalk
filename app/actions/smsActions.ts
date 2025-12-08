@@ -36,11 +36,11 @@ export async function sendAttendanceSMS(
       );
     }
 
-    // 학생 정보 조회
+    // 학생 정보 조회 (mother_phone, father_phone 사용)
     const supabase = await createSupabaseServerClient();
     const { data: student, error: studentError } = await supabase
       .from("students")
-      .select("id, name, parent_contact")
+      .select("id, name, mother_phone, father_phone")
       .eq("id", studentId)
       .maybeSingle();
 
@@ -63,7 +63,8 @@ export async function sendAttendanceSMS(
       );
     }
 
-    if (!student.parent_contact) {
+    const parentContact = student.mother_phone || student.father_phone;
+    if (!parentContact) {
       throw new AppError(
         "학부모 연락처가 등록되지 않았습니다.",
         ErrorCode.VALIDATION_ERROR,
@@ -80,7 +81,7 @@ export async function sendAttendanceSMS(
 
     // SMS 발송
     const result = await sendSMS({
-      recipientPhone: student.parent_contact,
+      recipientPhone: parentContact,
       message,
       recipientId: studentId,
       tenantId: tenantContext.tenantId,
@@ -129,12 +130,40 @@ export async function sendBulkAttendanceSMS(
       );
     }
 
-    // 학생 정보 일괄 조회
+    // 학생 정보 일괄 조회 (phone, mother_phone, father_phone 모두 조회)
     const supabase = await createSupabaseServerClient();
     const { data: students, error: studentsError } = await supabase
       .from("students")
-      .select("id, name, parent_contact")
+      .select("id, name, mother_phone, father_phone")
       .in("id", studentIds);
+
+    // student_profiles 테이블에서 phone 정보 조회
+    let profiles: Array<{ id: string; phone?: string | null; mother_phone?: string | null; father_phone?: string | null }> = [];
+    if (studentIds.length > 0) {
+      try {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("student_profiles")
+          .select("id, phone, mother_phone, father_phone")
+          .in("id", studentIds);
+        
+        if (!profilesError && profilesData) {
+          profiles = profilesData;
+        }
+      } catch (e) {
+        // student_profiles 테이블이 없으면 무시
+      }
+    }
+
+    // 프로필 정보를 학생 정보와 병합
+    const studentsWithPhones = (students ?? []).map((student: any) => {
+      const profile = profiles.find((p: any) => p.id === student.id);
+      return {
+        ...student,
+        phone: profile?.phone ?? null,
+        mother_phone: profile?.mother_phone ?? student.mother_phone ?? null,
+        father_phone: profile?.father_phone ?? student.father_phone ?? null,
+      };
+    });
 
     if (studentsError) {
       console.error("[SMS] 학생 정보 조회 실패:", studentsError);
@@ -155,8 +184,12 @@ export async function sendBulkAttendanceSMS(
       );
     }
 
-    // SMS 발송 대상 준비
+    // SMS 발송 대상 준비 (mother_phone을 우선 사용, 없으면 father_phone 사용)
     const recipients = students
+      .map((student) => {
+        const parentContact = student.mother_phone || student.father_phone;
+        return { ...student, parent_contact: parentContact };
+      })
       .filter((student) => student.parent_contact)
       .map((student) => ({
         phone: student.parent_contact!,
@@ -248,7 +281,8 @@ export async function sendGeneralSMS(
 export async function sendBulkGeneralSMS(
   studentIds: string[],
   message: string,
-  templateVariables?: Record<string, string>
+  templateVariables?: Record<string, string>,
+  recipientType: "student" | "mother" | "father" = "mother"
 ): Promise<{
   success: number;
   failed: number;
@@ -311,9 +345,27 @@ export async function sendBulkGeneralSMS(
 
     const academyName = tenant?.name || "학원";
 
-    // SMS 발송 대상 준비 (학부모 연락처가 있는 학생만)
-    const recipients = students
-      .filter((student) => student.parent_contact)
+    // 전송 대상자에 따라 전화번호 선택
+    const getPhoneByRecipientType = (student: any, type: "student" | "mother" | "father"): string | null => {
+      switch (type) {
+        case "student":
+          return student.phone;
+        case "mother":
+          return student.mother_phone;
+        case "father":
+          return student.father_phone;
+        default:
+          return student.mother_phone ?? student.father_phone ?? student.phone;
+      }
+    };
+
+    // SMS 발송 대상 준비 (선택한 대상자 타입에 따라)
+    const recipients = studentsWithPhones
+      .map((student) => {
+        const phone = getPhoneByRecipientType(student, recipientType);
+        return { ...student, selectedPhone: phone };
+      })
+      .filter((student) => student.selectedPhone)
       .map((student) => {
         // 각 학생별로 메시지 변수 치환
         let finalMessage = message;
@@ -340,7 +392,7 @@ export async function sendBulkGeneralSMS(
         }
 
         return {
-          phone: student.parent_contact!,
+          phone: student.selectedPhone!,
           message: finalMessage,
           recipientId: student.id,
         };

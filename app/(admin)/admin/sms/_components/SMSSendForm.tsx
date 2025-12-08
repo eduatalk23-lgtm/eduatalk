@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useCallback } from "react";
 import { sendGeneralSMS, sendBulkGeneralSMS } from "@/app/actions/smsActions";
 import {
   getAllSMSTemplates,
@@ -15,13 +15,19 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { SMSRecipientSelector } from "./SMSRecipientSelector";
 import { SMSPreviewModal } from "./SMSPreviewModal";
 import { SMSSendSummary } from "./SMSSendSummary";
+import { SingleRecipientSearch } from "./SingleRecipientSearch";
+
+// 전송 대상자 타입
+export type RecipientType = "student" | "mother" | "father";
 
 type Student = {
   id: string;
   name: string | null;
   grade?: string | null;
   class?: string | null;
-  parent_contact: string | null;
+  phone: string | null; // 학생 본인 연락처
+  mother_phone: string | null;
+  father_phone: string | null;
   is_active?: boolean | null;
 };
 
@@ -44,11 +50,14 @@ export function SMSSendForm({
   );
   const [message, setMessage] = useState("");
   const [customPhone, setCustomPhone] = useState("");
+  const [selectedStudentName, setSelectedStudentName] = useState<string>("");
   const [templateVariables, setTemplateVariables] = useState<
     Record<string, string>
   >({});
   const [showPreview, setShowPreview] = useState(false);
   const [sendMode, setSendMode] = useState<"single" | "bulk">("bulk");
+  // 전송 대상자 선택 (단일/일괄 발송 모두)
+  const [recipientType, setRecipientType] = useState<RecipientType>("mother");
 
   const templates = getAllSMSTemplates();
 
@@ -148,10 +157,10 @@ export function SMSSendForm({
     }
 
     // 단일 발송은 바로 발송
-    await handleSend();
+    handleSend();
   };
 
-  const handleSend = async () => {
+  const handleSend = useCallback(() => {
     setShowPreview(false);
 
     startTransition(async () => {
@@ -184,7 +193,8 @@ export function SMSSendForm({
           const result = await sendBulkGeneralSMS(
             Array.from(selectedStudentIds),
             message.trim(),
-            variablesWithAcademy
+            variablesWithAcademy,
+            recipientType
           );
 
           if (result.success > 0) {
@@ -213,7 +223,18 @@ export function SMSSendForm({
         showError(error.message || "SMS 발송 중 오류가 발생했습니다.");
       }
     });
-  };
+  }, [
+    sendMode,
+    customPhone,
+    message,
+    selectedStudentIds,
+    templateVariables,
+    recipientType,
+    academyName,
+    showSuccess,
+    showError,
+    startTransition,
+  ]);
 
   // 선택된 템플릿
   const selectedTemplateObj = useMemo(() => {
@@ -253,6 +274,8 @@ export function SMSSendForm({
                   onChange={() => {
                     setSendMode("single");
                     setSelectedStudentIds(new Set());
+                    setCustomPhone("");
+                    setSelectedStudentName("");
                   }}
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
                 />
@@ -263,30 +286,113 @@ export function SMSSendForm({
 
           {/* 발송 대상자 선택 (일괄 발송 모드) */}
           {sendMode === "bulk" && (
-            <div>
-              <Label>발송 대상자 선택</Label>
-              <div className="mt-2">
-                <SMSRecipientSelector
-                  students={students}
-                  selectedStudentIds={selectedStudentIds}
-                  onSelectionChange={setSelectedStudentIds}
-                />
+              <div>
+                <Label>발송 대상자 선택</Label>
+                <div className="mt-2">
+                  <SMSRecipientSelector
+                    students={students}
+                    selectedStudentIds={selectedStudentIds}
+                    onSelectionChange={setSelectedStudentIds}
+                    recipientType={recipientType}
+                    onRecipientTypeChange={setRecipientType}
+                  />
+                </div>
               </div>
-            </div>
           )}
 
-          {/* 수신자 전화번호 (단일 발송 모드) */}
+          {/* 전송 대상자 선택 (단일/일괄 발송 모두) */}
+          <div>
+            <Label>전송 대상자</Label>
+            <div className="mt-2 flex gap-4">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="recipientType"
+                  value="student"
+                  checked={recipientType === "student"}
+                  onChange={() => setRecipientType("student")}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm text-gray-700">학생 본인</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="recipientType"
+                  value="mother"
+                  checked={recipientType === "mother"}
+                  onChange={() => setRecipientType("mother")}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm text-gray-700">어머니</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="recipientType"
+                  value="father"
+                  checked={recipientType === "father"}
+                  onChange={() => setRecipientType("father")}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm text-gray-700">아버지</span>
+              </label>
+            </div>
+          </div>
+
+          {/* 수신자 검색 및 입력 (단일 발송 모드) */}
           {sendMode === "single" && (
-            <div>
-              <Label htmlFor="phone">수신자 전화번호 *</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="010-1234-5678"
-                value={customPhone}
-                onChange={(e) => setCustomPhone(e.target.value)}
-                required
+            <div className="space-y-4">
+              {/* 학생 검색 */}
+              <SingleRecipientSearch
+                students={students}
+                onSelect={(phone, studentName) => {
+                  setCustomPhone(phone);
+                  setSelectedStudentName(studentName || "");
+                }}
+                selectedPhone={customPhone}
+                recipientType={recipientType}
+                onRecipientTypeChange={setRecipientType}
               />
+
+              {/* 수신자 전화번호 입력 */}
+              <div>
+                <Label htmlFor="phone">수신자 전화번호 *</Label>
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="010-1234-5678 또는 검색으로 선택"
+                    value={customPhone}
+                    onChange={(e) => {
+                      setCustomPhone(e.target.value);
+                      if (!e.target.value) {
+                        setSelectedStudentName("");
+                      }
+                    }}
+                    className="flex-1"
+                    required
+                  />
+                  {customPhone && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCustomPhone("");
+                        setSelectedStudentName("");
+                      }}
+                    >
+                      초기화
+                    </Button>
+                  )}
+                </div>
+                {selectedStudentName && (
+                  <p className="mt-1 text-xs text-gray-600">
+                    선택된 학생: {selectedStudentName}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
