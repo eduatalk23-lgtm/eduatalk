@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SMSSendForm } from "./_components/SMSSendForm";
@@ -150,10 +151,36 @@ export default async function AdminSMSPage({
   );
 
   // SMS 발송 폼용 학생 목록 조회 (모든 학생, 학부모 연락처 포함)
+  let studentsSelectFields = "id, name, grade, class, parent_contact";
+  try {
+    // is_active 컬럼이 있는지 테스트
+    const testQuery = supabase.from("students").select("is_active").limit(1);
+    const { error: testError } = await testQuery;
+    if (!testError) {
+      studentsSelectFields += ",is_active";
+    }
+  } catch (e) {
+    // 컬럼이 없으면 무시
+  }
+
   const { data: studentsForSMS } = await supabase
     .from("students")
-    .select("id, name, parent_contact")
+    .select(studentsSelectFields)
     .order("name", { ascending: true });
+
+  // 학원명 조회
+  const tenantContext = await getTenantContext();
+  let academyName = "학원";
+  if (tenantContext?.tenantId) {
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("name")
+      .eq("id", tenantContext.tenantId)
+      .single();
+    if (tenant?.name) {
+      academyName = tenant.name;
+    }
+  }
 
   // 검색 필터링 (학생 이름, 전화번호, 메시지 내용으로)
   let filteredLogs = logRows;
@@ -216,11 +243,15 @@ export default async function AdminSMSPage({
 
       {/* SMS 발송 폼 - 항상 표시 */}
       <SMSSendForm
-        students={(studentsForSMS || []).map((s) => ({
+        students={(studentsForSMS || []).map((s: any) => ({
           id: s.id,
           name: s.name,
+          grade: s.grade,
+          class: s.class,
           parent_contact: s.parent_contact,
+          is_active: s.is_active,
         }))}
+        academyName={academyName}
       />
 
       {/* 통계 */}
