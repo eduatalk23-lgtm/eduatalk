@@ -77,9 +77,10 @@ export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
       );
     } catch (err: any) {
       let errorMessage = "QR 코드 스캔을 시작할 수 없습니다.";
-      
+
       if (err.message?.includes("Permission denied")) {
-        errorMessage = "카메라 권한이 필요합니다. 브라우저 설정에서 카메라 권한을 허용해주세요.";
+        errorMessage =
+          "카메라 권한이 필요합니다. 브라우저 설정에서 카메라 권한을 허용해주세요.";
       } else if (err.message?.includes("No camera")) {
         errorMessage = "카메라를 찾을 수 없습니다.";
       } else if (err.message) {
@@ -139,4 +140,3 @@ export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
     </div>
   );
 }
-

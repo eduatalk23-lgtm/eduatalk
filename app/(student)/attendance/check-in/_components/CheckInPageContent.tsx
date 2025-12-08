@@ -8,6 +8,7 @@ import { LocationCheckIn } from "./LocationCheckIn";
 import { checkOut } from "@/app/(student)/actions/attendanceActions";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type AttendanceRecord = {
   id: string;
@@ -21,15 +22,34 @@ type AttendanceRecord = {
 
 type CheckInMethod = "qr" | "location" | null;
 
-export function CheckInPageContent() {
+type CheckInPageContentProps = {
+  success?: string;
+  error?: string;
+};
+
+export function CheckInPageContent({
+  success,
+  error,
+}: CheckInPageContentProps) {
   const [attendance, setAttendance] = useState<AttendanceRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkInMethod, setCheckInMethod] = useState<CheckInMethod>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadAttendance();
   }, []);
+
+  // 성공/에러 메시지 표시
+  useEffect(() => {
+    if (success) {
+      showSuccess("출석 체크가 완료되었습니다!");
+    }
+    if (error) {
+      showError(decodeURIComponent(error));
+    }
+  }, [success, error, showSuccess, showError]);
 
   const loadAttendance = async () => {
     try {
@@ -172,4 +192,3 @@ export function CheckInPageContent() {
     </div>
   );
 }
-

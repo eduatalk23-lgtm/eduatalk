@@ -6,7 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { signIn } from "@/app/actions/auth";
 import { ResendEmailButton } from "./ResendEmailButton";
 
-export function LoginForm() {
+type LoginFormProps = {
+  returnUrl?: string;
+};
+
+export function LoginForm({ returnUrl }: LoginFormProps) {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
   const errorParam = searchParams.get("error");
@@ -23,6 +27,11 @@ export function LoginForm() {
     setEmail(emailValue);
     setNeedsEmailVerification(false);
     setVerificationEmail("");
+
+    // returnUrl이 있으면 FormData에 추가
+    if (returnUrl) {
+      formData.append("returnUrl", returnUrl);
+    }
 
     startTransition(async () => {
       try {

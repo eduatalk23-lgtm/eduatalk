@@ -34,6 +34,9 @@ export * as subject from "./subject";
 // Tenant 도메인
 export * as tenant from "./tenant";
 
+// QR Code 도메인
+export * as qrCode from "./qrCode";
+
 // 기타 도메인 (향후 추가 예정)
 // export * as content from "./content";
 // export * as goal from "./goal";

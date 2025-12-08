@@ -108,10 +108,7 @@ export async function verifyLocationCheckIn(
   }
 
   // 위치 설정 여부 확인
-  if (
-    tenant.location_latitude === null ||
-    tenant.location_longitude === null
-  ) {
+  if (tenant.location_latitude === null || tenant.location_longitude === null) {
     return {
       valid: false,
       error: "학원 위치가 설정되지 않았습니다. 관리자에게 문의하세요.",
@@ -133,7 +130,9 @@ export async function verifyLocationCheckIn(
     return {
       valid: false,
       distance: Math.round(distance),
-      error: `학원에서 ${Math.round(distance)}m 떨어져 있습니다. (허용 반경: ${radius}m)`,
+      error: `학원에서 ${Math.round(
+        distance
+      )}m 떨어져 있습니다. (허용 반경: ${radius}m)`,
     };
   }
 
@@ -142,4 +141,3 @@ export async function verifyLocationCheckIn(
     distance: Math.round(distance),
   };
 }
-

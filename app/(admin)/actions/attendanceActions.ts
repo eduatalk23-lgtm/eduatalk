@@ -15,7 +15,7 @@ import type {
   AttendanceFilters,
 } from "@/lib/domains/attendance/types";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
-import { sendAttendanceSMS } from "@/app/actions/smsActions";
+import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
@@ -112,18 +112,16 @@ export async function recordAttendanceAction(
             minute: "2-digit",
           });
 
-          await sendAttendanceSMS(
+          await sendAttendanceSMSIfEnabled(
             input.student_id,
             "attendance_check_in",
             {
               학원명: academyName,
               학생명: studentName,
               시간: checkInTime,
-            }
-          ).catch((error) => {
-            console.error("[Attendance] 입실 SMS 발송 실패:", error);
-            // SMS 발송 실패는 무시하고 출석 기록은 정상 저장됨
-          });
+            },
+            false // 관리자가 기록한 경우
+          );
         }
 
         // 퇴실 알림: present 상태이고 check_out_time이 있는 경우
@@ -138,32 +136,30 @@ export async function recordAttendanceAction(
             minute: "2-digit",
           });
 
-          await sendAttendanceSMS(
+          await sendAttendanceSMSIfEnabled(
             input.student_id,
             "attendance_check_out",
             {
               학원명: academyName,
               학생명: studentName,
               시간: checkOutTime,
-            }
-          ).catch((error) => {
-            console.error("[Attendance] 퇴실 SMS 발송 실패:", error);
-          });
+            },
+            false // 관리자가 기록한 경우
+          );
         }
 
         // 결석 알림: absent 상태인 경우
         if (record.status === "absent") {
-          await sendAttendanceSMS(
+          await sendAttendanceSMSIfEnabled(
             input.student_id,
             "attendance_absent",
             {
               학원명: academyName,
               학생명: studentName,
               날짜: attendanceDate,
-            }
-          ).catch((error) => {
-            console.error("[Attendance] 결석 SMS 발송 실패:", error);
-          });
+            },
+            false // 관리자가 기록한 경우
+          );
         }
 
         // 지각 알림: late 상태인 경우
@@ -175,17 +171,16 @@ export async function recordAttendanceAction(
             minute: "2-digit",
           });
 
-          await sendAttendanceSMS(
+          await sendAttendanceSMSIfEnabled(
             input.student_id,
             "attendance_late",
             {
               학원명: academyName,
               학생명: studentName,
               시간: checkInTime,
-            }
-          ).catch((error) => {
-            console.error("[Attendance] 지각 SMS 발송 실패:", error);
-          });
+            },
+            false // 관리자가 기록한 경우
+          );
         }
       }
     } catch (error) {

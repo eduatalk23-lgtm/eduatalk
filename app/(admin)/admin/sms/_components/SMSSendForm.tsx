@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   getAllSMSTemplates,
   formatSMSTemplate,
@@ -39,6 +40,7 @@ export function SMSSendForm({
   students,
   academyName = "학원",
 }: SMSSendFormProps) {
+  const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [isPending, startTransition] = useTransition();
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
@@ -200,11 +202,10 @@ export function SMSSendForm({
           }
 
           showSuccess("SMS가 성공적으로 발송되었습니다.");
-          // 폼 초기화
-          setMessage("");
-          setCustomPhone("");
-          setSelectedTemplate("");
-          setTemplateVariables({});
+          // 결과 페이지로 이동
+          setTimeout(() => {
+            router.push("/admin/sms/results");
+          }, 1000);
         } else {
           // 일괄 발송 - API Route 호출
           const response = await fetch("/api/purio/send", {
@@ -239,11 +240,10 @@ export function SMSSendForm({
                   : ""
               }`
             );
-            // 폼 초기화
-            setMessage("");
-            setSelectedStudentIds(new Set());
-            setSelectedTemplate("");
-            setTemplateVariables({});
+            // 결과 페이지로 이동
+            setTimeout(() => {
+              router.push("/admin/sms/results");
+            }, 1000);
           } else {
             showError(
               result.errors && result.errors.length > 0

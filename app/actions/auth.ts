@@ -15,6 +15,7 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
   const rememberMe = formData.get("rememberMe") === "on";
+  const returnUrl = String(formData.get("returnUrl") ?? "").trim();
 
   // 입력 검증
   const validation = signInSchema.safeParse({ email, password });
@@ -97,8 +98,13 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
     );
   }
 
-  // 로그인 성공 시 루트 페이지로 리다이렉트 (역할별 리다이렉트는 루트 페이지에서 처리)
-  redirect("/");
+  // 로그인 성공 시 returnUrl이 있으면 해당 URL로, 없으면 루트 페이지로 리다이렉트
+  if (returnUrl) {
+    redirect(decodeURIComponent(returnUrl));
+  } else {
+    // 루트 페이지로 리다이렉트 (역할별 리다이렉트는 루트 페이지에서 처리)
+    redirect("/");
+  }
 }
 
 // 에러 핸들링 래퍼 적용

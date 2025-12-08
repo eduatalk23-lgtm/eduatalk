@@ -14,6 +14,11 @@ type NotificationSettings = {
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;
   quiet_hours_end: string;
+  // 출석 알림 설정 (nullable - NULL이면 학원 기본 설정 사용)
+  attendance_check_in_enabled?: boolean | null;
+  attendance_check_out_enabled?: boolean | null;
+  attendance_absent_enabled?: boolean | null;
+  attendance_late_enabled?: boolean | null;
 };
 
 export async function updateNotificationSettings(

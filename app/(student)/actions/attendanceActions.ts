@@ -6,8 +6,16 @@ import { verifyQRCode } from "@/lib/services/qrCodeService";
 import { verifyLocationCheckIn } from "@/lib/services/locationService";
 import { findAttendanceByStudentAndDate } from "@/lib/domains/attendance/repository";
 import { revalidatePath } from "next/cache";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import {
+  AppError,
+  ErrorCode,
+  normalizeError,
+  getUserFacingMessage,
+  logError,
+} from "@/lib/errors";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * QR 코드로 출석 체크인
@@ -15,12 +23,12 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 export async function checkInWithQRCode(
   qrData: string
 ): Promise<{ success: boolean; error?: string }> {
-  return withErrorHandling(async () => {
+  try {
     const user = await requireStudentAuth();
     const tenantContext = await getTenantContext();
 
-    // QR 코드 검증
-    const verification = verifyQRCode(qrData);
+    // QR 코드 검증 (DB 기반, 사용 통계 자동 업데이트)
+    const verification = await verifyQRCode(qrData);
     if (!verification.valid) {
       throw new AppError(
         verification.error || "QR 코드가 유효하지 않습니다.",
@@ -56,7 +64,7 @@ export async function checkInWithQRCode(
     }
 
     // 출석 기록 생성 또는 업데이트
-    await recordAttendance({
+    const record = await recordAttendance({
       student_id: user.userId,
       attendance_date: today,
       check_in_time: now,
@@ -64,9 +72,74 @@ export async function checkInWithQRCode(
       status: "present",
     });
 
+    // SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
+    try {
+      const tenantContext = await getTenantContext();
+      const supabase = await createSupabaseServerClient();
+
+      // 학생 정보 조회
+      const { data: student } = await supabase
+        .from("students")
+        .select("id, name")
+        .eq("id", user.userId)
+        .single();
+
+      // 학원명 조회
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("name")
+        .eq("id", tenantContext?.tenantId)
+        .single();
+
+      if (student && tenant) {
+        const checkInTime = new Date(now).toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        await sendAttendanceSMSIfEnabled(
+          user.userId,
+          "attendance_check_in",
+          {
+            학원명: tenant.name,
+            학생명: student.name || "학생",
+            시간: checkInTime,
+          },
+          true // 학생 직접 체크인
+        );
+      }
+    } catch (error) {
+      console.error("[Attendance] 입실 SMS 발송 실패:", error);
+      // SMS 발송 실패는 무시하고 출석 기록은 정상 저장됨
+    }
+
     revalidatePath("/attendance/check-in");
     return { success: true };
-  });
+  } catch (error) {
+    // Next.js의 redirect()와 notFound()는 재throw
+    if (
+      error &&
+      typeof error === "object" &&
+      "digest" in error &&
+      typeof (error as { digest: string }).digest === "string"
+    ) {
+      const digest = (error as { digest: string }).digest;
+      if (
+        digest.startsWith("NEXT_REDIRECT") ||
+        digest.startsWith("NEXT_NOT_FOUND")
+      ) {
+        throw error;
+      }
+    }
+
+    const normalizedError = normalizeError(error);
+    logError(normalizedError, { function: "checkInWithQRCode" });
+
+    return {
+      success: false,
+      error: getUserFacingMessage(normalizedError),
+    };
+  }
 }
 
 /**
@@ -106,13 +179,54 @@ export async function checkInWithLocation(
     }
 
     // 출석 기록 생성 또는 업데이트
-    await recordAttendance({
+    const record = await recordAttendance({
       student_id: user.userId,
       attendance_date: today,
       check_in_time: now,
       check_in_method: "location",
       status: "present",
     });
+
+    // SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
+    try {
+      const tenantContext = await getTenantContext();
+      const supabase = await createSupabaseServerClient();
+
+      // 학생 정보 조회
+      const { data: student } = await supabase
+        .from("students")
+        .select("id, name")
+        .eq("id", user.userId)
+        .single();
+
+      // 학원명 조회
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("name")
+        .eq("id", tenantContext?.tenantId)
+        .single();
+
+      if (student && tenant) {
+        const checkInTime = new Date(now).toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        await sendAttendanceSMSIfEnabled(
+          user.userId,
+          "attendance_check_in",
+          {
+            학원명: tenant.name,
+            학생명: student.name || "학생",
+            시간: checkInTime,
+          },
+          true // 학생 직접 체크인
+        );
+      }
+    } catch (error) {
+      console.error("[Attendance] 입실 SMS 발송 실패:", error);
+      // SMS 발송 실패는 무시하고 출석 기록은 정상 저장됨
+    }
 
     revalidatePath("/attendance/check-in");
     return {
@@ -125,7 +239,10 @@ export async function checkInWithLocation(
 /**
  * 퇴실 체크
  */
-export async function checkOut(): Promise<{ success: boolean; error?: string }> {
+export async function checkOut(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   return withErrorHandling(async () => {
     const user = await requireStudentAuth();
 
@@ -154,12 +271,53 @@ export async function checkOut(): Promise<{ success: boolean; error?: string }> 
     }
 
     // 퇴실 기록 업데이트
-    await recordAttendance({
+    const record = await recordAttendance({
       student_id: user.userId,
       attendance_date: today,
       check_out_time: now,
       check_out_method: existing.check_in_method || "manual",
     });
+
+    // SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
+    try {
+      const tenantContext = await getTenantContext();
+      const supabase = await createSupabaseServerClient();
+
+      // 학생 정보 조회
+      const { data: student } = await supabase
+        .from("students")
+        .select("id, name")
+        .eq("id", user.userId)
+        .single();
+
+      // 학원명 조회
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("name")
+        .eq("id", tenantContext?.tenantId)
+        .single();
+
+      if (student && tenant) {
+        const checkOutTime = new Date(now).toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        await sendAttendanceSMSIfEnabled(
+          user.userId,
+          "attendance_check_out",
+          {
+            학원명: tenant.name,
+            학생명: student.name || "학생",
+            시간: checkOutTime,
+          },
+          true // 학생 직접 체크인
+        );
+      }
+    } catch (error) {
+      console.error("[Attendance] 퇴실 SMS 발송 실패:", error);
+      // SMS 발송 실패는 무시하고 출석 기록은 정상 저장됨
+    }
 
     revalidatePath("/attendance/check-in");
     return { success: true };
@@ -204,4 +362,3 @@ export async function getTodayAttendance(): Promise<{
     };
   });
 }
-

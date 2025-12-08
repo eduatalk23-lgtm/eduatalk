@@ -24,15 +24,11 @@ export function LocationCheckIn({ onSuccess }: LocationCheckInProps) {
       // 현재 위치 가져오기
       const position = await new Promise<GeolocationPosition>(
         (resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            resolve,
-            reject,
-            {
-              enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 0,
-            }
-          );
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0,
+          });
         }
       );
 
@@ -52,11 +48,13 @@ export function LocationCheckIn({ onSuccess }: LocationCheckInProps) {
       }
     } catch (err: any) {
       let errorMessage = "위치 기반 출석 체크에 실패했습니다.";
-      
+
       if (err.code === 1) {
-        errorMessage = "위치 권한이 필요합니다. 브라우저 설정에서 위치 권한을 허용해주세요.";
+        errorMessage =
+          "위치 권한이 필요합니다. 브라우저 설정에서 위치 권한을 허용해주세요.";
       } else if (err.code === 2) {
-        errorMessage = "위치를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.";
+        errorMessage =
+          "위치를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.";
       } else if (err.code === 3) {
         errorMessage = "위치 요청 시간이 초과되었습니다. 다시 시도해주세요.";
       } else if (err.message) {
@@ -105,4 +103,3 @@ export function LocationCheckIn({ onSuccess }: LocationCheckInProps) {
     </div>
   );
 }
-

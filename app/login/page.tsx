@@ -5,7 +5,15 @@ import { LoginForm } from "./_components/LoginForm";
 
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{ returnUrl?: string; error?: string; message?: string }>;
+};
+
+export default async function LoginPage({
+  searchParams,
+}: LoginPageProps) {
+  const params = await searchParams;
+  const returnUrl = params.returnUrl;
   // getCurrentUserRole을 안전하게 호출 (에러 발생 시 null 반환)
   let userRole: { userId: string | null; role: string | null; tenantId: string | null } = {
     userId: null,
@@ -91,7 +99,7 @@ export default async function LoginPage() {
 
   return (
     <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
-      <LoginForm />
+      <LoginForm returnUrl={returnUrl} />
     </section>
   );
 }

@@ -3,41 +3,16 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import Link from "next/link";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { SMSSendForm } from "./_components/SMSSendForm";
 
-type SMSLogRow = {
-  id: string;
-  tenant_id?: string | null;
-  recipient_id?: string | null;
-  recipient_phone?: string | null;
-  message_content?: string | null;
-  template_id?: string | null;
-  status?: "pending" | "sent" | "delivered" | "failed" | null;
-  sent_at?: string | null;
-  delivered_at?: string | null;
-  error_message?: string | null;
-  created_at?: string | null;
-};
-
-type StudentRow = {
-  id: string;
-  name?: string | null;
-};
-
-export default async function AdminSMSPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
+export default async function AdminSMSPage() {
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");
   }
+
+  // 발송 폼 페이지로 리다이렉트
+  redirect("/admin/sms/send");
 
   const supabase = await createSupabaseServerClient();
   const tenantContext = await getTenantContext();

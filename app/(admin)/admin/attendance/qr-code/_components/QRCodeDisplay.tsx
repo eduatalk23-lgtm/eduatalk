@@ -1,12 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { generateQRCodeAction } from "@/app/(admin)/actions/qrCodeActions";
+import {
+  generateQRCodeAction,
+  getActiveQRCodeAction,
+} from "@/app/(admin)/actions/qrCodeActions";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
+import type { QRCodeRecord } from "@/lib/services/qrCodeService";
 
 export function QRCodeDisplay() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [qrCodeInfo, setQrCodeInfo] = useState<QRCodeRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,9 +19,25 @@ export function QRCodeDisplay() {
     setLoading(true);
     setError(null);
     try {
+      // 먼저 활성 QR 코드 조회 시도
+      const activeResult = await getActiveQRCodeAction();
+      if (activeResult.success && activeResult.data) {
+        // 활성 QR 코드가 있으면 표시
+        setQrCodeInfo(activeResult.data);
+        setQrCodeUrl(activeResult.data.qr_code_url || null);
+        setLoading(false);
+        return;
+      }
+
+      // 활성 QR 코드가 없으면 새로 생성
       const result = await generateQRCodeAction();
       if (result.success && result.qrCodeUrl) {
         setQrCodeUrl(result.qrCodeUrl);
+        // 생성 후 다시 활성 QR 코드 정보 조회
+        const updatedResult = await getActiveQRCodeAction();
+        if (updatedResult.success && updatedResult.data) {
+          setQrCodeInfo(updatedResult.data);
+        }
       } else {
         setError(result.error || "QR 코드 생성에 실패했습니다.");
       }
@@ -149,12 +170,36 @@ export function QRCodeDisplay() {
             </Button>
           </div>
 
+          {qrCodeInfo && (
+            <div className="rounded-lg bg-gray-50 p-4 text-sm">
+              <p className="font-semibold mb-2 text-gray-900">QR 코드 정보:</p>
+              <div className="space-y-1 text-gray-700">
+                <p>
+                  생성 시간:{" "}
+                  {new Date(qrCodeInfo.created_at).toLocaleString("ko-KR")}
+                </p>
+                <p>
+                  만료 시간:{" "}
+                  {new Date(qrCodeInfo.expires_at).toLocaleString("ko-KR")}
+                </p>
+                <p>사용 횟수: {qrCodeInfo.usage_count}회</p>
+                {qrCodeInfo.last_used_at && (
+                  <p>
+                    마지막 사용:{" "}
+                    {new Date(qrCodeInfo.last_used_at).toLocaleString("ko-KR")}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
             <p className="font-semibold mb-2">사용 방법:</p>
             <ul className="list-disc list-inside space-y-1 text-blue-700">
               <li>이 QR 코드를 출력하여 학원 입구에 부착하세요.</li>
               <li>학생들이 출석 체크 페이지에서 이 QR 코드를 스캔합니다.</li>
               <li>QR 코드는 24시간마다 갱신하는 것을 권장합니다.</li>
+              <li>새 QR 코드를 생성하면 이전 QR 코드는 자동으로 비활성화됩니다.</li>
             </ul>
           </div>
         </div>

@@ -46,4 +46,3 @@ export const studentCategories: StudentCategory[] = [
     icon: CheckCircle,
   },
 ];
-

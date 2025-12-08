@@ -13,6 +13,8 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
+  // BASE_URL 설정 (선택사항, QR 코드 Deep Link용)
+  NEXT_PUBLIC_BASE_URL: z.string().url().optional(), // 기본 URL (예: https://yourdomain.com)
   // 뿌리오 SMS API 설정 (선택사항)
   PPURIO_ACCOUNT: z.string().optional(), // 뿌리오 계정
   PPURIO_AUTH_KEY: z.string().optional(), // 뿌리오 개발 인증키
@@ -36,6 +38,7 @@ export const env = (() => {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       NODE_ENV: process.env.NODE_ENV || "development",
+      NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
       PPURIO_ACCOUNT: process.env.PPURIO_ACCOUNT || process.env.PPURIO_USER_ID,
       PPURIO_AUTH_KEY: process.env.PPURIO_AUTH_KEY || process.env.PPURIO_API_KEY,
       PPURIO_SENDER_NUMBER: process.env.PPURIO_SENDER_NUMBER,
@@ -80,6 +83,7 @@ export const env = (() => {
         NEXT_PUBLIC_SUPABASE_ANON_KEY:
           envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
         NODE_ENV: envValues.NODE_ENV as "development" | "production" | "test",
+        NEXT_PUBLIC_BASE_URL: envValues.NEXT_PUBLIC_BASE_URL,
         PPURIO_ACCOUNT: envValues.PPURIO_ACCOUNT,
         PPURIO_AUTH_KEY: envValues.PPURIO_AUTH_KEY,
         PPURIO_SENDER_NUMBER: envValues.PPURIO_SENDER_NUMBER,

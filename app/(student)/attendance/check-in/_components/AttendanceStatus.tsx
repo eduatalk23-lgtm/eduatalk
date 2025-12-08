@@ -88,9 +88,7 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
           {/* 입실 정보 */}
           {hasCheckedIn && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 text-xs font-medium text-gray-600">
-                입실
-              </div>
+              <div className="mb-2 text-xs font-medium text-gray-600">입실</div>
               <div className="flex items-center justify-between">
                 <span className="text-lg font-semibold text-gray-900">
                   {formatTime(attendance.check_in_time)}
@@ -105,9 +103,7 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
           {/* 퇴실 정보 */}
           {hasCheckedOut && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 text-xs font-medium text-gray-600">
-                퇴실
-              </div>
+              <div className="mb-2 text-xs font-medium text-gray-600">퇴실</div>
               <div className="flex items-center justify-between">
                 <span className="text-lg font-semibold text-gray-900">
                   {formatTime(attendance.check_out_time)}
@@ -123,4 +119,3 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
     </Card>
   );
 }
-

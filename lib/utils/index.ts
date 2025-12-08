@@ -39,3 +39,6 @@ export { formatNumber, formatNumberClean } from "./formatNumber";
 // 캐시 관련
 export { setCache, getCache, clearCache, createCacheKey, type CacheEntry } from "./cache";
 
+// BASE_URL 관련
+export { getBaseUrl, getBaseUrlClient } from "./getBaseUrl";
+
