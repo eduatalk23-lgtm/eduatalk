@@ -170,6 +170,13 @@ export async function findAttendanceRecordsByDateRange(
   const { data, error } = await query;
 
   if (error) {
+    // 에러 상세 정보 로깅
+    console.error("[attendance/repository] 출석 기록 조회 실패", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
     throw error;
   }
 

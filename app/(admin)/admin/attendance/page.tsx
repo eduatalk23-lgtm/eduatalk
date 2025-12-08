@@ -65,24 +65,42 @@ async function AttendanceContent({
   try {
     records = await getAttendanceRecords(filters);
   } catch (error: any) {
+    // 에러 객체 전체를 먼저 로깅
+    console.error("[admin/attendance] 출석 기록 조회 실패 - 원본 에러:", error);
+    console.error("[admin/attendance] 에러 타입:", typeof error);
+    console.error("[admin/attendance] 에러 constructor:", error?.constructor?.name);
+    
     // Supabase 에러 객체의 주요 속성 추출
     const errorInfo: Record<string, unknown> = {
-      message: error?.message || String(error),
+      message: error?.message || error?.toString() || String(error) || "알 수 없는 에러",
       code: error?.code || "UNKNOWN",
+      name: error?.name,
+      stack: error?.stack,
     };
-    if (error && "details" in error) {
-      errorInfo.details = (error as { details?: unknown }).details;
-    }
-    if (error && "hint" in error) {
-      errorInfo.hint = (error as { hint?: unknown }).hint;
-    }
-    if (error && "statusCode" in error) {
-      errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
-    }
-    console.error("[admin/attendance] 출석 기록 조회 실패", errorInfo);
     
-    // 테이블이 없는 경우 (42P01 에러)
-    if (error?.code === "42P01") {
+    // Supabase PostgrestError 속성 확인
+    if (error && typeof error === "object") {
+      if ("details" in error) {
+        errorInfo.details = (error as { details?: unknown }).details;
+      }
+      if ("hint" in error) {
+        errorInfo.hint = (error as { hint?: unknown }).hint;
+      }
+      if ("statusCode" in error) {
+        errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+      }
+      // AppError 속성 확인
+      if ("statusCode" in error && "code" in error) {
+        errorInfo.appErrorCode = (error as { code?: unknown }).code;
+        errorInfo.appErrorStatusCode = (error as { statusCode?: unknown }).statusCode;
+      }
+    }
+    
+    console.error("[admin/attendance] 출석 기록 조회 실패 - 상세 정보:", errorInfo);
+    
+    // 테이블이 없는 경우 (42P01 에러 또는 AppError로 변환된 경우)
+    const errorCode = error?.code || errorInfo.code;
+    if (errorCode === "42P01" || errorCode === "NOT_FOUND" || error?.message?.includes("테이블")) {
       return (
         <div className="p-6 md:p-10">
           <div className="mb-8">
