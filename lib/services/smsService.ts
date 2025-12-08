@@ -96,11 +96,11 @@ export async function sendSMS(
   // 1. SMS 로그 생성 (pending 상태) - 재시도가 아닌 경우에만
   const supabase = await createSupabaseServerClient();
   let smsLog;
-  
+
   // API 엔드포인트 설정 (에러 로깅을 위해 try 블록 밖에서 선언)
   const apiEndpoint =
     env.PPURIO_API_ENDPOINT || "https://message.ppurio.com/v1/send";
-  
+
   if (retryCount === 0) {
     const { data: logData, error: logError } = await supabase
       .from("sms_logs")
@@ -134,7 +134,7 @@ export async function sendSMS(
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
-    
+
     if (!logData) {
       return {
         success: false,
@@ -282,15 +282,41 @@ export async function sendSMS(
           type: "timeout",
           timeout: 10000,
         };
-      } else if (error.message.includes("fetch") || error.message === "fetch failed") {
-        errorMessage =
-          "네트워크 연결에 실패했습니다. 인터넷 연결 및 API 엔드포인트를 확인해주세요.";
-        errorDetails = {
-          type: "network_error",
-          endpoint: apiEndpoint,
-          cause: error.cause || "unknown",
-          message: error.message,
-        };
+      } else if (
+        error.message.includes("fetch") ||
+        error.message === "fetch failed"
+      ) {
+        // DNS 조회 실패 확인
+        const isDnsError =
+          error.cause &&
+          typeof error.cause === "object" &&
+          "code" in error.cause &&
+          (error.cause.code === "ENOTFOUND" ||
+            error.cause.code === "EAI_AGAIN");
+
+        if (isDnsError) {
+          const cause = error.cause as { code?: string; hostname?: string } | undefined;
+          const hostname = cause?.hostname || "unknown";
+          const code = cause?.code || "ENOTFOUND";
+          errorMessage = `DNS 조회 실패: '${hostname}' 도메인을 찾을 수 없습니다. API 엔드포인트 URL을 확인해주세요.`;
+          errorDetails = {
+            type: "dns_error",
+            endpoint: apiEndpoint,
+            hostname: hostname,
+            code: code,
+            message: error.message,
+            hint: "뿌리오 API 문서에서 올바른 엔드포인트를 확인하거나, 기본값(https://message.ppurio.com/v1/send)을 사용해보세요.",
+          };
+        } else {
+          errorMessage =
+            "네트워크 연결에 실패했습니다. 인터넷 연결 및 API 엔드포인트를 확인해주세요.";
+          errorDetails = {
+            type: "network_error",
+            endpoint: apiEndpoint,
+            cause: error.cause || "unknown",
+            message: error.message,
+          };
+        }
       } else {
         errorMessage = error.message;
         errorDetails = {
@@ -316,15 +342,24 @@ export async function sendSMS(
       .eq("id", smsLog.id);
 
     // 상세 에러 로그 출력
+    const getHint = () => {
+      if (errorDetails.type === "dns_error") {
+        return `DNS 조회 실패: '${errorDetails.hostname}' 도메인을 찾을 수 없습니다. 뿌리오 API 문서에서 올바른 엔드포인트를 확인하거나, 기본값(https://message.ppurio.com/v1/send)을 사용해보세요.`;
+      } else if (errorDetails.type === "network_error") {
+        return "API 엔드포인트 URL, 네트워크 연결, 방화벽 설정을 확인하세요.";
+      } else if (errorDetails.type === "timeout") {
+        return "요청 시간이 초과되었습니다. 네트워크 연결을 확인하거나 타임아웃 시간을 늘려보세요.";
+      }
+      return undefined;
+    };
+
     console.error("[SMS] 발송 실패:", {
       phone: normalizedPhone,
       error: error instanceof Error ? error.message : String(error),
       retryCount,
       endpoint: apiEndpoint,
       details: errorDetails,
-      hint: errorDetails.type === "network_error" 
-        ? "API 엔드포인트 URL, 네트워크 연결, 방화벽 설정을 확인하세요."
-        : undefined,
+      hint: getHint(),
     });
 
     // 네트워크 에러 등 재시도 가능한 에러인지 확인
