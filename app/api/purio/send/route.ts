@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        msgId: result.msgId,
+        msgId: result.messageKey,
       });
     } else {
       // 일괄 발송

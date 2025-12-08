@@ -113,20 +113,24 @@ async function cancelScheduledMessage(messageKey: string): Promise<boolean>;
 ## ✅ 구현 완료
 
 ### 1. 토큰 발급 함수 구현 완료 ✅
+
 - `getAccessToken()` 함수 추가
 - Basic Authentication 사용 (계정:인증키 Base64 인코딩)
 - 토큰 캐싱 구현 (23시간 유효기간)
 
 ### 2. 메시지 발송 함수 수정 완료 ✅
+
 - Bearer Token 사용
 - 문서에 맞는 요청/응답 형식으로 변경
 - SMS/LMS 자동 판별 (90byte 기준)
 
 ### 3. 예약발송 취소 함수 추가 완료 ✅
+
 - `cancelScheduledMessage()` 함수 추가
 - Bearer Token 사용
 
 ### 4. 환경 변수 업데이트 완료 ✅
+
 - `PPURIO_ACCOUNT`: 뿌리오 계정
 - `PPURIO_AUTH_KEY`: 뿌리오 개발 인증키
 - `PPURIO_SENDER_NUMBER`: 발신 번호

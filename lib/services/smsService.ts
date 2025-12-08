@@ -217,7 +217,11 @@ export async function sendSMS(
   } = options;
 
   // 환경 변수 확인
-  if (!env.PPURIO_ACCOUNT || !env.PPURIO_AUTH_KEY || !env.PPURIO_SENDER_NUMBER) {
+  if (
+    !env.PPURIO_ACCOUNT ||
+    !env.PPURIO_AUTH_KEY ||
+    !env.PPURIO_SENDER_NUMBER
+  ) {
     return {
       success: false,
       error: "SMS 발송 설정이 완료되지 않았습니다. 관리자에게 문의하세요.",
@@ -297,6 +301,9 @@ export async function sendSMS(
     const messageBytes = new TextEncoder().encode(message).length;
     const messageType = messageBytes <= 90 ? "SMS" : "LMS";
 
+    // refKey는 최대 32자로 제한 (문서: text(32))
+    const refKeyValue = (refKey || smsLog.id).toString().slice(0, 32);
+
     const requestBody = {
       account: env.PPURIO_ACCOUNT,
       messageType: messageType,
@@ -309,9 +316,14 @@ export async function sendSMS(
           to: normalizedPhone,
         },
       ],
-      refKey: refKey || smsLog.id, // 고객사 키 (기본값: SMS 로그 ID)
+      refKey: refKeyValue,
       ...(sendTime && { sendTime }), // 예약 발송 시간
     };
+
+    // 디버깅: 요청 본문 로깅 (개발 환경에서만)
+    if (process.env.NODE_ENV === "development") {
+      console.log("[SMS] 요청 본문:", JSON.stringify(requestBody, null, 2));
+    }
 
     const response = await fetch(messageEndpoint, {
       method: "POST",
@@ -328,6 +340,13 @@ export async function sendSMS(
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `API 요청 실패: ${response.status}`;
+
+      // 디버깅: 에러 응답 로깅
+      console.error("[SMS] API 에러 응답:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
 
       try {
         const errorJson: ErrorResponse = JSON.parse(errorText);
@@ -376,8 +395,7 @@ export async function sendSMS(
         smsLogId: smsLog.id,
       };
     } else {
-      const errorMessage =
-        result.description || "SMS 발송에 실패했습니다.";
+      const errorMessage = result.description || "SMS 발송에 실패했습니다.";
 
       await supabase
         .from("sms_logs")
@@ -634,7 +652,9 @@ export async function cancelScheduledMessage(
     }
   } catch (error: any) {
     const errorMessage =
-      error instanceof Error ? error.message : "예약 취소 중 오류가 발생했습니다.";
+      error instanceof Error
+        ? error.message
+        : "예약 취소 중 오류가 발생했습니다.";
     console.error("[SMS] 예약 취소 실패:", errorMessage);
     return {
       success: false,
