@@ -274,7 +274,7 @@ const adminCategories: NavigationCategory[] = [
   },
   {
     id: "admin-communication",
-    label: "통신 관리",
+    label: "SMS 관리",
     icon: "📱",
     items: [
       {
