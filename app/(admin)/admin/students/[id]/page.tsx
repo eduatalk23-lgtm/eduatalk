@@ -13,6 +13,7 @@ import { ScoreTrendSection } from "./_components/ScoreTrendSection";
 import { SessionListSection } from "./_components/SessionListSection";
 import { AnalysisReportSection } from "./_components/AnalysisReportSection";
 import { ConsultingNotesSection } from "./_components/ConsultingNotesSection";
+import { AttendanceSection } from "./_components/AttendanceSection";
 import { RiskCard } from "./_components/RiskCard";
 import { RecommendationPanel } from "./_components/RecommendationPanel";
 import { PlanListSectionSkeleton } from "./_components/PlanListSectionSkeleton";
@@ -117,6 +118,22 @@ export default async function AdminStudentDetailPage({
         <TabContent tab="consulting">
           <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
             <ConsultingNotesSection studentId={studentId} consultantId={userId} />
+          </Suspense>
+        </TabContent>
+
+        {/* 출석 탭 */}
+        <TabContent tab="attendance">
+          <Suspense
+            fallback={
+              <div className="rounded-lg border border-gray-200 bg-white p-6">
+                <div className="text-sm text-gray-500">로딩 중...</div>
+              </div>
+            }
+          >
+            <AttendanceSection
+              studentId={studentId}
+              studentName={student.name}
+            />
           </Suspense>
         </TabContent>
       </StudentDetailTabs>

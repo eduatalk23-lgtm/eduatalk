@@ -9,7 +9,8 @@ type TabKey =
   | "score"
   | "session"
   | "analysis"
-  | "consulting";
+  | "consulting"
+  | "attendance";
 
 export function TabContent({
   tab,

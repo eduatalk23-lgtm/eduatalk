@@ -13,6 +13,10 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
+  // 뿌리오 SMS API 설정 (선택사항)
+  PPURIO_USER_ID: z.string().optional(),
+  PPURIO_API_KEY: z.string().optional(),
+  PPURIO_SENDER_NUMBER: z.string().optional(),
 });
 
 /**
@@ -27,6 +31,9 @@ export const env = (() => {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       NODE_ENV: process.env.NODE_ENV || "development",
+      PPURIO_USER_ID: process.env.PPURIO_USER_ID,
+      PPURIO_API_KEY: process.env.PPURIO_API_KEY,
+      PPURIO_SENDER_NUMBER: process.env.PPURIO_SENDER_NUMBER,
     };
 
     // 빌드 시점 체크 (Next.js 빌드 프로세스 감지)
@@ -63,6 +70,9 @@ export const env = (() => {
         NEXT_PUBLIC_SUPABASE_ANON_KEY:
           envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
         NODE_ENV: envValues.NODE_ENV as "development" | "production" | "test",
+        PPURIO_USER_ID: envValues.PPURIO_USER_ID,
+        PPURIO_API_KEY: envValues.PPURIO_API_KEY,
+        PPURIO_SENDER_NUMBER: envValues.PPURIO_SENDER_NUMBER,
       };
     }
 
