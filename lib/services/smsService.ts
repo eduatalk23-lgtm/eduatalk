@@ -24,14 +24,14 @@ interface TokenResponse {
 }
 
 interface MessageResponse {
-  code: number;
+  code: number | string; // 뿌리오 API는 문자열로 반환할 수 있음
   description: string;
   refKey?: string;
   messageKey?: string;
 }
 
 interface ErrorResponse {
-  code: number;
+  code: number | string; // 뿌리오 API는 문자열로 반환할 수 있음
   description: string;
 }
 
@@ -121,8 +121,14 @@ async function getAccessToken(): Promise<string> {
         }
       })();
 
-      if (errorJson && errorCodeMessages[errorJson.code]) {
-        errorMessage = errorCodeMessages[errorJson.code];
+      if (errorJson) {
+        // code를 숫자로 변환 (문자열일 수 있음)
+        const parsedCode = typeof errorJson.code === "string" 
+          ? parseInt(errorJson.code, 10) 
+          : errorJson.code;
+        if (errorCodeMessages[parsedCode]) {
+          errorMessage = errorCodeMessages[parsedCode];
+        }
       }
 
       throw new Error(errorMessage);
@@ -365,7 +371,10 @@ export async function sendSMS(
     // HTTP 에러 (4xx, 5xx)
     if (!response.ok) {
       const errorJson = result as ErrorResponse;
-      const errorCode = errorJson.code;
+      // code를 숫자로 변환 (문자열일 수 있음)
+      const errorCode = typeof errorJson.code === "string" 
+        ? parseInt(errorJson.code, 10) 
+        : errorJson.code;
       const errorMessage = errorJson.description || `API 요청 실패: ${response.status}`;
 
       // 에러 코드별 처리
@@ -404,8 +413,13 @@ export async function sendSMS(
     // HTTP 200 응답 처리
     const messageResponse = result as MessageResponse;
 
+    // code를 숫자로 변환 (문자열 "1000"도 처리)
+    const responseCode = typeof messageResponse.code === "string" 
+      ? parseInt(messageResponse.code, 10) 
+      : messageResponse.code;
+
     // 성공 응답 확인: code가 1000이면 성공
-    if (messageResponse.code === 1000) {
+    if (responseCode === 1000) {
       // messageKey가 있으면 명시적으로 성공
       // messageKey가 없어도 code가 1000이면 성공으로 간주 (일부 API는 messageKey를 반환하지 않을 수 있음)
       const messageKey = messageResponse.messageKey || `ref-${refKeyValue}`;
@@ -435,11 +449,12 @@ export async function sendSMS(
     // HTTP 200이지만 응답 본문에 에러 코드가 있는 경우
     // (뿌리오 API는 HTTP 200이어도 code: 2000 같은 에러를 반환할 수 있음)
     const errorMessage = messageResponse.description || "SMS 발송에 실패했습니다.";
-    const errorCode = messageResponse.code;
+    const errorCode = responseCode;
 
     console.warn("[SMS] 발송 실패 (HTTP 200이지만 에러 코드):", {
       phone: normalizedPhone,
       code: errorCode,
+      originalCode: messageResponse.code,
       description: errorMessage,
       response: messageResponse,
     });
@@ -691,8 +706,12 @@ export async function cancelScheduledMessage(
           4012: "예약을 취소할 수 없습니다.",
         };
 
-        if (errorCodeMessages[errorJson.code]) {
-          errorMessage = errorCodeMessages[errorJson.code];
+        // code를 숫자로 변환 (문자열일 수 있음)
+        const parsedCode = typeof errorJson.code === "string" 
+          ? parseInt(errorJson.code, 10) 
+          : errorJson.code;
+        if (errorCodeMessages[parsedCode]) {
+          errorMessage = errorCodeMessages[parsedCode];
         }
       } catch {
         errorMessage = `${errorMessage} - ${errorText}`;
@@ -703,7 +722,12 @@ export async function cancelScheduledMessage(
 
     const result: MessageResponse = await response.json();
 
-    if (result.code === 1000) {
+    // code를 숫자로 변환 (문자열일 수 있음)
+    const responseCode = typeof result.code === "string" 
+      ? parseInt(result.code, 10) 
+      : result.code;
+
+    if (responseCode === 1000) {
       // SMS 로그 상태 업데이트
       const supabase = await createSupabaseServerClient();
       await supabase
