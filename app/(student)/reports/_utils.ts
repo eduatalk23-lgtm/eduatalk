@@ -200,22 +200,45 @@ export async function fetchSubjectGradeTrends(
     const startDateStr = startDate.toISOString().slice(0, 10);
     const endDateStr = endDate.toISOString().slice(0, 10);
 
-    const selectScores = () =>
-      supabase
-        .from("student_scores")
-        .select("course,course_detail,grade,raw_score,test_date")
-        .gte("test_date", startDateStr)
-        .lte("test_date", endDateStr)
-        .eq("student_id", studentId)
-        .order("test_date", { ascending: true });
-
-    const scoreRows = await handleSupabaseQueryArray<{
-      course?: string | null;
-      course_detail?: string | null;
-      grade?: number | null;
-      raw_score?: number | null;
-      test_date?: string | null;
-    }>(selectScores, [], { retryOnColumnError: true });
+    // 내신 성적과 모의고사 성적을 모두 조회
+    const [internalScoresResult, mockScoresResult] = await Promise.all([
+      handleSupabaseQueryArray<{
+        subject_group?: string | null;
+        subject_name?: string | null;
+        grade_score?: number | null;
+        raw_score?: number | null;
+        test_date?: string | null;
+      }>(
+        () =>
+          supabase
+            .from("student_internal_scores")
+            .select("subject_group,subject_name,grade_score,raw_score,test_date")
+            .gte("test_date", startDateStr)
+            .lte("test_date", endDateStr)
+            .eq("student_id", studentId)
+            .order("test_date", { ascending: true }),
+        [],
+        { retryOnColumnError: true }
+      ),
+      handleSupabaseQueryArray<{
+        subject_group?: string | null;
+        subject_name?: string | null;
+        grade_score?: number | null;
+        raw_score?: number | null;
+        exam_date?: string | null;
+      }>(
+        () =>
+          supabase
+            .from("student_mock_scores")
+            .select("subject_group,subject_name,grade_score,raw_score,exam_date")
+            .gte("exam_date", startDateStr)
+            .lte("exam_date", endDateStr)
+            .eq("student_id", studentId)
+            .order("exam_date", { ascending: true }),
+        [],
+        { retryOnColumnError: true }
+      ),
+    ]);
 
     // 과목별로 그룹화
     const subjectMap = new Map<string, Array<{
@@ -224,13 +247,27 @@ export async function fetchSubjectGradeTrends(
       raw_score: number | null;
     }>>();
 
-    scoreRows.forEach((score) => {
-      if (!score.course || score.grade === null) return;
-      const subject = score.course.toLowerCase().trim();
+    // 내신 성적 처리
+    internalScoresResult.forEach((score) => {
+      const subject = (score.subject_group || score.subject_name || "").toLowerCase().trim();
+      if (!subject || score.grade_score === null) return;
       const existing = subjectMap.get(subject) ?? [];
       existing.push({
         test_date: score.test_date ?? "",
-        grade: score.grade ?? 0,
+        grade: score.grade_score ?? 0,
+        raw_score: score.raw_score ?? null,
+      });
+      subjectMap.set(subject, existing);
+    });
+
+    // 모의고사 성적 처리
+    mockScoresResult.forEach((score) => {
+      const subject = (score.subject_group || score.subject_name || "").toLowerCase().trim();
+      if (!subject || score.grade_score === null) return;
+      const existing = subjectMap.get(subject) ?? [];
+      existing.push({
+        test_date: score.exam_date ?? "",
+        grade: score.grade_score ?? 0,
         raw_score: score.raw_score ?? null,
       });
       subjectMap.set(subject, existing);
