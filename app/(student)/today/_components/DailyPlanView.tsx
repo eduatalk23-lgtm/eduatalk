@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { PlanGroupCard } from "./PlanGroupCard";
 import { ViewMode } from "./ViewModeSelector";
@@ -43,6 +43,7 @@ export function DailyPlanView({
   }
 
   // 그룹 렌더링 결과를 메모이제이션하여 중복 렌더링 방지
+  // onViewDetail을 직접 전달하여 인라인 함수 생성 방지
   const renderedGroups = useMemo(
     () =>
       groups.map((group, index) => {
@@ -61,7 +62,7 @@ export function DailyPlanView({
               planDate={planDate}
               memo={memo}
               totalPages={totalPages}
-              onViewDetail={() => onViewDetail(group.planNumber)}
+              onViewDetail={onViewDetail}
               campMode={campMode}
             />
           </div>

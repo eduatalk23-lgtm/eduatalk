@@ -7,7 +7,9 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
-import { TodayPageContent } from "@/app/(student)/today/_components/TodayPageContent";
+import { TodayPlansSection } from "@/app/(student)/today/_components/TodayPlansSection";
+import { TodayAchievementsSection } from "@/app/(student)/today/_components/TodayAchievementsSection";
+import { TodayPageContextProvider } from "@/app/(student)/today/_components/TodayPageContext";
 import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";
 import { CompletionToast } from "@/app/(student)/today/_components/CompletionToast";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
@@ -34,6 +36,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "student") {
+    pageTimer.end();
     redirect("/login");
   }
 
@@ -143,6 +146,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
 
   // 활성 캠프 플랜 그룹이 없을 때 안내 메시지 표시
   if (activeCampPlanGroups.length === 0) {
+    pageTimer.end();
     return (
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         <div className="flex flex-col gap-6">
@@ -213,49 +217,55 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     achievementScore: 0,
   };
 
+  // todayPlansData를 PlansResponse 형태로 변환
+  const plansDataForContext = todayPlansData
+    ? {
+        plans: todayPlansData.plans,
+        sessions: todayPlansData.sessions,
+        planDate: todayPlansData.planDate,
+        isToday: todayPlansData.isToday,
+        serverNow: todayPlansData.serverNow,
+        todayProgress: todayPlansData.todayProgress,
+      }
+    : undefined;
+
   const page = (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">캠프 학습관리</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              캠프 플랜을 확인하고 학습을 진행하세요
-            </p>
+    <TodayPageContextProvider
+      initialProgressDate={targetProgressDate}
+      initialProgress={todayProgress}
+      initialPlansData={plansDataForContext}
+    >
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">캠프 학습관리</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                캠프 플랜을 확인하고 학습을 진행하세요
+              </p>
+            </div>
           </div>
-        </div>
-        <CurrentLearningSection campMode={true} />
-        <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-8">
-            <TodayPageContent
-              initialMode={requestedView}
-              initialPlanDate={requestedDate}
-              initialProgressDate={targetProgressDate}
-              initialProgress={todayProgress}
-              showAchievements={false}
-              userId={userId}
-              campMode={true}
-              initialPlansData={todayPlansData}
-            />
-          </div>
-          <div className="lg:col-span-4">
-            <div className="sticky top-6 flex flex-col gap-4">
-              <TodayPageContent
+          <CurrentLearningSection campMode={true} />
+          <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <TodayPlansSection
                 initialMode={requestedView}
                 initialPlanDate={requestedDate}
-                initialProgressDate={targetProgressDate}
-                initialProgress={todayProgress}
-                showPlans={false}
                 userId={userId}
                 campMode={true}
-                initialPlansData={todayPlansData}
+                initialPlansData={plansDataForContext}
               />
+            </div>
+            <div className="lg:col-span-4">
+              <div className="sticky top-6 flex flex-col gap-4">
+                <TodayAchievementsSection />
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </TodayPageContextProvider>
   );
   pageTimer.end();
   return page;

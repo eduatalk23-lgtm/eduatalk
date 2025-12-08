@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { PlanWithContent, calculateStudyTimeFromTimestamps } from "../_utils/planGroupUtils";
 import { TimestampDisplay } from "./TimestampDisplay";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -19,7 +19,7 @@ type PlanItemProps = {
   campMode?: boolean; // 캠프 모드 여부
 };
 
-export function PlanItem({
+function PlanItemComponent({
   plan,
   isGrouped,
   showTimer = false,
@@ -318,4 +318,20 @@ export function PlanItem({
     </div>
   );
 }
+
+export const PlanItem = memo(PlanItemComponent, (prevProps, nextProps) => {
+  // plan의 주요 속성만 비교하여 불필요한 리렌더링 방지
+  return (
+    prevProps.plan.id === nextProps.plan.id &&
+    prevProps.plan.progress === nextProps.plan.progress &&
+    prevProps.plan.actual_start_time === nextProps.plan.actual_start_time &&
+    prevProps.plan.actual_end_time === nextProps.plan.actual_end_time &&
+    prevProps.plan.paused_duration_seconds === nextProps.plan.paused_duration_seconds &&
+    prevProps.plan.session?.isPaused === nextProps.plan.session?.isPaused &&
+    prevProps.isGrouped === nextProps.isGrouped &&
+    prevProps.showTimer === nextProps.showTimer &&
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.campMode === nextProps.campMode
+  );
+});
 

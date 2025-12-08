@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { getActivePlan, getTimeStats } from "../_utils/planGroupUtils";
@@ -31,12 +31,12 @@ type PlanCardProps = {
   }>;
   planDate: string;
   viewMode: "single" | "daily";
-  onViewDetail?: () => void;
+  onViewDetail?: (planNumber: number | null) => void;
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
 };
 
-export function PlanCard({
+function PlanCardComponent({
   group,
   sessions,
   planDate,
@@ -431,7 +431,7 @@ export function PlanCard({
             </div>
             {onViewDetail && (
               <button
-                onClick={onViewDetail}
+                onClick={() => onViewDetail(group.planNumber)}
                 className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
               >
                 상세보기 →
@@ -482,4 +482,25 @@ export function PlanCard({
     </div>
   );
 }
+
+export const PlanCard = memo(PlanCardComponent, (prevProps, nextProps) => {
+  // group의 주요 속성만 비교하여 불필요한 리렌더링 방지
+  const prevPlan = prevProps.group.plan;
+  const nextPlan = nextProps.group.plan;
+  
+  return (
+    prevProps.group.planNumber === nextProps.group.planNumber &&
+    prevPlan.id === nextPlan.id &&
+    prevPlan.progress === nextPlan.progress &&
+    prevPlan.actual_start_time === nextPlan.actual_start_time &&
+    prevPlan.actual_end_time === nextPlan.actual_end_time &&
+    prevProps.planDate === nextProps.planDate &&
+    prevProps.viewMode === nextProps.viewMode &&
+    prevProps.campMode === nextProps.campMode &&
+    prevProps.serverNow === nextProps.serverNow &&
+    // sessions Map 비교 (크기와 주요 키만 확인)
+    prevProps.sessions.size === nextProps.sessions.size &&
+    prevProps.sessions.get(prevPlan.id)?.isPaused === nextProps.sessions.get(nextPlan.id)?.isPaused
+  );
+});
 

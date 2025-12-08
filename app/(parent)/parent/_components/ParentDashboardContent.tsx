@@ -6,7 +6,7 @@ import {
   getWeeklyGoalProgress,
 } from "@/lib/reports/weekly";
 import { getMonthlyReportData } from "@/lib/reports/monthly";
-import { getActiveGoals } from "@/lib/goals/queries";
+import { getActiveGoals, getGoalProgress } from "@/lib/goals/queries";
 import { calculateGoalProgress } from "@/lib/goals/calc";
 import { fetchAllScores } from "@/app/(student)/scores/dashboard/_utils";
 import { calculateAllRiskIndices } from "@/app/(student)/analysis/_utils";
@@ -17,6 +17,11 @@ import { RecentScores } from "./RecentScores";
 import { WeakSubjects } from "./WeakSubjects";
 import { RiskSignals } from "./RiskSignals";
 import { RecommendationSection } from "./RecommendationSection";
+import {
+  getRecentScores,
+  getWeakSubjects,
+  getRiskSignals,
+} from "./_utils/calculations";
 
 type ParentDashboardContentProps = {
   studentId: string;
@@ -51,10 +56,6 @@ export async function ParentDashboardContent({
   const { weekStart, weekEnd } = getWeekRange();
   const weekStartStr = weekStart.toISOString().slice(0, 10);
   const weekEndStr = weekEnd.toISOString().slice(0, 10);
-
-  // 이번 달 범위 계산
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  monthStart.setHours(0, 0, 0, 0);
 
   // 데이터 병렬 조회
   const [
@@ -104,9 +105,7 @@ export async function ParentDashboardContent({
   // 목표 진행률 계산
   const goalsWithProgress = await Promise.all(
     activeGoals.slice(0, 3).map(async (goal) => {
-      const progressRows = await import("@/lib/goals/queries").then((m) =>
-        m.getGoalProgress(supabase, studentId, goal.id)
-      );
+      const progressRows = await getGoalProgress(supabase, studentId, goal.id);
       const progress = calculateGoalProgress(goal, progressRows, today);
       return {
         id: goal.id,
@@ -117,23 +116,10 @@ export async function ParentDashboardContent({
     })
   );
 
-  // 최근 성적 (최근 5개)
-  const recentScores = allScores
-    .filter((s) => s.grade !== null)
-    .sort((a, b) => {
-      const dateA = a.test_date ? new Date(a.test_date).getTime() : 0;
-      const dateB = b.test_date ? new Date(b.test_date).getTime() : 0;
-      return dateB - dateA;
-    })
-    .slice(0, 5);
-
-  // 취약 과목 (risk_score가 높은 상위 3개)
-  const weakSubjects = riskAnalyses
-    .sort((a, b) => b.risk_score - a.risk_score)
-    .slice(0, 3);
-
-  // 위험 신호 (risk_score >= 60)
-  const riskSignals = riskAnalyses.filter((a) => a.risk_score >= 60);
+  // 최근 성적, 취약 과목, 위험 신호 계산 (유틸리티 함수로 분리하여 재사용성 및 가독성 향상)
+  const recentScores = getRecentScores(allScores);
+  const weakSubjects = getWeakSubjects(riskAnalyses);
+  const riskSignals = getRiskSignals(riskAnalyses);
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useTransition, ReactNode } from "react";
+import { createContext, useContext, useState, useTransition, ReactNode, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { deleteBooks, deleteLectures } from "@/app/(student)/actions/contentActions";
 
@@ -36,7 +36,7 @@ export function SelectionProvider({ children, activeTab }: SelectionProviderProp
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
-  const select = (id: string, checked: boolean) => {
+  const select = useCallback((id: string, checked: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (checked) {
@@ -46,21 +46,21 @@ export function SelectionProvider({ children, activeTab }: SelectionProviderProp
       }
       return next;
     });
-  };
+  }, []);
 
-  const selectAll = (checked: boolean, allIds: string[]) => {
+  const selectAll = useCallback((checked: boolean, allIds: string[]) => {
     if (checked) {
       setSelectedIds(new Set(allIds));
     } else {
       setSelectedIds(new Set());
     }
-  };
+  }, []);
 
-  const cancel = () => {
+  const cancel = useCallback(() => {
     setSelectedIds(new Set());
-  };
+  }, []);
 
-  const deleteSelected = () => {
+  const deleteSelected = useCallback(() => {
     if (selectedIds.size === 0) {
       return;
     }
@@ -87,20 +87,24 @@ export function SelectionProvider({ children, activeTab }: SelectionProviderProp
         );
       }
     });
-  };
+  }, [selectedIds.size, activeTab, router]);
+
+  // Context value를 메모이제이션하여 불필요한 리렌더링 방지
+  const contextValue = useMemo(
+    () => ({
+      selectedIds,
+      select,
+      selectAll,
+      cancel,
+      deleteSelected,
+      isPending,
+      activeTab,
+    }),
+    [selectedIds, select, selectAll, cancel, deleteSelected, isPending, activeTab]
+  );
 
   return (
-    <SelectionContext.Provider
-      value={{
-        selectedIds,
-        select,
-        selectAll,
-        cancel,
-        deleteSelected,
-        isPending,
-        activeTab,
-      }}
-    >
+    <SelectionContext.Provider value={contextValue}>
       {children}
     </SelectionContext.Provider>
   );

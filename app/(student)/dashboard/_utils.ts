@@ -401,7 +401,6 @@ export type LearningStatistics = {
   weekProgress: number; // 이번 주 진행률 (평균)
   completedCount: number; // 완료된 콘텐츠 수 (progress = 100)
   inProgressCount: number; // 진행 중 콘텐츠 수 (0 < progress < 100)
-  totalLearningAmount: number; // 누적 학습량
 };
 
 export async function fetchLearningStatistics(
@@ -477,18 +476,10 @@ export async function fetchLearningStatistics(
       }
     });
 
-    // 누적 학습량 계산
-    const totalLearningAmount = await calculateTotalLearningAmount(
-      supabase,
-      studentId,
-      progressMap
-    );
-
     return {
       weekProgress,
       completedCount,
       inProgressCount,
-      totalLearningAmount,
     };
   } catch (error) {
     console.error("[dashboard] 통계 조회 실패", error);
@@ -496,7 +487,6 @@ export async function fetchLearningStatistics(
       weekProgress: 0,
       completedCount: 0,
       inProgressCount: 0,
-      totalLearningAmount: 0,
     };
   }
 }

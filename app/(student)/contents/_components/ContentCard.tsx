@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, memo } from "react";
 import Link from "next/link";
 import { DeleteContentButton } from "./DeleteContentButton";
 
@@ -22,7 +22,7 @@ type ContentCardProps = {
   onSelect?: (checked: boolean) => void;
 };
 
-export function ContentCard({
+function ContentCardComponent({
   item,
   activeTab,
   onDelete,
@@ -126,4 +126,22 @@ export function ContentCard({
     </li>
   );
 }
+
+export const ContentCard = memo(ContentCardComponent, (prevProps, nextProps) => {
+  // item의 주요 속성만 비교하여 불필요한 리렌더링 방지
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.title === nextProps.item.title &&
+    prevProps.activeTab === nextProps.activeTab &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.subText === nextProps.subText &&
+    prevProps.linkedBook?.id === nextProps.linkedBook?.id &&
+    // detailRows 배열 길이와 주요 값 비교
+    prevProps.detailRows.length === nextProps.detailRows.length &&
+    prevProps.detailRows.every((row, idx) => 
+      row.label === nextProps.detailRows[idx]?.label &&
+      row.value === nextProps.detailRows[idx]?.value
+    )
+  );
+});
 

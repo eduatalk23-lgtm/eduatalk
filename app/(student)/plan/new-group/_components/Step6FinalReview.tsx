@@ -937,8 +937,11 @@ export function Step6FinalReview({
       </div>
 
       {/* 학습량 비교 요약 */}
-      {data.schedule_summary &&
-        (() => {
+      {(() => {
+        // 학습량 비교 요약 상태를 메모이제이션하여 불필요한 재계산 방지
+        const scheduleSummaryState = useMemo(() => {
+          if (!data.schedule_summary) return null;
+
           // 콘텐츠 총량 조회 중이거나 추천 범위 계산 중인지 확인
           const isCalculatingRecommendations =
             contentInfos.length > 0 &&
@@ -948,28 +951,10 @@ export function Step6FinalReview({
             loadingContentTotals || isCalculatingRecommendations;
 
           if (isLoading) {
-            return (
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <h3 className="mb-3 text-sm font-semibold text-gray-900">
-                  📊 전체 학습량 비교
-                </h3>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-                  <div className="flex flex-col items-center justify-center gap-3">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-gray-800">
-                        {loadingContentTotals
-                          ? "콘텐츠 정보를 불러오는 중..."
-                          : "추천 범위를 계산하는 중..."}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        잠시만 기다려주세요
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
+            return {
+              type: "loading" as const,
+              loadingContentTotals,
+            };
           }
 
           if (
@@ -977,13 +962,58 @@ export function Step6FinalReview({
             rangeUnavailableReasons.size > 0
           ) {
             // 추천 범위를 계산할 수 없는 경우
-            return null;
+            return { type: "unavailable" as const };
           }
 
           if (recommendedRanges.size === 0) {
-            return null;
+            return { type: "empty" as const };
           }
 
+          return { type: "ready" as const };
+        }, [
+          data.schedule_summary,
+          contentInfos.length,
+          recommendedRanges.size,
+          rangeUnavailableReasons.size,
+          loadingContentTotals,
+        ]);
+
+        if (!scheduleSummaryState) return null;
+
+        if (scheduleSummaryState.type === "loading") {
+          return (
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">
+                📊 전체 학습량 비교
+              </h3>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+                <div className="flex flex-col items-center justify-center gap-3">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-800">
+                      {scheduleSummaryState.loadingContentTotals
+                        ? "콘텐츠 정보를 불러오는 중..."
+                        : "추천 범위를 계산하는 중..."}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      잠시만 기다려주세요
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (
+          scheduleSummaryState.type === "unavailable" ||
+          scheduleSummaryState.type === "empty"
+        ) {
+          return null;
+        }
+
+        // ready 상태일 때의 계산 로직을 메모이제이션
+        const learningVolumeSummary = useMemo(() => {
           let initialTotalPages = 0;
           let initialTotalEpisodes = 0;
           let currentTotalPages = 0;
@@ -1105,6 +1135,40 @@ export function Step6FinalReview({
           const hasDifference =
             currentTotalPages !== recommendedTotalPages ||
             currentTotalEpisodes !== recommendedTotalEpisodes;
+
+          return {
+            initialTotalPages,
+            initialTotalEpisodes,
+            currentTotalPages,
+            currentTotalEpisodes,
+            recommendedTotalPages,
+            recommendedTotalEpisodes,
+            currentEstimatedDays,
+            recommendedEstimatedDays,
+            hasChanged,
+            hasDifference,
+          };
+        }, [
+          contentInfos,
+          data.student_contents,
+          data.recommended_contents,
+          data.schedule_summary,
+          initialRanges,
+          recommendedRanges,
+        ]);
+
+        const {
+          initialTotalPages,
+          initialTotalEpisodes,
+          currentTotalPages,
+          currentTotalEpisodes,
+          recommendedTotalPages,
+          recommendedTotalEpisodes,
+          currentEstimatedDays,
+          recommendedEstimatedDays,
+          hasChanged,
+          hasDifference,
+        } = learningVolumeSummary;
 
           return (
             <div className="rounded-lg border border-gray-200 bg-white p-4">

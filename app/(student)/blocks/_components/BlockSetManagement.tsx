@@ -215,13 +215,19 @@ export default function BlockSetManagement({
 
   // 초기 마운트 시에는 서버에서 받은 데이터를 사용하므로 추가 조회 불필요
   // 단, 서버 데이터와 클라이언트 데이터 동기화를 위해 한 번만 확인
+  // loadData는 useCallback으로 메모이제이션되어 있으므로, 의존성에서 제거하고
+  // 필요한 값만 의존성으로 사용하여 무한 루프 방지
+  const initialBlocksLength = initialBlocks.length;
+  const initialBlockSetsLength = initialBlockSets.length;
+  
   useEffect(() => {
     // 서버에서 받은 initialBlocks가 있으면 추가 조회하지 않음
     // 없거나 데이터가 비어있을 때만 조회
-    if (initialBlocks.length === 0 && initialBlockSets.length === 0) {
+    if (initialBlocksLength === 0 && initialBlockSetsLength === 0) {
       loadData(undefined, true);
     }
-  }, [loadData, initialBlocks.length, initialBlockSets.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialBlocksLength, initialBlockSetsLength]); // loadData는 안정적이므로 의존성에서 제외
 
   // initialActiveSetId가 변경되면 상태 업데이트 (탭 전환 후 복귀 시)
   useEffect(() => {
@@ -229,7 +235,8 @@ export default function BlockSetManagement({
       setActiveSetId(initialActiveSetId);
       loadData(initialActiveSetId, true); // 탭 전환 시에도 로딩 상태 표시하지 않음
     }
-  }, [initialActiveSetId, activeSetId, loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialActiveSetId, activeSetId]); // loadData는 안정적이므로 의존성에서 제외
 
   // initialBlockSets의 세트 ID 목록만 추적 (세트 추가/삭제 감지용)
   const initialSetIds = useMemo(() => {

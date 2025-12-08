@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { PlanCard } from "./PlanCard";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { formatKoreanDateWithDay } from "../_utils/dateDisplay";
@@ -55,7 +56,7 @@ export function DailyPlanListView({
           sessions={sessions}
           planDate={planDate}
           viewMode="daily"
-          onViewDetail={() => onViewDetail(group.planNumber)}
+          onViewDetail={onViewDetail}
           serverNow={serverNow}
           campMode={campMode}
         />

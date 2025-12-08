@@ -57,8 +57,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [showToast]
   );
 
+  // Context value를 메모이제이션하여 불필요한 리렌더링 방지
+  const contextValue = useMemo(
+    () => ({
+      showToast,
+      showSuccess,
+      showError,
+      showInfo,
+    }),
+    [showToast, showSuccess, showError, showInfo]
+  );
+
   return (
-    <ToastContext.Provider value={{ showToast, showSuccess, showError, showInfo }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
         {toasts.map((toast) => (

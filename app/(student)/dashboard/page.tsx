@@ -58,7 +58,6 @@ const DEFAULT_LEARNING_STATISTICS: LearningStatistics = {
   weekProgress: 0,
   completedCount: 0,
   inProgressCount: 0,
-  totalLearningAmount: 0,
 };
 
 const EMPTY_WEEKLY_BLOCKS: WeeklyBlockCount[] = [
@@ -260,10 +259,6 @@ export default async function DashboardPage() {
   const weekStartStr = weekStart.toISOString().slice(0, 10);
   const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
-  // 이번 달 범위 계산
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  monthStart.setHours(0, 0, 0, 0);
-
   // 오늘 플랜 및 통계 조회 (개별 실패 처리)
   const overviewTimer = perfTime("[dashboard] data - overview");
   
@@ -329,28 +324,43 @@ export default async function DashboardPage() {
     };
   });
 
-  // 콘텐츠 맵을 한 번만 조회하고 재사용 (Step 2)
-  const [bookMap, lectureMap, customMap] = await Promise.all([
-    fetchContentMap(supabase, user.id, "books"),
-    fetchContentMap(supabase, user.id, "lectures"),
-    fetchContentMap(supabase, user.id, "student_custom_contents"),
-  ]);
-
+  // 통계 데이터 병렬 조회 (콘텐츠 맵 없이 먼저 activePlan 확인)
   const [
     statisticsResult,
     weeklyBlocksResult,
     contentTypeProgressResult,
-    activePlanResult,
+    activePlanResultWithoutMaps,
   ] = await Promise.allSettled([
     fetchLearningStatistics(supabase, user.id),
     fetchWeeklyBlockCounts(supabase, user.id),
     fetchContentTypeProgress(supabase, user.id),
-    fetchActivePlan(supabase, user.id, todayDate, { // 콘텐츠 맵 재사용
+    fetchActivePlan(supabase, user.id, todayDate), // 콘텐츠 맵 없이 조회
+  ]);
+
+  // activePlan이 존재할 때만 콘텐츠 맵 조회
+  let activePlanResult = activePlanResultWithoutMaps;
+  if (
+    activePlanResultWithoutMaps.status === "fulfilled" &&
+    activePlanResultWithoutMaps.value !== null
+  ) {
+    // activePlan이 있으면 콘텐츠 맵 조회 후 다시 조회
+    const [bookMap, lectureMap, customMap] = await Promise.all([
+      fetchContentMap(supabase, user.id, "books"),
+      fetchContentMap(supabase, user.id, "lectures"),
+      fetchContentMap(supabase, user.id, "student_custom_contents"),
+    ]);
+
+    // 콘텐츠 맵과 함께 다시 조회
+    const activePlanWithMaps = await fetchActivePlan(supabase, user.id, todayDate, {
       bookMap,
       lectureMap,
       customMap,
-    }),
-  ]);
+    });
+    activePlanResult = {
+      status: "fulfilled" as const,
+      value: activePlanWithMaps,
+    };
+  }
   overviewTimer.end();
 
   const weeklyReportTimer = perfTime("[dashboard] data - weeklyReport");
@@ -396,16 +406,53 @@ export default async function DashboardPage() {
     activePlanResult.status === "fulfilled" ? activePlanResult.value : null;
 
   const todayPlansSummaryTimer = perfTime("[dashboard] data - todayPlansSummary");
-  const {
-    todayProgress,
-    completedPlans,
-    incompletePlans,
-    timeStats: todayTimeStats,
-  } = summarizeTodayPlansOptimized(
-    todayPlansData.plans,
-    todayPlansData.sessions,
-    todayDate
-  );
+  
+  // todayPlansData.todayProgress가 있으면 캐시된 값 사용 (재계산 불필요)
+  let todayProgress: number;
+  let completedPlans: number;
+  let incompletePlans: number;
+  let todayTimeStats: {
+    totalStudySeconds: number;
+    pausedSeconds: number;
+    completedCount: number;
+    pureStudySeconds: number;
+    averagePlanMinutes: number;
+  };
+
+  if (todayPlansData.todayProgress) {
+    // 캐시된 todayProgress 사용
+    const cachedProgress = todayPlansData.todayProgress;
+    completedPlans = cachedProgress.planCompletedCount;
+    incompletePlans = cachedProgress.planTotalCount - cachedProgress.planCompletedCount;
+    todayProgress = cachedProgress.planTotalCount > 0
+      ? Math.round((cachedProgress.planCompletedCount / cachedProgress.planTotalCount) * 100)
+      : 0;
+    
+    // timeStats는 todayProgress에 포함되지 않으므로 별도 계산
+    // 하지만 todayStudyMinutes를 활용하여 근사치 계산 가능
+    const todayStudySeconds = cachedProgress.todayStudyMinutes * 60;
+    todayTimeStats = {
+      totalStudySeconds: todayStudySeconds,
+      pausedSeconds: 0, // todayProgress에는 일시정지 정보가 없음
+      completedCount: completedPlans,
+      pureStudySeconds: todayStudySeconds,
+      averagePlanMinutes: completedPlans > 0
+        ? Math.round(todayStudySeconds / completedPlans / 60)
+        : 0,
+    };
+  } else {
+    // fallback: todayProgress가 없으면 기존 방식으로 계산
+    const summary = summarizeTodayPlansOptimized(
+      todayPlansData.plans,
+      todayPlansData.sessions,
+      todayDate
+    );
+    todayProgress = summary.todayProgress;
+    completedPlans = summary.completedPlans;
+    incompletePlans = summary.incompletePlans;
+    todayTimeStats = summary.timeStats;
+  }
+  
   todayPlansSummaryTimer.end();
 
   const studentName = student?.name ?? "학생";
