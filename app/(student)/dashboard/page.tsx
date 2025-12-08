@@ -275,6 +275,30 @@ export default async function DashboardPage() {
     cacheTtlSeconds: 120,
   });
 
+  // todayPlansData에서 콘텐츠 맵 추출 (중복 조회 방지)
+  const bookMap: Record<string, { id: string; title?: string | null; subject?: string | null; difficulty_level?: string | null }> = {};
+  const lectureMap: Record<string, { id: string; title?: string | null; subject?: string | null; difficulty_level?: string | null }> = {};
+  const customMap: Record<string, { id: string; title?: string | null; subject?: string | null; difficulty_level?: string | null }> = {};
+
+  todayPlansData.plans.forEach((plan) => {
+    if (plan.content) {
+      const contentEntry = {
+        id: plan.content_id,
+        title: plan.content.title || null,
+        subject: plan.content.subject || null,
+        difficulty_level: "difficulty_level" in plan.content ? plan.content.difficulty_level || null : null,
+      };
+
+      if (plan.content_type === "book") {
+        bookMap[plan.content_id] = contentEntry;
+      } else if (plan.content_type === "lecture") {
+        lectureMap[plan.content_id] = contentEntry;
+      } else if (plan.content_type === "custom") {
+        customMap[plan.content_id] = contentEntry;
+      }
+    }
+  });
+
   // todayPlansData에서 TodayPlan 형태로 변환
   const todayPlans: Array<{
     id: string;
@@ -324,43 +348,22 @@ export default async function DashboardPage() {
     };
   });
 
-  // 통계 데이터 병렬 조회 (콘텐츠 맵 없이 먼저 activePlan 확인)
+  // 통계 데이터 병렬 조회 (콘텐츠 맵을 fetchActivePlan에 전달하여 중복 조회 제거)
   const [
     statisticsResult,
     weeklyBlocksResult,
     contentTypeProgressResult,
-    activePlanResultWithoutMaps,
+    activePlanResult,
   ] = await Promise.allSettled([
     fetchLearningStatistics(supabase, user.id),
     fetchWeeklyBlockCounts(supabase, user.id),
     fetchContentTypeProgress(supabase, user.id),
-    fetchActivePlan(supabase, user.id, todayDate), // 콘텐츠 맵 없이 조회
-  ]);
-
-  // activePlan이 존재할 때만 콘텐츠 맵 조회
-  let activePlanResult = activePlanResultWithoutMaps;
-  if (
-    activePlanResultWithoutMaps.status === "fulfilled" &&
-    activePlanResultWithoutMaps.value !== null
-  ) {
-    // activePlan이 있으면 콘텐츠 맵 조회 후 다시 조회
-    const [bookMap, lectureMap, customMap] = await Promise.all([
-      fetchContentMap(supabase, user.id, "books"),
-      fetchContentMap(supabase, user.id, "lectures"),
-      fetchContentMap(supabase, user.id, "student_custom_contents"),
-    ]);
-
-    // 콘텐츠 맵과 함께 다시 조회
-    const activePlanWithMaps = await fetchActivePlan(supabase, user.id, todayDate, {
+    fetchActivePlan(supabase, user.id, todayDate, {
       bookMap,
       lectureMap,
       customMap,
-    });
-    activePlanResult = {
-      status: "fulfilled" as const,
-      value: activePlanWithMaps,
-    };
-  }
+    }), // 콘텐츠 맵을 전달하여 중복 조회 제거
+  ]);
   overviewTimer.end();
 
   const weeklyReportTimer = perfTime("[dashboard] data - weeklyReport");
@@ -442,8 +445,17 @@ export default async function DashboardPage() {
     };
   } else {
     // fallback: todayProgress가 없으면 기존 방식으로 계산
+    // todayPlansData.plans에서 필요한 필드만 추출
+    const plansForSummary = todayPlansData.plans.map((plan) => ({
+      id: plan.id,
+      progress: plan.progress ?? null,
+      actual_start_time: plan.actual_start_time ?? null,
+      actual_end_time: plan.actual_end_time ?? null,
+      total_duration_seconds: plan.total_duration_seconds ?? null,
+      paused_duration_seconds: plan.paused_duration_seconds ?? null,
+    }));
     const summary = summarizeTodayPlansOptimized(
-      todayPlansData.plans,
+      plansForSummary,
       todayPlansData.sessions,
       todayDate
     );
