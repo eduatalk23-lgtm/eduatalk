@@ -1,6 +1,11 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
 import { getSubjectFromContent } from "@/lib/studySessions/summary";
+import {
+  getSubjectsForContentsBatch,
+  getPlansContentBatch,
+  getContentTitlesBatch,
+} from "./batchHelpers";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -240,12 +245,35 @@ export async function getWeeklyStudyTimeSummary(
 
     const sessions = await getSessionsByDateRange(supabase, studentId, weekStartStr, weekEndStr);
 
+    // 배치 조회를 위한 데이터 수집
+    const planIds = [...new Set(sessions.map((s) => s.plan_id).filter(Boolean) as string[])];
+    const contentKeys = new Set<{ contentType: "book" | "lecture" | "custom"; contentId: string }>();
+
+    // 플랜 정보 배치 조회
+    const planMap = await getPlansContentBatch(supabase, studentId, planIds);
+
+    // 콘텐츠 키 수집
+    sessions.forEach((session) => {
+      if (session.plan_id && planMap.has(session.plan_id)) {
+        const plan = planMap.get(session.plan_id)!;
+        contentKeys.add({ contentType: plan.contentType, contentId: plan.contentId });
+      } else if (session.content_type && session.content_id) {
+        contentKeys.add({
+          contentType: session.content_type as "book" | "lecture" | "custom",
+          contentId: session.content_id,
+        });
+      }
+    });
+
+    // 과목 정보 배치 조회
+    const subjectMap = await getSubjectsForContentsBatch(supabase, studentId, Array.from(contentKeys));
+
     let totalSeconds = 0;
     const byDayMap = new Map<string, number>();
     const bySubjectMap = new Map<string, number>();
     const byContentTypeMap = new Map<string, number>();
 
-    // 세션별 집계
+    // 세션별 집계 (이미 조회된 데이터 사용)
     for (const session of sessions) {
       if (!session.duration_seconds) continue;
 
@@ -255,25 +283,15 @@ export async function getWeeklyStudyTimeSummary(
       const sessionDate = new Date(session.started_at).toISOString().slice(0, 10);
       byDayMap.set(sessionDate, (byDayMap.get(sessionDate) || 0) + session.duration_seconds);
 
-      // 과목별 집계
+      // 과목별 집계 (배치 조회 결과 사용)
       let subject: string | null = null;
-      if (session.plan_id) {
-        const plan = await getPlanInfo(supabase, studentId, session.plan_id);
-        if (plan) {
-          subject = await getSubjectFromContent(
-            supabase,
-            studentId,
-            plan.content_type,
-            plan.content_id
-          );
-        }
+      if (session.plan_id && planMap.has(session.plan_id)) {
+        const plan = planMap.get(session.plan_id)!;
+        const key = `${plan.contentType}:${plan.contentId}`;
+        subject = subjectMap.get(key) || null;
       } else if (session.content_type && session.content_id) {
-        subject = await getSubjectFromContent(
-          supabase,
-          studentId,
-          session.content_type,
-          session.content_id
-        );
+        const key = `${session.content_type}:${session.content_id}`;
+        subject = subjectMap.get(key) || null;
       }
 
       if (subject) {
@@ -476,6 +494,34 @@ export async function getWeeklyWeakSubjectTrend(
       lastWeekEndStr
     );
 
+    // 배치 조회를 위한 데이터 수집
+    const allPlanIds = [
+      ...new Set([
+        ...thisWeekSessions.map((s) => s.plan_id).filter(Boolean),
+        ...lastWeekSessions.map((s) => s.plan_id).filter(Boolean),
+      ] as string[]),
+    ];
+    const allContentKeys = new Set<{ contentType: "book" | "lecture" | "custom"; contentId: string }>();
+
+    // 플랜 정보 배치 조회
+    const allPlanMap = await getPlansContentBatch(supabase, studentId, allPlanIds);
+
+    // 콘텐츠 키 수집
+    [...thisWeekSessions, ...lastWeekSessions].forEach((session) => {
+      if (session.plan_id && allPlanMap.has(session.plan_id)) {
+        const plan = allPlanMap.get(session.plan_id)!;
+        allContentKeys.add({ contentType: plan.contentType, contentId: plan.contentId });
+      } else if (session.content_type && session.content_id) {
+        allContentKeys.add({
+          contentType: session.content_type as "book" | "lecture" | "custom",
+          contentId: session.content_id,
+        });
+      }
+    });
+
+    // 과목 정보 배치 조회
+    const allSubjectMap = await getSubjectsForContentsBatch(supabase, studentId, Array.from(allContentKeys));
+
     // 과목별 학습시간 계산
     const thisWeekBySubject = new Map<string, number>();
     const lastWeekBySubject = new Map<string, number>();
@@ -483,23 +529,13 @@ export async function getWeeklyWeakSubjectTrend(
     for (const session of thisWeekSessions) {
       if (!session.duration_seconds) continue;
       let subject: string | null = null;
-      if (session.plan_id) {
-        const plan = await getPlanInfo(supabase, studentId, session.plan_id);
-        if (plan) {
-          subject = await getSubjectFromContent(
-            supabase,
-            studentId,
-            plan.content_type,
-            plan.content_id
-          );
-        }
+      if (session.plan_id && allPlanMap.has(session.plan_id)) {
+        const plan = allPlanMap.get(session.plan_id)!;
+        const key = `${plan.contentType}:${plan.contentId}`;
+        subject = allSubjectMap.get(key) || null;
       } else if (session.content_type && session.content_id) {
-        subject = await getSubjectFromContent(
-          supabase,
-          studentId,
-          session.content_type,
-          session.content_id
-        );
+        const key = `${session.content_type}:${session.content_id}`;
+        subject = allSubjectMap.get(key) || null;
       }
       if (subject) {
         thisWeekBySubject.set(
@@ -512,23 +548,13 @@ export async function getWeeklyWeakSubjectTrend(
     for (const session of lastWeekSessions) {
       if (!session.duration_seconds) continue;
       let subject: string | null = null;
-      if (session.plan_id) {
-        const plan = await getPlanInfo(supabase, studentId, session.plan_id);
-        if (plan) {
-          subject = await getSubjectFromContent(
-            supabase,
-            studentId,
-            plan.content_type,
-            plan.content_id
-          );
-        }
+      if (session.plan_id && allPlanMap.has(session.plan_id)) {
+        const plan = allPlanMap.get(session.plan_id)!;
+        const key = `${plan.contentType}:${plan.contentId}`;
+        subject = allSubjectMap.get(key) || null;
       } else if (session.content_type && session.content_id) {
-        subject = await getSubjectFromContent(
-          supabase,
-          studentId,
-          session.content_type,
-          session.content_id
-        );
+        const key = `${session.content_type}:${session.content_id}`;
+        subject = allSubjectMap.get(key) || null;
       }
       if (subject) {
         lastWeekBySubject.set(
@@ -695,6 +721,35 @@ export async function getDailyBreakdown(
         0
       );
 
+      // 배치 조회를 위한 데이터 수집 (전체 주간 세션 기준)
+      const allPlanIds = [...new Set(sessions.map((s) => s.plan_id).filter(Boolean) as string[])];
+      const allContentKeys = new Set<{ contentType: "book" | "lecture" | "custom"; contentId: string }>();
+
+      sessions.forEach((session) => {
+        if (session.plan_id) {
+          // 플랜 정보는 나중에 배치 조회
+        } else if (session.content_type && session.content_id) {
+          allContentKeys.add({
+            contentType: session.content_type as "book" | "lecture" | "custom",
+            contentId: session.content_id,
+          });
+        }
+      });
+
+      // 플랜 정보 배치 조회
+      const allPlanMap = await getPlansContentBatch(supabase, studentId, allPlanIds);
+
+      // 플랜에서 콘텐츠 키 추가
+      allPlanMap.forEach((plan) => {
+        allContentKeys.add({ contentType: plan.contentType, contentId: plan.contentId });
+      });
+
+      // 과목 및 제목 정보 배치 조회
+      const [allSubjectMap, allTitleMap] = await Promise.all([
+        getSubjectsForContentsBatch(supabase, studentId, Array.from(allContentKeys)),
+        getContentTitlesBatch(supabase, studentId, Array.from(allContentKeys)),
+      ]);
+
       // 콘텐츠 리스트 생성
       const contentsMap = new Map<string, {
         contentType: "book" | "lecture" | "custom";
@@ -710,27 +765,22 @@ export async function getDailyBreakdown(
         let contentId: string | null = null;
         let subject: string | null = null;
 
-        if (session.plan_id) {
-          const plan = await getPlanInfo(supabase, studentId, session.plan_id);
-          if (plan) {
-            contentType = plan.content_type;
-            contentId = plan.content_id;
-            subject = await getSubjectFromContent(supabase, studentId, contentType, contentId);
-          }
+        if (session.plan_id && allPlanMap.has(session.plan_id)) {
+          const plan = allPlanMap.get(session.plan_id)!;
+          contentType = plan.contentType;
+          contentId = plan.contentId;
+          const key = `${contentType}:${contentId}`;
+          subject = allSubjectMap.get(key) || null;
         } else if (session.content_type && session.content_id) {
           contentType = session.content_type as "book" | "lecture" | "custom";
           contentId = session.content_id;
-          subject = await getSubjectFromContent(supabase, studentId, contentType, contentId);
+          const key = `${contentType}:${contentId}`;
+          subject = allSubjectMap.get(key) || null;
         }
 
         if (contentId) {
-          const contentTitle = await getContentTitle(
-            supabase,
-            studentId,
-            contentType,
-            contentId
-          );
           const key = `${contentType}:${contentId}`;
+          const contentTitle = allTitleMap.get(key) || "제목 없음";
           const existing = contentsMap.get(key) || {
             contentType,
             contentTitle,

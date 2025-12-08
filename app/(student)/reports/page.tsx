@@ -54,6 +54,14 @@ export default async function ReportsPage({
           >
             월간 리포트
           </Link>
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={period === "weekly" ? "/report/weekly" : "/report/monthly"}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              상세 리포트 보기 →
+            </Link>
+          </div>
         </div>
 
         <ReportView data={reportData} />

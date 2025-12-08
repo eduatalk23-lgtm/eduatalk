@@ -1,3 +1,6 @@
+import { handleSupabaseQueryArray, handleSupabaseQuerySingle } from "@/lib/utils/supabaseErrorHandler";
+import { getReportDateRange } from "@/lib/date/reportDateUtils";
+
 type SupabaseServerClient = Awaited<
   ReturnType<typeof import("@/lib/supabase/server").createSupabaseServerClient>
 >;
@@ -66,24 +69,17 @@ export async function fetchStudentInfo(
   supabase: SupabaseServerClient,
   studentId: string
 ): Promise<StudentInfo> {
-  try {
-    const selectStudent = () =>
-      supabase.from("students").select("name,grade,class,birth_date").eq("id", studentId);
+  const selectStudent = () =>
+    supabase.from("students").select("name,grade,class,birth_date").eq("id", studentId);
 
-    let { data, error } = await selectStudent();
+  const data = await handleSupabaseQueryArray<StudentInfo>(
+    selectStudent,
+    [],
+    { retryOnColumnError: true }
+  );
 
-    if (error && error.code === "42703") {
-      ({ data, error } = await selectStudent());
-    }
-
-    if (error) throw error;
-
-    const student = (data as StudentInfo[] | null)?.[0];
-    return student ?? { name: null, grade: null, class: null, birth_date: null };
-  } catch (error) {
-    console.error("[reports] 학생 정보 조회 실패", error);
-    return { name: null, grade: null, class: null, birth_date: null };
-  }
+  const student = data[0];
+  return student ?? { name: null, grade: null, class: null, birth_date: null };
 }
 
 // 주간 학습 요약
@@ -102,45 +98,34 @@ export async function fetchWeeklyLearningSummary(
         .from("student_plan")
         .select("id,content_type,content_id,completed_amount,plan_date")
         .gte("plan_date", startDateStr)
-        .lte("plan_date", endDateStr);
+        .lte("plan_date", endDateStr)
+        .eq("student_id", studentId);
 
-    let { data: plans, error } = await selectPlans().eq("student_id", studentId);
-
-    if (error && error.code === "42703") {
-      ({ data: plans, error } = await selectPlans());
-    }
-
-    if (error) throw error;
-
-    const planRows = (plans as Array<{
+    const plans = await handleSupabaseQueryArray<{
       id: string;
       content_type?: string | null;
       content_id?: string | null;
       completed_amount?: number | null;
       plan_date?: string | null;
-    }> | null) ?? [];
+    }>(selectPlans, [], { retryOnColumnError: true });
+
+    const planRows = plans;
 
     // 진행률 조회
     const selectProgress = () =>
       supabase
         .from("student_content_progress")
-        .select("content_type,content_id,progress");
+        .select("content_type,content_id,progress")
+        .eq("student_id", studentId);
 
-    let { data: progressData, error: progressError } = await selectProgress().eq(
-      "student_id",
-      studentId
-    );
-
-    if (progressError && progressError.code === "42703") {
-      ({ data: progressData, error: progressError } = await selectProgress());
-    }
-
-    const progressMap = new Map<string, number>();
-    (progressData as Array<{
+    const progressData = await handleSupabaseQueryArray<{
       content_type?: string | null;
       content_id?: string | null;
       progress?: number | null;
-    }> | null)?.forEach((p) => {
+    }>(selectProgress, [], { retryOnColumnError: true });
+
+    const progressMap = new Map<string, number>();
+    progressData.forEach((p) => {
       if (p.content_type && p.content_id) {
         progressMap.set(`${p.content_type}:${p.content_id}`, p.progress ?? 0);
       }
@@ -221,23 +206,16 @@ export async function fetchSubjectGradeTrends(
         .select("course,course_detail,grade,raw_score,test_date")
         .gte("test_date", startDateStr)
         .lte("test_date", endDateStr)
+        .eq("student_id", studentId)
         .order("test_date", { ascending: true });
 
-    let { data: scores, error } = await selectScores().eq("student_id", studentId);
-
-    if (error && error.code === "42703") {
-      ({ data: scores, error } = await selectScores());
-    }
-
-    if (error) throw error;
-
-    const scoreRows = (scores as Array<{
+    const scoreRows = await handleSupabaseQueryArray<{
       course?: string | null;
       course_detail?: string | null;
       grade?: number | null;
       raw_score?: number | null;
       test_date?: string | null;
-    }> | null) ?? [];
+    }>(selectScores, [], { retryOnColumnError: true });
 
     // 과목별로 그룹화
     const subjectMap = new Map<string, Array<{
@@ -307,22 +285,13 @@ export async function fetchWeakSubjects(
         .from("student_analysis")
         .select("subject,risk_score")
         .gte("risk_score", 50)
+        .eq("student_id", studentId)
         .order("risk_score", { ascending: false });
 
-    let { data: analyses, error } = await selectAnalysis().eq("student_id", studentId);
-
-    if (error && error.code === "42703") {
-      ({ data: analyses, error } = await selectAnalysis());
-    }
-
-    if (error && error.code !== "PGRST116") {
-      throw error;
-    }
-
-    const analysisRows = (analyses as Array<{
+    const analysisRows = await handleSupabaseQueryArray<{
       subject?: string | null;
       risk_score?: number | null;
-    }> | null) ?? [];
+    }>(selectAnalysis, [], { retryOnColumnError: true });
 
     return analysisRows
       .filter((a) => a.subject && a.risk_score !== null)
@@ -416,44 +385,34 @@ export async function fetchNextWeekSchedule(
         .select("id,plan_date,block_index,content_type,content_id")
         .gte("plan_date", startDateStr)
         .lte("plan_date", endDateStr)
+        .eq("student_id", studentId)
         .order("plan_date", { ascending: true })
         .order("block_index", { ascending: true });
 
-    let { data: plans, error } = await selectPlans().eq("student_id", studentId);
-
-    if (error && error.code === "42703") {
-      ({ data: plans, error } = await selectPlans());
-    }
-
-    if (error) throw error;
-
-    const planRows = (plans as Array<{
+    const planRows = await handleSupabaseQueryArray<{
       id: string;
       plan_date?: string | null;
       block_index?: number | null;
       content_type?: string | null;
       content_id?: string | null;
-    }> | null) ?? [];
+    }>(selectPlans, [], { retryOnColumnError: true });
 
     // 블록 정보 조회
     const selectBlocks = () =>
       supabase
         .from("student_block_schedule")
-        .select("day_of_week,block_index,start_time,end_time");
+        .select("day_of_week,block_index,start_time,end_time")
+        .eq("student_id", studentId);
 
-    let { data: blocks, error: blockError } = await selectBlocks().eq("student_id", studentId);
-
-    if (blockError && blockError.code === "42703") {
-      ({ data: blocks, error: blockError } = await selectBlocks());
-    }
-
-    const blockMap = new Map<string, { start_time: string | null; end_time: string | null }>();
-    (blocks as Array<{
+    const blocks = await handleSupabaseQueryArray<{
       day_of_week?: number | null;
       block_index?: number | null;
       start_time?: string | null;
       end_time?: string | null;
-    }> | null)?.forEach((block) => {
+    }>(selectBlocks, [], { retryOnColumnError: true });
+
+    const blockMap = new Map<string, { start_time: string | null; end_time: string | null }>();
+    blocks.forEach((block) => {
       if (block.day_of_week !== null && block.block_index !== null) {
         const key = `${block.day_of_week}:${block.block_index}`;
         blockMap.set(key, {
@@ -549,35 +508,7 @@ export async function collectReportData(
   studentId: string,
   period: "weekly" | "monthly"
 ): Promise<ReportData> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let startDate: Date;
-  let endDate: Date;
-  let periodLabel: string;
-
-  if (period === "weekly") {
-    // 이번 주 (월요일부터)
-    const dayOfWeek = today.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    startDate = new Date(today);
-    startDate.setDate(today.getDate() + mondayOffset);
-    endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-
-    const year = startDate.getFullYear();
-    const month = startDate.getMonth() + 1;
-    const weekNumber = Math.ceil((startDate.getDate() + (7 - startDate.getDay())) / 7);
-    periodLabel = `${year}년 ${month}월 ${weekNumber}주차`;
-  } else {
-    // 이번 달
-    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    const year = startDate.getFullYear();
-    const month = startDate.getMonth() + 1;
-    periodLabel = `${year}년 ${month}월`;
-  }
+  const { start: startDate, end: endDate, label: periodLabel } = getReportDateRange(period);
 
   const [studentInfo, weeklySummary, gradeTrends, weakSubjects, nextWeekSchedule] =
     await Promise.all([
