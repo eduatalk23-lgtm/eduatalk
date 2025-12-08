@@ -46,17 +46,24 @@
   - `getAttendanceSMSSettings()` - SMS 설정 조회
   - `updateAttendanceSMSSettings()` - SMS 설정 업데이트
 
-### 3. 학생별 출석 알림 설정
+### 3. 학생별 출석 알림 설정 (학부모 페이지)
 
-#### 3.1 학생 설정 페이지에 출석 알림 설정 추가
-- 파일: `app/(student)/settings/notifications/_components/NotificationSettingsView.tsx`
-- 출석 관련 알림 설정 섹션 추가
+#### 3.1 학부모 설정 페이지에 자녀별 출석 알림 설정 추가
+- 파일: `app/(parent)/parent/settings/page.tsx`
+- 자녀별 출석 알림 설정 섹션 추가
+- 각 자녀별로 개별 설정 가능
 - 기본값/ON/OFF 3단계 토글 (NULL이면 학원 기본 설정 사용)
 
-#### 3.2 학생별 출석 알림 설정 액션
-- 파일: `app/(student)/settings/notifications/actions/notificationActions.ts`
-- `NotificationSettings` 타입에 출석 관련 필드 추가
-- 기존 `updateNotificationSettings` 함수가 출석 설정도 함께 저장
+#### 3.2 학생별 출석 알림 설정 컴포넌트
+- 파일: `app/(parent)/parent/settings/_components/StudentAttendanceNotificationSettings.tsx`
+- 자녀별 출석 알림 설정 UI 컴포넌트
+- 입실/퇴실/결석/지각 알림 설정
+
+#### 3.3 학부모 설정 액션
+- 파일: `app/(parent)/actions/parentSettingsActions.ts`
+- `getStudentAttendanceNotificationSettings()` - 학생별 출석 알림 설정 조회
+- `updateStudentAttendanceNotificationSettings()` - 학생별 출석 알림 설정 업데이트
+- 학부모가 자녀에 대한 접근 권한 확인 후 설정 관리
 
 ### 4. 출석 SMS 발송 유틸리티 함수 생성
 
@@ -108,8 +115,9 @@
 - `app/(admin)/actions/attendanceSettingsActions.ts` - SMS 설정 액션 추가
 - `app/(student)/actions/attendanceActions.ts` - SMS 발송 로직 추가
 - `app/(admin)/actions/attendanceActions.ts` - SMS 발송 로직 개선
-- `app/(student)/settings/notifications/_components/NotificationSettingsView.tsx` - 출석 알림 설정 추가
-- `app/(student)/settings/notifications/actions/notificationActions.ts` - 출석 설정 타입 추가
+- `app/(parent)/parent/settings/page.tsx` - 자녀별 출석 알림 설정 추가
+- `app/(student)/settings/notifications/_components/NotificationSettingsView.tsx` - 출석 알림 설정 제거
+- `app/(student)/settings/notifications/actions/notificationActions.ts` - 출석 설정 타입 제거
 
 ## 설정 기본값
 
@@ -125,10 +133,10 @@
 4. "학생 직접 체크인 시 발송" 옵션 설정
 5. 저장
 
-### 학생: 개별 출석 알림 설정
-1. `/settings/notifications` 페이지 접속
-2. "출석 알림" 섹션에서 각 알림 유형별 설정
-3. 기본값/ON/OFF 선택 (기본값이면 학원 설정 사용)
+### 학부모: 자녀별 출석 알림 설정
+1. `/parent/settings` 페이지 접속
+2. "출석 알림 설정" 섹션에서 각 자녀별로 설정
+3. 각 알림 유형별 기본값/ON/OFF 선택 (기본값이면 학원 설정 사용)
 4. 저장
 
 ## 테스트 시나리오
