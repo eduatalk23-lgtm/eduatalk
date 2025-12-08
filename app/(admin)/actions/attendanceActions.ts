@@ -15,6 +15,9 @@ import type {
   AttendanceFilters,
 } from "@/lib/domains/attendance/types";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { sendAttendanceSMS } from "@/app/actions/smsActions";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 /**
  * 출석 기록 생성 또는 수정
@@ -44,7 +47,129 @@ export async function recordAttendanceAction(
       );
     }
 
-    await recordAttendance(input);
+    const record = await recordAttendance(input);
+
+    // 출석 기록 저장 후 자동 SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
+    try {
+      const tenantContext = await getTenantContext();
+      const supabase = await createSupabaseServerClient();
+
+      // 학생 정보 조회
+      const { data: student } = await supabase
+        .from("students")
+        .select("id, name, parent_contact")
+        .eq("id", input.student_id)
+        .single();
+
+      // 학원명 조회
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("name")
+        .eq("id", tenantContext?.tenantId)
+        .single();
+
+      // 학부모 연락처가 있고, 출석 상태에 따라 SMS 발송
+      if (student?.parent_contact && tenant?.name) {
+        const academyName = tenant.name;
+        const studentName = student.name || "학생";
+        const attendanceDate = new Date(input.attendance_date).toLocaleDateString(
+          "ko-KR",
+          { month: "long", day: "numeric" }
+        );
+
+        // 입실 알림: present 상태이고 check_in_time이 있는 경우
+        if (
+          record.status === "present" &&
+          record.check_in_time &&
+          !record.check_out_time
+        ) {
+          const checkInTime = new Date(
+            `${input.attendance_date}T${record.check_in_time}`
+          ).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          await sendAttendanceSMS(
+            input.student_id,
+            "attendance_check_in",
+            {
+              학원명: academyName,
+              학생명: studentName,
+              시간: checkInTime,
+            }
+          ).catch((error) => {
+            console.error("[Attendance] 입실 SMS 발송 실패:", error);
+            // SMS 발송 실패는 무시하고 출석 기록은 정상 저장됨
+          });
+        }
+
+        // 퇴실 알림: present 상태이고 check_out_time이 있는 경우
+        if (
+          record.status === "present" &&
+          record.check_out_time
+        ) {
+          const checkOutTime = new Date(
+            `${input.attendance_date}T${record.check_out_time}`
+          ).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          await sendAttendanceSMS(
+            input.student_id,
+            "attendance_check_out",
+            {
+              학원명: academyName,
+              학생명: studentName,
+              시간: checkOutTime,
+            }
+          ).catch((error) => {
+            console.error("[Attendance] 퇴실 SMS 발송 실패:", error);
+          });
+        }
+
+        // 결석 알림: absent 상태인 경우
+        if (record.status === "absent") {
+          await sendAttendanceSMS(
+            input.student_id,
+            "attendance_absent",
+            {
+              학원명: academyName,
+              학생명: studentName,
+              날짜: attendanceDate,
+            }
+          ).catch((error) => {
+            console.error("[Attendance] 결석 SMS 발송 실패:", error);
+          });
+        }
+
+        // 지각 알림: late 상태인 경우
+        if (record.status === "late" && record.check_in_time) {
+          const checkInTime = new Date(
+            `${input.attendance_date}T${record.check_in_time}`
+          ).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          await sendAttendanceSMS(
+            input.student_id,
+            "attendance_late",
+            {
+              학원명: academyName,
+              학생명: studentName,
+              시간: checkInTime,
+            }
+          ).catch((error) => {
+            console.error("[Attendance] 지각 SMS 발송 실패:", error);
+          });
+        }
+      }
+    } catch (error) {
+      // SMS 발송 실패는 로그만 남기고 출석 기록 저장은 정상 처리
+      console.error("[Attendance] SMS 발송 중 오류:", error);
+    }
 
     revalidatePath("/admin/attendance");
     revalidatePath(`/admin/students/${input.student_id}`);
