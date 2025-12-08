@@ -97,7 +97,7 @@ export async function sendAttendanceSMS(
     }
 
     revalidatePath("/admin/sms");
-    return { success: true, msgId: result.msgId };
+    return { success: true, msgId: result.messageKey };
   });
 }
 
@@ -271,7 +271,7 @@ export async function sendGeneralSMS(
     }
 
     revalidatePath("/admin/sms");
-    return { success: true, msgId: result.msgId };
+    return { success: true, msgId: result.messageKey };
   });
 }
 
