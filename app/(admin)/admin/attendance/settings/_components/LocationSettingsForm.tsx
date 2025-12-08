@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getLocationSettings,
   updateLocationSettings,
@@ -21,11 +21,7 @@ export function LocationSettingsForm() {
     radiusMeters: "100",
   });
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
       const result = await getLocationSettings();
@@ -41,7 +37,11 @@ export function LocationSettingsForm() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -61,9 +61,11 @@ export function LocationSettingsForm() {
       (err) => {
         let errorMessage = "위치를 가져올 수 없습니다.";
         if (err.code === 1) {
-          errorMessage = "위치 권한이 필요합니다. 브라우저 설정에서 위치 권한을 허용해주세요.";
+          errorMessage =
+            "위치 권한이 필요합니다. 브라우저 설정에서 위치 권한을 허용해주세요.";
         } else if (err.code === 2) {
-          errorMessage = "위치를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.";
+          errorMessage =
+            "위치를 가져올 수 없습니다. GPS가 켜져 있는지 확인해주세요.";
         }
         setError(errorMessage);
       },
@@ -141,9 +143,7 @@ export function LocationSettingsForm() {
               placeholder="37.5665"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
-              위도 범위: -90 ~ 90
-            </p>
+            <p className="mt-1 text-xs text-gray-500">위도 범위: -90 ~ 90</p>
           </div>
 
           <div>
@@ -159,9 +159,7 @@ export function LocationSettingsForm() {
               placeholder="126.9780"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
-              경도 범위: -180 ~ 180
-            </p>
+            <p className="mt-1 text-xs text-gray-500">경도 범위: -180 ~ 180</p>
           </div>
 
           <div>
@@ -205,7 +203,12 @@ export function LocationSettingsForm() {
             </div>
           )}
 
-          <Button type="submit" disabled={saving} isLoading={saving} className="w-full">
+          <Button
+            type="submit"
+            disabled={saving}
+            isLoading={saving}
+            className="w-full"
+          >
             저장
           </Button>
         </form>
@@ -213,4 +216,3 @@ export function LocationSettingsForm() {
     </Card>
   );
 }
-

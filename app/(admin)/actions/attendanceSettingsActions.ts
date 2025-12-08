@@ -4,7 +4,13 @@ import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { revalidatePath } from "next/cache";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import {
+  AppError,
+  ErrorCode,
+  normalizeError,
+  getUserFacingMessage,
+  logError,
+} from "@/lib/errors";
 
 export type LocationSettingsInput = {
   latitude: number;
@@ -18,7 +24,7 @@ export type LocationSettingsInput = {
 export async function updateLocationSettings(
   input: LocationSettingsInput
 ): Promise<{ success: boolean; error?: string }> {
-  return withErrorHandling(async () => {
+  try {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
@@ -98,7 +104,31 @@ export async function updateLocationSettings(
 
     revalidatePath("/admin/attendance/settings");
     return { success: true };
-  });
+  } catch (error) {
+    // Next.js의 redirect()와 notFound()는 재throw
+    if (
+      error &&
+      typeof error === "object" &&
+      "digest" in error &&
+      typeof (error as { digest: string }).digest === "string"
+    ) {
+      const digest = (error as { digest: string }).digest;
+      if (
+        digest.startsWith("NEXT_REDIRECT") ||
+        digest.startsWith("NEXT_NOT_FOUND")
+      ) {
+        throw error;
+      }
+    }
+
+    const normalizedError = normalizeError(error);
+    logError(normalizedError, { function: "updateLocationSettings" });
+
+    return {
+      success: false,
+      error: getUserFacingMessage(normalizedError),
+    };
+  }
 }
 
 /**
@@ -113,7 +143,7 @@ export async function getLocationSettings(): Promise<{
   } | null;
   error?: string;
 }> {
-  return withErrorHandling(async () => {
+  try {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
@@ -159,6 +189,29 @@ export async function getLocationSettings(): Promise<{
         radiusMeters: tenant.location_radius_meters,
       },
     };
-  });
-}
+  } catch (error) {
+    // Next.js의 redirect()와 notFound()는 재throw
+    if (
+      error &&
+      typeof error === "object" &&
+      "digest" in error &&
+      typeof (error as { digest: string }).digest === "string"
+    ) {
+      const digest = (error as { digest: string }).digest;
+      if (
+        digest.startsWith("NEXT_REDIRECT") ||
+        digest.startsWith("NEXT_NOT_FOUND")
+      ) {
+        throw error;
+      }
+    }
 
+    const normalizedError = normalizeError(error);
+    logError(normalizedError, { function: "getLocationSettings" });
+
+    return {
+      success: false,
+      error: getUserFacingMessage(normalizedError),
+    };
+  }
+}
