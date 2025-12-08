@@ -89,9 +89,7 @@ export function QRCodeManageContent() {
       <CardContent>
         {history.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-sm text-gray-500">
-              생성된 QR 코드가 없습니다.
-            </p>
+            <p className="text-sm text-gray-500">생성된 QR 코드가 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -127,13 +125,17 @@ export function QRCodeManageContent() {
                         <div>
                           <p className="text-gray-500">생성 시간</p>
                           <p className="font-medium text-gray-900">
-                            {new Date(qrCode.created_at).toLocaleString("ko-KR")}
+                            {new Date(qrCode.created_at).toLocaleString(
+                              "ko-KR"
+                            )}
                           </p>
                         </div>
                         <div>
                           <p className="text-gray-500">만료 시간</p>
                           <p className="font-medium text-gray-900">
-                            {new Date(qrCode.expires_at).toLocaleString("ko-KR")}
+                            {new Date(qrCode.expires_at).toLocaleString(
+                              "ko-KR"
+                            )}
                           </p>
                         </div>
                         <div>
@@ -146,9 +148,9 @@ export function QRCodeManageContent() {
                           <div>
                             <p className="text-gray-500">마지막 사용</p>
                             <p className="font-medium text-gray-900">
-                              {new Date(
-                                qrCode.last_used_at
-                              ).toLocaleString("ko-KR")}
+                              {new Date(qrCode.last_used_at).toLocaleString(
+                                "ko-KR"
+                              )}
                             </p>
                           </div>
                         )}
@@ -184,4 +186,3 @@ export function QRCodeManageContent() {
     </Card>
   );
 }
-

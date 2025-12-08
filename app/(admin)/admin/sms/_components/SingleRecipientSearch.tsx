@@ -20,7 +20,11 @@ type Student = {
 
 type SingleRecipientSearchProps = {
   students: Student[];
-  onSelect: (phone: string, studentName?: string, recipientType?: RecipientType) => void;
+  onSelect: (
+    phone: string,
+    studentName?: string,
+    recipientType?: RecipientType
+  ) => void;
   selectedPhone?: string;
   recipientType?: RecipientType;
   onRecipientTypeChange?: (type: RecipientType) => void;
@@ -52,7 +56,10 @@ export function SingleRecipientSearch({
   };
 
   // 전송 대상자에 따라 전화번호 선택
-  const getPhoneByRecipientType = (student: Student, type: RecipientType): string | null => {
+  const getPhoneByRecipientType = (
+    student: Student,
+    type: RecipientType
+  ): string | null => {
     switch (type) {
       case "student":
         return student.phone;
@@ -73,7 +80,7 @@ export function SingleRecipientSearch({
     }
 
     const query = executedSearchQuery.toLowerCase().trim();
-    
+
     // 디버깅: 검색 전 학생 데이터 확인
     if (process.env.NODE_ENV === "development") {
       console.log("[SingleRecipientSearch] 검색 실행:", {
@@ -91,10 +98,21 @@ export function SingleRecipientSearch({
         const motherPhoneMatch = student.mother_phone?.includes(query);
         const fatherPhoneMatch = student.father_phone?.includes(query);
         // grade와 class는 문자열이 아닐 수 있으므로 String()으로 변환
-        const gradeMatch = student.grade ? String(student.grade).toLowerCase().includes(query) : false;
-        const classMatch = student.class ? String(student.class).toLowerCase().includes(query) : false;
+        const gradeMatch = student.grade
+          ? String(student.grade).toLowerCase().includes(query)
+          : false;
+        const classMatch = student.class
+          ? String(student.class).toLowerCase().includes(query)
+          : false;
 
-        return nameMatch || phoneMatch || motherPhoneMatch || fatherPhoneMatch || gradeMatch || classMatch;
+        return (
+          nameMatch ||
+          phoneMatch ||
+          motherPhoneMatch ||
+          fatherPhoneMatch ||
+          gradeMatch ||
+          classMatch
+        );
       })
       .slice(0, 10); // 최대 10개만 표시
 
@@ -139,7 +157,9 @@ export function SingleRecipientSearch({
             <Select
               id="recipient-type"
               value={recipientType}
-              onChange={(e) => onRecipientTypeChange(e.target.value as RecipientType)}
+              onChange={(e) =>
+                onRecipientTypeChange(e.target.value as RecipientType)
+              }
               className="text-xs"
             >
               <option value="student">학생</option>
@@ -177,10 +197,13 @@ export function SingleRecipientSearch({
               {filteredStudents.map((student) => {
                 const phone = getPhoneByRecipientType(student, recipientType);
                 const isSelected = selectedPhone === phone;
-                const recipientTypeLabel = 
-                  recipientType === "student" ? "학생" :
-                  recipientType === "mother" ? "어머니" : "아버지";
-                
+                const recipientTypeLabel =
+                  recipientType === "student"
+                    ? "학생"
+                    : recipientType === "mother"
+                    ? "어머니"
+                    : "아버지";
+
                 return (
                   <div
                     key={student.id}
@@ -240,7 +263,8 @@ export function SingleRecipientSearch({
       {!executedSearchQuery && (
         <div className="space-y-1">
           <p className="text-xs text-gray-500">
-            학생 이름, 전화번호, 학년, 반으로 검색하여 선택할 수 있습니다. 검색 버튼을 클릭하거나 Enter 키를 눌러 검색하세요.
+            학생 이름, 전화번호, 학년, 반으로 검색하여 선택할 수 있습니다. 검색
+            버튼을 클릭하거나 Enter 키를 눌러 검색하세요.
           </p>
           {process.env.NODE_ENV === "development" && (
             <p className="text-xs text-gray-400">
@@ -252,4 +276,3 @@ export function SingleRecipientSearch({
     </div>
   );
 }
-

@@ -76,6 +76,65 @@
   ],
   "categories": ["education", "productivity"],
   "screenshots": [],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "splash_pages": null,
+  "splash_screens": [
+    {
+      "src": "/splash/android-splash-640-1136.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-750-1334.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-828-1792.png",
+      "sizes": "828x1792",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-1125-2436.png",
+      "sizes": "1125x2436",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-1170-2532.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-1284-2778.png",
+      "sizes": "1284x2778",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-768-1024.png",
+      "sizes": "768x1024",
+      "type": "image/png",
+      "form_factor": "wide",
+      "orientation": "portrait"
+    },
+    {
+      "src": "/splash/android-splash-1536-2048.png",
+      "sizes": "1536x2048",
+      "type": "image/png",
+      "form_factor": "wide",
+      "orientation": "portrait"
+    }
+  ]
 }
 

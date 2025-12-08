@@ -95,9 +95,7 @@ export async function getActiveQRCodeAction(): Promise<{
 /**
  * QR 코드 비활성화
  */
-export async function deactivateQRCodeAction(
-  qrCodeId: string
-): Promise<{
+export async function deactivateQRCodeAction(qrCodeId: string): Promise<{
   success: boolean;
   error?: string;
 }> {

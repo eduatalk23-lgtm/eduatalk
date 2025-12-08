@@ -179,4 +179,3 @@ export async function getQRCodeHistory(
   if (error) throw error;
   return (data as QRCodeRecord[]) ?? [];
 }
-

@@ -75,9 +75,7 @@ export async function getActiveQRCode(): Promise<QRCodeRecord | null> {
 /**
  * QR 코드 ID로 조회 및 검증
  */
-export async function getQRCodeById(
-  qrCodeId: string
-): Promise<QRCodeRecord> {
+export async function getQRCodeById(qrCodeId: string): Promise<QRCodeRecord> {
   const tenantContext = await getTenantContext();
 
   if (!tenantContext?.tenantId) {
@@ -258,4 +256,3 @@ export async function getQRCodeHistory(
 
   return repository.getQRCodeHistory(tenantContext.tenantId, limit);
 }
-

@@ -12,4 +12,3 @@ export * as repository from "./repository";
 
 // Service (비즈니스 로직)
 export * as service from "./service";
-

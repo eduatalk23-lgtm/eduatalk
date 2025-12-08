@@ -11,11 +11,10 @@ export function SMSSendSummary({
 }: SMSSendSummaryProps) {
   // SMS/LMS 구분 (90자 이하: SMS, 90자 초과: LMS)
   const messageType = messageLength <= 90 ? "SMS" : "LMS";
-  
+
   // 예상 비용 계산 (SMS: 10원, LMS: 30원 - 대략적인 가격)
-  const estimatedCost = messageType === "SMS" 
-    ? recipientCount * 10 
-    : recipientCount * 30;
+  const estimatedCost =
+    messageType === "SMS" ? recipientCount * 10 : recipientCount * 30;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -46,4 +45,3 @@ export function SMSSendSummary({
     </div>
   );
 }
-
