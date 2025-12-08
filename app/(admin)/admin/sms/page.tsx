@@ -86,7 +86,15 @@ export default async function AdminSMSPage({
   const logRows = (logs as SMSLogRow[] | null) ?? [];
 
   // 테이블이 없는 경우 에러 메시지 표시
-  if (error && error.code === "42P01") {
+  const errorCode = error?.code;
+  const errorMessage = error?.message || "";
+  if (
+    error &&
+    (errorCode === "PGRST205" ||
+      errorCode === "42P01" ||
+      errorMessage.includes("Could not find the table") ||
+      errorMessage.includes("테이블"))
+  ) {
     return (
       <div className="p-6 md:p-10">
         <div className="mb-8">
@@ -97,7 +105,13 @@ export default async function AdminSMSPage({
             SMS 로그 테이블이 아직 생성되지 않았습니다.
           </p>
           <p className="mt-2 text-xs text-yellow-700">
-            데이터베이스 마이그레이션을 실행해주세요. sms_logs 테이블은 ERD 스키마에 정의되어 있습니다.
+            데이터베이스 마이그레이션을 실행해주세요.
+          </p>
+          <p className="mt-1 text-xs text-yellow-600">
+            sms_logs 테이블은 ERD 스키마에 정의되어 있습니다.
+          </p>
+          <p className="mt-1 text-xs text-yellow-600">
+            Supabase CLI: <code className="bg-yellow-100 px-1 rounded">supabase migration up</code>
           </p>
         </div>
       </div>

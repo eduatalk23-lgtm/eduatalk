@@ -98,9 +98,16 @@ async function AttendanceContent({
     
     console.error("[admin/attendance] 출석 기록 조회 실패 - 상세 정보:", errorInfo);
     
-    // 테이블이 없는 경우 (42P01 에러 또는 AppError로 변환된 경우)
+    // 테이블이 없는 경우 (PGRST205, 42P01 에러 또는 AppError로 변환된 경우)
     const errorCode = error?.code || errorInfo.code;
-    if (errorCode === "42P01" || errorCode === "NOT_FOUND" || error?.message?.includes("테이블")) {
+    const errorMessage = error?.message || errorInfo.message || "";
+    if (
+      errorCode === "PGRST205" ||
+      errorCode === "42P01" ||
+      errorCode === "NOT_FOUND" ||
+      errorMessage.includes("Could not find the table") ||
+      errorMessage.includes("테이블")
+    ) {
       return (
         <div className="p-6 md:p-10">
           <div className="mb-8">
@@ -111,7 +118,13 @@ async function AttendanceContent({
               출석 기록 테이블이 아직 생성되지 않았습니다.
             </p>
             <p className="mt-2 text-xs text-yellow-700">
-              데이터베이스 마이그레이션을 실행해주세요: supabase/migrations/20250203000000_create_attendance_tables.sql
+              데이터베이스 마이그레이션을 실행해주세요.
+            </p>
+            <p className="mt-1 text-xs text-yellow-600">
+              마이그레이션 파일: supabase/migrations/20250203000000_create_attendance_tables.sql
+            </p>
+            <p className="mt-1 text-xs text-yellow-600">
+              Supabase CLI: <code className="bg-yellow-100 px-1 rounded">supabase migration up</code>
             </p>
           </div>
         </div>
