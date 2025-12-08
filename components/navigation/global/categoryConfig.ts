@@ -160,6 +160,19 @@ const studentCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "attendance",
+    label: "출석 관리",
+    icon: "✅",
+    items: [
+      {
+        id: "attendance-check-in",
+        label: "출석 체크",
+        href: "/attendance/check-in",
+        icon: "✅",
+      },
+    ],
+  },
+  {
     id: "reports",
     label: "학습 리포트",
     icon: "📊",
@@ -290,9 +303,15 @@ const adminCategories: NavigationCategory[] = [
     icon: "📱",
     items: [
       {
+        id: "admin-sms-send",
+        label: "SMS 발송",
+        href: "/admin/sms/send",
+        icon: "📤",
+      },
+      {
         id: "admin-sms-logs",
         label: "SMS 발송 이력",
-        href: "/admin/sms",
+        href: "/admin/sms/results",
         icon: "📱",
       },
     ],
