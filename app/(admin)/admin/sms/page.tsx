@@ -66,21 +66,38 @@ export default async function AdminSMSPage({
   }
 
   if (error) {
+    // 에러 객체 전체를 먼저 로깅
+    console.error("[admin/sms] SMS 로그 조회 실패 - 원본 에러:", error);
+    console.error("[admin/sms] 에러 타입:", typeof error);
+    console.error("[admin/sms] 에러 constructor:", error?.constructor?.name);
+    
     // Supabase 에러 객체의 주요 속성 추출
     const errorInfo: Record<string, unknown> = {
-      message: error.message || String(error),
-      code: error.code || "UNKNOWN",
+      message: error?.message || error?.toString() || String(error) || "알 수 없는 에러",
+      code: error?.code || "UNKNOWN",
+      name: error?.name,
+      stack: error?.stack,
     };
-    if ("details" in error) {
-      errorInfo.details = (error as { details?: unknown }).details;
+    
+    // Supabase PostgrestError 속성 확인
+    if (error && typeof error === "object") {
+      if ("details" in error) {
+        errorInfo.details = (error as { details?: unknown }).details;
+      }
+      if ("hint" in error) {
+        errorInfo.hint = (error as { hint?: unknown }).hint;
+      }
+      if ("statusCode" in error) {
+        errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+      }
+      // AppError 속성 확인
+      if ("statusCode" in error && "code" in error) {
+        errorInfo.appErrorCode = (error as { code?: unknown }).code;
+        errorInfo.appErrorStatusCode = (error as { statusCode?: unknown }).statusCode;
+      }
     }
-    if ("hint" in error) {
-      errorInfo.hint = (error as { hint?: unknown }).hint;
-    }
-    if ("statusCode" in error) {
-      errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
-    }
-    console.error("[admin/sms] SMS 로그 조회 실패", errorInfo);
+    
+    console.error("[admin/sms] SMS 로그 조회 실패 - 상세 정보:", errorInfo);
   }
 
   const logRows = (logs as SMSLogRow[] | null) ?? [];
