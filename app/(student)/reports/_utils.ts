@@ -69,17 +69,18 @@ export async function fetchStudentInfo(
   supabase: SupabaseServerClient,
   studentId: string
 ): Promise<StudentInfo> {
-  const selectStudent = () =>
-    supabase.from("students").select("name,grade,class,birth_date").eq("id", studentId);
+  const { data, error } = await supabase
+    .from("students")
+    .select("name,grade,class,birth_date")
+    .eq("id", studentId)
+    .maybeSingle();
 
-  const data = await handleSupabaseQueryArray<StudentInfo>(
-    selectStudent,
-    [],
-    { retryOnColumnError: true }
-  );
+  if (error) {
+    console.error("[reports] 학생 정보 조회 실패", error);
+    return { name: null, grade: null, class: null, birth_date: null };
+  }
 
-  const student = data[0];
-  return student ?? { name: null, grade: null, class: null, birth_date: null };
+  return data ?? { name: null, grade: null, class: null, birth_date: null };
 }
 
 // 주간 학습 요약
@@ -93,36 +94,50 @@ export async function fetchWeeklyLearningSummary(
     const startDateStr = startDate.toISOString().slice(0, 10);
     const endDateStr = endDate.toISOString().slice(0, 10);
 
-    const selectPlans = () =>
-      supabase
-        .from("student_plan")
-        .select("id,content_type,content_id,completed_amount,plan_date")
-        .gte("plan_date", startDateStr)
-        .lte("plan_date", endDateStr)
-        .eq("student_id", studentId);
+    const { data: plansData, error: plansError } = await supabase
+      .from("student_plan")
+      .select("id,content_type,content_id,completed_amount,plan_date")
+      .gte("plan_date", startDateStr)
+      .lte("plan_date", endDateStr)
+      .eq("student_id", studentId);
 
-    const plans = await handleSupabaseQueryArray<{
+    if (plansError) {
+      console.error("[reports] 플랜 조회 실패", plansError);
+      return {
+        totalLearningTime: 0,
+        completedPlans: 0,
+        totalPlans: 0,
+        completionRate: 0,
+        subjects: [],
+      };
+    }
+
+    const plans = (plansData || []) as Array<{
       id: string;
       content_type?: string | null;
       content_id?: string | null;
       completed_amount?: number | null;
       plan_date?: string | null;
-    }>(selectPlans, [], { retryOnColumnError: true });
+    }>;
 
     const planRows = plans;
 
     // 진행률 조회
-    const selectProgress = () =>
-      supabase
-        .from("student_content_progress")
-        .select("content_type,content_id,progress")
-        .eq("student_id", studentId);
+    const { data: progressData, error: progressError } = await supabase
+      .from("student_content_progress")
+      .select("content_type,content_id,progress")
+      .eq("student_id", studentId);
 
-    const progressData = await handleSupabaseQueryArray<{
-      content_type?: string | null;
-      content_id?: string | null;
-      progress?: number | null;
-    }>(selectProgress, [], { retryOnColumnError: true });
+    if (progressError) {
+      console.error("[reports] 진행률 조회 실패", progressError);
+      return {
+        totalLearningTime: 0,
+        completedPlans: 0,
+        totalPlans: 0,
+        completionRate: 0,
+        subjects: [],
+      };
+    }
 
     const progressMap = new Map<string, number>();
     progressData.forEach((p) => {
@@ -218,70 +233,84 @@ export async function fetchSubjectGradeTrends(
     }> = [];
 
     try {
-      const internalQuery = async () => {
-        const result = await supabase
-          .from("student_internal_scores")
-          .select("subject_group,subject_name,grade_score,raw_score,test_date")
-          .gte("test_date", startDateStr)
-          .lte("test_date", endDateStr)
-          .eq("student_id", studentId)
-          .order("test_date", { ascending: true });
-        
-        if (result.error) {
-          console.error("[reports] 내신 성적 쿼리 에러 상세:", {
-            code: result.error.code,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
-            query: "student_internal_scores",
-            filters: { startDateStr, endDateStr, studentId },
-          });
-        }
-        return result;
-      };
+      const { data: internalData, error: internalError } = await supabase
+        .from("student_internal_scores")
+        .select(`
+          subject_group_id,
+          subject_id,
+          grade_score,
+          raw_score,
+          test_date,
+          subject_groups:subject_group_id(name),
+          subjects:subject_id(name)
+        `)
+        .gte("test_date", startDateStr)
+        .lte("test_date", endDateStr)
+        .eq("student_id", studentId)
+        .order("test_date", { ascending: true });
 
-      internalScoresResult = await handleSupabaseQueryArray<{
-        subject_group?: string | null;
-        subject_name?: string | null;
-        grade_score?: number | null;
-        raw_score?: number | null;
-        test_date?: string | null;
-      }>(internalQuery, [], { retryOnColumnError: true });
+      if (internalError) {
+        console.error("[reports] 내신 성적 쿼리 에러 상세:", {
+          code: internalError.code,
+          message: internalError.message,
+          details: internalError.details,
+          hint: internalError.hint,
+          query: "student_internal_scores",
+          filters: { startDateStr, endDateStr, studentId },
+        });
+        internalScoresResult = [];
+      } else {
+        // 데이터 변환: subject_group_id와 subject_id를 사용하여 과목명 생성
+        internalScoresResult = (internalData || []).map((score: any) => ({
+          subject_group: score.subject_groups?.name || null,
+          subject_name: score.subjects?.name || null,
+          grade_score: score.grade_score,
+          raw_score: score.raw_score,
+          test_date: score.test_date,
+        }));
+      }
     } catch (error) {
       console.error("[reports] 내신 성적 조회 실패", error);
       internalScoresResult = [];
     }
 
     try {
-      const mockQuery = async () => {
-        const result = await supabase
-          .from("student_mock_scores")
-          .select("subject_group,subject_name,grade_score,raw_score,exam_date")
-          .gte("exam_date", startDateStr)
-          .lte("exam_date", endDateStr)
-          .eq("student_id", studentId)
-          .order("exam_date", { ascending: true });
-        
-        if (result.error) {
-          console.error("[reports] 모의고사 성적 쿼리 에러 상세:", {
-            code: result.error.code,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
-            query: "student_mock_scores",
-            filters: { startDateStr, endDateStr, studentId },
-          });
-        }
-        return result;
-      };
+      const { data: mockData, error: mockError } = await supabase
+        .from("student_mock_scores")
+        .select(`
+          subject_group_id,
+          subject_id,
+          grade_score,
+          raw_score,
+          exam_date,
+          subject_groups:subject_group_id(name),
+          subjects:subject_id(name)
+        `)
+        .gte("exam_date", startDateStr)
+        .lte("exam_date", endDateStr)
+        .eq("student_id", studentId)
+        .order("exam_date", { ascending: true });
 
-      mockScoresResult = await handleSupabaseQueryArray<{
-        subject_group?: string | null;
-        subject_name?: string | null;
-        grade_score?: number | null;
-        raw_score?: number | null;
-        exam_date?: string | null;
-      }>(mockQuery, [], { retryOnColumnError: true });
+      if (mockError) {
+        console.error("[reports] 모의고사 성적 쿼리 에러 상세:", {
+          code: mockError.code,
+          message: mockError.message,
+          details: mockError.details,
+          hint: mockError.hint,
+          query: "student_mock_scores",
+          filters: { startDateStr, endDateStr, studentId },
+        });
+        mockScoresResult = [];
+      } else {
+        // 데이터 변환: subject_group_id와 subject_id를 사용하여 과목명 생성
+        mockScoresResult = (mockData || []).map((score: any) => ({
+          subject_group: score.subject_groups?.name || null,
+          subject_name: score.subjects?.name || null,
+          grade_score: score.grade_score,
+          raw_score: score.raw_score,
+          exam_date: score.exam_date,
+        }));
+      }
     } catch (error) {
       console.error("[reports] 모의고사 성적 조회 실패", error);
       mockScoresResult = [];
@@ -364,18 +393,22 @@ export async function fetchWeakSubjects(
   studentId: string
 ): Promise<WeakSubjectAlert[]> {
   try {
-    const selectAnalysis = () =>
-      supabase
-        .from("student_analysis")
-        .select("subject,risk_score")
-        .gte("risk_score", 50)
-        .eq("student_id", studentId)
-        .order("risk_score", { ascending: false });
+    const { data: analysisData, error: analysisError } = await supabase
+      .from("student_analysis")
+      .select("subject,risk_score")
+      .gte("risk_score", 50)
+      .eq("student_id", studentId)
+      .order("risk_score", { ascending: false });
 
-    const analysisRows = await handleSupabaseQueryArray<{
+    if (analysisError) {
+      console.error("[reports] 취약과목 조회 실패", analysisError);
+      return [];
+    }
+
+    const analysisRows = (analysisData || []) as Array<{
       subject?: string | null;
       risk_score?: number | null;
-    }>(selectAnalysis, [], { retryOnColumnError: true });
+    }>;
 
     return analysisRows
       .filter((a) => a.subject && a.risk_score !== null)
@@ -479,54 +512,58 @@ export async function fetchNextWeekSchedule(
     }> = [];
 
     try {
-      const selectPlans = () =>
-        supabase
-          .from("student_plan")
-          .select("id,plan_date,block_index,content_type,content_id")
-          .gte("plan_date", startDateStr)
-          .lte("plan_date", endDateStr)
-          .eq("student_id", studentId)
-          .order("plan_date", { ascending: true })
-          .order("block_index", { ascending: true });
+      const { data: plansData, error: plansError } = await supabase
+        .from("student_plan")
+        .select("id,plan_date,block_index,content_type,content_id")
+        .gte("plan_date", startDateStr)
+        .lte("plan_date", endDateStr)
+        .eq("student_id", studentId)
+        .order("plan_date", { ascending: true })
+        .order("block_index", { ascending: true });
 
-      planRows = await handleSupabaseQueryArray<{
-        id: string;
-        plan_date?: string | null;
-        block_index?: number | null;
-        content_type?: string | null;
-        content_id?: string | null;
-      }>(selectPlans, [], { retryOnColumnError: true });
+      if (plansError) {
+        console.error("[reports] 다음주 플랜 조회 실패", plansError);
+        planRows = [];
+      } else {
+        planRows = (plansData || []) as Array<{
+          id: string;
+          plan_date?: string | null;
+          block_index?: number | null;
+          content_type?: string | null;
+          content_id?: string | null;
+        }>;
+      }
     } catch (error) {
       console.error("[reports] 다음주 플랜 조회 실패", error);
       planRows = [];
     }
 
     try {
-      const selectBlocks = async () => {
-        const result = await supabase
-          .from("student_block_schedule")
-          .select("day_of_week,block_index,start_time,end_time")
-          .eq("student_id", studentId);
-        
-        if (result.error) {
-          console.error("[reports] 블록 정보 쿼리 에러 상세:", {
-            code: result.error.code,
-            message: result.error.message,
-            details: result.error.details,
-            hint: result.error.hint,
-            query: "student_block_schedule",
-            filters: { studentId },
-          });
-        }
-        return result;
-      };
-
-      blocks = await handleSupabaseQueryArray<{
-        day_of_week?: number | null;
-        block_index?: number | null;
-        start_time?: string | null;
-        end_time?: string | null;
-      }>(selectBlocks, [], { retryOnColumnError: true });
+      // block_index 컬럼이 없을 수 있으므로 먼저 시도
+      const { data: blocksData, error: blocksError } = await supabase
+        .from("student_block_schedule")
+        .select("day_of_week,start_time,end_time")
+        .eq("student_id", studentId);
+      
+      if (blocksError) {
+        console.error("[reports] 블록 정보 쿼리 에러 상세:", {
+          code: blocksError.code,
+          message: blocksError.message,
+          details: blocksError.details,
+          hint: blocksError.hint,
+          query: "student_block_schedule",
+          filters: { studentId },
+        });
+        blocks = [];
+      } else {
+        // block_index는 없으므로 null로 설정
+        blocks = (blocksData || []).map((block: any) => ({
+          day_of_week: block.day_of_week,
+          start_time: block.start_time,
+          end_time: block.end_time,
+          block_index: null,
+        }));
+      }
     } catch (error) {
       console.error("[reports] 블록 정보 조회 실패", error);
       blocks = [];
