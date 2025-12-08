@@ -51,17 +51,29 @@ CREATE POLICY "attendance_records_select_student" ON attendance_records
     student_id = auth.uid()
   );
 
--- 학부모는 자녀의 출석 기록 조회 가능
-CREATE POLICY "attendance_records_select_parent" ON attendance_records
-  FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM student_parent_links
-      WHERE student_parent_links.student_id = attendance_records.student_id
-      AND student_parent_links.parent_id = auth.uid()
-      AND student_parent_links.is_approved = true
-    )
-  );
+-- 학부모는 자녀의 출석 기록 조회 가능 (student_parent_links 테이블이 있는 경우만)
+-- 참고: student_parent_links 테이블이 없으면 이 정책은 생성되지 않습니다
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'student_parent_links'
+  ) THEN
+    EXECUTE '
+      CREATE POLICY "attendance_records_select_parent" ON attendance_records
+        FOR SELECT
+        USING (
+          EXISTS (
+            SELECT 1 FROM student_parent_links
+            WHERE student_parent_links.student_id = attendance_records.student_id
+            AND student_parent_links.parent_id = auth.uid()
+            AND student_parent_links.is_approved = true
+          )
+        )
+    ';
+  END IF;
+END $$;
 
 -- 관리자만 출석 기록 생성/수정 가능
 CREATE POLICY "attendance_records_insert_admin" ON attendance_records
