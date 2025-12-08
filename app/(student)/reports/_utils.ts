@@ -218,14 +218,27 @@ export async function fetchSubjectGradeTrends(
     }> = [];
 
     try {
-      const internalQuery = () =>
-        supabase
+      const internalQuery = async () => {
+        const result = await supabase
           .from("student_internal_scores")
           .select("subject_group,subject_name,grade_score,raw_score,test_date")
           .gte("test_date", startDateStr)
           .lte("test_date", endDateStr)
           .eq("student_id", studentId)
           .order("test_date", { ascending: true });
+        
+        if (result.error) {
+          console.error("[reports] 내신 성적 쿼리 에러 상세:", {
+            code: result.error.code,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+            query: "student_internal_scores",
+            filters: { startDateStr, endDateStr, studentId },
+          });
+        }
+        return result;
+      };
 
       internalScoresResult = await handleSupabaseQueryArray<{
         subject_group?: string | null;
@@ -240,14 +253,27 @@ export async function fetchSubjectGradeTrends(
     }
 
     try {
-      const mockQuery = () =>
-        supabase
+      const mockQuery = async () => {
+        const result = await supabase
           .from("student_mock_scores")
           .select("subject_group,subject_name,grade_score,raw_score,exam_date")
           .gte("exam_date", startDateStr)
           .lte("exam_date", endDateStr)
           .eq("student_id", studentId)
           .order("exam_date", { ascending: true });
+        
+        if (result.error) {
+          console.error("[reports] 모의고사 성적 쿼리 에러 상세:", {
+            code: result.error.code,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+            query: "student_mock_scores",
+            filters: { startDateStr, endDateStr, studentId },
+          });
+        }
+        return result;
+      };
 
       mockScoresResult = await handleSupabaseQueryArray<{
         subject_group?: string | null;
@@ -476,11 +502,24 @@ export async function fetchNextWeekSchedule(
     }
 
     try {
-      const selectBlocks = () =>
-        supabase
+      const selectBlocks = async () => {
+        const result = await supabase
           .from("student_block_schedule")
           .select("day_of_week,block_index,start_time,end_time")
           .eq("student_id", studentId);
+        
+        if (result.error) {
+          console.error("[reports] 블록 정보 쿼리 에러 상세:", {
+            code: result.error.code,
+            message: result.error.message,
+            details: result.error.details,
+            hint: result.error.hint,
+            query: "student_block_schedule",
+            filters: { studentId },
+          });
+        }
+        return result;
+      };
 
       blocks = await handleSupabaseQueryArray<{
         day_of_week?: number | null;
