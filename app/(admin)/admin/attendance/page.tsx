@@ -61,7 +61,45 @@ async function AttendanceContent({
     filters.student_id = studentIdFilter;
   }
 
-  const records = await getAttendanceRecords(filters);
+  let records: AttendanceRecord[] = [];
+  try {
+    records = await getAttendanceRecords(filters);
+  } catch (error: any) {
+    // Supabase 에러 객체의 주요 속성 추출
+    const errorInfo: Record<string, unknown> = {
+      message: error?.message || String(error),
+      code: error?.code || "UNKNOWN",
+    };
+    if (error && "details" in error) {
+      errorInfo.details = (error as { details?: unknown }).details;
+    }
+    if (error && "hint" in error) {
+      errorInfo.hint = (error as { hint?: unknown }).hint;
+    }
+    if (error && "statusCode" in error) {
+      errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+    }
+    console.error("[admin/attendance] 출석 기록 조회 실패", errorInfo);
+    
+    // 테이블이 없는 경우 (42P01 에러)
+    if (error?.code === "42P01") {
+      return (
+        <div className="p-6 md:p-10">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">출석 관리</h1>
+          </div>
+          <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+            <p className="text-sm font-medium text-yellow-800">
+              출석 기록 테이블이 아직 생성되지 않았습니다.
+            </p>
+            <p className="mt-2 text-xs text-yellow-700">
+              데이터베이스 마이그레이션을 실행해주세요: supabase/migrations/20250203000000_create_attendance_tables.sql
+            </p>
+          </div>
+        </div>
+      );
+    }
+  }
 
   // 학생 정보 조회
   const studentIds = [

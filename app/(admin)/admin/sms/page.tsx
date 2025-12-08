@@ -66,10 +66,43 @@ export default async function AdminSMSPage({
   }
 
   if (error) {
-    console.error("[admin/sms] SMS 로그 조회 실패", error);
+    // Supabase 에러 객체의 주요 속성 추출
+    const errorInfo: Record<string, unknown> = {
+      message: error.message || String(error),
+      code: error.code || "UNKNOWN",
+    };
+    if ("details" in error) {
+      errorInfo.details = (error as { details?: unknown }).details;
+    }
+    if ("hint" in error) {
+      errorInfo.hint = (error as { hint?: unknown }).hint;
+    }
+    if ("statusCode" in error) {
+      errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
+    }
+    console.error("[admin/sms] SMS 로그 조회 실패", errorInfo);
   }
 
   const logRows = (logs as SMSLogRow[] | null) ?? [];
+
+  // 테이블이 없는 경우 에러 메시지 표시
+  if (error && error.code === "42P01") {
+    return (
+      <div className="p-6 md:p-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
+        </div>
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+          <p className="text-sm font-medium text-yellow-800">
+            SMS 로그 테이블이 아직 생성되지 않았습니다.
+          </p>
+          <p className="mt-2 text-xs text-yellow-700">
+            데이터베이스 마이그레이션을 실행해주세요. sms_logs 테이블은 ERD 스키마에 정의되어 있습니다.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // 학생 정보 조회
   const recipientIds = [
