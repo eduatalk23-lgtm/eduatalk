@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS sms_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
-  recipient_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  recipient_id uuid, -- 사용자 ID (students, admin_users, parent_users 등과 연동 가능)
   recipient_phone text NOT NULL,
   message_content text NOT NULL,
   template_id uuid,
@@ -12,6 +12,20 @@ CREATE TABLE IF NOT EXISTS sms_logs (
   error_message text,
   created_at timestamptz DEFAULT now()
 );
+
+-- recipient_id에 대한 외래 키는 users 테이블이 있는 경우에만 추가
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name = 'users'
+  ) THEN
+    ALTER TABLE sms_logs
+    ADD CONSTRAINT sms_logs_recipient_id_fkey 
+    FOREIGN KEY (recipient_id) REFERENCES users(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 COMMENT ON TABLE sms_logs IS 'SMS 전송 로그 테이블';
 COMMENT ON COLUMN sms_logs.status IS '발송 상태: pending(대기), sent(발송 완료), delivered(전달 완료), failed(실패)';
