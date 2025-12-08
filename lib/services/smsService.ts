@@ -71,7 +71,8 @@ export async function sendSMS(
   smsLogId?: string;
   error?: string;
 }> {
-  const { recipientPhone, message, recipientId, tenantId, templateId } = options;
+  const { recipientPhone, message, recipientId, tenantId, templateId } =
+    options;
 
   // 환경 변수 확인
   if (!env.PPURIO_USER_ID || !env.PPURIO_API_KEY || !env.PPURIO_SENDER_NUMBER) {
@@ -95,6 +96,10 @@ export async function sendSMS(
   // 1. SMS 로그 생성 (pending 상태) - 재시도가 아닌 경우에만
   const supabase = await createSupabaseServerClient();
   let smsLog;
+  
+  // API 엔드포인트 설정 (에러 로깅을 위해 try 블록 밖에서 선언)
+  const apiEndpoint =
+    env.PPURIO_API_ENDPOINT || "https://message.ppurio.com/v1/send";
   
   if (retryCount === 0) {
     const { data: logData, error: logError } = await supabase
@@ -143,8 +148,7 @@ export async function sendSMS(
     // 2. 뿌리오 API 호출
     // API 엔드포인트: 환경 변수로 설정 가능, 기본값은 https://message.ppurio.com/v1/send
     // 헤더: X-PPURIO-USER-ID, X-PPURIO-API-KEY
-    const apiEndpoint = env.PPURIO_API_ENDPOINT || "https://message.ppurio.com/v1/send";
-    
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
@@ -168,7 +172,7 @@ export async function sendSMS(
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `API 요청 실패: ${response.status}`;
-      
+
       // HTTP 상태 코드별 에러 메시지
       const statusMessages: Record<number, string> = {
         400: "잘못된 요청입니다. 요청 형식을 확인해주세요.",
@@ -247,8 +251,7 @@ export async function sendSMS(
 
       // 재시도 가능한 에러인지 확인 (5xx 서버 에러, 네트워크 에러)
       const isRetryable =
-        result.result_code >= 500 ||
-        result.result_code === 429; // Rate limit
+        result.result_code >= 500 || result.result_code === 429; // Rate limit
 
       if (isRetryable && retryCount < maxRetries) {
         // 지수 백오프: 1초, 2초, 4초...
@@ -269,15 +272,39 @@ export async function sendSMS(
   } catch (error: any) {
     // 4. 에러 처리
     let errorMessage = "알 수 없는 오류가 발생했습니다.";
+    let errorDetails: Record<string, any> = {};
 
     if (error instanceof Error) {
       if (error.name === "AbortError") {
-        errorMessage = "요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.";
-      } else if (error.message.includes("fetch")) {
-        errorMessage = "네트워크 연결에 실패했습니다. 인터넷 연결을 확인해주세요.";
+        errorMessage =
+          "요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.";
+        errorDetails = {
+          type: "timeout",
+          timeout: 10000,
+        };
+      } else if (error.message.includes("fetch") || error.message === "fetch failed") {
+        errorMessage =
+          "네트워크 연결에 실패했습니다. 인터넷 연결 및 API 엔드포인트를 확인해주세요.";
+        errorDetails = {
+          type: "network_error",
+          endpoint: apiEndpoint,
+          cause: error.cause || "unknown",
+          message: error.message,
+        };
       } else {
         errorMessage = error.message;
+        errorDetails = {
+          type: "unknown",
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+        };
       }
+    } else {
+      errorDetails = {
+        type: "non_error_object",
+        value: String(error),
+      };
     }
 
     await supabase
@@ -288,10 +315,16 @@ export async function sendSMS(
       })
       .eq("id", smsLog.id);
 
+    // 상세 에러 로그 출력
     console.error("[SMS] 발송 실패:", {
       phone: normalizedPhone,
       error: error instanceof Error ? error.message : String(error),
       retryCount,
+      endpoint: apiEndpoint,
+      details: errorDetails,
+      hint: errorDetails.type === "network_error" 
+        ? "API 엔드포인트 URL, 네트워크 연결, 방화벽 설정을 확인하세요."
+        : undefined,
     });
 
     // 네트워크 에러 등 재시도 가능한 에러인지 확인
@@ -368,4 +401,3 @@ export async function sendBulkSMS(
 
   return results;
 }
-
