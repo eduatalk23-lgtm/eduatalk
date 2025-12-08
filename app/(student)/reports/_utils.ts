@@ -231,7 +231,7 @@ export async function fetchSubjectGradeTrends(
     let internalScoresResult: Array<{
       subject_group?: string | null;
       subject_name?: string | null;
-      grade_score?: number | null;
+      rank_grade?: number | null;
       raw_score?: number | null;
       test_date?: string | null;
     }> = [];
@@ -245,13 +245,15 @@ export async function fetchSubjectGradeTrends(
 
     try {
       // JOIN 없이 기본 컬럼만 먼저 조회
+      // student_internal_scores에는 grade_score가 없고 rank_grade만 있음
+      // test_date도 없으므로 created_at을 사용하여 날짜 필터링
       const { data: internalData, error: internalError } = await supabase
         .from("student_internal_scores")
-        .select("subject_group_id,subject_id,grade_score,raw_score,test_date")
-        .gte("test_date", startDateStr)
-        .lte("test_date", endDateStr)
+        .select("subject_group_id,subject_id,rank_grade,raw_score,created_at")
         .eq("student_id", studentId)
-        .order("test_date", { ascending: true });
+        .gte("created_at", `${startDateStr}T00:00:00Z`)
+        .lte("created_at", `${endDateStr}T23:59:59Z`)
+        .order("created_at", { ascending: true });
 
       if (internalError) {
         // 에러 객체의 모든 속성을 확인
@@ -260,22 +262,32 @@ export async function fetchSubjectGradeTrends(
           message: internalError.message || "Unknown error",
           details: internalError.details || null,
           hint: internalError.hint || null,
-          error: internalError ? JSON.stringify(internalError, Object.getOwnPropertyNames(internalError)) : "Empty error object",
+          error: internalError
+            ? JSON.stringify(
+                internalError,
+                Object.getOwnPropertyNames(internalError)
+              )
+            : "Empty error object",
           query: "student_internal_scores",
           filters: { startDateStr, endDateStr, studentId },
         };
         console.error("[reports] 내신 성적 쿼리 에러 상세:", errorInfo);
         internalScoresResult = [];
       } else if (!internalData) {
-        console.warn("[reports] 내신 성적 데이터가 null입니다.", { startDateStr, endDateStr, studentId });
+        console.warn("[reports] 내신 성적 데이터가 null입니다.", {
+          startDateStr,
+          endDateStr,
+          studentId,
+        });
         internalScoresResult = [];
       } else {
         // subject_group_id와 subject_id로 과목명 조회
         const subjectGroupIds = new Set<string>();
         const subjectIds = new Set<string>();
-        
+
         (internalData || []).forEach((score: any) => {
-          if (score.subject_group_id) subjectGroupIds.add(score.subject_group_id);
+          if (score.subject_group_id)
+            subjectGroupIds.add(score.subject_group_id);
           if (score.subject_id) subjectIds.add(score.subject_id);
         });
 
@@ -306,12 +318,17 @@ export async function fetchSubjectGradeTrends(
         });
 
         // 데이터 변환
+        // student_internal_scores에는 test_date가 없으므로 created_at을 사용하거나 null 처리
         internalScoresResult = (internalData || []).map((score: any) => ({
-          subject_group: score.subject_group_id ? subjectGroupMap.get(score.subject_group_id) || null : null,
-          subject_name: score.subject_id ? subjectMap.get(score.subject_id) || null : null,
-          grade_score: score.grade_score,
+          subject_group: score.subject_group_id
+            ? subjectGroupMap.get(score.subject_group_id) || null
+            : null,
+          subject_name: score.subject_id
+            ? subjectMap.get(score.subject_id) || null
+            : null,
+          rank_grade: score.rank_grade,
           raw_score: score.raw_score,
-          test_date: score.test_date,
+          test_date: score.created_at ? score.created_at.slice(0, 10) : null,
         }));
       }
     } catch (error) {
@@ -336,22 +353,29 @@ export async function fetchSubjectGradeTrends(
           message: mockError.message || "Unknown error",
           details: mockError.details || null,
           hint: mockError.hint || null,
-          error: mockError ? JSON.stringify(mockError, Object.getOwnPropertyNames(mockError)) : "Empty error object",
+          error: mockError
+            ? JSON.stringify(mockError, Object.getOwnPropertyNames(mockError))
+            : "Empty error object",
           query: "student_mock_scores",
           filters: { startDateStr, endDateStr, studentId },
         };
         console.error("[reports] 모의고사 성적 쿼리 에러 상세:", errorInfo);
         mockScoresResult = [];
       } else if (!mockData) {
-        console.warn("[reports] 모의고사 성적 데이터가 null입니다.", { startDateStr, endDateStr, studentId });
+        console.warn("[reports] 모의고사 성적 데이터가 null입니다.", {
+          startDateStr,
+          endDateStr,
+          studentId,
+        });
         mockScoresResult = [];
       } else {
         // subject_group_id와 subject_id로 과목명 조회
         const subjectGroupIds = new Set<string>();
         const subjectIds = new Set<string>();
-        
+
         (mockData || []).forEach((score: any) => {
-          if (score.subject_group_id) subjectGroupIds.add(score.subject_group_id);
+          if (score.subject_group_id)
+            subjectGroupIds.add(score.subject_group_id);
           if (score.subject_id) subjectIds.add(score.subject_id);
         });
 
@@ -383,8 +407,12 @@ export async function fetchSubjectGradeTrends(
 
         // 데이터 변환
         mockScoresResult = (mockData || []).map((score: any) => ({
-          subject_group: score.subject_group_id ? subjectGroupMap.get(score.subject_group_id) || null : null,
-          subject_name: score.subject_id ? subjectMap.get(score.subject_id) || null : null,
+          subject_group: score.subject_group_id
+            ? subjectGroupMap.get(score.subject_group_id) || null
+            : null,
+          subject_name: score.subject_id
+            ? subjectMap.get(score.subject_id) || null
+            : null,
           grade_score: score.grade_score,
           raw_score: score.raw_score,
           exam_date: score.exam_date,
@@ -410,11 +438,11 @@ export async function fetchSubjectGradeTrends(
       const subject = (score.subject_group || score.subject_name || "")
         .toLowerCase()
         .trim();
-      if (!subject || score.grade_score === null) return;
+      if (!subject || score.rank_grade === null) return;
       const existing = subjectMap.get(subject) ?? [];
       existing.push({
         test_date: score.test_date ?? "",
-        grade: score.grade_score ?? 0,
+        grade: score.rank_grade ?? 0,
         raw_score: score.raw_score ?? null,
       });
       subjectMap.set(subject, existing);
