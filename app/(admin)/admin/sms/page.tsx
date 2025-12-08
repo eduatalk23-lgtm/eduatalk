@@ -100,9 +100,7 @@ export default async function AdminSMSPage({
     console.error("[admin/sms] SMS 로그 조회 실패 - 상세 정보:", errorInfo);
   }
 
-  const logRows = (logs as SMSLogRow[] | null) ?? [];
-
-  // 테이블이 없는 경우 에러 메시지 표시
+  // 테이블이 없는 경우 에러 메시지 표시 (에러가 있으면 먼저 처리)
   const errorCode = error?.code;
   const errorMessage = error?.message || "";
   if (
@@ -134,6 +132,8 @@ export default async function AdminSMSPage({
       </div>
     );
   }
+
+  const logRows = (logs as SMSLogRow[] | null) ?? [];
 
   // 학생 정보 조회
   const recipientIds = [
