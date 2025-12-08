@@ -339,45 +339,53 @@ export async function sendSMS(
 
     const responseText = await response.text();
     
-    // 디버깅: 응답 로깅 (개발 환경에서만)
-    if (process.env.NODE_ENV === "development") {
-      console.log("[SMS] API 응답:", {
-        status: response.status,
-        statusText: response.statusText,
-        body: responseText,
-      });
+    // 디버깅: 응답 로깅 (항상 로깅하여 실제 응답 확인)
+    console.log("[SMS] API 응답:", {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      body: responseText,
+    });
+
+    // 응답 파싱
+    let result: MessageResponse | ErrorResponse;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      // JSON 파싱 실패는 HTTP 에러로 처리
+      if (!response.ok) {
+        throw new Error(`응답 파싱 실패 (HTTP ${response.status}): ${responseText}`);
+      }
+      throw new Error(`응답 파싱 실패: ${responseText}`);
     }
 
+    // 뿌리오 API는 HTTP 200이어도 응답 본문에 에러 코드를 반환할 수 있음
+    // 따라서 HTTP 상태 코드와 응답 본문의 code를 모두 확인해야 함
+
+    // HTTP 에러 (4xx, 5xx)
     if (!response.ok) {
-      let errorMessage = `API 요청 실패: ${response.status}`;
-      let errorCode: number | null = null;
+      const errorJson = result as ErrorResponse;
+      const errorCode = errorJson.code;
+      const errorMessage = errorJson.description || `API 요청 실패: ${response.status}`;
 
-      try {
-        const errorJson: ErrorResponse = JSON.parse(responseText);
-        errorCode = errorJson.code;
-        errorMessage = errorJson.description || errorMessage;
+      // 에러 코드별 처리
+      const errorCodeMessages: Record<number, string> = {
+        2000: "잘못된 요청입니다.",
+        3001: "Authorization 헤더가 유효하지 않습니다.",
+        3002: "토큰이 유효하지 않습니다.",
+        3003: "아이피가 유효하지 않습니다.",
+        3004: "계정이 유효하지 않습니다.",
+        3005: "토큰이 유효하지 않습니다.",
+        3006: "Authentication Header가 유효하지 않습니다.",
+        3008: "너무 많은 요청입니다.",
+        4004: "API 접근 권한이 비활성화 상태입니다.",
+        4006: "인증키가 유효하지 않습니다.",
+        4007: "인증키를 발행 받지 않았습니다.",
+      };
 
-        // 에러 코드별 처리
-        const errorCodeMessages: Record<number, string> = {
-          2000: "잘못된 요청입니다.",
-          3001: "Authorization 헤더가 유효하지 않습니다.",
-          3002: "토큰이 유효하지 않습니다.",
-          3003: "아이피가 유효하지 않습니다.",
-          3004: "계정이 유효하지 않습니다.",
-          3005: "토큰이 유효하지 않습니다.",
-          3006: "Authentication Header가 유효하지 않습니다.",
-          3008: "너무 많은 요청입니다.",
-          4004: "API 접근 권한이 비활성화 상태입니다.",
-          4006: "인증키가 유효하지 않습니다.",
-          4007: "인증키를 발행 받지 않았습니다.",
-        };
-
-        if (errorCodeMessages[errorJson.code]) {
-          errorMessage = errorCodeMessages[errorJson.code];
-        }
-      } catch {
-        errorMessage = `${errorMessage} - ${responseText}`;
-      }
+      const finalErrorMessage = errorCode && errorCodeMessages[errorCode]
+        ? errorCodeMessages[errorCode]
+        : errorMessage;
 
       // 재시도 불가능한 에러 코드 (클라이언트 에러: 2xxx, 3xxx, 4xxx)
       const nonRetryableErrorCodes = [
@@ -386,22 +394,22 @@ export async function sendSMS(
         4004, 4006, 4007, // 설정 에러
       ];
 
-      const error = new Error(errorMessage) as Error & { code?: number; isRetryable?: boolean };
+      const error = new Error(finalErrorMessage) as Error & { code?: number; isRetryable?: boolean };
       error.code = errorCode || undefined;
       error.isRetryable = errorCode ? !nonRetryableErrorCodes.includes(errorCode) : false;
       
       throw error;
     }
 
-    let result: MessageResponse;
-    try {
-      result = JSON.parse(responseText);
-    } catch {
-      throw new Error(`응답 파싱 실패: ${responseText}`);
-    }
+    // HTTP 200 응답 처리
+    const messageResponse = result as MessageResponse;
 
-    // 4. 발송 결과 업데이트
-    if (result.code === 1000 && result.messageKey) {
+    // 성공 응답 확인: code가 1000이면 성공
+    if (messageResponse.code === 1000) {
+      // messageKey가 있으면 명시적으로 성공
+      // messageKey가 없어도 code가 1000이면 성공으로 간주 (일부 API는 messageKey를 반환하지 않을 수 있음)
+      const messageKey = messageResponse.messageKey || `ref-${refKeyValue}`;
+
       await supabase
         .from("sms_logs")
         .update({
@@ -410,41 +418,58 @@ export async function sendSMS(
         })
         .eq("id", smsLog.id);
 
+      console.log("[SMS] 발송 성공:", {
+        phone: normalizedPhone,
+        messageKey,
+        code: messageResponse.code,
+        description: messageResponse.description,
+      });
+
       return {
         success: true,
-        messageKey: result.messageKey,
+        messageKey: messageKey,
         smsLogId: smsLog.id,
       };
-    } else {
-      const errorMessage = result.description || "SMS 발송에 실패했습니다.";
-
-      await supabase
-        .from("sms_logs")
-        .update({
-          status: "failed",
-          error_message: errorMessage,
-        })
-        .eq("id", smsLog.id);
-
-      // 재시도 가능한 에러인지 확인 (5xx 서버 에러, 네트워크 에러)
-      const isRetryable = result.code >= 500 || result.code === 3008; // Rate limit
-
-      if (isRetryable && retryCount < maxRetries) {
-        // 지수 백오프: 1초, 2초, 4초...
-        const delay = Math.pow(2, retryCount) * 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-
-        console.log(
-          `[SMS] 재시도 ${retryCount + 1}/${maxRetries} - ${normalizedPhone}`
-        );
-        return sendSMS(options, retryCount + 1, maxRetries);
-      }
-
-      return {
-        success: false,
-        error: errorMessage,
-      };
     }
+
+    // HTTP 200이지만 응답 본문에 에러 코드가 있는 경우
+    // (뿌리오 API는 HTTP 200이어도 code: 2000 같은 에러를 반환할 수 있음)
+    const errorMessage = messageResponse.description || "SMS 발송에 실패했습니다.";
+    const errorCode = messageResponse.code;
+
+    console.warn("[SMS] 발송 실패 (HTTP 200이지만 에러 코드):", {
+      phone: normalizedPhone,
+      code: errorCode,
+      description: errorMessage,
+      response: messageResponse,
+    });
+
+    await supabase
+      .from("sms_logs")
+      .update({
+        status: "failed",
+        error_message: errorMessage,
+      })
+      .eq("id", smsLog.id);
+
+    // 재시도 가능한 에러인지 확인 (5xx 서버 에러, Rate limit만 재시도)
+    const isRetryable = errorCode && (errorCode >= 500 || errorCode === 3008);
+
+    if (isRetryable && retryCount < maxRetries) {
+      // 지수 백오프: 1초, 2초, 4초...
+      const delay = Math.pow(2, retryCount) * 1000;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      console.log(
+        `[SMS] 재시도 ${retryCount + 1}/${maxRetries} - ${normalizedPhone} (에러 코드: ${errorCode})`
+      );
+      return sendSMS(options, retryCount + 1, maxRetries);
+    }
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
   } catch (error: any) {
     // 5. 에러 처리
     let errorMessage = "알 수 없는 오류가 발생했습니다.";
