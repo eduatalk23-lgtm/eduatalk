@@ -1,11 +1,11 @@
 /**
  * SMS 발송 서비스
  * 뿌리오 API를 활용한 문자 발송 기능
+ * API 문서: https://www.ppurio.com/send-api/develop
  */
 
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AppError, ErrorCode } from "@/lib/errors";
 
 export interface SendSMSOptions {
   recipientPhone: string;
@@ -13,12 +13,147 @@ export interface SendSMSOptions {
   recipientId?: string;
   tenantId: string;
   templateId?: string;
+  refKey?: string; // 고객사에서 부여한 키
+  sendTime?: string; // 예약 발송 시간 (yyyy-MM-ddTHH:mm:ss)
 }
 
-interface PPurioResponse {
-  result_code: number;
-  message: string;
-  msg_id?: string;
+interface TokenResponse {
+  token: string;
+  type: string;
+  expired: number; // Unix timestamp
+}
+
+interface MessageResponse {
+  code: number;
+  description: string;
+  refKey?: string;
+  messageKey?: string;
+}
+
+interface ErrorResponse {
+  code: number;
+  description: string;
+}
+
+// 토큰 캐시 (메모리)
+let tokenCache: {
+  token: string;
+  expiresAt: number;
+} | null = null;
+
+/**
+ * Base64 인코딩
+ */
+function base64Encode(str: string): string {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(str).toString("base64");
+  }
+  // 브라우저 환경 (일반적으로 서버에서만 사용)
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+/**
+ * 뿌리오 API 엑세스 토큰 발급
+ * Basic Authentication 사용 (계정:뿌리오 개발 인증키)
+ */
+async function getAccessToken(): Promise<string> {
+  // 캐시된 토큰이 있고 아직 유효한 경우 재사용
+  if (tokenCache && tokenCache.expiresAt > Date.now()) {
+    return tokenCache.token;
+  }
+
+  const account = env.PPURIO_ACCOUNT;
+  const authKey = env.PPURIO_AUTH_KEY;
+  const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
+
+  if (!account || !authKey) {
+    throw new Error(
+      "뿌리오 계정(PPURIO_ACCOUNT) 및 인증키(PPURIO_AUTH_KEY)가 설정되지 않았습니다."
+    );
+  }
+
+  // Basic Authentication: 계정:인증키를 Base64 인코딩
+  const credentials = base64Encode(`${account}:${authKey}`);
+  const tokenEndpoint = `${baseUrl}/v1/token`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+
+    const response = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `토큰 발급 실패: ${response.status}`;
+
+      try {
+        const errorJson: ErrorResponse = JSON.parse(errorText);
+        errorMessage = errorJson.description || errorMessage;
+      } catch {
+        errorMessage = `${errorMessage} - ${errorText}`;
+      }
+
+      // 에러 코드별 처리
+      const errorCodeMessages: Record<number, string> = {
+        3001: "Authorization 헤더가 유효하지 않습니다.",
+        3003: "아이피가 유효하지 않습니다.",
+        3004: "계정이 유효하지 않습니다.",
+        3007: "엑세스 토큰 발행 실패",
+        4004: "API 접근 권한이 비활성화 상태입니다.",
+        4006: "인증키가 유효하지 않습니다.",
+        4007: "인증키를 발행 받지 않았습니다.",
+      };
+
+      const errorJson: ErrorResponse | null = (() => {
+        try {
+          return JSON.parse(errorText);
+        } catch {
+          return null;
+        }
+      })();
+
+      if (errorJson && errorCodeMessages[errorJson.code]) {
+        errorMessage = errorCodeMessages[errorJson.code];
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const result: TokenResponse = await response.json();
+
+    if (!result.token) {
+      throw new Error("토큰 발급 응답에 토큰이 없습니다.");
+    }
+
+    // 토큰 캐싱 (유효기간 1일, 여유를 두고 23시간으로 설정)
+    const expiresAt = result.expired
+      ? result.expired * 1000 // Unix timestamp를 밀리초로 변환
+      : Date.now() + 23 * 60 * 60 * 1000; // 23시간
+
+    tokenCache = {
+      token: result.token,
+      expiresAt: expiresAt,
+    };
+
+    return result.token;
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      throw new Error("토큰 발급 요청 시간이 초과되었습니다.");
+    }
+    if (error.message) {
+      throw error;
+    }
+    throw new Error(`토큰 발급 실패: ${error.message || String(error)}`);
+  }
 }
 
 /**
@@ -67,15 +202,22 @@ export async function sendSMS(
   maxRetries = 2
 ): Promise<{
   success: boolean;
-  msgId?: string;
+  messageKey?: string;
   smsLogId?: string;
   error?: string;
 }> {
-  const { recipientPhone, message, recipientId, tenantId, templateId } =
-    options;
+  const {
+    recipientPhone,
+    message,
+    recipientId,
+    tenantId,
+    templateId,
+    refKey,
+    sendTime,
+  } = options;
 
   // 환경 변수 확인
-  if (!env.PPURIO_USER_ID || !env.PPURIO_API_KEY || !env.PPURIO_SENDER_NUMBER) {
+  if (!env.PPURIO_ACCOUNT || !env.PPURIO_AUTH_KEY || !env.PPURIO_SENDER_NUMBER) {
     return {
       success: false,
       error: "SMS 발송 설정이 완료되지 않았습니다. 관리자에게 문의하세요.",
@@ -97,9 +239,8 @@ export async function sendSMS(
   const supabase = await createSupabaseServerClient();
   let smsLog;
 
-  // API 엔드포인트 설정 (에러 로깅을 위해 try 블록 밖에서 선언)
-  const apiEndpoint =
-    env.PPURIO_API_ENDPOINT || "https://message.ppurio.com/v1/send";
+  const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
+  const messageEndpoint = `${baseUrl}/v1/message`;
 
   if (retryCount === 0) {
     const { data: logData, error: logError } = await supabase
@@ -145,25 +286,40 @@ export async function sendSMS(
   }
 
   try {
-    // 2. 뿌리오 API 호출
-    // API 엔드포인트: 환경 변수로 설정 가능, 기본값은 https://message.ppurio.com/v1/send
-    // 헤더: X-PPURIO-USER-ID, X-PPURIO-API-KEY
+    // 2. 토큰 발급
+    const accessToken = await getAccessToken();
 
+    // 3. 메시지 발송 요청
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
 
-    const response = await fetch(apiEndpoint, {
+    // 메시지 타입 결정 (SMS: 90byte 이하, LMS: 2000byte 이하)
+    const messageBytes = new TextEncoder().encode(message).length;
+    const messageType = messageBytes <= 90 ? "SMS" : "LMS";
+
+    const requestBody = {
+      account: env.PPURIO_ACCOUNT,
+      messageType: messageType,
+      content: message,
+      from: env.PPURIO_SENDER_NUMBER,
+      duplicateFlag: "N", // 중복 제거
+      targetCount: 1,
+      targets: [
+        {
+          to: normalizedPhone,
+        },
+      ],
+      refKey: refKey || smsLog.id, // 고객사 키 (기본값: SMS 로그 ID)
+      ...(sendTime && { sendTime }), // 예약 발송 시간
+    };
+
+    const response = await fetch(messageEndpoint, {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        "X-PPURIO-USER-ID": env.PPURIO_USER_ID,
-        "X-PPURIO-API-KEY": env.PPURIO_API_KEY,
       },
-      body: JSON.stringify({
-        phone: normalizedPhone,
-        message: message,
-        sender: env.PPURIO_SENDER_NUMBER,
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -173,46 +329,39 @@ export async function sendSMS(
       const errorText = await response.text();
       let errorMessage = `API 요청 실패: ${response.status}`;
 
-      // HTTP 상태 코드별 에러 메시지
-      const statusMessages: Record<number, string> = {
-        400: "잘못된 요청입니다. 요청 형식을 확인해주세요.",
-        401: "인증에 실패했습니다. API 키를 확인해주세요.",
-        403: "접근이 거부되었습니다. 권한을 확인해주세요.",
-        404: `API 엔드포인트를 찾을 수 없습니다. (${apiEndpoint}) 엔드포인트 URL을 확인해주세요.`,
-        429: "요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.",
-        500: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-        503: "서비스를 일시적으로 사용할 수 없습니다.",
-      };
+      try {
+        const errorJson: ErrorResponse = JSON.parse(errorText);
+        errorMessage = errorJson.description || errorMessage;
 
-      if (statusMessages[response.status]) {
-        errorMessage = statusMessages[response.status];
-      } else if (errorText) {
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorMessage;
-        } catch {
-          errorMessage = `${errorMessage} - ${errorText}`;
+        // 에러 코드별 처리
+        const errorCodeMessages: Record<number, string> = {
+          2000: "잘못된 요청입니다.",
+          3001: "Authorization 헤더가 유효하지 않습니다.",
+          3002: "토큰이 유효하지 않습니다.",
+          3003: "아이피가 유효하지 않습니다.",
+          3004: "계정이 유효하지 않습니다.",
+          3005: "토큰이 유효하지 않습니다.",
+          3006: "Authentication Header가 유효하지 않습니다.",
+          3008: "너무 많은 요청입니다.",
+          4004: "API 접근 권한이 비활성화 상태입니다.",
+          4006: "인증키가 유효하지 않습니다.",
+          4007: "인증키를 발행 받지 않았습니다.",
+        };
+
+        if (errorCodeMessages[errorJson.code]) {
+          errorMessage = errorCodeMessages[errorJson.code];
         }
-      }
-
-      // 404 에러인 경우 상세 로그 출력
-      if (response.status === 404) {
-        console.error("[SMS] API 엔드포인트 404 에러:", {
-          endpoint: apiEndpoint,
-          status: response.status,
-          errorText,
-          hint: "PPURIO_API_ENDPOINT 환경 변수를 확인하거나 뿌리오 API 문서를 참조하세요.",
-        });
+      } catch {
+        errorMessage = `${errorMessage} - ${errorText}`;
       }
 
       throw new Error(errorMessage);
     }
 
-    const result: PPurioResponse = await response.json();
+    const result: MessageResponse = await response.json();
 
-    // 3. 발송 결과 업데이트
-    // 뿌리오 API 응답 코드: 200 (성공), 그 외 (실패)
-    if (result.result_code === 200 && result.msg_id) {
+    // 4. 발송 결과 업데이트
+    if (result.code === 1000 && result.messageKey) {
       await supabase
         .from("sms_logs")
         .update({
@@ -223,23 +372,12 @@ export async function sendSMS(
 
       return {
         success: true,
-        msgId: result.msg_id,
+        messageKey: result.messageKey,
         smsLogId: smsLog.id,
       };
     } else {
-      // API 에러 코드별 처리
-      const errorMessages: Record<number, string> = {
-        400: "잘못된 요청입니다.",
-        401: "인증에 실패했습니다.",
-        403: "접근이 거부되었습니다.",
-        404: "리소스를 찾을 수 없습니다.",
-        500: "서버 오류가 발생했습니다.",
-      };
-
       const errorMessage =
-        errorMessages[result.result_code] ||
-        result.message ||
-        "SMS 발송에 실패했습니다.";
+        result.description || "SMS 발송에 실패했습니다.";
 
       await supabase
         .from("sms_logs")
@@ -250,8 +388,7 @@ export async function sendSMS(
         .eq("id", smsLog.id);
 
       // 재시도 가능한 에러인지 확인 (5xx 서버 에러, 네트워크 에러)
-      const isRetryable =
-        result.result_code >= 500 || result.result_code === 429; // Rate limit
+      const isRetryable = result.code >= 500 || result.code === 3008; // Rate limit
 
       if (isRetryable && retryCount < maxRetries) {
         // 지수 백오프: 1초, 2초, 4초...
@@ -270,7 +407,7 @@ export async function sendSMS(
       };
     }
   } catch (error: any) {
-    // 4. 에러 처리
+    // 5. 에러 처리
     let errorMessage = "알 수 없는 오류가 발생했습니다.";
     let errorDetails: Record<string, any> = {};
 
@@ -303,18 +440,18 @@ export async function sendSMS(
           errorMessage = `DNS 조회 실패: '${hostname}' 도메인을 찾을 수 없습니다. API 엔드포인트 URL을 확인해주세요.`;
           errorDetails = {
             type: "dns_error",
-            endpoint: apiEndpoint,
+            endpoint: messageEndpoint,
             hostname: hostname,
             code: code,
             message: error.message,
-            hint: "뿌리오 API 문서에서 올바른 엔드포인트를 확인하거나, 기본값(https://message.ppurio.com/v1/send)을 사용해보세요.",
+            hint: "뿌리오 API 문서에서 올바른 엔드포인트를 확인하거나, 기본값(https://message.ppurio.com)을 사용해보세요.",
           };
         } else {
           errorMessage =
             "네트워크 연결에 실패했습니다. 인터넷 연결 및 API 엔드포인트를 확인해주세요.";
           errorDetails = {
             type: "network_error",
-            endpoint: apiEndpoint,
+            endpoint: messageEndpoint,
             cause: error.cause || "unknown",
             message: error.message,
           };
@@ -346,7 +483,7 @@ export async function sendSMS(
     // 상세 에러 로그 출력
     const getHint = () => {
       if (errorDetails.type === "dns_error") {
-        return `DNS 조회 실패: '${errorDetails.hostname}' 도메인을 찾을 수 없습니다. 뿌리오 API 문서에서 올바른 엔드포인트를 확인하거나, 기본값(https://message.ppurio.com/v1/send)을 사용해보세요.`;
+        return `DNS 조회 실패: '${errorDetails.hostname}' 도메인을 찾을 수 없습니다. 뿌리오 API 문서에서 올바른 엔드포인트를 확인하거나, 기본값(https://message.ppurio.com)을 사용해보세요.`;
       } else if (errorDetails.type === "network_error") {
         return "API 엔드포인트 URL, 네트워크 연결, 방화벽 설정을 확인하세요.";
       } else if (errorDetails.type === "timeout") {
@@ -359,7 +496,7 @@ export async function sendSMS(
       phone: normalizedPhone,
       error: error instanceof Error ? error.message : String(error),
       retryCount,
-      endpoint: apiEndpoint,
+      endpoint: messageEndpoint,
       details: errorDetails,
       hint: getHint(),
     });
@@ -369,9 +506,15 @@ export async function sendSMS(
       error instanceof Error &&
       (error.name === "AbortError" ||
         error.message.includes("fetch") ||
-        error.message.includes("network"));
+        error.message.includes("network") ||
+        error.message.includes("토큰"));
 
     if (isRetryable && retryCount < maxRetries) {
+      // 토큰 관련 에러인 경우 토큰 캐시 초기화
+      if (error.message.includes("토큰")) {
+        tokenCache = null;
+      }
+
       // 지수 백오프
       const delay = Math.pow(2, retryCount) * 1000;
       await new Promise((resolve) => setTimeout(resolve, delay));
@@ -382,6 +525,117 @@ export async function sendSMS(
       return sendSMS(options, retryCount + 1, maxRetries);
     }
 
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 예약발송 취소
+ */
+export async function cancelScheduledMessage(
+  messageKey: string,
+  tenantId: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  if (!env.PPURIO_ACCOUNT || !env.PPURIO_AUTH_KEY) {
+    return {
+      success: false,
+      error: "SMS 발송 설정이 완료되지 않았습니다.",
+    };
+  }
+
+  const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
+  const cancelEndpoint = `${baseUrl}/v1/cancel`;
+
+  try {
+    // 토큰 발급
+    const accessToken = await getAccessToken();
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(cancelEndpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        account: env.PPURIO_ACCOUNT,
+        messageKey: messageKey,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `예약 취소 실패: ${response.status}`;
+
+      try {
+        const errorJson: ErrorResponse = JSON.parse(errorText);
+        errorMessage = errorJson.description || errorMessage;
+
+        // 에러 코드별 처리
+        const errorCodeMessages: Record<number, string> = {
+          2000: "잘못된 요청입니다.",
+          2001: "잘못된 URL입니다.",
+          3002: "토큰이 유효하지 않습니다.",
+          3003: "아이피가 유효하지 않습니다.",
+          3004: "계정이 유효하지 않습니다.",
+          3005: "인증 정보가 유효하지 않습니다.",
+          3006: "Authentication Header가 유효하지 않습니다.",
+          3008: "너무 많은 요청입니다.",
+          4004: "API 접근 권한이 비활성화 상태입니다.",
+          4006: "인증키가 유효하지 않습니다.",
+          4007: "인증키를 발행 받지 않았습니다.",
+          4009: "메시지키가 유효하지 않습니다.",
+          4010: "예약 취소 가능 시간이 지났습니다.",
+          4011: "메시지가 이미 발송중인 상태입니다.",
+          4012: "예약을 취소할 수 없습니다.",
+        };
+
+        if (errorCodeMessages[errorJson.code]) {
+          errorMessage = errorCodeMessages[errorJson.code];
+        }
+      } catch {
+        errorMessage = `${errorMessage} - ${errorText}`;
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const result: MessageResponse = await response.json();
+
+    if (result.code === 1000) {
+      // SMS 로그 상태 업데이트
+      const supabase = await createSupabaseServerClient();
+      await supabase
+        .from("sms_logs")
+        .update({
+          status: "failed",
+          error_message: "예약 발송이 취소되었습니다.",
+        })
+        .eq("tenant_id", tenantId)
+        .eq("status", "pending");
+
+      return { success: true };
+    } else {
+      return {
+        success: false,
+        error: result.description || "예약 취소에 실패했습니다.",
+      };
+    }
+  } catch (error: any) {
+    const errorMessage =
+      error instanceof Error ? error.message : "예약 취소 중 오류가 발생했습니다.";
+    console.error("[SMS] 예약 취소 실패:", errorMessage);
     return {
       success: false,
       error: errorMessage,

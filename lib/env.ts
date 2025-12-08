@@ -14,10 +14,14 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   // 뿌리오 SMS API 설정 (선택사항)
-  PPURIO_USER_ID: z.string().optional(),
-  PPURIO_API_KEY: z.string().optional(),
-  PPURIO_SENDER_NUMBER: z.string().optional(),
-  PPURIO_API_ENDPOINT: z.string().url().optional(),
+  PPURIO_ACCOUNT: z.string().optional(), // 뿌리오 계정
+  PPURIO_AUTH_KEY: z.string().optional(), // 뿌리오 개발 인증키
+  PPURIO_SENDER_NUMBER: z.string().optional(), // 발신 번호
+  PPURIO_API_BASE_URL: z.string().url().optional(), // API 기본 URL (기본값: https://message.ppurio.com)
+  // 하위 호환성을 위한 레거시 환경 변수
+  PPURIO_USER_ID: z.string().optional(), // @deprecated: PPURIO_ACCOUNT 사용
+  PPURIO_API_KEY: z.string().optional(), // @deprecated: PPURIO_AUTH_KEY 사용
+  PPURIO_API_ENDPOINT: z.string().url().optional(), // @deprecated: PPURIO_API_BASE_URL 사용
 });
 
 /**
@@ -32,9 +36,13 @@ export const env = (() => {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       NODE_ENV: process.env.NODE_ENV || "development",
+      PPURIO_ACCOUNT: process.env.PPURIO_ACCOUNT || process.env.PPURIO_USER_ID,
+      PPURIO_AUTH_KEY: process.env.PPURIO_AUTH_KEY || process.env.PPURIO_API_KEY,
+      PPURIO_SENDER_NUMBER: process.env.PPURIO_SENDER_NUMBER,
+      PPURIO_API_BASE_URL: process.env.PPURIO_API_BASE_URL || process.env.PPURIO_API_ENDPOINT?.replace(/\/v1\/.*$/, "") || "https://message.ppurio.com",
+      // 하위 호환성
       PPURIO_USER_ID: process.env.PPURIO_USER_ID,
       PPURIO_API_KEY: process.env.PPURIO_API_KEY,
-      PPURIO_SENDER_NUMBER: process.env.PPURIO_SENDER_NUMBER,
       PPURIO_API_ENDPOINT: process.env.PPURIO_API_ENDPOINT,
     };
 
@@ -72,9 +80,13 @@ export const env = (() => {
         NEXT_PUBLIC_SUPABASE_ANON_KEY:
           envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
         NODE_ENV: envValues.NODE_ENV as "development" | "production" | "test",
+        PPURIO_ACCOUNT: envValues.PPURIO_ACCOUNT,
+        PPURIO_AUTH_KEY: envValues.PPURIO_AUTH_KEY,
+        PPURIO_SENDER_NUMBER: envValues.PPURIO_SENDER_NUMBER,
+        PPURIO_API_BASE_URL: envValues.PPURIO_API_BASE_URL,
+        // 하위 호환성
         PPURIO_USER_ID: envValues.PPURIO_USER_ID,
         PPURIO_API_KEY: envValues.PPURIO_API_KEY,
-        PPURIO_SENDER_NUMBER: envValues.PPURIO_SENDER_NUMBER,
         PPURIO_API_ENDPOINT: envValues.PPURIO_API_ENDPOINT,
       };
     }
