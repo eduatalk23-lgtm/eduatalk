@@ -411,6 +411,8 @@ function getSegmentLabel(segment: string, role: NavigationRole): string {
       dashboard: "대시보드",
       students: "학생 관리",
       consulting: "상담 노트",
+      attendance: "출석 관리",
+      sms: "SMS 발송 이력",
       reports: "리포트",
       compare: "비교 분석",
       settings: "설정",

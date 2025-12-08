@@ -251,6 +251,12 @@ const adminCategories: NavigationCategory[] = [
         href: "/admin/students",
         icon: "👥",
       },
+      {
+        id: "admin-students-attendance",
+        label: "출석 관리",
+        href: "/admin/attendance",
+        icon: "✓",
+      },
     ],
   },
   {
@@ -263,6 +269,19 @@ const adminCategories: NavigationCategory[] = [
         label: "상담 노트",
         href: "/admin/consulting",
         icon: "📝",
+      },
+    ],
+  },
+  {
+    id: "admin-communication",
+    label: "통신 관리",
+    icon: "📱",
+    items: [
+      {
+        id: "admin-sms-logs",
+        label: "SMS 발송 이력",
+        href: "/admin/sms",
+        icon: "📱",
       },
     ],
   },
