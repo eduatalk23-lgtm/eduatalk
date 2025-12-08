@@ -3,10 +3,10 @@
 import { useEffect } from "react";
 import { ErrorState } from "@/components/ui/ErrorState";
 
-interface ErrorProps {
+type ErrorProps = {
   error: Error & { digest?: string };
   reset: () => void;
-}
+};
 
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
