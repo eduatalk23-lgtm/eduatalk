@@ -90,13 +90,13 @@ export function computeInitialTimerState(
     total_duration_seconds: number | null | undefined;
     paused_duration_seconds: number | null | undefined;
   },
+  serverNow: number,
   activeSession?: {
     started_at: string;
     paused_at?: string | null;
     resumed_at?: string | null;
     paused_duration_seconds?: number | null;
   } | null,
-  serverNow: number,
   clientNow: number = Date.now()
 ): PlanTimerState {
   // 완료된 경우

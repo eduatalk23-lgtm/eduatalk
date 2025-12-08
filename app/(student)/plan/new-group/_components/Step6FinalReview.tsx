@@ -1085,7 +1085,7 @@ export function Step6FinalReview({
             }
           });
 
-          const { total_study_days, total_study_hours } = data.schedule_summary;
+          const { total_study_days, total_study_hours } = data.schedule_summary || { total_study_days: 0, total_study_hours: 0 };
           const avgDailyHours = total_study_hours / total_study_days;
 
           // 전체 일일 학습량 계산 (각 콘텐츠별이 아닌 전체)

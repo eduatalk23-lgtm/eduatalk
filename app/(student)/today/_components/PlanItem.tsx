@@ -27,6 +27,8 @@ function PlanItemComponent({
   campMode = false,
 }: PlanItemProps) {
   const router = useRouter();
+  const timerStore = usePlanTimerStore();
+  const { showError } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
   

@@ -145,14 +145,28 @@ async function StudentContentFilterWrapper({
 
   const filterOptions = {
     curriculumRevisions: Array.isArray(curriculumRevisions)
-      ? curriculumRevisions.map((rev) => ({
-          id: rev.id,
-          name: rev.name,
-        }))
+      ? curriculumRevisions
+          .filter((rev): rev is { id: string; name: string } => 
+            typeof rev === "object" && rev !== null && "id" in rev && "name" in rev
+          )
+          .map((rev) => ({
+            id: rev.id,
+            name: rev.name,
+          }))
       : [],
-    publishers: activeTab === "books" && Array.isArray(publishers) ? publishers : undefined,
-    platforms: activeTab === "lectures" && Array.isArray(platforms) ? platforms : undefined,
-    difficulties: Array.isArray(difficulties) ? difficulties : [],
+    publishers: activeTab === "books" && Array.isArray(publishers) 
+      ? publishers.filter((pub): pub is { id: string; name: string } => 
+          typeof pub === "object" && pub !== null && "id" in pub && "name" in pub
+        )
+      : undefined,
+    platforms: activeTab === "lectures" && Array.isArray(platforms)
+      ? platforms.filter((plat): plat is { id: string; name: string } => 
+          typeof plat === "object" && plat !== null && "id" in plat && "name" in plat
+        )
+      : undefined,
+    difficulties: Array.isArray(difficulties) 
+      ? difficulties.filter((diff): diff is string => typeof diff === "string")
+      : [],
   };
 
   const basePath = "/contents";

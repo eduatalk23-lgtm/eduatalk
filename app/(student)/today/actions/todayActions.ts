@@ -20,7 +20,15 @@ type PlanRecordPayload = {
 export async function startPlan(
   planId: string,
   timestamp?: string // 클라이언트에서 생성한 타임스탬프
-): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+): Promise<{ 
+  success: boolean; 
+  sessionId?: string; 
+  error?: string;
+  serverNow?: number;
+  status?: "RUNNING";
+  startedAt?: string;
+  accumulatedSeconds?: number;
+}> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
     return { success: false, error: "로그인이 필요합니다." };
@@ -118,7 +126,14 @@ export async function startPlan(
 export async function completePlan(
   planId: string,
   payload: PlanRecordPayload
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ 
+  success: boolean; 
+  error?: string;
+  serverNow?: number;
+  status?: "COMPLETED";
+  accumulatedSeconds?: number;
+  startedAt?: string | null;
+}> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
     return { success: false, error: "로그인이 필요합니다." };
@@ -516,7 +531,14 @@ export async function endTimer(
 export async function pausePlan(
   planId: string,
   timestamp?: string // 클라이언트에서 생성한 타임스탬프
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ 
+  success: boolean; 
+  error?: string;
+  serverNow?: number;
+  status?: "PAUSED";
+  accumulatedSeconds?: number;
+  startedAt?: never; // PAUSED 상태에는 startedAt이 없음
+}> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
     return { success: false, error: "로그인이 필요합니다." };
@@ -610,7 +632,6 @@ export async function pausePlan(
       serverNow,
       status: "PAUSED" as const,
       accumulatedSeconds,
-      startedAt: null,
     };
   } catch (error) {
     console.error("[todayActions] 플랜 일시정지 실패", error);
@@ -627,7 +648,14 @@ export async function pausePlan(
 export async function resumePlan(
   planId: string,
   timestamp?: string // 클라이언트에서 생성한 타임스탬프
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ 
+  success: boolean; 
+  error?: string;
+  serverNow?: number;
+  status?: "RUNNING";
+  startedAt?: string | null;
+  accumulatedSeconds?: number;
+}> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
     return { success: false, error: "로그인이 필요합니다." };
@@ -712,7 +740,7 @@ export async function resumePlan(
       serverNow,
       status: "RUNNING" as const,
       accumulatedSeconds,
-      startedAt,
+      startedAt: startedAt ?? null,
     };
   } catch (error) {
     console.error("[todayActions] 플랜 재개 실패", error);
@@ -781,13 +809,13 @@ export async function preparePlanCompletion(
           id: plan.id,
           content_type: plan.content_type || "",
           content_id: plan.content_id || "",
-          chapter: plan.chapter,
-          planned_start_page_or_time: plan.planned_start_page_or_time,
-          planned_end_page_or_time: plan.planned_end_page_or_time,
-          actual_start_time: plan.actual_start_time,
-          actual_end_time: plan.actual_end_time,
-          total_duration_seconds: plan.total_duration_seconds,
-          paused_duration_seconds: plan.paused_duration_seconds,
+          chapter: plan.chapter ?? null,
+          planned_start_page_or_time: plan.planned_start_page_or_time ?? null,
+          planned_end_page_or_time: plan.planned_end_page_or_time ?? null,
+          actual_start_time: plan.actual_start_time ?? null,
+          actual_end_time: plan.actual_end_time ?? null,
+          total_duration_seconds: plan.total_duration_seconds ?? null,
+          paused_duration_seconds: plan.paused_duration_seconds ?? null,
           is_reschedulable: plan.is_reschedulable || false,
           plan_date: plan.plan_date,
         },
@@ -857,13 +885,13 @@ export async function preparePlanCompletion(
             id: updatedPlan.id,
             content_type: updatedPlan.content_type || "",
             content_id: updatedPlan.content_id || "",
-            chapter: updatedPlan.chapter,
-            planned_start_page_or_time: updatedPlan.planned_start_page_or_time,
-            planned_end_page_or_time: updatedPlan.planned_end_page_or_time,
-            actual_start_time: updatedPlan.actual_start_time,
-            actual_end_time: updatedPlan.actual_end_time,
-            total_duration_seconds: updatedPlan.total_duration_seconds,
-            paused_duration_seconds: updatedPlan.paused_duration_seconds,
+            chapter: updatedPlan.chapter ?? null,
+            planned_start_page_or_time: updatedPlan.planned_start_page_or_time ?? null,
+            planned_end_page_or_time: updatedPlan.planned_end_page_or_time ?? null,
+            actual_start_time: updatedPlan.actual_start_time ?? null,
+            actual_end_time: updatedPlan.actual_end_time ?? null,
+            total_duration_seconds: updatedPlan.total_duration_seconds ?? null,
+            paused_duration_seconds: updatedPlan.paused_duration_seconds ?? null,
             is_reschedulable: updatedPlan.is_reschedulable || false,
             plan_date: updatedPlan.plan_date,
           },
@@ -882,13 +910,13 @@ export async function preparePlanCompletion(
         id: plan.id,
         content_type: plan.content_type || "",
         content_id: plan.content_id || "",
-        chapter: plan.chapter,
-        planned_start_page_or_time: plan.planned_start_page_or_time,
-        planned_end_page_or_time: plan.planned_end_page_or_time,
-        actual_start_time: plan.actual_start_time,
-        actual_end_time: plan.actual_end_time,
-        total_duration_seconds: plan.total_duration_seconds,
-        paused_duration_seconds: plan.paused_duration_seconds,
+        chapter: plan.chapter ?? null,
+        planned_start_page_or_time: plan.planned_start_page_or_time ?? null,
+        planned_end_page_or_time: plan.planned_end_page_or_time ?? null,
+        actual_start_time: plan.actual_start_time ?? null,
+        actual_end_time: plan.actual_end_time ?? null,
+        total_duration_seconds: plan.total_duration_seconds ?? null,
+        paused_duration_seconds: plan.paused_duration_seconds ?? null,
         is_reschedulable: plan.is_reschedulable || false,
         plan_date: plan.plan_date,
       },
