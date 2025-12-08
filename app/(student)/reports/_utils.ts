@@ -1,4 +1,7 @@
-import { handleSupabaseQueryArray, handleSupabaseQuerySingle } from "@/lib/utils/supabaseErrorHandler";
+import {
+  handleSupabaseQueryArray,
+  handleSupabaseQuerySingle,
+} from "@/lib/utils/supabaseErrorHandler";
 import { getReportDateRange } from "@/lib/date/reportDateUtils";
 
 type SupabaseServerClient = Awaited<
@@ -149,7 +152,10 @@ export async function fetchWeeklyLearningSummary(
     // 콘텐츠 정보 조회 (과목 추출용)
     const [books, lectures, custom] = await Promise.all([
       supabase.from("books").select("id,subject").eq("student_id", studentId),
-      supabase.from("lectures").select("id,subject").eq("student_id", studentId),
+      supabase
+        .from("lectures")
+        .select("id,subject")
+        .eq("student_id", studentId),
       supabase
         .from("student_custom_contents")
         .select("id,subject")
@@ -161,12 +167,16 @@ export async function fetchWeeklyLearningSummary(
     (books.data ?? []).forEach((b: { id: string; subject?: string | null }) => {
       contentSubjectMap.set(`book:${b.id}`, b.subject ?? null);
     });
-    (lectures.data ?? []).forEach((l: { id: string; subject?: string | null }) => {
-      contentSubjectMap.set(`lecture:${l.id}`, l.subject ?? null);
-    });
-    (custom.data ?? []).forEach((c: { id: string; subject?: string | null }) => {
-      contentSubjectMap.set(`custom:${c.id}`, c.subject ?? null);
-    });
+    (lectures.data ?? []).forEach(
+      (l: { id: string; subject?: string | null }) => {
+        contentSubjectMap.set(`lecture:${l.id}`, l.subject ?? null);
+      }
+    );
+    (custom.data ?? []).forEach(
+      (c: { id: string; subject?: string | null }) => {
+        contentSubjectMap.set(`custom:${c.id}`, c.subject ?? null);
+      }
+    );
 
     const totalLearningTime = planRows.reduce((sum, plan) => {
       return sum + (plan.completed_amount ?? 0);
@@ -189,7 +199,8 @@ export async function fetchWeeklyLearningSummary(
       totalLearningTime,
       completedPlans,
       totalPlans: planRows.length,
-      completionRate: planRows.length > 0 ? (completedPlans / planRows.length) * 100 : 0,
+      completionRate:
+        planRows.length > 0 ? (completedPlans / planRows.length) * 100 : 0,
       subjects: Array.from(subjects).sort(),
     };
   } catch (error) {
@@ -233,37 +244,71 @@ export async function fetchSubjectGradeTrends(
     }> = [];
 
     try {
+      // JOIN 없이 기본 컬럼만 먼저 조회
       const { data: internalData, error: internalError } = await supabase
         .from("student_internal_scores")
-        .select(`
-          subject_group_id,
-          subject_id,
-          grade_score,
-          raw_score,
-          test_date,
-          subject_groups:subject_group_id(name),
-          subjects:subject_id(name)
-        `)
+        .select("subject_group_id,subject_id,grade_score,raw_score,test_date")
         .gte("test_date", startDateStr)
         .lte("test_date", endDateStr)
         .eq("student_id", studentId)
         .order("test_date", { ascending: true });
 
       if (internalError) {
-        console.error("[reports] 내신 성적 쿼리 에러 상세:", {
-          code: internalError.code,
-          message: internalError.message,
-          details: internalError.details,
-          hint: internalError.hint,
+        // 에러 객체의 모든 속성을 확인
+        const errorInfo = {
+          code: internalError.code || "UNKNOWN",
+          message: internalError.message || "Unknown error",
+          details: internalError.details || null,
+          hint: internalError.hint || null,
+          error: internalError ? JSON.stringify(internalError, Object.getOwnPropertyNames(internalError)) : "Empty error object",
           query: "student_internal_scores",
           filters: { startDateStr, endDateStr, studentId },
-        });
+        };
+        console.error("[reports] 내신 성적 쿼리 에러 상세:", errorInfo);
+        internalScoresResult = [];
+      } else if (!internalData) {
+        console.warn("[reports] 내신 성적 데이터가 null입니다.", { startDateStr, endDateStr, studentId });
         internalScoresResult = [];
       } else {
-        // 데이터 변환: subject_group_id와 subject_id를 사용하여 과목명 생성
+        // subject_group_id와 subject_id로 과목명 조회
+        const subjectGroupIds = new Set<string>();
+        const subjectIds = new Set<string>();
+        
+        (internalData || []).forEach((score: any) => {
+          if (score.subject_group_id) subjectGroupIds.add(score.subject_group_id);
+          if (score.subject_id) subjectIds.add(score.subject_id);
+        });
+
+        // 배치로 과목명 조회
+        const [subjectGroupsData, subjectsData] = await Promise.all([
+          subjectGroupIds.size > 0
+            ? supabase
+                .from("subject_groups")
+                .select("id,name")
+                .in("id", Array.from(subjectGroupIds))
+            : Promise.resolve({ data: [], error: null }),
+          subjectIds.size > 0
+            ? supabase
+                .from("subjects")
+                .select("id,name")
+                .in("id", Array.from(subjectIds))
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+
+        const subjectGroupMap = new Map<string, string>();
+        (subjectGroupsData.data || []).forEach((sg: any) => {
+          subjectGroupMap.set(sg.id, sg.name);
+        });
+
+        const subjectMap = new Map<string, string>();
+        (subjectsData.data || []).forEach((s: any) => {
+          subjectMap.set(s.id, s.name);
+        });
+
+        // 데이터 변환
         internalScoresResult = (internalData || []).map((score: any) => ({
-          subject_group: score.subject_groups?.name || null,
-          subject_name: score.subjects?.name || null,
+          subject_group: score.subject_group_id ? subjectGroupMap.get(score.subject_group_id) || null : null,
+          subject_name: score.subject_id ? subjectMap.get(score.subject_id) || null : null,
           grade_score: score.grade_score,
           raw_score: score.raw_score,
           test_date: score.test_date,
@@ -275,37 +320,71 @@ export async function fetchSubjectGradeTrends(
     }
 
     try {
+      // JOIN 없이 기본 컬럼만 먼저 조회
       const { data: mockData, error: mockError } = await supabase
         .from("student_mock_scores")
-        .select(`
-          subject_group_id,
-          subject_id,
-          grade_score,
-          raw_score,
-          exam_date,
-          subject_groups:subject_group_id(name),
-          subjects:subject_id(name)
-        `)
+        .select("subject_group_id,subject_id,grade_score,raw_score,exam_date")
         .gte("exam_date", startDateStr)
         .lte("exam_date", endDateStr)
         .eq("student_id", studentId)
         .order("exam_date", { ascending: true });
 
       if (mockError) {
-        console.error("[reports] 모의고사 성적 쿼리 에러 상세:", {
-          code: mockError.code,
-          message: mockError.message,
-          details: mockError.details,
-          hint: mockError.hint,
+        // 에러 객체의 모든 속성을 확인
+        const errorInfo = {
+          code: mockError.code || "UNKNOWN",
+          message: mockError.message || "Unknown error",
+          details: mockError.details || null,
+          hint: mockError.hint || null,
+          error: mockError ? JSON.stringify(mockError, Object.getOwnPropertyNames(mockError)) : "Empty error object",
           query: "student_mock_scores",
           filters: { startDateStr, endDateStr, studentId },
-        });
+        };
+        console.error("[reports] 모의고사 성적 쿼리 에러 상세:", errorInfo);
+        mockScoresResult = [];
+      } else if (!mockData) {
+        console.warn("[reports] 모의고사 성적 데이터가 null입니다.", { startDateStr, endDateStr, studentId });
         mockScoresResult = [];
       } else {
-        // 데이터 변환: subject_group_id와 subject_id를 사용하여 과목명 생성
+        // subject_group_id와 subject_id로 과목명 조회
+        const subjectGroupIds = new Set<string>();
+        const subjectIds = new Set<string>();
+        
+        (mockData || []).forEach((score: any) => {
+          if (score.subject_group_id) subjectGroupIds.add(score.subject_group_id);
+          if (score.subject_id) subjectIds.add(score.subject_id);
+        });
+
+        // 배치로 과목명 조회 (내신 성적과 동일한 그룹/과목이면 재사용 가능하지만, 간단하게 별도 조회)
+        const [subjectGroupsData, subjectsData] = await Promise.all([
+          subjectGroupIds.size > 0
+            ? supabase
+                .from("subject_groups")
+                .select("id,name")
+                .in("id", Array.from(subjectGroupIds))
+            : Promise.resolve({ data: [], error: null }),
+          subjectIds.size > 0
+            ? supabase
+                .from("subjects")
+                .select("id,name")
+                .in("id", Array.from(subjectIds))
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+
+        const subjectGroupMap = new Map<string, string>();
+        (subjectGroupsData.data || []).forEach((sg: any) => {
+          subjectGroupMap.set(sg.id, sg.name);
+        });
+
+        const subjectMap = new Map<string, string>();
+        (subjectsData.data || []).forEach((s: any) => {
+          subjectMap.set(s.id, s.name);
+        });
+
+        // 데이터 변환
         mockScoresResult = (mockData || []).map((score: any) => ({
-          subject_group: score.subject_groups?.name || null,
-          subject_name: score.subjects?.name || null,
+          subject_group: score.subject_group_id ? subjectGroupMap.get(score.subject_group_id) || null : null,
+          subject_name: score.subject_id ? subjectMap.get(score.subject_id) || null : null,
           grade_score: score.grade_score,
           raw_score: score.raw_score,
           exam_date: score.exam_date,
@@ -317,15 +396,20 @@ export async function fetchSubjectGradeTrends(
     }
 
     // 과목별로 그룹화
-    const subjectMap = new Map<string, Array<{
-      test_date: string;
-      grade: number;
-      raw_score: number | null;
-    }>>();
+    const subjectMap = new Map<
+      string,
+      Array<{
+        test_date: string;
+        grade: number;
+        raw_score: number | null;
+      }>
+    >();
 
     // 내신 성적 처리
     internalScoresResult.forEach((score) => {
-      const subject = (score.subject_group || score.subject_name || "").toLowerCase().trim();
+      const subject = (score.subject_group || score.subject_name || "")
+        .toLowerCase()
+        .trim();
       if (!subject || score.grade_score === null) return;
       const existing = subjectMap.get(subject) ?? [];
       existing.push({
@@ -338,7 +422,9 @@ export async function fetchSubjectGradeTrends(
 
     // 모의고사 성적 처리
     mockScoresResult.forEach((score) => {
-      const subject = (score.subject_group || score.subject_name || "").toLowerCase().trim();
+      const subject = (score.subject_group || score.subject_name || "")
+        .toLowerCase()
+        .trim();
       if (!subject || score.grade_score === null) return;
       const existing = subjectMap.get(subject) ?? [];
       existing.push({
@@ -358,7 +444,8 @@ export async function fetchSubjectGradeTrends(
 
       const averageGrade =
         sortedGrades.length > 0
-          ? sortedGrades.reduce((sum, g) => sum + g.grade, 0) / sortedGrades.length
+          ? sortedGrades.reduce((sum, g) => sum + g.grade, 0) /
+            sortedGrades.length
           : 0;
 
       let trend: "improving" | "declining" | "stable" = "stable";
@@ -442,7 +529,8 @@ export function generateLearningStrategies(
 
     if (weak.risk_score >= 70) {
       priority = "high";
-      strategy = "매우 위험한 과목입니다. 매일 최소 1시간 이상 집중 학습을 권장합니다.";
+      strategy =
+        "매우 위험한 과목입니다. 매일 최소 1시간 이상 집중 학습을 권장합니다.";
     } else if (weak.risk_score >= 50) {
       priority = "high";
       strategy = "위험한 과목입니다. 주 3-4회 정기적인 학습을 권장합니다.";
@@ -465,7 +553,11 @@ export function generateLearningStrategies(
 
   // 성적이 개선되고 있는 과목도 포함
   gradeTrends
-    .filter((t) => t.trend === "improving" && !weakSubjects.some((w) => w.subject === t.subject))
+    .filter(
+      (t) =>
+        t.trend === "improving" &&
+        !weakSubjects.some((w) => w.subject === t.subject)
+    )
     .forEach((trend) => {
       strategies.push({
         subject: trend.subject,
@@ -544,7 +636,7 @@ export async function fetchNextWeekSchedule(
         .from("student_block_schedule")
         .select("day_of_week,start_time,end_time")
         .eq("student_id", studentId);
-      
+
       if (blocksError) {
         console.error("[reports] 블록 정보 쿼리 에러 상세:", {
           code: blocksError.code,
@@ -569,7 +661,10 @@ export async function fetchNextWeekSchedule(
       blocks = [];
     }
 
-    const blockMap = new Map<string, { start_time: string | null; end_time: string | null }>();
+    const blockMap = new Map<
+      string,
+      { start_time: string | null; end_time: string | null }
+    >();
     blocks.forEach((block) => {
       if (block.day_of_week !== null && block.block_index !== null) {
         const key = `${block.day_of_week}:${block.block_index}`;
@@ -582,34 +677,49 @@ export async function fetchNextWeekSchedule(
 
     // 콘텐츠 정보 조회
     const [books, lectures, custom] = await Promise.all([
-      supabase.from("books").select("id,title,subject").eq("student_id", studentId),
-      supabase.from("lectures").select("id,title,subject").eq("student_id", studentId),
+      supabase
+        .from("books")
+        .select("id,title,subject")
+        .eq("student_id", studentId),
+      supabase
+        .from("lectures")
+        .select("id,title,subject")
+        .eq("student_id", studentId),
       supabase
         .from("student_custom_contents")
         .select("id,title,subject")
         .eq("student_id", studentId),
     ]);
 
-    const contentMap = new Map<string, { title: string; subject: string | null }>();
+    const contentMap = new Map<
+      string,
+      { title: string; subject: string | null }
+    >();
 
-    (books.data ?? []).forEach((b: { id: string; title?: string | null; subject?: string | null }) => {
-      contentMap.set(`book:${b.id}`, {
-        title: b.title ?? "제목 없음",
-        subject: b.subject ?? null,
-      });
-    });
-    (lectures.data ?? []).forEach((l: { id: string; title?: string | null; subject?: string | null }) => {
-      contentMap.set(`lecture:${l.id}`, {
-        title: l.title ?? "제목 없음",
-        subject: l.subject ?? null,
-      });
-    });
-    (custom.data ?? []).forEach((c: { id: string; title?: string | null; subject?: string | null }) => {
-      contentMap.set(`custom:${c.id}`, {
-        title: c.title ?? "제목 없음",
-        subject: c.subject ?? null,
-      });
-    });
+    (books.data ?? []).forEach(
+      (b: { id: string; title?: string | null; subject?: string | null }) => {
+        contentMap.set(`book:${b.id}`, {
+          title: b.title ?? "제목 없음",
+          subject: b.subject ?? null,
+        });
+      }
+    );
+    (lectures.data ?? []).forEach(
+      (l: { id: string; title?: string | null; subject?: string | null }) => {
+        contentMap.set(`lecture:${l.id}`, {
+          title: l.title ?? "제목 없음",
+          subject: l.subject ?? null,
+        });
+      }
+    );
+    (custom.data ?? []).forEach(
+      (c: { id: string; title?: string | null; subject?: string | null }) => {
+        contentMap.set(`custom:${c.id}`, {
+          title: c.title ?? "제목 없음",
+          subject: c.subject ?? null,
+        });
+      }
+    );
 
     // 날짜별로 그룹화
     const dateMap = new Map<string, NextWeekSchedule>();
@@ -630,9 +740,10 @@ export async function fetchNextWeekSchedule(
         subject: null,
       };
 
-      const timeStr = block?.start_time && block?.end_time
-        ? `${block.start_time.slice(0, 5)}-${block.end_time.slice(0, 5)}`
-        : "시간 미정";
+      const timeStr =
+        block?.start_time && block?.end_time
+          ? `${block.start_time.slice(0, 5)}-${block.end_time.slice(0, 5)}`
+          : "시간 미정";
 
       const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
       const dayName = dayNames[dayOfWeek];
@@ -653,7 +764,9 @@ export async function fetchNextWeekSchedule(
       });
     });
 
-    return Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+    return Array.from(dateMap.values()).sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
   } catch (error) {
     console.error("[reports] 다음주 스케줄 조회 실패", error);
     return [];
@@ -666,16 +779,25 @@ export async function collectReportData(
   studentId: string,
   period: "weekly" | "monthly"
 ): Promise<ReportData> {
-  const { start: startDate, end: endDate, label: periodLabel } = getReportDateRange(period);
+  const {
+    start: startDate,
+    end: endDate,
+    label: periodLabel,
+  } = getReportDateRange(period);
 
-  const [studentInfo, weeklySummary, gradeTrends, weakSubjects, nextWeekSchedule] =
-    await Promise.all([
-      fetchStudentInfo(supabase, studentId),
-      fetchWeeklyLearningSummary(supabase, studentId, startDate, endDate),
-      fetchSubjectGradeTrends(supabase, studentId, startDate, endDate),
-      fetchWeakSubjects(supabase, studentId),
-      fetchNextWeekSchedule(supabase, studentId),
-    ]);
+  const [
+    studentInfo,
+    weeklySummary,
+    gradeTrends,
+    weakSubjects,
+    nextWeekSchedule,
+  ] = await Promise.all([
+    fetchStudentInfo(supabase, studentId),
+    fetchWeeklyLearningSummary(supabase, studentId, startDate, endDate),
+    fetchSubjectGradeTrends(supabase, studentId, startDate, endDate),
+    fetchWeakSubjects(supabase, studentId),
+    fetchNextWeekSchedule(supabase, studentId),
+  ]);
 
   const strategies = generateLearningStrategies(weakSubjects, gradeTrends);
 
@@ -690,4 +812,3 @@ export async function collectReportData(
     nextWeekSchedule,
   };
 }
-
