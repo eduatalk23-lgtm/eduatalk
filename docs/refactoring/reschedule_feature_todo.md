@@ -252,9 +252,9 @@
 
 ### 1.5 기본 UI 구현 (Wizard 형태)
 
-#### [R1-11] 재조정 페이지 라우트 생성
+#### [R1-11] 재조정 페이지 라우트 생성 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/reschedule/page.tsx` (신규)
+- **파일**: `app/(student)/plan/group/[id]/reschedule/page.tsx` (신규) ✅
 - **작업**:
   - 3단계 Wizard 구조 구현
   - Step 1: 콘텐츠 선택
@@ -262,36 +262,36 @@
   - Step 3: 미리보기 & 확인
 - **위험도**: 🟡 중간 (신규 UI)
 
-#### [R1-12] Step 1 - 콘텐츠 선택 컴포넌트
+#### [R1-12] Step 1 - 콘텐츠 선택 컴포넌트 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/ContentSelectStep.tsx` (신규)
+- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/ContentSelectStep.tsx` (신규) ✅
 - **작업**:
   - 재조정 대상 콘텐츠 체크박스 목록
   - 상태 배지 (완료/진행/불가) 표시
   - 완료된 콘텐츠는 선택 불가 처리
 - **위험도**: 🟢 낮음
 
-#### [R1-13] Step 2 - 상세 조정 컴포넌트
+#### [R1-13] Step 2 - 상세 조정 컴포넌트 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/AdjustmentStep.tsx` (신규)
+- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/AdjustmentStep.tsx` (신규) ✅
 - **작업**:
   - 범위 수정 폼 (시작/끝 페이지, 강의 번호 등)
   - 콘텐츠 교체 모달
   - 콘텐츠별 미니 미리보기
 - **위험도**: 🟡 중간
 
-#### [R1-14] Step 3 - 미리보기 & 확인 컴포넌트
+#### [R1-14] Step 3 - 미리보기 & 확인 컴포넌트 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/PreviewStep.tsx` (신규)
+- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/PreviewStep.tsx` (신규) ✅
 - **작업**:
   - 전체 변경 요약 (플랜 수 변화, 영향받는 날짜)
   - 경고 메시지 표시
   - 최종 실행 버튼 (Confirm Dialog 포함)
 - **위험도**: 🟡 중간
 
-#### [R1-15] 플랜 그룹 상세 페이지에 재조정 버튼 추가
+#### [R1-15] 플랜 그룹 상세 페이지에 재조정 버튼 추가 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/_components/PlanGroupActionButtons.tsx` (수정)
+- **파일**: `app/(student)/plan/group/[id]/_components/PlanGroupActionButtons.tsx` (수정) ✅
 - **작업**:
   - "재조정" 버튼 추가
   - `/plan/group/[id]/reschedule`로 이동

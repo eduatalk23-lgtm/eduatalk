@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil, Copy, Trash2 } from "lucide-react";
+import { Pencil, Copy, Trash2, RefreshCw } from "lucide-react";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { deletePlanGroupAction, copyPlanGroupAction } from "@/app/(student)/actions/planGroupActions";
@@ -61,14 +61,24 @@ export function PlanGroupActionButtons({
     <>
       <div className="flex items-center gap-2">
         {canEdit && (
-          <Link
-            href={`/plan/group/${groupId}/edit`}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900"
-            title="수정"
-            aria-label="플랜 그룹 수정"
-          >
-            <Pencil className="h-4 w-4" />
-          </Link>
+          <>
+            <Link
+              href={`/plan/group/${groupId}/reschedule`}
+              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900"
+              title="재조정"
+              aria-label="플랜 그룹 재조정"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/plan/group/${groupId}/edit`}
+              className="inline-flex items-center justify-center rounded-lg p-2 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900"
+              title="수정"
+              aria-label="플랜 그룹 수정"
+            >
+              <Pencil className="h-4 w-4" />
+            </Link>
+          </>
         )}
 
         <button
