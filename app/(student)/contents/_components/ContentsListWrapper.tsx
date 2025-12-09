@@ -3,7 +3,7 @@
 import { SelectionProvider, useSelection } from "./SelectionContext";
 import { SelectionToolbar } from "./SelectionToolbar";
 
-type TabKey = "books" | "lectures";
+type TabKey = "books" | "lectures" | "custom";
 
 type ContentsListWrapperProps = {
   activeTab: TabKey;

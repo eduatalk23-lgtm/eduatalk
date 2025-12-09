@@ -3,7 +3,7 @@
  */
 
 export type ContentFilterContext = "student" | "master" | "admin";
-export type ContentType = "book" | "lecture";
+export type ContentType = "book" | "lecture" | "custom";
 
 export type CurriculumRevision = {
   id: string;
@@ -39,6 +39,7 @@ export type UnifiedFilterValues = {
   // 콘텐츠 타입별 필터
   publisher_id?: string; // 교재용
   platform_id?: string;  // 강의용
+  content_type?: string; // 커스텀 콘텐츠용
   
   // 검색 및 정렬
   search?: string;

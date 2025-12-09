@@ -7,7 +7,7 @@ type PaginationProps = {
   currentPage: number;
   totalPages: number;
   totalItems: number;
-  activeTab: "books" | "lectures";
+  activeTab: "books" | "lectures" | "custom";
   filters: {
     search?: string;
     curriculum_revision_id?: string;
@@ -35,6 +35,8 @@ export function Pagination({
     
     if (activeTab === "lectures") {
       params.set("tab", "lectures");
+    } else if (activeTab === "custom") {
+      params.set("tab", "custom");
     }
     
     if (filters.search) params.set("search", filters.search);

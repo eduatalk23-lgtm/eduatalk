@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useState, useTransition, ReactNode, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { deleteBooks, deleteLectures } from "@/app/(student)/actions/contentActions";
+import { deleteBooks, deleteLectures, deleteCustomContent } from "@/app/(student)/actions/contentActions";
 
-type TabKey = "books" | "lectures";
+type TabKey = "books" | "lectures" | "custom";
 
 type SelectionContextType = {
   selectedIds: Set<string>;
@@ -68,7 +68,8 @@ export function SelectionProvider({ children, activeTab }: SelectionProviderProp
     const ids = Array.from(selectedIds);
     const count = ids.length;
     
-    if (!confirm(`선택한 ${count}개의 ${activeTab === "books" ? "책" : "강의"}을 삭제하시겠습니까?`)) {
+    const contentTypeLabel = activeTab === "books" ? "책" : activeTab === "lectures" ? "강의" : "커스텀 콘텐츠";
+    if (!confirm(`선택한 ${count}개의 ${contentTypeLabel}을 삭제하시겠습니까?`)) {
       return;
     }
 
@@ -76,8 +77,13 @@ export function SelectionProvider({ children, activeTab }: SelectionProviderProp
       try {
         if (activeTab === "books") {
           await deleteBooks(ids);
-        } else {
+        } else if (activeTab === "lectures") {
           await deleteLectures(ids);
+        } else if (activeTab === "custom") {
+          // 커스텀 콘텐츠는 하나씩 삭제
+          for (const id of ids) {
+            await deleteCustomContent(id);
+          }
         }
         setSelectedIds(new Set());
         router.refresh();

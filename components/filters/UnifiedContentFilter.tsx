@@ -47,6 +47,7 @@ export function UnifiedContentFilter({
     subject_id: initialValues.subject_id || searchParams.get("subject_id") || "",
     publisher_id: initialValues.publisher_id || searchParams.get("publisher_id") || "",
     platform_id: initialValues.platform_id || searchParams.get("platform_id") || "",
+    content_type: initialValues.content_type || searchParams.get("content_type") || "",
     difficulty: initialValues.difficulty || searchParams.get("difficulty") || "",
     search: initialValues.search || searchParams.get("search") || "",
     sort: initialValues.sort || searchParams.get("sort") || defaultSort,
@@ -221,6 +222,9 @@ export function UnifiedContentFilter({
     if (contentType === "lecture" && values.platform_id) {
       params.set("platform_id", values.platform_id);
     }
+    if (contentType === "custom" && values.content_type) {
+      params.set("content_type", values.content_type);
+    }
     if (values.search?.trim()) {
       params.set("search", values.search.trim());
     }
@@ -354,6 +358,24 @@ export function UnifiedContentFilter({
           </div>
         )}
 
+        {/* 콘텐츠 유형 (커스텀 콘텐츠용) */}
+        {contentType === "custom" && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-gray-700">콘텐츠 유형</label>
+            <select
+              value={values.content_type || ""}
+              onChange={(e) => setValues((prev) => ({ ...prev, content_type: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">전체</option>
+              <option value="book">책</option>
+              <option value="lecture">강의</option>
+              <option value="worksheet">문제집</option>
+              <option value="other">기타</option>
+            </select>
+          </div>
+        )}
+
         {/* 난이도 */}
         {showDifficulty && (
           <div className="flex flex-col gap-1">
@@ -385,7 +407,7 @@ export function UnifiedContentFilter({
             type="text"
             value={values.search || ""}
             onChange={(e) => setValues((prev) => ({ ...prev, search: e.target.value }))}
-            placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}
+            placeholder={contentType === "book" ? "교재명 입력" : contentType === "lecture" ? "강의명 입력" : "콘텐츠명 입력"}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
