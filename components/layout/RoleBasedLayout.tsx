@@ -5,7 +5,7 @@ import { CategoryNav } from "@/components/navigation/global/CategoryNav";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { SignOutButton } from "@/app/_components/SignOutButton";
 import { useSidebar } from "./SidebarContext";
-import { ChevronLeft, ChevronRight, Pin, PinOff, Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type RoleBasedLayoutProps = {
@@ -32,7 +32,7 @@ function SidebarContent({
   roleLabel: string;
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
 }) {
-  const { isCollapsed, isPinned, toggleCollapse, togglePin } = useSidebar();
+  const { isCollapsed, toggleCollapse } = useSidebar();
 
   return (
     <>
@@ -51,12 +51,11 @@ function SidebarContent({
             {/* 확장 버튼 - 더 크고 눈에 띄게 */}
             <button
               onClick={toggleCollapse}
-              className="group relative w-full flex flex-col items-center justify-center gap-1 p-3 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors border border-indigo-200"
+              className="group relative w-full flex items-center justify-center p-3 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors border border-indigo-200"
               aria-label="메뉴 펼치기"
               title="메뉴 펼치기"
             >
               <ChevronRight className="w-6 h-6" />
-              <span className="text-xs font-medium">펼치기</span>
               {/* 툴팁 */}
               <div className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden w-24 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100 whitespace-nowrap z-50">
                 메뉴 펼치기
@@ -64,18 +63,6 @@ function SidebarContent({
                   <div className="border-4 border-transparent border-r-gray-900"></div>
                 </div>
               </div>
-            </button>
-            <button
-              onClick={togglePin}
-              className="w-full flex items-center justify-center p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
-              aria-label={isPinned ? "고정 해제" : "고정"}
-              title={isPinned ? "고정 해제" : "고정"}
-            >
-              {isPinned ? (
-                <Pin className="w-4 h-4" />
-              ) : (
-                <PinOff className="w-4 h-4" />
-              )}
             </button>
           </div>
         ) : (
@@ -88,28 +75,14 @@ function SidebarContent({
               <span>TimeLevelUp</span>
               <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
             </a>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={togglePin}
-                className="p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
-                aria-label={isPinned ? "고정 해제" : "고정"}
-                title={isPinned ? "고정 해제" : "고정"}
-              >
-                {isPinned ? (
-                  <Pin className="w-4 h-4" />
-                ) : (
-                  <PinOff className="w-4 h-4" />
-                )}
-              </button>
-              <button
-                onClick={toggleCollapse}
-                className="p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
-                aria-label="축소"
-                title="축소"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={toggleCollapse}
+              className="p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              aria-label="축소"
+              title="축소"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
@@ -253,7 +226,7 @@ export function RoleBasedLayout({
   wrapper,
   tenantInfo,
 }: RoleBasedLayoutProps) {
-  const { isCollapsed, isPinned } = useSidebar();
+  const { isCollapsed } = useSidebar();
 
   const content = (
     <div className="flex min-h-screen bg-gray-50">
@@ -262,8 +235,7 @@ export function RoleBasedLayout({
         <aside
           className={cn(
             "hidden md:block border-r border-gray-200 bg-white transition-all duration-300 ease-in-out",
-            isCollapsed ? "w-16" : "w-64",
-            !isPinned && "md:absolute md:z-30"
+            isCollapsed ? "w-16" : "w-64"
           )}
         >
           <div className="sticky top-0 h-screen overflow-y-auto">
