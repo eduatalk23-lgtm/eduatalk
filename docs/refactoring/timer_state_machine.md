@@ -34,12 +34,12 @@
 
 ## 📊 상태 정의
 
-| 상태 | 조건 | 설명 |
-|------|------|------|
-| **IDLE** | `actual_start_time = NULL` | 아직 시작하지 않은 플랜 |
-| **RUNNING** | `actual_start_time ≠ NULL` AND `actual_end_time = NULL` AND 활성 세션 존재 | 현재 학습 중 |
-| **PAUSED** | `actual_start_time ≠ NULL` AND `actual_end_time = NULL` AND 일시정지 세션 | 일시정지 상태 |
-| **COMPLETED** | `actual_end_time ≠ NULL` | 완료된 플랜 |
+| 상태          | 조건                                                                       | 설명                    |
+| ------------- | -------------------------------------------------------------------------- | ----------------------- |
+| **IDLE**      | `actual_start_time = NULL`                                                 | 아직 시작하지 않은 플랜 |
+| **RUNNING**   | `actual_start_time ≠ NULL` AND `actual_end_time = NULL` AND 활성 세션 존재 | 현재 학습 중            |
+| **PAUSED**    | `actual_start_time ≠ NULL` AND `actual_end_time = NULL` AND 일시정지 세션  | 일시정지 상태           |
+| **COMPLETED** | `actual_end_time ≠ NULL`                                                   | 완료된 플랜             |
 
 ---
 
@@ -110,7 +110,7 @@
 // startPlan 전에 확인
 const runningPlans = await getPlansForStudent({
   studentId,
-  filters: { hasActiveSession: true }
+  filters: { hasActiveSession: true },
 });
 
 if (runningPlans.length > 0) {
@@ -145,39 +145,38 @@ ended_at IS NOT NULL  -- ENDED
 
 ### student_plan 테이블
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `actual_start_time` | timestamptz | 실제 시작 시간 |
-| `actual_end_time` | timestamptz | 실제 종료 시간 |
-| `total_duration_seconds` | integer | 총 학습 시간 (초) |
-| `paused_duration_seconds` | integer | 일시정지 누적 시간 (초) |
-| `pause_count` | integer | 일시정지 횟수 |
+| 필드                      | 타입        | 설명                    |
+| ------------------------- | ----------- | ----------------------- |
+| `actual_start_time`       | timestamptz | 실제 시작 시간          |
+| `actual_end_time`         | timestamptz | 실제 종료 시간          |
+| `total_duration_seconds`  | integer     | 총 학습 시간 (초)       |
+| `paused_duration_seconds` | integer     | 일시정지 누적 시간 (초) |
+| `pause_count`             | integer     | 일시정지 횟수           |
 
 ### student_study_sessions 테이블
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `started_at` | timestamptz | 세션 시작 시간 |
-| `paused_at` | timestamptz | 일시정지 시간 |
-| `resumed_at` | timestamptz | 재개 시간 |
-| `ended_at` | timestamptz | 세션 종료 시간 |
-| `paused_duration_seconds` | integer | 세션 내 일시정지 시간 |
+| 필드                      | 타입        | 설명                  |
+| ------------------------- | ----------- | --------------------- |
+| `started_at`              | timestamptz | 세션 시작 시간        |
+| `paused_at`               | timestamptz | 일시정지 시간         |
+| `resumed_at`              | timestamptz | 재개 시간             |
+| `ended_at`                | timestamptz | 세션 종료 시간        |
+| `paused_duration_seconds` | integer     | 세션 내 일시정지 시간 |
 
 ---
 
 ## 🔗 관련 파일
 
-| 파일 | 용도 |
-|------|------|
-| `app/(student)/today/actions/todayActions.ts` | 타이머 액션 |
-| `lib/data/studentSessions.ts` | 세션 데이터 레이어 |
-| `lib/metrics/studyTime.ts` | 학습 시간 계산 |
+| 파일                                          | 용도               |
+| --------------------------------------------- | ------------------ |
+| `app/(student)/today/actions/todayActions.ts` | 타이머 액션        |
+| `lib/data/studentSessions.ts`                 | 세션 데이터 레이어 |
+| `lib/metrics/studyTime.ts`                    | 학습 시간 계산     |
 
 ---
 
 ## 📝 변경 기록
 
-| 날짜 | 버전 | 내용 |
-|------|------|------|
+| 날짜       | 버전 | 내용      |
+| ---------- | ---- | --------- |
 | 2025-12-09 | v1.0 | 초안 작성 |
-
