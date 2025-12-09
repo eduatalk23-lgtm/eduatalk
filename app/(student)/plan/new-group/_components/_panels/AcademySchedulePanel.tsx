@@ -117,11 +117,27 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       const result = await syncTimeManagementAcademySchedulesAction(groupId || null, targetStudentId);
       
       if (result.academySchedules && result.academySchedules.length > 0) {
-        // 기존 학원 일정과 중복되지 않는 항목만 카운트
+        // 기존 학원 일정과 중복되지 않는 항목만 필터링
         const existingKeys = new Set(data.academy_schedules.map(getScheduleKey));
-        const newCount = result.academySchedules.filter(
+        const newSchedules = result.academySchedules.filter(
           (s) => !existingKeys.has(getScheduleKey(s))
-        ).length;
+        );
+        
+        // 기존 학원 일정의 학원명 Set 생성
+        const existingAcademyNames = new Set(
+          data.academy_schedules
+            .map((s) => s.academy_name || "")
+            .filter((name) => name !== "")
+        );
+        
+        // 고유 학원명 Set 생성 (학원 단위 카운팅)
+        const uniqueAcademyNames = new Set(
+          newSchedules
+            .map((s) => s.academy_name || "")
+            .filter((name) => name !== "" && !existingAcademyNames.has(name))
+        );
+        
+        const newCount = uniqueAcademyNames.size;
         setAvailableCount(newCount);
       } else {
         setAvailableCount(0);
