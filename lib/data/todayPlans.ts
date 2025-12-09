@@ -80,9 +80,6 @@ export type GetTodayPlansOptions = {
 export async function getTodayPlans(
   options: GetTodayPlansOptions
 ): Promise<TodayPlansResponse> {
-  // 항상 남길 핵심 메트릭
-  console.time("[todayPlans] total");
-  
   const { 
     studentId, 
     tenantId, 
@@ -129,7 +126,6 @@ export async function getTodayPlans(
       if (!cacheError && cacheRow) {
         lookupTimer.end();
         // Return cached result
-        console.timeEnd("[todayPlans] total");
         return cacheRow.payload as TodayPlansResponse;
       }
       
@@ -683,6 +679,5 @@ export async function getTodayPlans(
     storeTimer.end();
   }
 
-  console.timeEnd("[todayPlans] total");
   return result;
 }

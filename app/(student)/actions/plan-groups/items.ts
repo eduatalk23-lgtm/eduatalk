@@ -316,4 +316,3 @@ async function _deleteAllLogicalPlans(
 }
 
 export const deleteAllLogicalPlans = withErrorHandling(_deleteAllLogicalPlans);
-

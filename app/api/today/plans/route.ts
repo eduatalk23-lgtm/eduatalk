@@ -6,6 +6,7 @@ import {
   handleApiError,
 } from "@/lib/api";
 import { getTodayPlans, type TodayPlansResponse } from "@/lib/data/todayPlans";
+import { perfTime } from "@/lib/utils/perfLog";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -29,10 +30,11 @@ export const dynamic = "force-dynamic";
  * 에러: { success: false, error: { code, message } }
  */
 export async function GET(request: Request) {
-  console.time("[todayPlans] total");
+  const totalTimer = perfTime("[todayPlans] total");
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== "student") {
+      totalTimer.end();
       return apiUnauthorized();
     }
 
@@ -63,10 +65,10 @@ export async function GET(request: Request) {
       cacheTtlSeconds,
     });
 
-    console.timeEnd("[todayPlans] total");
+    totalTimer.end();
     return apiSuccess<TodayPlansResponse>(data);
   } catch (error) {
-    console.timeEnd("[todayPlans] total");
+    totalTimer.end();
     return handleApiError(error, "[api/today/plans] 오류");
   }
 }
