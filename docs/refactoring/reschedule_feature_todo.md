@@ -194,9 +194,9 @@
 
 ### 1.4 스케줄 엔진 추출
 
-#### [R1-9] 순수 함수 형태 스케줄 엔진 추출
+#### [R1-9] 순수 함수 형태 스케줄 엔진 추출 ✅
 
-- **파일**: `lib/reschedule/scheduleEngine.ts` (신규)
+- **파일**: `lib/reschedule/scheduleEngine.ts` (신규) ✅
 - **작업**:
   ```typescript
   // DB I/O 없이 순수 계산
@@ -227,9 +227,9 @@
 - **테스트**:
   - [ ] 동일 입력에 대해 항상 동일 결과 반환 확인
 
-#### [R1-10] 미리보기/실행 로직 통합
+#### [R1-10] 미리보기/실행 로직 통합 ✅
 
-- **파일**: `app/(student)/actions/plan-groups/reschedule.ts` (신규)
+- **파일**: `app/(student)/actions/plan-groups/reschedule.ts` (신규) ✅
 - **작업**:
   ```typescript
   // 미리보기 (DB 미적용)
