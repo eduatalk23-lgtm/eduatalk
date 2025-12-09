@@ -1,6 +1,7 @@
 # 비학습 항목 플랜 저장 로직 제거 및 개선
 
 ## 작업 일자
+
 2024-12-21
 
 ## 배경
@@ -19,6 +20,7 @@
   - 더미 콘텐츠 생성 시도 제거 (1396-1428줄)
 
 **영향**:
+
 - 비학습 항목은 `daily_schedule.time_slots`에만 저장되어 UI에 표시됨
 - 학습 플랜은 `assignPlanTimes`를 통해 학습시간 슬롯에만 배치됨
 
@@ -32,6 +34,7 @@
   - `DUMMY_SELF_STUDY_CONTENT_ID`만 유지 (자율학습은 유지)
 
 **변경 내용**:
+
 ```typescript
 // 변경 전
 const regularPlans = planPayloads.filter(
@@ -63,6 +66,7 @@ const selfStudyPlans = planPayloads.filter(
   - 다른 플랜 그룹의 플랜은 block_index 조정에 영향 없음
 
 **변경 내용**:
+
 ```typescript
 // 변경 전
 const { data: existingPlansForDates, error: existingPlansError } =
@@ -94,7 +98,7 @@ const { data: existingPlansForDates, error: existingPlansError } =
 
 **참고**: 자율학습(`DUMMY_SELF_STUDY_CONTENT_ID`) 관련 로직은 유지합니다. 지정휴일의 자율학습은 실제 학습시간 슬롯에 배치되므로 플랜으로 저장하는 것이 적절합니다.
 
-### 5. _previewPlansFromGroup 함수에도 동일한 변경사항 적용
+### 5. \_previewPlansFromGroup 함수에도 동일한 변경사항 적용
 
 **파일**: `app/(student)/actions/plan-groups/plans.ts`
 
@@ -128,6 +132,5 @@ const { data: existingPlansForDates, error: existingPlansError } =
 - [x] 더미 플랜 저장 시도 제거 완료
 - [x] 기존 플랜 조회 시 plan_group_id 필터링 추가 완료
 - [x] 더미 콘텐츠 관련 코드 정리 완료
-- [x] _previewPlansFromGroup 함수에도 동일한 변경사항 적용 완료
+- [x] \_previewPlansFromGroup 함수에도 동일한 변경사항 적용 완료
 - [x] 린터 에러 없음
-

@@ -598,13 +598,6 @@ async function _generatePlansFromGroup(
     }
   >();
 
-  // 더미 UUID에 대한 기본값 추가 (자율학습용)
-  // 상수는 lib/constants/plan.ts에서 import
-  contentDurationMap.set(DUMMY_SELF_STUDY_CONTENT_ID, {
-    content_type: "custom",
-    content_id: DUMMY_SELF_STUDY_CONTENT_ID,
-    total_page_or_time: 0,
-  });
 
   const studentContentClient = await getSupabaseClientForStudent(
     studentId,
@@ -902,13 +895,6 @@ async function _generatePlansFromGroup(
         );
       }
     } else if (content.content_type === "custom") {
-      // 더미 UUID는 이미 처리했으므로 스킵
-      if (
-        finalContentId === DUMMY_SELF_STUDY_CONTENT_ID ||
-        content.content_id === DUMMY_SELF_STUDY_CONTENT_ID
-      ) {
-        continue;
-      }
 
       // 커스텀 콘텐츠 조회 (관리자 모드에서는 플랜 그룹의 student_id 사용)
       const { data: customContent } = await supabase
@@ -925,12 +911,8 @@ async function _generatePlansFromGroup(
           total_page_or_time: customContent.total_page_or_time,
         });
       } else if (!customContent) {
-        // 더미 UUID인 경우는 에러 발생하지 않음 (더미 content 생성 실패해도 계속 진행)
         // 일반 custom content가 존재하지 않으면 에러 발생
-        if (
-          finalContentId !== DUMMY_SELF_STUDY_CONTENT_ID &&
-          content.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
-        ) {
+        {
           throw new AppError(
             `Referenced custom content (${finalContentId}) does not exist`,
             ErrorCode.VALIDATION_ERROR,
@@ -1055,10 +1037,6 @@ async function _generatePlansFromGroup(
     contentId: string,
     pageOrTime: number
   ): Promise<string | null> => {
-    // 더미 UUID는 chapter 조회 스킵
-    if (contentId === DUMMY_SELF_STUDY_CONTENT_ID) {
-      return null;
-    }
 
     try {
       if (contentType === "book") {
@@ -1355,125 +1333,11 @@ async function _generatePlansFromGroup(
 
       nextBlockIndex++;
     }
-
-    // 지정휴일의 경우 배정된 학습시간을 자율학습으로 저장
-    // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
-    const enableSelfStudyForHolidays =
-      (group.scheduler_options as any)?.enable_self_study_for_holidays === true;
-    if (
-      dateMetadata.day_type === "지정휴일" &&
-      studyTimeSlots.length > 0 &&
-      enableSelfStudyForHolidays
-    ) {
-      // 자율학습을 위한 더미 custom content ID
-      // 상수는 lib/constants/plan.ts에서 import
-
-      // 더미 custom content가 존재하는지 확인하고, 없으면 생성
-      const { data: existingSelfStudyContent } = await supabase
-        .from("student_custom_contents")
-        .select("id")
-        .eq("id", DUMMY_SELF_STUDY_CONTENT_ID)
-        .eq("student_id", studentId)
-        .maybeSingle();
-
-      if (!existingSelfStudyContent) {
-        // 더미 custom content 생성 시도
-        // content_type을 'custom'으로 설정 (스키마에서 허용하는 값)
-        const { error: createError } = await supabase
-          .from("student_custom_contents")
-          .insert({
-            id: DUMMY_SELF_STUDY_CONTENT_ID,
-            tenant_id: tenantContext.tenantId,
-            student_id: studentId,
-            title: "자율학습",
-            total_page_or_time: 0,
-            content_type: "custom",
-          });
-
-        if (createError) {
-          // 생성 실패 시 경고만 출력 (더미 content는 선택사항)
-          // contentDurationMap에 이미 기본값이 있으므로 플랜 생성은 계속 진행
-          console.warn(
-            "[planGroupActions] 더미 자율학습 custom content 생성 실패 (무시됨):",
-            createError.message
-          );
-        }
-      }
-
-      // 지정휴일의 모든 학습시간 슬롯을 자율학습으로 저장
-      for (const studySlot of studyTimeSlots) {
-        // 기존 플랜과 겹치지 않는 block_index 찾기
-        while (usedIndices.has(nextBlockIndex)) {
-          nextBlockIndex++;
-        }
-
-        // 조정된 block_index를 사용 중인 목록에 추가
-        usedIndices.add(nextBlockIndex);
-        usedBlockIndicesByDate.set(date, usedIndices);
-
-        // 주차별 일차(day) 계산
-        let weekDay: number | null = null;
-        if (dateMetadata.week_number) {
-          if (group.scheduler_type === "1730_timetable") {
-            const weekDates = weekDatesMap.get(dateMetadata.week_number) || [];
-            const dayIndex = weekDates.indexOf(date);
-            if (dayIndex >= 0) {
-              weekDay = dayIndex + 1;
-            }
-          } else {
-            const start = new Date(group.period_start);
-            const current = new Date(date);
-            start.setHours(0, 0, 0, 0);
-            current.setHours(0, 0, 0, 0);
-            const diffTime = current.getTime() - start.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            weekDay = (diffDays % 7) + 1;
-          }
-        }
-
-        planPayloads.push({
-          tenant_id: tenantContext.tenantId,
-          student_id: studentId,
-          plan_group_id: groupId,
-          plan_date: date,
-          block_index: nextBlockIndex,
-          content_type: "custom", // 자율학습은 custom 타입
-          content_id: DUMMY_SELF_STUDY_CONTENT_ID, // 자율학습은 더미 UUID 사용
-          chapter: null,
-          planned_start_page_or_time: 0, // 자율학습은 페이지/시간 없음
-          planned_end_page_or_time: 0,
-          is_reschedulable: false, // 자율학습은 재조정 불가
-          // Denormalized 필드
-          content_title: "자율학습",
-          content_subject: null,
-          content_subject_category: null,
-          content_category: "자율학습",
-          // 시간 정보 (배정된 학습시간)
-          start_time: studySlot.start,
-          end_time: studySlot.end,
-          // 날짜 유형 및 주차 정보
-          day_type: dateMetadata.day_type,
-          week: dateMetadata.week_number,
-          day: weekDay,
-          // 상태뱃지 정보 (자율학습은 없음)
-          is_partial: false,
-          is_continued: false,
-          // 플랜 번호 (자율학습은 null)
-          plan_number: null,
-          // 회차 (자율학습은 null)
-          sequence: null,
-        });
-
-        nextBlockIndex++;
-      }
-    }
   }
 
   // 12. chapter 정보가 없는 플랜들에 대해 배치로 조회 (중복 제거)
-  // 더미 UUID는 chapter 조회 스킵 (자율학습)
   const plansNeedingChapter = planPayloads.filter(
-    (p) =>
-      !p.chapter && p.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
+    (p) => !p.chapter
   );
   if (plansNeedingChapter.length > 0) {
     // 같은 content_id + page_or_time 조합에 대해 중복 조회 방지
@@ -1530,19 +1394,10 @@ async function _generatePlansFromGroup(
   }
 
   // 플랜 일괄 생성
-  // 자율학습 플랜과 일반 플랜을 분리하여 처리
-  const regularPlans = planPayloads.filter(
-    (p) => p.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
-  );
-  const selfStudyPlans = planPayloads.filter(
-    (p) => p.content_id === DUMMY_SELF_STUDY_CONTENT_ID
-  );
-
-  // 일반 플랜 먼저 저장
-  if (regularPlans.length > 0) {
+  if (planPayloads.length > 0) {
     const { error: insertError } = await studentContentClient
       .from("student_plan")
-      .insert(regularPlans);
+      .insert(planPayloads);
 
     if (insertError) {
       console.error("[planGroupActions] 일반 플랜 생성 실패", insertError);
@@ -1591,21 +1446,6 @@ async function _generatePlansFromGroup(
     }
   }
 
-  // 자율학습 플랜 저장 (에러 발생해도 무시)
-  if (selfStudyPlans.length > 0) {
-    const { error: selfStudyInsertError } = await studentContentClient
-      .from("student_plan")
-      .insert(selfStudyPlans);
-
-    if (selfStudyInsertError) {
-      // 자율학습 플랜 저장 실패는 경고만 출력 (선택사항)
-      console.warn(
-        "[planGroupActions] 자율학습 플랜 저장 실패 (무시됨):",
-        selfStudyInsertError.message
-      );
-    }
-  }
-
   // 14. dailySchedule을 plan_groups에 저장 (캐싱)
   // scheduleResult.daily_schedule을 JSONB로 저장하여 매번 계산하지 않도록 개선
   const dailyScheduleForStorage = scheduleResult.daily_schedule.map(
@@ -1636,13 +1476,12 @@ async function _generatePlansFromGroup(
   // 15. 회차 계산 및 저장
   // 플랜 생성 후 같은 content_id를 가진 플랜들에 대해 회차 계산
   try {
-    // 생성된 플랜 조회 (일반 플랜만, 자율학습 플랜 제외)
+    // 생성된 플랜 조회
     const { data: createdPlans, error: fetchError } = await supabase
       .from("student_plan")
       .select("id, plan_date, content_id, plan_number, block_index")
       .eq("plan_group_id", groupId)
       .eq("student_id", studentId)
-      .not("content_id", "eq", DUMMY_SELF_STUDY_CONTENT_ID)
       .order("plan_date", { ascending: true })
       .order("block_index", { ascending: true });
 
@@ -2078,13 +1917,6 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       }
     >();
 
-    // 더미 UUID에 대한 기본값 추가 (자율학습용)
-    // 상수는 lib/constants/plan.ts에서 import
-    contentDurationMap.set(DUMMY_SELF_STUDY_CONTENT_ID, {
-      content_type: "custom",
-      content_id: DUMMY_SELF_STUDY_CONTENT_ID,
-      total_page_or_time: 0,
-    });
 
     for (const content of contents) {
       const finalContentId =
@@ -2153,13 +1985,6 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           }
         }
       } else if (content.content_type === "custom") {
-        // 더미 UUID는 이미 처리했으므로 스킵
-        if (
-          finalContentId === DUMMY_SELF_STUDY_CONTENT_ID ||
-          content.content_id === DUMMY_SELF_STUDY_CONTENT_ID
-        ) {
-          continue;
-        }
 
         // 커스텀 콘텐츠 조회
         const { data: customContent } = await queryClient
@@ -2176,12 +2001,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             total_page_or_time: customContent.total_page_or_time,
           });
         } else if (!customContent) {
-          // 더미 UUID인 경우는 에러 발생하지 않음 (더미 content 생성 실패해도 계속 진행)
           // 일반 custom content가 존재하지 않으면 에러 발생
-          if (
-            finalContentId !== DUMMY_SELF_STUDY_CONTENT_ID &&
-            content.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
-          ) {
+          {
             throw new AppError(
               `Referenced custom content (${finalContentId}) does not exist`,
               ErrorCode.VALIDATION_ERROR,
@@ -2739,64 +2560,6 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
         });
 
         blockIndex++;
-      }
-
-      // 지정휴일의 경우 배정된 학습시간을 자율학습으로 저장
-      // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
-      const schedulerOptionsPreview = (group.scheduler_options as any) || {};
-      const enableSelfStudyForHolidaysPreview =
-        schedulerOptionsPreview.enable_self_study_for_holidays === true;
-      if (
-        dateMetadata.day_type === "지정휴일" &&
-        studyTimeSlots.length > 0 &&
-        enableSelfStudyForHolidaysPreview
-      ) {
-        for (const studySlot of studyTimeSlots) {
-          // 주차별 일차(day) 계산
-          let weekDay: number | null = null;
-          if (dateMetadata.week_number) {
-            if (group.scheduler_type === "1730_timetable") {
-              const weekDates =
-                weekDatesMap.get(dateMetadata.week_number) || [];
-              const dayIndex = weekDates.indexOf(date);
-              if (dayIndex >= 0) {
-                weekDay = dayIndex + 1;
-              }
-            } else {
-              const start = new Date(group.period_start);
-              const current = new Date(date);
-              start.setHours(0, 0, 0, 0);
-              current.setHours(0, 0, 0, 0);
-              const diffTime = current.getTime() - start.getTime();
-              const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-              weekDay = (diffDays % 7) + 1;
-            }
-          }
-
-          previewPlans.push({
-            plan_date: date,
-            block_index: blockIndex,
-            content_type: "custom",
-            content_id: DUMMY_SELF_STUDY_CONTENT_ID, // 자율학습은 더미 UUID 사용
-            content_title: "자율학습",
-            content_subject: null,
-            content_subject_category: null,
-            content_category: "자율학습",
-            planned_start_page_or_time: 0,
-            planned_end_page_or_time: 0,
-            chapter: null,
-            start_time: studySlot.start,
-            end_time: studySlot.end,
-            day_type: dateMetadata.day_type,
-            week: dateMetadata.week_number,
-            day: weekDay,
-            is_partial: false,
-            is_continued: false,
-            plan_number: null,
-          });
-
-          blockIndex++;
-        }
       }
     }
 
