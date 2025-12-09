@@ -107,7 +107,7 @@ type DialogContentProps = {
 };
 
 export function DialogContent({ children, className }: DialogContentProps) {
-  return <div className={cn("", className)}>{children}</div>;
+  return <div className={cn("px-6 py-4", className)}>{children}</div>;
 }
 
 type DialogFooterProps = {
@@ -119,7 +119,7 @@ export function DialogFooter({ children, className }: DialogFooterProps) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 border-t border-gray-200 px-6 py-4 sm:flex-row sm:justify-end",
         className
       )}
     >

@@ -110,7 +110,7 @@ export function DayTimelineModal({
       title={formatDateFull(date)}
       maxWidth="4xl"
     >
-      <div className="w-full max-h-[90vh] overflow-hidden">
+      <div className="w-full max-h-[90vh] overflow-hidden px-6 py-4">
           {/* 통계 */}
           {(totalPlans > 0 || dayAcademySchedules.length > 0) && (
             <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
