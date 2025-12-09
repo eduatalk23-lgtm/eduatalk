@@ -16,7 +16,7 @@ import {
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
-import { normalizePlanPurpose } from "./utils";
+import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
 
 /**
  * 플랜 그룹 생성 (JSON 데이터)
@@ -73,6 +73,24 @@ async function _createPlanGroup(
     mergedSchedulerOptions.review_days = data.study_review_cycle.review_days;
   }
 
+  // 기존 draft 확인 (중복 생성 방지)
+  // draftGroupId가 없어도 동일한 이름의 draft가 있으면 업데이트
+  const supabase = await createSupabaseServerClient();
+  const existingGroup = await findExistingDraftPlanGroup(
+    supabase,
+    user.userId,
+    data.name || null,
+    data.camp_invitation_id || null
+  );
+
+  // 기존 draft가 있으면 업데이트
+  if (existingGroup) {
+    const { updatePlanGroupDraftAction } = await import("./update");
+    await updatePlanGroupDraftAction(existingGroup.id, data);
+    revalidatePath("/plan");
+    return { groupId: existingGroup.id };
+  }
+
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,
     student_id: user.userId,
@@ -110,7 +128,6 @@ async function _createPlanGroup(
   const groupId = groupResult.groupId;
 
   // 학생 콘텐츠의 master_content_id 조회 (배치 조회)
-  const supabase = await createSupabaseServerClient();
   const masterContentIdMap = new Map<string, string | null>();
   const bookIds = data.contents
     .filter((c) => c.content_type === "book")
@@ -247,34 +264,22 @@ async function _savePlanGroupDraft(
     );
   }
 
-  // camp_invitation_id가 있는 경우, 기존 draft를 먼저 확인
-  // 자동저장 시 중복 생성 방지
-  if (data.camp_invitation_id) {
-    const supabase = await createSupabaseServerClient();
-    const { data: existingGroup, error: checkError } = await supabase
-      .from("plan_groups")
-      .select("id, status")
-      .eq("camp_invitation_id", data.camp_invitation_id)
-      .eq("student_id", user.userId)
-      .eq("status", "draft")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  // 기존 draft 확인 (중복 생성 방지)
+  // camp_invitation_id가 있든 없든 동일한 이름의 draft가 있으면 업데이트
+  const supabase = await createSupabaseServerClient();
+  const existingGroup = await findExistingDraftPlanGroup(
+    supabase,
+    user.userId,
+    data.name,
+    data.camp_invitation_id || null
+  );
 
-    if (checkError && checkError.code !== "PGRST116") {
-      // PGRST116은 "multiple rows" 에러인데, 이는 이미 처리됨 (limit(1) 사용)
-      console.error("[savePlanGroupDraft] 기존 플랜 그룹 확인 중 에러:", checkError);
-      // 에러가 있어도 계속 진행 (새로 생성 시도)
-    }
-
-    // 기존 draft가 있으면 업데이트
-    if (existingGroup && existingGroup.status === "draft") {
-      const { updatePlanGroupDraftAction } = await import("./update");
-      await updatePlanGroupDraftAction(existingGroup.id, data);
-      revalidatePath("/plan");
-      return { groupId: existingGroup.id };
-    }
+  // 기존 draft가 있으면 업데이트
+  if (existingGroup) {
+    const { updatePlanGroupDraftAction } = await import("./update");
+    await updatePlanGroupDraftAction(existingGroup.id, data);
+    revalidatePath("/plan");
+    return { groupId: existingGroup.id };
   }
 
   // 플랜 그룹 생성 (draft 상태)
