@@ -446,25 +446,43 @@ export async function getPlanById(
 }
 
 /**
+ * 플랜 생성 입력 타입
+ */
+export type CreatePlanInput = {
+  tenant_id: string | null;
+  student_id: string;
+  plan_date: string;
+  block_index: number;
+  content_type: "book" | "lecture" | "custom";
+  content_id: string;
+  chapter?: string | null;
+  planned_start_page_or_time?: number | null;
+  planned_end_page_or_time?: number | null;
+  is_reschedulable: boolean;
+  /** 논리 플랜 아이템 ID (plan_group_items 테이블 참조) */
+  origin_plan_item_id?: string | null;
+  /** 플랜 그룹 ID */
+  plan_group_id?: string | null;
+  /** 시작 시간 (HH:mm) */
+  start_time?: string | null;
+  /** 종료 시간 (HH:mm) */
+  end_time?: string | null;
+};
+
+/**
  * 플랜 생성
+ *
+ * @param plan - 플랜 생성 정보
+ * @returns 생성 결과
+ *
+ * @see docs/refactoring/plan_flow_documentation.md
  */
 export async function createPlan(
-  plan: {
-    tenant_id: string | null;
-    student_id: string;
-    plan_date: string;
-    block_index: number;
-    content_type: "book" | "lecture" | "custom";
-    content_id: string;
-    chapter?: string | null;
-    planned_start_page_or_time?: number | null;
-    planned_end_page_or_time?: number | null;
-    is_reschedulable: boolean;
-  }
+  plan: CreatePlanInput
 ): Promise<{ success: boolean; planId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     tenant_id: plan.tenant_id,
     student_id: plan.student_id,
     plan_date: plan.plan_date,
@@ -476,6 +494,24 @@ export async function createPlan(
     planned_end_page_or_time: plan.planned_end_page_or_time || null,
     is_reschedulable: plan.is_reschedulable,
   };
+
+  // origin_plan_item_id가 있으면 추가 (논리 플랜 연결)
+  if (plan.origin_plan_item_id) {
+    payload.origin_plan_item_id = plan.origin_plan_item_id;
+  }
+
+  // plan_group_id가 있으면 추가
+  if (plan.plan_group_id) {
+    payload.plan_group_id = plan.plan_group_id;
+  }
+
+  // 시간 정보가 있으면 추가 (Time 모드)
+  if (plan.start_time) {
+    payload.start_time = plan.start_time;
+  }
+  if (plan.end_time) {
+    payload.end_time = plan.end_time;
+  }
 
   let { data, error } = await supabase
     .from("student_plan")
