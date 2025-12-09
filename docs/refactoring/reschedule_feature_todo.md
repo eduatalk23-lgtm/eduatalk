@@ -609,9 +609,9 @@
 
 ### 3.2 비동기 처리 (대규모 재조정)
 
-#### [R3-4] Job Queue 인터페이스
+#### [R3-5] 비동기 처리 Edge Function ✅
 
-- **파일**: `lib/reschedule/jobQueue.ts` (신규)
+- **파일**: `supabase/functions/reschedule-worker/index.ts` (신규) ✅
 - **작업**:
   ```typescript
   export interface RescheduleJob {
@@ -637,18 +637,18 @@
   ```
 - **위험도**: 🟡 중간
 
-#### [R3-5] 비동기 처리 Edge Function
+#### [R3-5] 비동기 처리 Edge Function ✅
 
-- **파일**: `supabase/functions/reschedule-worker/index.ts` (신규)
+- **파일**: `supabase/functions/reschedule-worker/index.ts` (신규) ✅
 - **작업**:
   - Job Queue에서 작업 가져오기
   - 재조정 실행
   - 결과 저장 및 알림
 - **위험도**: 🔴 높음 (인프라 변경)
 
-#### [R3-6] 진행 상황 UI 컴포넌트
+#### [R3-6] 진행 상황 UI 컴포넌트 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/JobProgress.tsx` (신규)
+- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/JobProgress.tsx` (신규) ✅
 - **작업**:
   - 실시간 진행률 표시
   - 완료/실패 알림
@@ -659,9 +659,9 @@
 
 ### 3.3 모니터링 및 운영 도구
 
-#### [R3-7] 재조정 통계 집계
+#### [R3-7] 재조정 통계 집계 ✅
 
-- **파일**: `lib/reschedule/analytics.ts` (신규)
+- **파일**: `lib/reschedule/analytics.ts` (신규) ✅
 - **작업**:
   ```typescript
   export interface RescheduleStats {
@@ -680,18 +680,18 @@
   ```
 - **위험도**: 🟢 낮음
 
-#### [R3-8] 관리자용 재조정 로그 조회 페이지
+#### [R3-8] 관리자용 재조정 로그 조회 페이지 ✅
 
-- **파일**: `app/(admin)/admin/reschedule-logs/page.tsx` (신규)
+- **파일**: `app/(admin)/admin/reschedule-logs/page.tsx` (신규) ✅
 - **작업**:
   - reschedule_log 목록 조회
   - 필터링 (플랜 그룹, 학생, 날짜)
   - 상세 보기 (adjusted_contents, 관련 plan_history)
 - **위험도**: 🟢 낮음
 
-#### [R3-9] 강제 정리 기능
+#### [R3-9] 강제 정리 기능 ✅
 
-- **파일**: `app/(admin)/actions/reschedule/cleanup.ts` (신규)
+- **파일**: `app/(admin)/actions/reschedule/cleanup.ts` (신규) ✅
 - **작업**:
   ```typescript
   // 비정상 상태 플랜 정리
