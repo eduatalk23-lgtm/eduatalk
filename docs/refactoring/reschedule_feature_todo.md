@@ -332,9 +332,9 @@
 
 ### 2.1 버전 체계 구축
 
-#### [R2-1] version_group_id 컬럼 추가
+#### [R2-1] version_group_id 컬럼 추가 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_add_version_group_id.sql`
+- **파일**: `supabase/migrations/20251209212000_add_version_group_id.sql` ✅
 - **작업**:
   ```sql
   ALTER TABLE student_plan
@@ -350,9 +350,9 @@
   ```
 - **위험도**: 🟡 중간 (기존 데이터 영향)
 
-#### [R2-2] 버전 관리 헬퍼 함수
+#### [R2-2] 버전 관리 헬퍼 함수 ✅
 
-- **파일**: `lib/utils/planVersionUtils.ts` (신규)
+- **파일**: `lib/utils/planVersionUtils.ts` (신규) ✅
 - **작업**:
   ```typescript
   // 최신 버전 플랜 조회
@@ -373,21 +373,21 @@
   ```
 - **위험도**: 🟢 낮음
 
-#### [R2-3] replaced_by 컬럼 정리 (선택)
+#### [R2-3] replaced_by 컬럼 정리 (선택) ✅
 
-- **파일**: `supabase/migrations/2025XXXX_cleanup_replaced_by.sql`
+- **파일**: 스킵 (replaced_by 컬럼이 존재하지 않음)
 - **작업**:
-  - `replaced_by` 컬럼 사용 중단 결정
-  - 또는 `version_group_id`와 병행 사용 정책 결정
-- **위험도**: 🟡 중간
+  - `replaced_by` 컬럼이 현재 스키마에 없으므로 스킵
+  - `version_group_id`와 `version`으로 버전 관리 수행
+- **위험도**: 🟢 낮음 (스킵)
 
 ---
 
 ### 2.2 롤백 기능 구현
 
-#### [R2-4] 롤백 가능 조건 검증 함수
+#### [R2-4] 롤백 가능 조건 검증 함수 ✅
 
-- **파일**: `lib/reschedule/rollbackValidator.ts` (신규)
+- **파일**: `lib/reschedule/rollbackValidator.ts` (신규) ✅
 - **작업**:
   ```typescript
   export interface RollbackValidation {
@@ -407,9 +407,9 @@
   ```
 - **위험도**: 🟡 중간
 
-#### [R2-5] 롤백 실행 함수
+#### [R2-5] 롤백 실행 함수 ✅
 
-- **파일**: `app/(student)/actions/plan-groups/rollback.ts` (신규)
+- **파일**: `app/(student)/actions/plan-groups/rollback.ts` (신규) ✅
 - **작업**:
   ```typescript
   // 롤백 실행
