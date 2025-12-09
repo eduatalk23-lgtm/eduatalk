@@ -41,6 +41,7 @@ export type AcademyGroup = {
   total_count: number; // 총 일정 횟수
   total_academy_hours: number; // 총 학원 수업 시간 (시간 단위)
   total_travel_hours: number; // 총 이동시간 (시간 단위)
+  // 주의: total_count는 학원 단위로 계산된 값 (고유 요일 수 기준)
 };
 
 export type ScheduleSummary = {
@@ -56,14 +57,14 @@ export type ScheduleSummary = {
     개인사정: number;
     지정휴일: number;
   };
-  academy_statistics: {
-    total_academy_schedules: number; // 총 학원일정 횟수
-    unique_academies: number; // 고유 학원 수
-    total_academy_hours: number; // 총 학원 수업 시간
-    total_travel_hours: number; // 총 이동시간
-    average_travel_time: number; // 평균 이동시간 (분)
-    academy_groups: AcademyGroup[]; // 학원별 그룹화 정보
-  };
+    academy_statistics: {
+      total_academy_schedules: number; // 학원 단위 일정 수 (고유 요일 기준)
+      unique_academies: number; // 고유 학원 수
+      total_academy_hours: number; // 총 학원 수업 시간
+      total_travel_hours: number; // 총 이동시간
+      average_travel_time: number; // 평균 이동시간 (분)
+      academy_groups: AcademyGroup[]; // 학원별 그룹화 정보
+    };
   camp_period: {
     start_date: string;
     end_date: string;
@@ -321,8 +322,8 @@ function getNonStudyTimeBlocksForDate(
 }
 
 /**
- * 학원일정 그룹화 (학원명 + 과목 기준)
- * 같은 학원-과목 조합을 하나로 묶어서 통계 계산
+ * 학원일정 그룹화 (학원명 기준)
+ * 같은 학원의 모든 과목을 하나로 묶어서 학원 단위로 통계 계산
  */
 function groupAcademySchedules(
   academySchedules: AcademySchedule[],
@@ -330,42 +331,52 @@ function groupAcademySchedules(
 ): AcademyGroup[] {
   const groups = new Map<string, {
     academy_name: string;
-    subject: string;
+    subjects: Set<string>;
     days_of_week: Set<number>;
-    time_range: { start: string; end: string };
+    time_ranges: Map<number, { start: string; end: string }>; // 요일별 시간 범위
     travel_time: number;
-    count: number;
     total_academy_minutes: number;
     total_travel_minutes: number;
   }>();
 
-  // 각 학원일정을 그룹화
+  // 각 학원일정을 그룹화 (학원명만 기준)
   for (const schedule of academySchedules) {
-    // 학원명과 과목이 같으면 같은 그룹으로 처리
-    const key = `${schedule.academy_name || ""}_${schedule.subject || ""}`;
+    // 학원명만으로 그룹화 (과목 무시)
+    const key = schedule.academy_name || "학원";
     
     if (!groups.has(key)) {
       groups.set(key, {
         academy_name: schedule.academy_name || "학원",
-        subject: schedule.subject || "",
+        subjects: new Set(),
         days_of_week: new Set(),
-        time_range: {
-          start: schedule.start_time,
-          end: schedule.end_time,
-        },
+        time_ranges: new Map(),
         travel_time: schedule.travel_time || 60,
-        count: 0,
+        total_count: 0,
         total_academy_minutes: 0,
         total_travel_minutes: 0,
       });
     }
 
     const group = groups.get(key)!;
+    
+    // 과목 추가
+    if (schedule.subject) {
+      group.subjects.add(schedule.subject);
+    }
+    
+    // 요일 추가
     group.days_of_week.add(schedule.day_of_week);
+    
+    // 요일별 시간 범위 저장 (같은 요일에 여러 시간대가 있을 수 있음)
+    if (!group.time_ranges.has(schedule.day_of_week)) {
+      group.time_ranges.set(schedule.day_of_week, {
+        start: schedule.start_time,
+        end: schedule.end_time,
+      });
+    }
     
     // 해당 요일의 일정 횟수 계산 (기간 내 해당 요일의 날짜 수)
     const dayCount = dates.filter((date) => getDayOfWeek(date) === schedule.day_of_week).length;
-    group.count += dayCount;
     
     // 학원 수업 시간 계산
     const academyStart = timeToMinutes(schedule.start_time);
@@ -379,16 +390,32 @@ function groupAcademySchedules(
   }
 
   // AcademyGroup 형태로 변환
-  return Array.from(groups.values()).map((group) => ({
-    academy_name: group.academy_name,
-    subject: group.subject,
-    days_of_week: Array.from(group.days_of_week).sort(),
-    time_range: group.time_range,
-    travel_time: group.travel_time,
-    total_count: group.count,
-    total_academy_hours: group.total_academy_minutes / 60,
-    total_travel_hours: group.total_travel_minutes / 60,
-  }));
+  return Array.from(groups.values()).map((group) => {
+    // 고유 요일 수 기준으로 total_count 재계산
+    const uniqueDays = Array.from(group.days_of_week);
+    const totalCount = uniqueDays.reduce((sum, dayOfWeek) => {
+      const dayCount = dates.filter((date) => getDayOfWeek(date) === dayOfWeek).length;
+      return sum + dayCount;
+    }, 0);
+    
+    // 대표 시간 범위 선택 (첫 번째 요일의 시간 범위)
+    const firstDay = uniqueDays[0];
+    const timeRange = group.time_ranges.get(firstDay) || { start: "00:00", end: "00:00" };
+    
+    // 과목 목록을 쉼표로 구분된 문자열로 변환
+    const subjectList = Array.from(group.subjects).join(", ");
+    
+    return {
+      academy_name: group.academy_name,
+      subject: subjectList || "", // 여러 과목을 쉼표로 구분
+      days_of_week: uniqueDays.sort(),
+      time_range: timeRange,
+      travel_time: group.travel_time,
+      total_count: totalCount,
+      total_academy_hours: group.total_academy_minutes / 60,
+      total_travel_hours: group.total_travel_minutes / 60,
+    };
+  });
 }
 
 /**
@@ -1025,7 +1052,6 @@ export function calculateAvailableDates(
 
   // 학원일정 통계 계산
   const academyGroups = groupAcademySchedules(academySchedules, dates);
-  let totalAcademySchedules = 0;
   let totalAcademyHours = 0;
   let totalTravelHours = 0;
   let totalTravelMinutes = 0;
@@ -1099,10 +1125,8 @@ export function calculateAvailableDates(
       }
     }
 
-    // 학원일정 통계 계산
+    // 학원일정 시간 통계 계산 (학원 단위 집계는 academyGroups에서 처리)
     if (dateAcademySchedules.length > 0) {
-      totalAcademySchedules += dateAcademySchedules.length;
-      
       for (const academy of dateAcademySchedules) {
         const academyStart = timeToMinutes(academy.start_time);
         const academyEnd = timeToMinutes(academy.end_time);
@@ -1115,7 +1139,13 @@ export function calculateAvailableDates(
     }
   }
 
+  // 학원 단위 일정 수 계산 (academyGroups의 total_count 합산)
+  // total_count는 각 학원의 고유 요일 수 기준으로 계산된 값
+  const totalAcademySchedules = academyGroups.reduce((sum, group) => sum + group.total_count, 0);
+
   totalTravelHours = totalTravelMinutes / 60;
+  // 평균 이동시간 계산: totalTravelMinutes는 각 날짜의 각 학원 일정마다 누적되므로
+  // totalAcademySchedules(학원 단위 일정 수)로 나누면 평균 이동시간이 계산됨
   const averageTravelTime = totalAcademySchedules > 0 
     ? totalTravelMinutes / totalAcademySchedules 
     : 0;

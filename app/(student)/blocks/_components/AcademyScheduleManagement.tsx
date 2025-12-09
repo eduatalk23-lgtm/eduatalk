@@ -13,6 +13,7 @@ import {
 import type { AcademySchedule, Academy } from "@/lib/types/plan";
 import { Trash2, Pencil, X, Plus } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
 
 type AcademyScheduleManagementProps = {
   studentId: string;
@@ -216,6 +217,30 @@ export default function AcademyScheduleManagement({
 
     const selectedAcademy = academies.find((a) => a.id === selectedAcademyId);
     if (!selectedAcademy) return;
+
+    // 겹침 검증
+    const newSchedules = selectedDays.map((day) => ({
+      day_of_week: day,
+      start_time: scheduleStartTime,
+      end_time: scheduleEndTime,
+      academy_name: selectedAcademy.name,
+      subject: scheduleSubject.trim(),
+      travel_time: selectedAcademy.travel_time,
+    }));
+
+    // 기존 일정과 겹침 확인
+    for (const newSchedule of newSchedules) {
+      const validation = validateAcademyScheduleOverlap(
+        newSchedule,
+        selectedAcademySchedules
+      );
+      if (!validation.isValid) {
+        alert(
+          `${weekdayLabels[newSchedule.day_of_week]}에 겹치는 학원 일정이 있습니다. 시간을 조정해주세요.`
+        );
+        return;
+      }
+    }
 
     startTransition(async () => {
       try {

@@ -1,21 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Power, PowerOff, CheckSquare, Square } from "lucide-react";
+import { Trash2, CheckSquare, Square, Eye } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
-import { PlanGroupCard } from "../_shared/PlanCard";
-import { StatusBadge, statusLabels } from "../_shared/StatusBadge";
-import { ProgressIndicator } from "../_shared/ProgressIndicator";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
 import { Badge } from "@/components/atoms/Badge";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import Button from "@/components/atoms/Button";
+import { cn } from "@/lib/cn";
 
 type PlanGroupListItemProps = {
   group: PlanGroup;
@@ -58,13 +56,12 @@ export function PlanGroupListItem({
 
   const isActive = group.status === "active";
   const isCompleted = group.status === "completed";
-  const isCancelled = group.status === "cancelled";
 
   // 캠프 플랜 여부 확인
   const isCampPlan = !!(group.plan_type === "camp" && group.camp_invitation_id);
 
-  // 플랜이 생성되고, 완료/중단 상태가 아닌 경우만 토글 가능
-  const canToggle = hasPlans && planCount > 0 && !isCompleted && !isCancelled;
+  // 플랜이 생성되고, 완료 상태가 아닌 경우만 토글 가능
+  const canToggle = hasPlans && planCount > 0 && !isCompleted;
 
   // 캠프 플랜은 삭제 불가 (제출 전까지는 수정 가능)
   const canDelete = !isCampPlan;
@@ -73,8 +70,8 @@ export function PlanGroupListItem({
     if (!canToggle) {
       if (!hasPlans || planCount === 0) {
         toast.showInfo("플랜이 생성된 후 활성화할 수 있습니다.");
-      } else {
-        toast.showInfo("완료 또는 중단된 플랜 그룹은 활성화할 수 없습니다.");
+      } else if (isCompleted) {
+        toast.showInfo("완료된 플랜 그룹은 활성화할 수 없습니다.");
       }
       return;
     }
@@ -112,7 +109,7 @@ export function PlanGroupListItem({
         await updatePlanGroupStatus(group.id, newStatus);
         toast.showSuccess(
           isActive
-            ? "플랜 그룹이 일시정지되었습니다."
+            ? "플랜 그룹이 비활성화되었습니다."
             : "플랜 그룹이 활성화되었습니다."
         );
         setToggleDialogOpen(false);
@@ -126,48 +123,27 @@ export function PlanGroupListItem({
     });
   };
 
-  // 표시할 상태 결정 (저장됨, 초안 제외)
-  const shouldShowStatus =
-    group.status === "active" ||
-    group.status === "paused" ||
-    group.status === "completed" ||
-    group.status === "cancelled";
-
-  // 표시할 상태 정보 생성
-  const getDisplayStatus = () => {
-    if (!shouldShowStatus) {
-      return null;
-    }
-
-    const status = group.status as PlanStatus;
-    const label = statusLabels[status] || status;
-
-    return { label };
-  };
-
-  const displayStatus = getDisplayStatus();
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    // 버튼 영역 클릭 시에는 네비게이션하지 않음
-    const target = e.target as HTMLElement;
-    if (
-      target.closest("button") ||
-      target.closest('[role="button"]') ||
-      target.closest("a[href]")
-    ) {
-      return;
-    }
+  // 상세보기 이동
+  const handleViewClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     router.push(`/plan/group/${group.id}`, { scroll: true });
   };
 
+  // 표시할 상태 결정 (완료 또는 활성 상태만)
+  const displayStatus = isCompleted
+    ? { label: "완료", variant: "success" as const }
+    : isActive
+    ? { label: "활성", variant: "success" as const }
+    : null;
+
   return (
     <li
-      className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 cursor-pointer ${
+      className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 ${
         isSelected
           ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200"
           : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5"
       }`}
-      onClick={handleCardClick}
     >
       <div className="flex flex-col gap-3">
         {/* 1줄: 체크박스 + 뱃지 (좌측) / 아이콘들 (우측) */}
@@ -211,31 +187,58 @@ export function PlanGroupListItem({
                   플랜 생성 완료
                 </Badge>
               )}
-              {/* 상태 뱃지 */}
+              {/* 상태 뱃지 (완료 또는 활성 상태만 표시) */}
               {displayStatus && (
-                <Badge
-                  variant={
-                    displayStatus.label === "완료"
-                      ? "success"
-                      : displayStatus.label === "활성"
-                      ? "success"
-                      : displayStatus.label === "일시정지"
-                      ? "warning"
-                      : displayStatus.label === "중단"
-                      ? "error"
-                      : "default"
-                  }
-                  size="sm"
-                >
+                <Badge variant={displayStatus.variant} size="sm">
                   {displayStatus.label}
                 </Badge>
               )}
             </div>
           </div>
 
-          {/* 우측: 아이콘 버튼들 */}
-          <div className="flex shrink-0 items-center gap-1 relative z-20">
-            {canToggle && (
+          {/* 우측: 버튼들 */}
+          <div className="flex shrink-0 items-center gap-3 relative z-20">
+            {/* 보기 버튼 */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleViewClick}
+              className="text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              보기
+            </Button>
+
+            {/* 삭제 버튼 */}
+            {canDelete ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setDeleteDialogOpen(true);
+                }}
+                className="text-gray-700 hover:text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                삭제
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled
+                className="text-gray-300 cursor-not-allowed"
+                title="캠프 플랜은 삭제할 수 없습니다"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                삭제
+              </Button>
+            )}
+
+            {/* 활성/비활성 토글 스위치 */}
+            <div className="group relative">
               <button
                 type="button"
                 onClick={(e) => {
@@ -243,49 +246,45 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   handleToggleActiveClick();
                 }}
-                disabled={isPending}
-                className={`inline-flex items-center justify-center rounded-lg p-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                  isActive
-                    ? "text-green-600 hover:bg-green-50"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-                aria-label={
-                  isActive ? "플랜 그룹 비활성화" : "플랜 그룹 활성화"
-                }
-                title={isActive ? "비활성화" : "활성화"}
-              >
-                {isActive ? (
-                  <PowerOff className="h-4 w-4" />
-                ) : (
-                  <Power className="h-4 w-4" />
+                disabled={isPending || !canToggle}
+                className={cn(
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50",
+                  isActive ? "bg-green-600" : "bg-gray-200"
                 )}
-              </button>
-            )}
-            {canDelete ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setDeleteDialogOpen(true);
-                }}
-                className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-700 transition hover:bg-red-50 hover:text-red-600"
-                aria-label="플랜 그룹 삭제"
-                title="삭제"
+                aria-label={isActive ? "비활성화" : "활성화"}
+                title={
+                  !canToggle
+                    ? "플랜이 생성된 후 활성화할 수 있습니다"
+                    : isActive
+                    ? "비활성화"
+                    : "활성화"
+                }
               >
-                <Trash2 className="h-4 w-4" />
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    isActive ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
               </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex items-center justify-center rounded-lg p-1.5 text-gray-300 cursor-not-allowed"
-                aria-label="캠프 플랜은 삭제할 수 없습니다"
-                title="캠프 플랜은 삭제할 수 없습니다"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
+              
+              {/* 비활성화 상태일 때 툴팁 표시 */}
+              {!canToggle && (
+                <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100 z-50">
+                  <div className="whitespace-normal break-words">
+                    {!hasPlans || planCount === 0
+                      ? "플랜이 생성된 후 활성화할 수 있습니다"
+                      : isCompleted
+                      ? "완료된 플랜 그룹은 활성화할 수 없습니다"
+                      : "활성화할 수 없습니다"}
+                  </div>
+                  {/* 툴팁 화살표 */}
+                  <div className="absolute bottom-0 right-4 translate-y-full">
+                    <div className="border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
