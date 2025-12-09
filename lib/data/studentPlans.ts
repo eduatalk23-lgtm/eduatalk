@@ -2,6 +2,98 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
+// ============================================
+// 플랜 업데이트 제한 정책 (Phase 2)
+// ============================================
+
+/**
+ * student_plan에서 허용되는 업데이트 필드
+ * - 실행 관련: 타이머, 진행률, 완료량
+ * - 일정 조정: 날짜 변경 (미루기)
+ * - 범위 조정: 페이지/시간 미세 조정
+ * - 메타데이터: 메모
+ */
+export type AllowedPlanUpdates = {
+  // 일정 조정
+  plan_date?: string;
+  block_index?: number; // 미루기 시 함께 변경 가능
+  // 범위 미세 조정
+  planned_start_page_or_time?: number | null;
+  planned_end_page_or_time?: number | null;
+  // 실행 관련
+  completed_amount?: number | null;
+  progress?: number | null;
+  actual_start_time?: string | null;
+  actual_end_time?: string | null;
+  total_duration_seconds?: number | null;
+  paused_duration_seconds?: number | null;
+  pause_count?: number | null;
+  // 메타데이터
+  memo?: string | null;
+  is_reschedulable?: boolean;
+  chapter?: string | null; // 챕터 정보 업데이트 허용
+};
+
+/**
+ * student_plan에서 금지되는 업데이트 필드
+ * 구조적 변경은 플랜그룹 레벨에서 처리해야 함
+ */
+export type ForbiddenPlanUpdateFields =
+  | "content_type"
+  | "content_id"
+  | "plan_group_id"
+  | "student_id"
+  | "tenant_id"
+  | "origin_plan_item_id"
+  | "plan_number";
+
+/**
+ * 금지된 필드 목록
+ */
+const FORBIDDEN_UPDATE_FIELDS: ForbiddenPlanUpdateFields[] = [
+  "content_type",
+  "content_id",
+  "plan_group_id",
+  "student_id",
+  "tenant_id",
+  "origin_plan_item_id",
+  "plan_number",
+];
+
+// ============================================
+// 삭제 정책 (Phase 2 - P2-9)
+// ============================================
+
+/**
+ * student_plan 삭제 정책
+ *
+ * 1. **개별 플랜 삭제 (deletePlan)**
+ *    - 학생이 직접 삭제 가능
+ *    - 관련 study_sessions는 plan_id가 NULL로 설정됨 (ON DELETE SET NULL)
+ *
+ * 2. **플랜 그룹 삭제 시 (plan_groups DELETE)**
+ *    - DB: student_plan.plan_group_id는 ON DELETE SET NULL
+ *    - 앱 레벨: deletePlanGroupByInvitationId에서 명시적으로 student_plan 먼저 삭제
+ *
+ * 3. **논리 플랜 삭제 시 (plan_group_items DELETE)**
+ *    - DB: student_plan.origin_plan_item_id는 ON DELETE SET NULL
+ *    - 연결만 끊기고 실행 데이터는 보존
+ *
+ * 4. **완료된 플랜 보호**
+ *    - actual_end_time이 설정된 플랜은 삭제 전 확인 필요
+ *    - 통계 데이터 보존을 위해 soft delete 권장 (향후 구현)
+ *
+ * @see docs/refactoring/03_phase_todo_list.md [P2-9]
+ */
+export const PLAN_DELETE_POLICY = {
+  /** 완료된 플랜 삭제 허용 여부 (현재: 허용) */
+  allowDeleteCompleted: true,
+  /** 타이머 진행 중 플랜 삭제 허용 여부 (현재: 허용) */
+  allowDeleteInProgress: true,
+  /** soft delete 사용 여부 (현재: hard delete) */
+  useSoftDelete: false,
+} as const;
+
 export type Plan = {
   id: string;
   tenant_id?: string | null;
@@ -410,7 +502,70 @@ export async function createPlan(
 }
 
 /**
- * 플랜 업데이트
+ * 플랜 업데이트 (안전 버전)
+ * - 허용된 필드만 업데이트 가능
+ * - 구조적 변경(content_type, content_id 등)은 금지
+ * @see docs/refactoring/03_phase_todo_list.md [P2-8]
+ */
+export async function updatePlanSafe(
+  planId: string,
+  studentId: string,
+  updates: AllowedPlanUpdates
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload: Record<string, unknown> = {};
+  if (updates.plan_date !== undefined) payload.plan_date = updates.plan_date;
+  if (updates.block_index !== undefined) payload.block_index = updates.block_index;
+  if (updates.planned_start_page_or_time !== undefined)
+    payload.planned_start_page_or_time = updates.planned_start_page_or_time;
+  if (updates.planned_end_page_or_time !== undefined)
+    payload.planned_end_page_or_time = updates.planned_end_page_or_time;
+  if (updates.completed_amount !== undefined)
+    payload.completed_amount = updates.completed_amount;
+  if (updates.progress !== undefined) payload.progress = updates.progress;
+  if (updates.actual_start_time !== undefined)
+    payload.actual_start_time = updates.actual_start_time;
+  if (updates.actual_end_time !== undefined)
+    payload.actual_end_time = updates.actual_end_time;
+  if (updates.total_duration_seconds !== undefined)
+    payload.total_duration_seconds = updates.total_duration_seconds;
+  if (updates.paused_duration_seconds !== undefined)
+    payload.paused_duration_seconds = updates.paused_duration_seconds;
+  if (updates.pause_count !== undefined) payload.pause_count = updates.pause_count;
+  if (updates.memo !== undefined) payload.memo = updates.memo;
+  if (updates.is_reschedulable !== undefined)
+    payload.is_reschedulable = updates.is_reschedulable;
+  if (updates.chapter !== undefined) payload.chapter = updates.chapter;
+
+  if (Object.keys(payload).length === 0) {
+    return { success: true }; // 업데이트할 내용 없음
+  }
+
+  let { error } = await supabase
+    .from("student_plan")
+    .update(payload)
+    .eq("id", planId)
+    .eq("student_id", studentId);
+
+  if (error && error.code === "42703") {
+    ({ error } = await supabase
+      .from("student_plan")
+      .update(payload)
+      .eq("id", planId));
+  }
+
+  if (error) {
+    console.error("[data/studentPlans] 플랜 업데이트 실패 (safe)", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 플랜 업데이트 (레거시 - 하위 호환성용)
+ * @deprecated updatePlanSafe 사용을 권장합니다
  */
 export async function updatePlan(
   planId: string,
@@ -430,7 +585,18 @@ export async function updatePlan(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  // 금지된 필드 사용 경고
+  const forbiddenUsed = Object.keys(updates).filter((key) =>
+    FORBIDDEN_UPDATE_FIELDS.includes(key as ForbiddenPlanUpdateFields)
+  );
+  if (forbiddenUsed.length > 0) {
+    console.warn(
+      `[data/studentPlans] 구조적 필드 업데이트 시도: ${forbiddenUsed.join(", ")}. ` +
+        `이 필드들은 플랜그룹 레벨에서 처리해야 합니다. updatePlanSafe() 사용을 권장합니다.`
+    );
+  }
+
+  const payload: Record<string, unknown> = {};
   if (updates.plan_date !== undefined) payload.plan_date = updates.plan_date;
   if (updates.block_index !== undefined) payload.block_index = updates.block_index;
   if (updates.content_type !== undefined) payload.content_type = updates.content_type;
