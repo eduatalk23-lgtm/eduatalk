@@ -12,7 +12,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <QueryProvider>
         <ToastProvider>
           <SidebarProvider>
-            {children}
+          {children}
           </SidebarProvider>
         </ToastProvider>
       </QueryProvider>

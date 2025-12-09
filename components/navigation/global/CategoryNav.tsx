@@ -171,20 +171,20 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                     </span>
                   </div>
                   {!isCollapsed && (
-                    <svg
-                      className={cn(
+                  <svg
+                    className={cn(
                         "h-4 w-4 transition-transform flex-shrink-0",
-                        isExpanded ? "rotate-180" : ""
-                      )}
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
+                      isExpanded ? "rotate-180" : ""
+                    )}
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path d="M19 9l-7 7-7-7" />
+                  </svg>
                   )}
                 </button>
 

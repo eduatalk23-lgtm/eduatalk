@@ -37,7 +37,7 @@ function SidebarContent({
   return (
     <>
       {/* 로고 및 컨트롤 */}
-      <div className="border-b border-gray-200 p-4">
+            <div className="border-b border-gray-200 p-4">
         <div className="flex items-center justify-between gap-2">
           <a
             href={dashboardHref}
@@ -168,14 +168,14 @@ function MobileSidebar({
       >
         <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
           <div className="flex items-center justify-between gap-2">
-            <a
-              href={dashboardHref}
-              className="flex items-center gap-2 text-lg font-semibold text-gray-900"
-            >
-              <span>⏱️</span>
-              <span>TimeLevelUp</span>
-              <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
-            </a>
+              <a
+                href={dashboardHref}
+                className="flex items-center gap-2 text-lg font-semibold text-gray-900"
+              >
+                <span>⏱️</span>
+                <span>TimeLevelUp</span>
+                <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
+              </a>
             <button
               onClick={closeMobile}
               className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
@@ -184,35 +184,35 @@ function MobileSidebar({
               <X className="w-5 h-5" />
             </button>
           </div>
-        </div>
+            </div>
 
         {/* 기관 정보 */}
-        {tenantInfo && role !== "superadmin" && (
-          <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">🏢</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-gray-900 truncate">
-                  {tenantInfo.name}
+            {tenantInfo && role !== "superadmin" && (
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🏢</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">
+                      {tenantInfo.name}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* 카테고리 네비게이션 */}
-        <div className="p-4">
+            {/* 카테고리 네비게이션 */}
+            <div className="p-4">
           <CategoryNav
             role={
               role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role
             }
           />
-        </div>
+            </div>
 
-        {/* 하단 링크 */}
-        <div className="border-t border-gray-200 p-4">
-          <SignOutButton />
-        </div>
+            {/* 하단 링크 */}
+            <div className="border-t border-gray-200 p-4">
+              <SignOutButton />
+            </div>
       </aside>
     </>
   );

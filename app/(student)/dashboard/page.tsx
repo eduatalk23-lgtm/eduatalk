@@ -62,16 +62,16 @@ export default async function DashboardPage() {
       <section className="mx-auto w-full max-w-6xl px-4 py-8 md:py-10">
         <div className="flex flex-col gap-6 md:gap-8">
           {/* 상단: 학생 인사 + 요약 */}
-          <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 md:p-8 shadow-md">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 shadow-md">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    안녕하세요, {studentName}님
-                  </h1>
+                  안녕하세요, {studentName}님
+                </h1>
                   <p className="text-sm md:text-base text-gray-600">
-                    오늘도 열심히 학습하시는 모습이 멋집니다!
-                  </p>
+                  오늘도 열심히 학습하시는 모습이 멋집니다!
+                </p>
                 </div>
 
                 <div className="flex items-baseline gap-3 pt-2">
@@ -92,7 +92,7 @@ export default async function DashboardPage() {
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900">주요 기능</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
               {studentCategories
                 .filter((category) => category.href !== "/dashboard")
                 .map((category) => {
@@ -209,15 +209,19 @@ function QuickActionCard({
   return (
     <Link
       href={href}
-      className={`rounded-xl border-2 p-5 md:p-6 transition-all duration-200 hover:scale-[1.02] ${colorClasses[color]}`}
+      className={`h-full rounded-xl border-2 p-5 md:p-6 transition-all duration-200 hover:scale-[1.02] flex flex-col ${colorClasses[color]}`}
     >
-      <div className="flex items-start gap-3 md:gap-4">
-        <span className="text-2xl md:text-3xl flex-shrink-0">{icon}</span>
-        <div className="flex flex-col gap-1 flex-1 min-w-0">
-          <h3 className="text-base md:text-lg font-semibold">{title}</h3>
-          <p className="text-xs md:text-sm opacity-80 line-clamp-2">{description}</p>
+      <div className="flex flex-col gap-3 flex-1">
+        <div className="flex items-start gap-3 md:gap-4">
+          <span className="text-2xl md:text-3xl flex-shrink-0">{icon}</span>
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
+            <h3 className="text-base md:text-lg font-semibold">{title}</h3>
+            <p className="text-xs md:text-sm opacity-80 line-clamp-2">{description}</p>
+          </div>
         </div>
-        <span className="text-lg md:text-xl flex-shrink-0">→</span>
+        <div className="flex justify-end mt-auto">
+          <span className="text-lg md:text-xl">→</span>
+        </div>
       </div>
     </Link>
   );
