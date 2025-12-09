@@ -146,30 +146,30 @@ Client                          Server (Metrics)                    Database
 
 ### 핵심 필드
 
-| 필드 | 용도 | 설명 |
-|------|------|------|
-| `plan_date` | 집계 기준일 | 일별/주별/월별 그룹핑 |
-| `content_id` | 콘텐츠 식별 | 더미 콘텐츠 필터링에 사용 |
-| `actual_end_time` | **완료 여부** | NULL이 아니면 완료 |
-| `completed_amount` | 완료량 | 페이지/분 단위 |
-| `progress` | 진행률 | 0-100% |
-| `total_duration_seconds` | 학습 시간 | 타이머 기준 |
+| 필드                     | 용도          | 설명                      |
+| ------------------------ | ------------- | ------------------------- |
+| `plan_date`              | 집계 기준일   | 일별/주별/월별 그룹핑     |
+| `content_id`             | 콘텐츠 식별   | 더미 콘텐츠 필터링에 사용 |
+| `actual_end_time`        | **완료 여부** | NULL이 아니면 완료        |
+| `completed_amount`       | 완료량        | 페이지/분 단위            |
+| `progress`               | 진행률        | 0-100%                    |
+| `total_duration_seconds` | 학습 시간     | 타이머 기준               |
 
 ### 통계/리포트 정의 표
 
-| 메트릭 이름 | 기준 필드 | 완료 조건 | 비학습 포함 | 자율학습 포함 | 비고 |
-|------------|----------|----------|------------|--------------|------|
-| **일일 학습 시간** | `total_duration_seconds` | N/A | ❌ | ✅ | 실제 타이머 기록 기준 |
-| **일일 완료 플랜 수** | `actual_end_time` | `!= NULL` | ❌ | ❌ | 더미 콘텐츠 제외 |
-| **일일 전체 플랜 수** | `plan_date` | N/A | ✅ | ✅ | 타임라인 표시용 |
-| **일일 완료율** | 완료 수 / 전체 수 | - | ❌ | ❌ | 더미 제외 기준 |
-| **주간 학습 시간** | `total_duration_seconds` | N/A | ❌ | ✅ | 주 단위 합계 |
-| **주간 완료율** | 완료 수 / 전체 수 | - | ❌ | ❌ | 주 단위 평균 |
-| **월간 학습 시간** | `total_duration_seconds` | N/A | ❌ | ✅ | 월 단위 합계 |
-| **과목별 학습 시간** | `content_id` → subject | N/A | ❌ | ❌ | 과목 조인 필요 |
-| **과목별 완료율** | 완료 수 / 전체 수 | - | ❌ | ❌ | 과목별 그룹핑 |
-| **플랜그룹별 진행률** | `plan_group_id` | - | ✅ | ✅ | 전체 포함 |
-| **성취도 점수** | 복합 계산 | - | ❌ | ✅ | 학습시간 + 완료율 가중 |
+| 메트릭 이름           | 기준 필드                | 완료 조건 | 비학습 포함 | 자율학습 포함 | 비고                   |
+| --------------------- | ------------------------ | --------- | ----------- | ------------- | ---------------------- |
+| **일일 학습 시간**    | `total_duration_seconds` | N/A       | ❌          | ✅            | 실제 타이머 기록 기준  |
+| **일일 완료 플랜 수** | `actual_end_time`        | `!= NULL` | ❌          | ❌            | 더미 콘텐츠 제외       |
+| **일일 전체 플랜 수** | `plan_date`              | N/A       | ✅          | ✅            | 타임라인 표시용        |
+| **일일 완료율**       | 완료 수 / 전체 수        | -         | ❌          | ❌            | 더미 제외 기준         |
+| **주간 학습 시간**    | `total_duration_seconds` | N/A       | ❌          | ✅            | 주 단위 합계           |
+| **주간 완료율**       | 완료 수 / 전체 수        | -         | ❌          | ❌            | 주 단위 평균           |
+| **월간 학습 시간**    | `total_duration_seconds` | N/A       | ❌          | ✅            | 월 단위 합계           |
+| **과목별 학습 시간**  | `content_id` → subject   | N/A       | ❌          | ❌            | 과목 조인 필요         |
+| **과목별 완료율**     | 완료 수 / 전체 수        | -         | ❌          | ❌            | 과목별 그룹핑          |
+| **플랜그룹별 진행률** | `plan_group_id`          | -         | ✅          | ✅            | 전체 포함              |
+| **성취도 점수**       | 복합 계산                | -         | ❌          | ✅            | 학습시간 + 완료율 가중 |
 
 ### 더미 콘텐츠 필터링
 
@@ -177,7 +177,9 @@ Client                          Server (Metrics)                    Database
 import { isDummyContent } from "@/lib/utils/planUtils";
 
 // 집계 시 더미 콘텐츠 필터링
-const learningPlans = allPlans.filter(plan => !isDummyContent(plan.content_id));
+const learningPlans = allPlans.filter(
+  (plan) => !isDummyContent(plan.content_id)
+);
 ```
 
 ### 완료 기준
@@ -186,7 +188,7 @@ const learningPlans = allPlans.filter(plan => !isDummyContent(plan.content_id));
 import { isCompletedPlan } from "@/lib/utils/planUtils";
 
 // 완료 플랜 판별 (actual_end_time 기준)
-const completedPlans = plans.filter(plan => isCompletedPlan(plan));
+const completedPlans = plans.filter((plan) => isCompletedPlan(plan));
 ```
 
 ---
@@ -195,31 +197,31 @@ const completedPlans = plans.filter(plan => isCompletedPlan(plan));
 
 ### 생성 플로우
 
-| 단계 | 파일 |
-|------|------|
-| 플랜그룹 생성 | `app/(student)/actions/plan-groups/plans.ts` |
-| 콘텐츠 복사 | `lib/plan/generators/planDataPreparer.ts` |
-| 가용 날짜 계산 | `lib/scheduler/calculateAvailableDates.ts` |
-| 시간 배치 | `lib/plan/assignPlanTimes.ts` |
-| 플랜 저장 | `lib/data/studentPlans.ts` |
+| 단계           | 파일                                         |
+| -------------- | -------------------------------------------- |
+| 플랜그룹 생성  | `app/(student)/actions/plan-groups/plans.ts` |
+| 콘텐츠 복사    | `lib/plan/generators/planDataPreparer.ts`    |
+| 가용 날짜 계산 | `lib/scheduler/calculateAvailableDates.ts`   |
+| 시간 배치      | `lib/plan/assignPlanTimes.ts`                |
+| 플랜 저장      | `lib/data/studentPlans.ts`                   |
 
 ### 실행 플로우
 
-| 단계 | 파일 |
-|------|------|
-| 타이머 액션 | `app/(student)/today/actions/todayActions.ts` |
-| 세션 관리 | `lib/data/studentSessions.ts` |
-| 플랜 업데이트 | `lib/data/studentPlans.ts` (updatePlanSafe) |
+| 단계          | 파일                                          |
+| ------------- | --------------------------------------------- |
+| 타이머 액션   | `app/(student)/today/actions/todayActions.ts` |
+| 세션 관리     | `lib/data/studentSessions.ts`                 |
+| 플랜 업데이트 | `lib/data/studentPlans.ts` (updatePlanSafe)   |
 
 ### 집계 플로우
 
-| 단계 | 파일 |
-|------|------|
-| 오늘 진행률 | `lib/metrics/todayProgress.ts` |
+| 단계        | 파일                               |
+| ----------- | ---------------------------------- |
+| 오늘 진행률 | `lib/metrics/todayProgress.ts`     |
 | 주간 완료율 | `lib/metrics/getPlanCompletion.ts` |
-| 학습 시간 | `lib/metrics/studyTime.ts` |
-| 더미 필터링 | `lib/utils/planUtils.ts` |
-| 상수 정의 | `lib/constants/plan.ts` |
+| 학습 시간   | `lib/metrics/studyTime.ts`         |
+| 더미 필터링 | `lib/utils/planUtils.ts`           |
+| 상수 정의   | `lib/constants/plan.ts`            |
 
 ---
 
@@ -244,7 +246,6 @@ plan_groups (플랜그룹)
 
 ## 📝 변경 기록
 
-| 날짜 | 버전 | 내용 |
-|------|------|------|
+| 날짜       | 버전 | 내용      |
+| ---------- | ---- | --------- |
 | 2025-12-09 | v1.0 | 초안 작성 |
-
