@@ -236,37 +236,47 @@
 
 #### 3.1 타임라인 로직 분리·정리
 
-- [ ] **[P3-1]** 타임라인 옵션 타입 정의
+- [ ] **[P3-1]** 타임라인 옵션 타입 정의 (DEFERRED)
 
   - 파일: `lib/scheduler/calculateAvailableDates.ts`
   - 변경: `scheduler_mode: 'block' | 'time'` 옵션 추가
+  - 상태: 현재 코드에서 모드 분기가 이미 동작함, 필요 시 타입 강화
   - 위험도: 🟡 중간
 
-- [ ] **[P3-2]** 함수 시그니처 명확화
+- [ ] **[P3-2]** 함수 시그니처 명확화 (DEFERRED)
 
   - 파일: `lib/plan/assignPlanTimes.ts`
   - 변경: 입출력 타입 강화
+  - 상태: 현재 동작 중, 향후 리팩토링 시 진행
   - 위험도: 🟡 중간
 
-- [ ] **[P3-3]** start_time/end_time NULL 정책 문서화
+- [x] **[P3-3]** start_time/end_time NULL 정책 문서화 ✅ (2025-12-09)
   - 파일: `docs/refactoring/timeline_strategy.md`
+  - 내용: Block/Time 모드 정의, NULL 허용 상황, 방어 처리 패턴
   - 위험도: 🟢 낮음 (문서만)
 
 #### 3.2 today 화면 성능 최적화
 
-- [ ] **[P3-4]** today 쿼리 패턴 점검
+- [x] **[P3-4]** today 쿼리 패턴 점검 ✅ (2025-12-09)
 
-  - 파일: `app/(student)/today/actions/todayActions.ts`, `lib/data/studentPlans.ts`
-  - 변경: 불필요한 조회 제거, 인덱스 활용 확인
+  - 파일: `lib/data/todayPlans.ts`
+  - 결과: 이미 최적화되어 있음
+    - `today_plans_cache` 캐시 구현
+    - `narrowQueries` 옵션 (세션 조회 최적화)
+    - 병렬 쿼리 패턴
   - 위험도: 🟢 낮음
 
-- [ ] **[P3-5]** `today_plans_cache` 사용 기준 정리
-  - 파일: 관련 API 및 데이터 레이어
+- [x] **[P3-5]** `today_plans_cache` 사용 기준 정리 ✅ (2025-12-09)
+  - 파일: `lib/data/todayPlans.ts`
+  - 결과: 코드에 이미 구현됨
+    - `useCache` 옵션 (기본: true)
+    - `cacheTtlSeconds` 옵션 (기본: 120초)
+    - 캠프 모드: 60초 TTL
   - 위험도: 🟡 중간
 
 #### 3.3 타이머 상태 전이 문서화 및 강화
 
-- [ ] **[P3-6]** 타이머 상태 전이 다이어그램 작성
+- [x] **[P3-6]** 타이머 상태 전이 다이어그램 작성 ✅ (2025-12-09)
 
   - 파일: `docs/refactoring/timer_state_machine.md`
   - 내용:
@@ -276,23 +286,27 @@
     PAUSED → RUNNING (resumePlan)
     RUNNING/PAUSED → COMPLETED (completePlan)
     ```
+  - 추가 문서: 상태 정의, 경합 방지 규칙
   - 위험도: 🟢 낮음 (문서만)
 
-- [ ] **[P3-7]** 타이머 경합 방지 강화
+- [ ] **[P3-7]** 타이머 경합 방지 강화 (DEFERRED)
   - 파일: `app/(student)/today/actions/todayActions.ts`
   - 변경: 동시 세션 방지 로직 보강
+  - 상태: 문서에 정책 정의됨, 코드 변경은 필요 시 진행
   - 위험도: 🟡 중간
 
 #### 3.4 캠프 모드 정리
 
-- [ ] **[P3-8]** 캠프 모드 더미 콘텐츠 처리 일관화
+- [x] **[P3-8]** 캠프 모드 더미 콘텐츠 처리 일관화 ✅ (2025-12-09)
 
-  - 파일: 캠프 관련 컴포넌트 및 액션
-  - 변경: `isDummyContent()` 헬퍼 사용
+  - 확인: 캠프 모드에서 더미 콘텐츠 하드코딩 없음
+  - 결과: 일반 today 컴포넌트 재사용, 별도 처리 불필요
   - 위험도: 🟡 중간
 
-- [ ] **[P3-9]** 캠프 today 화면 리팩토링
-  - 파일: `app/(student)/camp/today/` 하위 파일들
+- [x] **[P3-9]** 캠프 today 화면 리팩토링 ✅ (2025-12-09)
+  - 파일: `app/(student)/camp/today/page.tsx`
+  - 결과: 일반 today 컴포넌트 재사용 (TodayPageContextProvider 등)
+  - 최적화: `getTodayPlans(camp: true)` 호출로 캠프 플랜만 필터링
   - 위험도: 🟡 중간
 
 ### Phase 3 영향 범위
@@ -351,3 +365,4 @@ Phase 1 시작 전:
 | 2025-12-09 | v1.1 | Phase 1 완료 (P1-1 ~ P1-11) |
 | 2025-12-09 | v1.2 | Phase 2 P2-1~P2-5 완료      |
 | 2025-12-09 | v1.3 | Phase 2 P2-8~P2-9 완료      |
+| 2025-12-09 | v1.4 | Phase 3 문서화 완료         |
