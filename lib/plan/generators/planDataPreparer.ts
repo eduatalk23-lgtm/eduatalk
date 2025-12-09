@@ -14,6 +14,10 @@ import {
   copyMasterBookToStudent,
   copyMasterLectureToStudent,
 } from "@/lib/data/contentMasters";
+import {
+  DUMMY_NON_LEARNING_CONTENT_ID,
+  DUMMY_SELF_STUDY_CONTENT_ID,
+} from "@/lib/constants/plan";
 
 /**
  * 블록 정보 타입
@@ -321,9 +325,7 @@ export async function prepareContentDuration(
   const contentDurationMap = new Map<string, ContentDurationInfo>();
 
   // 더미 UUID에 대한 기본값 추가 (비학습 항목 및 자율학습용)
-  const DUMMY_NON_LEARNING_CONTENT_ID = "00000000-0000-0000-0000-000000000000";
-  const DUMMY_SELF_STUDY_CONTENT_ID = "00000000-0000-0000-0000-000000000001";
-
+  // 상수는 lib/constants/plan.ts에서 import
   contentDurationMap.set(DUMMY_NON_LEARNING_CONTENT_ID, {
     content_type: "custom",
     content_id: DUMMY_NON_LEARNING_CONTENT_ID,

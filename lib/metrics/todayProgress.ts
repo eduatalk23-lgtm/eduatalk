@@ -7,6 +7,7 @@ import {
   buildActiveSessionMap,
 } from "@/lib/metrics/studyTime";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
+import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -69,9 +70,12 @@ export async function calculateTodayProgress(
         planGroupIds && planGroupIds.length > 0 ? planGroupIds : undefined,
     });
 
-    const planTotalCount = plans.length;
-    const planCompletedCount = plans.filter(
-      (plan) => !!plan.actual_end_time
+    // 학습 플랜만 필터링 (더미 콘텐츠 제외)
+    const learningPlans = filterLearningPlans(plans);
+
+    const planTotalCount = learningPlans.length;
+    const planCompletedCount = learningPlans.filter((plan) =>
+      isCompletedPlan(plan)
     ).length;
 
     // 2. 해당 날짜의 세션 조회 및 학습 시간 계산

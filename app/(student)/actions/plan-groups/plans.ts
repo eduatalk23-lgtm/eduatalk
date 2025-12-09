@@ -24,6 +24,11 @@ import {
   getBlockSetForPlanGroup,
   getBlockSetErrorMessage,
 } from "@/lib/plan/blocks";
+import {
+  DUMMY_NON_LEARNING_CONTENT_ID,
+  DUMMY_SELF_STUDY_CONTENT_ID,
+  isDummyContent,
+} from "@/lib/utils/planUtils";
 
 async function _generatePlansFromGroup(
   groupId: string
@@ -594,9 +599,7 @@ async function _generatePlansFromGroup(
   >();
 
   // 더미 UUID에 대한 기본값 추가 (비학습 항목 및 자율학습용)
-  const DUMMY_NON_LEARNING_CONTENT_ID = "00000000-0000-0000-0000-000000000000";
-  const DUMMY_SELF_STUDY_CONTENT_ID = "00000000-0000-0000-0000-000000000001";
-
+  // 상수는 lib/constants/plan.ts에서 import
   contentDurationMap.set(DUMMY_NON_LEARNING_CONTENT_ID, {
     content_type: "custom",
     content_id: DUMMY_NON_LEARNING_CONTENT_ID,
@@ -1388,8 +1391,7 @@ async function _generatePlansFromGroup(
       let contentSubjectCategory: string | null = null;
 
       // 비학습 항목을 위한 더미 custom content ID (모든 비학습 항목이 공유)
-      const DUMMY_NON_LEARNING_CONTENT_ID =
-        "00000000-0000-0000-0000-000000000000";
+      // 상수는 lib/constants/plan.ts에서 import
 
       // 더미 custom content가 존재하는지 확인하고, 없으면 생성 (첫 번째 슬롯에서만)
       // 주의: content_type은 스키마 제약 조건에 따라 'book', 'lecture', 'custom' 중 하나여야 함
@@ -1522,8 +1524,7 @@ async function _generatePlansFromGroup(
       enableSelfStudyForHolidays
     ) {
       // 자율학습을 위한 더미 custom content ID
-      const DUMMY_SELF_STUDY_CONTENT_ID =
-        "00000000-0000-0000-0000-000000000001";
+      // 상수는 lib/constants/plan.ts에서 import
 
       // 더미 custom content가 존재하는지 확인하고, 없으면 생성
       const { data: existingSelfStudyContent } = await supabase
@@ -2254,20 +2255,16 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
     >();
 
     // 더미 UUID에 대한 기본값 추가 (비학습 항목 및 자율학습용)
-    const DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW =
-      "00000000-0000-0000-0000-000000000000";
-    const DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW =
-      "00000000-0000-0000-0000-000000000001";
-
-    contentDurationMap.set(DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW, {
+    // 상수는 lib/constants/plan.ts에서 import
+    contentDurationMap.set(DUMMY_NON_LEARNING_CONTENT_ID, {
       content_type: "custom",
-      content_id: DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW,
+      content_id: DUMMY_NON_LEARNING_CONTENT_ID,
       total_page_or_time: 0,
     });
 
-    contentDurationMap.set(DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW, {
+    contentDurationMap.set(DUMMY_SELF_STUDY_CONTENT_ID, {
       content_type: "custom",
-      content_id: DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW,
+      content_id: DUMMY_SELF_STUDY_CONTENT_ID,
       total_page_or_time: 0,
     });
 
@@ -2340,10 +2337,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       } else if (content.content_type === "custom") {
         // 더미 UUID는 이미 처리했으므로 스킵
         if (
-          finalContentId === DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW ||
-          finalContentId === DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW ||
-          content.content_id === DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW ||
-          content.content_id === DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW
+          finalContentId === DUMMY_NON_LEARNING_CONTENT_ID ||
+          finalContentId === DUMMY_SELF_STUDY_CONTENT_ID ||
+          content.content_id === DUMMY_NON_LEARNING_CONTENT_ID ||
+          content.content_id === DUMMY_SELF_STUDY_CONTENT_ID
         ) {
           continue;
         }
@@ -2366,10 +2363,10 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           // 더미 UUID인 경우는 에러 발생하지 않음 (더미 content 생성 실패해도 계속 진행)
           // 일반 custom content가 존재하지 않으면 에러 발생
           if (
-            finalContentId !== DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW &&
-            finalContentId !== DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW &&
-            content.content_id !== DUMMY_NON_LEARNING_CONTENT_ID_PREVIEW &&
-            content.content_id !== DUMMY_SELF_STUDY_CONTENT_ID_PREVIEW
+            finalContentId !== DUMMY_NON_LEARNING_CONTENT_ID &&
+            finalContentId !== DUMMY_SELF_STUDY_CONTENT_ID &&
+            content.content_id !== DUMMY_NON_LEARNING_CONTENT_ID &&
+            content.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
           ) {
             throw new AppError(
               `Referenced custom content (${finalContentId}) does not exist`,
@@ -2993,7 +2990,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           plan_date: date,
           block_index: blockIndex,
           content_type: "custom",
-          content_id: "00000000-0000-0000-0000-000000000000", // 비학습 항목은 더미 UUID 사용
+          content_id: DUMMY_NON_LEARNING_CONTENT_ID, // 비학습 항목은 더미 UUID 사용
           content_title: contentTitle,
           content_subject: contentSubject,
           content_subject_category: null,
@@ -3050,7 +3047,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
             plan_date: date,
             block_index: blockIndex,
             content_type: "custom",
-            content_id: "00000000-0000-0000-0000-000000000000", // 자율학습은 더미 UUID 사용
+            content_id: DUMMY_SELF_STUDY_CONTENT_ID, // 자율학습은 더미 UUID 사용
             content_title: "자율학습",
             content_subject: null,
             content_subject_category: null,

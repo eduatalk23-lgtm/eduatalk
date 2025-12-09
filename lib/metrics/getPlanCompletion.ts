@@ -1,4 +1,5 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -26,7 +27,7 @@ export async function getPlanCompletion(
     const selectPlans = () =>
       supabase
         .from("student_plan")
-        .select("id,completed_amount")
+        .select("id,completed_amount,actual_end_time,progress,content_id")
         .gte("plan_date", weekStartStr)
         .lte("plan_date", weekEndStr);
 
@@ -41,12 +42,17 @@ export async function getPlanCompletion(
     const planRows = (plans as Array<{
       id: string;
       completed_amount?: number | null;
+      actual_end_time?: string | null;
+      progress?: number | null;
+      content_id?: string | null;
     }> | null) ?? [];
 
-    const totalPlans = planRows.length;
-    const completedPlans = planRows.filter(
-      (p) => p.completed_amount !== null && p.completed_amount !== undefined && p.completed_amount > 0
-    ).length;
+    // 학습 플랜만 필터링 (더미 콘텐츠 제외)
+    const learningPlans = filterLearningPlans(planRows);
+
+    const totalPlans = learningPlans.length;
+    // 통일된 완료 기준 사용 (actual_end_time 또는 progress >= 100)
+    const completedPlans = learningPlans.filter((p) => isCompletedPlan(p)).length;
     const completionRate =
       totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
 
