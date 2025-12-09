@@ -1402,36 +1402,22 @@ async function _generatePlansFromGroup(
     if (insertError) {
       console.error("[planGroupActions] 일반 플랜 생성 실패", insertError);
 
-      // 중복 키 에러인 경우 더 자세한 정보 제공
+      // 중복 키 에러인 경우 (다른 UNIQUE 제약 조건이 있을 수 있음)
       if (insertError.code === "23505") {
-        // 중복된 플랜 찾기
-        const duplicateKey = insertError.message.match(/Key \(([^)]+)\)/)?.[1];
-        console.error("[planGroupActions] 중복 키:", duplicateKey);
-
-        // 중복된 플랜 조회 (Admin 클라이언트 사용)
-        const { data: duplicatePlanData } = await studentContentClient
-          .from("student_plan")
-          .select("id, plan_date, block_index, plan_group_id")
-          .eq("student_id", studentId)
-          .eq("plan_group_id", groupId) // ✅ 같은 플랜 그룹만 조회
-          .limit(10);
-
-        if (duplicatePlanData) {
-          console.error(
-            "[planGroupActions] 현재 존재하는 플랜 (일부):",
-            duplicatePlanData
-          );
-        }
+        // 제약 조건 이름 추출
+        const constraintMatch = insertError.message.match(/constraint "([^"]+)"/);
+        const constraintName = constraintMatch?.[1] || "unknown";
+        
+        console.error("[planGroupActions] 중복 키 제약 조건:", constraintName);
 
         throw new AppError(
-          `플랜 생성 중 중복 키 오류가 발생했습니다. 같은 날짜와 블록에 이미 플랜이 존재합니다. (키: ${duplicateKey})`,
+          `플랜 생성 중 중복 키 오류가 발생했습니다. 데이터베이스 제약 조건을 위반했습니다. (제약: ${constraintName})`,
           ErrorCode.DATABASE_ERROR,
           500,
           true,
           {
             supabaseError: insertError,
-            duplicateKey,
-            existingPlans: duplicatePlanData,
+            constraintName,
           }
         );
       }
