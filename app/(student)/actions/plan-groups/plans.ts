@@ -598,14 +598,8 @@ async function _generatePlansFromGroup(
     }
   >();
 
-  // 더미 UUID에 대한 기본값 추가 (비학습 항목 및 자율학습용)
+  // 더미 UUID에 대한 기본값 추가 (자율학습용)
   // 상수는 lib/constants/plan.ts에서 import
-  contentDurationMap.set(DUMMY_NON_LEARNING_CONTENT_ID, {
-    content_type: "custom",
-    content_id: DUMMY_NON_LEARNING_CONTENT_ID,
-    total_page_or_time: 0,
-  });
-
   contentDurationMap.set(DUMMY_SELF_STUDY_CONTENT_ID, {
     content_type: "custom",
     content_id: DUMMY_SELF_STUDY_CONTENT_ID,
@@ -910,9 +904,7 @@ async function _generatePlansFromGroup(
     } else if (content.content_type === "custom") {
       // 더미 UUID는 이미 처리했으므로 스킵
       if (
-        finalContentId === DUMMY_NON_LEARNING_CONTENT_ID ||
         finalContentId === DUMMY_SELF_STUDY_CONTENT_ID ||
-        content.content_id === DUMMY_NON_LEARNING_CONTENT_ID ||
         content.content_id === DUMMY_SELF_STUDY_CONTENT_ID
       ) {
         continue;
@@ -936,9 +928,7 @@ async function _generatePlansFromGroup(
         // 더미 UUID인 경우는 에러 발생하지 않음 (더미 content 생성 실패해도 계속 진행)
         // 일반 custom content가 존재하지 않으면 에러 발생
         if (
-          finalContentId !== DUMMY_NON_LEARNING_CONTENT_ID &&
           finalContentId !== DUMMY_SELF_STUDY_CONTENT_ID &&
-          content.content_id !== DUMMY_NON_LEARNING_CONTENT_ID &&
           content.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
         ) {
           throw new AppError(
@@ -1066,10 +1056,7 @@ async function _generatePlansFromGroup(
     pageOrTime: number
   ): Promise<string | null> => {
     // 더미 UUID는 chapter 조회 스킵
-    if (
-      contentId === DUMMY_NON_LEARNING_CONTENT_ID ||
-      contentId === DUMMY_SELF_STUDY_CONTENT_ID
-    ) {
+    if (contentId === DUMMY_SELF_STUDY_CONTENT_ID) {
       return null;
     }
 
@@ -1134,7 +1121,7 @@ async function _generatePlansFromGroup(
     return null;
   };
 
-  // 9. 기존 플랜 조회 (다른 플랜 그룹 포함) - block_index 조정을 위해
+  // 9. 기존 플랜 조회 (같은 플랜 그룹만) - block_index 조정을 위해
   const planDates = Array.from(new Set(scheduledPlans.map((p) => p.plan_date)));
 
   const { data: existingPlansForDates, error: existingPlansError } =
@@ -1142,6 +1129,7 @@ async function _generatePlansFromGroup(
       .from("student_plan")
       .select("plan_date, block_index")
       .eq("student_id", studentId)
+      .eq("plan_group_id", groupId) // ✅ 같은 플랜 그룹만 조회
       .in("plan_date", planDates);
 
   if (existingPlansError) {
@@ -1368,152 +1356,6 @@ async function _generatePlansFromGroup(
       nextBlockIndex++;
     }
 
-    // 비학습 항목 저장 (학원일정, 이동시간, 점심시간)
-    // time_slots에서 "학습시간"이 아닌 슬롯들을 플랜으로 저장
-    const nonStudySlots = timeSlotsForDate.filter(
-      (slot) => slot.type !== "학습시간"
-    );
-
-    for (const slot of nonStudySlots) {
-      // 기존 플랜과 겹치지 않는 block_index 찾기
-      while (usedIndices.has(nextBlockIndex)) {
-        nextBlockIndex++;
-      }
-
-      // 조정된 block_index를 사용 중인 목록에 추가
-      usedIndices.add(nextBlockIndex);
-      usedBlockIndicesByDate.set(date, usedIndices);
-
-      // content_type 결정
-      let contentType: "book" | "lecture" | "custom" = "custom";
-      let contentTitle: string;
-      let contentSubject: string | null = null;
-      let contentSubjectCategory: string | null = null;
-
-      // 비학습 항목을 위한 더미 custom content ID (모든 비학습 항목이 공유)
-      // 상수는 lib/constants/plan.ts에서 import
-
-      // 더미 custom content가 존재하는지 확인하고, 없으면 생성 (첫 번째 슬롯에서만)
-      // 주의: content_type은 스키마 제약 조건에 따라 'book', 'lecture', 'custom' 중 하나여야 함
-      if (nonStudySlots.indexOf(slot) === 0) {
-        const { data: existingDummyContent } = await supabase
-          .from("student_custom_contents")
-          .select("id")
-          .eq("id", DUMMY_NON_LEARNING_CONTENT_ID)
-          .eq("student_id", studentId)
-          .maybeSingle();
-
-        if (!existingDummyContent) {
-          // 더미 custom content 생성 시도
-          // content_type을 'custom'으로 설정 (스키마에서 허용하는 값)
-          const { error: createError } = await supabase
-            .from("student_custom_contents")
-            .insert({
-              id: DUMMY_NON_LEARNING_CONTENT_ID,
-              tenant_id: tenantContext.tenantId,
-              student_id: studentId,
-              title: "비학습 항목",
-              total_page_or_time: 0,
-              content_type: "custom",
-            });
-
-          if (createError) {
-            // 생성 실패 시 경고만 출력 (더미 content는 선택사항)
-            // contentDurationMap에 이미 기본값이 있으므로 플랜 생성은 계속 진행
-            console.warn(
-              "[planGroupActions] 더미 custom content 생성 실패 (무시됨):",
-              createError.message
-            );
-          }
-        }
-      }
-
-      if (slot.type === "학원일정") {
-        contentTitle = slot.label || "학원일정";
-        // 학원일정 정보에서 과목 정보 가져오기
-        const dailySchedule = scheduleResult.daily_schedule.find(
-          (d) => d.date === date
-        );
-        if (
-          dailySchedule?.academy_schedules &&
-          dailySchedule.academy_schedules.length > 0
-        ) {
-          // 같은 시간대의 학원일정 찾기
-          const matchingAcademy = dailySchedule.academy_schedules.find(
-            (academy) =>
-              academy.start_time === slot.start && academy.end_time === slot.end
-          );
-          if (matchingAcademy) {
-            contentTitle = matchingAcademy.academy_name || "학원일정";
-            if (matchingAcademy.subject) {
-              contentSubject = matchingAcademy.subject;
-            }
-          }
-        }
-      } else if (slot.type === "이동시간") {
-        contentTitle = "이동시간";
-      } else if (slot.type === "점심시간") {
-        contentTitle = "점심시간";
-      } else {
-        contentTitle = slot.label || slot.type;
-      }
-
-      // 주차별 일차(day) 계산 (위에서 이미 계산된 값 재사용)
-      let weekDay: number | null = null;
-      if (dateMetadata.week_number) {
-        if (group.scheduler_type === "1730_timetable") {
-          const weekDates = weekDatesMap.get(dateMetadata.week_number) || [];
-          const dayIndex = weekDates.indexOf(date);
-          if (dayIndex >= 0) {
-            weekDay = dayIndex + 1;
-          }
-        } else {
-          const start = new Date(group.period_start);
-          const current = new Date(date);
-          start.setHours(0, 0, 0, 0);
-          current.setHours(0, 0, 0, 0);
-          const diffTime = current.getTime() - start.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          weekDay = (diffDays % 7) + 1;
-        }
-      }
-
-      planPayloads.push({
-        tenant_id: tenantContext.tenantId,
-        student_id: studentId,
-        plan_group_id: groupId,
-        plan_date: date,
-        block_index: nextBlockIndex,
-        content_type: contentType,
-        content_id: DUMMY_NON_LEARNING_CONTENT_ID, // 비학습 항목은 더미 UUID 사용
-        chapter: null,
-        planned_start_page_or_time: 0, // 비학습 항목은 페이지/시간 없음
-        planned_end_page_or_time: 0,
-        is_reschedulable: false, // 비학습 항목은 재조정 불가
-        // Denormalized 필드
-        content_title: contentTitle,
-        content_subject: contentSubject,
-        content_subject_category: contentSubjectCategory,
-        content_category: slot.type, // 슬롯 타입을 category로 저장
-        // 시간 정보
-        start_time: slot.start,
-        end_time: slot.end,
-        // 날짜 유형 및 주차 정보
-        day_type: dateMetadata.day_type,
-        week: dateMetadata.week_number,
-        day: weekDay,
-        // 상태뱃지 정보 (비학습 항목은 없음)
-        is_partial: false,
-        is_continued: false,
-        // 플랜 번호 (비학습 항목은 null)
-        plan_number: null,
-        // 회차 (비학습 항목은 null)
-        sequence: null,
-      });
-
-      nextBlockIndex++;
-    }
-
     // 지정휴일의 경우 배정된 학습시간을 자율학습으로 저장
     // enable_self_study_for_holidays가 true일 때만 자율학습 시간 배정
     const enableSelfStudyForHolidays =
@@ -1628,12 +1470,10 @@ async function _generatePlansFromGroup(
   }
 
   // 12. chapter 정보가 없는 플랜들에 대해 배치로 조회 (중복 제거)
-  // 더미 UUID는 chapter 조회 스킵 (비학습 항목 및 자율학습)
+  // 더미 UUID는 chapter 조회 스킵 (자율학습)
   const plansNeedingChapter = planPayloads.filter(
     (p) =>
-      !p.chapter &&
-      p.content_id !== DUMMY_NON_LEARNING_CONTENT_ID &&
-      p.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
+      !p.chapter && p.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
   );
   if (plansNeedingChapter.length > 0) {
     // 같은 content_id + page_or_time 조합에 대해 중복 조회 방지
@@ -1690,16 +1530,12 @@ async function _generatePlansFromGroup(
   }
 
   // 플랜 일괄 생성
-  // 더미 UUID를 사용하는 플랜과 일반 플랜을 분리하여 처리
+  // 자율학습 플랜과 일반 플랜을 분리하여 처리
   const regularPlans = planPayloads.filter(
-    (p) =>
-      p.content_id !== DUMMY_NON_LEARNING_CONTENT_ID &&
-      p.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
+    (p) => p.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
   );
-  const dummyPlans = planPayloads.filter(
-    (p) =>
-      p.content_id === DUMMY_NON_LEARNING_CONTENT_ID ||
-      p.content_id === DUMMY_SELF_STUDY_CONTENT_ID
+  const selfStudyPlans = planPayloads.filter(
+    (p) => p.content_id === DUMMY_SELF_STUDY_CONTENT_ID
   );
 
   // 일반 플랜 먼저 저장
@@ -1722,6 +1558,7 @@ async function _generatePlansFromGroup(
           .from("student_plan")
           .select("id, plan_date, block_index, plan_group_id")
           .eq("student_id", studentId)
+          .eq("plan_group_id", groupId) // ✅ 같은 플랜 그룹만 조회
           .limit(10);
 
         if (duplicatePlanData) {
@@ -1732,7 +1569,7 @@ async function _generatePlansFromGroup(
         }
 
         throw new AppError(
-          `플랜 생성 중 중복 키 오류가 발생했습니다. 같은 날짜와 블록에 이미 플랜이 존재합니다. (키: ${duplicateKey}) 다른 플랜 그룹의 플랜과 충돌할 수 있습니다.`,
+          `플랜 생성 중 중복 키 오류가 발생했습니다. 같은 날짜와 블록에 이미 플랜이 존재합니다. (키: ${duplicateKey})`,
           ErrorCode.DATABASE_ERROR,
           500,
           true,
@@ -1754,30 +1591,18 @@ async function _generatePlansFromGroup(
     }
   }
 
-  // 더미 UUID를 사용하는 플랜 저장 (에러 발생해도 무시)
-  if (dummyPlans.length > 0) {
-    const { error: dummyInsertError } = await studentContentClient
+  // 자율학습 플랜 저장 (에러 발생해도 무시)
+  if (selfStudyPlans.length > 0) {
+    const { error: selfStudyInsertError } = await studentContentClient
       .from("student_plan")
-      .insert(dummyPlans);
+      .insert(selfStudyPlans);
 
-    if (dummyInsertError) {
-      // 더미 UUID 관련 에러는 무시 (데이터베이스 트리거/함수에서 검증 실패해도 계속 진행)
-      if (
-        dummyInsertError.code === "P0001" &&
-        dummyInsertError.message?.includes("Referenced custom content")
-      ) {
-        console.warn(
-          "[planGroupActions] 더미 UUID 플랜 저장 실패 (무시됨):",
-          dummyInsertError.message
-        );
-        // 더미 content 생성이 실패했어도 플랜은 저장 시도 (외래 키 제약 조건이 없을 수 있음)
-      } else {
-        // 다른 에러는 로그만 남기고 계속 진행 (비학습 항목은 선택사항)
-        console.warn(
-          "[planGroupActions] 더미 UUID 플랜 저장 실패 (무시됨):",
-          dummyInsertError.message
-        );
-      }
+    if (selfStudyInsertError) {
+      // 자율학습 플랜 저장 실패는 경고만 출력 (선택사항)
+      console.warn(
+        "[planGroupActions] 자율학습 플랜 저장 실패 (무시됨):",
+        selfStudyInsertError.message
+      );
     }
   }
 
@@ -1811,13 +1636,12 @@ async function _generatePlansFromGroup(
   // 15. 회차 계산 및 저장
   // 플랜 생성 후 같은 content_id를 가진 플랜들에 대해 회차 계산
   try {
-    // 생성된 플랜 조회 (일반 플랜만, 더미 플랜 제외)
+    // 생성된 플랜 조회 (일반 플랜만, 자율학습 플랜 제외)
     const { data: createdPlans, error: fetchError } = await supabase
       .from("student_plan")
       .select("id, plan_date, content_id, plan_number, block_index")
       .eq("plan_group_id", groupId)
       .eq("student_id", studentId)
-      .not("content_id", "eq", DUMMY_NON_LEARNING_CONTENT_ID)
       .not("content_id", "eq", DUMMY_SELF_STUDY_CONTENT_ID)
       .order("plan_date", { ascending: true })
       .order("block_index", { ascending: true });
@@ -2254,14 +2078,8 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       }
     >();
 
-    // 더미 UUID에 대한 기본값 추가 (비학습 항목 및 자율학습용)
+    // 더미 UUID에 대한 기본값 추가 (자율학습용)
     // 상수는 lib/constants/plan.ts에서 import
-    contentDurationMap.set(DUMMY_NON_LEARNING_CONTENT_ID, {
-      content_type: "custom",
-      content_id: DUMMY_NON_LEARNING_CONTENT_ID,
-      total_page_or_time: 0,
-    });
-
     contentDurationMap.set(DUMMY_SELF_STUDY_CONTENT_ID, {
       content_type: "custom",
       content_id: DUMMY_SELF_STUDY_CONTENT_ID,
@@ -2337,9 +2155,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       } else if (content.content_type === "custom") {
         // 더미 UUID는 이미 처리했으므로 스킵
         if (
-          finalContentId === DUMMY_NON_LEARNING_CONTENT_ID ||
           finalContentId === DUMMY_SELF_STUDY_CONTENT_ID ||
-          content.content_id === DUMMY_NON_LEARNING_CONTENT_ID ||
           content.content_id === DUMMY_SELF_STUDY_CONTENT_ID
         ) {
           continue;
@@ -2363,9 +2179,7 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           // 더미 UUID인 경우는 에러 발생하지 않음 (더미 content 생성 실패해도 계속 진행)
           // 일반 custom content가 존재하지 않으면 에러 발생
           if (
-            finalContentId !== DUMMY_NON_LEARNING_CONTENT_ID &&
             finalContentId !== DUMMY_SELF_STUDY_CONTENT_ID &&
-            content.content_id !== DUMMY_NON_LEARNING_CONTENT_ID &&
             content.content_id !== DUMMY_SELF_STUDY_CONTENT_ID
           ) {
             throw new AppError(
@@ -2922,90 +2736,6 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
           is_partial: segment.isPartial,
           is_continued: segment.isContinued,
           plan_number: planNumber,
-        });
-
-        blockIndex++;
-      }
-
-      // 비학습 항목 저장 (학원일정, 이동시간, 점심시간, 자율학습)
-      // 자율학습은 일반 학습일/복습일의 경우 time_slots에 포함되므로 여기서도 처리
-      const nonStudySlots = timeSlotsForDate.filter(
-        (slot) => slot.type !== "학습시간"
-      );
-
-      for (const slot of nonStudySlots) {
-        let contentTitle: string;
-        let contentSubject: string | null = null;
-
-        if (slot.type === "학원일정") {
-          contentTitle = slot.label || "학원일정";
-          const dailySchedule = scheduleResult.daily_schedule.find(
-            (d) => d.date === date
-          );
-          if (
-            dailySchedule?.academy_schedules &&
-            dailySchedule.academy_schedules.length > 0
-          ) {
-            const matchingAcademy = dailySchedule.academy_schedules.find(
-              (academy) =>
-                academy.start_time === slot.start &&
-                academy.end_time === slot.end
-            );
-            if (matchingAcademy) {
-              contentTitle = matchingAcademy.academy_name || "학원일정";
-              if (matchingAcademy.subject) {
-                contentSubject = matchingAcademy.subject;
-              }
-            }
-          }
-        } else if (slot.type === "이동시간") {
-          contentTitle = "이동시간";
-        } else if (slot.type === "점심시간") {
-          contentTitle = "점심시간";
-        } else {
-          contentTitle = slot.label || slot.type;
-        }
-
-        // 주차별 일차(day) 계산
-        let weekDay: number | null = null;
-        if (dateMetadata.week_number) {
-          if (group.scheduler_type === "1730_timetable") {
-            const weekDates = weekDatesMap.get(dateMetadata.week_number) || [];
-            const dayIndex = weekDates.indexOf(date);
-            if (dayIndex >= 0) {
-              weekDay = dayIndex + 1;
-            }
-          } else {
-            const start = new Date(group.period_start);
-            const current = new Date(date);
-            start.setHours(0, 0, 0, 0);
-            current.setHours(0, 0, 0, 0);
-            const diffTime = current.getTime() - start.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            weekDay = (diffDays % 7) + 1;
-          }
-        }
-
-        previewPlans.push({
-          plan_date: date,
-          block_index: blockIndex,
-          content_type: "custom",
-          content_id: DUMMY_NON_LEARNING_CONTENT_ID, // 비학습 항목은 더미 UUID 사용
-          content_title: contentTitle,
-          content_subject: contentSubject,
-          content_subject_category: null,
-          content_category: slot.type,
-          planned_start_page_or_time: 0,
-          planned_end_page_or_time: 0,
-          chapter: null,
-          start_time: slot.start,
-          end_time: slot.end,
-          day_type: dateMetadata.day_type,
-          week: dateMetadata.week_number,
-          day: weekDay,
-          is_partial: false,
-          is_continued: false,
-          plan_number: null,
         });
 
         blockIndex++;
