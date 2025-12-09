@@ -1006,28 +1006,67 @@ async function _generatePlansFromGroup(
     );
   }
 
-  // 삭제 확인
+  // 삭제 확인 및 강화된 재삭제 로직
   if (existingPlans && existingPlans.length > 0) {
-    // 삭제 확인: 실제로 삭제되었는지 재확인
-    const { data: verifyPlans, error: verifyError } = await supabase
+    // 최대 3번까지 재시도
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      // 삭제 확인: 실제로 삭제되었는지 재확인
+      const { data: verifyPlans, error: verifyError } = await supabase
+        .from("student_plan")
+        .select("id")
+        .eq("plan_group_id", groupId)
+        .eq("student_id", studentId)
+        .limit(1);
+
+      if (verifyError) {
+        console.error("[planGroupActions] 삭제 확인 실패", verifyError);
+        break;
+      }
+      
+      if (!verifyPlans || verifyPlans.length === 0) {
+        // 삭제 완료
+        break;
+      }
+      
+      // 아직 플랜이 남아있으면 재삭제 시도
+      console.warn(
+        `[planGroupActions] 경고: ${verifyPlans.length}개의 플랜이 아직 남아있습니다. 재삭제 시도 ${retryCount + 1}/${maxRetries}...`
+      );
+      
+      const { error: retryDeleteError } = await supabase
+        .from("student_plan")
+        .delete()
+        .eq("plan_group_id", groupId)
+        .eq("student_id", studentId);
+      
+      if (retryDeleteError) {
+        console.error("[planGroupActions] 재삭제 실패", retryDeleteError);
+        break;
+      }
+      
+      retryCount++;
+      
+      // 마지막 재시도 전에 짧은 대기 (트랜잭션 타이밍 이슈 대응)
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    // 최종 확인
+    const { data: finalVerifyPlans } = await supabase
       .from("student_plan")
       .select("id")
       .eq("plan_group_id", groupId)
       .eq("student_id", studentId)
       .limit(1);
-
-    if (verifyError) {
-      console.error("[planGroupActions] 삭제 확인 실패", verifyError);
-    } else if (verifyPlans && verifyPlans.length > 0) {
-      console.warn(
-        `[planGroupActions] 경고: ${verifyPlans.length}개의 플랜이 아직 남아있습니다. 재삭제 시도...`
+    
+    if (finalVerifyPlans && finalVerifyPlans.length > 0) {
+      console.error(
+        `[planGroupActions] 경고: 최종 확인 시에도 ${finalVerifyPlans.length}개의 플랜이 남아있습니다.`
       );
-      // 재삭제 시도
-      await supabase
-        .from("student_plan")
-        .delete()
-        .eq("plan_group_id", groupId)
-        .eq("student_id", studentId);
     }
   }
 
@@ -1395,6 +1434,48 @@ async function _generatePlansFromGroup(
 
   // 플랜 일괄 생성
   if (planPayloads.length > 0) {
+    // 삽입 전 중복 체크: 같은 student_id, plan_date, block_index 조합의 플랜이 있는지 확인
+    const planKeys = planPayloads.map(p => ({
+      student_id: p.student_id,
+      plan_date: p.plan_date,
+      block_index: p.block_index,
+    }));
+    
+    // 중복 가능한 플랜 조회
+    const duplicateCheckPromises = planKeys.map(async (key) => {
+      const { data: existing } = await studentContentClient
+        .from("student_plan")
+        .select("id")
+        .eq("student_id", key.student_id)
+        .eq("plan_date", key.plan_date)
+        .eq("block_index", key.block_index)
+        .limit(1);
+      
+      return existing && existing.length > 0 ? existing[0].id : null;
+    });
+    
+    const duplicatePlanIds = (await Promise.all(duplicateCheckPromises))
+      .filter((id): id is string => id !== null);
+    
+    // 중복 플랜이 있으면 삭제
+    if (duplicatePlanIds.length > 0) {
+      console.warn(
+        `[planGroupActions] 삽입 전 중복 플랜 ${duplicatePlanIds.length}개 발견. 삭제 후 재시도...`
+      );
+      
+      const { error: deleteDuplicateError } = await studentContentClient
+        .from("student_plan")
+        .delete()
+        .in("id", duplicatePlanIds);
+      
+      if (deleteDuplicateError) {
+        console.error(
+          "[planGroupActions] 중복 플랜 삭제 실패",
+          deleteDuplicateError
+        );
+      }
+    }
+    
     const { error: insertError } = await studentContentClient
       .from("student_plan")
       .insert(planPayloads);
@@ -1409,26 +1490,101 @@ async function _generatePlansFromGroup(
         const constraintName = constraintMatch?.[1] || "unknown";
         
         console.error("[planGroupActions] 중복 키 제약 조건:", constraintName);
-
+        
+        // student_plan_unique 제약 조건인 경우, 중복 플랜을 찾아서 삭제 후 재시도
+        if (constraintName === "student_plan_unique" || constraintName.includes("student_plan")) {
+          console.warn(
+            "[planGroupActions] student_plan_unique 제약 조건 위반. 중복 플랜 삭제 후 재시도..."
+          );
+          
+          // 중복 플랜 찾기 및 삭제
+          const duplicateDeletePromises = planKeys.map(async (key) => {
+            const { data: duplicates } = await studentContentClient
+              .from("student_plan")
+              .select("id")
+              .eq("student_id", key.student_id)
+              .eq("plan_date", key.plan_date)
+              .eq("block_index", key.block_index);
+            
+            return duplicates?.map(d => d.id) || [];
+          });
+          
+          const allDuplicateIds = (await Promise.all(duplicateDeletePromises))
+            .flat()
+            .filter((id, index, self) => self.indexOf(id) === index); // 중복 제거
+          
+          if (allDuplicateIds.length > 0) {
+            const { error: deleteError } = await studentContentClient
+              .from("student_plan")
+              .delete()
+              .in("id", allDuplicateIds);
+            
+            if (!deleteError) {
+              // 재시도
+              const { error: retryInsertError } = await studentContentClient
+                .from("student_plan")
+                .insert(planPayloads);
+              
+              if (!retryInsertError) {
+                console.log("[planGroupActions] 중복 플랜 삭제 후 재시도 성공");
+                // 성공적으로 삽입됨 - 함수 계속 진행 (count 반환)
+              } else {
+                throw new AppError(
+                  `플랜 생성 중 중복 키 오류가 발생했습니다. 재시도 후에도 실패했습니다. (제약: ${constraintName})`,
+                  ErrorCode.DATABASE_ERROR,
+                  500,
+                  true,
+                  {
+                    supabaseError: retryInsertError,
+                    constraintName,
+                  }
+                );
+              }
+            } else {
+              throw new AppError(
+                `플랜 생성 중 중복 키 오류가 발생했습니다. 중복 플랜 삭제에 실패했습니다. (제약: ${constraintName})`,
+                ErrorCode.DATABASE_ERROR,
+                500,
+                true,
+                {
+                  supabaseError: deleteError,
+                  constraintName,
+                }
+              );
+            }
+          } else {
+            throw new AppError(
+              `플랜 생성 중 중복 키 오류가 발생했습니다. 데이터베이스 제약 조건을 위반했습니다. (제약: ${constraintName})`,
+              ErrorCode.DATABASE_ERROR,
+              500,
+              true,
+              {
+                supabaseError: insertError,
+                constraintName,
+              }
+            );
+          }
+        } else {
+          throw new AppError(
+            `플랜 생성 중 중복 키 오류가 발생했습니다. 데이터베이스 제약 조건을 위반했습니다. (제약: ${constraintName})`,
+            ErrorCode.DATABASE_ERROR,
+            500,
+            true,
+            {
+              supabaseError: insertError,
+              constraintName,
+            }
+          );
+        }
+      } else {
         throw new AppError(
-          `플랜 생성 중 중복 키 오류가 발생했습니다. 데이터베이스 제약 조건을 위반했습니다. (제약: ${constraintName})`,
+          insertError.message || "플랜 생성에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,
           500,
           true,
-          {
-            supabaseError: insertError,
-            constraintName,
-          }
+          { supabaseError: insertError }
         );
       }
-
-      throw new AppError(
-        insertError.message || "플랜 생성에 실패했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true,
-        { supabaseError: insertError }
-      );
     }
   }
 
