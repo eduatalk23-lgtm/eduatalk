@@ -133,15 +133,25 @@ export function calculateStudyReviewCycle(
  * 우선순위:
  * 1. content_allocations (콘텐츠별 설정)
  * 2. subject_allocations (교과별 설정)
+ *    - subject_id로 매칭 (가장 정확)
+ *    - subject_name과 subject_category 정확 일치
+ *    - subject_name에 subject_category가 포함되는지 확인 (부분 매칭)
+ *    - subject 필드도 매칭 조건에 포함
  * 3. 기본값 (취약과목)
  * 
- * @param content - 콘텐츠 정보 (content_type, content_id, subject_category 포함)
+ * @param content - 콘텐츠 정보 (content_type, content_id, subject_category, subject, subject_id 포함)
  * @param contentAllocations - 콘텐츠별 설정 (선택사항)
  * @param subjectAllocations - 교과별 설정 (선택사항)
  * @returns 전략/취약 설정 및 주당 배정 일수
  */
 export function getContentAllocation(
-  content: { content_type: string; content_id: string; subject_category?: string },
+  content: { 
+    content_type: string; 
+    content_id: string; 
+    subject_category?: string;
+    subject?: string | null;
+    subject_id?: string;
+  },
   contentAllocations?: Array<{
     content_type: string;
     content_id: string;
@@ -149,6 +159,7 @@ export function getContentAllocation(
     weekly_days?: number;
   }>,
   subjectAllocations?: Array<{
+    subject_id?: string;
     subject_name: string;
     subject_type: "strategy" | "weakness";
     weekly_days?: number;
@@ -169,15 +180,57 @@ export function getContentAllocation(
   }
   
   // 2순위: 교과별 설정 (폴백)
-  if (subjectAllocations && content.subject_category) {
-    const subjectAlloc = subjectAllocations.find(
-      a => a.subject_name === content.subject_category
-    );
-    if (subjectAlloc) {
-      return {
-        subject_type: subjectAlloc.subject_type,
-        weekly_days: subjectAlloc.weekly_days
-      };
+  if (subjectAllocations) {
+    // 2-1: subject_id로 매칭 (가장 정확)
+    if (content.subject_id) {
+      const subjectAlloc = subjectAllocations.find(
+        a => a.subject_id === content.subject_id
+      );
+      if (subjectAlloc) {
+        return {
+          subject_type: subjectAlloc.subject_type,
+          weekly_days: subjectAlloc.weekly_days
+        };
+      }
+    }
+    
+    // 2-2: subject_name과 subject_category 정확 일치
+    if (content.subject_category) {
+      const subjectAlloc = subjectAllocations.find(
+        a => a.subject_name === content.subject_category
+      );
+      if (subjectAlloc) {
+        return {
+          subject_type: subjectAlloc.subject_type,
+          weekly_days: subjectAlloc.weekly_days
+        };
+      }
+    }
+    
+    // 2-3: subject_name에 subject_category가 포함되는지 확인 (부분 매칭)
+    if (content.subject_category) {
+      const subjectAlloc = subjectAllocations.find(
+        a => a.subject_name.includes(content.subject_category!)
+      );
+      if (subjectAlloc) {
+        return {
+          subject_type: subjectAlloc.subject_type,
+          weekly_days: subjectAlloc.weekly_days
+        };
+      }
+    }
+    
+    // 2-4: subject 필드도 매칭 조건에 포함
+    if (content.subject) {
+      const subjectAlloc = subjectAllocations.find(
+        a => a.subject_name === content.subject || a.subject_name.includes(content.subject)
+      );
+      if (subjectAlloc) {
+        return {
+          subject_type: subjectAlloc.subject_type,
+          weekly_days: subjectAlloc.weekly_days
+        };
+      }
     }
   }
   

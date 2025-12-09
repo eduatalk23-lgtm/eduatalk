@@ -865,6 +865,7 @@ function generate1730TimetablePlans(
         content_type: content.content_type,
         content_id: content.content_id,
         subject_category: content.subject_category || undefined,
+        subject: content.subject || undefined,
       },
       contentAllocations,
       subjectAllocations
