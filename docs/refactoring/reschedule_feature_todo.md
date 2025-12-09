@@ -32,9 +32,9 @@
 
 ### 1.1 플랜 상태 도메인 명확화
 
-#### [R1-1] student_plan 상태 컬럼 추가/정리
+#### [R1-1] student_plan 상태 컬럼 추가/정리 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_add_student_plan_status.sql`
+- **파일**: `supabase/migrations/20251209211447_add_student_plan_status.sql` ✅
 - **작업**:
   ```sql
   -- 상태 컬럼 추가 (기존 데이터 마이그레이션 포함)
@@ -57,9 +57,9 @@
   - [ ] 기존 플랜 상태가 올바르게 마이그레이션되는지 확인
   - [ ] 새 플랜 생성 시 기본 상태 'pending' 확인
 
-#### [R1-2] 상태 관련 헬퍼 함수 추가
+#### [R1-2] 상태 관련 헬퍼 함수 추가 ✅
 
-- **파일**: `lib/utils/planStatusUtils.ts` (신규)
+- **파일**: `lib/utils/planStatusUtils.ts` (신규) ✅
 - **작업**:
   ```typescript
   // 상태 정의
@@ -78,9 +78,9 @@
 - **테스트**:
   - [ ] 각 상태별 헬퍼 함수 동작 확인
 
-#### [R1-3] 요구사항 문서에 상태 정의 명시
+#### [R1-3] 요구사항 문서에 상태 정의 명시 ✅
 
-- **파일**: `docs/refactoring/reschedule_status_policy.md` (신규)
+- **파일**: `docs/refactoring/reschedule_status_policy.md` (신규) ✅
 - **작업**:
   - 완료 플랜 정의: `status = 'completed'`
   - 재조정 대상: `status IN ('pending', 'in_progress') AND is_active = true`
@@ -91,9 +91,9 @@
 
 ### 1.2 히스토리·로그 구조 연결
 
-#### [R1-4] plan_history 테이블 생성
+#### [R1-4] plan_history 테이블 생성 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_create_plan_history.sql`
+- **파일**: `supabase/migrations/20251209211500_create_plan_history_and_reschedule_log.sql` ✅
 - **작업**:
   ```sql
   CREATE TABLE IF NOT EXISTS plan_history (
@@ -115,9 +115,9 @@
   ```
 - **위험도**: 🟢 낮음 (신규 테이블)
 
-#### [R1-5] reschedule_log 테이블 생성
+#### [R1-5] reschedule_log 테이블 생성 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_create_reschedule_log.sql`
+- **파일**: `supabase/migrations/20251209211500_create_plan_history_and_reschedule_log.sql` ✅
 - **작업**:
   ```sql
   CREATE TABLE IF NOT EXISTS reschedule_log (
@@ -141,9 +141,9 @@
   ```
 - **위험도**: 🟢 낮음 (신규 테이블)
 
-#### [R1-6] plan_history ↔ reschedule_log FK 연결
+#### [R1-6] plan_history ↔ reschedule_log FK 연결 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_add_plan_history_fk.sql`
+- **파일**: `supabase/migrations/20251209211500_create_plan_history_and_reschedule_log.sql` ✅
 - **작업**:
   ```sql
   ALTER TABLE plan_history
@@ -158,9 +158,9 @@
 
 ### 1.3 기본 트랜잭션·락 구조 구현
 
-#### [R1-7] 플랜 그룹 단위 Advisory Lock 유틸
+#### [R1-7] 플랜 그룹 단위 Advisory Lock 유틸 ✅
 
-- **파일**: `lib/utils/planGroupLock.ts` (신규)
+- **파일**: `lib/utils/planGroupLock.ts` (신규) ✅
 - **작업**:
   ```typescript
   // Advisory Lock 획득 (트랜잭션 내에서만 유효)
@@ -176,9 +176,9 @@
 - **테스트**:
   - [ ] 동일 그룹에 대한 동시 재조정 요청 시 하나만 처리되는지 확인
 
-#### [R1-8] 재조정 트랜잭션 래퍼 함수
+#### [R1-8] 재조정 트랜잭션 래퍼 함수 ✅
 
-- **파일**: `lib/reschedule/transaction.ts` (신규)
+- **파일**: `lib/reschedule/transaction.ts` (신규) ✅
 - **작업**:
   ```typescript
   export async function executeRescheduleTransaction<T>(

@@ -135,7 +135,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
         </div>
       )}
 
-      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="flex flex-col gap-4">
         {groups.map((group) => {
           const planCount = planCounts.get(group.id) || 0;
           const hasPlans = planCount > 0;

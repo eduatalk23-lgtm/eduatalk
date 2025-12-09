@@ -130,11 +130,9 @@ export function PlanGroupListItem({
     router.push(`/plan/group/${group.id}`, { scroll: true });
   };
 
-  // 표시할 상태 결정 (완료 또는 활성 상태만)
+  // 표시할 상태 결정 (완료 상태만)
   const displayStatus = isCompleted
     ? { label: "완료", variant: "success" as const }
-    : isActive
-    ? { label: "활성", variant: "success" as const }
     : null;
 
   return (
@@ -185,12 +183,6 @@ export function PlanGroupListItem({
               {hasPlans && planCount > 0 && (
                 <Badge variant="info" size="sm">
                   플랜 생성 완료
-                </Badge>
-              )}
-              {/* 상태 뱃지 (완료 또는 활성 상태만 표시) */}
-              {displayStatus && (
-                <Badge variant={displayStatus.variant} size="sm">
-                  {displayStatus.label}
                 </Badge>
               )}
             </div>
@@ -288,12 +280,21 @@ export function PlanGroupListItem({
           </div>
         </div>
 
-        {/* 콘텐츠 영역 */}
-        <div className="flex flex-col gap-3">
-          {/* 제목 */}
+        {/* 제목 영역: 제목 (좌측) + 상태 뱃지 (우측) */}
+        <div className="flex items-center justify-between gap-3">
           <h3 className="break-words text-base font-semibold text-gray-900">
             {group.name || "플랜 그룹"}
           </h3>
+          {/* 상태 뱃지 (완료 또는 활성 상태만 표시) */}
+          {displayStatus && (
+            <Badge variant={displayStatus.variant} size="sm">
+              {displayStatus.label}
+            </Badge>
+          )}
+        </div>
+
+        {/* 콘텐츠 영역 */}
+        <div className="flex flex-col gap-3">
 
           <div className="flex flex-col gap-3">
             {/* 진행률 */}
