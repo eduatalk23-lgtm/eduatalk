@@ -57,14 +57,14 @@ export type ScheduleSummary = {
     개인사정: number;
     지정휴일: number;
   };
-    academy_statistics: {
+  academy_statistics: {
       total_academy_schedules: number; // 학원 단위 일정 수 (고유 요일 기준)
-      unique_academies: number; // 고유 학원 수
-      total_academy_hours: number; // 총 학원 수업 시간
-      total_travel_hours: number; // 총 이동시간
-      average_travel_time: number; // 평균 이동시간 (분)
-      academy_groups: AcademyGroup[]; // 학원별 그룹화 정보
-    };
+    unique_academies: number; // 고유 학원 수
+    total_academy_hours: number; // 총 학원 수업 시간
+    total_travel_hours: number; // 총 이동시간
+    average_travel_time: number; // 평균 이동시간 (분)
+    academy_groups: AcademyGroup[]; // 학원별 그룹화 정보
+  };
   camp_period: {
     start_date: string;
     end_date: string;
@@ -351,7 +351,6 @@ function groupAcademySchedules(
         days_of_week: new Set(),
         time_ranges: new Map(),
         travel_time: schedule.travel_time || 60,
-        total_count: 0,
         total_academy_minutes: 0,
         total_travel_minutes: 0,
       });
@@ -406,14 +405,14 @@ function groupAcademySchedules(
     const subjectList = Array.from(group.subjects).join(", ");
     
     return {
-      academy_name: group.academy_name,
+    academy_name: group.academy_name,
       subject: subjectList || "", // 여러 과목을 쉼표로 구분
       days_of_week: uniqueDays.sort(),
       time_range: timeRange,
-      travel_time: group.travel_time,
+    travel_time: group.travel_time,
       total_count: totalCount,
-      total_academy_hours: group.total_academy_minutes / 60,
-      total_travel_hours: group.total_travel_minutes / 60,
+    total_academy_hours: group.total_academy_minutes / 60,
+    total_travel_hours: group.total_travel_minutes / 60,
     };
   });
 }
