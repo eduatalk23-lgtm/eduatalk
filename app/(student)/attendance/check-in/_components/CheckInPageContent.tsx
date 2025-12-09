@@ -93,8 +93,8 @@ export function CheckInPageContent({
     );
   }
 
-  const hasCheckedIn = attendance?.check_in_time !== null;
-  const hasCheckedOut = attendance?.check_out_time !== null;
+  const hasCheckedIn = attendance != null && attendance.check_in_time !== null;
+  const hasCheckedOut = attendance != null && attendance.check_out_time !== null;
 
   return (
     <div className="p-6 md:p-10">
