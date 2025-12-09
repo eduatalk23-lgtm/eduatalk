@@ -37,15 +37,20 @@ CREATE TRIGGER update_plan_groups_updated_at
 COMMENT ON TRIGGER update_plan_groups_updated_at ON plan_groups IS 
 'Automatically updates updated_at timestamp on row update';
 
--- 1-4. plan_group_contents 테이블에 트리거 적용
-DROP TRIGGER IF EXISTS update_plan_group_contents_updated_at ON plan_group_contents;
-CREATE TRIGGER update_plan_group_contents_updated_at
-  BEFORE UPDATE ON plan_group_contents
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
-COMMENT ON TRIGGER update_plan_group_contents_updated_at ON plan_group_contents IS 
-'Automatically updates updated_at timestamp on row update';
+-- 1-4. plan_group_contents 테이블에 트리거 적용 (테이블이 존재하는 경우에만)
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'plan_group_contents') THEN
+    DROP TRIGGER IF EXISTS update_plan_group_contents_updated_at ON plan_group_contents;
+    CREATE TRIGGER update_plan_group_contents_updated_at
+      BEFORE UPDATE ON plan_group_contents
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+    
+    COMMENT ON TRIGGER update_plan_group_contents_updated_at ON plan_group_contents IS 
+    'Automatically updates updated_at timestamp on row update';
+  END IF;
+END $$;
 
 -- ============================================
 -- Part 2: student_plan RLS 정책
@@ -161,51 +166,56 @@ CREATE POLICY "plan_groups_admin_all" ON plan_groups
   );
 
 -- ============================================
--- Part 4: plan_group_contents RLS 정책
+-- Part 4: plan_group_contents RLS 정책 (테이블이 존재하는 경우에만)
 -- ============================================
 
--- 4-1. RLS 활성화
-ALTER TABLE plan_group_contents ENABLE ROW LEVEL SECURITY;
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'plan_group_contents') THEN
+    -- 4-1. RLS 활성화
+    ALTER TABLE plan_group_contents ENABLE ROW LEVEL SECURITY;
 
--- 4-2. 기존 정책 삭제 (있는 경우)
-DROP POLICY IF EXISTS "plan_group_contents_student_all" ON plan_group_contents;
-DROP POLICY IF EXISTS "plan_group_contents_admin_all" ON plan_group_contents;
+    -- 4-2. 기존 정책 삭제 (있는 경우)
+    DROP POLICY IF EXISTS "plan_group_contents_student_all" ON plan_group_contents;
+    DROP POLICY IF EXISTS "plan_group_contents_admin_all" ON plan_group_contents;
 
--- 4-3. 학생 정책: 자신의 플랜 그룹에 속한 콘텐츠만 접근 가능
-CREATE POLICY "plan_group_contents_student_all" ON plan_group_contents
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM plan_groups
-      WHERE plan_groups.id = plan_group_contents.plan_group_id
-      AND plan_groups.student_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM plan_groups
-      WHERE plan_groups.id = plan_group_contents.plan_group_id
-      AND plan_groups.student_id = auth.uid()
-    )
-  );
+    -- 4-3. 학생 정책: 자신의 플랜 그룹에 속한 콘텐츠만 접근 가능
+    CREATE POLICY "plan_group_contents_student_all" ON plan_group_contents
+      FOR ALL
+      USING (
+        EXISTS (
+          SELECT 1 FROM plan_groups
+          WHERE plan_groups.id = plan_group_contents.plan_group_id
+          AND plan_groups.student_id = auth.uid()
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM plan_groups
+          WHERE plan_groups.id = plan_group_contents.plan_group_id
+          AND plan_groups.student_id = auth.uid()
+        )
+      );
 
--- 4-4. 관리자/컨설턴트 정책: 같은 테넌트 내 모든 콘텐츠 접근 가능
-CREATE POLICY "plan_group_contents_admin_all" ON plan_group_contents
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM admin_users
-      WHERE admin_users.id = auth.uid()
-      AND admin_users.tenant_id = plan_group_contents.tenant_id
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM admin_users
-      WHERE admin_users.id = auth.uid()
-      AND admin_users.tenant_id = plan_group_contents.tenant_id
-    )
-  );
+    -- 4-4. 관리자/컨설턴트 정책: 같은 테넌트 내 모든 콘텐츠 접근 가능
+    CREATE POLICY "plan_group_contents_admin_all" ON plan_group_contents
+      FOR ALL
+      USING (
+        EXISTS (
+          SELECT 1 FROM admin_users
+          WHERE admin_users.id = auth.uid()
+          AND admin_users.tenant_id = plan_group_contents.tenant_id
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM admin_users
+          WHERE admin_users.id = auth.uid()
+          AND admin_users.tenant_id = plan_group_contents.tenant_id
+        )
+      );
+  END IF;
+END $$;
 
 -- ============================================
 -- Part 5: 인덱스 및 주석
