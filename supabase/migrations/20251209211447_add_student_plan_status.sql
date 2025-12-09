@@ -5,6 +5,18 @@
 -- Refs: docs/refactoring/reschedule_feature_todo.md [R1-1]
 -- ============================================
 
+-- is_active 컬럼 추가 (없는 경우)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'student_plan' AND column_name = 'is_active'
+  ) THEN
+    ALTER TABLE student_plan 
+    ADD COLUMN is_active BOOLEAN DEFAULT true;
+  END IF;
+END $$;
+
 -- 상태 컬럼 추가 (기존 데이터 마이그레이션 포함)
 ALTER TABLE student_plan
   ADD COLUMN IF NOT EXISTS status TEXT
