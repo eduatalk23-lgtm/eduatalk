@@ -215,13 +215,18 @@ export function calculateSubjectAllocationDates(
       }
     }
 
-    // 각 주차에서 주당 배정 일수만큼 선택
+    // 각 주차에서 주당 배정 일수만큼 균등하게 선택
     for (const [_, weekDates] of weeks.entries()) {
-      const step = Math.ceil(weekDates.length / weeklyDays);
-      for (let i = 0; i < weekDates.length; i += step) {
-        if (allocatedDates.length < studyDates.length) {
-          allocatedDates.push(weekDates[i]);
-        }
+      const selectedCount = Math.min(weeklyDays, weekDates.length);
+      if (selectedCount === 0) continue;
+      
+      // 균등하게 분배하기 위한 간격 계산
+      const step = weekDates.length / selectedCount;
+      
+      for (let i = 0; i < selectedCount; i++) {
+        // 중간값을 사용하여 더 균등하게 분배
+        const index = Math.floor((i + 0.5) * step);
+        allocatedDates.push(weekDates[index]);
       }
     }
 

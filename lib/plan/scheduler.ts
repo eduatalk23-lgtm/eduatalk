@@ -820,6 +820,15 @@ function generate1730TimetablePlans(
   const subjectAllocations = options?.subject_allocations;
   const contentAllocations = options?.content_allocations;
 
+  console.log("[generate1730TimetablePlans] 전략과목/취약과목 설정:", {
+    hasSubjectAllocations: !!subjectAllocations,
+    subjectAllocationsCount: subjectAllocations?.length || 0,
+    hasContentAllocations: !!contentAllocations,
+    contentAllocationsCount: contentAllocations?.length || 0,
+    subjectAllocations: subjectAllocations,
+    contentAllocations: contentAllocations,
+  });
+
   // 학습일/복습일 주기 정보 생성
   const periodStart = dates[0];
   const periodEnd = dates[dates.length - 1];
@@ -861,6 +870,14 @@ function generate1730TimetablePlans(
       subjectAllocations
     );
 
+    console.log("[generate1730TimetablePlans] 콘텐츠 배정 설정:", {
+      content_id: content.content_id,
+      content_type: content.content_type,
+      subject: content.subject,
+      subject_category: content.subject_category,
+      allocation,
+    });
+
     // SubjectAllocation 형식으로 변환
     const subjectAlloc = {
       subject_id: content.content_id, // 임시 ID
@@ -873,6 +890,17 @@ function generate1730TimetablePlans(
       cycleDays,
       subjectAlloc
     );
+
+    const totalStudyDates = cycleDays.filter((d) => d.day_type === "study").length;
+    console.log("[generate1730TimetablePlans] 배정 날짜 계산 결과:", {
+      content_id: content.content_id,
+      subject_type: allocation.subject_type,
+      weekly_days: allocation.weekly_days,
+      allocatedDatesCount: allocatedDates.length,
+      totalStudyDatesCount: totalStudyDates,
+      allocatedDates: allocatedDates.slice(0, 10), // 처음 10개만
+    });
+
     contentAllocationMap.set(content.content_id, allocatedDates);
   });
 
