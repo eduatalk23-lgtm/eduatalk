@@ -131,52 +131,38 @@
 
 #### 2.1 plan_group_items 테이블 도입
 
-- [ ] **[P2-1]** `plan_group_items` 테이블 마이그레이션
+- [x] **[P2-1]** `plan_group_items` 테이블 마이그레이션 ✅ (2025-12-09)
 
-  - 파일: `supabase/migrations/20251210000001_create_plan_group_items.sql`
-  - 스키마:
-    ```sql
-    CREATE TABLE plan_group_items (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      tenant_id uuid NOT NULL REFERENCES tenants(id),
-      plan_group_id uuid NOT NULL REFERENCES plan_groups(id) ON DELETE CASCADE,
-      content_type text NOT NULL CHECK (content_type IN ('book', 'lecture', 'custom')),
-      content_id uuid NOT NULL,
-      target_start_page_or_time integer,
-      target_end_page_or_time integer,
-      repeat_count integer DEFAULT 1,
-      is_review boolean DEFAULT false,
-      priority integer DEFAULT 0,
-      display_order integer DEFAULT 0,
-      created_at timestamptz DEFAULT now(),
-      updated_at timestamptz DEFAULT now()
-    );
-    ```
+  - 파일: `supabase/migrations/20251209000002_create_plan_group_items.sql`
+  - 추가 필드: `split_strategy`, `is_required`, `metadata` (확장성 확보)
   - 위험도: 🟡 중간 (신규 테이블)
 
-- [ ] **[P2-2]** `origin_plan_item_id` 컬럼 추가
+- [x] **[P2-2]** `origin_plan_item_id` 컬럼 추가 ✅ (2025-12-09)
 
-  - 파일: `supabase/migrations/20251210000002_add_origin_plan_item_id.sql`
+  - 파일: `supabase/migrations/20251209000002_create_plan_group_items.sql` (P2-1과 통합)
   - 대상: `student_plan` 테이블
   - 위험도: 🟡 중간
 
-- [ ] **[P2-3]** TypeScript 타입 정의 추가
+- [x] **[P2-3]** TypeScript 타입 정의 추가 ✅ (2025-12-09)
   - 파일: `lib/types/plan.ts`
-  - 타입: `PlanGroupItem`
+  - 타입: `PlanGroupItem`, `PlanGroupItemInput`
+  - Plan 타입에 `origin_plan_item_id` 필드 추가
   - 위험도: 🟢 낮음
 
 #### 2.2 플랜그룹 화면 CRUD 개선
 
-- [ ] **[P2-4]** `plan_group_items` 데이터 레이어 생성
+- [x] **[P2-4]** `plan_group_items` 데이터 레이어 생성 ✅ (2025-12-09)
 
   - 파일: `lib/data/planGroupItems.ts`
-  - CRUD 함수: `createPlanGroupItem`, `updatePlanGroupItem`, `deletePlanGroupItem`, `getPlanGroupItems`
+  - CRUD 함수: `createPlanGroupItem`, `updatePlanGroupItem`, `deletePlanGroupItem`, `getPlanGroupItems`, `createPlanGroupItems`, `deletePlanGroupItemsByGroupId`
+  - 유틸: `convertPlanContentToGroupItem` (마이그레이션 용도)
   - 위험도: 🟢 낮음
 
-- [ ] **[P2-5]** Server Actions 추가
+- [x] **[P2-5]** Server Actions 추가 ✅ (2025-12-09)
 
   - 파일: `app/(student)/actions/plan-groups/items.ts` (신규)
-  - 함수: `createLogicalPlan`, `updateLogicalPlan`, `deleteLogicalPlan`
+  - 함수: `getLogicalPlans`, `createLogicalPlan`, `createLogicalPlans`, `updateLogicalPlan`, `deleteLogicalPlan`, `deleteAllLogicalPlans`
+  - 권한 체크, 플랜 그룹 상태 체크 포함
   - 위험도: 🟡 중간
 
 - [ ] **[P2-6]** 플랜 생성 로직 수정
@@ -353,7 +339,8 @@ Phase 1 시작 전:
 
 ## 📝 변경 기록
 
-| 날짜       | 버전 | 내용      |
-| ---------- | ---- | --------- |
-| 2025-12-09 | v1.0 | 초안 작성 |
+| 날짜       | 버전 | 내용                        |
+| ---------- | ---- | --------------------------- |
+| 2025-12-09 | v1.0 | 초안 작성                   |
 | 2025-12-09 | v1.1 | Phase 1 완료 (P1-1 ~ P1-11) |
+| 2025-12-09 | v1.2 | Phase 2 P2-1~P2-5 완료 |

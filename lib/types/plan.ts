@@ -148,6 +148,7 @@ export type Plan = {
   tenant_id?: string | null;
   student_id: string;
   plan_group_id: string | null; // 플랜 그룹 참조
+  origin_plan_item_id?: string | null; // 원본 논리 플랜 항목 참조 (Phase 2)
   plan_date: string;
   block_index: number;
   content_type: ContentType;
@@ -226,7 +227,7 @@ export type ReallocationInfo = {
 };
 
 /**
- * 플랜 그룹 콘텐츠 관계
+ * 플랜 그룹 콘텐츠 관계 (기존 테이블)
  */
 export type PlanContent = {
   id: string;
@@ -258,6 +259,63 @@ export type PlanContent = {
   recommended_by?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/**
+ * 논리 플랜 아이템 (Phase 2 신규 테이블)
+ * - 플랜그룹 내 학습 계획의 "설계" 단위
+ * - student_plan은 이 테이블의 항목에서 파생된 "실행" 데이터
+ * @see supabase/migrations/20251209000002_create_plan_group_items.sql
+ */
+export type PlanGroupItem = {
+  id: string;
+  tenant_id: string;
+  plan_group_id: string; // plan_groups 참조
+  content_type: ContentType;
+  content_id: string;
+  master_content_id?: string | null; // 마스터 콘텐츠 참조
+  // 목표 범위
+  target_start_page_or_time: number;
+  target_end_page_or_time: number;
+  // 분할/반복 전략
+  repeat_count: number; // 몇 회차로 나눌지 (기본 1)
+  split_strategy: "equal" | "custom" | "auto"; // 분할 전략
+  // 플래그
+  is_review: boolean; // 복습 항목 여부
+  is_required: boolean; // 필수 여부
+  // 순서/우선순위
+  priority: number; // 높을수록 우선
+  display_order: number; // 표시 순서
+  // 메타데이터
+  metadata?: {
+    /** 사용자 지정 분할 범위 (split_strategy === 'custom'일 때) */
+    custom_splits?: Array<{
+      start: number;
+      end: number;
+    }>;
+    /** 기타 확장 필드 */
+    [key: string]: unknown;
+  } | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * 논리 플랜 아이템 입력
+ */
+export type PlanGroupItemInput = {
+  content_type: ContentType;
+  content_id: string;
+  master_content_id?: string | null;
+  target_start_page_or_time: number;
+  target_end_page_or_time: number;
+  repeat_count?: number;
+  split_strategy?: "equal" | "custom" | "auto";
+  is_review?: boolean;
+  is_required?: boolean;
+  priority?: number;
+  display_order?: number;
+  metadata?: Record<string, unknown> | null;
 };
 
 /**
