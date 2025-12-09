@@ -889,6 +889,197 @@ export function Step6FinalReview({
       )
     : [];
 
+  // 학습량 비교 요약 상태를 메모이제이션하여 불필요한 재계산 방지
+  const scheduleSummaryState = useMemo(() => {
+    if (!data.schedule_summary) return null;
+
+    // 콘텐츠 총량 조회 중이거나 추천 범위 계산 중인지 확인
+    const isCalculatingRecommendations =
+      contentInfos.length > 0 &&
+      recommendedRanges.size === 0 &&
+      rangeUnavailableReasons.size === 0;
+    const isLoading =
+      loadingContentTotals || isCalculatingRecommendations;
+
+    if (isLoading) {
+      return {
+        type: "loading" as const,
+        loadingContentTotals,
+      };
+    }
+
+    if (
+      recommendedRanges.size === 0 &&
+      rangeUnavailableReasons.size > 0
+    ) {
+      // 추천 범위를 계산할 수 없는 경우
+      return { type: "unavailable" as const };
+    }
+
+    if (recommendedRanges.size === 0) {
+      return { type: "empty" as const };
+    }
+
+    return { type: "ready" as const };
+  }, [
+    data.schedule_summary,
+    contentInfos.length,
+    recommendedRanges.size,
+    rangeUnavailableReasons.size,
+    loadingContentTotals,
+  ]);
+
+  // ready 상태일 때의 계산 로직을 메모이제이션
+  const learningVolumeSummary = useMemo(() => {
+    // scheduleSummaryState가 ready가 아니면 null 반환
+    if (!scheduleSummaryState || scheduleSummaryState.type !== "ready") {
+      return null;
+    }
+
+    let initialTotalPages = 0;
+    let initialTotalEpisodes = 0;
+    let currentTotalPages = 0;
+    let currentTotalEpisodes = 0;
+    let recommendedTotalPages = 0;
+    let recommendedTotalEpisodes = 0;
+
+    // contentKey와 content 매핑 생성 (최적화)
+    const contentKeyMap = new Map<string, string>();
+    const contentMap = new Map<
+      string,
+      | (typeof data.student_contents)[0]
+      | (typeof data.recommended_contents)[0]
+    >();
+
+    data.student_contents.forEach((c, idx) => {
+      const key = `student-${idx}`;
+      contentKeyMap.set(c.content_id, key);
+      contentMap.set(key, c);
+    });
+
+    data.recommended_contents.forEach((c, idx) => {
+      const key = `recommended-${idx}`;
+      contentKeyMap.set(c.content_id, key);
+      contentMap.set(key, c);
+    });
+
+    contentInfos.forEach((info) => {
+      const contentKey = contentKeyMap.get(info.content_id);
+      if (!contentKey) return;
+
+      const content = contentMap.get(contentKey);
+      if (!content) return;
+
+      const initial = initialRanges.get(contentKey);
+      const recommended = recommendedRanges.get(contentKey);
+
+      if (info.content_type === "book") {
+        // 초기 범위
+        if (initial) {
+          initialTotalPages += initial.end - initial.start + 1;
+        } else {
+          initialTotalPages +=
+            content.end_range - content.start_range + 1;
+        }
+        // 현재 범위
+        currentTotalPages += content.end_range - content.start_range + 1;
+        // 추천 범위
+        if (recommended) {
+          recommendedTotalPages +=
+            recommended.end - recommended.start + 1;
+        }
+      } else {
+        // 초기 범위
+        if (initial) {
+          initialTotalEpisodes += initial.end - initial.start + 1;
+        } else {
+          initialTotalEpisodes +=
+            content.end_range - content.start_range + 1;
+        }
+        // 현재 범위
+        currentTotalEpisodes +=
+          content.end_range - content.start_range + 1;
+        // 추천 범위
+        if (recommended) {
+          recommendedTotalEpisodes +=
+            recommended.end - recommended.start + 1;
+        }
+      }
+    });
+
+    const { total_study_days, total_study_hours } = data.schedule_summary || { total_study_days: 0, total_study_hours: 0 };
+    const avgDailyHours = total_study_hours / total_study_days;
+
+    // 전체 일일 학습량 계산 (각 콘텐츠별이 아닌 전체)
+    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
+    const episodesPerHour = defaultRangeRecommendationConfig.episodesPerHour;
+    const totalDailyPages = Math.round(avgDailyHours * pagesPerHour); // 전체 일일 페이지
+    const totalDailyEpisodes = Math.round(
+      avgDailyHours * episodesPerHour
+    ); // 전체 일일 회차
+
+    // 현재 범위 예상 일수: 전체 학습량을 전체 일일 학습량으로 나눔
+    let currentEstimatedDays = 0;
+    if (currentTotalPages > 0 && totalDailyPages > 0) {
+      currentEstimatedDays = Math.ceil(
+        currentTotalPages / totalDailyPages
+      );
+    }
+    if (currentTotalEpisodes > 0 && totalDailyEpisodes > 0) {
+      const episodeDays = Math.ceil(
+        currentTotalEpisodes / totalDailyEpisodes
+      );
+      currentEstimatedDays = Math.max(currentEstimatedDays, episodeDays);
+    }
+
+    // 추천 범위 예상 일수: 추천 범위는 이미 total_study_days 기준으로 계산되었으므로
+    // 전체 학습량을 전체 일일 학습량으로 나눔
+    let recommendedEstimatedDays = 0;
+    if (recommendedTotalPages > 0 && totalDailyPages > 0) {
+      recommendedEstimatedDays = Math.ceil(
+        recommendedTotalPages / totalDailyPages
+      );
+    }
+    if (recommendedTotalEpisodes > 0 && totalDailyEpisodes > 0) {
+      const episodeDays = Math.ceil(
+        recommendedTotalEpisodes / totalDailyEpisodes
+      );
+      recommendedEstimatedDays = Math.max(
+        recommendedEstimatedDays,
+        episodeDays
+      );
+    }
+
+    // 초기 범위와 현재 범위가 다른지 확인
+    const hasChanged =
+      initialTotalPages !== currentTotalPages ||
+      initialTotalEpisodes !== currentTotalEpisodes;
+    const hasDifference =
+      currentTotalPages !== recommendedTotalPages ||
+      currentTotalEpisodes !== recommendedTotalEpisodes;
+
+    return {
+      initialTotalPages,
+      initialTotalEpisodes,
+      currentTotalPages,
+      currentTotalEpisodes,
+      recommendedTotalPages,
+      recommendedTotalEpisodes,
+      currentEstimatedDays,
+      recommendedEstimatedDays,
+      hasChanged,
+      hasDifference,
+    };
+  }, [
+    scheduleSummaryState,
+    contentInfos,
+    data.student_contents,
+    data.recommended_contents,
+    data.schedule_summary,
+    initialRanges,
+    recommendedRanges,
+  ]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -937,371 +1128,190 @@ export function Step6FinalReview({
       </div>
 
       {/* 학습량 비교 요약 */}
-      {(() => {
-        // 학습량 비교 요약 상태를 메모이제이션하여 불필요한 재계산 방지
-        const scheduleSummaryState = useMemo(() => {
-          if (!data.schedule_summary) return null;
-
-          // 콘텐츠 총량 조회 중이거나 추천 범위 계산 중인지 확인
-          const isCalculatingRecommendations =
-            contentInfos.length > 0 &&
-            recommendedRanges.size === 0 &&
-            rangeUnavailableReasons.size === 0;
-          const isLoading =
-            loadingContentTotals || isCalculatingRecommendations;
-
-          if (isLoading) {
-            return {
-              type: "loading" as const,
-              loadingContentTotals,
-            };
-          }
-
-          if (
-            recommendedRanges.size === 0 &&
-            rangeUnavailableReasons.size > 0
-          ) {
-            // 추천 범위를 계산할 수 없는 경우
-            return { type: "unavailable" as const };
-          }
-
-          if (recommendedRanges.size === 0) {
-            return { type: "empty" as const };
-          }
-
-          return { type: "ready" as const };
-        }, [
-          data.schedule_summary,
-          contentInfos.length,
-          recommendedRanges.size,
-          rangeUnavailableReasons.size,
-          loadingContentTotals,
-        ]);
-
-        if (!scheduleSummaryState) return null;
-
-        if (scheduleSummaryState.type === "loading") {
-          return (
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">
-                📊 전체 학습량 비교
-              </h3>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-                <div className="flex flex-col items-center justify-center gap-3">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-gray-800">
-                      {scheduleSummaryState.loadingContentTotals
-                        ? "콘텐츠 정보를 불러오는 중..."
-                        : "추천 범위를 계산하는 중..."}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      잠시만 기다려주세요
-                    </p>
-                  </div>
-                </div>
+      {scheduleSummaryState && scheduleSummaryState.type === "loading" && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            📊 전체 학습량 비교
+          </h3>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+            <div className="flex flex-col items-center justify-center gap-3">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-800">
+                  {scheduleSummaryState.loadingContentTotals
+                    ? "콘텐츠 정보를 불러오는 중..."
+                    : "추천 범위를 계산하는 중..."}
+                </p>
+                <p className="text-xs text-gray-600">
+                  잠시만 기다려주세요
+                </p>
               </div>
             </div>
-          );
-        }
+          </div>
+        </div>
+      )}
 
-        if (
-          scheduleSummaryState.type === "unavailable" ||
-          scheduleSummaryState.type === "empty"
-        ) {
-          return null;
-        }
-
-        // ready 상태일 때의 계산 로직을 메모이제이션
-        const learningVolumeSummary = useMemo(() => {
-          let initialTotalPages = 0;
-          let initialTotalEpisodes = 0;
-          let currentTotalPages = 0;
-          let currentTotalEpisodes = 0;
-          let recommendedTotalPages = 0;
-          let recommendedTotalEpisodes = 0;
-
-          // contentKey와 content 매핑 생성 (최적화)
-          const contentKeyMap = new Map<string, string>();
-          const contentMap = new Map<
-            string,
-            | (typeof data.student_contents)[0]
-            | (typeof data.recommended_contents)[0]
-          >();
-
-          data.student_contents.forEach((c, idx) => {
-            const key = `student-${idx}`;
-            contentKeyMap.set(c.content_id, key);
-            contentMap.set(key, c);
-          });
-
-          data.recommended_contents.forEach((c, idx) => {
-            const key = `recommended-${idx}`;
-            contentKeyMap.set(c.content_id, key);
-            contentMap.set(key, c);
-          });
-
-          contentInfos.forEach((info) => {
-            const contentKey = contentKeyMap.get(info.content_id);
-            if (!contentKey) return;
-
-            const content = contentMap.get(contentKey);
-            if (!content) return;
-
-            const initial = initialRanges.get(contentKey);
-            const recommended = recommendedRanges.get(contentKey);
-
-            if (info.content_type === "book") {
-              // 초기 범위
-              if (initial) {
-                initialTotalPages += initial.end - initial.start + 1;
-              } else {
-                initialTotalPages +=
-                  content.end_range - content.start_range + 1;
-              }
-              // 현재 범위
-              currentTotalPages += content.end_range - content.start_range + 1;
-              // 추천 범위
-              if (recommended) {
-                recommendedTotalPages +=
-                  recommended.end - recommended.start + 1;
-              }
-            } else {
-              // 초기 범위
-              if (initial) {
-                initialTotalEpisodes += initial.end - initial.start + 1;
-              } else {
-                initialTotalEpisodes +=
-                  content.end_range - content.start_range + 1;
-              }
-              // 현재 범위
-              currentTotalEpisodes +=
-                content.end_range - content.start_range + 1;
-              // 추천 범위
-              if (recommended) {
-                recommendedTotalEpisodes +=
-                  recommended.end - recommended.start + 1;
-              }
-            }
-          });
-
-          const { total_study_days, total_study_hours } = data.schedule_summary || { total_study_days: 0, total_study_hours: 0 };
-          const avgDailyHours = total_study_hours / total_study_days;
-
-          // 전체 일일 학습량 계산 (각 콘텐츠별이 아닌 전체)
-          const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
-          const episodesPerHour = defaultRangeRecommendationConfig.episodesPerHour;
-          const totalDailyPages = Math.round(avgDailyHours * pagesPerHour); // 전체 일일 페이지
-          const totalDailyEpisodes = Math.round(
-            avgDailyHours * episodesPerHour
-          ); // 전체 일일 회차
-
-          // 현재 범위 예상 일수: 전체 학습량을 전체 일일 학습량으로 나눔
-          let currentEstimatedDays = 0;
-          if (currentTotalPages > 0 && totalDailyPages > 0) {
-            currentEstimatedDays = Math.ceil(
-              currentTotalPages / totalDailyPages
-            );
-          }
-          if (currentTotalEpisodes > 0 && totalDailyEpisodes > 0) {
-            const episodeDays = Math.ceil(
-              currentTotalEpisodes / totalDailyEpisodes
-            );
-            currentEstimatedDays = Math.max(currentEstimatedDays, episodeDays);
-          }
-
-          // 추천 범위 예상 일수: 추천 범위는 이미 total_study_days 기준으로 계산되었으므로
-          // 전체 학습량을 전체 일일 학습량으로 나눔
-          let recommendedEstimatedDays = 0;
-          if (recommendedTotalPages > 0 && totalDailyPages > 0) {
-            recommendedEstimatedDays = Math.ceil(
-              recommendedTotalPages / totalDailyPages
-            );
-          }
-          if (recommendedTotalEpisodes > 0 && totalDailyEpisodes > 0) {
-            const episodeDays = Math.ceil(
-              recommendedTotalEpisodes / totalDailyEpisodes
-            );
-            recommendedEstimatedDays = Math.max(
-              recommendedEstimatedDays,
-              episodeDays
-            );
-          }
-
-          // 초기 범위와 현재 범위가 다른지 확인
-          const hasChanged =
-            initialTotalPages !== currentTotalPages ||
-            initialTotalEpisodes !== currentTotalEpisodes;
-          const hasDifference =
-            currentTotalPages !== recommendedTotalPages ||
-            currentTotalEpisodes !== recommendedTotalEpisodes;
-
-          return {
-            initialTotalPages,
-            initialTotalEpisodes,
-            currentTotalPages,
-            currentTotalEpisodes,
-            recommendedTotalPages,
-            recommendedTotalEpisodes,
-            currentEstimatedDays,
-            recommendedEstimatedDays,
-            hasChanged,
-            hasDifference,
-          };
-        }, [
-          contentInfos,
-          data.student_contents,
-          data.recommended_contents,
-          data.schedule_summary,
-          initialRanges,
-          recommendedRanges,
-        ]);
-
-        const {
-          initialTotalPages,
-          initialTotalEpisodes,
-          currentTotalPages,
-          currentTotalEpisodes,
-          recommendedTotalPages,
-          recommendedTotalEpisodes,
-          currentEstimatedDays,
-          recommendedEstimatedDays,
-          hasChanged,
-          hasDifference,
-        } = learningVolumeSummary;
-
-          return (
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">
-                📊 전체 학습량 비교
-              </h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {/* 현재 범위 */}
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                  <div className="text-xs font-medium text-blue-800">
-                    현재 지정 범위
-                  </div>
-                  <div className="mt-1 text-lg font-bold text-blue-800">
-                    {currentTotalPages > 0 && (
-                      <span className="block">
-                        📄 {currentTotalPages}페이지
-                      </span>
-                    )}
-                    {currentTotalEpisodes > 0 && (
-                      <span className="block">
-                        📺 {currentTotalEpisodes}회차
-                      </span>
-                    )}
-                    {currentTotalPages === 0 && currentTotalEpisodes === 0 && (
+      {scheduleSummaryState &&
+        scheduleSummaryState.type === "ready" &&
+        learningVolumeSummary && (
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+              📊 전체 학습량 비교
+            </h3>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {/* 현재 범위 */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="text-xs font-medium text-blue-800">
+                  현재 지정 범위
+                </div>
+                <div className="mt-1 text-lg font-bold text-blue-800">
+                  {learningVolumeSummary.currentTotalPages > 0 && (
+                    <span className="block">
+                      📄 {learningVolumeSummary.currentTotalPages}페이지
+                    </span>
+                  )}
+                  {learningVolumeSummary.currentTotalEpisodes > 0 && (
+                    <span className="block">
+                      📺 {learningVolumeSummary.currentTotalEpisodes}회차
+                    </span>
+                  )}
+                  {learningVolumeSummary.currentTotalPages === 0 &&
+                    learningVolumeSummary.currentTotalEpisodes === 0 && (
                       <span className="text-sm text-gray-600">없음</span>
                     )}
-                  </div>
-                  <div className="mt-1 text-xs text-blue-600">
-                    예상 소요: 약 {currentEstimatedDays}일
-                  </div>
-                  {hasChanged && (
-                    <div className="mt-1 text-xs text-amber-600">
-                      {initialTotalPages !== currentTotalPages && (
-                        <span>
-                          초기 대비 페이지{" "}
-                          {currentTotalPages - initialTotalPages > 0 ? "+" : ""}
-                          {currentTotalPages - initialTotalPages}
-                        </span>
-                      )}
-                      {initialTotalEpisodes !== currentTotalEpisodes && (
-                        <span
-                          className={
-                            initialTotalPages !== currentTotalPages
-                              ? " ml-1"
-                              : ""
-                          }
-                        >
-                          회차{" "}
-                          {currentTotalEpisodes - initialTotalEpisodes > 0
-                            ? "+"
-                            : ""}
-                          {currentTotalEpisodes - initialTotalEpisodes}
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
-
-                {/* 추천 범위 */}
-                <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                  <div className="text-xs font-medium text-green-700">
-                    추천 범위
-                  </div>
-                  <div className="mt-1 text-lg font-bold text-green-900">
-                    {recommendedTotalPages > 0 && (
-                      <span className="block">
-                        📄 {recommendedTotalPages}페이지
+                <div className="mt-1 text-xs text-blue-600">
+                  예상 소요: 약 {learningVolumeSummary.currentEstimatedDays}일
+                </div>
+                {learningVolumeSummary.hasChanged && (
+                  <div className="mt-1 text-xs text-amber-600">
+                    {learningVolumeSummary.initialTotalPages !==
+                      learningVolumeSummary.currentTotalPages && (
+                      <span>
+                        초기 대비 페이지{" "}
+                        {learningVolumeSummary.currentTotalPages -
+                          learningVolumeSummary.initialTotalPages >
+                        0
+                          ? "+"
+                          : ""}
+                        {learningVolumeSummary.currentTotalPages -
+                          learningVolumeSummary.initialTotalPages}
                       </span>
                     )}
-                    {recommendedTotalEpisodes > 0 && (
-                      <span className="block">
-                        📺 {recommendedTotalEpisodes}회차
+                    {learningVolumeSummary.initialTotalEpisodes !==
+                      learningVolumeSummary.currentTotalEpisodes && (
+                      <span
+                        className={
+                          learningVolumeSummary.initialTotalPages !==
+                          learningVolumeSummary.currentTotalPages
+                            ? " ml-1"
+                            : ""
+                        }
+                      >
+                        회차{" "}
+                        {learningVolumeSummary.currentTotalEpisodes -
+                          learningVolumeSummary.initialTotalEpisodes >
+                        0
+                          ? "+"
+                          : ""}
+                        {learningVolumeSummary.currentTotalEpisodes -
+                          learningVolumeSummary.initialTotalEpisodes}
                       </span>
                     )}
-                    {recommendedTotalPages === 0 &&
-                      recommendedTotalEpisodes === 0 && (
-                        <span className="text-sm text-gray-600">없음</span>
-                      )}
                   </div>
-                  <div className="mt-1 text-xs text-green-600">
-                    예상 소요: 약 {recommendedEstimatedDays}일 (스케줄에 맞춤)
-                  </div>
-                </div>
+                )}
+              </div>
 
-                {/* 차이 */}
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <div className="text-xs font-medium text-amber-700">차이</div>
-                  <div className="mt-1 text-lg font-bold text-amber-900">
-                    {hasDifference ? (
-                      <>
-                        {currentTotalPages - recommendedTotalPages !== 0 && (
-                          <span className="block">
-                            📄{" "}
-                            {currentTotalPages - recommendedTotalPages > 0
-                              ? "+"
-                              : ""}
-                            {currentTotalPages - recommendedTotalPages}페이지
-                          </span>
-                        )}
-                        {currentTotalEpisodes - recommendedTotalEpisodes !==
-                          0 && (
-                          <span className="block">
-                            📺{" "}
-                            {currentTotalEpisodes - recommendedTotalEpisodes > 0
-                              ? "+"
-                              : ""}
-                            {currentTotalEpisodes - recommendedTotalEpisodes}
-                            회차
-                          </span>
-                        )}
-                        {currentTotalPages - recommendedTotalPages === 0 &&
-                          currentTotalEpisodes - recommendedTotalEpisodes ===
-                            0 && (
-                            <span className="text-sm text-green-600">일치</span>
-                          )}
-                      </>
-                    ) : (
-                      <span className="text-sm text-green-600">일치</span>
-                    )}
-                  </div>
-                  {hasDifference && (
-                    <div className="mt-1 text-xs text-amber-600">
-                      {currentTotalPages > recommendedTotalPages ||
-                      currentTotalEpisodes > recommendedTotalEpisodes
-                        ? "추천보다 많음"
-                        : "추천보다 적음"}
-                    </div>
+              {/* 추천 범위 */}
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                <div className="text-xs font-medium text-green-700">
+                  추천 범위
+                </div>
+                <div className="mt-1 text-lg font-bold text-green-900">
+                  {learningVolumeSummary.recommendedTotalPages > 0 && (
+                    <span className="block">
+                      📄 {learningVolumeSummary.recommendedTotalPages}페이지
+                    </span>
                   )}
+                  {learningVolumeSummary.recommendedTotalEpisodes > 0 && (
+                    <span className="block">
+                      📺 {learningVolumeSummary.recommendedTotalEpisodes}회차
+                    </span>
+                  )}
+                  {learningVolumeSummary.recommendedTotalPages === 0 &&
+                    learningVolumeSummary.recommendedTotalEpisodes === 0 && (
+                      <span className="text-sm text-gray-600">없음</span>
+                    )}
+                </div>
+                <div className="mt-1 text-xs text-green-600">
+                  예상 소요: 약 {learningVolumeSummary.recommendedEstimatedDays}
+                  일 (스케줄에 맞춤)
                 </div>
               </div>
+
+              {/* 차이 */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="text-xs font-medium text-amber-700">차이</div>
+                <div className="mt-1 text-lg font-bold text-amber-900">
+                  {learningVolumeSummary.hasDifference ? (
+                    <>
+                      {learningVolumeSummary.currentTotalPages -
+                        learningVolumeSummary.recommendedTotalPages !==
+                        0 && (
+                        <span className="block">
+                          📄{" "}
+                          {learningVolumeSummary.currentTotalPages -
+                            learningVolumeSummary.recommendedTotalPages >
+                          0
+                            ? "+"
+                            : ""}
+                          {learningVolumeSummary.currentTotalPages -
+                            learningVolumeSummary.recommendedTotalPages}
+                          페이지
+                        </span>
+                      )}
+                      {learningVolumeSummary.currentTotalEpisodes -
+                        learningVolumeSummary.recommendedTotalEpisodes !==
+                        0 && (
+                        <span className="block">
+                          📺{" "}
+                          {learningVolumeSummary.currentTotalEpisodes -
+                            learningVolumeSummary.recommendedTotalEpisodes >
+                          0
+                            ? "+"
+                            : ""}
+                          {learningVolumeSummary.currentTotalEpisodes -
+                            learningVolumeSummary.recommendedTotalEpisodes}
+                          회차
+                        </span>
+                      )}
+                      {learningVolumeSummary.currentTotalPages -
+                        learningVolumeSummary.recommendedTotalPages ===
+                        0 &&
+                        learningVolumeSummary.currentTotalEpisodes -
+                          learningVolumeSummary.recommendedTotalEpisodes ===
+                          0 && (
+                          <span className="text-sm text-green-600">일치</span>
+                        )}
+                    </>
+                  ) : (
+                    <span className="text-sm text-green-600">일치</span>
+                  )}
+                </div>
+                {learningVolumeSummary.hasDifference && (
+                  <div className="mt-1 text-xs text-amber-600">
+                    {learningVolumeSummary.currentTotalPages >
+                      learningVolumeSummary.recommendedTotalPages ||
+                    learningVolumeSummary.currentTotalEpisodes >
+                      learningVolumeSummary.recommendedTotalEpisodes
+                      ? "추천보다 많음"
+                      : "추천보다 적음"}
+                  </div>
+                )}
+              </div>
             </div>
-          );
-        })()}
+          </div>
+        )}
 
       {/* 비교 테이블 */}
       {recommendedRanges.size > 0 && (
