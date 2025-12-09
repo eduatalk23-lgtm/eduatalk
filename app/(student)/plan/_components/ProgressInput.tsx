@@ -49,7 +49,7 @@ export function ProgressInput({
   const isCompleted = progressValue >= 100;
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
@@ -86,7 +86,7 @@ export function ProgressInput({
             const formData = new FormData(e.currentTarget);
             handleSubmit(formData);
           }}
-          className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-4"
+          className="rounded-lg border border-gray-200 bg-gray-50 p-4 flex flex-col gap-4"
         >
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -94,8 +94,8 @@ export function ProgressInput({
             </div>
           )}
 
-          <div>
-            <label className="mb-2 block text-xs font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label className="block text-xs font-medium text-gray-700">
               입력 방식
             </label>
             <div className="flex gap-4">
@@ -127,10 +127,10 @@ export function ProgressInput({
           </div>
 
           {inputMode === "percentage" ? (
-            <div>
+            <div className="flex flex-col gap-1">
               <label
                 htmlFor={`progress-${planId}`}
-                className="mb-1 block text-xs font-medium text-gray-700"
+                className="block text-xs font-medium text-gray-700"
               >
                 진행률 (%)
               </label>
@@ -149,10 +149,10 @@ export function ProgressInput({
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="flex flex-col gap-1">
                 <label
                   htmlFor={`start-${planId}`}
-                  className="mb-1 block text-xs font-medium text-gray-700"
+                  className="block text-xs font-medium text-gray-700"
                 >
                   시작 {unitLabel}
                 </label>
@@ -168,10 +168,10 @@ export function ProgressInput({
                   placeholder="시작"
                 />
               </div>
-              <div>
+              <div className="flex flex-col gap-1">
                 <label
                   htmlFor={`end-${planId}`}
-                  className="mb-1 block text-xs font-medium text-gray-700"
+                  className="block text-xs font-medium text-gray-700"
                 >
                   종료 {unitLabel}
                 </label>

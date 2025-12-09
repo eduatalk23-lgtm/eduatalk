@@ -130,7 +130,7 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
         )}
 
         {/* 플랜 목록 섹션 */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {planGroups.length > 0 ? (
             <PlanGroupList 
               groups={planGroups} 

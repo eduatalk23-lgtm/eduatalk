@@ -332,10 +332,10 @@ export function ScoreFormModal({
 
         <div className="grid gap-6 sm:grid-cols-2">
           {/* 학년 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="grade"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               학년 <span className="text-red-500">*</span>
             </label>
@@ -357,15 +357,15 @@ export function ScoreFormModal({
               <option value="3">3학년</option>
             </select>
             {errors.grade && touched.grade && (
-              <p className="mt-1 text-xs text-red-600">{errors.grade}</p>
+              <p className="text-xs text-red-600">{errors.grade}</p>
             )}
           </div>
 
           {/* 학기 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="semester"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               학기 <span className="text-red-500">*</span>
             </label>
