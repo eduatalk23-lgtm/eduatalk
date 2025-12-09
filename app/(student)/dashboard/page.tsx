@@ -97,7 +97,7 @@ export default async function DashboardPage() {
                 .filter((category) => category.href !== "/dashboard")
                 .map((category) => {
                   let description = "";
-                  let color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" = "indigo";
+                  let color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal" | "cyan" | "amber" | "pink" | "violet" | "emerald" | "sky" = "indigo";
 
                   // 카테고리별 설명 및 색상 설정
                   switch (category.href) {
