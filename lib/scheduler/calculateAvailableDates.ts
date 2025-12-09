@@ -105,8 +105,22 @@ export type NonStudyTimeBlock = {
   description?: string;
 };
 
+/**
+ * 스케줄러 모드
+ * - 'block': 블록 인덱스만 사용 (start_time/end_time은 NULL)
+ * - 'time': 구체적인 시간 배치 사용 (start_time/end_time 설정)
+ * @see docs/refactoring/timeline_strategy.md
+ */
+export type SchedulerMode = "block" | "time";
+
 export type CalculateOptions = {
   scheduler_type: "1730_timetable";
+  /**
+   * 스케줄러 모드 (기본: 'time')
+   * - 'block': 블록 순서만 관리, start_time/end_time은 NULL
+   * - 'time': 구체적인 시간 배치, 1730 Timetable 전용
+   */
+  scheduler_mode?: SchedulerMode;
   scheduler_options?: {
     study_days?: number; // 1730 Timetable: 학습일 수 (기본 6)
     review_days?: number; // 1730 Timetable: 복습일 수 (기본 1)

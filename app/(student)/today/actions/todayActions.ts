@@ -16,13 +16,19 @@ type PlanRecordPayload = {
 
 /**
  * 플랜 시작 (타이머 시작)
+ *
+ * 경합 방지 규칙:
+ * 1. 동시 실행 금지: 한 학생이 동시에 여러 플랜을 RUNNING 상태로 둘 수 없음
+ * 2. 완료된 플랜 재시작 금지: actual_end_time이 설정된 플랜은 다시 시작할 수 없음
+ *
+ * @see docs/refactoring/timer_state_machine.md
  */
 export async function startPlan(
   planId: string,
   timestamp?: string // 클라이언트에서 생성한 타임스탬프
-): Promise<{ 
-  success: boolean; 
-  sessionId?: string; 
+): Promise<{
+  success: boolean;
+  sessionId?: string;
   error?: string;
   serverNow?: number;
   status?: "RUNNING";
@@ -38,6 +44,31 @@ export async function startPlan(
     const supabase = await createSupabaseServerClient();
     const tenantContext = await getTenantContext();
 
+    // [경합 방지 규칙 2] 완료된 플랜 재시작 방지
+    const { data: plan, error: planError } = await supabase
+      .from("student_plan")
+      .select("id, actual_end_time")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planError) {
+      console.error("[todayActions] 플랜 조회 오류:", planError);
+      return { success: false, error: "플랜 정보 조회 중 오류가 발생했습니다." };
+    }
+
+    if (!plan) {
+      return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
+    if (plan.actual_end_time) {
+      return {
+        success: false,
+        error: "이미 완료된 플랜입니다. 완료된 플랜은 다시 시작할 수 없습니다.",
+      };
+    }
+
+    // [경합 방지 규칙 1] 동시 실행 금지
     // 다른 플랜이 활성화되어 있는지 확인 (현재 플랜 제외, 일시정지된 세션 제외)
     // 일시정지된 세션은 paused_at이 있고 resumed_at이 없는 상태
     const { data: activeSessions, error: sessionError } = await supabase

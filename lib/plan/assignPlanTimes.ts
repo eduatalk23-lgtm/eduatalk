@@ -1,9 +1,65 @@
 /**
  * 플랜 시간 배치 유틸리티
  * Step7의 TimeSlotsWithPlans 로직을 서버 액션에서 사용하기 위한 함수
+ *
+ * @see docs/refactoring/timeline_strategy.md
  */
 
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+
+// ============================================
+// 입력 타입 정의
+// ============================================
+
+/**
+ * 콘텐츠 유형
+ */
+export type ContentType = "book" | "lecture" | "custom";
+
+/**
+ * 플랜 시간 배치 입력 플랜 타입
+ */
+export type PlanTimeInput = {
+  content_id: string;
+  content_type: ContentType;
+  planned_start_page_or_time: number;
+  planned_end_page_or_time: number;
+  chapter?: string | null;
+  block_index?: number;
+};
+
+/**
+ * 학습 시간 슬롯
+ */
+export type StudyTimeSlot = {
+  start: string; // HH:mm
+  end: string; // HH:mm
+};
+
+/**
+ * 콘텐츠 메타데이터 (소요시간 계산용)
+ */
+export type ContentDurationInfo = {
+  content_type: ContentType;
+  content_id: string;
+  total_pages?: number | null;
+  duration?: number | null;
+  total_page_or_time?: number | null;
+};
+
+/**
+ * 플랜 예상 소요시간 계산 입력 타입
+ */
+export type PlanEstimateInput = {
+  content_type: ContentType;
+  content_id?: string | null;
+  planned_start_page_or_time: number | null;
+  planned_end_page_or_time: number | null;
+};
+
+// ============================================
+// 출력 타입 정의
+// ============================================
 
 // 시간 문자열을 분으로 변환
 export function timeToMinutes(time: string): number {
@@ -18,21 +74,17 @@ export function minutesToTime(minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
-// 플랜의 예상 소요시간 계산
+/**
+ * 플랜의 예상 소요시간 계산 (분 단위)
+ *
+ * @param plan - 플랜 정보 (content_type, 범위)
+ * @param contentDurationMap - 콘텐츠 메타데이터 맵 (content_id → 정보)
+ * @param dayType - 일 유형 ('학습일' | '복습일' 등)
+ * @returns 예상 소요시간 (분)
+ */
 export function calculatePlanEstimatedTime(
-  plan: {
-    content_type: "book" | "lecture" | "custom";
-    content_id?: string | null;  // 추가: content_id 필드
-    planned_start_page_or_time: number | null;
-    planned_end_page_or_time: number | null;
-  },
-  contentDurationMap: Map<string, {
-    content_type: "book" | "lecture" | "custom";
-    content_id: string;
-    total_pages?: number | null;
-    duration?: number | null;
-    total_page_or_time?: number | null;
-  }>,
+  plan: PlanEstimateInput,
+  contentDurationMap: Map<string, ContentDurationInfo>,
   dayType?: string
 ): number {
   if (
@@ -81,47 +133,51 @@ export function calculatePlanEstimatedTime(
   return baseTime;
 }
 
-// 플랜 시간 배치 결과 타입
+/**
+ * 플랜 시간 배치 결과 (출력)
+ */
 export type PlanTimeSegment = {
-  plan: {
-    content_id: string;
-    content_type: "book" | "lecture" | "custom";
-    planned_start_page_or_time: number;
-    planned_end_page_or_time: number;
-    chapter?: string | null;
-    block_index?: number;
-  };
-  start: string; // HH:mm 형식
-  end: string; // HH:mm 형식
-  isPartial: boolean; // 일부만 배치됨
-  isContinued: boolean; // 이전 블록에서 이어서 배치됨
-  originalEstimatedTime: number; // 원래 예상 소요시간
+  /** 원본 플랜 정보 */
+  plan: PlanTimeInput;
+  /** 배치된 시작 시간 (HH:mm) */
+  start: string;
+  /** 배치된 종료 시간 (HH:mm) */
+  end: string;
+  /** 일부만 배치됨 (다음 슬롯에 계속) */
+  isPartial: boolean;
+  /** 이전 슬롯에서 이어서 배치됨 */
+  isContinued: boolean;
+  /** 원래 예상 소요시간 (분) */
+  originalEstimatedTime: number;
 };
 
 /**
  * 플랜을 학습시간 슬롯에 배치
+ *
  * Step7의 TimeSlotsWithPlans 로직과 동일
+ *
+ * @param plans - 배치할 플랜 목록
+ * @param studyTimeSlots - 학습 가능 시간 슬롯
+ * @param contentDurationMap - 콘텐츠 메타데이터 맵
+ * @param dayType - 일 유형 ('학습일' | '복습일' 등)
+ * @param totalStudyHours - 총 학습 가능 시간 (시간 단위)
+ * @returns 시간이 배치된 플랜 세그먼트 배열
+ *
+ * @example
+ * ```typescript
+ * const segments = assignPlanTimes(
+ *   plans,
+ *   [{ start: "09:00", end: "12:00" }, { start: "13:00", end: "18:00" }],
+ *   contentDurationMap,
+ *   "학습일",
+ *   8
+ * );
+ * ```
  */
 export function assignPlanTimes(
-  plans: Array<{
-    content_id: string;
-    content_type: "book" | "lecture" | "custom";
-    planned_start_page_or_time: number;
-    planned_end_page_or_time: number;
-    chapter?: string | null;
-    block_index?: number;
-  }>,
-  studyTimeSlots: Array<{
-    start: string;
-    end: string;
-  }>,
-  contentDurationMap: Map<string, {
-    content_type: "book" | "lecture" | "custom";
-    content_id: string;
-    total_pages?: number | null;
-    duration?: number | null;
-    total_page_or_time?: number | null;
-  }>,
+  plans: PlanTimeInput[],
+  studyTimeSlots: StudyTimeSlot[],
+  contentDurationMap: Map<string, ContentDurationInfo>,
   dayType: string,
   totalStudyHours: number
 ): PlanTimeSegment[] {
