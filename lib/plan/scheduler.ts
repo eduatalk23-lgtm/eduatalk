@@ -5,6 +5,13 @@ import {
   AcademySchedule,
   SchedulerType,
 } from "@/lib/types/plan";
+import {
+  getContentAllocation,
+  calculateSubjectAllocationDates,
+  divideContentRange,
+  calculateStudyReviewCycle,
+  type CycleDayInfo,
+} from "@/lib/plan/1730TimetableLogic";
 
 export type BlockInfo = {
   id: string;
@@ -809,6 +816,20 @@ function generate1730TimetablePlans(
   const reviewDays = options?.review_days ?? 1;
   const weekSize = studyDays + reviewDays;
 
+  // 전략과목/취약과목 설정 추출
+  const subjectAllocations = options?.subject_allocations;
+  const contentAllocations = options?.content_allocations;
+
+  // 학습일/복습일 주기 정보 생성
+  const periodStart = dates[0];
+  const periodEnd = dates[dates.length - 1];
+  const cycleDays = calculateStudyReviewCycle(
+    periodStart,
+    periodEnd,
+    { study_days: studyDays, review_days: reviewDays },
+    exclusions
+  );
+
   // 취약과목 집중 모드 확인
   const weakSubjectFocus = options?.weak_subject_focus === "high" || options?.weak_subject_focus === true;
   
@@ -827,6 +848,54 @@ function generate1730TimetablePlans(
     }
   }
 
+  // 콘텐츠별 배정 날짜 계산 (전략과목/취약과목 설정 반영)
+  const contentAllocationMap = new Map<string, string[]>();
+  filteredContents.forEach((content) => {
+    const allocation = getContentAllocation(
+      {
+        content_type: content.content_type,
+        content_id: content.content_id,
+        subject_category: content.subject_category || undefined,
+      },
+      contentAllocations,
+      subjectAllocations
+    );
+
+    // SubjectAllocation 형식으로 변환
+    const subjectAlloc = {
+      subject_id: content.content_id, // 임시 ID
+      subject_name: content.subject_category || content.subject || "",
+      subject_type: allocation.subject_type,
+      weekly_days: allocation.weekly_days,
+    };
+
+    const allocatedDates = calculateSubjectAllocationDates(
+      cycleDays,
+      subjectAlloc
+    );
+    contentAllocationMap.set(content.content_id, allocatedDates);
+  });
+
+  // 학습 범위 분할 (배정된 날짜에 학습 범위 분배)
+  const contentRangeMap = new Map<string, Map<string, { start: number; end: number }>>();
+  filteredContents.forEach((content) => {
+    const allocatedDates = contentAllocationMap.get(content.content_id) || [];
+    const rangeMap = divideContentRange(
+      content.total_amount,
+      allocatedDates,
+      content.content_id
+    );
+    // start_range를 기준으로 오프셋 적용
+    const adjustedRangeMap = new Map<string, { start: number; end: number }>();
+    rangeMap.forEach((range, date) => {
+      adjustedRangeMap.set(date, {
+        start: content.start_range + range.start,
+        end: content.start_range + range.end,
+      });
+    });
+    contentRangeMap.set(content.content_id, adjustedRangeMap);
+  });
+
   // 주차별로 그룹화
   const weeks: string[][] = [];
   for (let i = 0; i < dates.length; i += weekSize) {
@@ -844,27 +913,8 @@ function generate1730TimetablePlans(
       endAmount: number;
     }>();
 
-    // 1. 학습일: 각 콘텐츠의 학습 범위를 학습일로 나누어 배정
-    const totalStudyDaysInWeek = studyDaysList.length;
-    
-    // 콘텐츠별 일일 배정량 계산
-    const contentDailyAmounts = new Map<string, number[]>();
-    filteredContents.forEach((content) => {
-      const dailyAmount = Math.round(content.total_amount / (weeks.length * totalStudyDaysInWeek));
-      const amounts: number[] = [];
-      let remaining = content.total_amount;
-      let currentStart = content.start_range;
-
-      for (let i = 0; i < weeks.length * totalStudyDaysInWeek; i++) {
-        const amount = i === weeks.length * totalStudyDaysInWeek - 1 ? remaining : dailyAmount;
-        amounts.push(amount);
-        remaining -= amount;
-      }
-
-      contentDailyAmounts.set(content.content_id, amounts);
-    });
-
-    // 취약과목 우선 배정
+    // 1. 학습일: 배정된 날짜에만 플랜 생성 (전략과목/취약과목 설정 반영)
+    // 취약과목 우선 배정 (정렬)
     const sortedContents = [...filteredContents].sort((a, b) => {
       const aSubject = a.subject?.toLowerCase().trim() || "";
       const bSubject = b.subject?.toLowerCase().trim() || "";
@@ -873,42 +923,31 @@ function generate1730TimetablePlans(
       return bRisk - aRisk;
     });
 
-    // 학습일 배정: 먼저 플랜 생성, 블록은 동적으로 생성
+    // 배정된 날짜별로 플랜 생성
     const studyPlansByDate = new Map<string, Array<{
       content: ContentInfo;
-      dailyAmount: number;
-      currentStart: number;
-      globalDayIndex: number;
+      start: number;
+      end: number;
     }>>();
 
-    studyDaysList.forEach((date, dayIndexInWeek) => {
-      const globalDayIndex = weekIndex * totalStudyDaysInWeek + dayIndexInWeek;
-      const datePlans: Array<{
-        content: ContentInfo;
-        dailyAmount: number;
-        currentStart: number;
-        globalDayIndex: number;
-      }> = [];
+    // 각 콘텐츠의 배정된 날짜에 대해 플랜 생성
+    sortedContents.forEach((content) => {
+      const rangeMap = contentRangeMap.get(content.content_id);
+      if (!rangeMap) return;
 
-      sortedContents.forEach((content) => {
-        const dailyAmounts = contentDailyAmounts.get(content.content_id) || [];
-        const dailyAmount = dailyAmounts[globalDayIndex] || 0;
+      rangeMap.forEach((range, date) => {
+        // 이번 주의 학습일에 포함되는 날짜인지 확인
+        if (!studyDaysList.includes(date)) return;
 
-        if (dailyAmount === 0) return;
-
-        const currentStart = content.start_range + dailyAmounts.slice(0, globalDayIndex).reduce((sum, amt) => sum + amt, 0);
-        
-        datePlans.push({
+        if (!studyPlansByDate.has(date)) {
+          studyPlansByDate.set(date, []);
+        }
+        studyPlansByDate.get(date)!.push({
           content,
-          dailyAmount,
-          currentStart,
-          globalDayIndex,
+          start: range.start,
+          end: range.end,
         });
       });
-
-      if (datePlans.length > 0) {
-        studyPlansByDate.set(date, datePlans);
-      }
     });
 
     // 학습일 플랜에 블록 할당 (동적 생성)
@@ -921,8 +960,7 @@ function generate1730TimetablePlans(
       let blockIndex = 1;
       let currentSlotPosition = 0;
 
-      datePlans.forEach(({ content, dailyAmount, currentStart: start }) => {
-        const endAmount = Math.min(start + dailyAmount, content.end_range);
+      datePlans.forEach(({ content, start, end: endAmount }) => {
         
         // 콘텐츠 소요시간 계산
         const requiredMinutes = calculateContentDuration(
@@ -1002,15 +1040,18 @@ function generate1730TimetablePlans(
           }
         }
 
-        // 주차별 범위 저장 (복습용)
-        if (!weekContentRanges.has(content.content_id)) {
-          weekContentRanges.set(content.content_id, {
-            startAmount: start,
-            endAmount: endAmount,
-          });
-        } else {
-          const existing = weekContentRanges.get(content.content_id)!;
-          existing.endAmount = Math.max(existing.endAmount, endAmount);
+        // 주차별 범위 저장 (복습용) - 이번 주에 배정된 날짜의 범위만 저장
+        if (studyDaysList.includes(date)) {
+          if (!weekContentRanges.has(content.content_id)) {
+            weekContentRanges.set(content.content_id, {
+              startAmount: start,
+              endAmount: endAmount,
+            });
+          } else {
+            const existing = weekContentRanges.get(content.content_id)!;
+            existing.startAmount = Math.min(existing.startAmount, start);
+            existing.endAmount = Math.max(existing.endAmount, endAmount);
+          }
         }
       });
     });
