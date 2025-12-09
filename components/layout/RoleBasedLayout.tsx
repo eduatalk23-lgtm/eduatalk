@@ -37,32 +37,40 @@ function SidebarContent({
   return (
     <>
       {/* 로고 및 컨트롤 */}
-            <div className="border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <a
-            href={dashboardHref}
-            className={cn(
-              "flex items-center gap-2 text-lg font-semibold text-gray-900 transition-opacity",
-              isCollapsed && "opacity-0 w-0 overflow-hidden"
-            )}
-          >
-            <span>⏱️</span>
-            <span>TimeLevelUp</span>
-            <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
-          </a>
-          {isCollapsed && (
+      <div className="border-b border-gray-200 p-4">
+        <div className={cn(
+          "flex items-center gap-2",
+          isCollapsed ? "flex-col justify-center" : "justify-between"
+        )}>
+          {!isCollapsed ? (
             <a
               href={dashboardHref}
-              className="flex items-center justify-center w-8 h-8 text-lg"
+              className="flex items-center gap-2 text-lg font-semibold text-gray-900"
+            >
+              <span>⏱️</span>
+              <span>TimeLevelUp</span>
+              <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
+            </a>
+          ) : (
+            <a
+              href={dashboardHref}
+              className="flex items-center justify-center w-10 h-10 text-lg mb-2 rounded-md hover:bg-gray-100 transition-colors"
               aria-label="TimeLevelUp"
+              title="TimeLevelUp"
             >
               <span>⏱️</span>
             </a>
           )}
-          <div className={cn("flex items-center gap-1", isCollapsed && "flex-col")}>
+          <div className={cn(
+            "flex items-center gap-1",
+            isCollapsed && "flex-col w-full"
+          )}>
             <button
               onClick={togglePin}
-              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              className={cn(
+                "p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors",
+                isCollapsed && "w-full flex items-center justify-center"
+              )}
               aria-label={isPinned ? "고정 해제" : "고정"}
               title={isPinned ? "고정 해제" : "고정"}
             >
@@ -74,12 +82,15 @@ function SidebarContent({
             </button>
             <button
               onClick={toggleCollapse}
-              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              className={cn(
+                "p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors",
+                isCollapsed && "w-full flex items-center justify-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700"
+              )}
               aria-label={isCollapsed ? "확장" : "축소"}
               title={isCollapsed ? "확장" : "축소"}
             >
               {isCollapsed ? (
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-5 h-5" />
               ) : (
                 <ChevronLeft className="w-4 h-4" />
               )}

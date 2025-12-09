@@ -160,7 +160,7 @@ export default async function DashboardPage() {
                 title="학습 리포트"
                 description="주간 및 월간 학습 리포트를 확인하세요"
                 icon="📊"
-                color="purple"
+                color="teal"
               />
               <QuickActionCard
                 href="/blocks"
@@ -192,7 +192,7 @@ function QuickActionCard({
   title: string;
   description: string;
   icon: string;
-  color: "indigo" | "blue" | "purple" | "orange" | "green" | "red";
+  color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal";
 }) {
   const colorClasses = {
     indigo:
@@ -204,6 +204,7 @@ function QuickActionCard({
       "border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/50 hover:from-orange-100 hover:to-orange-200/50 text-orange-900 hover:shadow-lg",
     green: "border-green-200 bg-gradient-to-br from-green-50 to-green-100/50 hover:from-green-100 hover:to-green-200/50 text-green-900 hover:shadow-lg",
     red: "border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:from-red-100 hover:to-red-200/50 text-red-900 hover:shadow-lg",
+    teal: "border-teal-200 bg-gradient-to-br from-teal-50 to-teal-100/50 hover:from-teal-100 hover:to-teal-200/50 text-teal-900 hover:shadow-lg",
   };
 
   return (
