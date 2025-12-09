@@ -53,10 +53,7 @@ async function _getLogicalPlans(planGroupId: string): Promise<PlanGroupItem[]> {
   return getPlanGroupItems(planGroupId, tenantContext.tenantId);
 }
 
-export const getLogicalPlans = withErrorHandling(
-  _getLogicalPlans,
-  "논리 플랜 조회 실패"
-);
+export const getLogicalPlans = withErrorHandling(_getLogicalPlans);
 
 // ============================================
 // 생성
@@ -95,7 +92,7 @@ async function _createLogicalPlan(
   if (planGroup.status !== "draft" && planGroup.status !== "saved") {
     throw new AppError(
       "활성화된 플랜 그룹은 수정할 수 없습니다.",
-      ErrorCode.VALIDATION,
+      ErrorCode.VALIDATION_ERROR,
       400,
       true
     );
@@ -104,10 +101,7 @@ async function _createLogicalPlan(
   return createPlanGroupItem(planGroupId, tenantContext.tenantId, input);
 }
 
-export const createLogicalPlan = withErrorHandling(
-  _createLogicalPlan,
-  "논리 플랜 생성 실패"
-);
+export const createLogicalPlan = withErrorHandling(_createLogicalPlan);
 
 /**
  * 논리 플랜 아이템 일괄 생성
@@ -142,7 +136,7 @@ async function _createLogicalPlans(
   if (planGroup.status !== "draft" && planGroup.status !== "saved") {
     throw new AppError(
       "활성화된 플랜 그룹은 수정할 수 없습니다.",
-      ErrorCode.VALIDATION,
+      ErrorCode.VALIDATION_ERROR,
       400,
       true
     );
@@ -151,10 +145,7 @@ async function _createLogicalPlans(
   return createPlanGroupItems(planGroupId, tenantContext.tenantId, inputs);
 }
 
-export const createLogicalPlans = withErrorHandling(
-  _createLogicalPlans,
-  "논리 플랜 일괄 생성 실패"
-);
+export const createLogicalPlans = withErrorHandling(_createLogicalPlans);
 
 // ============================================
 // 수정
@@ -211,7 +202,7 @@ async function _updateLogicalPlan(
     if (planGroup.status !== "draft" && planGroup.status !== "saved") {
       throw new AppError(
         "활성화된 플랜 그룹은 수정할 수 없습니다.",
-        ErrorCode.VALIDATION,
+        ErrorCode.VALIDATION_ERROR,
         400,
         true
       );
@@ -221,10 +212,7 @@ async function _updateLogicalPlan(
   return updatePlanGroupItem(itemId, updates);
 }
 
-export const updateLogicalPlan = withErrorHandling(
-  _updateLogicalPlan,
-  "논리 플랜 업데이트 실패"
-);
+export const updateLogicalPlan = withErrorHandling(_updateLogicalPlan);
 
 // ============================================
 // 삭제
@@ -275,7 +263,7 @@ async function _deleteLogicalPlan(
   if (planGroup.status !== "draft" && planGroup.status !== "saved") {
     throw new AppError(
       "활성화된 플랜 그룹은 수정할 수 없습니다.",
-      ErrorCode.VALIDATION,
+      ErrorCode.VALIDATION_ERROR,
       400,
       true
     );
@@ -284,10 +272,7 @@ async function _deleteLogicalPlan(
   return deletePlanGroupItem(itemId);
 }
 
-export const deleteLogicalPlan = withErrorHandling(
-  _deleteLogicalPlan,
-  "논리 플랜 삭제 실패"
-);
+export const deleteLogicalPlan = withErrorHandling(_deleteLogicalPlan);
 
 /**
  * 플랜 그룹의 모든 논리 플랜 아이템 삭제
@@ -321,7 +306,7 @@ async function _deleteAllLogicalPlans(
   if (planGroup.status !== "draft" && planGroup.status !== "saved") {
     throw new AppError(
       "활성화된 플랜 그룹은 수정할 수 없습니다.",
-      ErrorCode.VALIDATION,
+      ErrorCode.VALIDATION_ERROR,
       400,
       true
     );
@@ -330,8 +315,5 @@ async function _deleteAllLogicalPlans(
   return deletePlanGroupItemsByGroupId(planGroupId);
 }
 
-export const deleteAllLogicalPlans = withErrorHandling(
-  _deleteAllLogicalPlans,
-  "논리 플랜 전체 삭제 실패"
-);
+export const deleteAllLogicalPlans = withErrorHandling(_deleteAllLogicalPlans);
 

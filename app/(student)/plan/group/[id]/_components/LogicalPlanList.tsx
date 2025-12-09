@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Edit2, Trash2, Book, Video, FileText, GripVertical } from "lucide-react";
 import type { PlanGroupItem, PlanGroupItemInput } from "@/lib/types/plan";
 import {
@@ -36,6 +37,7 @@ export function LogicalPlanList({
   readOnly = false,
   onItemsChange,
 }: LogicalPlanListProps) {
+  const router = useRouter();
   const [items, setItems] = useState<PlanGroupItem[]>(initialItems);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +52,12 @@ export function LogicalPlanList({
     setIsLoading(true);
     setError(null);
 
-    const result = await createLogicalPlan(planGroupId, tenantId, input);
+    const result = await createLogicalPlan(planGroupId, input);
 
-    if (result.success && result.item) {
-      setItems((prev) => [...prev, result.item!]);
+    if (result.success && result.itemId) {
+      // 새로 생성된 아이템을 다시 조회해야 함 (또는 낙관적 업데이트)
+      // 일단 성공하면 목록을 다시 불러오는 것이 안전
+      router.refresh();
       setIsAddModalOpen(false);
     } else {
       setError(result.error || "생성에 실패했습니다.");
@@ -68,10 +72,9 @@ export function LogicalPlanList({
 
     const result = await updateLogicalPlan(itemId, input);
 
-    if (result.success && result.item) {
-      setItems((prev) =>
-        prev.map((item) => (item.id === itemId ? result.item! : item))
-      );
+    if (result.success) {
+      // 업데이트 성공 시 목록 새로고침
+      router.refresh();
       setEditingItem(null);
     } else {
       setError(result.error || "수정에 실패했습니다.");
@@ -304,8 +307,8 @@ function LogicalPlanFormModal({
     onSubmit({
       content_type: contentType,
       content_id: contentId.trim(),
-      target_start_page_or_time: startRange === "" ? null : startRange,
-      target_end_page_or_time: endRange === "" ? null : endRange,
+      target_start_page_or_time: startRange === "" ? 0 : startRange,
+      target_end_page_or_time: endRange === "" ? 0 : endRange,
       repeat_count: repeatCount,
       is_review: isReview,
       priority,
