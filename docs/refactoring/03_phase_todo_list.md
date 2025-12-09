@@ -177,10 +177,14 @@
   - 기존 동작: 영향 없음 (옵션 파라미터)
   - 위험도: 🔴 높음 → 🟢 낮음 (하위 호환)
 
-- [ ] **[P2-7]** 플랜그룹 상세 화면 수정 (DEFERRED)
-  - 파일: `app/(student)/plan/[planGroupId]/page.tsx` 등
-  - 변경: 논리 플랜 목록 표시 및 CRUD UI
-  - 상태: UI 작업 별도 진행 예정
+- [x] **[P2-7]** 플랜그룹 상세 화면 수정 ✅ (2025-12-09)
+  - 파일:
+    - `app/(student)/plan/group/[id]/_components/LogicalPlanList.tsx` (신규)
+    - `app/(student)/plan/group/[id]/_components/PlanGroupDetailView.tsx` (수정)
+  - 변경:
+    - 논리 플랜 관리 컴포넌트 (LogicalPlanList) 생성
+    - 추가/수정/삭제 폼 모달 구현
+    - 플랜그룹 상세 화면에 "논리 플랜" 탭 추가 (탭 ID: 8)
   - 위험도: 🟡 중간
 
 #### 2.3 student_plan 수정 범위 제한
@@ -378,3 +382,4 @@ Phase 1 시작 전:
 | 2025-12-09 | v1.5 | 최종 플로우 문서화 완료     |
 | 2025-12-09 | v1.6 | DEFERRED P3-1,2,7 완료      |
 | 2025-12-09 | v1.7 | DEFERRED P2-6 완료          |
+| 2025-12-09 | v1.8 | DEFERRED P2-7 (UI) 완료     |

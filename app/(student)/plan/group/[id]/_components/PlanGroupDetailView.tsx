@@ -25,6 +25,9 @@ const Step6Simplified = lazy(() =>
 const Step7ScheduleResult = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step7ScheduleResult").then(module => ({ default: module.Step7ScheduleResult }))
 );
+const LogicalPlanList = lazy(() => 
+  import("./LogicalPlanList").then(module => ({ default: module.LogicalPlanList }))
+);
 
 type PlanGroupDetailViewProps = {
   group: PlanGroup;
@@ -86,6 +89,7 @@ export function PlanGroupDetailView({
     { id: 4, label: "콘텐츠 선택", completed: contents.length > 0 }, // 학생 + 추천 통합
     { id: 6, label: "최종 검토", completed: true },
     { id: 7, label: "스케줄 결과", completed: hasPlans },
+    { id: 8, label: "논리 플랜", completed: false }, // 논리 플랜 관리 탭
   ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, hasPlans]);
 
   // 캠프 제출 모드일 때 탭 필터링 (1, 2, 4만 표시, 추천 콘텐츠 제외)
@@ -101,7 +105,7 @@ export function PlanGroupDetailView({
     if (campSubmissionMode) {
       return [1, 2, 4];
     }
-    return [1, 2, 4, 6, 7]; // Step 3, 5 제거 (Step 2, 4에 통합)
+    return [1, 2, 4, 6, 7, 8]; // Step 3, 5 제거 (Step 2, 4에 통합), 논리 플랜 탭 추가
   }, [campSubmissionMode]);
 
   // 초기 탭 설정 (허용된 탭 중 첫 번째)
@@ -327,6 +331,17 @@ export function PlanGroupDetailView({
             <Step7ScheduleResult
               groupId={groupId}
               onComplete={() => {}}
+            />
+          </Suspense>
+        );
+      case 8:
+        // 논리 플랜 관리
+        return (
+          <Suspense fallback={<TabLoadingSkeleton />}>
+            <LogicalPlanList
+              planGroupId={groupId}
+              tenantId={group.tenant_id || null}
+              readOnly={!canEdit}
             />
           </Suspense>
         );

@@ -1,6 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;
 
 // ============================================
 // 플랜 업데이트 제한 정책 (Phase 2)
@@ -170,19 +172,22 @@ export async function getPlansForStudent(
 
   if (filters.planDate) {
     // planDate를 문자열로 변환 (YYYY-MM-DD 형식)
-    const planDateStr = typeof filters.planDate === "string"
-      ? filters.planDate.slice(0, 10)
-      : String(filters.planDate).slice(0, 10);
+    const planDateStr =
+      typeof filters.planDate === "string"
+        ? filters.planDate.slice(0, 10)
+        : String(filters.planDate).slice(0, 10);
     query = query.eq("plan_date", planDateStr);
   } else if (filters.dateRange) {
     // dateRange의 start와 end를 문자열로 변환 (YYYY-MM-DD 형식)
-    const startStr = typeof filters.dateRange.start === "string"
-      ? filters.dateRange.start.slice(0, 10)
-      : String(filters.dateRange.start).slice(0, 10);
+    const startStr =
+      typeof filters.dateRange.start === "string"
+        ? filters.dateRange.start.slice(0, 10)
+        : String(filters.dateRange.start).slice(0, 10);
 
-    const endStr = typeof filters.dateRange.end === "string"
-      ? filters.dateRange.end.slice(0, 10)
-      : String(filters.dateRange.end).slice(0, 10);
+    const endStr =
+      typeof filters.dateRange.end === "string"
+        ? filters.dateRange.end.slice(0, 10)
+        : String(filters.dateRange.end).slice(0, 10);
 
     query = query.gte("plan_date", startStr).lte("plan_date", endStr);
   }
@@ -199,20 +204,28 @@ export async function getPlansForStudent(
       const validGroupIds = filters.planGroupIds.filter(
         (id) => id && typeof id === "string" && id.trim().length > 0
       );
-      
+
       if (validGroupIds.length > 0) {
         query = query.in("plan_group_id", validGroupIds);
       } else {
-        console.warn("[data/studentPlans] 유효한 planGroupIds가 없습니다:", filters.planGroupIds);
+        console.warn(
+          "[data/studentPlans] 유효한 planGroupIds가 없습니다:",
+          filters.planGroupIds
+        );
         return []; // 유효한 ID가 없으면 빈 배열 반환
       }
     } catch (filterError) {
-      console.error("[data/studentPlans] planGroupIds 필터링 중 오류:", filterError);
+      console.error(
+        "[data/studentPlans] planGroupIds 필터링 중 오류:",
+        filterError
+      );
       // 필터링 실패 시 전체 조회로 폴백
     }
   }
 
-  query = query.order("plan_date", { ascending: true }).order("block_index", { ascending: true });
+  query = query
+    .order("plan_date", { ascending: true })
+    .order("block_index", { ascending: true });
 
   let { data, error } = await query;
 
@@ -273,11 +286,16 @@ export async function getPlansForStudent(
   if (error) {
     const supabaseError = error as any;
     const errorMessage = supabaseError?.message || String(error);
-    
+
     // HTML 응답이 반환된 경우 (500 에러 등) 감지
-    const isHtmlError = typeof errorMessage === "string" && errorMessage.includes("<!DOCTYPE html>");
-    const isServerError = isHtmlError || supabaseError?.code === "500" || supabaseError?.statusCode === 500;
-    
+    const isHtmlError =
+      typeof errorMessage === "string" &&
+      errorMessage.includes("<!DOCTYPE html>");
+    const isServerError =
+      isHtmlError ||
+      supabaseError?.code === "500" ||
+      supabaseError?.statusCode === 500;
+
     // 서버 에러인 경우 재시도 로직
     if (isServerError) {
       console.warn("[data/studentPlans] 서버 에러 발생, 재시도 중...", {
@@ -285,73 +303,85 @@ export async function getPlansForStudent(
         statusCode: supabaseError?.statusCode,
         isHtmlError,
       });
-      
+
       // 최대 2번 재시도 (총 3번 시도)
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
           // 재시도 전 대기 (지수 백오프: 1초, 2초)
           await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-          
+
           // 간단한 쿼리로 재시도
           const retryQuery = supabase
             .from("student_plan")
             .select("*")
             .eq("student_id", filters.studentId)
             .limit(1000); // 제한을 두어 복잡한 쿼리 방지
-          
+
           if (filters.tenantId) {
             retryQuery.eq("tenant_id", filters.tenantId);
           }
-          
+
           if (filters.planDate) {
-            const planDateStr = typeof filters.planDate === "string"
-              ? filters.planDate.slice(0, 10)
-              : String(filters.planDate).slice(0, 10);
+            const planDateStr =
+              typeof filters.planDate === "string"
+                ? filters.planDate.slice(0, 10)
+                : String(filters.planDate).slice(0, 10);
             retryQuery.eq("plan_date", planDateStr);
           } else if (filters.dateRange) {
-            const startStr = typeof filters.dateRange.start === "string"
-              ? filters.dateRange.start.slice(0, 10)
-              : String(filters.dateRange.start).slice(0, 10);
-            const endStr = typeof filters.dateRange.end === "string"
-              ? filters.dateRange.end.slice(0, 10)
-              : String(filters.dateRange.end).slice(0, 10);
+            const startStr =
+              typeof filters.dateRange.start === "string"
+                ? filters.dateRange.start.slice(0, 10)
+                : String(filters.dateRange.start).slice(0, 10);
+            const endStr =
+              typeof filters.dateRange.end === "string"
+                ? filters.dateRange.end.slice(0, 10)
+                : String(filters.dateRange.end).slice(0, 10);
             retryQuery.gte("plan_date", startStr).lte("plan_date", endStr);
           }
-          
+
           const { data: retryData, error: retryError } = await retryQuery
             .order("plan_date", { ascending: true })
             .order("block_index", { ascending: true });
-          
+
           if (!retryError && retryData) {
             // 애플리케이션 레벨에서 추가 필터링
             let filtered = retryData as Plan[];
-            
+
             if (filters.contentType) {
-              filtered = filtered.filter((plan) => plan.content_type === filters.contentType);
+              filtered = filtered.filter(
+                (plan) => plan.content_type === filters.contentType
+              );
             }
-            
+
             if (filters.planGroupIds && filters.planGroupIds.length > 0) {
               const activeGroupIdsSet = new Set(filters.planGroupIds);
               filtered = filtered.filter(
-                (plan) => plan.plan_group_id && activeGroupIdsSet.has(plan.plan_group_id)
+                (plan) =>
+                  plan.plan_group_id &&
+                  activeGroupIdsSet.has(plan.plan_group_id)
               );
             }
-            
+
             return filtered;
           }
         } catch (retryError) {
-          console.warn(`[data/studentPlans] 재시도 ${attempt}번째 실패:`, retryError);
+          console.warn(
+            `[data/studentPlans] 재시도 ${attempt}번째 실패:`,
+            retryError
+          );
         }
       }
-      
+
       console.error("[data/studentPlans] 모든 재시도 실패, 빈 배열 반환");
       return [];
     }
-    
+
     // 일반 에러 처리
     console.error("[data/studentPlans] 플랜 조회 실패", {
       errorCode: supabaseError?.code,
-      errorMessage: isHtmlError ? "서버 에러 (HTML 응답)" : errorMessage.substring(0, 200),
+      errorMessage: isHtmlError
+        ? "서버 에러 (HTML 응답)"
+        : errorMessage.substring(0, 200),
       filters: {
         studentId: filters.studentId,
         dateRange: filters.dateRange,
@@ -360,11 +390,13 @@ export async function getPlansForStudent(
         planGroupIdsCount: filters.planGroupIds?.length || 0,
       },
     });
-    
+
     // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
     if (filters.planGroupIds && filters.planGroupIds.length > 0) {
-      console.warn("[data/studentPlans] planGroupIds 필터링 실패, 전체 조회로 폴백");
-      
+      console.warn(
+        "[data/studentPlans] planGroupIds 필터링 실패, 전체 조회로 폴백"
+      );
+
       // planGroupIds 없이 다시 시도
       const fallbackFilters: PlanFilters = {
         studentId: filters.studentId,
@@ -376,31 +408,34 @@ export async function getPlansForStudent(
           : undefined,
         dateRange: filters.dateRange
           ? {
-              start: typeof filters.dateRange.start === "string"
-                ? filters.dateRange.start.slice(0, 10)
-                : String(filters.dateRange.start).slice(0, 10),
-              end: typeof filters.dateRange.end === "string"
-                ? filters.dateRange.end.slice(0, 10)
-                : String(filters.dateRange.end).slice(0, 10),
+              start:
+                typeof filters.dateRange.start === "string"
+                  ? filters.dateRange.start.slice(0, 10)
+                  : String(filters.dateRange.start).slice(0, 10),
+              end:
+                typeof filters.dateRange.end === "string"
+                  ? filters.dateRange.end.slice(0, 10)
+                  : String(filters.dateRange.end).slice(0, 10),
             }
           : undefined,
         contentType: filters.contentType,
         // planGroupIds는 제외
       };
-      
+
       try {
         const fallbackData = await getPlansForStudent(fallbackFilters);
         // 애플리케이션 레벨에서 필터링
         const activeGroupIdsSet = new Set(filters.planGroupIds);
         const filtered = fallbackData.filter(
-          (plan) => plan.plan_group_id && activeGroupIdsSet.has(plan.plan_group_id)
+          (plan) =>
+            plan.plan_group_id && activeGroupIdsSet.has(plan.plan_group_id)
         );
         return filtered;
       } catch (fallbackError) {
         console.error("[data/studentPlans] 폴백 조회도 실패:", fallbackError);
       }
     }
-    
+
     return [];
   }
 
@@ -521,7 +556,11 @@ export async function createPlan(
 
   if (error && error.code === "42703") {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+    const {
+      tenant_id: _tenantId,
+      student_id: _studentId,
+      ...fallbackPayload
+    } = payload;
     ({ data, error } = await supabase
       .from("student_plan")
       .insert(fallbackPayload)
@@ -552,7 +591,8 @@ export async function updatePlanSafe(
 
   const payload: Record<string, unknown> = {};
   if (updates.plan_date !== undefined) payload.plan_date = updates.plan_date;
-  if (updates.block_index !== undefined) payload.block_index = updates.block_index;
+  if (updates.block_index !== undefined)
+    payload.block_index = updates.block_index;
   if (updates.planned_start_page_or_time !== undefined)
     payload.planned_start_page_or_time = updates.planned_start_page_or_time;
   if (updates.planned_end_page_or_time !== undefined)
@@ -568,7 +608,8 @@ export async function updatePlanSafe(
     payload.total_duration_seconds = updates.total_duration_seconds;
   if (updates.paused_duration_seconds !== undefined)
     payload.paused_duration_seconds = updates.paused_duration_seconds;
-  if (updates.pause_count !== undefined) payload.pause_count = updates.pause_count;
+  if (updates.pause_count !== undefined)
+    payload.pause_count = updates.pause_count;
   if (updates.memo !== undefined) payload.memo = updates.memo;
   if (updates.is_reschedulable !== undefined)
     payload.is_reschedulable = updates.is_reschedulable;
@@ -627,24 +668,30 @@ export async function updatePlan(
   );
   if (forbiddenUsed.length > 0) {
     console.warn(
-      `[data/studentPlans] 구조적 필드 업데이트 시도: ${forbiddenUsed.join(", ")}. ` +
+      `[data/studentPlans] 구조적 필드 업데이트 시도: ${forbiddenUsed.join(
+        ", "
+      )}. ` +
         `이 필드들은 플랜그룹 레벨에서 처리해야 합니다. updatePlanSafe() 사용을 권장합니다.`
     );
   }
 
   const payload: Record<string, unknown> = {};
   if (updates.plan_date !== undefined) payload.plan_date = updates.plan_date;
-  if (updates.block_index !== undefined) payload.block_index = updates.block_index;
-  if (updates.content_type !== undefined) payload.content_type = updates.content_type;
+  if (updates.block_index !== undefined)
+    payload.block_index = updates.block_index;
+  if (updates.content_type !== undefined)
+    payload.content_type = updates.content_type;
   if (updates.content_id !== undefined) payload.content_id = updates.content_id;
   if (updates.chapter !== undefined) payload.chapter = updates.chapter;
   if (updates.planned_start_page_or_time !== undefined)
     payload.planned_start_page_or_time = updates.planned_start_page_or_time;
   if (updates.planned_end_page_or_time !== undefined)
     payload.planned_end_page_or_time = updates.planned_end_page_or_time;
-  if (updates.completed_amount !== undefined) payload.completed_amount = updates.completed_amount;
+  if (updates.completed_amount !== undefined)
+    payload.completed_amount = updates.completed_amount;
   if (updates.progress !== undefined) payload.progress = updates.progress;
-  if (updates.is_reschedulable !== undefined) payload.is_reschedulable = updates.is_reschedulable;
+  if (updates.is_reschedulable !== undefined)
+    payload.is_reschedulable = updates.is_reschedulable;
 
   let { error } = await supabase
     .from("student_plan")
@@ -719,7 +766,10 @@ export async function deletePlans(
       .eq("student_id", studentId);
 
     if (error && error.code === "42703") {
-      ({ error } = await supabase.from("student_plan").delete().in("id", batch));
+      ({ error } = await supabase
+        .from("student_plan")
+        .delete()
+        .in("id", batch));
     }
 
     if (error) {
@@ -730,4 +780,3 @@ export async function deletePlans(
 
   return { success: true };
 }
-
