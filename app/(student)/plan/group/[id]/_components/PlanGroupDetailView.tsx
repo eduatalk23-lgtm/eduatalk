@@ -5,7 +5,7 @@ import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { GeneratePlansButton } from "./GeneratePlansButton";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 import { ErrorBoundary } from "./ErrorBoundary";
-import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus } from "@/lib/types/plan";
+import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus, PlanGroupItem } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
 import { planGroupToWizardData, contentsToWizardFormat } from "@/lib/utils/planGroupAdapters";
 
@@ -62,6 +62,7 @@ type PlanGroupDetailViewProps = {
     }>;
   }>;
   campTemplateId?: string | null;
+  logicalPlans?: PlanGroupItem[];
 };
 
 export function PlanGroupDetailView({
@@ -79,6 +80,7 @@ export function PlanGroupDetailView({
   templateBlockSetId = null,
   blockSets = [],
   campTemplateId = null,
+  logicalPlans = [],
 }: PlanGroupDetailViewProps) {
   const scheduleViewRef = useRef<PlanScheduleViewRef | null>(null);
 
@@ -341,6 +343,7 @@ export function PlanGroupDetailView({
             <LogicalPlanList
               planGroupId={groupId}
               tenantId={group.tenant_id || null}
+              initialItems={logicalPlans}
               readOnly={!canEdit}
             />
           </Suspense>
