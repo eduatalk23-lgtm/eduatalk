@@ -55,7 +55,7 @@ function SidebarContent({
               aria-label="메뉴 펼치기"
               title="메뉴 펼치기"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-6 h-6 flex-shrink-0" />
               {/* 툴팁 */}
               <div className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden w-24 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100 whitespace-nowrap z-50">
                 메뉴 펼치기
