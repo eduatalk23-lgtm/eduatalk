@@ -130,6 +130,7 @@ async function _copyMasterToStudentContent(
 ): Promise<{
   bookId?: string;
   lectureId?: string;
+  contentId?: string;
 }> {
   const user = await getCurrentUser();
   const { role } = await getCurrentUserRole();

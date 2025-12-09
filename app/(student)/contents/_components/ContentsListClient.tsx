@@ -7,9 +7,10 @@ import { useSelection } from "./SelectionContext";
 import {
   deleteBook,
   deleteLecture,
+  deleteCustomContent,
 } from "@/app/(student)/actions/contentActions";
 
-type TabKey = "books" | "lectures";
+type TabKey = "books" | "lectures" | "custom";
 
 type ContentListItem = {
   id: string;
@@ -24,6 +25,7 @@ type ContentsListClientProps = {
   activeTab: TabKey;
   deleteBook: (id: string) => Promise<void>;
   deleteLecture: (id: string) => Promise<void>;
+  deleteCustomContent: (id: string) => Promise<void>;
 };
 
 function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
@@ -61,12 +63,28 @@ function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
     ];
   }
 
+  if (tab === "custom") {
+    return [
+      { label: "콘텐츠 유형", value: item.content_type },
+      { label: "과목", value: item.subject },
+      {
+        label: item.content_type === "book" ? "총 페이지" : "총 시간",
+        value: item.total_page_or_time
+          ? item.content_type === "book"
+            ? `${item.total_page_or_time}p`
+            : `${item.total_page_or_time}분`
+          : null,
+      },
+    ];
+  }
+
   return [];
 }
 
 function getSubText(tab: TabKey, item: ContentListItem): string {
   if (tab === "books") return item.publisher || "출판사 정보 없음";
   if (tab === "lectures") return item.platform || "플랫폼 정보 없음";
+  if (tab === "custom") return item.content_type || "유형 정보 없음";
   return "";
 }
 
@@ -75,12 +93,20 @@ export function ContentsListClient({
   activeTab,
   deleteBook,
   deleteLecture,
+  deleteCustomContent,
 }: ContentsListClientProps) {
   const { selectedIds, select, selectAll } = useSelection();
 
   const allIds = list.map((item) => item.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id));
   const someSelected = allIds.some((id) => selectedIds.has(id));
+
+  const getDeleteHandler = () => {
+    if (activeTab === "books") return deleteBook;
+    if (activeTab === "lectures") return deleteLecture;
+    if (activeTab === "custom") return deleteCustomContent;
+    return deleteBook;
+  };
 
   return (
     <div>
@@ -113,7 +139,7 @@ export function ContentsListClient({
             key={item.id}
             item={item}
             activeTab={activeTab}
-            onDelete={activeTab === "books" ? deleteBook : deleteLecture}
+            onDelete={getDeleteHandler()}
             detailRows={getDetailRows(activeTab, item)}
             subText={getSubText(activeTab, item)}
             linkedBook={(item as any).linkedBook}

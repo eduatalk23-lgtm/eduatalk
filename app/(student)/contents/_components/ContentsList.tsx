@@ -6,10 +6,11 @@ import { Pagination } from "./Pagination";
 import {
   deleteBook,
   deleteLecture,
+  deleteCustomContent,
 } from "@/app/(student)/actions/contentActions";
 import { ContentsListClient } from "./ContentsListClient";
 
-type TabKey = "books" | "lectures";
+type TabKey = "books" | "lectures" | "custom";
 type ContentListItem = {
   id: string;
   title: string;
@@ -81,36 +82,50 @@ async function ContentsListContent({
   if (list.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto flex max-w-md flex-col gap-6">
-          <div className="text-6xl">
-            {activeTab === "books" && "📚"}
-            {activeTab === "lectures" && "🎧"}
+          <div className="mx-auto flex max-w-md flex-col gap-6">
+            <div className="text-6xl">
+              {activeTab === "books" && "📚"}
+              {activeTab === "lectures" && "🎧"}
+              {activeTab === "custom" && "📝"}
+            </div>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {activeTab === "books" && "등록된 책이 없습니다"}
+                {activeTab === "lectures" && "등록된 강의가 없습니다"}
+                {activeTab === "custom" && "등록된 커스텀 콘텐츠가 없습니다"}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {activeTab === "books" && "새로운 책을 등록하여 학습을 시작해보세요."}
+                {activeTab === "lectures" && "새로운 강의를 등록하여 학습을 시작해보세요."}
+                {activeTab === "custom" && "서비스 마스터 커스텀 콘텐츠에서 가져오거나 직접 등록해보세요."}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              {activeTab === "custom" ? (
+                <Link
+                  href="/contents/master-custom-contents"
+                  className="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                >
+                  📝 서비스 마스터 커스텀 콘텐츠에서 가져오기
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href={activeTab === "books" ? "/contents/master-books" : "/contents/master-lectures"}
+                    className="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                  >
+                    {activeTab === "books" ? "📚 서비스 마스터 교재에서 가져오기" : "🎧 서비스 마스터 강의에서 가져오기"}
+                  </Link>
+                  <Link
+                    href={`/contents/${activeTab}/new`}
+                    className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                  >
+                    {activeTab === "books" ? "+ 새 교재 등록" : "+ 새 강의 등록"}
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {activeTab === "books" && "등록된 책이 없습니다"}
-              {activeTab === "lectures" && "등록된 강의가 없습니다"}
-            </h3>
-            <p className="text-sm text-gray-500">
-              새로운 {activeTab === "books" && "책"}
-              {activeTab === "lectures" && "강의"}을 등록하여 학습을 시작해보세요.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Link
-              href={activeTab === "books" ? "/contents/master-books" : "/contents/master-lectures"}
-              className="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-            >
-              {activeTab === "books" ? "📚 서비스 마스터 교재에서 가져오기" : "🎧 서비스 마스터 강의에서 가져오기"}
-            </Link>
-            <Link
-              href={`/contents/${activeTab}/new`}
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              {activeTab === "books" ? "+ 새 교재 등록" : "+ 새 강의 등록"}
-            </Link>
-          </div>
-        </div>
       </div>
     );
   }
@@ -122,6 +137,7 @@ async function ContentsListContent({
         activeTab={activeTab}
         deleteBook={deleteBook}
         deleteLecture={deleteLecture}
+        deleteCustomContent={deleteCustomContent}
       />
       
       {/* 페이지네이션 */}
@@ -356,6 +372,70 @@ async function fetchContentsByTab(
       return { list: data ?? [], total, totalPages };
     }
 
+    if (tab === "custom") {
+      const selectCustomContents = () => {
+        let query = supabase
+          .from("student_custom_contents")
+          .select(
+            "id,title,content_type,total_page_or_time,subject,created_at"
+          );
+
+        // 필터 적용
+        if (filters.search) {
+          query = query.ilike("title", `%${filters.search}%`);
+        }
+        if (filters.subject_id) {
+          // subject_id는 student_custom_contents에 없을 수 있으므로 subject로 필터링
+          // 실제로는 subject 필드로만 필터링 가능
+        }
+
+        // 정렬
+        if (sortBy === "title_asc") {
+          query = query.order("title", { ascending: true });
+        } else if (sortBy === "title_desc") {
+          query = query.order("title", { ascending: false });
+        } else if (sortBy === "created_at_asc") {
+          query = query.order("created_at", { ascending: true });
+        } else {
+          // created_at_desc (기본값)
+          query = query.order("created_at", { ascending: false });
+        }
+
+        return query;
+      };
+
+      // 전체 개수 조회
+      const countQuery = selectCustomContents();
+      let { count, error: countError } = await countQuery
+        .eq("student_id", studentId)
+        .select("*", { count: "exact", head: true });
+      
+      if (countError && countError.code === "42703") {
+        const countQuery2 = selectCustomContents();
+        const { count: count2 } = await countQuery2.select("*", { count: "exact", head: true });
+        count = count2;
+      }
+      
+      const total = count ?? 0;
+      const totalPages = Math.ceil(total / itemsPerPage);
+      const from = (page - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+
+      // 페이지네이션 적용
+      const dataQuery = selectCustomContents();
+      let { data, error } = await dataQuery
+        .eq("student_id", studentId)
+        .range(from, to);
+      
+      if (error && error.code === "42703") {
+        const dataQuery2 = selectCustomContents();
+        ({ data, error } = await dataQuery2.range(from, to));
+      }
+      if (error) throw error;
+      
+      return { list: data ?? [], total, totalPages };
+    }
+
     return { list: [], total: 0, totalPages: 0 };
   } catch (err) {
     console.error(err);
@@ -397,12 +477,28 @@ export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
     ];
   }
 
+  if (tab === "custom") {
+    return [
+      { label: "콘텐츠 유형", value: item.content_type },
+      { label: "과목", value: item.subject },
+      {
+        label: item.content_type === "book" ? "총 페이지" : "총 시간",
+        value: item.total_page_or_time
+          ? item.content_type === "book"
+            ? `${item.total_page_or_time}p`
+            : `${item.total_page_or_time}분`
+          : null,
+      },
+    ];
+  }
+
   return [];
 }
 
 export function getSubText(tab: TabKey, item: ContentListItem): string {
   if (tab === "books") return item.publisher || "출판사 정보 없음";
   if (tab === "lectures") return item.platform || "플랫폼 정보 없음";
+  if (tab === "custom") return item.content_type || "유형 정보 없음";
   return "";
 }
 

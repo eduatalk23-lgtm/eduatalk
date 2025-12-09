@@ -11,7 +11,7 @@ import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter"
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { getPublishersForFilter, getPlatformsForFilter, getDifficultiesForMasterBooks, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 
-type TabKey = "books" | "lectures";
+type TabKey = "books" | "lectures" | "custom";
 
 export default async function ContentsPage({
   searchParams,
@@ -29,7 +29,7 @@ export default async function ContentsPage({
   if (!user) redirect("/login");
 
   const activeTab: TabKey =
-    tabParam === "lectures" ? "lectures" : "books";
+    tabParam === "lectures" ? "lectures" : tabParam === "custom" ? "custom" : "books";
 
   const searchQuery = params.search;
   const curriculumRevisionId = params.curriculum_revision_id;
@@ -59,10 +59,10 @@ export default async function ContentsPage({
             <p className="text-sm font-medium text-gray-500">학습 콘텐츠</p>
             <h1 className="text-3xl font-semibold text-gray-900">등록된 콘텐츠</h1>
             <p className="text-sm text-gray-500">
-              등록한 책과 강의를 한 곳에서 확인하세요.
+              등록한 책, 강의, 커스텀 콘텐츠를 한 곳에서 확인하세요.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Link
               href="/contents/master-books"
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -76,11 +76,19 @@ export default async function ContentsPage({
               🎧 서비스 마스터 강의
             </Link>
             <Link
-              href={`/contents/${activeTab}/new`}
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              href="/contents/master-custom-contents"
+              className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              {activeTab === "books" ? "+ 책 등록" : "+ 강의 등록"}
+              📝 서비스 마스터 커스텀 콘텐츠
             </Link>
+            {activeTab !== "custom" && (
+              <Link
+                href={`/contents/${activeTab}/new`}
+                className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                {activeTab === "books" ? "+ 책 등록" : "+ 강의 등록"}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -92,6 +100,7 @@ export default async function ContentsPage({
           tabs={[
             { key: "books", label: "교재" },
             { key: "lectures", label: "강의" },
+            { key: "custom", label: "커스텀" },
           ]}
           defaultTab={activeTab}
         />
@@ -175,7 +184,7 @@ async function StudentContentFilterWrapper({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <UnifiedContentFilter
         context="student"
-        contentType={activeTab === "books" ? "book" : "lecture"}
+        contentType={activeTab === "books" ? "book" : activeTab === "lectures" ? "lecture" : "custom"}
         basePath={basePath}
         initialValues={{
           curriculum_revision_id: params.curriculum_revision_id,

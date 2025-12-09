@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 type DeleteContentButtonProps = {
   id: string;
-  contentType: "books" | "lectures";
+  contentType: "books" | "lectures" | "custom";
   onDelete: (id: string) => Promise<void>;
 };
 

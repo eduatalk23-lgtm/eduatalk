@@ -3,7 +3,7 @@
 
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
+import { MasterBook, MasterLecture, MasterCustomContent, BookDetail, LectureEpisode } from "@/lib/types/plan";
 import { 
   getSubjectGroups, 
   getSubjectsByGroup,
@@ -37,6 +37,22 @@ export type MasterLectureFilters = {
   subject_group_id?: string; // 교과 그룹 ID로 필터링
   subject_id?: string; // 과목 ID로 필터링
   platform_id?: string; // 플랫폼 ID로 필터링
+  search?: string; // 제목 검색
+  difficulty?: string; // 난이도 필터링
+  sort?: string; // 정렬 옵션
+  tenantId?: string | null;
+  limit?: number;
+  offset?: number;
+};
+
+/**
+ * 커스텀 콘텐츠 검색 필터
+ */
+export type MasterCustomContentFilters = {
+  curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
+  subject_group_id?: string; // 교과 그룹 ID로 필터링
+  subject_id?: string; // 과목 ID로 필터링
+  content_type?: string; // 콘텐츠 유형 필터링
   search?: string; // 제목 검색
   difficulty?: string; // 난이도 필터링
   sort?: string; // 정렬 옵션
@@ -771,23 +787,270 @@ export async function copyMasterLectureToStudent(
   return { lectureId: studentLecture.id };
 }
 
+// ============================================
+// 커스텀 콘텐츠 관련 함수
+// ============================================
+
+/**
+ * 커스텀 콘텐츠 검색
+ * @param filters 검색 필터
+ * @param supabase Supabase 클라이언트 (선택적, 전달하지 않으면 일반 서버 클라이언트 사용)
+ */
+export async function searchMasterCustomContents(
+  filters: MasterCustomContentFilters,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>
+): Promise<{ data: MasterCustomContent[]; total: number }> {
+  const queryClient = supabase || await createSupabaseServerClient();
+
+  let query = queryClient
+    .from("master_custom_contents")
+    .select("*", { count: "exact" });
+
+  // 필터 적용
+  if (filters.curriculum_revision_id) {
+    query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
+  }
+  if (filters.subject_group_id) {
+    query = query.eq("subject_group_id", filters.subject_group_id);
+  }
+  if (filters.subject_id) {
+    query = query.eq("subject_id", filters.subject_id);
+  }
+  if (filters.content_type) {
+    query = query.eq("content_type", filters.content_type);
+  }
+  if (filters.search) {
+    query = query.ilike("title", `%${filters.search}%`);
+  }
+  if (filters.difficulty) {
+    query = query.eq("difficulty_level", filters.difficulty);
+  }
+  if (filters.tenantId) {
+    query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
+  } else {
+    query = query.is("tenant_id", null); // 기본적으로 공개 콘텐츠만
+  }
+
+  // 정렬
+  const sortBy = filters.sort || "updated_at_desc";
+  if (sortBy === "title_asc") {
+    query = query.order("title", { ascending: true });
+  } else if (sortBy === "title_desc") {
+    query = query.order("title", { ascending: false });
+  } else if (sortBy === "difficulty_level_asc") {
+    query = query.order("difficulty_level", { ascending: true });
+  } else if (sortBy === "difficulty_level_desc") {
+    query = query.order("difficulty_level", { ascending: false });
+  } else if (sortBy === "created_at_asc") {
+    query = query.order("created_at", { ascending: true });
+  } else if (sortBy === "created_at_desc") {
+    query = query.order("created_at", { ascending: false });
+  } else {
+    // 기본값: updated_at_desc
+    query = query.order("updated_at", { ascending: false });
+  }
+
+  // 페이지네이션
+  if (filters.limit) {
+    query = query.limit(filters.limit);
+  }
+  if (filters.offset) {
+    query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("[data/contentMasters] 커스텀 콘텐츠 검색 실패", error);
+    throw new Error(error.message || "커스텀 콘텐츠 검색에 실패했습니다.");
+  }
+
+  const result = {
+    data: (data as MasterCustomContent[] | null) ?? [],
+    total: count ?? 0,
+  };
+
+  return result;
+}
+
+/**
+ * 커스텀 콘텐츠 상세 조회
+ */
+export async function getMasterCustomContentById(
+  contentId: string
+): Promise<{ content: MasterCustomContent | null }> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("master_custom_contents")
+    .select("*")
+    .eq("id", contentId)
+    .maybeSingle<MasterCustomContent>();
+
+  if (error) {
+    console.error("[data/contentMasters] 커스텀 콘텐츠 조회 실패", error);
+    throw new Error(error.message || "커스텀 콘텐츠 조회에 실패했습니다.");
+  }
+
+  return {
+    content: data,
+  };
+}
+
+/**
+ * 커스텀 콘텐츠 생성
+ */
+export async function createMasterCustomContent(
+  data: Omit<MasterCustomContent, "id" | "created_at" | "updated_at">
+): Promise<MasterCustomContent> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: content, error } = await supabase
+    .from("master_custom_contents")
+    .insert(data)
+    .select("*")
+    .single<MasterCustomContent>();
+
+  if (error) {
+    console.error("[data/contentMasters] 커스텀 콘텐츠 생성 실패", error);
+    throw new Error(error.message || "커스텀 콘텐츠 생성에 실패했습니다.");
+  }
+
+  return content;
+}
+
+/**
+ * 커스텀 콘텐츠 수정
+ */
+export async function updateMasterCustomContent(
+  contentId: string,
+  updates: Partial<Omit<MasterCustomContent, "id" | "created_at" | "updated_at">>
+): Promise<MasterCustomContent> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: content, error } = await supabase
+    .from("master_custom_contents")
+    .update(updates)
+    .eq("id", contentId)
+    .select("*")
+    .single<MasterCustomContent>();
+
+  if (error) {
+    console.error("[data/contentMasters] 커스텀 콘텐츠 수정 실패", error);
+    throw new Error(error.message || "커스텀 콘텐츠 수정에 실패했습니다.");
+  }
+
+  return content;
+}
+
+/**
+ * 커스텀 콘텐츠 삭제
+ */
+export async function deleteMasterCustomContent(contentId: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("master_custom_contents")
+    .delete()
+    .eq("id", contentId);
+
+  if (error) {
+    console.error("[data/contentMasters] 커스텀 콘텐츠 삭제 실패", error);
+    throw new Error(error.message || "커스텀 콘텐츠 삭제에 실패했습니다.");
+  }
+}
+
+/**
+ * 마스터 커스텀 콘텐츠를 학생 커스텀 콘텐츠로 복사
+ * 주의: Admin 클라이언트를 사용하여 RLS 정책을 우회합니다.
+ */
+export async function copyMasterCustomContentToStudent(
+  contentId: string,
+  studentId: string,
+  tenantId: string
+): Promise<{ contentId: string }> {
+  // Admin 클라이언트 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new Error(
+      "Admin 클라이언트를 생성할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY 환경 변수를 확인해주세요."
+    );
+  }
+
+  const { content } = await getMasterCustomContentById(contentId);
+  if (!content) {
+    throw new Error("커스텀 콘텐츠를 찾을 수 없습니다.");
+  }
+
+  // 중복 체크: 같은 master_content_id를 가진 학생 커스텀 콘텐츠가 이미 있는지 확인
+  const { data: existingContent } = await supabase
+    .from("student_custom_contents")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("title", content.title) // 제목으로 중복 체크 (master_content_id가 없을 수 있음)
+    .maybeSingle();
+
+  if (existingContent) {
+    // 이미 복사된 콘텐츠가 있으면 기존 ID 반환
+    return { contentId: existingContent.id };
+  }
+
+  const { data: studentContent, error } = await supabase
+    .from("student_custom_contents")
+    .insert({
+      tenant_id: tenantId,
+      student_id: studentId,
+      title: content.title,
+      content_type: content.content_type,
+      total_page_or_time: content.total_page_or_time,
+      subject: content.subject,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[data/contentMasters] 커스텀 콘텐츠 복사 실패", {
+      contentId,
+      studentId,
+      tenantId,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(
+      error.code === "42501"
+        ? "RLS 정책 위반: 커스텀 콘텐츠 복사 권한이 없습니다. Admin 클라이언트를 확인해주세요."
+        : error.message || "커스텀 콘텐츠 복사에 실패했습니다."
+    );
+  }
+
+  return { contentId: studentContent.id };
+}
+
 /**
  * 마스터 콘텐츠를 학생 콘텐츠로 복사 (하위 호환성)
- * @deprecated copyMasterBookToStudent 또는 copyMasterLectureToStudent 사용 권장
+ * @deprecated copyMasterBookToStudent, copyMasterLectureToStudent, copyMasterCustomContentToStudent 사용 권장
  */
 export async function copyMasterToStudentContent(
   masterId: string,
   studentId: string,
   tenantId: string
-): Promise<{ bookId?: string; lectureId?: string }> {
+): Promise<{ bookId?: string; lectureId?: string; contentId?: string }> {
   // 먼저 교재에서 찾기
   try {
     const result = await copyMasterBookToStudent(masterId, studentId, tenantId);
     return { bookId: result.bookId };
   } catch (error) {
     // 교재가 아니면 강의로 시도
-    const result = await copyMasterLectureToStudent(masterId, studentId, tenantId);
-    return { lectureId: result.lectureId };
+    try {
+      const result = await copyMasterLectureToStudent(masterId, studentId, tenantId);
+      return { lectureId: result.lectureId };
+    } catch (lectureError) {
+      // 강의도 아니면 커스텀 콘텐츠로 시도
+      const result = await copyMasterCustomContentToStudent(masterId, studentId, tenantId);
+      return { contentId: result.contentId };
+    }
   }
 }
 

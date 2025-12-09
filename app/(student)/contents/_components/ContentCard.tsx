@@ -4,7 +4,7 @@ import { useState, Fragment, memo } from "react";
 import Link from "next/link";
 import { DeleteContentButton } from "./DeleteContentButton";
 
-type TabKey = "books" | "lectures";
+type TabKey = "books" | "lectures" | "custom";
 
 type ContentCardProps = {
   item: {
@@ -110,12 +110,14 @@ function ContentCardComponent({
         </div>
 
         <div className="flex gap-2">
-          <Link
-            href={`/contents/${activeTab}/${item.id}`}
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
-          >
-            상세보기
-          </Link>
+          {activeTab !== "custom" && (
+            <Link
+              href={`/contents/${activeTab}/${item.id}`}
+              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+            >
+              상세보기
+            </Link>
+          )}
           <DeleteContentButton
             id={item.id}
             contentType={activeTab}

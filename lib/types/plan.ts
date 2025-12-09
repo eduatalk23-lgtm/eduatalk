@@ -472,6 +472,22 @@ export type MasterLecture = MasterContentFields & {
 };
 
 /**
+ * 서비스 마스터 커스텀 콘텐츠
+ */
+export type MasterCustomContent = MasterContentFields & {
+  // 커스텀 콘텐츠 특화 필드
+  content_type: string | null; // 콘텐츠 유형 ('book', 'lecture', 'worksheet', 'other')
+  total_page_or_time: number | null; // 총 페이지 수 또는 시간(분)
+  subject: string | null; // 과목명 (denormalized)
+  subject_category: string | null; // 교과 그룹명 (denormalized)
+  
+  // 교육과정 관련 (선택적)
+  curriculum_revision_id: string | null; // 교육과정 개정판 ID (FK → curriculum_revisions)
+  subject_id: string | null; // 과목 ID (FK → subjects)
+  subject_group_id: string | null; // 교과 그룹 ID (FK → subject_groups, denormalized)
+};
+
+/**
  * 콘텐츠 마스터 (서비스 제공 교재/강의) - 레거시 타입 (하위 호환성)
  * @deprecated master_books, master_lectures로 분리됨. MasterBook 또는 MasterLecture 사용 권장
  */

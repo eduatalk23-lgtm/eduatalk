@@ -26,8 +26,14 @@ export async function ContentStats({ studentId }: ContentStatsProps) {
     .eq("student_id", studentId)
     .not("linked_book_id", "is", null);
 
+  // 커스텀 콘텐츠 통계
+  const { count: customContentCount } = await supabase
+    .from("student_custom_contents")
+    .select("*", { count: "exact", head: true })
+    .eq("student_id", studentId);
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-indigo-100 p-2">
@@ -51,6 +57,20 @@ export async function ContentStats({ studentId }: ContentStatsProps) {
             <p className="text-sm font-medium text-gray-600">총 강의</p>
             <p className="text-2xl font-semibold text-gray-900">
               {lectureCount ?? 0}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-emerald-100 p-2">
+            <span className="text-2xl">📝</span>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-600">커스텀 콘텐츠</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {customContentCount ?? 0}
             </p>
           </div>
         </div>
