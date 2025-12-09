@@ -58,7 +58,7 @@ export type ScheduleSummary = {
     지정휴일: number;
   };
   academy_statistics: {
-      total_academy_schedules: number; // 학원 단위 일정 수 (고유 요일 기준)
+      total_academy_schedules: number; // 고유 학원 수
     unique_academies: number; // 고유 학원 수
     total_academy_hours: number; // 총 학원 수업 시간
     total_travel_hours: number; // 총 이동시간
@@ -1138,13 +1138,12 @@ export function calculateAvailableDates(
     }
   }
 
-  // 학원 단위 일정 수 계산 (academyGroups의 total_count 합산)
-  // total_count는 각 학원의 고유 요일 수 기준으로 계산된 값
-  const totalAcademySchedules = academyGroups.reduce((sum, group) => sum + group.total_count, 0);
+  // 고유 학원 수 계산
+  const totalAcademySchedules = academyGroups.length;
 
   totalTravelHours = totalTravelMinutes / 60;
   // 평균 이동시간 계산: totalTravelMinutes는 각 날짜의 각 학원 일정마다 누적되므로
-  // totalAcademySchedules(학원 단위 일정 수)로 나누면 평균 이동시간이 계산됨
+  // totalAcademySchedules(고유 학원 수)로 나누면 학원당 평균 이동시간이 계산됨
   const averageTravelTime = totalAcademySchedules > 0 
     ? totalTravelMinutes / totalAcademySchedules 
     : 0;
