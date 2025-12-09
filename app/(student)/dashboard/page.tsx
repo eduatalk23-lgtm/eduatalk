@@ -119,7 +119,7 @@ export default async function DashboardPage() {
                       break;
                     case "/attendance/check-in":
                       description = "출석을 체크하고 기록을 확인하세요";
-                      color = "orange";
+                      color = "cyan";
                       break;
                     default:
                       description = "기능을 이용하세요";
@@ -167,7 +167,7 @@ export default async function DashboardPage() {
                 title="시간블록 설정"
                 description="학습 가능한 시간대를 설정하세요"
                 icon="⏰"
-                color="orange"
+                color="amber"
               />
             </div>
           </div>
@@ -192,7 +192,7 @@ function QuickActionCard({
   title: string;
   description: string;
   icon: string;
-  color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal";
+  color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal" | "cyan" | "amber" | "pink" | "violet" | "emerald" | "sky";
 }) {
   const colorClasses = {
     indigo:
@@ -205,6 +205,12 @@ function QuickActionCard({
     green: "border-green-200 bg-gradient-to-br from-green-50 to-green-100/50 hover:from-green-100 hover:to-green-200/50 text-green-900 hover:shadow-lg",
     red: "border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:from-red-100 hover:to-red-200/50 text-red-900 hover:shadow-lg",
     teal: "border-teal-200 bg-gradient-to-br from-teal-50 to-teal-100/50 hover:from-teal-100 hover:to-teal-200/50 text-teal-900 hover:shadow-lg",
+    cyan: "border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100/50 hover:from-cyan-100 hover:to-cyan-200/50 text-cyan-900 hover:shadow-lg",
+    amber: "border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50 hover:from-amber-100 hover:to-amber-200/50 text-amber-900 hover:shadow-lg",
+    pink: "border-pink-200 bg-gradient-to-br from-pink-50 to-pink-100/50 hover:from-pink-100 hover:to-pink-200/50 text-pink-900 hover:shadow-lg",
+    violet: "border-violet-200 bg-gradient-to-br from-violet-50 to-violet-100/50 hover:from-violet-100 hover:to-violet-200/50 text-violet-900 hover:shadow-lg",
+    emerald: "border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 hover:from-emerald-100 hover:to-emerald-200/50 text-emerald-900 hover:shadow-lg",
+    sky: "border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100/50 hover:from-sky-100 hover:to-sky-200/50 text-sky-900 hover:shadow-lg",
   };
 
   return (
