@@ -105,6 +105,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
             onClick={handleSelectAll}
             className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
             title={allSelected ? "전체 해제" : "전체 선택"}
+            aria-label={allSelected ? "전체 해제" : "전체 선택"}
           >
             {allSelected ? (
               <CheckSquare className="h-4 w-4" />
@@ -124,6 +125,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
                 onClick={handleBulkDelete}
                 className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
                 title="선택 삭제"
+                aria-label="선택한 플랜 그룹 삭제"
               >
                 <Trash2 className="h-4 w-4" />
                 선택 삭제

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Save, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Save, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { PlanGroup } from "../_utils/planGroupUtils";
 
 type PlanRange = {
@@ -172,88 +173,82 @@ export function PlanRangeAdjustModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative w-full max-w-3xl max-h-[90vh] rounded-lg border border-gray-200 bg-white shadow-xl flex flex-col">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">플랜 범위 조정</h2>
-            <div className="mt-1 text-sm text-gray-600">{contentTitle}</div>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* 내용 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* 현재 범위 */}
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">현재 범위</h3>
-            <div className="space-y-2">
-              {ranges.map((range, index) => (
-                <div key={range.planId} className="text-sm text-gray-700">
-                  블록 {range.blockIndex}: {range.startPageOrTime} ~ {range.endPageOrTime} {unit} (
-                  {range.endPageOrTime - range.startPageOrTime} {unit})
+    <Dialog
+      open={isOpen}
+      onOpenChange={onClose}
+      title="플랜 범위 조정"
+      description={contentTitle}
+      maxWidth="3xl"
+    >
+      <DialogContent>
+        <div className="max-h-[calc(90vh-200px)] overflow-y-auto">
+          <div className="flex flex-col gap-6">
+            {/* 현재 범위 */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">현재 범위</h3>
+              <div className="flex flex-col gap-2">
+                {ranges.map((range, index) => (
+                  <div key={range.planId} className="text-sm text-gray-700">
+                    블록 {range.blockIndex}: {range.startPageOrTime} ~ {range.endPageOrTime} {unit} (
+                    {range.endPageOrTime - range.startPageOrTime} {unit})
+                  </div>
+                ))}
+                <div className="pt-2 border-t border-gray-300 text-sm font-medium text-gray-900">
+                  전체 범위: {bulkStart} ~ {bulkEnd} {unit} (총 {bulkEnd - bulkStart} {unit})
                 </div>
-              ))}
-              <div className="pt-2 mt-2 border-t border-gray-300 text-sm font-medium text-gray-900">
-                전체 범위: {bulkStart} ~ {bulkEnd} {unit} (총 {bulkEnd - bulkStart} {unit})
               </div>
             </div>
-          </div>
 
-          {/* 조정 방식 선택 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">범위 조정 방법</h3>
-            <div className="space-y-2">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="adjustMode"
-                  value="bulk"
-                  checked={adjustMode === "bulk"}
-                  onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-medium text-gray-900">전체 범위 일괄 조정</div>
-                  <div className="text-xs text-gray-500">
-                    모든 블록에 동일한 비율로 범위 분배
+            {/* 조정 방식 선택 */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">범위 조정 방법</h3>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="adjustMode"
+                    value="bulk"
+                    checked={adjustMode === "bulk"}
+                    onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
+                    className="mt-1"
+                    aria-label="전체 범위 일괄 조정"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium text-gray-900">전체 범위 일괄 조정</div>
+                    <div className="text-xs text-gray-500">
+                      모든 블록에 동일한 비율로 범위 분배
+                    </div>
                   </div>
-                </div>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="adjustMode"
-                  value="individual"
-                  checked={adjustMode === "individual"}
-                  onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-medium text-gray-900">개별 블록 조정</div>
-                  <div className="text-xs text-gray-500">
-                    각 블록의 범위를 개별적으로 조정
+                </label>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="adjustMode"
+                    value="individual"
+                    checked={adjustMode === "individual"}
+                    onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
+                    className="mt-1"
+                    aria-label="개별 블록 조정"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium text-gray-900">개별 블록 조정</div>
+                    <div className="text-xs text-gray-500">
+                      각 블록의 범위를 개별적으로 조정
+                    </div>
                   </div>
-                </div>
-              </label>
+                </label>
+              </div>
             </div>
-          </div>
 
-          {/* 새 범위 입력 */}
-          {adjustMode === "bulk" && (
-            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">새 범위 입력</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
-                    전체 시작 ({unit})
-                  </label>
+            {/* 새 범위 입력 */}
+            {adjustMode === "bulk" && (
+              <div className="rounded-lg border border-gray-200 bg-white p-4 flex flex-col gap-4">
+                <h3 className="text-sm font-semibold text-gray-900">새 범위 입력</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-xs font-medium text-gray-700">
+                      전체 시작 ({unit})
+                    </label>
                   <input
                     type="number"
                     value={bulkStart}
@@ -262,11 +257,11 @@ export function PlanRangeAdjustModal({
                     max={totalPages}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">
-                    전체 종료 ({unit})
-                  </label>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-xs font-medium text-gray-700">
+                      전체 종료 ({unit})
+                    </label>
                   <input
                     type="number"
                     value={bulkEnd}
@@ -275,22 +270,24 @@ export function PlanRangeAdjustModal({
                     max={totalPages}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
+                  </div>
                 </div>
-              </div>
-              <button
-                onClick={handleBulkAdjust}
-                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-              >
-                범위 적용
-              </button>
+                <button
+                  onClick={handleBulkAdjust}
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                  aria-label="범위 적용"
+                >
+                  범위 적용
+                </button>
 
-              {/* 빠른 조정 */}
-              <div className="pt-4 border-t border-gray-200">
-                <p className="mb-2 text-xs font-medium text-gray-700">빠른 조정</p>
+                {/* 빠른 조정 */}
+                <div className="pt-4 border-t border-gray-200 flex flex-col gap-2">
+                  <p className="text-xs font-medium text-gray-700">빠른 조정</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleQuickAdjust(-10)}
                     className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    aria-label={`10${unit} 앞으로 이동`}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     10{unit} 앞으로
@@ -298,6 +295,7 @@ export function PlanRangeAdjustModal({
                   <button
                     onClick={() => handleQuickAdjust(-5)}
                     className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    aria-label={`5${unit} 앞으로 이동`}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     5{unit} 앞으로
@@ -305,6 +303,7 @@ export function PlanRangeAdjustModal({
                   <button
                     onClick={() => handleQuickAdjust(5)}
                     className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    aria-label={`5${unit} 뒤로 이동`}
                   >
                     5{unit} 뒤로
                     <ChevronRight className="h-4 w-4" />
@@ -312,6 +311,7 @@ export function PlanRangeAdjustModal({
                   <button
                     onClick={() => handleQuickAdjust(10)}
                     className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                    aria-label={`10${unit} 뒤로 이동`}
                   >
                     10{unit} 뒤로
                     <ChevronRight className="h-4 w-4" />
@@ -322,17 +322,17 @@ export function PlanRangeAdjustModal({
           )}
 
           {adjustMode === "individual" && (
-            <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 flex flex-col gap-4">
               <h3 className="text-sm font-semibold text-gray-900">개별 블록 범위</h3>
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {ranges.map((range, index) => (
-                  <div key={range.planId} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <div className="mb-2 text-sm font-medium text-gray-900">
+                  <div key={range.planId} className="rounded-lg border border-gray-200 bg-gray-50 p-3 flex flex-col gap-2">
+                    <div className="text-sm font-medium text-gray-900">
                       블록 {range.blockIndex}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                      <div className="flex flex-col gap-1">
+                        <label className="block text-xs font-medium text-gray-700">
                           시작 ({unit})
                         </label>
                         <input
@@ -350,8 +350,8 @@ export function PlanRangeAdjustModal({
                           className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                      <div className="flex flex-col gap-1">
+                        <label className="block text-xs font-medium text-gray-700">
                           종료 ({unit})
                         </label>
                         <input
@@ -370,7 +370,7 @@ export function PlanRangeAdjustModal({
                         />
                       </div>
                     </div>
-                    <div className="mt-2 text-xs text-gray-600">
+                    <div className="text-xs text-gray-600">
                       범위: {range.endPageOrTime - range.startPageOrTime} {unit}
                     </div>
                   </div>
@@ -379,59 +379,60 @@ export function PlanRangeAdjustModal({
             </div>
           )}
 
-          {/* 미리보기 */}
-          <div className="rounded-lg border border-gray-200 bg-blue-50 p-4">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">미리보기</h3>
-            <div className="space-y-2">
-              {ranges.map((range, index) => (
-                <div key={range.planId} className="text-sm text-gray-700">
-                  블록 {range.blockIndex}: {range.startPageOrTime} ~ {range.endPageOrTime} {unit} (
-                  {range.endPageOrTime - range.startPageOrTime} {unit})
-                </div>
-              ))}
+            {/* 미리보기 */}
+            <div className="rounded-lg border border-gray-200 bg-blue-50 p-4 flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-gray-900">미리보기</h3>
+              <div className="flex flex-col gap-2">
+                {ranges.map((range, index) => (
+                  <div key={range.planId} className="text-sm text-gray-700">
+                    블록 {range.blockIndex}: {range.startPageOrTime} ~ {range.endPageOrTime} {unit} (
+                    {range.endPageOrTime - range.startPageOrTime} {unit})
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleRestore}
+                className="flex items-center gap-1 text-xs font-medium text-gray-600 transition hover:text-gray-900"
+                aria-label="원래대로 되돌리기"
+              >
+                <RotateCcw className="h-3 w-3" />
+                원래대로 되돌리기
+              </button>
             </div>
-            <button
-              onClick={handleRestore}
-              className="mt-3 flex items-center gap-1 text-xs font-medium text-gray-600 transition hover:text-gray-900"
-            >
-              <RotateCcw className="h-3 w-3" />
-              원래대로 되돌리기
-            </button>
-          </div>
 
-          {/* 주의사항 */}
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-900">
-              ⚠️ 주의사항
-            </h3>
-            <ul className="space-y-1 text-xs text-amber-800">
-              <li>• 범위 조정 시 진행 중인 플랜은 일시정지됩니다.</li>
-              <li>• 기존 진행률은 유지됩니다.</li>
-              <li>• 조정 후 학습 시간이 재계산될 수 있습니다.</li>
-              <li>• 블록 간 범위가 겹치지 않도록 해주세요.</li>
-            </ul>
+            {/* 주의사항 */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex flex-col gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                ⚠️ 주의사항
+              </h3>
+              <ul className="flex flex-col gap-1 text-xs text-amber-800">
+                <li>• 범위 조정 시 진행 중인 플랜은 일시정지됩니다.</li>
+                <li>• 기존 진행률은 유지됩니다.</li>
+                <li>• 조정 후 학습 시간이 재계산될 수 있습니다.</li>
+                <li>• 블록 간 범위가 겹치지 않도록 해주세요.</li>
+              </ul>
+            </div>
           </div>
         </div>
-
-        {/* 푸터 */}
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            적용
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+      <DialogFooter>
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+        >
+          취소
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          aria-label="범위 조정 적용"
+        >
+          <Save className="h-4 w-4" />
+          적용
+        </button>
+      </DialogFooter>
+    </Dialog>
   );
 }
 

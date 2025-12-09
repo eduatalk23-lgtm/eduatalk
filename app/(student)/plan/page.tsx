@@ -96,6 +96,7 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
             <Link
               href="/plan/new-group"
               className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+              aria-label="새 플랜 그룹 생성"
             >
               + 플랜 생성
             </Link>
