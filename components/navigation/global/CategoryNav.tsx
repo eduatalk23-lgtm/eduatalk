@@ -6,6 +6,7 @@ import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { getCategoriesForRole, type NavigationRole, type NavigationCategory, type NavigationItem } from "./categoryConfig";
 import { resolveActiveCategory, isCategoryPath } from "./resolveActiveCategory";
+import { useSidebar } from "@/components/layout/SidebarContext";
 
 type CategoryNavProps = {
   role: NavigationRole;
@@ -13,6 +14,7 @@ type CategoryNavProps = {
 };
 
 export function CategoryNav({ role, className }: CategoryNavProps) {
+  const { isCollapsed } = useSidebar();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categories = getCategoriesForRole(role);
@@ -136,13 +138,17 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                 href={singleItemHref!}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
+                  isCollapsed && "justify-center px-2",
                   singleItemActive
                     ? "bg-indigo-50 text-indigo-700"
                     : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 )}
+                title={isCollapsed ? category.label : undefined}
               >
                 {category.icon && <span>{category.icon}</span>}
-                <span>{category.label}</span>
+                <span className={cn("transition-opacity", isCollapsed && "opacity-0 w-0 overflow-hidden")}>
+                  {category.label}
+                </span>
               </Link>
             ) : (
               <>
@@ -151,33 +157,39 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                   onClick={() => toggleCategory(category.id)}
                   className={cn(
                     "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
+                    isCollapsed && "justify-center px-2",
                     isActive
                       ? "bg-indigo-50 text-indigo-700"
                       : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                   )}
+                  title={isCollapsed ? category.label : undefined}
                 >
                   <div className="flex items-center gap-2">
                     {category.icon && <span>{category.icon}</span>}
-                    <span>{category.label}</span>
+                    <span className={cn("transition-opacity", isCollapsed && "opacity-0 w-0 overflow-hidden")}>
+                      {category.label}
+                    </span>
                   </div>
-                  <svg
-                    className={cn(
-                      "h-4 w-4 transition-transform",
-                      isExpanded ? "rotate-180" : ""
-                    )}
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path d="M19 9l-7 7-7-7" />
-                  </svg>
+                  {!isCollapsed && (
+                    <svg
+                      className={cn(
+                        "h-4 w-4 transition-transform flex-shrink-0",
+                        isExpanded ? "rotate-180" : ""
+                      )}
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
                 </button>
 
                 {/* 카테고리 아이템들 */}
-                {isExpanded && (
+                {isExpanded && !isCollapsed && (
                   <div className="flex flex-col gap-1 pl-4">
                     {category.items.map((item) => {
                       // 역할 체크

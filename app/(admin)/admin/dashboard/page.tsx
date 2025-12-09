@@ -488,41 +488,44 @@ export default async function AdminDashboardPage() {
   ]);
 
   return (
-    <div className="p-6 md:p-10">
-      <h1 className="mb-8 text-3xl font-bold text-gray-900">관리자 대시보드</h1>
+    <div className="p-6 md:p-8 lg:p-10">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">관리자 대시보드</h1>
+        <p className="mt-2 text-sm text-gray-600">전체 학생 현황과 주요 지표를 확인하세요</p>
+      </div>
 
       {/* KPI 카드 */}
-      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="text-sm text-gray-500">전체 학생 수</div>
-          <div className="mt-2 text-3xl font-bold text-gray-900">{studentStats.total}</div>
+      <div className="mb-6 md:mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-sm font-medium text-gray-500 mb-2">전체 학생 수</div>
+          <div className="text-3xl md:text-4xl font-bold text-gray-900">{studentStats.total}</div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="text-sm text-gray-500">이번주 학습한 학생</div>
-          <div className="mt-2 text-3xl font-bold text-indigo-600">
+        <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-sm font-medium text-indigo-700 mb-2">이번주 학습한 학생</div>
+          <div className="text-3xl md:text-4xl font-bold text-indigo-600">
             {studentStats.activeThisWeek}
           </div>
-          <div className="mt-1 text-xs text-gray-500">
+          <div className="mt-2 text-xs font-medium text-indigo-600">
             {studentStats.total > 0
               ? Math.round((studentStats.activeThisWeek / studentStats.total) * 100)
               : 0}
             % 활성
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="text-sm text-gray-500">성적 입력 학생</div>
-          <div className="mt-2 text-3xl font-bold text-green-600">{studentStats.withScores}</div>
-          <div className="mt-1 text-xs text-gray-500">
+        <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-green-100/50 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-sm font-medium text-green-700 mb-2">성적 입력 학생</div>
+          <div className="text-3xl md:text-4xl font-bold text-green-600">{studentStats.withScores}</div>
+          <div className="mt-2 text-xs font-medium text-green-600">
             {studentStats.total > 0
               ? Math.round((studentStats.withScores / studentStats.total) * 100)
               : 0}
             % 입력
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="text-sm text-gray-500">이번주 플랜 학생</div>
-          <div className="mt-2 text-3xl font-bold text-purple-600">{studentStats.withPlans}</div>
-          <div className="mt-1 text-xs text-gray-500">
+        <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="text-sm font-medium text-purple-700 mb-2">이번주 플랜 학생</div>
+          <div className="text-3xl md:text-4xl font-bold text-purple-600">{studentStats.withPlans}</div>
+          <div className="mt-2 text-xs font-medium text-purple-600">
             {studentStats.total > 0
               ? Math.round((studentStats.withPlans / studentStats.total) * 100)
               : 0}
@@ -532,8 +535,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* 이번주 학습시간 Top5 */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">이번주 학습시간 Top5</h2>
+      <div className="mb-6 md:mb-8 rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <h2 className="mb-4 text-lg md:text-xl font-semibold text-gray-900">이번주 학습시간 Top5</h2>
         {topStudyTime.length === 0 ? (
           <p className="text-sm text-gray-500">데이터가 없습니다.</p>
         ) : (
@@ -542,7 +545,7 @@ export default async function AdminDashboardPage() {
               <Link
                 key={student.studentId}
                 href={`/admin/students/${student.studentId}`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50"
+                className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 hover:shadow-sm"
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
@@ -558,8 +561,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* 이번주 플랜 실행률 Top5 */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">이번주 플랜 실행률 Top5</h2>
+      <div className="mb-6 md:mb-8 rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <h2 className="mb-4 text-lg md:text-xl font-semibold text-gray-900">이번주 플랜 실행률 Top5</h2>
         {topPlanCompletion.length === 0 ? (
           <p className="text-sm text-gray-500">데이터가 없습니다.</p>
         ) : (
@@ -568,7 +571,7 @@ export default async function AdminDashboardPage() {
               <Link
                 key={student.studentId}
                 href={`/admin/students/${student.studentId}`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50"
+                className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 hover:shadow-sm"
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
@@ -586,8 +589,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* 최근 목표 달성 Top3 */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">최근 목표 달성 Top3</h2>
+      <div className="mb-6 md:mb-8 rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <h2 className="mb-4 text-lg md:text-xl font-semibold text-gray-900">최근 목표 달성 Top3</h2>
         {topGoalAchievement.length === 0 ? (
           <p className="text-sm text-gray-500">데이터가 없습니다.</p>
         ) : (
@@ -596,7 +599,7 @@ export default async function AdminDashboardPage() {
               <Link
                 key={student.studentId}
                 href={`/admin/students/${student.studentId}`}
-                className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50"
+                className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 hover:shadow-sm"
               >
                 <div className="flex items-center gap-3">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-semibold text-green-700">
@@ -612,8 +615,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* 위험 학생 리스트 */}
-      <div className="mb-8 rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-red-900">🚨 위험 학생 리스트</h2>
+      <div className="mb-6 md:mb-8 rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 p-5 md:p-6 shadow-sm">
+        <h2 className="mb-4 text-lg md:text-xl font-semibold text-red-900">🚨 위험 학생 리스트</h2>
         {atRiskStudents.length === 0 ? (
           <p className="text-sm text-red-600">위험 학생이 없습니다.</p>
         ) : (
@@ -659,8 +662,8 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* 최근 상담노트 */}
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">최근 상담노트</h2>
+      <div className="mb-6 md:mb-8 rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <h2 className="mb-4 text-lg md:text-xl font-semibold text-gray-900">최근 상담노트</h2>
         {recentNotes.length === 0 ? (
           <p className="text-sm text-gray-500">상담노트가 없습니다.</p>
         ) : (
@@ -669,7 +672,7 @@ export default async function AdminDashboardPage() {
               <Link
                 key={note.id}
                 href={`/admin/students/${note.studentId}`}
-                className="block rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                className="block rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50 hover:shadow-sm"
               >
                 <div className="mb-2 flex items-center justify-between">
                   <span className="font-medium text-gray-900">{note.studentName}</span>

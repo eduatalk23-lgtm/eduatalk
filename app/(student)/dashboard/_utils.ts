@@ -753,6 +753,160 @@ export async function fetchContentTypeProgress(
 }
 
 /**
+ * 오늘 학습 진행률만 간단히 조회 (전체 플랜 데이터 불필요)
+ */
+export async function fetchTodayProgress(
+  supabase: SupabaseServerClient,
+  studentId: string,
+  todayDate: string
+): Promise<number> {
+  try {
+    // student_content_progress와 student_plan을 조인하여 오늘 플랜의 진행률만 조회
+    const { data: plans, error } = await supabase
+      .from("student_plan")
+      .select("id,content_type,content_id")
+      .eq("student_id", studentId)
+      .eq("plan_date", todayDate);
+
+    if (error) {
+      // 컬럼이 없는 경우 (42703 에러) 기본값 반환
+      if (error.code === "42703") {
+        return 0;
+      }
+      throw error;
+    }
+
+    if (!plans || plans.length === 0) {
+      return 0;
+    }
+
+    // 진행률 조회
+    const progressMap = await fetchProgressMap(supabase, studentId);
+
+    // 오늘 플랜들의 진행률 평균 계산
+    let totalProgress = 0;
+    let progressCount = 0;
+
+    for (const plan of plans) {
+      if (plan.content_type && plan.content_id) {
+        const key = `${plan.content_type}:${plan.content_id}`;
+        const progress = progressMap[key];
+        if (progress !== null && progress !== undefined) {
+          totalProgress += progress;
+          progressCount++;
+        }
+      }
+    }
+
+    return progressCount > 0 ? Math.round(totalProgress / progressCount) : 0;
+  } catch (error) {
+    console.error("[dashboard] 오늘 진행률 조회 실패", error);
+    return 0;
+  }
+}
+
+/**
+ * 활성 학습 중인 플랜 간단 조회 (콘텐츠 맵 불필요, 최소한의 정보만)
+ */
+export async function fetchActivePlanSimple(
+  supabase: SupabaseServerClient,
+  studentId: string,
+  todayDate: string
+): Promise<ActivePlan | null> {
+  try {
+    // 오늘 날짜의 플랜 중 시작했지만 완료하지 않은 플랜 조회
+    const selectQuery = supabase
+      .from("student_plan")
+      .select(
+        "id,actual_start_time,actual_end_time,paused_duration_seconds,pause_count,content_type,content_id"
+      )
+      .eq("student_id", studentId)
+      .eq("plan_date", todayDate);
+
+    // actual_start_time 컬럼이 있는지 확인하여 조건부로 필터링
+    let { data: activePlans, error } = await selectQuery
+      .not("actual_start_time", "is", null)
+      .is("actual_end_time", null)
+      .order("actual_start_time", { ascending: false })
+      .limit(1);
+
+    // 컬럼이 없는 경우 (42703 에러) 빈 결과 반환
+    if (error && error.code === "42703") {
+      return null;
+    }
+
+    if (error) throw error;
+    if (!activePlans || activePlans.length === 0) {
+      return null;
+    }
+
+    const plan = activePlans[0];
+    if (!plan.content_type || !plan.content_id || !plan.actual_start_time) {
+      return null;
+    }
+
+    // 활성 세션 조회하여 일시정지 상태 확인
+    const { data: activeSession } = await supabase
+      .from("student_study_sessions")
+      .select("paused_at,resumed_at")
+      .eq("plan_id", plan.id)
+      .eq("student_id", studentId)
+      .is("ended_at", null)
+      .maybeSingle();
+
+    const isPaused = activeSession?.paused_at && !activeSession?.resumed_at;
+
+    // 콘텐츠 제목만 간단히 조회 (콘텐츠 맵 전체 불필요)
+    const contentType = toContentType(plan.content_type);
+    let title = "학습 중";
+
+    try {
+      if (contentType === "book") {
+        const { data: book } = await supabase
+          .from("books")
+          .select("title")
+          .eq("id", plan.content_id)
+          .eq("student_id", studentId)
+          .maybeSingle();
+        title = book?.title || "책";
+      } else if (contentType === "lecture") {
+        const { data: lecture } = await supabase
+          .from("lectures")
+          .select("title")
+          .eq("id", plan.content_id)
+          .eq("student_id", studentId)
+          .maybeSingle();
+        title = lecture?.title || "강의";
+      } else if (contentType === "custom") {
+        const { data: custom } = await supabase
+          .from("student_custom_contents")
+          .select("title")
+          .eq("id", plan.content_id)
+          .eq("student_id", studentId)
+          .maybeSingle();
+        title = custom?.title || "커스텀 콘텐츠";
+      }
+    } catch (contentError) {
+      console.warn("[dashboard] 콘텐츠 제목 조회 실패 (계속 진행)", contentError);
+      // 제목 조회 실패해도 계속 진행
+    }
+
+    return {
+      id: plan.id,
+      title,
+      contentType,
+      actualStartTime: plan.actual_start_time,
+      pausedDurationSeconds: plan.paused_duration_seconds || 0,
+      pauseCount: plan.pause_count || 0,
+      isPaused: !!isPaused,
+    };
+  } catch (error) {
+    console.error("[dashboard] 활성 플랜 조회 실패", error);
+    return null;
+  }
+}
+
+/**
  * 활성 학습 중인 플랜 조회 (오늘 날짜, 시작했지만 아직 완료하지 않은 플랜)
  */
 export async function fetchActivePlan(

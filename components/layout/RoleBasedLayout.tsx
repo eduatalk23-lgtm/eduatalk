@@ -1,7 +1,12 @@
+"use client";
+
 import { ReactNode, Suspense } from "react";
 import { CategoryNav } from "@/components/navigation/global/CategoryNav";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { SignOutButton } from "@/app/_components/SignOutButton";
+import { useSidebar } from "./SidebarContext";
+import { ChevronLeft, ChevronRight, Pin, PinOff, Menu, X } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 type RoleBasedLayoutProps = {
   role: "student" | "admin" | "parent" | "consultant" | "superadmin";
@@ -16,6 +21,203 @@ type RoleBasedLayoutProps = {
   } | null;
 };
 
+function SidebarContent({
+  role,
+  dashboardHref,
+  roleLabel,
+  tenantInfo,
+}: {
+  role: RoleBasedLayoutProps["role"];
+  dashboardHref: string;
+  roleLabel: string;
+  tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
+}) {
+  const { isCollapsed, isPinned, toggleCollapse, togglePin } = useSidebar();
+
+  return (
+    <>
+      {/* 로고 및 컨트롤 */}
+      <div className="border-b border-gray-200 p-4">
+        <div className="flex items-center justify-between gap-2">
+          <a
+            href={dashboardHref}
+            className={cn(
+              "flex items-center gap-2 text-lg font-semibold text-gray-900 transition-opacity",
+              isCollapsed && "opacity-0 w-0 overflow-hidden"
+            )}
+          >
+            <span>⏱️</span>
+            <span>TimeLevelUp</span>
+            <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
+          </a>
+          {isCollapsed && (
+            <a
+              href={dashboardHref}
+              className="flex items-center justify-center w-8 h-8 text-lg"
+              aria-label="TimeLevelUp"
+            >
+              <span>⏱️</span>
+            </a>
+          )}
+          <div className={cn("flex items-center gap-1", isCollapsed && "flex-col")}>
+            <button
+              onClick={togglePin}
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              aria-label={isPinned ? "고정 해제" : "고정"}
+              title={isPinned ? "고정 해제" : "고정"}
+            >
+              {isPinned ? (
+                <Pin className="w-4 h-4" />
+              ) : (
+                <PinOff className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              onClick={toggleCollapse}
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              aria-label={isCollapsed ? "확장" : "축소"}
+              title={isCollapsed ? "확장" : "축소"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <ChevronLeft className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 기관 정보 (Superadmin 제외 모든 역할) */}
+      {tenantInfo && role !== "superadmin" && (
+        <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm flex-shrink-0">🏢</span>
+            <div
+              className={cn(
+                "flex-1 min-w-0 transition-opacity",
+                isCollapsed && "opacity-0 w-0 overflow-hidden"
+              )}
+            >
+              <div className="text-sm font-semibold text-gray-900 truncate">
+                {tenantInfo.name}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 카테고리 네비게이션 */}
+      <div className="p-4">
+        <CategoryNav
+          role={
+            role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role
+          }
+        />
+      </div>
+
+      {/* 하단 링크 */}
+      <div className="border-t border-gray-200 p-4">
+        <div className={cn("transition-opacity", isCollapsed && "opacity-0")}>
+          <SignOutButton />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MobileSidebar({
+  role,
+  dashboardHref,
+  roleLabel,
+  tenantInfo,
+}: {
+  role: RoleBasedLayoutProps["role"];
+  dashboardHref: string;
+  roleLabel: string;
+  tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
+}) {
+  const { isMobileOpen, toggleMobile, closeMobile } = useSidebar();
+
+  return (
+    <>
+      {/* 햄버거 버튼 */}
+      <button
+        onClick={toggleMobile}
+        className="p-2 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors md:hidden"
+        aria-label="메뉴 열기"
+      >
+        <Menu className="w-6 h-6" />
+      </button>
+
+      {/* 오버레이 */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={closeMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* 드로어 */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 transform transition-transform duration-300 ease-in-out md:hidden overflow-y-auto",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
+          <div className="flex items-center justify-between gap-2">
+            <a
+              href={dashboardHref}
+              className="flex items-center gap-2 text-lg font-semibold text-gray-900"
+            >
+              <span>⏱️</span>
+              <span>TimeLevelUp</span>
+              <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
+            </a>
+            <button
+              onClick={closeMobile}
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              aria-label="메뉴 닫기"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 기관 정보 */}
+        {tenantInfo && role !== "superadmin" && (
+          <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">🏢</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-900 truncate">
+                  {tenantInfo.name}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 카테고리 네비게이션 */}
+        <div className="p-4">
+          <CategoryNav
+            role={
+              role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role
+            }
+          />
+        </div>
+
+        {/* 하단 링크 */}
+        <div className="border-t border-gray-200 p-4">
+          <SignOutButton />
+        </div>
+      </aside>
+    </>
+  );
+}
+
 export function RoleBasedLayout({
   role,
   children,
@@ -25,47 +227,26 @@ export function RoleBasedLayout({
   wrapper,
   tenantInfo,
 }: RoleBasedLayoutProps) {
+  const { isCollapsed, isPinned } = useSidebar();
+
   const content = (
     <div className="flex min-h-screen bg-gray-50">
-      {/* 사이드바 네비게이션 */}
+      {/* 사이드바 네비게이션 (데스크톱) */}
       {showSidebar && (
-        <aside className="hidden md:block w-64 border-r border-gray-200 bg-white">
+        <aside
+          className={cn(
+            "hidden md:block border-r border-gray-200 bg-white transition-all duration-300 ease-in-out",
+            isCollapsed ? "w-16" : "w-64",
+            !isPinned && "md:absolute md:z-30"
+          )}
+        >
           <div className="sticky top-0 h-screen overflow-y-auto">
-            {/* 로고 */}
-            <div className="border-b border-gray-200 p-4">
-              <a
-                href={dashboardHref}
-                className="flex items-center gap-2 text-lg font-semibold text-gray-900"
-              >
-                <span>⏱️</span>
-                <span>TimeLevelUp</span>
-                <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
-              </a>
-            </div>
-
-            {/* 기관 정보 (Superadmin 제외 모든 역할) */}
-            {tenantInfo && role !== "superadmin" && (
-              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🏢</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-gray-900 truncate">
-                      {tenantInfo.name}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 카테고리 네비게이션 */}
-            <div className="p-4">
-              <CategoryNav role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
-            </div>
-
-            {/* 하단 링크 */}
-            <div className="border-t border-gray-200 p-4">
-              <SignOutButton />
-            </div>
+            <SidebarContent
+              role={role}
+              dashboardHref={dashboardHref}
+              roleLabel={roleLabel}
+              tenantInfo={tenantInfo}
+            />
           </div>
         </aside>
       )}
@@ -85,6 +266,12 @@ export function RoleBasedLayout({
                   <span>TimeLevelUp</span>
                   <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
                 </a>
+                <MobileSidebar
+                  role={role}
+                  dashboardHref={dashboardHref}
+                  roleLabel={roleLabel}
+                  tenantInfo={tenantInfo}
+                />
               </div>
               {/* 기관 정보 (모바일 - Superadmin 제외 모든 역할) */}
               {tenantInfo && role !== "superadmin" && (
@@ -99,7 +286,6 @@ export function RoleBasedLayout({
                   </div>
                 </div>
               )}
-              <CategoryNav role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
             </div>
           </nav>
         )}
