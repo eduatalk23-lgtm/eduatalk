@@ -427,9 +427,9 @@
   ```
 - **위험도**: 🔴 높음 (데이터 복원)
 
-#### [R2-6] 롤백 UI 컴포넌트
+#### [R2-6] 롤백 UI 컴포넌트 ✅
 
-- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/RollbackButton.tsx` (신규)
+- **파일**: `app/(student)/plan/group/[id]/reschedule/_components/RollbackButton.tsx` (신규) ✅
 - **작업**:
   - 롤백 가능 여부 표시
   - 롤백 실행 확인 다이얼로그
@@ -440,9 +440,9 @@
 
 ### 2.3 ENUM 및 타입 강화
 
-#### [R2-7] Postgres ENUM 타입 생성
+#### [R2-7] Postgres ENUM 타입 생성 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_create_enum_types.sql`
+- **파일**: `supabase/migrations/20251209212530_create_enum_types.sql` ✅
 - **작업**:
   ```sql
   -- 콘텐츠 타입
@@ -456,22 +456,21 @@
   ```
 - **위험도**: 🟡 중간 (기존 TEXT 컬럼 변환 필요)
 
-#### [R2-8] 기존 컬럼 ENUM 변환
+#### [R2-8] 기존 컬럼 ENUM 변환 ⏸️
 
-- **파일**: `supabase/migrations/2025XXXX_convert_to_enum.sql`
+- **파일**: 스킵 (위험도 높음 - 선택적 작업)
 - **작업**:
-  - `plan_history.content_type` → `content_type_enum`
-  - `plan_history.adjustment_type` → `adjustment_type_enum`
-  - `student_plan.status` → `plan_status_enum`
-- **위험도**: 🔴 높음 (기존 데이터 영향)
+  - ENUM 타입은 생성했으나 실제 컬럼 변환은 보류
+  - 향후 필요 시 단계적으로 변환 가능
+- **위험도**: 🔴 높음 (기존 데이터 영향) - 보류
 
 ---
 
 ### 2.4 테넌트/권한 모델 반영
 
-#### [R2-9] 히스토리/로그 테이블에 tenant_id 추가
+#### [R2-9] 히스토리/로그 테이블에 tenant_id 추가 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_add_tenant_id_to_history.sql`
+- **파일**: `supabase/migrations/20251209212750_add_tenant_id_to_history.sql` ✅
 - **작업**:
   ```sql
   ALTER TABLE plan_history
@@ -488,9 +487,9 @@
   ```
 - **위험도**: 🟡 중간
 
-#### [R2-10] RLS 정책 추가
+#### [R2-10] RLS 정책 추가 ✅
 
-- **파일**: `supabase/migrations/2025XXXX_add_history_rls.sql`
+- **파일**: `supabase/migrations/20251209212800_add_history_rls.sql` ✅
 - **작업**:
   ```sql
   -- plan_history RLS
