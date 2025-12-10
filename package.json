@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "analyze": "ANALYZE=true next build",
     "seed:score-dashboard-dummy": "tsx scripts/seedScoreDashboardDummy.ts",
     "cleanup:score-dashboard-dummy": "tsx scripts/cleanupScoreDashboardDummy.ts",
@@ -29,10 +31,10 @@
     "qrcode": "^1.5.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "recharts": "^3.4.1",
+    "recharts": "^3.5.1",
     "tailwind-merge": "^3.4.0",
     "xlsx": "^0.18.5",
-    "zod": "^4.1.12",
+    "zod": "^3.23.8",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -44,6 +46,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/xlsx": "^0.0.36",
+    "@vitejs/plugin-react": "^5.1.2",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
@@ -52,6 +55,7 @@
     "supabase": "^2.58.5",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.0.15"
   }
 }

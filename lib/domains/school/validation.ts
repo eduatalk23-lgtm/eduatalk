@@ -31,24 +31,26 @@ export const postalCodeSchema = z
 // 학교 생성 스키마
 // ============================================
 
-export const createSchoolSchema = z
-  .object({
-    name: z.string().min(1, "학교명을 입력해주세요").max(100, "학교명은 100자 이내여야 합니다"),
-    type: schoolTypeSchema,
-    region_id: z.string().uuid().optional().nullable(),
-    address: z.string().max(200).optional().nullable(),
-    postal_code: postalCodeSchema,
-    address_detail: z.string().max(100).optional().nullable(),
-    city: z.string().max(50).optional().nullable(),
-    district: z.string().max(50).optional().nullable(),
-    phone: z.string().max(20).optional().nullable(),
-    // 고등학교 속성
-    category: highSchoolCategorySchema.optional().nullable(),
-    // 대학교 속성
-    university_type: universityTypeSchema.optional().nullable(),
-    university_ownership: universityOwnershipSchema.optional().nullable(),
-    campus_name: z.string().max(50).optional().nullable(),
-  })
+// base schema (extend를 위해 분리)
+const schoolBaseSchema = z.object({
+  name: z.string().min(1, "학교명을 입력해주세요").max(100, "학교명은 100자 이내여야 합니다"),
+  type: schoolTypeSchema,
+  region_id: z.string().uuid().optional().nullable(),
+  address: z.string().max(200).optional().nullable(),
+  postal_code: postalCodeSchema,
+  address_detail: z.string().max(100).optional().nullable(),
+  city: z.string().max(50).optional().nullable(),
+  district: z.string().max(50).optional().nullable(),
+  phone: z.string().max(20).optional().nullable(),
+  // 고등학교 속성
+  category: highSchoolCategorySchema.optional().nullable(),
+  // 대학교 속성
+  university_type: universityTypeSchema.optional().nullable(),
+  university_ownership: universityOwnershipSchema.optional().nullable(),
+  campus_name: z.string().max(50).optional().nullable(),
+});
+
+export const createSchoolSchema = schoolBaseSchema
   .refine(
     (data) => {
       // 고등학교가 아닌 경우 category는 null이어야 함
@@ -80,9 +82,36 @@ export const createSchoolSchema = z
 // 학교 수정 스키마
 // ============================================
 
-export const updateSchoolSchema = createSchoolSchema.extend({
-  id: z.string().uuid("올바른 ID 형식이 아닙니다"),
-});
+export const updateSchoolSchema = schoolBaseSchema
+  .extend({
+    id: z.string().uuid("올바른 ID 형식이 아닙니다"),
+  })
+  .refine(
+    (data) => {
+      // 고등학교가 아닌 경우 category는 null이어야 함
+      if (data.type !== "고등학교" && data.category) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "고등학교 유형은 고등학교에만 적용할 수 있습니다",
+      path: ["category"],
+    }
+  )
+  .refine(
+    (data) => {
+      // 대학교가 아닌 경우 대학교 속성은 null이어야 함
+      if (data.type !== "대학교" && (data.university_type || data.university_ownership || data.campus_name)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "대학교 속성은 대학교에만 적용할 수 있습니다",
+      path: ["university_type"],
+    }
+  );
 
 // ============================================
 // 타입 추론

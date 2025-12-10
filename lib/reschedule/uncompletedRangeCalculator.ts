@@ -218,8 +218,11 @@ export function calculateUncompletedRangeBounds(
 /**
  * 미진행 범위를 콘텐츠에 적용
  * 
- * 미진행 범위의 시작점과 종료점을 사용하여 콘텐츠의 start_range와 end_range를 조정합니다.
- * 원래 콘텐츠의 범위를 초과하지 않도록 보장합니다.
+ * 미진행 범위의 시작점을 사용하여 콘텐츠의 start_range를 조정합니다.
+ * 재조정 시 완료된 부분은 건너뛰고, 미진행된 부분부터 학습을 재개할 수 있도록 합니다.
+ * 
+ * **중요**: end_range는 원래 값을 유지합니다. 미진행 범위의 끝점으로 제한하면
+ * 아직 배정되지 않은 나머지 범위가 누락될 수 있기 때문입니다.
  * 
  * @param contents 콘텐츠 목록
  * @param uncompletedBoundsMap 콘텐츠별 미진행 범위 Bounds Map
@@ -228,14 +231,16 @@ export function calculateUncompletedRangeBounds(
  * 
  * @example
  * ```ts
+ * // 예시: 1-100 페이지 중 1-10까지 완료, 11-30까지 미진행 플랜 존재
  * const contents = [
  *   { content_id: 'c1', start_range: 1, end_range: 100 }
  * ];
  * const boundsMap = new Map([
- *   ['c1', { startRange: 11, endRange: 90, totalUncompleted: 80 }]
+ *   ['c1', { startRange: 11, endRange: 30, totalUncompleted: 20 }]
  * ]);
  * const result = applyUncompletedRangeToContents(contents, boundsMap);
  * // [{ content_id: 'c1', start_range: 11, end_range: 100 }]
+ * // 결과: 11페이지부터 100페이지까지 재배정 (완료된 1-10은 제외)
  * ```
  */
 export function applyUncompletedRangeToContents<T extends {
@@ -265,11 +270,13 @@ export function applyUncompletedRangeToContents<T extends {
     const originalStartRange = content.start_range ?? 0;
     const originalEndRange = content.end_range ?? 0;
 
-    // 미진행 범위의 시작점과 종료점 사용하여 조정
-    // 시작점: 원래 시작점과 미진행 시작점 중 큰 값 (더 늦은 시작점)
-    // 종료점: 원래 종료점과 미진행 종료점 중 작은 값 (원래 범위를 초과하지 않도록)
+    // 시작점 조정: 미진행 시작점부터 시작
+    // 원래 시작점과 미진행 시작점 중 큰 값 사용 (완료된 부분 건너뛰기)
     const adjustedStartRange = Math.max(originalStartRange, bounds.startRange);
-    const adjustedEndRange = Math.min(originalEndRange, bounds.endRange);
+    
+    // 종료점: 원래 종료점 유지 (나머지 범위도 재배정 대상에 포함)
+    // 미진행 범위의 끝점으로 제한하지 않음
+    const adjustedEndRange = originalEndRange;
 
     // 조정된 범위가 유효한지 확인
     if (adjustedStartRange >= adjustedEndRange) {

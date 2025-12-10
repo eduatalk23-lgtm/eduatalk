@@ -2,12 +2,30 @@
  * 재조정 미리보기 결과 캐싱
  * 
  * 미리보기 결과를 캐싱하여 동일한 요청에 대해 빠르게 응답합니다.
+ * LRU(Least Recently Used) 정책으로 최대 항목 수를 제한합니다.
  * 
  * @module lib/reschedule/previewCache
  */
 
 import type { ReschedulePreviewResult } from '@/app/(student)/actions/plan-groups/reschedule';
 import type { AdjustmentInput } from './scheduleEngine';
+
+// ============================================
+// 설정 (환경 변수 지원)
+// ============================================
+
+/**
+ * 캐시 설정값
+ * 환경 변수로 오버라이드 가능
+ */
+export const CACHE_CONFIG = {
+  /** 캐시 TTL (Time To Live) - 기본 5분 */
+  TTL_MS: parseInt(process.env.RESCHEDULE_CACHE_TTL_MS || '300000', 10),
+  /** 캐시 최대 항목 수 - 기본 100개 */
+  MAX_ITEMS: parseInt(process.env.RESCHEDULE_CACHE_MAX_ITEMS || '100', 10),
+  /** 캐시 정리 주기 - 기본 10분 */
+  CLEANUP_INTERVAL_MS: parseInt(process.env.RESCHEDULE_CACHE_CLEANUP_MS || '600000', 10),
+} as const;
 
 // ============================================
 // 타입 정의
@@ -20,10 +38,11 @@ interface CacheItem {
   result: ReschedulePreviewResult;
   timestamp: number;
   expiresAt: number;
+  lastAccessed: number; // LRU를 위한 마지막 접근 시간
 }
 
 // ============================================
-// 캐시 저장소 (메모리 기반)
+// 캐시 저장소 (메모리 기반 LRU)
 // ============================================
 
 /**
@@ -33,20 +52,34 @@ interface CacheItem {
 const cacheStore = new Map<string, CacheItem>();
 
 /**
- * 캐시 TTL (Time To Live) - 5분
+ * LRU 캐시 정리 (최대 항목 수 초과 시 가장 오래된 항목 제거)
  */
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5분
+function evictLRU(): void {
+  if (cacheStore.size <= CACHE_CONFIG.MAX_ITEMS) return;
 
-/**
- * 캐시 정리 주기 (10분마다 만료된 항목 제거)
- */
-const CACHE_CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10분
+  // 삭제할 항목 수
+  const itemsToRemove = cacheStore.size - CACHE_CONFIG.MAX_ITEMS;
+  
+  // lastAccessed 기준으로 정렬하여 가장 오래된 항목 삭제
+  const entries = Array.from(cacheStore.entries())
+    .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+  
+  for (let i = 0; i < itemsToRemove; i++) {
+    if (entries[i]) {
+      cacheStore.delete(entries[i][0]);
+    }
+  }
+  
+  if (itemsToRemove > 0) {
+    console.debug(`[previewCache] LRU 정리: ${itemsToRemove}개 항목 제거 (현재: ${cacheStore.size}개)`);
+  }
+}
 
 // 캐시 정리 타이머 시작
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     cleanupExpiredCache();
-  }, CACHE_CLEANUP_INTERVAL_MS);
+  }, CACHE_CONFIG.CLEANUP_INTERVAL_MS);
 }
 
 // ============================================
@@ -58,13 +91,17 @@ if (typeof setInterval !== 'undefined') {
  * 
  * @param groupId 플랜 그룹 ID
  * @param adjustments 조정 요청 목록
- * @param dateRange 날짜 범위 (선택)
+ * @param rescheduleDateRange 재조정할 플랜 범위 (선택)
+ * @param placementDateRange 새 플랜 배치 범위 (선택)
+ * @param includeToday 오늘 포함 여부
  * @returns 캐시 키
  */
 export function generatePreviewCacheKey(
   groupId: string,
   adjustments: AdjustmentInput[],
-  dateRange?: { from: string; to: string } | null
+  rescheduleDateRange?: { from: string; to: string } | null,
+  placementDateRange?: { from: string; to: string } | null,
+  includeToday: boolean = false
 ): string {
   // 조정 요청을 정렬하여 동일한 조정에 대해 같은 키 생성
   const sortedAdjustments = [...adjustments].sort((a, b) => {
@@ -74,20 +111,25 @@ export function generatePreviewCacheKey(
     return a.change_type.localeCompare(b.change_type);
   });
 
-  // JSON 문자열로 직렬화하여 키 생성
-  const adjustmentsStr = JSON.stringify(sortedAdjustments);
-  const dateRangeStr = dateRange ? `${dateRange.from}_${dateRange.to}` : 'full';
+  // 캐시 키 구성 요소
+  const keyComponents = {
+    adjustments: sortedAdjustments,
+    rescheduleDateRange: rescheduleDateRange || null,
+    placementDateRange: placementDateRange || null,
+    includeToday,
+  };
+
+  // JSON 문자열로 직렬화
+  const keyStr = JSON.stringify(keyComponents);
   
-  // 간단한 해시 생성 (실제로는 crypto를 사용하는 것이 좋음)
-  let hash = 0;
-  const fullStr = adjustmentsStr + dateRangeStr;
-  for (let i = 0; i < fullStr.length; i++) {
-    const char = fullStr.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+  // FNV-1a 해시 (빠르고 충돌 적음)
+  let hash = 2166136261;
+  for (let i = 0; i < keyStr.length; i++) {
+    hash ^= keyStr.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
 
-  return `reschedule_preview:${groupId}:${Math.abs(hash).toString(36)}`;
+  return `reschedule_preview:${groupId}:${(hash >>> 0).toString(36)}`;
 }
 
 // ============================================
@@ -115,6 +157,9 @@ export async function getCachedPreview(
     return null;
   }
 
+  // LRU: 마지막 접근 시간 갱신
+  item.lastAccessed = Date.now();
+
   return item.result;
 }
 
@@ -133,8 +178,12 @@ export async function cachePreviewResult(
   cacheStore.set(key, {
     result,
     timestamp: now,
-    expiresAt: now + CACHE_TTL_MS,
+    expiresAt: now + CACHE_CONFIG.TTL_MS,
+    lastAccessed: now,
   });
+
+  // 캐시 크기 제한 초과 시 LRU 정리
+  evictLRU();
 }
 
 /**

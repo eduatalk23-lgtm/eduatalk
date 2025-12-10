@@ -35,47 +35,9 @@ export interface AdjustmentInput {
   before: ContentSnapshot;
   after: ContentSnapshot;
 }
-
-/**
- * 생성된 플랜 결과
- */
-export interface GeneratedPlanResult {
-  plans: ScheduledPlan[];
-  summary: {
-    total_plans: number;
-    affected_dates: string[];
-    estimated_hours: number;
-  };
-}
-
-/**
- * 스케줄 엔진 입력
- */
-export interface ScheduleEngineInput {
-  group: PlanGroup;
-  contents: PlanContent[];
-  adjustments: AdjustmentInput[];
-  // 기존 플랜 생성에 필요한 추가 데이터
-  exclusions?: any[];
-  academySchedules?: any[];
-  blocks?: any[];
-  contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>;
-  riskIndexMap?: Map<string, { riskScore: number }>;
-  dateAvailableTimeRanges?: Map<string, Array<{ start: string; end: string }>>;
-  dateTimeSlots?: Map<string, Array<{
-    type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
-    start: string;
-    end: string;
-    label?: string;
-  }>>;
-  contentDurationMap?: Map<string, {
-    content_type: "book" | "lecture" | "custom";
-    content_id: string;
-    total_pages?: number | null;
-    duration?: number | null;
-    total_page_or_time?: number | null;
-  }>;
-}
+// Note: GeneratedPlanResult와 ScheduleEngineInput 타입은
+// generatePlans 함수 제거와 함께 삭제되었습니다.
+// 플랜 생성은 reschedule.ts에서 generatePlansFromGroup을 직접 호출합니다.
 
 // ============================================
 // 스케줄 엔진 함수
@@ -139,54 +101,11 @@ export function applyAdjustments(
   });
 }
 
-/**
- * 플랜 생성 (순수 함수)
- * 
- * DB I/O 없이 순수 계산만 수행합니다.
- * 실제 구현은 기존 generatePlansFromGroup 함수를 재사용합니다.
- * 
- * @param input 스케줄 엔진 입력
- * @returns 생성된 플랜 결과
- */
-export function generatePlans(
-  input: ScheduleEngineInput
-): GeneratedPlanResult {
-  // 1. 조정 적용
-  const adjustedContents = applyAdjustments(input.contents, input.adjustments);
-
-  // 2. 기존 플랜 생성 함수 재사용
-  // 실제 구현은 lib/plan/scheduler.ts의 generatePlansFromGroup을 사용
-  // 여기서는 인터페이스만 정의하고, 실제 구현은 reschedule.ts에서 처리
-  const plans: ScheduledPlan[] = [];
-  
-  // TODO: 실제 플랜 생성 로직은 reschedule.ts에서 구현
-  // generatePlansFromGroup 함수를 호출하여 플랜 생성
-
-  // 3. 요약 정보 계산
-  const affectedDates = new Set<string>();
-  let estimatedHours = 0;
-
-  plans.forEach((plan) => {
-    affectedDates.add(plan.plan_date);
-    // 예상 시간 계산 (간단한 추정)
-    if (plan.start_time && plan.end_time) {
-      const [startHour, startMin] = plan.start_time.split(':').map(Number);
-      const [endHour, endMin] = plan.end_time.split(':').map(Number);
-      const startMinutes = startHour * 60 + startMin;
-      const endMinutes = endHour * 60 + endMin;
-      estimatedHours += (endMinutes - startMinutes) / 60;
-    }
-  });
-
-  return {
-    plans,
-    summary: {
-      total_plans: plans.length,
-      affected_dates: Array.from(affectedDates).sort(),
-      estimated_hours: Math.round(estimatedHours * 10) / 10, // 소수점 1자리
-    },
-  };
-}
+// ============================================
+// 플랜 생성 함수
+// ============================================
+// Note: 플랜 생성 로직은 reschedule.ts에서 직접 generatePlansFromGroup을 호출합니다.
+// 이 모듈은 조정(adjustments) 적용과 요약 생성만 담당합니다.
 
 /**
  * 조정 요약 생성

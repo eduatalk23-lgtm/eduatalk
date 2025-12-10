@@ -71,34 +71,35 @@ export const updateSchoolScoreSchema = createSchoolScoreSchema.partial();
 // 모의고사 성적 스키마
 // ============================================
 
-export const createMockScoreSchema = z
-  .object({
-    grade: gradeSchema,
-    exam_type: z.string().min(1, "시험 유형을 선택해주세요"),
-    // FK 필드
-    subject_group_id: z.string().uuid().optional().nullable(),
-    subject_id: z.string().uuid().optional().nullable(),
-    subject_type_id: z.string().uuid().optional().nullable(),
-    // 텍스트 필드 (deprecated but still validated)
-    subject_group: z.string().min(1, "교과를 선택해주세요").optional().nullable(),
-    subject_name: z.string().optional().nullable(),
-    raw_score: rawScoreSchema,
-    standard_score: z.number().optional().nullable(),
-    percentile: percentileSchema,
-    grade_score: gradeScoreSchema,
-    exam_round: z.string().optional().nullable(),
-  })
-  .refine(
-    (data) => {
-      // 영어/한국사가 아닌 경우 표준점수, 백분위 필수 체크는 action에서 수행
-      return true;
-    },
-    {
-      message: "표준점수와 백분위를 모두 입력해주세요.",
-    }
-  );
+// base schema (partial을 위해 분리)
+const mockScoreBaseSchema = z.object({
+  grade: gradeSchema,
+  exam_type: z.string().min(1, "시험 유형을 선택해주세요"),
+  // FK 필드
+  subject_group_id: z.string().uuid().optional().nullable(),
+  subject_id: z.string().uuid().optional().nullable(),
+  subject_type_id: z.string().uuid().optional().nullable(),
+  // 텍스트 필드 (deprecated but still validated)
+  subject_group: z.string().min(1, "교과를 선택해주세요").optional().nullable(),
+  subject_name: z.string().optional().nullable(),
+  raw_score: rawScoreSchema,
+  standard_score: z.number().optional().nullable(),
+  percentile: percentileSchema,
+  grade_score: gradeScoreSchema,
+  exam_round: z.string().optional().nullable(),
+});
 
-export const updateMockScoreSchema = createMockScoreSchema.partial();
+export const createMockScoreSchema = mockScoreBaseSchema.refine(
+  (data) => {
+    // 영어/한국사가 아닌 경우 표준점수, 백분위 필수 체크는 action에서 수행
+    return true;
+  },
+  {
+    message: "표준점수와 백분위를 모두 입력해주세요.",
+  }
+);
+
+export const updateMockScoreSchema = mockScoreBaseSchema.partial();
 
 // ============================================
 // 타입 추론

@@ -53,7 +53,7 @@ export function PreviewStep({
   const loadAttemptedRef = useRef(false); // 로드 시도 여부 추적
   const isLoadingRef = useRef(false); // 로딩 상태를 ref로 추적
   const adjustmentsRef = useRef(adjustments); // 최신 adjustments 값을 저장
-  const dateRangeRef = useRef(dateRange); // 최신 dateRange 값을 저장
+  const dateRangeRef = useRef(rescheduleDateRange || placementDateRange || null); // 최신 dateRange 값을 저장
 
   // adjustments와 dateRange 변경 시 ref 업데이트
   useEffect(() => {
@@ -371,16 +371,15 @@ export function PreviewStep({
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-700">
-              실제 적용 범위
-            </p>
+            <p className="text-sm font-medium text-gray-700">실제 적용 범위</p>
             <p className="mt-1 text-sm text-gray-600">
               {placementDateRange?.from && placementDateRange?.to
                 ? `${placementDateRange.from} ~ ${placementDateRange.to}`
                 : "자동 계산됨 (오늘 이후 ~ 플랜 그룹 종료일)"}
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              실제로 재조정이 적용되는 날짜 범위입니다. 기존 플랜 필터링과 새 플랜 생성이 이 범위를 사용합니다.
+              실제로 재조정이 적용되는 날짜 범위입니다. 기존 플랜 필터링과 새
+              플랜 생성이 이 범위를 사용합니다.
             </p>
             {/* 자동 조정 안내 */}
             {rescheduleDateRange?.from &&
@@ -391,7 +390,8 @@ export function PreviewStep({
                 rescheduleDateRange.to !== placementDateRange.to) && (
                 <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs text-blue-800">
-                    💡 선택한 범위가 자동으로 조정되었습니다. 과거 날짜는 제외되고 오늘 이후 범위만 적용됩니다.
+                    💡 선택한 범위가 자동으로 조정되었습니다. 과거 날짜는
+                    제외되고 오늘 이후 범위만 적용됩니다.
                   </p>
                 </div>
               )}
@@ -402,7 +402,8 @@ export function PreviewStep({
               !placementDateRange?.to && (
                 <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs text-blue-800">
-                    💡 선택한 범위에 과거 날짜가 포함되어 있어 자동으로 오늘 이후 범위로 조정됩니다.
+                    💡 선택한 범위에 과거 날짜가 포함되어 있어 자동으로 오늘
+                    이후 범위로 조정됩니다.
                   </p>
                 </div>
               )}

@@ -24,6 +24,8 @@ import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
 import { calculateUncompletedRangeBounds, applyUncompletedRangeToContents } from "@/lib/reschedule/uncompletedRangeCalculator";
 import { getAdjustedPeriod, getTodayDateString, PeriodCalculationError } from "@/lib/reschedule/periodCalculator";
 import { generatePreviewCacheKey, getCachedPreview, cachePreviewResult } from "@/lib/reschedule/previewCache";
+import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
+import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
 
 // ============================================
 // 타입 정의
@@ -92,11 +94,13 @@ async function _getReschedulePreview(
   includeToday: boolean = false
 ): Promise<ReschedulePreviewResult> {
   // 캐시 조회 (Phase 3: 성능 최적화)
-  // 하위 호환성을 위해 dateRange도 캐시 키에 포함 (기존 코드와의 호환성)
+  // 모든 파라미터를 캐시 키에 포함하여 정확한 캐시 히트 보장
   const cacheKey = generatePreviewCacheKey(
     groupId,
     adjustments,
-    rescheduleDateRange || placementDateRange || null
+    rescheduleDateRange || null,
+    placementDateRange || null,
+    includeToday
   );
   const cachedResult = await getCachedPreview(cacheKey);
   if (cachedResult) {
@@ -286,9 +290,6 @@ async function _getReschedulePreview(
     });
 
     // 5. 스케줄러 설정 병합
-    const { getMergedSchedulerSettings } = await import(
-      "@/lib/data/schedulerSettings"
-    );
     const mergedSettings = await getMergedSchedulerSettings(
       group.tenant_id,
       group.camp_template_id,
@@ -306,10 +307,6 @@ async function _getReschedulePreview(
     };
 
     // 6. calculateAvailableDates로 스케줄 결과 계산
-    const { calculateAvailableDates } = await import(
-      "@/lib/scheduler/calculateAvailableDates"
-    );
-
     // adjustedPeriod를 사용하여 조정된 기간에 대해서만 스케줄 계산 (성능 최적화)
     const scheduleResult = calculateAvailableDates(
       adjustedPeriod.start,  // 전체 기간 대신 조정된 기간 사용
@@ -507,216 +504,207 @@ async function _rescheduleContents(
   if (!user) {
     throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
-    const tenantContext = await requireTenantContext();
+  const tenantContext = await requireTenantContext();
 
-    return executeRescheduleTransaction(groupId, async (supabase) => {
-      // 1. 플랜 그룹 및 콘텐츠 조회
-      const { data: group } = await supabase
-        .from("plan_groups")
-        .select("*")
-        .eq("id", groupId)
-        .eq("tenant_id", tenantContext.tenantId)
-        .single();
+  // 1. 트랜잭션 외부에서 미리보기 결과 먼저 계산
+  // 트랜잭션 내에서 새 Supabase 클라이언트를 생성하면 트랜잭션 컨텍스트가 분리되므로,
+  // 미리보기 결과를 먼저 가져와서 트랜잭션 내에서 사용합니다.
+  const previewResult = await _getReschedulePreview(
+    groupId,
+    adjustments,
+    rescheduleDateRange,
+    placementDateRange,
+    includeToday
+  );
+  const newPlans = previewResult.plans_after;
 
-      if (!group) {
-        throw new AppError(
-          "플랜 그룹을 찾을 수 없습니다.",
-          ErrorCode.NOT_FOUND,
-          404,
-          true
-        );
-      }
+  return executeRescheduleTransaction(groupId, async (supabase) => {
+    // 2. 플랜 그룹 조회 (트랜잭션 내에서 락 획득)
+    const { data: group } = await supabase
+      .from("plan_groups")
+      .select("*")
+      .eq("id", groupId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .single();
 
-      // 2. 오늘 날짜 가져오기
-      const today = getTodayDateString();
-
-      // 2.1 재조정 기간 결정: placementDateRange 우선, 없으면 자동 계산
-      // adjustedPeriod를 먼저 계산하여 기존 플랜 필터링과 새 플랜 생성이 논리적으로 일관되도록 함
-      let adjustedPeriod: { start: string; end: string };
-      if (placementDateRange?.from && placementDateRange?.to) {
-        // 수동으로 선택한 배치 범위 사용
-        adjustedPeriod = {
-          start: placementDateRange.from,
-          end: placementDateRange.to,
-        };
-      } else {
-        // 자동 계산: rescheduleDateRange를 기반으로 오늘 이후 기간 계산
-        try {
-          adjustedPeriod = getAdjustedPeriod(rescheduleDateRange || null, today, group.period_end, includeToday);
-        } catch (error) {
-          if (error instanceof PeriodCalculationError) {
-            throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
-          }
-          throw error;
-        }
-      }
-
-      // 2.2 기존 플랜 조회 (재조정 대상만)
-      // 기존 플랜 필터링: adjustedPeriod 사용 (논리적 일관성 확보)
-      // rescheduleDateRange는 참고용으로만 사용 (UI 표시용)
-      let query = supabase
-        .from("student_plan")
-        .select("*")
-        .eq("plan_group_id", groupId)
-        .eq("student_id", group.student_id);
-
-      // adjustedPeriod를 사용하여 기존 플랜 필터링
-      if (adjustedPeriod.start && adjustedPeriod.end) {
-        query = query.gte("plan_date", adjustedPeriod.start).lte("plan_date", adjustedPeriod.end);
-      }
-
-      const { data: existingPlans } = await query;
-
-      const reschedulablePlans = (existingPlans || []).filter((plan) =>
-        isReschedulable(plan)
+    if (!group) {
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
       );
+    }
 
-      const plansBeforeCount = reschedulablePlans.length;
+    // 3. 오늘 날짜 가져오기
+    const today = getTodayDateString();
 
-      // 3. 기존 플랜 히스토리 백업
-      const planHistoryInserts = reschedulablePlans.map((plan) => ({
-        plan_id: plan.id,
-        plan_group_id: groupId,
-        plan_data: plan as any, // 전체 플랜 데이터 스냅샷
-        content_id: plan.content_id,
-        adjustment_type: "full" as const, // TODO: 실제 조정 유형에 맞게 수정
-      }));
-
-      // 4. 재조정 로그 생성 (임시 ID)
-      const tempLogId = crypto.randomUUID();
-
-      // 5. 히스토리 저장 (reschedule_log_id는 나중에 업데이트)
-      if (planHistoryInserts.length > 0) {
-        const { error: historyError } = await supabase
-          .from("plan_history")
-          .insert(planHistoryInserts);
-
-        if (historyError) {
-          throw new AppError(
-            `플랜 히스토리 저장 실패: ${historyError.message}`,
-            ErrorCode.DATABASE_ERROR,
-            500,
-            true
-          );
+    // 3.1 재조정 기간 결정
+    let adjustedPeriod: { start: string; end: string };
+    if (placementDateRange?.from && placementDateRange?.to) {
+      adjustedPeriod = {
+        start: placementDateRange.from,
+        end: placementDateRange.to,
+      };
+    } else {
+      try {
+        adjustedPeriod = getAdjustedPeriod(rescheduleDateRange || null, today, group.period_end, includeToday);
+      } catch (error) {
+        if (error instanceof PeriodCalculationError) {
+          throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
         }
+        throw error;
       }
+    }
 
-      // 6. 기존 플랜 비활성화
-      const planIds = reschedulablePlans.map((p) => p.id);
-      if (planIds.length > 0) {
-        const { error: deactivateError } = await supabase
-          .from("student_plan")
-          .update({ is_active: false })
-          .in("id", planIds);
+    // 4. 기존 플랜 조회 (재조정 대상만)
+    let query = supabase
+      .from("student_plan")
+      .select("*")
+      .eq("plan_group_id", groupId)
+      .eq("student_id", group.student_id);
 
-        if (deactivateError) {
-          throw new AppError(
-            `기존 플랜 비활성화 실패: ${deactivateError.message}`,
-            ErrorCode.DATABASE_ERROR,
-            500,
-            true
-          );
-        }
-      }
+    if (adjustedPeriod.start && adjustedPeriod.end) {
+      query = query.gte("plan_date", adjustedPeriod.start).lte("plan_date", adjustedPeriod.end);
+    }
 
-      // 7. 새 플랜 생성 - 미리보기와 동일한 로직 사용
-      const previewResult = await _getReschedulePreview(
-        groupId,
-        adjustments,
-        rescheduleDateRange,
-        placementDateRange,
-        includeToday
-      );
-      const newPlans = previewResult.plans_after;
+    const { data: existingPlans } = await query;
 
-      // 8. 새 플랜 저장
-      let plansAfterCount = 0;
-      if (newPlans.length > 0) {
-        // ScheduledPlan을 student_plan 테이블 형식으로 변환
-        const planInserts = newPlans.map((plan) => ({
-          plan_group_id: groupId,
-          student_id: group.student_id,
-          tenant_id: group.tenant_id,
-          plan_date: plan.plan_date,
-          content_id: plan.content_id,
-          content_type: plan.content_type,
-          planned_start_page_or_time: plan.planned_start_page_or_time,
-          planned_end_page_or_time: plan.planned_end_page_or_time,
-          start_time: plan.start_time,
-          end_time: plan.end_time,
-          status: "pending",
-          is_active: true,
-        }));
+    const reschedulablePlans = (existingPlans || []).filter((plan) =>
+      isReschedulable(plan)
+    );
 
-        // 배치 insert (Supabase는 한 번에 최대 1000개)
-        const BATCH_SIZE = 100;
-        for (let i = 0; i < planInserts.length; i += BATCH_SIZE) {
-          const batch = planInserts.slice(i, i + BATCH_SIZE);
-          const { error: insertError } = await supabase
-            .from("student_plan")
-            .insert(batch);
+    const plansBeforeCount = reschedulablePlans.length;
 
-          if (insertError) {
-            throw new AppError(
-              `새 플랜 저장 실패: ${insertError.message}`,
-              ErrorCode.DATABASE_ERROR,
-              500,
-              true
-            );
-          }
-        }
+    // 5. 기존 플랜 히스토리 백업
+    const planHistoryInserts = reschedulablePlans.map((plan) => ({
+      plan_id: plan.id,
+      plan_group_id: groupId,
+      plan_data: plan as any,
+      content_id: plan.content_id,
+      adjustment_type: "full" as const,
+    }));
 
-        plansAfterCount = newPlans.length;
-      }
+    // 6. 히스토리 저장
+    if (planHistoryInserts.length > 0) {
+      const { error: historyError } = await supabase
+        .from("plan_history")
+        .insert(planHistoryInserts);
 
-      // 8. 재조정 로그 저장
-      const { data: rescheduleLog, error: logError } = await supabase
-        .from("reschedule_log")
-        .insert({
-          plan_group_id: groupId,
-          student_id: group.student_id,
-          adjusted_contents: adjustments as any,
-          plans_before_count: plansBeforeCount,
-          plans_after_count: plansAfterCount,
-          reason: reason || null,
-          status: "completed",
-        })
-        .select("id")
-        .single();
-
-      if (logError || !rescheduleLog) {
+      if (historyError) {
         throw new AppError(
-          `재조정 로그 저장 실패: ${logError?.message || "Unknown error"}`,
+          `플랜 히스토리 저장 실패: ${historyError.message}`,
           ErrorCode.DATABASE_ERROR,
           500,
           true
         );
       }
+    }
 
-      // 9. 히스토리와 로그 연결
-      if (planHistoryInserts.length > 0) {
-        const { error: updateError } = await supabase
-          .from("plan_history")
-          .update({ reschedule_log_id: rescheduleLog.id })
-          .eq("plan_group_id", groupId)
-          .is("reschedule_log_id", null);
+    // 7. 기존 플랜 비활성화
+    const planIds = reschedulablePlans.map((p) => p.id);
+    if (planIds.length > 0) {
+      const { error: deactivateError } = await supabase
+        .from("student_plan")
+        .update({ is_active: false })
+        .in("id", planIds);
 
-        if (updateError) {
-          console.error(
-            "[reschedule] 히스토리-로그 연결 실패:",
-            updateError
+      if (deactivateError) {
+        throw new AppError(
+          `기존 플랜 비활성화 실패: ${deactivateError.message}`,
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+    }
+
+    // 8. 새 플랜 저장 (트랜잭션 외부에서 계산된 미리보기 결과 사용)
+    let plansAfterCount = 0;
+    if (newPlans.length > 0) {
+      const planInserts = newPlans.map((plan) => ({
+        plan_group_id: groupId,
+        student_id: group.student_id,
+        tenant_id: group.tenant_id,
+        plan_date: plan.plan_date,
+        content_id: plan.content_id,
+        content_type: plan.content_type,
+        planned_start_page_or_time: plan.planned_start_page_or_time,
+        planned_end_page_or_time: plan.planned_end_page_or_time,
+        start_time: plan.start_time,
+        end_time: plan.end_time,
+        status: "pending",
+        is_active: true,
+      }));
+
+      // 배치 insert
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < planInserts.length; i += BATCH_SIZE) {
+        const batch = planInserts.slice(i, i + BATCH_SIZE);
+        const { error: insertError } = await supabase
+          .from("student_plan")
+          .insert(batch);
+
+        if (insertError) {
+          throw new AppError(
+            `새 플랜 저장 실패: ${insertError.message}`,
+            ErrorCode.DATABASE_ERROR,
+            500,
+            true
           );
-          // 에러는 로그만 남기고 계속 진행
         }
       }
 
-      return {
-        success: true,
-        reschedule_log_id: rescheduleLog.id,
+      plansAfterCount = newPlans.length;
+    }
+
+    // 9. 재조정 로그 저장
+    const { data: rescheduleLog, error: logError } = await supabase
+      .from("reschedule_log")
+      .insert({
+        plan_group_id: groupId,
+        student_id: group.student_id,
+        adjusted_contents: adjustments as any,
         plans_before_count: plansBeforeCount,
         plans_after_count: plansAfterCount,
-      };
-    });
+        reason: reason || null,
+        status: "completed",
+      })
+      .select("id")
+      .single();
+
+    if (logError || !rescheduleLog) {
+      throw new AppError(
+        `재조정 로그 저장 실패: ${logError?.message || "Unknown error"}`,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 10. 히스토리와 로그 연결
+    if (planHistoryInserts.length > 0) {
+      const { error: updateError } = await supabase
+        .from("plan_history")
+        .update({ reschedule_log_id: rescheduleLog.id })
+        .eq("plan_group_id", groupId)
+        .is("reschedule_log_id", null);
+
+      if (updateError) {
+        console.error(
+          "[reschedule] 히스토리-로그 연결 실패:",
+          updateError
+        );
+      }
+    }
+
+    return {
+      success: true,
+      reschedule_log_id: rescheduleLog.id,
+      plans_before_count: plansBeforeCount,
+      plans_after_count: plansAfterCount,
+    };
+  });
 }
 
 export const rescheduleContents = withErrorHandling(_rescheduleContents);
