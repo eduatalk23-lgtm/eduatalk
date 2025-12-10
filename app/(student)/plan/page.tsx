@@ -120,6 +120,9 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
           </Suspense>
         )}
 
+        {/* 재조정 추천 */}
+        <RescheduleRecommendations studentId={user.id} />
+
         {/* 통계 카드 */}
         {planGroups.length > 0 && (
           <PlanGroupStatsCard
