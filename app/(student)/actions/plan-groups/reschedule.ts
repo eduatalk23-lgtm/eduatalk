@@ -58,11 +58,13 @@ export interface RescheduleResult {
  * 
  * @param groupId 플랜 그룹 ID
  * @param adjustments 조정 요청 목록
+ * @param dateRange 날짜 범위 (선택, null이면 전체 재생성)
  * @returns 미리보기 결과
  */
 export async function getReschedulePreview(
   groupId: string,
-  adjustments: AdjustmentInput[]
+  adjustments: AdjustmentInput[],
+  dateRange?: { from: string; to: string } | null
 ): Promise<ReschedulePreviewResult> {
   return withErrorHandling(async () => {
     const user = await getCurrentUser();
@@ -103,11 +105,18 @@ export async function getReschedulePreview(
     }
 
     // 3. 기존 플랜 수 조회 (재조정 대상만)
-    const { data: existingPlans } = await supabase
+    let query = supabase
       .from("student_plan")
-      .select("id, status, is_active")
+      .select("id, status, is_active, plan_date")
       .eq("plan_group_id", groupId)
       .eq("student_id", group.student_id);
+
+    // 날짜 범위 필터링 (선택한 경우)
+    if (dateRange?.from && dateRange?.to) {
+      query = query.gte("plan_date", dateRange.from).lte("plan_date", dateRange.to);
+    }
+
+    const { data: existingPlans } = await query;
 
     const reschedulablePlans = (existingPlans || []).filter((plan) =>
       isReschedulable(plan)
@@ -152,12 +161,14 @@ export async function getReschedulePreview(
  * @param groupId 플랜 그룹 ID
  * @param adjustments 조정 요청 목록
  * @param reason 재조정 사유 (선택)
+ * @param dateRange 날짜 범위 (선택, null이면 전체 재생성)
  * @returns 실행 결과
  */
 export async function rescheduleContents(
   groupId: string,
   adjustments: AdjustmentInput[],
-  reason?: string
+  reason?: string,
+  dateRange?: { from: string; to: string } | null
 ): Promise<RescheduleResult> {
   return withErrorHandling(async () => {
     const user = await getCurrentUser();
@@ -182,11 +193,18 @@ export async function rescheduleContents(
       }
 
       // 2. 기존 플랜 조회 (재조정 대상만)
-      const { data: existingPlans } = await supabase
+      let query = supabase
         .from("student_plan")
         .select("*")
         .eq("plan_group_id", groupId)
         .eq("student_id", group.student_id);
+
+      // 날짜 범위 필터링 (선택한 경우)
+      if (dateRange?.from && dateRange?.to) {
+        query = query.gte("plan_date", dateRange.from).lte("plan_date", dateRange.to);
+      }
+
+      const { data: existingPlans } = await query;
 
       const reschedulablePlans = (existingPlans || []).filter((plan) =>
         isReschedulable(plan)
@@ -243,7 +261,12 @@ export async function rescheduleContents(
       // 7. 새 플랜 생성
       // TODO: 실제 플랜 생성 로직 통합 필요
       // generatePlansFromGroup 함수를 호출하여 새 플랜 생성
+      // 날짜 범위가 지정된 경우, 생성된 플랜 중 선택한 날짜 범위의 플랜만 저장
+      // 현재는 필터링 로직만 완료, 실제 생성은 별도 작업으로 분리
       const plansAfterCount = 0; // TODO: 실제 생성된 플랜 수
+      
+      // 날짜 범위가 지정된 경우, 해당 범위의 플랜만 생성하도록 필터링
+      // 실제 구현 시: generatePlansFromGroup 호출 후 날짜 범위 필터링 적용
 
       // 8. 재조정 로그 저장
       const { data: rescheduleLog, error: logError } = await supabase

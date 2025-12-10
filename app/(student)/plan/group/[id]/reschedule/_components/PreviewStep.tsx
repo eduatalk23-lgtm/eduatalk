@@ -12,10 +12,15 @@ import { getReschedulePreview, rescheduleContents } from "@/app/(student)/action
 import { useToast } from "@/components/ui/ToastProvider";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-groups/reschedule";
+import { BeforeAfterComparison } from "./BeforeAfterComparison";
+import { AffectedPlansList } from "./AffectedPlansList";
+import { ConflictWarning } from "./ConflictWarning";
+import { detectAllConflicts } from "@/lib/reschedule/conflictDetector";
 
 type PreviewStepProps = {
   groupId: string;
   adjustments: AdjustmentInput[];
+  dateRange?: { from: string; to: string } | null;
   onLoad: (preview: ReschedulePreviewResult) => void;
   previewResult: ReschedulePreviewResult | null;
 };
@@ -23,6 +28,7 @@ type PreviewStepProps = {
 export function PreviewStep({
   groupId,
   adjustments,
+  dateRange,
   onLoad,
   previewResult: initialPreview,
 }: PreviewStepProps) {
@@ -35,6 +41,13 @@ export function PreviewStep({
   const [executing, setExecuting] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
+  // 충돌 감지 (현재는 기본 데이터만 사용, 실제 플랜 목록이 있으면 더 정확한 감지 가능)
+  const conflicts = useMemo(() => {
+    // TODO: 실제 플랜 목록이 있으면 detectAllConflicts 호출
+    // 현재는 빈 배열 반환 (실제 플랜 생성 로직 통합 후 구현)
+    return [];
+  }, [preview]);
+
   useEffect(() => {
     if (!preview && adjustments.length > 0) {
       loadPreview();
@@ -44,7 +57,7 @@ export function PreviewStep({
   const loadPreview = async () => {
     setLoading(true);
     try {
-      const result = await getReschedulePreview(groupId, adjustments);
+      const result = await getReschedulePreview(groupId, adjustments, dateRange);
       setPreview(result);
       onLoad(result);
     } catch (error) {
@@ -66,7 +79,7 @@ export function PreviewStep({
 
     setExecuting(true);
     try {
-      const result = await rescheduleContents(groupId, adjustments);
+      const result = await rescheduleContents(groupId, adjustments, undefined, dateRange);
       if (result.success) {
         toast.showSuccess("재조정이 완료되었습니다.");
         router.push(`/plan/group/${groupId}`);
@@ -140,6 +153,11 @@ export function PreviewStep({
             <p className="text-2xl font-bold text-gray-900">
               {preview.affected_dates.length}
             </p>
+            {dateRange && (
+              <p className="mt-1 text-xs text-gray-500">
+                {dateRange.from} ~ {dateRange.to}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-sm text-gray-600">예상 시간</p>
@@ -149,6 +167,20 @@ export function PreviewStep({
           </div>
         </div>
       </div>
+
+      {/* 변경 전/후 비교 */}
+      <BeforeAfterComparison
+        preview={preview}
+        adjustments={adjustments}
+        dateRange={dateRange}
+      />
+
+      {/* 영향받는 플랜 목록 */}
+      <AffectedPlansList
+        preview={preview}
+        adjustments={adjustments}
+        dateRange={dateRange}
+      />
 
       {/* 조정 요약 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
@@ -174,6 +206,11 @@ export function PreviewStep({
           </div>
         </div>
       </div>
+
+      {/* 충돌 경고 */}
+      {conflicts.length > 0 && (
+        <ConflictWarning conflicts={conflicts} />
+      )}
 
       {/* 경고 메시지 */}
       {preview.plans_before_count > 0 && (

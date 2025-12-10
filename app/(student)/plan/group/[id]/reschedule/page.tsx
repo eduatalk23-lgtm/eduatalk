@@ -49,7 +49,7 @@ export default async function ReschedulePage({
   // 기존 플랜 조회 (재조정 대상 확인용)
   const { data: existingPlans } = await supabase
     .from("student_plan")
-    .select("id, status, is_active, content_id")
+    .select("id, status, is_active, content_id, plan_date")
     .eq("plan_group_id", id)
     .eq("student_id", user.id);
 

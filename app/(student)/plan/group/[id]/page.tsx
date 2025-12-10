@@ -85,7 +85,7 @@ export default async function PlanGroupDetailPage({
   const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
   const blockSets = await fetchBlockSetsWithBlocks(user.id);
 
-  // 논리 플랜 목록 조회
+  // 논리 플랜 목록 조회 (재조정 기능으로 통합되어 사용하지 않지만, 데이터는 유지)
   const logicalPlans = await getPlanGroupItems(id, tenantContext?.tenantId || null);
 
   // 플랜 데이터 조회 (단일 쿼리로 통합)

@@ -37,12 +37,20 @@ export function RescheduleWizard({
   const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(
     new Set()
   );
+  const [dateRange, setDateRange] = useState<{
+    from: string | null;
+    to: string | null;
+  } | null>(null);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
   const [previewResult, setPreviewResult] = useState<any>(null);
 
   // Step 1 완료 핸들러
-  const handleStep1Complete = (contentIds: Set<string>) => {
+  const handleStep1Complete = (
+    contentIds: Set<string>,
+    selectedDateRange: { from: string | null; to: string | null } | null
+  ) => {
     setSelectedContentIds(contentIds);
+    setDateRange(selectedDateRange);
     setCurrentStep(2);
   };
 
@@ -131,8 +139,12 @@ export function RescheduleWizard({
       <div className="p-6">
         {currentStep === 1 && (
           <ContentSelectStep
+            group={group}
             contents={contents}
-            existingPlans={existingPlans}
+            existingPlans={existingPlans.map((p) => ({
+              ...p,
+              plan_date: (p as any).plan_date || "",
+            }))}
             onComplete={handleStep1Complete}
           />
         )}
@@ -149,6 +161,7 @@ export function RescheduleWizard({
           <PreviewStep
             groupId={groupId}
             adjustments={adjustments}
+            dateRange={dateRange}
             onLoad={handleStep3Load}
             previewResult={previewResult}
           />

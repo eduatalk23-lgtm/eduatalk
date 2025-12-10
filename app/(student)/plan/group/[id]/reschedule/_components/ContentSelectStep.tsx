@@ -1,32 +1,50 @@
 /**
  * Step 1: 콘텐츠 선택 컴포넌트
  * 
- * 재조정 대상 콘텐츠를 선택합니다.
+ * 재조정 대상 콘텐츠를 선택하고 날짜 범위를 선택합니다.
  */
 
 "use client";
 
 import { useState, useMemo } from "react";
 import { isReschedulable, isCompletedPlan } from "@/lib/utils/planStatusUtils";
-import type { PlanContent } from "@/lib/types/plan";
+import type { PlanContent, PlanGroup } from "@/lib/types/plan";
+import { DateRangeSelector } from "./DateRangeSelector";
+import { SmartDateRangeSuggestions } from "./SmartDateRangeSuggestions";
+
+type DateRange = {
+  from: string | null; // YYYY-MM-DD
+  to: string | null; // YYYY-MM-DD
+};
 
 type ContentSelectStepProps = {
+  group: PlanGroup;
   contents: PlanContent[];
   existingPlans: Array<{
     id: string;
     status: string | null;
     is_active: boolean | null;
     content_id: string;
+    plan_date: string; // YYYY-MM-DD
   }>;
-  onComplete: (selectedContentIds: Set<string>) => void;
+  onComplete: (
+    selectedContentIds: Set<string>,
+    dateRange: DateRange | null
+  ) => void;
 };
 
 export function ContentSelectStep({
+  group,
   contents,
   existingPlans,
   onComplete,
 }: ContentSelectStepProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rescheduleMode, setRescheduleMode] = useState<"full" | "range">("full");
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: null,
+    to: null,
+  });
 
   // 콘텐츠별 플랜 상태 계산
   const contentStatusMap = useMemo(() => {
@@ -94,7 +112,18 @@ export function ContentSelectStep({
       alert("최소 1개 이상의 콘텐츠를 선택해주세요.");
       return;
     }
-    onComplete(selectedIds);
+
+    if (rescheduleMode === "range") {
+      if (!dateRange.from || !dateRange.to) {
+        alert("날짜 범위를 선택해주세요.");
+        return;
+      }
+    }
+
+    onComplete(
+      selectedIds,
+      rescheduleMode === "range" ? dateRange : null
+    );
   };
 
   const availableCount = Array.from(contentStatusMap.values()).filter(
@@ -187,10 +216,81 @@ export function ContentSelectStep({
             })}
           </div>
 
+          {/* 재생성 범위 선택 */}
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+              재생성 범위 선택
+            </h3>
+            <div className="flex flex-col gap-3">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="rescheduleMode"
+                  value="full"
+                  checked={rescheduleMode === "full"}
+                  onChange={() => setRescheduleMode("full")}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">전체 재생성</div>
+                  <div className="text-xs text-gray-600">
+                    모든 플랜을 재생성합니다 (완료된 플랜 제외)
+                  </div>
+                </div>
+              </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="rescheduleMode"
+                  value="range"
+                  checked={rescheduleMode === "range"}
+                  onChange={() => setRescheduleMode("range")}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">날짜 범위 선택</div>
+                  <div className="text-xs text-gray-600">
+                    특정 날짜 범위의 플랜만 재생성합니다
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* 날짜 범위 선택 UI */}
+            {rescheduleMode === "range" && (
+              <div className="mt-4 flex flex-col gap-4">
+                {/* 스마트 추천 */}
+                {selectedIds.size > 0 && (
+                  <SmartDateRangeSuggestions
+                    group={group}
+                    contents={contents}
+                    selectedContentIds={selectedIds}
+                    existingPlans={existingPlans}
+                    onSelectRange={(range) => {
+                      setDateRange(range);
+                    }}
+                  />
+                )}
+
+                {/* 날짜 범위 선택 캘린더 */}
+                <DateRangeSelector
+                  groupPeriodStart={group.period_start}
+                  groupPeriodEnd={group.period_end}
+                  existingPlans={existingPlans}
+                  onRangeChange={setDateRange}
+                  initialRange={dateRange}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end gap-3">
             <button
               onClick={handleNext}
-              disabled={selectedIds.size === 0}
+              disabled={
+                selectedIds.size === 0 ||
+                (rescheduleMode === "range" && (!dateRange.from || !dateRange.to))
+              }
               className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500"
             >
               다음 ({selectedIds.size}개 선택됨)

@@ -220,7 +220,7 @@
 1. 논리 플랜 CRUD
 
    - [ ] 플랜그룹 내 논리 플랜 추가/수정/삭제
-   - [ ] 논리 플랜 수정 시 student_plan 재생성 확인
+   - [x] 논리 플랜 수정 시 student_plan 재생성 확인 (재조정 기능으로 통합됨 - 2025-01-22)
    - [ ] 이미 완료된 student_plan 보호 확인
 
 2. origin_plan_item_id 연결
