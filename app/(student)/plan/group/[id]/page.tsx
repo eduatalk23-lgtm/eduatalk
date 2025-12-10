@@ -10,7 +10,7 @@ import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { AutoRescheduleBanner } from "./_components/AutoRescheduleBanner";
 import { classifyPlanContents } from "@/lib/data/planContents";
-import type { PlanStatus } from "@/lib/types/plan";
+import type { PlanStatus, Plan } from "@/lib/types/plan";
 import {
   planPurposeLabels,
   schedulerTypeLabels,
