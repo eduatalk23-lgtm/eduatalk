@@ -71,8 +71,11 @@ export function logError(
   const errorInfo: Record<string, unknown> = {
     message: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
-    context,
-    timestamp: new Date().toISOString(),
+    context: {
+      ...context,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+    },
   };
 
   // AppError인 경우 추가 정보 포함
@@ -86,15 +89,27 @@ export function logError(
     }
   } else if (error instanceof Error) {
     errorInfo.name = error.name;
+    
+    // Supabase 에러인 경우 추가 정보
+    if ("code" in error) {
+      errorInfo.supabaseCode = (error as { code: string }).code;
+      errorInfo.supabaseDetails = (error as { details?: unknown }).details;
+      errorInfo.supabaseHint = (error as { hint?: string }).hint;
+    }
   }
 
   // 개발 환경에서는 console.error 사용
   if (process.env.NODE_ENV === "development") {
-    console.error("[Error]", errorInfo);
+    console.error("[Error]", JSON.stringify(errorInfo, null, 2));
   } else {
     // 프로덕션에서는 에러 트래킹 서비스로 전송
     // 예: Sentry, LogRocket 등
     console.error("[Error]", JSON.stringify(errorInfo, null, 2));
+    
+    // TODO: 에러 트래킹 서비스 통합
+    // if (typeof window !== 'undefined' && window.Sentry) {
+    //   window.Sentry.captureException(error, { extra: errorInfo });
+    // }
   }
 }
 
@@ -140,13 +155,48 @@ export function normalizeError(error: unknown): AppError {
           true
         );
       }
+
+      // PGRST116: 결과가 0개 행일 때 (single() 사용 시)
+      if (code === "PGRST116") {
+        return new AppError(
+          "요청한 데이터를 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+
+      // 권한 오류
+      if (code === "42501") {
+        return new AppError(
+          "접근 권한이 없습니다.",
+          ErrorCode.FORBIDDEN,
+          403,
+          true
+        );
+      }
+
+      // 네트워크/연결 오류
+      if (code === "08000" || code === "08003" || code === "08006") {
+        return new AppError(
+          "데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          503,
+          true
+        );
+      }
     }
     
+    // 일반 Error는 사용자에게 보여줄 수 있는 메시지로 변환
+    // 단, 프로덕션에서는 일반적인 메시지만 반환
+    const errorMessage = error.message || "알 수 없는 오류가 발생했습니다.";
+    
     return new AppError(
-      error.message,
+      errorMessage,
       ErrorCode.INTERNAL_ERROR,
       500,
-      false
+      // 개발 환경에서는 실제 메시지 표시, 프로덕션에서는 일반 메시지
+      process.env.NODE_ENV === "development"
     );
   }
 
