@@ -1,21 +1,27 @@
 /**
  * Step 3: 미리보기 & 확인 컴포넌트
- * 
+ *
  * 재조정 결과를 미리보고 최종 확인합니다.
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { getReschedulePreview, rescheduleContents } from "@/app/(student)/actions/plan-groups/reschedule";
+import {
+  getReschedulePreview,
+  rescheduleContents,
+} from "@/app/(student)/actions/plan-groups/reschedule";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-groups/reschedule";
 import { BeforeAfterComparison } from "./BeforeAfterComparison";
 import { AffectedPlansList } from "./AffectedPlansList";
 import { ConflictWarning } from "./ConflictWarning";
-import { detectAllConflicts, type PlanWithTime } from "@/lib/reschedule/conflictDetector";
+import {
+  detectAllConflicts,
+  type PlanWithTime,
+} from "@/lib/reschedule/conflictDetector";
 
 type PreviewStepProps = {
   groupId: string;
@@ -40,6 +46,16 @@ export function PreviewStep({
   );
   const [executing, setExecuting] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const loadAttemptedRef = useRef(false); // 로드 시도 여부 추적
+  const isLoadingRef = useRef(false); // 로딩 상태를 ref로 추적
+  const adjustmentsRef = useRef(adjustments); // 최신 adjustments 값을 저장
+  const dateRangeRef = useRef(dateRange); // 최신 dateRange 값을 저장
+
+  // adjustments와 dateRange 변경 시 ref 업데이트
+  useEffect(() => {
+    adjustmentsRef.current = adjustments;
+    dateRangeRef.current = dateRange;
+  }, [adjustments, dateRange]);
 
   // 충돌 감지 (실제 플랜 데이터 사용)
   const conflicts = useMemo(() => {
@@ -87,28 +103,92 @@ export function PreviewStep({
     return detectAllConflicts(plansWithTime, datePlansMap, 12); // 최대 12시간
   }, [preview]);
 
-  useEffect(() => {
-    if (!preview && adjustments.length > 0) {
-      loadPreview();
+  const loadPreview = useCallback(async () => {
+    // 이미 로딩 중이면 중복 호출 방지 (ref 사용)
+    if (isLoadingRef.current) {
+      console.log(
+        "[PreviewStep] loadPreview: 이미 로딩 중이므로 중복 호출 방지"
+      );
+      return;
     }
-  }, []);
 
-  const loadPreview = async () => {
+    isLoadingRef.current = true;
     setLoading(true);
+    loadAttemptedRef.current = true; // 시도 표시
+
     try {
-      const result = await getReschedulePreview(groupId, adjustments, dateRange);
+      // ref에서 최신 값 가져오기
+      const currentAdjustments = adjustmentsRef.current;
+      const currentDateRange = dateRangeRef.current;
+
+      console.log("[PreviewStep] loadPreview 호출:", {
+        groupId,
+        adjustmentsCount: currentAdjustments.length,
+        dateRange: currentDateRange,
+      });
+      const result = await getReschedulePreview(
+        groupId,
+        currentAdjustments,
+        currentDateRange
+      );
+      console.log("[PreviewStep] loadPreview 성공:", {
+        plansBeforeCount: result.plans_before_count,
+        plansAfterCount: result.plans_after_count,
+        affectedDates: result.affected_dates.length,
+      });
       setPreview(result);
       onLoad(result);
     } catch (error) {
+      console.error("[PreviewStep] loadPreview 실패:", error);
       toast.showError(
         error instanceof Error
           ? error.message
           : "미리보기를 불러오는데 실패했습니다."
       );
+      // 에러 발생 시에도 preview를 null로 유지하여 재시도 가능하게 함
     } finally {
+      isLoadingRef.current = false;
       setLoading(false);
     }
-  };
+  }, [groupId, onLoad, toast]); // 객체/배열 제거, 함수 참조만 포함
+
+  useEffect(() => {
+    // 이미 미리보기가 있거나, 로딩 중이거나, 이미 시도했으면 실행하지 않음
+    // preview는 의존성에서 제거 (결과값이므로)
+    if (preview || isLoadingRef.current || loadAttemptedRef.current) {
+      console.log("[PreviewStep] useEffect: 조건 불만족으로 실행 안 함", {
+        hasPreview: !!preview,
+        isLoading: isLoadingRef.current,
+        loadAttempted: loadAttemptedRef.current,
+      });
+      return;
+    }
+
+    // adjustments가 있거나 dateRange가 있으면 미리보기 로드
+    // adjustments.length와 dateRange?.from, dateRange?.to를 직접 비교
+    const hasAdjustments = adjustments.length > 0;
+    const hasDateRange = !!(dateRange?.from && dateRange?.to);
+
+    if (hasAdjustments || hasDateRange) {
+      console.log("[PreviewStep] useEffect: loadPreview 호출 시도", {
+        hasAdjustments,
+        hasDateRange,
+      });
+      loadPreview();
+    } else {
+      console.log("[PreviewStep] useEffect: 조건 불만족", {
+        adjustmentsLength: adjustments.length,
+        dateRange,
+      });
+    }
+  }, [adjustments, dateRange, loadPreview]); // preview 제거
+
+  // adjustments나 dateRange가 변경되면 재시도 허용
+  useEffect(() => {
+    if (preview) {
+      loadAttemptedRef.current = false;
+    }
+  }, [adjustments, dateRange, preview]);
 
   const handleExecute = async () => {
     if (!confirmDialogOpen) {
@@ -118,7 +198,12 @@ export function PreviewStep({
 
     setExecuting(true);
     try {
-      const result = await rescheduleContents(groupId, adjustments, undefined, dateRange);
+      const result = await rescheduleContents(
+        groupId,
+        adjustments,
+        undefined,
+        dateRange
+      );
       if (result.success) {
         toast.showSuccess("재조정이 완료되었습니다.");
         router.push(`/plan/group/${groupId}`);
@@ -127,9 +212,7 @@ export function PreviewStep({
       }
     } catch (error) {
       toast.showError(
-        error instanceof Error
-          ? error.message
-          : "재조정에 실패했습니다."
+        error instanceof Error ? error.message : "재조정에 실패했습니다."
       );
     } finally {
       setExecuting(false);
@@ -142,16 +225,35 @@ export function PreviewStep({
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">미리보기를 불러오는 중...</p>
+          <p className="mt-4 text-sm text-gray-600">
+            미리보기를 불러오는 중...
+          </p>
         </div>
       </div>
     );
   }
 
   if (!preview) {
+    // adjustments와 dateRange가 모두 없으면 안내 메시지 표시
+    if (adjustments.length === 0 && (!dateRange?.from || !dateRange?.to)) {
+      return (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+          <p className="text-sm text-gray-600">
+            조정 사항이 없거나 날짜 범위가 선택되지 않았습니다.
+          </p>
+          <p className="mt-2 text-xs text-gray-500">
+            이전 단계로 돌아가서 콘텐츠를 선택하고 날짜 범위를 지정해주세요.
+          </p>
+        </div>
+      );
+    }
+
+    // 그 외의 경우 다시 시도 버튼 표시
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
-        <p className="text-sm text-gray-600">미리보기 데이터를 불러올 수 없습니다.</p>
+        <p className="text-sm text-gray-600">
+          미리보기 데이터를 불러올 수 없습니다.
+        </p>
         <button
           onClick={loadPreview}
           className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
@@ -247,9 +349,7 @@ export function PreviewStep({
       </div>
 
       {/* 충돌 경고 */}
-      {conflicts.length > 0 && (
-        <ConflictWarning conflicts={conflicts} />
-      )}
+      {conflicts.length > 0 && <ConflictWarning conflicts={conflicts} />}
 
       {/* 경고 메시지 */}
       {preview.plans_before_count > 0 && (
@@ -405,4 +505,3 @@ export function PreviewStep({
     </div>
   );
 }
-
