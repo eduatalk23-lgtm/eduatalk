@@ -9,6 +9,7 @@
 import { useState, useMemo } from "react";
 import type { PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
+import { BatchAdjustmentPanel } from "./BatchAdjustmentPanel";
 
 type AdjustmentStepProps = {
   contents: PlanContent[];
@@ -34,6 +35,7 @@ export function AdjustmentStep({
     });
     return map;
   });
+  const [batchMode, setBatchMode] = useState(false);
 
   const selectedContents = useMemo(() => {
     return contents.filter(
@@ -117,6 +119,44 @@ export function AdjustmentStep({
           선택한 콘텐츠의 범위를 수정하거나 콘텐츠를 교체할 수 있습니다.
         </p>
       </div>
+
+      {/* 일괄 조정 모드 토글 */}
+      {selectedContents.length > 1 && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
+          <div>
+            <h3 className="font-medium text-gray-900">일괄 조정 모드</h3>
+            <p className="mt-1 text-xs text-gray-600">
+              여러 콘텐츠를 한 번에 조정할 수 있습니다.
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={batchMode}
+              onChange={(e) => setBatchMode(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700">일괄 조정 활성화</span>
+          </label>
+        </div>
+      )}
+
+      {/* 일괄 조정 패널 */}
+      {batchMode && selectedContents.length > 1 && (
+        <BatchAdjustmentPanel
+          contents={selectedContents}
+          selectedContentIds={selectedContentIds}
+          onApply={(adjustments) => {
+            const newMap = new Map(localAdjustments);
+            adjustments.forEach((adj) => {
+              newMap.set(adj.plan_content_id, adj);
+            });
+            setLocalAdjustments(newMap);
+            setBatchMode(false);
+          }}
+          onCancel={() => setBatchMode(false)}
+        />
+      )}
 
       <div className="flex flex-col gap-4">
         {selectedContents.map((content) => {
