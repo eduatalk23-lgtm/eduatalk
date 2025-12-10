@@ -8,6 +8,7 @@ import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { PlanGroupDetailView } from "./_components/PlanGroupDetailView";
 import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
+import { AutoRescheduleBanner } from "./_components/AutoRescheduleBanner";
 import { classifyPlanContents } from "@/lib/data/planContents";
 import type { PlanStatus } from "@/lib/types/plan";
 import {
@@ -88,16 +89,36 @@ export default async function PlanGroupDetailPage({
   // 논리 플랜 목록 조회 (재조정 기능으로 통합되어 사용하지 않지만, 데이터는 유지)
   const logicalPlans = await getPlanGroupItems(id, tenantContext?.tenantId || null);
 
-  // 플랜 데이터 조회 (단일 쿼리로 통합)
+  // 플랜 데이터 조회 (자동 재조정 제안을 위해 전체 플랜 정보 필요)
   const { data: plans } = await supabase
     .from("student_plan")
-    .select("id,planned_end_page_or_time,completed_amount")
+    .select(
+      "id,plan_date,planned_start_page_or_time,planned_end_page_or_time,completed_amount,status,actual_start_time,actual_end_time"
+    )
     .eq("plan_group_id", id)
     .eq("student_id", user.id)
     .not("plan_group_id", "is", null);
 
   const planCount = plans?.length || 0;
   const hasPlans = planCount > 0;
+
+  // 자동 재조정 제안을 위한 플랜 데이터 변환
+  const plansForAnalysis: Plan[] = (plans || []).map((p) => ({
+    id: p.id,
+    plan_date: p.plan_date,
+    planned_start_page_or_time: p.planned_start_page_or_time,
+    planned_end_page_or_time: p.planned_end_page_or_time,
+    completed_amount: p.completed_amount,
+    status: p.status as "pending" | "in_progress" | "completed" | "cancelled",
+    actual_start_time: p.actual_start_time,
+    actual_end_time: p.actual_end_time,
+    student_id: user.id,
+    plan_group_id: id,
+    content_type: "book" as const,
+    content_id: "",
+    block_index: 0,
+    is_reschedulable: true,
+  }));
 
   // 완료 여부 및 완료 개수 계산
   let isCompleted = false;
