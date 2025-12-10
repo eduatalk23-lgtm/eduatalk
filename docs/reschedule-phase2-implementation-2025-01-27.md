@@ -25,12 +25,14 @@
 **파일**: `app/(student)/plan/group/[id]/reschedule/_components/ContentSelectStep.tsx`
 
 **변경 사항**:
+
 - `includeToday` state 추가 (기본값: `false`)
 - "재조정할 플랜 범위 선택" 섹션에 "오늘 날짜 포함" 체크박스 추가
 - 체크박스 옆에 안내 메시지 표시: "오늘 날짜의 플랜도 재조정 대상에 포함됩니다. 이미 진행 중이거나 완료된 플랜은 제외됩니다."
 - `onComplete` 콜백에 `includeToday` 값 전달
 
 **주요 코드**:
+
 ```typescript
 const [includeToday, setIncludeToday] = useState(false);
 
@@ -47,13 +49,18 @@ const [includeToday, setIncludeToday] = useState(false);
     <div className="flex-1">
       <div className="font-medium text-gray-900">오늘 날짜 포함</div>
       <div className="mt-1 text-xs text-gray-600">
-        오늘 날짜의 플랜도 재조정 대상에 포함됩니다. 이미 진행 중이거나 완료된 플랜은 제외됩니다.
+        오늘 날짜의 플랜도 재조정 대상에 포함됩니다. 이미 진행 중이거나 완료된
+        플랜은 제외됩니다.
       </div>
     </div>
   </label>
-</div>
+</div>;
 
-onComplete(selectedIds, rescheduleMode === "range" ? rescheduleDateRange : null, includeToday);
+onComplete(
+  selectedIds,
+  rescheduleMode === "range" ? rescheduleDateRange : null,
+  includeToday
+);
 ```
 
 ---
@@ -63,11 +70,13 @@ onComplete(selectedIds, rescheduleMode === "range" ? rescheduleDateRange : null,
 **파일**: `app/(student)/plan/group/[id]/reschedule/_components/RescheduleWizard.tsx`
 
 **변경 사항**:
+
 - `includeToday` state 추가
 - `handleStep1Complete`에서 `includeToday` 받아서 저장
 - Step 3에 `includeToday` prop 전달
 
 **주요 코드**:
+
 ```typescript
 const [includeToday, setIncludeToday] = useState(false);
 
@@ -86,7 +95,7 @@ const handleStep1Complete = (
 <PreviewStep
   // ... 기존 props
   includeToday={includeToday}
-/>
+/>;
 ```
 
 ---
@@ -96,12 +105,14 @@ const handleStep1Complete = (
 **파일**: `lib/reschedule/periodCalculator.ts`
 
 **변경 사항**:
+
 - `getAdjustedPeriod` 함수에 `includeToday?: boolean` 파라미터 추가 (기본값: `false`)
 - `includeToday`가 `true`이면 `today`부터 시작, `false`이면 `tomorrow`부터 시작
 - `getAdjustedPeriodWithDetails`에도 동일한 파라미터 추가
 - `validateReschedulePeriod`에도 동일한 파라미터 추가
 
 **주요 코드**:
+
 ```typescript
 export function getAdjustedPeriod(
   dateRange: { from: string; to: string } | null,
@@ -111,39 +122,39 @@ export function getAdjustedPeriod(
 ): AdjustedPeriod {
   const startDate = includeToday ? today : getNextDayString(today);
   const tomorrow = getNextDayString(today);
-  
+
   // 전체 재조정 (날짜 범위 미지정)
   if (!dateRange) {
     if (isDateBefore(groupEnd, startDate)) {
       throw new PeriodCalculationError(
-        '재조정할 기간이 남아있지 않습니다. 플랜 그룹 종료일이 오늘 이전입니다.',
-        'NO_REMAINING_PERIOD'
+        "재조정할 기간이 남아있지 않습니다. 플랜 그룹 종료일이 오늘 이전입니다.",
+        "NO_REMAINING_PERIOD"
       );
     }
-    
+
     return {
       start: startDate,
       end: groupEnd,
     };
   }
-  
+
   // 날짜 범위 지정된 경우
   const { from, to } = dateRange;
-  
+
   // 선택한 범위가 모두 시작일 이전인 경우
   if (isDateBefore(to, startDate)) {
     throw new PeriodCalculationError(
-      '선택한 날짜 범위에 유효한 기간이 포함되지 않았습니다.',
-      'PAST_DATE_RANGE'
+      "선택한 날짜 범위에 유효한 기간이 포함되지 않았습니다.",
+      "PAST_DATE_RANGE"
     );
   }
-  
+
   // 시작일 조정: 시작일 이후로 설정
   const adjustedStart = isDateBefore(from, startDate) ? startDate : from;
-  
+
   // 종료일: groupEnd를 초과하지 않도록
   const adjustedEnd = isDateBefore(groupEnd, to) ? groupEnd : to;
-  
+
   return {
     start: adjustedStart,
     end: adjustedEnd,
@@ -158,12 +169,14 @@ export function getAdjustedPeriod(
 **파일**: `app/(student)/actions/plan-groups/reschedule.ts`
 
 **변경 사항**:
+
 - `_getReschedulePreview` 함수에 `includeToday?: boolean` 파라미터 추가
 - 미진행 플랜 조회 쿼리 수정:
   - `includeToday === true`: `.lte("plan_date", today)` 사용
   - `includeToday === false`: `.lt("plan_date", today)` 사용 (기존 로직)
 
 **주요 코드**:
+
 ```typescript
 // 미진행 플랜 조회: includeToday에 따라 조건 변경
 let pastUncompletedQuery = supabase
@@ -193,6 +206,7 @@ const { data: pastUncompletedPlans } = await pastUncompletedQuery;
 **파일**: `app/(student)/actions/plan-groups/reschedule.ts`
 
 **변경 사항**:
+
 - `getReschedulePreview` 함수에 `includeToday?: boolean` 파라미터 추가
 - `_getReschedulePreview` 호출 시 `includeToday` 전달
 - `getAdjustedPeriod` 호출 시 `includeToday` 전달
@@ -200,6 +214,7 @@ const { data: pastUncompletedPlans } = await pastUncompletedQuery;
 - `_rescheduleContents`에서 `_getReschedulePreview` 호출 시 `includeToday` 전달
 
 **주요 코드**:
+
 ```typescript
 async function _getReschedulePreview(
   groupId: string,
@@ -209,7 +224,7 @@ async function _getReschedulePreview(
   includeToday: boolean = false
 ): Promise<ReschedulePreviewResult> {
   // ...
-  
+
   // 재조정 기간 결정: placementDateRange 우선, 없으면 자동 계산
   let adjustedPeriod: { start: string; end: string };
   if (placementDateRange?.from && placementDateRange?.to) {
@@ -228,7 +243,12 @@ async function _getReschedulePreview(
       );
     } catch (error) {
       if (error instanceof PeriodCalculationError) {
-        throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
+        throw new AppError(
+          error.message,
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
       }
       throw error;
     }
@@ -245,7 +265,7 @@ async function _rescheduleContents(
   includeToday: boolean = false
 ): Promise<RescheduleResult> {
   // ...
-  
+
   // 새 플랜 생성 - 미리보기와 동일한 로직 사용
   const previewResult = await _getReschedulePreview(
     groupId,
@@ -265,12 +285,14 @@ async function _rescheduleContents(
 **파일**: `app/(student)/plan/group/[id]/reschedule/_components/PreviewStep.tsx`
 
 **변경 사항**:
+
 - `includeToday` prop 추가
 - "날짜 범위 정보" 섹션에 "오늘 날짜 포함" 여부 표시
 - `getReschedulePreview`와 `rescheduleContents` 호출 시 `includeToday` 전달
 - `useEffect` 의존성 배열에 `includeToday` 추가
 
 **주요 코드**:
+
 ```typescript
 type PreviewStepProps = {
   groupId: string;
@@ -293,7 +315,7 @@ type PreviewStepProps = {
       ? "오늘 날짜의 플랜도 재조정 대상에 포함됩니다"
       : "오늘 날짜의 플랜은 재조정 대상에서 제외됩니다"}
   </p>
-</div>
+</div>;
 
 // 서버 액션 호출 시 includeToday 전달
 const result = await getReschedulePreview(
@@ -368,10 +390,10 @@ Step 3: PreviewStep
 ## 🚀 다음 단계
 
 Phase 3: 기존 플랜 필터링 일관성 개선 (우선순위 P2)
+
 - 기존 플랜 필터링과 새 플랜 생성이 논리적으로 일관되도록 개선
 - 과거 날짜를 선택했을 때 자동으로 오늘 이후로 조정되는 것을 명확히 함
 
 ---
 
 **작업 완료 일자**: 2025-01-27
-

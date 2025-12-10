@@ -12,6 +12,7 @@ import { isReschedulable, isCompletedPlan } from "@/lib/utils/planStatusUtils";
 import type { PlanContent, PlanGroup } from "@/lib/types/plan";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { SmartDateRangeSuggestions } from "./SmartDateRangeSuggestions";
+import { getTodayDateString, getNextDayString, isDateBefore } from "@/lib/reschedule/periodCalculator";
 
 type DateRange = {
   from: string | null; // YYYY-MM-DD
@@ -60,6 +61,26 @@ export function ContentSelectStep({
   );
   const [dateRangeExpanded, setDateRangeExpanded] = useState(false);
   const [includeToday, setIncludeToday] = useState(false);
+
+  // 클라이언트에서 간단히 계산 (서버 로직과 동일하게)
+  const calculateAdjustedRange = (
+    dateRange: DateRange,
+    today: string,
+    groupEnd: string,
+    includeTodayValue: boolean
+  ): DateRange | null => {
+    if (!dateRange.from || !dateRange.to) {
+      return null;
+    }
+    const startDate = includeTodayValue ? today : getNextDayString(today);
+    const adjustedStart = isDateBefore(dateRange.from, startDate) 
+      ? startDate 
+      : dateRange.from;
+    const adjustedEnd = isDateBefore(groupEnd, dateRange.to) 
+      ? groupEnd 
+      : dateRange.to;
+    return { from: adjustedStart, to: adjustedEnd };
+  };
 
   // 콘텐츠별 플랜 상태 계산 및 영향 범위 계산
   const contentStatusMap = useMemo(() => {
@@ -442,6 +463,56 @@ export function ContentSelectStep({
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* 자동 조정 안내 */}
+            {rescheduleMode === "range" && rescheduleDateRange.from && rescheduleDateRange.to && (
+              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-600">💡</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-blue-900">
+                      자동 조정 안내
+                    </div>
+                    <div className="mt-1 text-xs text-blue-700">
+                      {(() => {
+                        const today = getTodayDateString();
+                        const tomorrow = getNextDayString(today);
+                        const isPastDate = isDateBefore(rescheduleDateRange.from!, tomorrow);
+                        
+                        if (isPastDate) {
+                          return `과거 날짜를 선택하셨습니다. 재조정 플랜은 자동으로 ${tomorrow}부터 시작됩니다.`;
+                        }
+                        return "선택한 날짜 범위에 따라 재조정이 진행됩니다.";
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 실제 조정된 범위 미리보기 */}
+            {rescheduleMode === "range" && rescheduleDateRange.from && rescheduleDateRange.to && (
+              <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3">
+                <div className="text-xs text-gray-600">
+                  <div className="font-medium text-gray-700 mb-1">실제 재조정 범위</div>
+                  <div className="text-gray-600">
+                    {(() => {
+                      const today = getTodayDateString();
+                      const adjustedRange = calculateAdjustedRange(
+                        rescheduleDateRange,
+                        today,
+                        group.period_end,
+                        includeToday
+                      );
+                      if (adjustedRange && adjustedRange.from && adjustedRange.to) {
+                        return `${adjustedRange.from} ~ ${adjustedRange.to}`;
+                      }
+                      return "계산 중...";
+                    })()}
+                  </div>
+                </div>
               </div>
             )}
 

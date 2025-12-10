@@ -138,31 +138,11 @@ async function _getReschedulePreview(
       );
     }
 
-    // 2. 기존 플랜 조회 (재조정 대상만, 상세 정보 포함)
-    let query = supabase
-      .from("student_plan")
-      .select(
-        "id, plan_date, content_id, content_type, planned_start_page_or_time, planned_end_page_or_time, start_time, end_time, status, is_active"
-      )
-      .eq("plan_group_id", groupId)
-      .eq("student_id", group.student_id);
-
-    // 기존 플랜 필터링: rescheduleDateRange 사용 (재조정할 플랜 범위)
-    if (rescheduleDateRange?.from && rescheduleDateRange?.to) {
-      query = query.gte("plan_date", rescheduleDateRange.from).lte("plan_date", rescheduleDateRange.to);
-    }
-
-    const { data: existingPlans } = await query;
-
-    const reschedulablePlans = (existingPlans || []).filter((plan) =>
-      isReschedulable(plan)
-    );
-
-    // 2.5 오늘 이전 미진행 플랜 조회 및 미진행 범위 계산
+    // 2. 오늘 날짜 가져오기
     const today = getTodayDateString();
 
-    // 2.6 재조정 기간 결정: placementDateRange 우선, 없으면 자동 계산
-    // 이후 calculateAvailableDates와 generatePlansFromGroup에서 이 기간만 사용
+    // 2.1 재조정 기간 결정: placementDateRange 우선, 없으면 자동 계산
+    // adjustedPeriod를 먼저 계산하여 기존 플랜 필터링과 새 플랜 생성이 논리적으로 일관되도록 함
     let adjustedPeriod: { start: string; end: string };
     if (placementDateRange?.from && placementDateRange?.to) {
       // 수동으로 선택한 배치 범위 사용
@@ -181,6 +161,30 @@ async function _getReschedulePreview(
         throw error;
       }
     }
+
+    // 2.2 기존 플랜 조회 (재조정 대상만, 상세 정보 포함)
+    // 기존 플랜 필터링: adjustedPeriod 사용 (논리적 일관성 확보)
+    // rescheduleDateRange는 참고용으로만 사용 (UI 표시용)
+    let query = supabase
+      .from("student_plan")
+      .select(
+        "id, plan_date, content_id, content_type, planned_start_page_or_time, planned_end_page_or_time, start_time, end_time, status, is_active"
+      )
+      .eq("plan_group_id", groupId)
+      .eq("student_id", group.student_id);
+
+    // adjustedPeriod를 사용하여 기존 플랜 필터링
+    if (adjustedPeriod.start && adjustedPeriod.end) {
+      query = query.gte("plan_date", adjustedPeriod.start).lte("plan_date", adjustedPeriod.end);
+    }
+
+    const { data: existingPlans } = await query;
+
+    const reschedulablePlans = (existingPlans || []).filter((plan) =>
+      isReschedulable(plan)
+    );
+
+    // 2.3 오늘 이전 미진행 플랜 조회 및 미진행 범위 계산
 
     // 미진행 플랜 조회: includeToday에 따라 조건 변경
     let pastUncompletedQuery = supabase
@@ -523,16 +527,42 @@ async function _rescheduleContents(
         );
       }
 
-      // 2. 기존 플랜 조회 (재조정 대상만)
+      // 2. 오늘 날짜 가져오기
+      const today = getTodayDateString();
+
+      // 2.1 재조정 기간 결정: placementDateRange 우선, 없으면 자동 계산
+      // adjustedPeriod를 먼저 계산하여 기존 플랜 필터링과 새 플랜 생성이 논리적으로 일관되도록 함
+      let adjustedPeriod: { start: string; end: string };
+      if (placementDateRange?.from && placementDateRange?.to) {
+        // 수동으로 선택한 배치 범위 사용
+        adjustedPeriod = {
+          start: placementDateRange.from,
+          end: placementDateRange.to,
+        };
+      } else {
+        // 자동 계산: rescheduleDateRange를 기반으로 오늘 이후 기간 계산
+        try {
+          adjustedPeriod = getAdjustedPeriod(rescheduleDateRange || null, today, group.period_end, includeToday);
+        } catch (error) {
+          if (error instanceof PeriodCalculationError) {
+            throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
+          }
+          throw error;
+        }
+      }
+
+      // 2.2 기존 플랜 조회 (재조정 대상만)
+      // 기존 플랜 필터링: adjustedPeriod 사용 (논리적 일관성 확보)
+      // rescheduleDateRange는 참고용으로만 사용 (UI 표시용)
       let query = supabase
         .from("student_plan")
         .select("*")
         .eq("plan_group_id", groupId)
         .eq("student_id", group.student_id);
 
-      // 기존 플랜 필터링: rescheduleDateRange 사용 (재조정할 플랜 범위)
-      if (rescheduleDateRange?.from && rescheduleDateRange?.to) {
-        query = query.gte("plan_date", rescheduleDateRange.from).lte("plan_date", rescheduleDateRange.to);
+      // adjustedPeriod를 사용하여 기존 플랜 필터링
+      if (adjustedPeriod.start && adjustedPeriod.end) {
+        query = query.gte("plan_date", adjustedPeriod.start).lte("plan_date", adjustedPeriod.end);
       }
 
       const { data: existingPlans } = await query;

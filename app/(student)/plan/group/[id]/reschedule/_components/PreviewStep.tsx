@@ -159,7 +159,14 @@ export function PreviewStep({
       isLoadingRef.current = false;
       setLoading(false);
     }
-  }, [groupId, onLoad, toast, rescheduleDateRange, placementDateRange, includeToday]); // 객체/배열 제거, 함수 참조만 포함
+  }, [
+    groupId,
+    onLoad,
+    toast,
+    rescheduleDateRange,
+    placementDateRange,
+    includeToday,
+  ]); // 객체/배열 제거, 함수 참조만 포함
 
   useEffect(() => {
     // 이미 미리보기가 있거나, 로딩 중이거나, 이미 시도했으면 실행하지 않음
@@ -183,7 +190,12 @@ export function PreviewStep({
       placementDateRange?.from && placementDateRange?.to
     );
 
-    if (hasAdjustments || hasRescheduleRange || hasPlacementRange || includeToday) {
+    if (
+      hasAdjustments ||
+      hasRescheduleRange ||
+      hasPlacementRange ||
+      includeToday
+    ) {
       console.log("[PreviewStep] useEffect: loadPreview 호출 시도", {
         hasAdjustments,
         hasRescheduleRange,
@@ -198,14 +210,26 @@ export function PreviewStep({
         includeToday,
       });
     }
-  }, [adjustments, rescheduleDateRange, placementDateRange, includeToday, loadPreview]); // preview 제거
+  }, [
+    adjustments,
+    rescheduleDateRange,
+    placementDateRange,
+    includeToday,
+    loadPreview,
+  ]); // preview 제거
 
   // adjustments나 dateRange가 변경되면 재시도 허용
   useEffect(() => {
     if (preview) {
       loadAttemptedRef.current = false;
     }
-  }, [adjustments, rescheduleDateRange, placementDateRange, includeToday, preview]);
+  }, [
+    adjustments,
+    rescheduleDateRange,
+    placementDateRange,
+    includeToday,
+    preview,
+  ]);
 
   const handleExecute = async () => {
     if (!confirmDialogOpen) {
@@ -335,7 +359,7 @@ export function PreviewStep({
         <div className="flex flex-col gap-4">
           <div>
             <p className="text-sm font-medium text-gray-700">
-              재조정할 플랜 범위
+              선택한 재조정 범위
             </p>
             <p className="mt-1 text-sm text-gray-600">
               {rescheduleDateRange?.from && rescheduleDateRange?.to
@@ -348,16 +372,40 @@ export function PreviewStep({
           </div>
           <div>
             <p className="text-sm font-medium text-gray-700">
-              재조정 플랜 배치 범위
+              실제 적용 범위
             </p>
             <p className="mt-1 text-sm text-gray-600">
               {placementDateRange?.from && placementDateRange?.to
                 ? `${placementDateRange.from} ~ ${placementDateRange.to}`
-                : "자동 (오늘 이후 ~ 플랜 그룹 종료일)"}
+                : "자동 계산됨 (오늘 이후 ~ 플랜 그룹 종료일)"}
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              새로 생성된 플랜을 배치할 날짜 범위입니다
+              실제로 재조정이 적용되는 날짜 범위입니다. 기존 플랜 필터링과 새 플랜 생성이 이 범위를 사용합니다.
             </p>
+            {/* 자동 조정 안내 */}
+            {rescheduleDateRange?.from &&
+              rescheduleDateRange?.to &&
+              placementDateRange?.from &&
+              placementDateRange?.to &&
+              (rescheduleDateRange.from !== placementDateRange.from ||
+                rescheduleDateRange.to !== placementDateRange.to) && (
+                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs text-blue-800">
+                    💡 선택한 범위가 자동으로 조정되었습니다. 과거 날짜는 제외되고 오늘 이후 범위만 적용됩니다.
+                  </p>
+                </div>
+              )}
+            {/* placementDateRange가 없고 rescheduleDateRange가 과거 날짜를 포함하는 경우 */}
+            {rescheduleDateRange?.from &&
+              rescheduleDateRange?.to &&
+              !placementDateRange?.from &&
+              !placementDateRange?.to && (
+                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <p className="text-xs text-blue-800">
+                    💡 선택한 범위에 과거 날짜가 포함되어 있어 자동으로 오늘 이후 범위로 조정됩니다.
+                  </p>
+                </div>
+              )}
           </div>
           <div>
             <p className="text-sm font-medium text-gray-700">오늘 날짜 포함</p>
@@ -370,20 +418,6 @@ export function PreviewStep({
                 : "오늘 날짜의 플랜은 재조정 대상에서 제외됩니다"}
             </p>
           </div>
-          {/* 두 범위가 다른 경우 안내 메시지 */}
-          {rescheduleDateRange?.from &&
-            rescheduleDateRange?.to &&
-            placementDateRange?.from &&
-            placementDateRange?.to &&
-            (rescheduleDateRange.from !== placementDateRange.from ||
-              rescheduleDateRange.to !== placementDateRange.to) && (
-              <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <p className="text-xs text-blue-800">
-                  💡 재조정할 플랜 범위와 배치 범위가 다릅니다. 선택한 재조정
-                  범위의 플랜은 비활성화되고, 배치 범위에 새 플랜이 생성됩니다.
-                </p>
-              </div>
-            )}
         </div>
       </div>
 
