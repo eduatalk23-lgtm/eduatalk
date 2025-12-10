@@ -7,9 +7,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 import { BatchAdjustmentPanel } from "./BatchAdjustmentPanel";
+import { ContentReplaceModal } from "./ContentReplaceModal";
 
 type AdjustmentStepProps = {
   contents: PlanContent[];
@@ -17,6 +19,7 @@ type AdjustmentStepProps = {
   adjustments: AdjustmentInput[];
   onComplete: (adjustments: AdjustmentInput[]) => void;
   onBack: () => void;
+  studentId: string;
 };
 
 export function AdjustmentStep({
@@ -25,7 +28,9 @@ export function AdjustmentStep({
   adjustments: initialAdjustments,
   onComplete,
   onBack,
+  studentId,
 }: AdjustmentStepProps) {
+  const toast = useToast();
   const [localAdjustments, setLocalAdjustments] = useState<
     Map<string, AdjustmentInput>
   >(() => {
@@ -36,6 +41,12 @@ export function AdjustmentStep({
     return map;
   });
   const [batchMode, setBatchMode] = useState(false);
+  const [replaceModalOpen, setReplaceModalOpen] = useState(false);
+  const [replacingContentId, setReplacingContentId] = useState<string | null>(null);
+  const [replaceRange, setReplaceRange] = useState<{ start: number; end: number } | null>(null);
+  const [validationErrors, setValidationErrors] = useState<
+    Map<string, string>
+  >(new Map());
 
   const selectedContents = useMemo(() => {
     return contents.filter(
@@ -62,7 +73,27 @@ export function AdjustmentStep({
     };
 
     const afterRange = existing?.after.range || { ...before.range };
-    afterRange[field] = value;
+    const newValue = Math.max(0, value); // 음수 방지
+    afterRange[field] = newValue;
+
+    // 검증: 시작 <= 끝
+    if (field === "start" && newValue > afterRange.end) {
+      const errorMsg = "시작 범위는 끝 범위보다 작거나 같아야 합니다.";
+      setValidationErrors(new Map(validationErrors.set(contentId, errorMsg)));
+      toast.showError(errorMsg);
+      return;
+    }
+    if (field === "end" && newValue < afterRange.start) {
+      const errorMsg = "끝 범위는 시작 범위보다 크거나 같아야 합니다.";
+      setValidationErrors(new Map(validationErrors.set(contentId, errorMsg)));
+      toast.showError(errorMsg);
+      return;
+    }
+
+    // 검증 통과 시 에러 제거
+    const newErrors = new Map(validationErrors);
+    newErrors.delete(contentId);
+    setValidationErrors(newErrors);
 
     const adjustment: AdjustmentInput = {
       plan_content_id: contentId,
@@ -77,9 +108,48 @@ export function AdjustmentStep({
     setLocalAdjustments(new Map(localAdjustments.set(contentId, adjustment)));
   };
 
-  const handleReplace = (contentId: string, newContentId: string) => {
+  const handleReplaceClick = (contentId: string) => {
+    setReplacingContentId(contentId);
+    const content = contents.find((c) => (c.id || c.content_id) === contentId);
+    if (content) {
+      // 기존 범위를 기본값으로 설정
+      const adjustment = localAdjustments.get(contentId);
+      const currentRange = adjustment?.after.range || {
+        start: content.start_range,
+        end: content.end_range,
+      };
+      setReplaceRange(currentRange);
+    }
+    setReplaceModalOpen(true);
+  };
+
+  const [replacedContentInfo, setReplacedContentInfo] = useState<
+    Map<string, { title: string; total_page_or_time: number | null }>
+  >(new Map());
+
+  const handleReplace = (
+    contentId: string,
+    newContent: {
+      content_id: string;
+      content_type: "book" | "lecture" | "custom";
+      title: string;
+      total_page_or_time: number | null;
+      range: { start: number; end: number };
+    }
+  ) => {
+    const range = newContent.range;
     const content = contents.find((c) => (c.id || c.content_id) === contentId);
     if (!content) return;
+
+    // 범위 검증
+    if (newContent.total_page_or_time !== null) {
+      if (range.start < 1 || range.end > newContent.total_page_or_time || range.start > range.end) {
+        alert(
+          `범위가 유효하지 않습니다. (1 ~ ${newContent.total_page_or_time} 사이, 시작 <= 끝)`
+        );
+        return;
+      }
+    }
 
     const existing = localAdjustments.get(contentId);
     const before: AdjustmentInput["before"] = existing?.before || {
@@ -91,19 +161,35 @@ export function AdjustmentStep({
       },
     };
 
-    // TODO: 새 콘텐츠 정보 조회 필요
     const adjustment: AdjustmentInput = {
       plan_content_id: contentId,
       change_type: "replace",
       before,
       after: {
-        content_id: newContentId,
-        content_type: before.content_type, // TODO: 실제 타입 조회
-        range: before.range,
+        content_id: newContent.content_id,
+        content_type: newContent.content_type,
+        range,
       },
     };
 
     setLocalAdjustments(new Map(localAdjustments.set(contentId, adjustment)));
+    setReplacedContentInfo(
+      new Map(
+        replacedContentInfo.set(contentId, {
+          title: newContent.title,
+          total_page_or_time: newContent.total_page_or_time,
+        })
+      )
+    );
+    setReplaceModalOpen(false);
+    setReplacingContentId(null);
+    setReplaceRange(null);
+  };
+
+  const handleReplaceCancel = () => {
+    setReplaceModalOpen(false);
+    setReplacingContentId(null);
+    setReplaceRange(null);
   };
 
   const handleNext = () => {
@@ -119,6 +205,35 @@ export function AdjustmentStep({
           선택한 콘텐츠의 범위를 수정하거나 콘텐츠를 교체할 수 있습니다.
         </p>
       </div>
+
+      {/* 일괄 조정 모드 안내 배너 */}
+      {selectedContents.length > 1 && !batchMode && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">💡</span>
+                <h3 className="font-medium text-blue-900">
+                  일괄 조정 모드를 사용하시겠습니까?
+                </h3>
+              </div>
+              <p className="mt-1 text-sm text-blue-700">
+                {selectedContents.length}개의 콘텐츠를 선택하셨습니다. 일괄 조정 모드를 사용하면
+                모든 콘텐츠를 한 번에 조정할 수 있습니다.
+              </p>
+              <div className="mt-2 text-xs text-blue-600">
+                예시: 모든 콘텐츠의 범위를 10% 증가시키거나, 모든 콘텐츠에 +5페이지 추가
+              </div>
+            </div>
+            <button
+              onClick={() => setBatchMode(true)}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              일괄 조정 시작
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 일괄 조정 모드 토글 */}
       {selectedContents.length > 1 && (
@@ -162,74 +277,407 @@ export function AdjustmentStep({
         {selectedContents.map((content) => {
           const contentId = content.id || content.content_id;
           const adjustment = localAdjustments.get(contentId);
+          const isReplaced = adjustment?.change_type === "replace";
           const currentRange = adjustment?.after.range || {
             start: content.start_range,
             end: content.end_range,
           };
 
+          // 교체된 콘텐츠 정보
+          const replacedContent = isReplaced
+            ? {
+                content_id: adjustment.after.content_id,
+                content_type: adjustment.after.content_type,
+                info: replacedContentInfo.get(contentId),
+              }
+            : null;
+
           return (
             <div
               key={contentId}
-              className="rounded-lg border border-gray-200 bg-white p-4"
+              className={`rounded-lg border p-4 ${
+                isReplaced
+                  ? "border-blue-300 bg-blue-50"
+                  : "border-gray-200 bg-white"
+              }`}
             >
               <div className="mb-3">
-                <h3 className="font-medium text-gray-900">
-                  {content.content_type === "book"
-                    ? "📚 교재"
-                    : content.content_type === "lecture"
-                    ? "🎥 강의"
-                    : "📝 커스텀"}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {content.start_range} ~ {content.end_range}
-                </p>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-gray-900">
+                    {content.content_type === "book"
+                      ? "📚 교재"
+                      : content.content_type === "lecture"
+                      ? "🎥 강의"
+                      : "📝 커스텀"}
+                  </h3>
+                  {isReplaced && (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      교체됨
+                    </span>
+                  )}
+                </div>
+                {isReplaced && replacedContent ? (
+                  <div className="mt-1 flex flex-col gap-2 text-sm">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                      <div className="text-xs text-gray-500">교체 전</div>
+                      <div className="mt-1 text-gray-700">
+                        {content.content_type === "book"
+                          ? "📚 교재"
+                          : content.content_type === "lecture"
+                          ? "🎥 강의"
+                          : "📝 커스텀"}{" "}
+                        {content.start_range} ~ {content.end_range}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-2">
+                      <div className="text-xs text-blue-700">교체 후</div>
+                      <div className="mt-1 font-medium text-blue-900">
+                        {replacedContent.content_type === "book"
+                          ? "📚 교재"
+                          : replacedContent.content_type === "lecture"
+                          ? "🎥 강의"
+                          : "📝 커스텀"}
+                        {replacedContent.info?.title && (
+                          <span className="ml-2">{replacedContent.info.title}</span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-blue-700">
+                        범위: {currentRange.start} ~ {currentRange.end}
+                        {replacedContent.info?.total_page_or_time !== null && (
+                          <span className="ml-2 text-xs text-blue-600">
+                            (총{" "}
+                            {replacedContent.content_type === "book"
+                              ? `${replacedContent.info.total_page_or_time}페이지`
+                              : replacedContent.content_type === "lecture"
+                              ? `${replacedContent.info.total_page_or_time}분`
+                              : `${replacedContent.info.total_page_or_time}`}
+                            )
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-sm text-gray-600">
+                    {content.start_range} ~ {content.end_range}
+                  </p>
+                )}
               </div>
 
               <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700">
-                    시작 범위:
-                  </label>
-                  <input
-                    type="number"
-                    value={currentRange.start}
-                    onChange={(e) =>
-                      handleRangeChange(
-                        contentId,
-                        "start",
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    min={0}
-                  />
-                </div>
+                {!isReplaced && (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-4">
+                        <label className="text-sm font-medium text-gray-700">
+                          시작 범위:
+                        </label>
+                      <input
+                        type="number"
+                        value={currentRange.start}
+                        onChange={(e) =>
+                          handleRangeChange(
+                            contentId,
+                            "start",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                        className={`rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${
+                          validationErrors.has(contentId)
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                            : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                        }`}
+                        min={1}
+                        aria-label="시작 범위 입력"
+                        aria-invalid={validationErrors.has(contentId)}
+                        aria-describedby={validationErrors.has(contentId) ? `error-${contentId}` : undefined}
+                      />
+                        <span className="text-xs text-gray-500">
+                          {content.content_type === "book"
+                            ? "페이지"
+                            : content.content_type === "lecture"
+                            ? "회차"
+                            : ""}
+                        </span>
+                      </div>
 
-                <div className="flex items-center gap-4">
-                  <label className="text-sm font-medium text-gray-700">
-                    끝 범위:
-                  </label>
-                  <input
-                    type="number"
-                    value={currentRange.end}
-                    onChange={(e) =>
-                      handleRangeChange(
-                        contentId,
-                        "end",
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    min={currentRange.start}
-                  />
-                </div>
+                      <div className="flex items-center gap-4">
+                        <label className="text-sm font-medium text-gray-700">
+                          끝 범위:
+                        </label>
+                      <input
+                        type="number"
+                        value={currentRange.end}
+                        onChange={(e) =>
+                          handleRangeChange(
+                            contentId,
+                            "end",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                        className={`rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${
+                          validationErrors.has(contentId)
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                            : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                        }`}
+                        min={currentRange.start}
+                        aria-label="끝 범위 입력"
+                        aria-invalid={validationErrors.has(contentId)}
+                        aria-describedby={validationErrors.has(contentId) ? `error-${contentId}` : undefined}
+                      />
+                        <span className="text-xs text-gray-500">
+                          {content.content_type === "book"
+                            ? "페이지"
+                            : content.content_type === "lecture"
+                            ? "회차"
+                            : ""}
+                        </span>
+                      </div>
 
-                {/* TODO: 콘텐츠 교체 UI 추가 */}
+                      {/* 범위 미리보기 */}
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600">
+                        범위: {currentRange.start} ~ {currentRange.end} (
+                        {currentRange.end - currentRange.start + 1}
+                        {content.content_type === "book"
+                          ? "페이지"
+                          : content.content_type === "lecture"
+                          ? "회차"
+                          : ""}
+                        )
+                      </div>
+
+                      {/* 검증 오류 메시지 */}
+                      {validationErrors.has(contentId) && (
+                        <div 
+                          id={`error-${contentId}`}
+                          className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700"
+                          role="alert"
+                          aria-live="polite"
+                        >
+                          ⚠️ {validationErrors.get(contentId)}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {isReplaced && (
+                  <div className="flex items-center gap-4">
+                    <label className="text-sm font-medium text-gray-700">
+                      시작 범위:
+                    </label>
+                    <input
+                      type="number"
+                      value={currentRange.start}
+                      onChange={(e) => {
+                        const newRange = {
+                          ...currentRange,
+                          start: parseInt(e.target.value) || 0,
+                        };
+                        setReplaceRange(newRange);
+                        if (replacingContentId === contentId) {
+                          setReplaceRange(newRange);
+                        }
+                        // 교체된 콘텐츠의 범위도 업데이트
+                        const existing = localAdjustments.get(contentId);
+                        if (existing && existing.change_type === "replace") {
+                          const updated: AdjustmentInput = {
+                            ...existing,
+                            after: {
+                              ...existing.after,
+                              range: newRange,
+                            },
+                          };
+                          setLocalAdjustments(
+                            new Map(localAdjustments.set(contentId, updated))
+                          );
+                        }
+                      }}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      min={1}
+                    />
+                  </div>
+                )}
+
+                {isReplaced && (
+                  <div className="flex items-center gap-4">
+                    <label className="text-sm font-medium text-gray-700">
+                      끝 범위:
+                    </label>
+                    <input
+                      type="number"
+                      value={currentRange.end}
+                      onChange={(e) => {
+                        const newRange = {
+                          ...currentRange,
+                          end: parseInt(e.target.value) || 0,
+                        };
+                        if (replacingContentId === contentId) {
+                          setReplaceRange(newRange);
+                        }
+                        // 교체된 콘텐츠의 범위도 업데이트
+                        const existing = localAdjustments.get(contentId);
+                        if (existing && existing.change_type === "replace") {
+                          const updated: AdjustmentInput = {
+                            ...existing,
+                            after: {
+                              ...existing.after,
+                              range: newRange,
+                            },
+                          };
+                          setLocalAdjustments(
+                            new Map(localAdjustments.set(contentId, updated))
+                          );
+                        }
+                      }}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      min={currentRange.start}
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleReplaceClick(contentId)}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                  >
+                    {isReplaced ? "다시 교체" : "콘텐츠 교체"}
+                  </button>
+                  {isReplaced && (
+                    <button
+                      onClick={() => {
+                        // 교체 취소
+                        const newMap = new Map(localAdjustments);
+                        newMap.delete(contentId);
+                        setLocalAdjustments(newMap);
+                        const newInfoMap = new Map(replacedContentInfo);
+                        newInfoMap.delete(contentId);
+                        setReplacedContentInfo(newInfoMap);
+                      }}
+                      className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                    >
+                      교체 취소
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* 변경 사항 요약 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="mb-3 text-sm font-semibold text-gray-900">
+          변경 사항 요약
+        </h3>
+        {localAdjustments.size === 0 ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-center text-sm text-gray-600">
+            변경 사항이 없습니다. 범위를 수정하거나 콘텐츠를 교체해주세요.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="text-xs text-gray-600">범위 수정</div>
+                <div className="mt-1 text-lg font-bold text-gray-900">
+                  {
+                    Array.from(localAdjustments.values()).filter(
+                      (adj) => adj.change_type === "range"
+                    ).length
+                  }
+                  개
+                </div>
+              </div>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="text-xs text-blue-700">콘텐츠 교체</div>
+                <div className="mt-1 text-lg font-bold text-blue-600">
+                  {
+                    Array.from(localAdjustments.values()).filter(
+                      (adj) => adj.change_type === "replace"
+                    ).length
+                  }
+                  개
+                </div>
+              </div>
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                <div className="text-xs text-green-700">전체 재생성</div>
+                <div className="mt-1 text-lg font-bold text-green-600">
+                  {
+                    Array.from(localAdjustments.values()).filter(
+                      (adj) => adj.change_type === "full"
+                    ).length
+                  }
+                  개
+                </div>
+              </div>
+            </div>
+
+            {/* 변경 내역 상세 (접이식) */}
+            <details className="rounded-lg border border-gray-200 bg-gray-50">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                변경 내역 상세 보기 ({localAdjustments.size}개)
+              </summary>
+              <div className="border-t border-gray-200 p-3">
+                <div className="flex flex-col gap-2 text-xs">
+                  {Array.from(localAdjustments.values()).map((adj, index) => {
+                    const content = contents.find(
+                      (c) => (c.id || c.content_id) === adj.plan_content_id
+                    );
+                    const contentName =
+                      content?.content_type === "book"
+                        ? "📚 교재"
+                        : content?.content_type === "lecture"
+                        ? "🎥 강의"
+                        : "📝 커스텀";
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">
+                            {contentName}
+                          </span>
+                          <span className="text-gray-600">
+                            {adj.change_type === "range"
+                              ? "범위 수정"
+                              : adj.change_type === "replace"
+                              ? "콘텐츠 교체"
+                              : "전체 재생성"}
+                          </span>
+                        </div>
+                        <div className="text-gray-600">
+                          {adj.before.range.start}~{adj.before.range.end} →{" "}
+                          {adj.after.range.start}~{adj.after.range.end}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </details>
+          </div>
+        )}
+      </div>
+
+      {/* 콘텐츠 교체 모달 */}
+      {replaceModalOpen && replacingContentId && replaceRange && (
+        <ContentReplaceModal
+          isOpen={replaceModalOpen}
+          onClose={handleReplaceCancel}
+          onSelect={(newContent) => {
+            handleReplace(replacingContentId, newContent);
+          }}
+          studentId={studentId}
+          currentContentType={
+            contents.find((c) => (c.id || c.content_id) === replacingContentId)
+              ?.content_type
+          }
+          initialRange={replaceRange}
+        />
+      )}
 
       <div className="flex justify-end gap-3">
         <button

@@ -23,6 +23,24 @@ type PlanGroupByDate = {
   beforeCount: number;
   afterCount: number;
   change: number;
+  beforePlans: Array<{
+    id: string;
+    content_id: string;
+    content_type: string;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    start_time: string | null;
+    end_time: string | null;
+  }>;
+  afterPlans: Array<{
+    plan_date: string;
+    content_id: string;
+    content_type: string;
+    planned_start_page_or_time: number;
+    planned_end_page_or_time: number;
+    start_time?: string;
+    end_time?: string;
+  }>;
 };
 
 export function AffectedPlansList({
@@ -34,29 +52,68 @@ export function AffectedPlansList({
   const [sortBy, setSortBy] = useState<"date" | "change">("date");
   const [filter, setFilter] = useState<"all" | "increase" | "decrease">("all");
 
-  // 날짜별 그룹화
+  // 날짜별 그룹화 (실제 플랜 데이터 사용)
   const plansByDate = useMemo(() => {
     const dateMap = new Map<string, PlanGroupByDate>();
 
-    // 영향받는 날짜별로 데이터 초기화
-    preview.affected_dates.forEach((date) => {
+    // 모든 날짜 수집 (기존 플랜과 새 플랜 모두)
+    const allDates = new Set<string>();
+    preview.plans_before.forEach((plan) => allDates.add(plan.plan_date));
+    preview.plans_after.forEach((plan) => allDates.add(plan.plan_date));
+
+    // 날짜별로 데이터 초기화
+    allDates.forEach((date) => {
       if (dateRange && (date < dateRange.from || date > dateRange.to)) {
         return; // 날짜 범위 필터링
       }
 
-      const avgPlansPerDate = preview.affected_dates.length > 0
-        ? Math.round(preview.plans_before_count / preview.affected_dates.length)
-        : 0;
-      const newAvgPlansPerDate = preview.affected_dates.length > 0
-        ? Math.round(preview.plans_after_count / preview.affected_dates.length)
-        : 0;
-
       dateMap.set(date, {
         date,
-        beforeCount: avgPlansPerDate,
-        afterCount: newAvgPlansPerDate,
-        change: newAvgPlansPerDate - avgPlansPerDate,
+        beforeCount: 0,
+        afterCount: 0,
+        change: 0,
+        beforePlans: [],
+        afterPlans: [],
       });
+    });
+
+    // 기존 플랜을 날짜별로 그룹화
+    preview.plans_before.forEach((plan) => {
+      const item = dateMap.get(plan.plan_date);
+      if (item) {
+        item.beforeCount++;
+        item.beforePlans.push({
+          id: plan.id,
+          content_id: plan.content_id,
+          content_type: plan.content_type,
+          planned_start_page_or_time: plan.planned_start_page_or_time,
+          planned_end_page_or_time: plan.planned_end_page_or_time,
+          start_time: plan.start_time,
+          end_time: plan.end_time,
+        });
+      }
+    });
+
+    // 새 플랜을 날짜별로 그룹화
+    preview.plans_after.forEach((plan) => {
+      const item = dateMap.get(plan.plan_date);
+      if (item) {
+        item.afterCount++;
+        item.afterPlans.push({
+          plan_date: plan.plan_date,
+          content_id: plan.content_id,
+          content_type: plan.content_type,
+          planned_start_page_or_time: plan.planned_start_page_or_time,
+          planned_end_page_or_time: plan.planned_end_page_or_time,
+          start_time: plan.start_time,
+          end_time: plan.end_time,
+        });
+      }
+    });
+
+    // 변화 계산
+    dateMap.forEach((item) => {
+      item.change = item.afterCount - item.beforeCount;
     });
 
     return Array.from(dateMap.values());
@@ -184,31 +241,118 @@ export function AffectedPlansList({
 
               {isExpanded && (
                 <div className="border-t border-gray-200 bg-gray-50 px-4 py-3">
-                  <div className="flex flex-col gap-2 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>기존 플랜 수:</span>
-                      <span className="font-medium text-gray-900">
-                        {item.beforeCount}개
-                      </span>
+                  <div className="flex flex-col gap-4">
+                    {/* 요약 정보 */}
+                    <div className="flex flex-col gap-2 text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>기존 플랜 수:</span>
+                        <span className="font-medium text-gray-900">
+                          {item.beforeCount}개
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>변경 후 플랜 수:</span>
+                        <span className="font-medium text-blue-600">
+                          {item.afterCount}개
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>변화:</span>
+                        <span
+                          className={`font-medium ${
+                            item.change >= 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {item.change >= 0 ? "+" : ""}
+                          {item.change}개
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>변경 후 플랜 수:</span>
-                      <span className="font-medium text-blue-600">
-                        {item.afterCount}개
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>변화:</span>
-                      <span
-                        className={`font-medium ${
-                          item.change >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        {item.change >= 0 ? "+" : ""}
-                        {item.change}개
-                      </span>
-                    </div>
-                    {/* TODO: 실제 플랜 목록이 있으면 여기에 상세 정보 표시 */}
+
+                    {/* 기존 플랜 목록 */}
+                    {item.beforePlans.length > 0 && (
+                      <div className="border-t border-gray-200 pt-3">
+                        <h4 className="mb-2 text-sm font-semibold text-gray-900">
+                          기존 플랜 ({item.beforePlans.length}개)
+                        </h4>
+                        <div className="flex flex-col gap-2">
+                          {item.beforePlans.map((plan) => (
+                            <div
+                              key={plan.id}
+                              className="rounded-lg border border-gray-200 bg-white p-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-gray-900">
+                                  {plan.content_type === "book"
+                                    ? "📚 교재"
+                                    : plan.content_type === "lecture"
+                                    ? "🎥 강의"
+                                    : "📝 커스텀"}
+                                </span>
+                                {plan.start_time && plan.end_time && (
+                                  <span className="text-gray-600">
+                                    {plan.start_time} ~ {plan.end_time}
+                                  </span>
+                                )}
+                              </div>
+                              {plan.planned_start_page_or_time !== null &&
+                                plan.planned_end_page_or_time !== null && (
+                                  <div className="mt-1 text-gray-600">
+                                    {plan.planned_start_page_or_time} ~{" "}
+                                    {plan.planned_end_page_or_time}
+                                    {plan.content_type === "book"
+                                      ? "페이지"
+                                      : plan.content_type === "lecture"
+                                      ? "분"
+                                      : ""}
+                                  </div>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 새 플랜 목록 */}
+                    {item.afterPlans.length > 0 && (
+                      <div className="border-t border-gray-200 pt-3">
+                        <h4 className="mb-2 text-sm font-semibold text-blue-900">
+                          변경 후 플랜 ({item.afterPlans.length}개)
+                        </h4>
+                        <div className="flex flex-col gap-2">
+                          {item.afterPlans.map((plan, index) => (
+                            <div
+                              key={`${plan.plan_date}-${plan.content_id}-${index}`}
+                              className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-blue-900">
+                                  {plan.content_type === "book"
+                                    ? "📚 교재"
+                                    : plan.content_type === "lecture"
+                                    ? "🎥 강의"
+                                    : "📝 커스텀"}
+                                </span>
+                                {plan.start_time && plan.end_time && (
+                                  <span className="text-blue-700">
+                                    {plan.start_time} ~ {plan.end_time}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 text-blue-700">
+                                {plan.planned_start_page_or_time} ~{" "}
+                                {plan.planned_end_page_or_time}
+                                {plan.content_type === "book"
+                                  ? "페이지"
+                                  : plan.content_type === "lecture"
+                                  ? "분"
+                                  : ""}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

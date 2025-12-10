@@ -7,6 +7,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { isReschedulable, isCompletedPlan } from "@/lib/utils/planStatusUtils";
 import type { PlanContent, PlanGroup } from "@/lib/types/plan";
 import { DateRangeSelector } from "./DateRangeSelector";
@@ -45,8 +46,9 @@ export function ContentSelectStep({
     from: null,
     to: null,
   });
+  const [dateRangeExpanded, setDateRangeExpanded] = useState(false);
 
-  // 콘텐츠별 플랜 상태 계산
+  // 콘텐츠별 플랜 상태 계산 및 영향 범위 계산
   const contentStatusMap = useMemo(() => {
     const map = new Map<
       string,
@@ -55,6 +57,9 @@ export function ContentSelectStep({
         reschedulable: number;
         completed: number;
         status: "available" | "partial" | "unavailable";
+        affectedDates: string[];
+        affectedDaysCount: number;
+        unavailableReason?: string;
       }
     >();
 
@@ -68,7 +73,7 @@ export function ContentSelectStep({
           status: (p.status as any) || "pending",
           is_active: p.is_active ?? true,
         })
-      ).length;
+      );
 
       const completed = plans.filter((p) =>
         isCompletedPlan({
@@ -77,16 +82,42 @@ export function ContentSelectStep({
       ).length;
 
       let status: "available" | "partial" | "unavailable" = "unavailable";
-      if (reschedulable > 0) {
-        status = reschedulable === plans.length ? "available" : "partial";
-      }
+      let unavailableReason: string | undefined;
 
-      map.set(content.id || content.content_id, {
-        total: plans.length,
-        reschedulable,
-        completed,
-        status,
-      });
+      if (reschedulable.length > 0) {
+        status = reschedulable.length === plans.length ? "available" : "partial";
+        // 영향받는 날짜 계산
+        const affectedDates = new Set<string>();
+        reschedulable.forEach((plan) => {
+          affectedDates.add(plan.plan_date);
+        });
+        map.set(content.id || content.content_id, {
+          total: plans.length,
+          reschedulable: reschedulable.length,
+          completed,
+          status,
+          affectedDates: Array.from(affectedDates).sort(),
+          affectedDaysCount: affectedDates.size,
+        });
+      } else {
+        // 재조정 불가 이유 설정
+        if (plans.length === 0) {
+          unavailableReason = "플랜이 없습니다";
+        } else if (completed === plans.length) {
+          unavailableReason = "모든 플랜이 완료되어 재조정할 수 없습니다";
+        } else {
+          unavailableReason = "재조정 가능한 플랜이 없습니다";
+        }
+        map.set(content.id || content.content_id, {
+          total: plans.length,
+          reschedulable: 0,
+          completed,
+          status,
+          affectedDates: [],
+          affectedDaysCount: 0,
+          unavailableReason,
+        });
+      }
     });
 
     return map;
@@ -166,6 +197,7 @@ export function ContentSelectStep({
                       ? "border-gray-200 bg-gray-50 opacity-50"
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
+                  aria-label={`${content.content_type === "book" ? "교재" : content.content_type === "lecture" ? "강의" : "커스텀"} 콘텐츠 선택`}
                 >
                   <input
                     type="checkbox"
@@ -173,6 +205,7 @@ export function ContentSelectStep({
                     onChange={() => handleToggle(contentId)}
                     disabled={isDisabled}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    aria-label={`${content.content_type === "book" ? "교재" : content.content_type === "lecture" ? "강의" : "커스텀"} 콘텐츠 ${isSelected ? "선택 해제" : "선택"}`}
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -188,26 +221,54 @@ export function ContentSelectStep({
                       </span>
                     </div>
                     {status && (
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                        <span
-                          className={`rounded px-2 py-0.5 ${
-                            status.status === "available"
-                              ? "bg-green-100 text-green-700"
+                      <div className="mt-1 flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span
+                            className={`rounded px-2 py-0.5 ${
+                              status.status === "available"
+                                ? "bg-green-100 text-green-700"
+                                : status.status === "partial"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {status.status === "available"
+                              ? "재조정 가능"
                               : status.status === "partial"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {status.status === "available"
-                            ? "재조정 가능"
-                            : status.status === "partial"
-                            ? "부분 재조정"
-                            : "재조정 불가"}
-                        </span>
-                        <span>
-                          총 {status.total}개 / 재조정 가능 {status.reschedulable}
-                          개 / 완료 {status.completed}개
-                        </span>
+                              ? "부분 재조정"
+                              : "재조정 불가"}
+                          </span>
+                          <span>
+                            총 {status.total}개 / 재조정 가능 {status.reschedulable}
+                            개 / 완료 {status.completed}개
+                          </span>
+                        </div>
+                        {status.status === "unavailable" && status.unavailableReason && (
+                          <div className="text-xs text-red-600">
+                            ⚠️ {status.unavailableReason}
+                          </div>
+                        )}
+                        {isSelected && status.affectedDaysCount > 0 && (
+                          <div className="mt-1 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs">
+                            <div className="font-medium text-blue-900">
+                              💡 영향 범위 미리보기
+                            </div>
+                            <div className="mt-1 text-blue-700">
+                              이 콘텐츠는 {status.affectedDaysCount}일간의 플랜에 영향을 줍니다
+                            </div>
+                            {status.affectedDates.length > 0 && status.affectedDates.length <= 5 && (
+                              <div className="mt-1 text-blue-600">
+                                영향받는 날짜: {status.affectedDates.join(", ")}
+                              </div>
+                            )}
+                            {status.affectedDates.length > 5 && (
+                              <div className="mt-1 text-blue-600">
+                                영향받는 날짜: {status.affectedDates.slice(0, 3).join(", ")} 외{" "}
+                                {status.affectedDates.length - 3}일
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -216,20 +277,52 @@ export function ContentSelectStep({
             })}
           </div>
 
+          {/* 선택한 날짜 범위 요약 (날짜 범위 모드일 때만 표시) */}
+          {rescheduleMode === "range" && dateRange.from && dateRange.to && (
+            <div className="sticky top-0 z-10 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-blue-900">
+                    선택한 날짜 범위
+                  </div>
+                  <div className="mt-1 text-sm text-blue-700">
+                    {dateRange.from} ~ {dateRange.to}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateRange({ from: null, to: null });
+                  }}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition"
+                >
+                  초기화
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 재생성 범위 선택 */}
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <h3 className="mb-3 text-sm font-semibold text-gray-900">
               재생성 범위 선택
             </h3>
             <div className="flex flex-col gap-3">
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50">
+              <label 
+                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50"
+                aria-label="전체 재생성 모드 선택"
+              >
                 <input
                   type="radio"
                   name="rescheduleMode"
                   value="full"
                   checked={rescheduleMode === "full"}
-                  onChange={() => setRescheduleMode("full")}
+                  onChange={() => {
+                    setRescheduleMode("full");
+                    setDateRangeExpanded(false);
+                  }}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  aria-label="전체 재생성"
                 />
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">전체 재생성</div>
@@ -238,14 +331,21 @@ export function ContentSelectStep({
                   </div>
                 </div>
               </label>
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50">
+              <label 
+                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50"
+                aria-label="날짜 범위 선택 모드 선택"
+              >
                 <input
                   type="radio"
                   name="rescheduleMode"
                   value="range"
                   checked={rescheduleMode === "range"}
-                  onChange={() => setRescheduleMode("range")}
+                  onChange={() => {
+                    setRescheduleMode("range");
+                    setDateRangeExpanded(true);
+                  }}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  aria-label="날짜 범위 선택"
                 />
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">날짜 범위 선택</div>
@@ -256,33 +356,95 @@ export function ContentSelectStep({
               </label>
             </div>
 
-            {/* 날짜 범위 선택 UI */}
+            {/* 날짜 범위 선택 UI (접이식 패널) */}
             {rescheduleMode === "range" && (
-              <div className="mt-4 flex flex-col gap-4">
-                {/* 스마트 추천 */}
-                {selectedIds.size > 0 && (
-                  <SmartDateRangeSuggestions
-                    group={group}
-                    contents={contents}
-                    selectedContentIds={selectedIds}
-                    existingPlans={existingPlans}
-                    onSelectRange={(range) => {
-                      setDateRange(range);
-                    }}
-                  />
-                )}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setDateRangeExpanded(!dateRangeExpanded)}
+                  className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-gray-50 p-3 transition hover:bg-gray-100"
+                  aria-expanded={dateRangeExpanded}
+                  aria-controls="date-range-panel"
+                >
+                  <span className="text-sm font-medium text-gray-900">
+                    날짜 범위 선택
+                  </span>
+                  {dateRangeExpanded ? (
+                    <ChevronUp className="h-5 w-5 text-gray-600" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-600" aria-hidden="true" />
+                  )}
+                </button>
 
-                {/* 날짜 범위 선택 캘린더 */}
-                <DateRangeSelector
-                  groupPeriodStart={group.period_start}
-                  groupPeriodEnd={group.period_end}
-                  existingPlans={existingPlans}
-                  onRangeChange={setDateRange}
-                  initialRange={dateRange}
-                />
+                {dateRangeExpanded && (
+                  <div 
+                    id="date-range-panel"
+                    className="mt-4 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4"
+                    role="region"
+                    aria-label="날짜 범위 선택 패널"
+                  >
+                    {/* 스마트 추천 */}
+                    {selectedIds.size > 0 && (
+                      <SmartDateRangeSuggestions
+                        group={group}
+                        contents={contents}
+                        selectedContentIds={selectedIds}
+                        existingPlans={existingPlans}
+                        onSelectRange={(range) => {
+                          setDateRange(range);
+                        }}
+                      />
+                    )}
+
+                    {/* 날짜 범위 선택 캘린더 */}
+                    <DateRangeSelector
+                      groupPeriodStart={group.period_start}
+                      groupPeriodEnd={group.period_end}
+                      existingPlans={existingPlans}
+                      onRangeChange={setDateRange}
+                      initialRange={dateRange}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
+
+          {/* 선택한 콘텐츠 요약 카드 */}
+          {selectedIds.size > 0 && (
+            <div className="sticky bottom-0 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-blue-900">
+                    선택한 콘텐츠 요약
+                  </div>
+                  <div className="mt-1 text-sm text-blue-700">
+                    {selectedIds.size}개의 콘텐츠가 선택되었습니다
+                  </div>
+                  <div className="mt-1 text-xs text-blue-600">
+                    총 영향받는 날짜:{" "}
+                    {(() => {
+                      const allDates = new Set<string>();
+                      selectedIds.forEach((id) => {
+                        const status = contentStatusMap.get(id);
+                        if (status) {
+                          status.affectedDates.forEach((date) => allDates.add(date));
+                        }
+                      });
+                      return allDates.size;
+                    })()}
+                    일
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                >
+                  모두 해제
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3">
             <button
@@ -292,6 +454,7 @@ export function ContentSelectStep({
                 (rescheduleMode === "range" && (!dateRange.from || !dateRange.to))
               }
               className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500"
+              aria-label={`다음 단계로 이동 (${selectedIds.size}개 콘텐츠 선택됨)`}
             >
               다음 ({selectedIds.size}개 선택됨)
             </button>

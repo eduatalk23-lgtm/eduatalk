@@ -9,7 +9,7 @@
  * @module lib/reschedule/delayDetector
  */
 
-import { format, parseISO, differenceInDays, isBefore, isAfter } from "date-fns";
+import { format, parseISO, differenceInDays, isBefore, isAfter, addDays, isValid } from "date-fns";
 import type { Plan } from "@/lib/data/studentPlans";
 
 // ============================================
@@ -74,6 +74,17 @@ export interface PlanGroupAnalysisInput {
   endDate: string; // YYYY-MM-DD
   /** 현재 날짜 (기본값: 오늘) */
   currentDate?: string; // YYYY-MM-DD
+}
+
+// ============================================
+// 유틸리티 함수
+// ============================================
+
+/**
+ * 날짜 유효성 검사
+ */
+function isValidDate(date: Date): boolean {
+  return date instanceof Date && isValid(date);
 }
 
 // ============================================
@@ -155,9 +166,13 @@ function calculateDailyStats(plans: Plan[]): Map<
       stats.completed++;
     } else if (plan.actual_start_time) {
       stats.inProgress++;
-    } else if (isBefore(parseISO(date), parseISO(today))) {
-      // 과거 날짜의 미완료 플랜은 누락으로 간주
-      stats.missed++;
+    } else {
+      const parsedDate = parseISO(date);
+      const parsedToday = parseISO(today);
+      if (isValidDate(parsedDate) && isValidDate(parsedToday) && isBefore(parsedDate, parsedToday)) {
+        // 과거 날짜의 미완료 플랜은 누락으로 간주
+        stats.missed++;
+      }
     }
   });
 
@@ -223,8 +238,12 @@ function analyzeCauses(
   }
 
   // 진행 속도 저하 (최근 3일 평균 완료율이 전체 평균보다 낮음)
+  const parsedCurrentDate = parseISO(currentDate);
   const recentDates = Array.from(dailyStats.keys())
-    .filter((date) => isBefore(parseISO(date), parseISO(currentDate)))
+    .filter((date) => {
+      const parsedDate = parseISO(date);
+      return isValidDate(parsedDate) && isValidDate(parsedCurrentDate) && isBefore(parsedDate, parsedCurrentDate);
+    })
     .sort()
     .slice(-3);
 
@@ -259,26 +278,79 @@ function calculateCompletionDate(
   endDate: string,
   progressRate: number
 ): string | null {
-  if (progressRate >= 100) {
-    return format(new Date(), "yyyy-MM-dd");
+  try {
+    if (progressRate >= 100) {
+      return format(new Date(), "yyyy-MM-dd");
+    }
+
+    // 날짜 파싱 및 유효성 검사
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+
+    if (!isValidDate(start) || !isValidDate(end)) {
+      console.warn("[calculateCompletionDate] 유효하지 않은 날짜:", {
+        startDate,
+        endDate,
+      });
+      return null;
+    }
+
+    const totalDays = differenceInDays(end, start);
+
+    // totalDays가 유효하지 않거나 음수인 경우
+    if (totalDays <= 0 || !isFinite(totalDays)) {
+      console.warn("[calculateCompletionDate] 유효하지 않은 날짜 범위:", {
+        startDate,
+        endDate,
+        totalDays,
+      });
+      return null;
+    }
+
+    const remainingProgress = 100 - progressRate;
+
+    if (remainingProgress <= 0) {
+      return format(new Date(), "yyyy-MM-dd");
+    }
+
+    // 선형 보간으로 예상 완료일 계산
+    const progressPerDay = progressRate / Math.max(1, totalDays);
+
+    // progressPerDay가 0이거나 음수인 경우 처리
+    if (progressPerDay <= 0 || !isFinite(progressPerDay)) {
+      // 진행률이 0이거나 음수인 경우, 오늘 날짜 반환
+      return format(new Date(), "yyyy-MM-dd");
+    }
+
+    const remainingDays = Math.ceil(remainingProgress / progressPerDay);
+
+    // remainingDays를 합리적인 범위로 제한 (최대 365일)
+    const clampedRemainingDays = Math.min(Math.max(0, remainingDays), 365);
+
+    if (!isFinite(clampedRemainingDays)) {
+      console.warn("[calculateCompletionDate] 유효하지 않은 remainingDays:", {
+        remainingDays,
+        clampedRemainingDays,
+      });
+      return null;
+    }
+
+    // addDays를 사용하여 안전하게 날짜 계산
+    const today = new Date();
+    const expectedDate = addDays(today, clampedRemainingDays);
+
+    if (!isValidDate(expectedDate)) {
+      console.warn("[calculateCompletionDate] 계산된 날짜가 유효하지 않음:", {
+        expectedDate,
+      });
+      return null;
+    }
+
+    return format(expectedDate, "yyyy-MM-dd");
+  } catch (error) {
+    console.error("[calculateCompletionDate] 예상치 못한 오류:", error);
+    return null;
   }
-
-  const start = parseISO(startDate);
-  const end = parseISO(endDate);
-  const totalDays = differenceInDays(end, start);
-  const remainingProgress = 100 - progressRate;
-
-  if (remainingProgress <= 0) {
-    return format(new Date(), "yyyy-MM-dd");
-  }
-
-  // 선형 보간으로 예상 완료일 계산
-  const progressPerDay = progressRate / Math.max(1, totalDays);
-  const remainingDays = Math.ceil(remainingProgress / progressPerDay);
-  const expectedDate = new Date();
-  expectedDate.setDate(expectedDate.getDate() + remainingDays);
-
-  return format(expectedDate, "yyyy-MM-dd");
 }
 
 /**
@@ -291,7 +363,50 @@ export function analyzeDelay(
   input: PlanGroupAnalysisInput
 ): DelayAnalysis {
   const { plans, startDate, endDate, currentDate } = input;
+  
+  // 날짜 파싱 및 유효성 검사
+  const parsedStartDate = parseISO(startDate);
+  const parsedEndDate = parseISO(endDate);
+  
+  if (!isValidDate(parsedStartDate) || !isValidDate(parsedEndDate)) {
+    console.warn("[analyzeDelay] 유효하지 않은 날짜:", {
+      startDate,
+      endDate,
+    });
+    // 유효하지 않은 날짜인 경우 기본값 반환
+    return {
+      severity: "none",
+      delayDays: 0,
+      causes: [],
+      description: "날짜 정보가 유효하지 않습니다.",
+      progressRate: 0,
+      expectedCompletionDate: null,
+      actualCompletionDate: null,
+      affectedDates: [],
+      details: {
+        totalPlans: plans.length,
+        completedPlans: 0,
+        missedPlans: 0,
+        averageCompletionRate: 0,
+        dailyRequiredPlans: 0,
+        dailyActualPlans: 0,
+      },
+    };
+  }
+
   const today = currentDate || format(new Date(), "yyyy-MM-dd");
+  const parsedToday = parseISO(today);
+  
+  if (!isValidDate(parsedToday)) {
+    console.warn("[analyzeDelay] 유효하지 않은 현재 날짜:", today);
+    // 유효하지 않은 현재 날짜인 경우 오늘 날짜 사용
+    const todayDate = new Date();
+    const todayStr = format(todayDate, "yyyy-MM-dd");
+    return analyzeDelay({
+      ...input,
+      currentDate: todayStr,
+    });
+  }
 
   // 기본 통계 계산
   const totalPlans = plans.length;
@@ -299,7 +414,7 @@ export function analyzeDelay(
   const missedPlans = plans.filter(
     (p) =>
       p.plan_date &&
-      isBefore(parseISO(p.plan_date), parseISO(today)) &&
+      isBefore(parseISO(p.plan_date), parsedToday) &&
       !isPlanCompleted(p)
   ).length;
 
@@ -326,12 +441,39 @@ export function analyzeDelay(
       : 0;
 
   // 지연 일수 계산 (계획 대비 실제 진행률 기반)
-  const expectedProgress =
-    (differenceInDays(parseISO(today), parseISO(startDate)) /
-      Math.max(1, differenceInDays(parseISO(endDate), parseISO(startDate)))) *
-    100;
+  const daysFromStart = differenceInDays(parsedToday, parsedStartDate);
+  const totalDaysRange = differenceInDays(parsedEndDate, parsedStartDate);
+  
+  if (totalDaysRange <= 0 || !isFinite(totalDaysRange)) {
+    console.warn("[analyzeDelay] 유효하지 않은 날짜 범위:", {
+      startDate,
+      endDate,
+      totalDaysRange,
+    });
+    // 유효하지 않은 날짜 범위인 경우 기본값 반환
+    return {
+      severity: "none",
+      delayDays: 0,
+      causes: [],
+      description: "날짜 범위가 유효하지 않습니다.",
+      progressRate,
+      expectedCompletionDate: null,
+      actualCompletionDate: null,
+      affectedDates: [],
+      details: {
+        totalPlans,
+        completedPlans,
+        missedPlans,
+        averageCompletionRate: progressRate,
+        dailyRequiredPlans: Math.round((uniqueDates.length > 0 ? totalPlans / uniqueDates.length : 0) * 10) / 10,
+        dailyActualPlans: Math.round((uniqueDates.length > 0 ? completedPlans / uniqueDates.length : 0) * 10) / 10,
+      },
+    };
+  }
+  
+  const expectedProgress = (daysFromStart / Math.max(1, totalDaysRange)) * 100;
   const delayProgress = expectedProgress - progressRate;
-  const delayDays = Math.max(0, Math.ceil((delayProgress / 100) * differenceInDays(parseISO(endDate), parseISO(startDate))));
+  const delayDays = Math.max(0, Math.ceil((delayProgress / 100) * totalDaysRange));
 
   // 지연 심각도 계산
   const severity = calculateSeverity(
@@ -351,25 +493,42 @@ export function analyzeDelay(
     endDate,
     progressRate
   );
-  const actualCompletionDate = expectedCompletionDate
-    ? format(
-        new Date(
-          parseISO(expectedCompletionDate).getTime() +
-            delayDays * 24 * 60 * 60 * 1000
-        ),
-        "yyyy-MM-dd"
-      )
-    : null;
+  
+  // expectedCompletionDate가 null이면 actualCompletionDate도 null
+  let actualCompletionDate: string | null = null;
+  if (expectedCompletionDate) {
+    try {
+      const parsedExpectedDate = parseISO(expectedCompletionDate);
+      if (isValidDate(parsedExpectedDate)) {
+        const actualDate = addDays(parsedExpectedDate, delayDays);
+        if (isValidDate(actualDate)) {
+          actualCompletionDate = format(actualDate, "yyyy-MM-dd");
+        } else {
+          console.warn("[analyzeDelay] 계산된 actualCompletionDate가 유효하지 않음:", {
+            expectedCompletionDate,
+            delayDays,
+            actualDate,
+          });
+        }
+      } else {
+        console.warn("[analyzeDelay] expectedCompletionDate 파싱 실패:", {
+          expectedCompletionDate,
+        });
+      }
+    } catch (error) {
+      console.error("[analyzeDelay] actualCompletionDate 계산 중 오류:", error);
+    }
+  }
 
   // 영향받는 날짜 목록 (미완료 플랜이 있는 과거 날짜)
   const affectedDates = Array.from(dailyStats.keys())
     .filter((date) => {
       const stats = dailyStats.get(date);
-      return (
-        stats &&
-        stats.missed > 0 &&
-        isBefore(parseISO(date), parseISO(today))
-      );
+      if (!stats || stats.missed <= 0) {
+        return false;
+      }
+      const parsedDate = parseISO(date);
+      return isValidDate(parsedDate) && isBefore(parsedDate, parsedToday);
     })
     .sort();
 

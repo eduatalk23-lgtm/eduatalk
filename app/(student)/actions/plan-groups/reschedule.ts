@@ -13,9 +13,14 @@ import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { executeRescheduleTransaction } from "@/lib/reschedule/transaction";
-import { generatePlans, type AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
+import { applyAdjustments, type AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 import { isReschedulable } from "@/lib/utils/planStatusUtils";
 import type { PlanGroup, PlanContent } from "@/lib/types/plan";
+import type { ScheduledPlan } from "@/lib/plan/scheduler";
+import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
+import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
+import { generatePlansFromGroup } from "@/lib/plan/scheduler";
+import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
 
 // ============================================
 // 타입 정의
@@ -34,6 +39,19 @@ export interface ReschedulePreviewResult {
     replacements: number;
     full_regenerations: number;
   };
+  // 실제 플랜 데이터 추가
+  plans_before: Array<{
+    id: string;
+    plan_date: string;
+    content_id: string;
+    content_type: string;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    start_time: string | null;
+    end_time: string | null;
+    status: string | null;
+  }>;
+  plans_after: ScheduledPlan[];
 }
 
 /**
@@ -71,13 +89,13 @@ export async function getReschedulePreview(
     const tenantContext = await requireTenantContext();
     const supabase = await createSupabaseServerClient();
 
-    // 1. 플랜 그룹 및 콘텐츠 조회
-    const { data: group } = await supabase
-      .from("plan_groups")
-      .select("*")
-      .eq("id", groupId)
-      .eq("tenant_id", tenantContext.tenantId)
-      .single();
+    // 1. 플랜 그룹 및 관련 데이터 조회
+    const { group, contents, exclusions, academySchedules } =
+      await getPlanGroupWithDetails(
+        groupId,
+        user.id,
+        tenantContext?.tenantId || null
+      );
 
     if (!group) {
       throw new AppError(
@@ -88,13 +106,6 @@ export async function getReschedulePreview(
       );
     }
 
-    // 2. 플랜 콘텐츠 조회
-    const { data: contents } = await supabase
-      .from("plan_contents")
-      .select("*")
-      .eq("plan_group_id", groupId)
-      .order("display_order");
-
     if (!contents || contents.length === 0) {
       throw new AppError(
         "플랜 콘텐츠를 찾을 수 없습니다.",
@@ -104,10 +115,12 @@ export async function getReschedulePreview(
       );
     }
 
-    // 3. 기존 플랜 수 조회 (재조정 대상만)
+    // 2. 기존 플랜 조회 (재조정 대상만, 상세 정보 포함)
     let query = supabase
       .from("student_plan")
-      .select("id, status, is_active, plan_date")
+      .select(
+        "id, plan_date, content_id, content_type, planned_start_page_or_time, planned_end_page_or_time, start_time, end_time, status, is_active"
+      )
       .eq("plan_group_id", groupId)
       .eq("student_id", group.student_id);
 
@@ -122,20 +135,197 @@ export async function getReschedulePreview(
       isReschedulable(plan)
     );
 
-    // 4. 스케줄 엔진으로 플랜 생성 (미리보기)
-    // TODO: 실제 플랜 생성 로직 통합 필요
-    const result = generatePlans({
-      group: group as PlanGroup,
-      contents: contents as PlanContent[],
-      adjustments,
+    // 3. 조정된 콘텐츠 생성
+    const adjustedContents = applyAdjustments(contents, adjustments);
+
+    // 4. 블록 세트 조회
+    const baseBlocks = await getBlockSetForPlanGroup(
+      group,
+      group.student_id,
+      user.id,
+      "student" as PlanGroupAllowedRole,
+      tenantContext?.tenantId || null
+    );
+
+    if (baseBlocks.length === 0) {
+      throw new AppError(
+        "블록 세트를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 5. 스케줄러 설정 병합
+    const { getMergedSchedulerSettings } = await import(
+      "@/lib/data/schedulerSettings"
+    );
+    const mergedSettings = await getMergedSchedulerSettings(
+      group.tenant_id,
+      group.camp_template_id,
+      group.scheduler_options as Record<string, unknown>
+    );
+
+    const schedulerOptions = {
+      study_days: mergedSettings.study_review_ratio.study_days,
+      review_days: mergedSettings.study_review_ratio.review_days,
+      weak_subject_focus: mergedSettings.weak_subject_focus,
+      review_scope: mergedSettings.review_scope,
+      lunch_time: mergedSettings.lunch_time,
+      camp_study_hours: mergedSettings.study_hours,
+      self_study_hours: mergedSettings.self_study_hours,
+    };
+
+    // 6. calculateAvailableDates로 스케줄 결과 계산
+    const { calculateAvailableDates } = await import(
+      "@/lib/scheduler/calculateAvailableDates"
+    );
+
+    const scheduleResult = calculateAvailableDates(
+      group.period_start,
+      group.period_end,
+      baseBlocks.map((b) => ({
+        day_of_week: b.day_of_week,
+        start_time: b.start_time,
+        end_time: b.end_time,
+      })),
+      exclusions.map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: e.exclusion_type as
+          | "휴가"
+          | "개인사정"
+          | "휴일지정"
+          | "기타",
+        reason: e.reason || undefined,
+      })),
+      academySchedules.map((a) => ({
+        day_of_week: a.day_of_week,
+        start_time: a.start_time,
+        end_time: a.end_time,
+        academy_name: a.academy_name || undefined,
+        subject: a.subject || undefined,
+        travel_time: a.travel_time || undefined,
+      })),
+      {
+        scheduler_type: "1730_timetable",
+        scheduler_options: schedulerOptions || null,
+        use_self_study_with_blocks: true,
+        enable_self_study_for_holidays:
+          (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
+        enable_self_study_for_study_days:
+          (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
+        lunch_time: schedulerOptions.lunch_time,
+        camp_study_hours: schedulerOptions.camp_study_hours,
+        camp_self_study_hours: schedulerOptions.self_study_hours,
+        designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
+        non_study_time_blocks: (group as any).non_study_time_blocks || undefined,
+      }
+    );
+
+    // 7. 날짜별 사용 가능 시간 범위 및 타임라인 추출
+    const dateAvailableTimeRanges = new Map<
+      string,
+      Array<{ start: string; end: string }>
+    >();
+    const dateTimeSlots = new Map<
+      string,
+      Array<{
+        type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
+        start: string;
+        end: string;
+        label?: string;
+      }>
+    >();
+
+    scheduleResult.daily_schedule.forEach((daily) => {
+      if (
+        (daily.day_type === "학습일" || daily.day_type === "복습일") &&
+        daily.available_time_ranges.length > 0
+      ) {
+        dateAvailableTimeRanges.set(
+          daily.date,
+          daily.available_time_ranges.map((range) => ({
+            start: range.start,
+            end: range.end,
+          }))
+        );
+      }
+
+      if (daily.time_slots && daily.time_slots.length > 0) {
+        dateTimeSlots.set(
+          daily.date,
+          daily.time_slots.map((slot) => ({
+            type: slot.type,
+            start: slot.start,
+            end: slot.end,
+            label: slot.label,
+          }))
+        );
+      }
     });
 
-    // 5. 결과 반환
+    // 8. 콘텐츠 과목 정보 조회 (간단화: 빈 Map 사용)
+    const contentSubjects = new Map<string, { subject?: string | null; subject_category?: string | null }>();
+
+    // 9. 실제 플랜 생성
+    const generatedPlans = generatePlansFromGroup(
+      group,
+      adjustedContents,
+      exclusions,
+      academySchedules,
+      baseBlocks,
+      contentSubjects,
+      undefined, // riskIndexMap
+      dateAvailableTimeRanges,
+      dateTimeSlots
+    );
+
+    // 10. 날짜 범위 필터링 (선택한 경우)
+    let filteredPlans = generatedPlans;
+    if (dateRange?.from && dateRange?.to) {
+      filteredPlans = generatedPlans.filter(
+        (plan) => plan.plan_date >= dateRange.from && plan.plan_date <= dateRange.to
+      );
+    }
+
+    // 11. 영향받는 날짜 계산
+    const affectedDatesSet = new Set<string>();
+    filteredPlans.forEach((plan) => {
+      affectedDatesSet.add(plan.plan_date);
+    });
+    const affectedDates = Array.from(affectedDatesSet).sort();
+
+    // 12. 예상 시간 계산
+    let estimatedHours = 0;
+    filteredPlans.forEach((plan) => {
+      if (plan.start_time && plan.end_time) {
+        const [startHour, startMin] = plan.start_time.split(":").map(Number);
+        const [endHour, endMin] = plan.end_time.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        estimatedHours += (endMinutes - startMinutes) / 60;
+      }
+    });
+
+    // 13. 기존 플랜 상세 정보 변환
+    const plansBefore = reschedulablePlans.map((plan) => ({
+      id: plan.id,
+      plan_date: plan.plan_date,
+      content_id: plan.content_id || "",
+      content_type: (plan as any).content_type || "",
+      planned_start_page_or_time: (plan as any).planned_start_page_or_time || null,
+      planned_end_page_or_time: (plan as any).planned_end_page_or_time || null,
+      start_time: plan.start_time || null,
+      end_time: plan.end_time || null,
+      status: plan.status || null,
+    }));
+
+    // 14. 결과 반환
     return {
       plans_before_count: reschedulablePlans.length,
-      plans_after_count: result.summary.total_plans,
-      affected_dates: result.summary.affected_dates,
-      estimated_hours: result.summary.estimated_hours,
+      plans_after_count: filteredPlans.length,
+      affected_dates: affectedDates,
+      estimated_hours: Math.round(estimatedHours * 10) / 10,
       adjustments_summary: {
         range_changes: adjustments.filter((a) => a.change_type === "range")
           .length,
@@ -145,6 +335,8 @@ export async function getReschedulePreview(
           (a) => a.change_type === "full"
         ).length,
       },
+      plans_before: plansBefore,
+      plans_after: filteredPlans,
     };
   });
 }

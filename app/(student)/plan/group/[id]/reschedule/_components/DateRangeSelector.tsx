@@ -197,10 +197,10 @@ export function DateRangeSelector({
         </div>
 
         {/* 날짜 그리드 */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {days.map((date, index) => {
             if (!date) {
-              return <div key={`empty-${index}`} className="h-10" />;
+              return <div key={`empty-${index}`} className="h-8 sm:h-10" />;
             }
 
             const dateStr = format(date, "yyyy-MM-dd");
@@ -219,7 +219,7 @@ export function DateRangeSelector({
                 onClick={() => handleDateClick(date)}
                 disabled={!isSelectable}
                 className={`
-                  h-10 rounded-lg text-sm font-medium transition
+                  h-8 sm:h-10 rounded-lg text-xs sm:text-sm font-medium transition
                   ${!isSelectable || isOutsidePeriod
                     ? "bg-gray-50 text-gray-300 cursor-not-allowed"
                     : isCompleted

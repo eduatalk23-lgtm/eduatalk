@@ -7,6 +7,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { ContentSelectStep } from "./ContentSelectStep";
 import { AdjustmentStep } from "./AdjustmentStep";
 import { PreviewStep } from "./PreviewStep";
@@ -43,6 +44,7 @@ export function RescheduleWizard({
   } | null>(null);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
   const [previewResult, setPreviewResult] = useState<any>(null);
+  const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
 
   // Step 1 완료 핸들러
   const handleStep1Complete = (
@@ -51,12 +53,14 @@ export function RescheduleWizard({
   ) => {
     setSelectedContentIds(contentIds);
     setDateRange(selectedDateRange);
+    setCompletedSteps(new Set([1]));
     setCurrentStep(2);
   };
 
   // Step 2 완료 핸들러
   const handleStep2Complete = (newAdjustments: AdjustmentInput[]) => {
     setAdjustments(newAdjustments);
+    setCompletedSteps(new Set([1, 2]));
     setCurrentStep(3);
   };
 
@@ -72,62 +76,97 @@ export function RescheduleWizard({
     }
   };
 
+  // 진행률 계산
+  const progressPercentage = ((currentStep - 1) / 2) * 100;
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* 진행 표시 */}
-      <div className="border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center gap-2">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                    currentStep === step
-                      ? "bg-blue-600 text-white"
-                      : currentStep > step
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
+      <div className="border-b border-gray-200 px-4 py-4 sm:px-6">
+        {/* 진행률 바 */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+            <span>진행률</span>
+            <span>{Math.round(progressPercentage)}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-200">
+            <div
+              className="h-2 rounded-full bg-blue-600 transition-all duration-300"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-2 sm:pb-0">
+            {[1, 2, 3].map((step) => {
+              const isCompleted = completedSteps.has(step as WizardStep);
+              const isCurrent = currentStep === step;
+              const isPast = currentStep > step;
+
+              return (
+                <div 
+                  key={step} 
+                  className="flex items-center gap-2"
+                  role="progressbar"
+                  aria-valuenow={step}
+                  aria-valuemin={1}
+                  aria-valuemax={3}
+                  aria-label={`${step === 1 ? "콘텐츠 선택" : step === 2 ? "상세 조정" : "미리보기 & 확인"} 단계${isCompleted ? " 완료" : isCurrent ? " 진행 중" : ""}`}
                 >
-                  {step}
-                </div>
-                <span
-                  className={`text-sm font-medium ${
-                    currentStep === step
-                      ? "text-blue-600"
-                      : currentStep > step
-                      ? "text-green-700"
-                      : "text-gray-600"
-                  }`}
-                >
-                  {step === 1
-                    ? "콘텐츠 선택"
-                    : step === 2
-                    ? "상세 조정"
-                    : "미리보기 & 확인"}
-                </span>
-                {step < 3 && (
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                  <div
+                    className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition flex-shrink-0 ${
+                      isCurrent
+                        ? "bg-blue-600 text-white"
+                        : isCompleted || isPast
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                )}
-              </div>
-            ))}
+                    {isCompleted ? (
+                      <Check className="h-4 w-4 sm:h-5 sm:w-5" />
+                    ) : (
+                      step
+                    )}
+                  </div>
+                  <span
+                    className={`text-xs sm:text-sm font-medium whitespace-nowrap ${
+                      isCurrent
+                        ? "text-blue-600"
+                        : isCompleted || isPast
+                        ? "text-green-700"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    {step === 1
+                      ? "콘텐츠 선택"
+                      : step === 2
+                      ? "상세 조정"
+                      : "미리보기 & 확인"}
+                  </span>
+                  {step < 3 && (
+                    <svg
+                      className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  )}
+                </div>
+              );
+            })}
           </div>
           {currentStep > 1 && (
             <button
               onClick={handleBack}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+              className="rounded-lg px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 transition hover:bg-gray-100 whitespace-nowrap"
             >
               뒤로가기
             </button>
@@ -136,7 +175,7 @@ export function RescheduleWizard({
       </div>
 
       {/* Step 컨텐츠 */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {currentStep === 1 && (
           <ContentSelectStep
             group={group}
@@ -155,6 +194,7 @@ export function RescheduleWizard({
             adjustments={adjustments}
             onComplete={handleStep2Complete}
             onBack={handleBack}
+            studentId={group.student_id}
           />
         )}
         {currentStep === 3 && (

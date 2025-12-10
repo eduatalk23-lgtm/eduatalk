@@ -15,7 +15,7 @@ import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-group
 import { BeforeAfterComparison } from "./BeforeAfterComparison";
 import { AffectedPlansList } from "./AffectedPlansList";
 import { ConflictWarning } from "./ConflictWarning";
-import { detectAllConflicts } from "@/lib/reschedule/conflictDetector";
+import { detectAllConflicts, type PlanWithTime } from "@/lib/reschedule/conflictDetector";
 
 type PreviewStepProps = {
   groupId: string;
@@ -41,11 +41,50 @@ export function PreviewStep({
   const [executing, setExecuting] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
-  // 충돌 감지 (현재는 기본 데이터만 사용, 실제 플랜 목록이 있으면 더 정확한 감지 가능)
+  // 충돌 감지 (실제 플랜 데이터 사용)
   const conflicts = useMemo(() => {
-    // TODO: 실제 플랜 목록이 있으면 detectAllConflicts 호출
-    // 현재는 빈 배열 반환 (실제 플랜 생성 로직 통합 후 구현)
-    return [];
+    if (!preview || !preview.plans_after || preview.plans_after.length === 0) {
+      return [];
+    }
+
+    // 플랜 데이터를 PlanWithTime 형식으로 변환
+    const plansWithTime: PlanWithTime[] = preview.plans_after.map((plan) => ({
+      id: `${plan.plan_date}-${plan.content_id}-${plan.planned_start_page_or_time}`,
+      plan_date: plan.plan_date,
+      start_time: plan.start_time || null,
+      end_time: plan.end_time || null,
+      content_id: plan.content_id,
+      content_type: plan.content_type,
+    }));
+
+    // 날짜별 플랜 통계 맵 생성
+    const datePlansMap = new Map<
+      string,
+      { totalHours: number; planCount: number }
+    >();
+
+    preview.plans_after.forEach((plan) => {
+      if (!datePlansMap.has(plan.plan_date)) {
+        datePlansMap.set(plan.plan_date, {
+          totalHours: 0,
+          planCount: 0,
+        });
+      }
+
+      const dateData = datePlansMap.get(plan.plan_date)!;
+      dateData.planCount++;
+
+      if (plan.start_time && plan.end_time) {
+        const [startHour, startMin] = plan.start_time.split(":").map(Number);
+        const [endHour, endMin] = plan.end_time.split(":").map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        dateData.totalHours += (endMinutes - startMinutes) / 60;
+      }
+    });
+
+    // 충돌 감지
+    return detectAllConflicts(plansWithTime, datePlansMap, 12); // 최대 12시간
   }, [preview]);
 
   useEffect(() => {
@@ -225,17 +264,109 @@ export function PreviewStep({
       )}
 
       {/* 확인 다이얼로그 */}
-      {confirmDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg bg-white p-6 shadow-lg max-w-md w-full mx-4">
+      {confirmDialogOpen && preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="rounded-lg bg-white p-6 shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">
               재조정 실행 확인
             </h3>
-            <p className="mb-6 text-sm text-gray-600">
-              정말로 재조정을 실행하시겠습니까?
-              <br />
-              이 작업은 되돌릴 수 없습니다.
-            </p>
+
+            {/* 변경 요약 */}
+            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h4 className="mb-3 text-sm font-semibold text-gray-900">
+                변경 요약
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-600">기존 플랜:</span>
+                  <span className="ml-2 font-medium text-gray-900">
+                    {preview.plans_before_count}개
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">새 플랜:</span>
+                  <span className="ml-2 font-medium text-blue-600">
+                    {preview.plans_after_count}개
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">영향받는 날짜:</span>
+                  <span className="ml-2 font-medium text-gray-900">
+                    {preview.affected_dates.length}일
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600">예상 시간:</span>
+                  <span className="ml-2 font-medium text-gray-900">
+                    {preview.estimated_hours}시간
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 영향받는 날짜 목록 (최대 10개만 표시) */}
+            {preview.affected_dates.length > 0 && (
+              <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                <h4 className="mb-2 text-sm font-semibold text-gray-900">
+                  영향받는 날짜
+                </h4>
+                <div className="max-h-32 overflow-y-auto">
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {preview.affected_dates.slice(0, 10).map((date) => (
+                      <span
+                        key={date}
+                        className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-gray-700"
+                      >
+                        {date}
+                      </span>
+                    ))}
+                    {preview.affected_dates.length > 10 && (
+                      <span className="rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-gray-700">
+                        +{preview.affected_dates.length - 10}일
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 조정 내역 */}
+            <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+              <h4 className="mb-2 text-sm font-semibold text-gray-900">
+                조정 내역
+              </h4>
+              <div className="flex flex-col gap-1 text-xs text-gray-600">
+                <div className="flex justify-between">
+                  <span>범위 수정:</span>
+                  <span className="font-medium text-gray-900">
+                    {preview.adjustments_summary.range_changes}개
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>콘텐츠 교체:</span>
+                  <span className="font-medium text-gray-900">
+                    {preview.adjustments_summary.replacements}개
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>전체 재생성:</span>
+                  <span className="font-medium text-gray-900">
+                    {preview.adjustments_summary.full_regenerations}개
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 경고 메시지 */}
+            <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <p className="text-sm text-yellow-800">
+                ⚠️ 총 {preview.plans_before_count}개의 기존 플랜이 비활성화되고,{" "}
+                {preview.plans_after_count}개의 새 플랜이 생성됩니다.
+                <br />
+                완료된 플랜은 유지되며, 롤백은 최대 24시간 내에만 가능합니다.
+              </p>
+            </div>
+
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setConfirmDialogOpen(false)}

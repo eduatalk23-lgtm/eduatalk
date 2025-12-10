@@ -38,12 +38,17 @@ export function BeforeAfterComparison({
   adjustments,
   dateRange,
 }: BeforeAfterComparisonProps) {
-  // 날짜별 비교 데이터 생성
+  // 날짜별 비교 데이터 생성 (실제 플랜 데이터 사용)
   const comparisonData = useMemo(() => {
     const dateMap = new Map<string, ComparisonItem>();
 
-    // 영향받는 날짜별로 데이터 초기화
-    preview.affected_dates.forEach((date) => {
+    // 모든 날짜 수집 (기존 플랜과 새 플랜 모두)
+    const allDates = new Set<string>();
+    preview.plans_before.forEach((plan) => allDates.add(plan.plan_date));
+    preview.plans_after.forEach((plan) => allDates.add(plan.plan_date));
+
+    // 날짜별로 데이터 초기화
+    allDates.forEach((date) => {
       dateMap.set(date, {
         date,
         before: {
@@ -61,26 +66,42 @@ export function BeforeAfterComparison({
       });
     });
 
-    // 실제 데이터는 미리보기 결과에서 추정
-    // TODO: 실제 플랜 목록이 있으면 더 정확한 비교 가능
-    const avgPlansPerDate = preview.affected_dates.length > 0
-      ? Math.round(preview.plans_before_count / preview.affected_dates.length)
-      : 0;
-    const avgHoursPerDate = preview.affected_dates.length > 0
-      ? preview.estimated_hours / preview.affected_dates.length
-      : 0;
+    // 기존 플랜 데이터로 날짜별 통계 계산
+    preview.plans_before.forEach((plan) => {
+      const item = dateMap.get(plan.plan_date);
+      if (item) {
+        item.before.count++;
+        if (plan.start_time && plan.end_time) {
+          const [startHour, startMin] = plan.start_time.split(":").map(Number);
+          const [endHour, endMin] = plan.end_time.split(":").map(Number);
+          const startMinutes = startHour * 60 + startMin;
+          const endMinutes = endHour * 60 + endMin;
+          item.before.totalHours += (endMinutes - startMinutes) / 60;
+        }
+      }
+    });
 
-    const newAvgPlansPerDate = preview.affected_dates.length > 0
-      ? Math.round(preview.plans_after_count / preview.affected_dates.length)
-      : 0;
+    // 새 플랜 데이터로 날짜별 통계 계산
+    preview.plans_after.forEach((plan) => {
+      const item = dateMap.get(plan.plan_date);
+      if (item) {
+        item.after.count++;
+        if (plan.start_time && plan.end_time) {
+          const [startHour, startMin] = plan.start_time.split(":").map(Number);
+          const [endHour, endMin] = plan.end_time.split(":").map(Number);
+          const startMinutes = startHour * 60 + startMin;
+          const endMinutes = endHour * 60 + endMin;
+          item.after.totalHours += (endMinutes - startMinutes) / 60;
+        }
+      }
+    });
 
+    // 변화 계산 및 시간 반올림
     dateMap.forEach((item) => {
-      item.before.count = avgPlansPerDate;
-      item.before.totalHours = Math.round(avgHoursPerDate * 10) / 10;
-      item.after.count = newAvgPlansPerDate;
-      item.after.totalHours = Math.round(avgHoursPerDate * 10) / 10;
+      item.before.totalHours = Math.round(item.before.totalHours * 10) / 10;
+      item.after.totalHours = Math.round(item.after.totalHours * 10) / 10;
       item.change.count = item.after.count - item.before.count;
-      item.change.hours = item.after.totalHours - item.before.totalHours;
+      item.change.hours = Math.round((item.after.totalHours - item.before.totalHours) * 10) / 10;
     });
 
     return Array.from(dateMap.values()).sort((a, b) =>
@@ -114,7 +135,7 @@ export function BeforeAfterComparison({
       <h3 className="mb-4 font-semibold text-gray-900">변경 전/후 비교</h3>
 
       {/* 요약 카드 */}
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 md:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
           <p className="text-xs text-gray-600">기존 플랜</p>
           <p className="mt-1 text-2xl font-bold text-gray-900">
@@ -158,20 +179,20 @@ export function BeforeAfterComparison({
       </div>
 
       {/* 날짜별 상세 비교 */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto -mx-6 px-6">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-gray-200">
-              <th className="px-4 py-3 text-left font-semibold text-gray-900">
+              <th className="px-2 py-3 text-left font-semibold text-gray-900 sm:px-4">
                 날짜
               </th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-900">
+              <th className="px-2 py-3 text-center font-semibold text-gray-900 sm:px-4">
                 기존
               </th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-900">
+              <th className="px-2 py-3 text-center font-semibold text-gray-900 sm:px-4">
                 변경 후
               </th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-900">
+              <th className="px-2 py-3 text-center font-semibold text-gray-900 sm:px-4">
                 변화
               </th>
             </tr>
@@ -182,31 +203,33 @@ export function BeforeAfterComparison({
                 key={item.date}
                 className="border-b border-gray-100 transition hover:bg-gray-50"
               >
-                <td className="px-4 py-3 font-medium text-gray-900">
-                  {format(new Date(item.date), "yyyy년 M월 d일 (E)", {
-                    locale: undefined,
-                  }).replace(
-                    /\([^)]*\)/,
-                    `(${["일", "월", "화", "수", "목", "금", "토"][new Date(item.date).getDay()]})`
-                  )}
+                <td className="px-2 py-3 font-medium text-gray-900 sm:px-4">
+                  <div className="text-xs sm:text-sm">
+                    {format(new Date(item.date), "yyyy년 M월 d일 (E)", {
+                      locale: undefined,
+                    }).replace(
+                      /\([^)]*\)/,
+                      `(${["일", "월", "화", "수", "목", "금", "토"][new Date(item.date).getDay()]})`
+                    )}
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-center text-gray-700">
+                <td className="px-2 py-3 text-center text-gray-700 sm:px-4">
                   <div className="flex flex-col">
-                    <span className="font-medium">{item.before.count}개</span>
+                    <span className="font-medium text-xs sm:text-sm">{item.before.count}개</span>
                     <span className="text-xs text-gray-500">
                       {item.before.totalHours}시간
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center text-blue-700">
+                <td className="px-2 py-3 text-center text-blue-700 sm:px-4">
                   <div className="flex flex-col">
-                    <span className="font-medium">{item.after.count}개</span>
+                    <span className="font-medium text-xs sm:text-sm">{item.after.count}개</span>
                     <span className="text-xs text-blue-600">
                       {item.after.totalHours}시간
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 py-3 text-center sm:px-4">
                   <div className="flex flex-col">
                     <span
                       className={`font-medium ${

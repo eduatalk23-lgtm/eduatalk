@@ -7,10 +7,32 @@
  */
 
 import type { RescheduleLogItem } from "@/app/(student)/actions/plan-groups/rescheduleHistory";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { analyzeDelay } from "./delayDetector";
+import type { Plan } from "@/lib/data/studentPlans";
 
 // ============================================
 // 타입 정의
 // ============================================
+
+/**
+ * 재조정 추천
+ */
+export interface RescheduleRecommendation {
+  /** 플랜 그룹 ID */
+  groupId: string;
+  /** 플랜 그룹 이름 */
+  groupName?: string;
+  /** 재조정이 필요한 이유 */
+  reason: string;
+  /** 우선순위 */
+  priority: "high" | "medium" | "low";
+  /** 예상 영향 */
+  estimatedImpact: {
+    /** 영향받는 플랜 수 */
+    plansAffected: number;
+  };
+}
 
 /**
  * 재조정 패턴 분석 결과
@@ -341,6 +363,161 @@ export function analyzeReschedulePatterns(
     patterns,
     suggestions,
   };
+}
+
+/**
+ * 재조정이 필요한 플랜 그룹 감지
+ * 
+ * 학생의 활성 플랜 그룹들을 분석하여 재조정이 필요한 그룹을 찾습니다.
+ * 
+ * @param supabase Supabase 클라이언트
+ * @param studentId 학생 ID
+ * @returns 재조정 추천 목록 (우선순위 순)
+ */
+export async function detectRescheduleNeeds(
+  supabase: SupabaseClient,
+  studentId: string
+): Promise<RescheduleRecommendation[]> {
+  try {
+    // 1. 학생의 활성 플랜 그룹 조회
+    const { data: planGroups, error: groupsError } = await supabase
+      .from("plan_groups")
+      .select("id, name, period_start, period_end, status")
+      .eq("student_id", studentId)
+      .in("status", ["active", "saved"])
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
+
+    if (groupsError) {
+      console.error("[detectRescheduleNeeds] 플랜 그룹 조회 실패:", groupsError);
+      return [];
+    }
+
+    if (!planGroups || planGroups.length === 0) {
+      return [];
+    }
+
+    // 2. 각 플랜 그룹에 대해 지연 분석 수행
+    const recommendations: RescheduleRecommendation[] = [];
+
+    for (const group of planGroups) {
+      if (!group.period_start || !group.period_end) {
+        continue;
+      }
+
+      // 플랜 그룹의 플랜 목록 조회
+      const { data: plans, error: plansError } = await supabase
+        .from("student_plan")
+        .select("*")
+        .eq("plan_group_id", group.id)
+        .eq("student_id", studentId)
+        .order("plan_date", { ascending: true });
+
+      if (plansError) {
+        console.error(
+          `[detectRescheduleNeeds] 플랜 조회 실패 (그룹 ${group.id}):`,
+          plansError
+        );
+        continue;
+      }
+
+      if (!plans || plans.length === 0) {
+        continue;
+      }
+
+      // Plan 타입으로 변환 (delayDetector가 기대하는 형식)
+      const planList: Plan[] = plans.map((plan) => ({
+        id: plan.id,
+        tenant_id: plan.tenant_id,
+        student_id: plan.student_id,
+        plan_date: plan.plan_date,
+        block_index: plan.block_index ?? 0,
+        content_type: plan.content_type,
+        content_id: plan.content_id,
+        chapter: plan.chapter,
+        planned_start_page_or_time: plan.planned_start_page_or_time,
+        planned_end_page_or_time: plan.planned_end_page_or_time,
+        completed_amount: plan.completed_amount,
+        progress: plan.progress,
+        is_reschedulable: plan.is_reschedulable,
+        plan_group_id: plan.plan_group_id,
+        start_time: plan.start_time,
+        end_time: plan.end_time,
+        actual_start_time: plan.actual_start_time,
+        actual_end_time: plan.actual_end_time,
+        total_duration_seconds: plan.total_duration_seconds,
+        paused_duration_seconds: plan.paused_duration_seconds,
+        pause_count: plan.pause_count,
+        plan_number: plan.plan_number,
+        sequence: plan.sequence,
+        memo: plan.memo,
+        day_type: plan.day_type,
+        week: plan.week,
+        day: plan.day,
+        is_partial: plan.is_partial,
+        is_continued: plan.is_continued,
+        content_title: plan.content_title,
+        content_subject: plan.content_subject,
+        content_subject_category: plan.content_subject_category,
+        content_category: plan.content_category,
+        created_at: plan.created_at,
+        updated_at: plan.updated_at,
+        status: plan.status as "pending" | "in_progress" | "completed" | "cancelled" | null,
+      }));
+
+      // 3. 지연 분석 수행
+      const delayAnalysis = analyzeDelay({
+        plans: planList,
+        startDate: group.period_start,
+        endDate: group.period_end,
+      });
+
+      // 4. 지연이 있는 그룹만 필터링 (severity가 "none"이 아닌 경우)
+      if (delayAnalysis.severity === "none") {
+        continue;
+      }
+
+      // 5. 우선순위 매핑 (severity → priority)
+      let priority: "high" | "medium" | "low";
+      if (
+        delayAnalysis.severity === "critical" ||
+        delayAnalysis.severity === "high"
+      ) {
+        priority = "high";
+      } else if (delayAnalysis.severity === "medium") {
+        priority = "medium";
+      } else {
+        priority = "low";
+      }
+
+      // 6. RescheduleRecommendation 생성
+      recommendations.push({
+        groupId: group.id,
+        groupName: group.name || undefined,
+        reason: delayAnalysis.description,
+        priority,
+        estimatedImpact: {
+          plansAffected: delayAnalysis.details.missedPlans || delayAnalysis.details.totalPlans,
+        },
+      });
+    }
+
+    // 7. 우선순위별 정렬 (high → medium → low)
+    const priorityOrder: Record<"high" | "medium" | "low", number> = {
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    recommendations.sort(
+      (a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]
+    );
+
+    return recommendations;
+  } catch (error) {
+    console.error("[detectRescheduleNeeds] 예상치 못한 오류:", error);
+    return [];
+  }
 }
 
 /**
