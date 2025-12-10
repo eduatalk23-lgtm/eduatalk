@@ -26,7 +26,8 @@ import {
 type PreviewStepProps = {
   groupId: string;
   adjustments: AdjustmentInput[];
-  dateRange?: { from: string; to: string } | null;
+  rescheduleDateRange?: { from: string; to: string } | null;
+  placementDateRange?: { from: string; to: string } | null;
   onLoad: (preview: ReschedulePreviewResult) => void;
   previewResult: ReschedulePreviewResult | null;
 };
@@ -34,7 +35,8 @@ type PreviewStepProps = {
 export function PreviewStep({
   groupId,
   adjustments,
-  dateRange,
+  rescheduleDateRange,
+  placementDateRange,
   onLoad,
   previewResult: initialPreview,
 }: PreviewStepProps) {
@@ -54,8 +56,9 @@ export function PreviewStep({
   // adjustments와 dateRange 변경 시 ref 업데이트
   useEffect(() => {
     adjustmentsRef.current = adjustments;
-    dateRangeRef.current = dateRange;
-  }, [adjustments, dateRange]);
+    // 하위 호환성을 위해 rescheduleDateRange 또는 placementDateRange를 dateRangeRef에 저장
+    dateRangeRef.current = rescheduleDateRange || placementDateRange || null;
+  }, [adjustments, rescheduleDateRange, placementDateRange]);
 
   // 충돌 감지 (실제 플랜 데이터 사용)
   const conflicts = useMemo(() => {
@@ -119,17 +122,20 @@ export function PreviewStep({
     try {
       // ref에서 최신 값 가져오기
       const currentAdjustments = adjustmentsRef.current;
-      const currentDateRange = dateRangeRef.current;
+      const currentRescheduleRange = rescheduleDateRange;
+      const currentPlacementRange = placementDateRange;
 
       console.log("[PreviewStep] loadPreview 호출:", {
         groupId,
         adjustmentsCount: currentAdjustments.length,
-        dateRange: currentDateRange,
+        rescheduleDateRange: currentRescheduleRange,
+        placementDateRange: currentPlacementRange,
       });
       const result = await getReschedulePreview(
         groupId,
         currentAdjustments,
-        currentDateRange
+        currentRescheduleRange || null,
+        currentPlacementRange || null
       );
       console.log("[PreviewStep] loadPreview 성공:", {
         plansBeforeCount: result.plans_before_count,
@@ -150,7 +156,7 @@ export function PreviewStep({
       isLoadingRef.current = false;
       setLoading(false);
     }
-  }, [groupId, onLoad, toast]); // 객체/배열 제거, 함수 참조만 포함
+  }, [groupId, onLoad, toast, rescheduleDateRange, placementDateRange]); // 객체/배열 제거, 함수 참조만 포함
 
   useEffect(() => {
     // 이미 미리보기가 있거나, 로딩 중이거나, 이미 시도했으면 실행하지 않음
@@ -167,28 +173,31 @@ export function PreviewStep({
     // adjustments가 있거나 dateRange가 있으면 미리보기 로드
     // adjustments.length와 dateRange?.from, dateRange?.to를 직접 비교
     const hasAdjustments = adjustments.length > 0;
-    const hasDateRange = !!(dateRange?.from && dateRange?.to);
+    const hasRescheduleRange = !!(rescheduleDateRange?.from && rescheduleDateRange?.to);
+    const hasPlacementRange = !!(placementDateRange?.from && placementDateRange?.to);
 
-    if (hasAdjustments || hasDateRange) {
+    if (hasAdjustments || hasRescheduleRange || hasPlacementRange) {
       console.log("[PreviewStep] useEffect: loadPreview 호출 시도", {
         hasAdjustments,
-        hasDateRange,
+        hasRescheduleRange,
+        hasPlacementRange,
       });
       loadPreview();
     } else {
       console.log("[PreviewStep] useEffect: 조건 불만족", {
         adjustmentsLength: adjustments.length,
-        dateRange,
+        rescheduleDateRange,
+        placementDateRange,
       });
     }
-  }, [adjustments, dateRange, loadPreview]); // preview 제거
+  }, [adjustments, rescheduleDateRange, placementDateRange, loadPreview]); // preview 제거
 
   // adjustments나 dateRange가 변경되면 재시도 허용
   useEffect(() => {
     if (preview) {
       loadAttemptedRef.current = false;
     }
-  }, [adjustments, dateRange, preview]);
+  }, [adjustments, rescheduleDateRange, placementDateRange, preview]);
 
   const handleExecute = async () => {
     if (!confirmDialogOpen) {
@@ -202,7 +211,8 @@ export function PreviewStep({
         groupId,
         adjustments,
         undefined,
-        dateRange
+        rescheduleDateRange || null,
+        placementDateRange || null
       );
       if (result.success) {
         toast.showSuccess("재조정이 완료되었습니다.");
@@ -235,7 +245,9 @@ export function PreviewStep({
 
   if (!preview) {
     // adjustments와 dateRange가 모두 없으면 안내 메시지 표시
-    if (adjustments.length === 0 && (!dateRange?.from || !dateRange?.to)) {
+    const hasRescheduleRange = !!(rescheduleDateRange?.from && rescheduleDateRange?.to);
+    const hasPlacementRange = !!(placementDateRange?.from && placementDateRange?.to);
+    if (adjustments.length === 0 && !hasRescheduleRange && !hasPlacementRange) {
       return (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
           <p className="text-sm text-gray-600">
@@ -294,11 +306,6 @@ export function PreviewStep({
             <p className="text-2xl font-bold text-gray-900">
               {preview.affected_dates.length}
             </p>
-            {dateRange && (
-              <p className="mt-1 text-xs text-gray-500">
-                {dateRange.from} ~ {dateRange.to}
-              </p>
-            )}
           </div>
           <div>
             <p className="text-sm text-gray-600">예상 시간</p>
@@ -309,18 +316,61 @@ export function PreviewStep({
         </div>
       </div>
 
+      {/* 날짜 범위 정보 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="mb-4 font-semibold text-gray-900">날짜 범위 정보</h3>
+        <div className="flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700">재조정할 플랜 범위</p>
+            <p className="mt-1 text-sm text-gray-600">
+              {rescheduleDateRange?.from && rescheduleDateRange?.to
+                ? `${rescheduleDateRange.from} ~ ${rescheduleDateRange.to}`
+                : "전체 기간"}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              어떤 날짜의 기존 플랜을 재조정할지 선택한 범위입니다
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700">재조정 플랜 배치 범위</p>
+            <p className="mt-1 text-sm text-gray-600">
+              {placementDateRange?.from && placementDateRange?.to
+                ? `${placementDateRange.from} ~ ${placementDateRange.to}`
+                : "자동 (오늘 이후 ~ 플랜 그룹 종료일)"}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              새로 생성된 플랜을 배치할 날짜 범위입니다
+            </p>
+          </div>
+          {/* 두 범위가 다른 경우 안내 메시지 */}
+          {rescheduleDateRange?.from &&
+            rescheduleDateRange?.to &&
+            placementDateRange?.from &&
+            placementDateRange?.to &&
+            (rescheduleDateRange.from !== placementDateRange.from ||
+              rescheduleDateRange.to !== placementDateRange.to) && (
+              <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-xs text-blue-800">
+                  💡 재조정할 플랜 범위와 배치 범위가 다릅니다. 선택한 재조정 범위의 플랜은
+                  비활성화되고, 배치 범위에 새 플랜이 생성됩니다.
+                </p>
+              </div>
+            )}
+        </div>
+      </div>
+
       {/* 변경 전/후 비교 */}
       <BeforeAfterComparison
         preview={preview}
         adjustments={adjustments}
-        dateRange={dateRange}
+        dateRange={rescheduleDateRange || placementDateRange || null}
       />
 
       {/* 영향받는 플랜 목록 */}
       <AffectedPlansList
         preview={preview}
         adjustments={adjustments}
-        dateRange={dateRange}
+        dateRange={rescheduleDateRange || placementDateRange || null}
       />
 
       {/* 조정 요약 */}

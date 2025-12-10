@@ -79,16 +79,23 @@ export interface RescheduleResult {
  * 
  * @param groupId 플랜 그룹 ID
  * @param adjustments 조정 요청 목록
- * @param dateRange 날짜 범위 (선택, null이면 전체 재생성)
+ * @param rescheduleDateRange 재조정할 플랜 범위 (선택, null이면 전체 기간)
+ * @param placementDateRange 재조정 플랜 배치 범위 (선택, null이면 자동 계산)
  * @returns 미리보기 결과
  */
 async function _getReschedulePreview(
   groupId: string,
   adjustments: AdjustmentInput[],
-  dateRange?: { from: string; to: string } | null
+  rescheduleDateRange?: { from: string; to: string } | null,
+  placementDateRange?: { from: string; to: string } | null
 ): Promise<ReschedulePreviewResult> {
   // 캐시 조회 (Phase 3: 성능 최적화)
-  const cacheKey = generatePreviewCacheKey(groupId, adjustments, dateRange);
+  // 하위 호환성을 위해 dateRange도 캐시 키에 포함 (기존 코드와의 호환성)
+  const cacheKey = generatePreviewCacheKey(
+    groupId,
+    adjustments,
+    rescheduleDateRange || placementDateRange || null
+  );
   const cachedResult = await getCachedPreview(cacheKey);
   if (cachedResult) {
     console.log("[reschedule] 캐시된 미리보기 결과 반환:", cacheKey);
@@ -138,9 +145,9 @@ async function _getReschedulePreview(
       .eq("plan_group_id", groupId)
       .eq("student_id", group.student_id);
 
-    // 날짜 범위 필터링 (선택한 경우)
-    if (dateRange?.from && dateRange?.to) {
-      query = query.gte("plan_date", dateRange.from).lte("plan_date", dateRange.to);
+    // 기존 플랜 필터링: rescheduleDateRange 사용 (재조정할 플랜 범위)
+    if (rescheduleDateRange?.from && rescheduleDateRange?.to) {
+      query = query.gte("plan_date", rescheduleDateRange.from).lte("plan_date", rescheduleDateRange.to);
     }
 
     const { data: existingPlans } = await query;
@@ -152,16 +159,25 @@ async function _getReschedulePreview(
     // 2.5 오늘 이전 미진행 플랜 조회 및 미진행 범위 계산
     const today = getTodayDateString();
 
-    // 2.6 재조정 기간 먼저 결정 (성능 최적화를 위해 먼저 계산)
+    // 2.6 재조정 기간 결정: placementDateRange 우선, 없으면 자동 계산
     // 이후 calculateAvailableDates와 generatePlansFromGroup에서 이 기간만 사용
     let adjustedPeriod: { start: string; end: string };
-    try {
-      adjustedPeriod = getAdjustedPeriod(dateRange || null, today, group.period_end);
-    } catch (error) {
-      if (error instanceof PeriodCalculationError) {
-        throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
+    if (placementDateRange?.from && placementDateRange?.to) {
+      // 수동으로 선택한 배치 범위 사용
+      adjustedPeriod = {
+        start: placementDateRange.from,
+        end: placementDateRange.to,
+      };
+    } else {
+      // 자동 계산: rescheduleDateRange를 기반으로 오늘 이후 기간 계산
+      try {
+        adjustedPeriod = getAdjustedPeriod(rescheduleDateRange || null, today, group.period_end);
+      } catch (error) {
+        if (error instanceof PeriodCalculationError) {
+          throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
+        }
+        throw error;
       }
-      throw error;
     }
 
     const { data: pastUncompletedPlans } = await supabase
@@ -175,10 +191,10 @@ async function _getReschedulePreview(
       .lt("plan_date", today)
       .in("status", ["pending", "in_progress"]);
 
-    // 2.7 dateRange가 지정된 경우, 해당 범위 내 플랜의 콘텐츠만 필터링 (Phase 4)
+    // 2.7 rescheduleDateRange가 지정된 경우, 해당 범위 내 플랜의 콘텐츠만 필터링 (Phase 4)
     // 날짜 범위 필터링 일관성 개선: 선택한 범위와 관련된 미진행 플랜만 처리
     let relevantPastUncompletedPlans = pastUncompletedPlans || [];
-    if (dateRange?.from && dateRange?.to) {
+    if (rescheduleDateRange?.from && rescheduleDateRange?.to) {
       // 날짜 범위 내에 있는 기존 플랜의 콘텐츠 ID 추출
       const contentIdsInRange = new Set(
         reschedulablePlans.map(p => p.content_id).filter(Boolean)
@@ -459,14 +475,16 @@ export const getReschedulePreview = withErrorHandling(_getReschedulePreview);
  * @param groupId 플랜 그룹 ID
  * @param adjustments 조정 요청 목록
  * @param reason 재조정 사유 (선택)
- * @param dateRange 날짜 범위 (선택, null이면 전체 재생성)
+ * @param rescheduleDateRange 재조정할 플랜 범위 (선택, null이면 전체 기간)
+ * @param placementDateRange 재조정 플랜 배치 범위 (선택, null이면 자동 계산)
  * @returns 실행 결과
  */
 async function _rescheduleContents(
   groupId: string,
   adjustments: AdjustmentInput[],
   reason?: string,
-  dateRange?: { from: string; to: string } | null
+  rescheduleDateRange?: { from: string; to: string } | null,
+  placementDateRange?: { from: string; to: string } | null
 ): Promise<RescheduleResult> {
   const user = await getCurrentUser();
   if (!user) {
@@ -499,9 +517,9 @@ async function _rescheduleContents(
         .eq("plan_group_id", groupId)
         .eq("student_id", group.student_id);
 
-      // 날짜 범위 필터링 (선택한 경우)
-      if (dateRange?.from && dateRange?.to) {
-        query = query.gte("plan_date", dateRange.from).lte("plan_date", dateRange.to);
+      // 기존 플랜 필터링: rescheduleDateRange 사용 (재조정할 플랜 범위)
+      if (rescheduleDateRange?.from && rescheduleDateRange?.to) {
+        query = query.gte("plan_date", rescheduleDateRange.from).lte("plan_date", rescheduleDateRange.to);
       }
 
       const { data: existingPlans } = await query;
@@ -559,7 +577,12 @@ async function _rescheduleContents(
       }
 
       // 7. 새 플랜 생성 - 미리보기와 동일한 로직 사용
-      const previewResult = await _getReschedulePreview(groupId, adjustments, dateRange);
+      const previewResult = await _getReschedulePreview(
+        groupId,
+        adjustments,
+        rescheduleDateRange,
+        placementDateRange
+      );
       const newPlans = previewResult.plans_after;
 
       // 8. 새 플랜 저장

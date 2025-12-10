@@ -29,6 +29,11 @@ type RescheduleWizardProps = {
 
 type WizardStep = 1 | 2 | 3;
 
+type DateRange = {
+  from: string | null;
+  to: string | null;
+};
+
 export function RescheduleWizard({
   groupId,
   group,
@@ -40,10 +45,10 @@ export function RescheduleWizard({
   const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(
     new Set()
   );
-  const [dateRange, setDateRange] = useState<{
-    from: string | null;
-    to: string | null;
-  } | null>(initialDateRange || null);
+  const [rescheduleDateRange, setRescheduleDateRange] = useState<DateRange | null>(
+    initialDateRange || null
+  );
+  const [placementDateRange, setPlacementDateRange] = useState<DateRange | null>(null);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
   const [previewResult, setPreviewResult] = useState<any>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(
@@ -53,17 +58,21 @@ export function RescheduleWizard({
   // Step 1 완료 핸들러
   const handleStep1Complete = (
     contentIds: Set<string>,
-    selectedDateRange: { from: string | null; to: string | null } | null
+    selectedRescheduleRange: DateRange | null
   ) => {
     setSelectedContentIds(contentIds);
-    setDateRange(selectedDateRange);
+    setRescheduleDateRange(selectedRescheduleRange);
     setCompletedSteps(new Set([1]));
     setCurrentStep(2);
   };
 
   // Step 2 완료 핸들러
-  const handleStep2Complete = (newAdjustments: AdjustmentInput[]) => {
+  const handleStep2Complete = (
+    newAdjustments: AdjustmentInput[],
+    selectedPlacementRange: DateRange | null
+  ) => {
     setAdjustments(newAdjustments);
+    setPlacementDateRange(selectedPlacementRange);
     setCompletedSteps(new Set([1, 2]));
     setCurrentStep(3);
   };
@@ -206,15 +215,25 @@ export function RescheduleWizard({
             onComplete={handleStep2Complete}
             onBack={handleBack}
             studentId={group.student_id}
+            groupPeriodEnd={group.period_end}
+            existingPlans={existingPlans.map((p) => ({
+              ...p,
+              plan_date: (p as any).plan_date || "",
+            }))}
           />
         )}
         {currentStep === 3 && (
           <PreviewStep
             groupId={groupId}
             adjustments={adjustments}
-            dateRange={
-              dateRange && dateRange.from && dateRange.to
-                ? { from: dateRange.from, to: dateRange.to }
+            rescheduleDateRange={
+              rescheduleDateRange && rescheduleDateRange.from && rescheduleDateRange.to
+                ? { from: rescheduleDateRange.from, to: rescheduleDateRange.to }
+                : null
+            }
+            placementDateRange={
+              placementDateRange && placementDateRange.from && placementDateRange.to
+                ? { from: placementDateRange.from, to: placementDateRange.to }
                 : null
             }
             onLoad={handleStep3Load}

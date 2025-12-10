@@ -30,7 +30,7 @@ type ContentSelectStepProps = {
   }>;
   onComplete: (
     selectedContentIds: Set<string>,
-    dateRange: DateRange | null
+    rescheduleDateRange: DateRange | null
   ) => void;
   initialDateRange?: { from: string; to: string } | null;
 };
@@ -46,7 +46,7 @@ export function ContentSelectStep({
   const [rescheduleMode, setRescheduleMode] = useState<"full" | "range">(
     initialDateRange ? "range" : "full"
   );
-  const [dateRange, setDateRange] = useState<DateRange>(
+  const [rescheduleDateRange, setRescheduleDateRange] = useState<DateRange>(
     initialDateRange
       ? {
           from: initialDateRange.from,
@@ -157,13 +157,13 @@ export function ContentSelectStep({
     }
 
     if (rescheduleMode === "range") {
-      if (!dateRange.from || !dateRange.to) {
+      if (!rescheduleDateRange.from || !rescheduleDateRange.to) {
         alert("날짜 범위를 선택해주세요.");
         return;
       }
     }
 
-    onComplete(selectedIds, rescheduleMode === "range" ? dateRange : null);
+    onComplete(selectedIds, rescheduleMode === "range" ? rescheduleDateRange : null);
   };
 
   const availableCount = Array.from(contentStatusMap.values()).filter(
@@ -304,7 +304,7 @@ export function ContentSelectStep({
           </div>
 
           {/* 선택한 날짜 범위 요약 (날짜 범위 모드일 때만 표시) */}
-          {rescheduleMode === "range" && dateRange.from && dateRange.to && (
+          {rescheduleMode === "range" && rescheduleDateRange.from && rescheduleDateRange.to && (
             <div className="sticky top-0 z-10 rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -312,13 +312,13 @@ export function ContentSelectStep({
                     선택한 날짜 범위
                   </div>
                   <div className="mt-1 text-sm text-blue-700">
-                    {dateRange.from} ~ {dateRange.to}
+                    {rescheduleDateRange.from} ~ {rescheduleDateRange.to}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
-                    setDateRange({ from: null, to: null });
+                    setRescheduleDateRange({ from: null, to: null });
                   }}
                   className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition"
                 >
@@ -328,10 +328,10 @@ export function ContentSelectStep({
             </div>
           )}
 
-          {/* 재생성 범위 선택 */}
+          {/* 재조정할 플랜 범위 선택 */}
           <div className="rounded-lg border border-gray-200 bg-white p-4">
             <h3 className="mb-3 text-sm font-semibold text-gray-900">
-              재생성 범위 선택
+              재조정할 플랜 범위 선택
             </h3>
             <div className="flex flex-col gap-3">
               <label
@@ -351,9 +351,9 @@ export function ContentSelectStep({
                   aria-label="전체 재생성"
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-gray-900">전체 재생성</div>
+                  <div className="font-medium text-gray-900">전체 기간</div>
                   <div className="text-xs text-gray-600">
-                    모든 플랜을 재생성합니다 (완료된 플랜 제외)
+                    모든 기간의 플랜을 재조정합니다 (완료된 플랜 제외)
                   </div>
                 </div>
               </label>
@@ -378,7 +378,7 @@ export function ContentSelectStep({
                     날짜 범위 선택
                   </div>
                   <div className="text-xs text-gray-600">
-                    특정 날짜 범위의 플랜만 재생성합니다
+                    어떤 날짜의 기존 플랜을 재조정할지 선택합니다 (과거 날짜 포함 가능)
                   </div>
                 </div>
               </label>
@@ -425,7 +425,7 @@ export function ContentSelectStep({
                         selectedContentIds={selectedIds}
                         existingPlans={existingPlans}
                         onSelectRange={(range) => {
-                          setDateRange(range);
+                          setRescheduleDateRange(range);
                         }}
                       />
                     )}
@@ -435,8 +435,8 @@ export function ContentSelectStep({
                       groupPeriodStart={group.period_start}
                       groupPeriodEnd={group.period_end}
                       existingPlans={existingPlans}
-                      onRangeChange={setDateRange}
-                      initialRange={dateRange}
+                      onRangeChange={setRescheduleDateRange}
+                      initialRange={rescheduleDateRange}
                     />
                   </div>
                 )}
@@ -488,7 +488,7 @@ export function ContentSelectStep({
               disabled={
                 selectedIds.size === 0 ||
                 (rescheduleMode === "range" &&
-                  (!dateRange.from || !dateRange.to))
+                  (!rescheduleDateRange.from || !rescheduleDateRange.to))
               }
               className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500"
               aria-label={`다음 단계로 이동 (${selectedIds.size}개 콘텐츠 선택됨)`}

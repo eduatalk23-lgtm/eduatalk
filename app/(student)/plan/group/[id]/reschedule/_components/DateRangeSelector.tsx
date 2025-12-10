@@ -28,6 +28,7 @@ type DateRangeSelectorProps = {
   }>;
   onRangeChange: (range: DateRange) => void;
   initialRange?: DateRange;
+  minDate?: string; // YYYY-MM-DD, 최소 선택 가능 날짜
 };
 
 export function DateRangeSelector({
@@ -36,6 +37,7 @@ export function DateRangeSelector({
   existingPlans,
   onRangeChange,
   initialRange,
+  minDate,
 }: DateRangeSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const start = parseISO(groupPeriodStart);
@@ -67,6 +69,12 @@ export function DateRangeSelector({
   // 날짜가 선택 가능한지 확인
   const isDateSelectable = (date: Date): boolean => {
     const dateStr = format(date, "yyyy-MM-dd");
+    
+    // minDate 체크: minDate가 있으면 해당 날짜 이전은 선택 불가
+    if (minDate && isBefore(date, parseISO(minDate))) {
+      return false;
+    }
+    
     // 완료된 플랜이 있는 날짜는 선택 불가
     if (completedPlanDates.has(dateStr)) {
       return false;
@@ -211,6 +219,7 @@ export function DateRangeSelector({
             const isCompleted = completedPlanDates.has(dateStr);
             const isToday = isSameDay(date, new Date());
             const isOutsidePeriod = !periodDates.some((d) => isSameDay(d, date));
+            const isBeforeMinDate = minDate ? isBefore(date, parseISO(minDate)) : false;
 
             return (
               <button
@@ -220,7 +229,7 @@ export function DateRangeSelector({
                 disabled={!isSelectable}
                 className={`
                   h-8 sm:h-10 rounded-lg text-xs sm:text-sm font-medium transition
-                  ${!isSelectable || isOutsidePeriod
+                  ${!isSelectable || isOutsidePeriod || isBeforeMinDate
                     ? "bg-gray-50 text-gray-300 cursor-not-allowed"
                     : isCompleted
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
@@ -236,6 +245,8 @@ export function DateRangeSelector({
                 title={
                   isCompleted
                     ? "완료된 플랜이 있어 선택할 수 없습니다"
+                    : isBeforeMinDate
+                    ? "최소 선택 가능 날짜 이전입니다"
                     : isOutsidePeriod
                     ? "플랜 그룹 기간 밖입니다"
                     : undefined
