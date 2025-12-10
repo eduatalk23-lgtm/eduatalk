@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanGroupList } from "./_components/PlanGroupList";
 import { PlanGroupStatsCard } from "./_components/PlanGroupStatsCard";
 import { FilterBar } from "./_components/FilterBar";
+import { RescheduleRecommendations } from "./_components/RescheduleRecommendations";
 import { getPlanGroupsWithStats, PlanGroupFilters } from "@/lib/data/planGroups";
 import { ScrollToTop } from "@/components/ScrollToTop";
 

@@ -36,7 +36,7 @@ export function RescheduleRecommendations({
   const loadRecommendations = async () => {
     setLoading(true);
     try {
-      const supabase = createSupabaseBrowserClient();
+      const supabase = createSupabaseClient();
       const recs = await detectRescheduleNeeds(supabase, studentId);
       setRecommendations(recs);
     } catch (error) {
