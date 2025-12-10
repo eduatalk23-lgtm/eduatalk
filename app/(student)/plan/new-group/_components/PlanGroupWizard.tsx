@@ -1059,6 +1059,22 @@ export function PlanGroupWizard({
         // 데이터 변환 (일관성 보장)
         const creationData = syncWizardDataToCreationData(wizardData);
 
+        // 데이터 검증 로그 추가
+        console.log("[PlanGroupWizard] 생성 데이터 검증:", {
+          name: creationData.name,
+          plan_purpose: creationData.plan_purpose,
+          scheduler_type: creationData.scheduler_type,
+          period_start: creationData.period_start,
+          period_end: creationData.period_end,
+          block_set_id: creationData.block_set_id,
+          contents_count: creationData.contents?.length || 0,
+          exclusions_count: creationData.exclusions?.length || 0,
+          academy_schedules_count: creationData.academy_schedules?.length || 0,
+          currentStep,
+          isCampMode,
+          isTemplateMode,
+        });
+
         // 캠프 모드에서는 block_set_id가 template_block_sets 테이블의 ID이므로
         // plan_groups.block_set_id (student_block_sets 참조)에 저장할 수 없음
         // 따라서 null로 설정
@@ -1136,6 +1152,24 @@ export function PlanGroupWizard({
           return;
         }
       } catch (error) {
+        // 원본 에러 상세 로깅
+        console.error("[PlanGroupWizard] 원본 에러:", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorObject: error,
+        });
+
+        // AppError인 경우 추가 정보 로깅
+        if (error instanceof Error && "code" in error) {
+          console.error("[PlanGroupWizard] 에러 상세 정보:", {
+            code: (error as { code?: unknown }).code,
+            statusCode: (error as { statusCode?: unknown }).statusCode,
+            isUserFacing: (error as { isUserFacing?: unknown }).isUserFacing,
+            details: (error as { details?: unknown }).details,
+          });
+        }
+
         const planGroupError = toPlanGroupError(
           error,
           PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
@@ -1145,7 +1179,13 @@ export function PlanGroupWizard({
         
         // 복구 불가능한 에러인 경우 로깅
         if (!isRecoverableError(planGroupError)) {
-          console.error("[PlanGroupWizard] 플랜 그룹 저장 실패:", planGroupError);
+          console.error("[PlanGroupWizard] 플랜 그룹 저장 실패:", {
+            planGroupError,
+            userMessage: planGroupError.userMessage,
+            code: planGroupError.code,
+            recoverable: planGroupError.recoverable,
+            context: planGroupError.context,
+          });
         }
       } finally {
         // 실행 완료 후 플래그 해제

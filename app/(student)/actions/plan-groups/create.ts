@@ -241,7 +241,55 @@ export const createPlanGroupAction = withErrorHandling(
       skipContentValidation?: boolean;
     }
   ) => {
-    return _createPlanGroup(data, options);
+    try {
+      // 입력 데이터 로깅 (민감 정보 제외)
+      console.log("[createPlanGroupAction] 플랜 그룹 생성 시작:", {
+        name: data.name,
+        plan_purpose: data.plan_purpose,
+        scheduler_type: data.scheduler_type,
+        period_start: data.period_start,
+        period_end: data.period_end,
+        block_set_id: data.block_set_id,
+        contents_count: data.contents?.length || 0,
+        exclusions_count: data.exclusions?.length || 0,
+        academy_schedules_count: data.academy_schedules?.length || 0,
+        skipContentValidation: options?.skipContentValidation,
+      });
+
+      return await _createPlanGroup(data, options);
+    } catch (error) {
+      // 상세한 에러 로깅
+      const errorInfo: Record<string, unknown> = {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        data: {
+          name: data.name,
+          plan_purpose: data.plan_purpose,
+          scheduler_type: data.scheduler_type,
+          period_start: data.period_start,
+          period_end: data.period_end,
+          block_set_id: data.block_set_id,
+          contents_count: data.contents?.length || 0,
+          exclusions_count: data.exclusions?.length || 0,
+          academy_schedules_count: data.academy_schedules?.length || 0,
+        },
+        options,
+      };
+
+      // AppError인 경우 추가 정보 포함
+      if (error instanceof AppError) {
+        errorInfo.code = error.code;
+        errorInfo.statusCode = error.statusCode;
+        errorInfo.isUserFacing = error.isUserFacing;
+        if (error.details) {
+          errorInfo.details = error.details;
+        }
+      }
+
+      console.error("[createPlanGroupAction] 에러 발생:", JSON.stringify(errorInfo, null, 2));
+      throw error;
+    }
   }
 );
 
