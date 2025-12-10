@@ -688,6 +688,17 @@ export default async function PlanGroupDetailPage({
           </div>
         </div>
 
+        {/* 자동 재조정 제안 배너 */}
+        {hasPlans && (
+          <AutoRescheduleBanner
+            groupId={id}
+            plans={plansForAnalysis}
+            contents={contentsWithDetails}
+            startDate={group.period_start}
+            endDate={group.period_end}
+          />
+        )}
+
         {/* 진행 상황 카드 */}
         {hasPlans && (
           <PlanGroupProgressCard
