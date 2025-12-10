@@ -99,6 +99,7 @@ export function isDateBeforeOrEqual(a: string, b: string): boolean {
  * @param dateRange 사용자가 선택한 날짜 범위 (null이면 전체 재조정)
  * @param today 오늘 날짜 (YYYY-MM-DD)
  * @param groupEnd 플랜 그룹 종료일 (YYYY-MM-DD)
+ * @param includeToday 오늘 날짜 포함 여부 (기본값: false)
  * @returns 재조정 기간 (start, end)
  * @throws PeriodCalculationError 기간이 유효하지 않은 경우
  * 
@@ -115,19 +116,30 @@ export function isDateBeforeOrEqual(a: string, b: string): boolean {
  *   '2025-12-31'
  * );
  * // { start: '2025-12-11', end: '2025-12-20' }
+ * 
+ * // 오늘 날짜 포함
+ * const period = getAdjustedPeriod(
+ *   null,
+ *   '2025-12-10',
+ *   '2025-12-31',
+ *   true
+ * );
+ * // { start: '2025-12-10', end: '2025-12-31' }
  * ```
  */
 export function getAdjustedPeriod(
   dateRange: { from: string; to: string } | null,
   today: string,
-  groupEnd: string
+  groupEnd: string,
+  includeToday: boolean = false
 ): AdjustedPeriod {
+  const startDate = includeToday ? today : getNextDayString(today);
   const tomorrow = getNextDayString(today);
 
   // 전체 재조정 (날짜 범위 미지정)
   if (!dateRange) {
     // 오늘 이후 기간이 남아있는지 확인
-    if (isDateBefore(groupEnd, tomorrow)) {
+    if (isDateBefore(groupEnd, startDate)) {
       throw new PeriodCalculationError(
         '재조정할 기간이 남아있지 않습니다. 플랜 그룹 종료일이 오늘 이전입니다.',
         'NO_REMAINING_PERIOD'
@@ -135,7 +147,7 @@ export function getAdjustedPeriod(
     }
 
     return {
-      start: tomorrow,
+      start: startDate,
       end: groupEnd,
     };
   }
@@ -151,16 +163,16 @@ export function getAdjustedPeriod(
     );
   }
 
-  // 선택한 범위가 모두 오늘 이전인 경우
-  if (isDateBefore(to, tomorrow)) {
+  // 선택한 범위가 모두 시작일 이전인 경우
+  if (isDateBefore(to, startDate)) {
     throw new PeriodCalculationError(
-      '선택한 날짜 범위에 오늘 이후 기간이 포함되지 않았습니다.',
+      '선택한 날짜 범위에 유효한 기간이 포함되지 않았습니다.',
       'PAST_DATE_RANGE'
     );
   }
 
-  // 시작일 조정: 오늘 이후로 설정
-  const adjustedStart = isDateBefore(from, tomorrow) ? tomorrow : from;
+  // 시작일 조정: 시작일 이후로 설정
+  const adjustedStart = isDateBefore(from, startDate) ? startDate : from;
 
   // 종료일: groupEnd를 초과하지 않도록 (선택사항)
   const adjustedEnd = isDateBefore(groupEnd, to) ? groupEnd : to;
@@ -179,18 +191,21 @@ export function getAdjustedPeriod(
  * @param dateRange 사용자가 선택한 날짜 범위
  * @param today 오늘 날짜
  * @param groupEnd 플랜 그룹 종료일
+ * @param includeToday 오늘 날짜 포함 여부 (기본값: false)
  * @returns 기간 계산 상세 결과
  */
 export function getAdjustedPeriodWithDetails(
   dateRange: { from: string; to: string } | null,
   today: string,
-  groupEnd: string
+  groupEnd: string,
+  includeToday: boolean = false
 ): PeriodCalculationResult {
   const tomorrow = getNextDayString(today);
-  const period = getAdjustedPeriod(dateRange, today, groupEnd);
+  const startDate = includeToday ? today : tomorrow;
+  const period = getAdjustedPeriod(dateRange, today, groupEnd, includeToday);
 
   const wasAdjusted = dateRange
-    ? isDateBefore(dateRange.from, tomorrow)
+    ? isDateBefore(dateRange.from, startDate)
     : false;
 
   return {
@@ -214,10 +229,11 @@ export function getAdjustedPeriodWithDetails(
 export function validateReschedulePeriod(
   dateRange: { from: string; to: string } | null,
   today: string,
-  groupEnd: string
+  groupEnd: string,
+  includeToday: boolean = false
 ): { valid: boolean; error?: string; errorCode?: PeriodCalculationError['code'] } {
   try {
-    getAdjustedPeriod(dateRange, today, groupEnd);
+    getAdjustedPeriod(dateRange, today, groupEnd, includeToday);
     return { valid: true };
   } catch (error) {
     if (error instanceof PeriodCalculationError) {

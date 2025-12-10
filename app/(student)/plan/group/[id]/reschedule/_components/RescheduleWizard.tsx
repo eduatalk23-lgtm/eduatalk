@@ -49,6 +49,7 @@ export function RescheduleWizard({
     initialDateRange || null
   );
   const [placementDateRange, setPlacementDateRange] = useState<DateRange | null>(null);
+  const [includeToday, setIncludeToday] = useState(false);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
   const [previewResult, setPreviewResult] = useState<any>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(
@@ -58,10 +59,12 @@ export function RescheduleWizard({
   // Step 1 완료 핸들러
   const handleStep1Complete = (
     contentIds: Set<string>,
-    selectedRescheduleRange: DateRange | null
+    selectedRescheduleRange: DateRange | null,
+    includeTodayValue: boolean
   ) => {
     setSelectedContentIds(contentIds);
     setRescheduleDateRange(selectedRescheduleRange);
+    setIncludeToday(includeTodayValue);
     setCompletedSteps(new Set([1]));
     setCurrentStep(2);
   };
@@ -236,6 +239,7 @@ export function RescheduleWizard({
                 ? { from: placementDateRange.from, to: placementDateRange.to }
                 : null
             }
+            includeToday={includeToday}
             onLoad={handleStep3Load}
             previewResult={previewResult}
           />

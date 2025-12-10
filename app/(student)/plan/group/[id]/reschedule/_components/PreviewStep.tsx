@@ -28,6 +28,7 @@ type PreviewStepProps = {
   adjustments: AdjustmentInput[];
   rescheduleDateRange?: { from: string; to: string } | null;
   placementDateRange?: { from: string; to: string } | null;
+  includeToday?: boolean;
   onLoad: (preview: ReschedulePreviewResult) => void;
   previewResult: ReschedulePreviewResult | null;
 };
@@ -37,6 +38,7 @@ export function PreviewStep({
   adjustments,
   rescheduleDateRange,
   placementDateRange,
+  includeToday = false,
   onLoad,
   previewResult: initialPreview,
 }: PreviewStepProps) {
@@ -135,7 +137,8 @@ export function PreviewStep({
         groupId,
         currentAdjustments,
         currentRescheduleRange || null,
-        currentPlacementRange || null
+        currentPlacementRange || null,
+        includeToday
       );
       console.log("[PreviewStep] loadPreview 성공:", {
         plansBeforeCount: result.plans_before_count,
@@ -156,7 +159,7 @@ export function PreviewStep({
       isLoadingRef.current = false;
       setLoading(false);
     }
-  }, [groupId, onLoad, toast, rescheduleDateRange, placementDateRange]); // 객체/배열 제거, 함수 참조만 포함
+  }, [groupId, onLoad, toast, rescheduleDateRange, placementDateRange, includeToday]); // 객체/배열 제거, 함수 참조만 포함
 
   useEffect(() => {
     // 이미 미리보기가 있거나, 로딩 중이거나, 이미 시도했으면 실행하지 않음
@@ -173,10 +176,14 @@ export function PreviewStep({
     // adjustments가 있거나 dateRange가 있으면 미리보기 로드
     // adjustments.length와 dateRange?.from, dateRange?.to를 직접 비교
     const hasAdjustments = adjustments.length > 0;
-    const hasRescheduleRange = !!(rescheduleDateRange?.from && rescheduleDateRange?.to);
-    const hasPlacementRange = !!(placementDateRange?.from && placementDateRange?.to);
+    const hasRescheduleRange = !!(
+      rescheduleDateRange?.from && rescheduleDateRange?.to
+    );
+    const hasPlacementRange = !!(
+      placementDateRange?.from && placementDateRange?.to
+    );
 
-    if (hasAdjustments || hasRescheduleRange || hasPlacementRange) {
+    if (hasAdjustments || hasRescheduleRange || hasPlacementRange || includeToday) {
       console.log("[PreviewStep] useEffect: loadPreview 호출 시도", {
         hasAdjustments,
         hasRescheduleRange,
@@ -188,16 +195,17 @@ export function PreviewStep({
         adjustmentsLength: adjustments.length,
         rescheduleDateRange,
         placementDateRange,
+        includeToday,
       });
     }
-  }, [adjustments, rescheduleDateRange, placementDateRange, loadPreview]); // preview 제거
+  }, [adjustments, rescheduleDateRange, placementDateRange, includeToday, loadPreview]); // preview 제거
 
   // adjustments나 dateRange가 변경되면 재시도 허용
   useEffect(() => {
     if (preview) {
       loadAttemptedRef.current = false;
     }
-  }, [adjustments, rescheduleDateRange, placementDateRange, preview]);
+  }, [adjustments, rescheduleDateRange, placementDateRange, includeToday, preview]);
 
   const handleExecute = async () => {
     if (!confirmDialogOpen) {
@@ -212,7 +220,8 @@ export function PreviewStep({
         adjustments,
         undefined,
         rescheduleDateRange || null,
-        placementDateRange || null
+        placementDateRange || null,
+        includeToday
       );
       if (result.success) {
         toast.showSuccess("재조정이 완료되었습니다.");
@@ -245,8 +254,12 @@ export function PreviewStep({
 
   if (!preview) {
     // adjustments와 dateRange가 모두 없으면 안내 메시지 표시
-    const hasRescheduleRange = !!(rescheduleDateRange?.from && rescheduleDateRange?.to);
-    const hasPlacementRange = !!(placementDateRange?.from && placementDateRange?.to);
+    const hasRescheduleRange = !!(
+      rescheduleDateRange?.from && rescheduleDateRange?.to
+    );
+    const hasPlacementRange = !!(
+      placementDateRange?.from && placementDateRange?.to
+    );
     if (adjustments.length === 0 && !hasRescheduleRange && !hasPlacementRange) {
       return (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
@@ -321,7 +334,9 @@ export function PreviewStep({
         <h3 className="mb-4 font-semibold text-gray-900">날짜 범위 정보</h3>
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm font-medium text-gray-700">재조정할 플랜 범위</p>
+            <p className="text-sm font-medium text-gray-700">
+              재조정할 플랜 범위
+            </p>
             <p className="mt-1 text-sm text-gray-600">
               {rescheduleDateRange?.from && rescheduleDateRange?.to
                 ? `${rescheduleDateRange.from} ~ ${rescheduleDateRange.to}`
@@ -332,7 +347,9 @@ export function PreviewStep({
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-700">재조정 플랜 배치 범위</p>
+            <p className="text-sm font-medium text-gray-700">
+              재조정 플랜 배치 범위
+            </p>
             <p className="mt-1 text-sm text-gray-600">
               {placementDateRange?.from && placementDateRange?.to
                 ? `${placementDateRange.from} ~ ${placementDateRange.to}`
@@ -340,6 +357,17 @@ export function PreviewStep({
             </p>
             <p className="mt-1 text-xs text-gray-500">
               새로 생성된 플랜을 배치할 날짜 범위입니다
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700">오늘 날짜 포함</p>
+            <p className="mt-1 text-sm text-gray-600">
+              {includeToday ? "포함됨" : "제외됨"}
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {includeToday
+                ? "오늘 날짜의 플랜도 재조정 대상에 포함됩니다"
+                : "오늘 날짜의 플랜은 재조정 대상에서 제외됩니다"}
             </p>
           </div>
           {/* 두 범위가 다른 경우 안내 메시지 */}
@@ -351,8 +379,8 @@ export function PreviewStep({
               rescheduleDateRange.to !== placementDateRange.to) && (
               <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <p className="text-xs text-blue-800">
-                  💡 재조정할 플랜 범위와 배치 범위가 다릅니다. 선택한 재조정 범위의 플랜은
-                  비활성화되고, 배치 범위에 새 플랜이 생성됩니다.
+                  💡 재조정할 플랜 범위와 배치 범위가 다릅니다. 선택한 재조정
+                  범위의 플랜은 비활성화되고, 배치 범위에 새 플랜이 생성됩니다.
                 </p>
               </div>
             )}

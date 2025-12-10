@@ -81,13 +81,15 @@ export interface RescheduleResult {
  * @param adjustments 조정 요청 목록
  * @param rescheduleDateRange 재조정할 플랜 범위 (선택, null이면 전체 기간)
  * @param placementDateRange 재조정 플랜 배치 범위 (선택, null이면 자동 계산)
+ * @param includeToday 오늘 날짜 포함 여부 (기본값: false)
  * @returns 미리보기 결과
  */
 async function _getReschedulePreview(
   groupId: string,
   adjustments: AdjustmentInput[],
   rescheduleDateRange?: { from: string; to: string } | null,
-  placementDateRange?: { from: string; to: string } | null
+  placementDateRange?: { from: string; to: string } | null,
+  includeToday: boolean = false
 ): Promise<ReschedulePreviewResult> {
   // 캐시 조회 (Phase 3: 성능 최적화)
   // 하위 호환성을 위해 dateRange도 캐시 키에 포함 (기존 코드와의 호환성)
@@ -171,7 +173,7 @@ async function _getReschedulePreview(
     } else {
       // 자동 계산: rescheduleDateRange를 기반으로 오늘 이후 기간 계산
       try {
-        adjustedPeriod = getAdjustedPeriod(rescheduleDateRange || null, today, group.period_end);
+        adjustedPeriod = getAdjustedPeriod(rescheduleDateRange || null, today, group.period_end, includeToday);
       } catch (error) {
         if (error instanceof PeriodCalculationError) {
           throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
@@ -180,7 +182,8 @@ async function _getReschedulePreview(
       }
     }
 
-    const { data: pastUncompletedPlans } = await supabase
+    // 미진행 플랜 조회: includeToday에 따라 조건 변경
+    let pastUncompletedQuery = supabase
       .from("student_plan")
       .select(
         "content_id, planned_start_page_or_time, planned_end_page_or_time, completed_amount"
@@ -188,8 +191,16 @@ async function _getReschedulePreview(
       .eq("plan_group_id", groupId)
       .eq("student_id", group.student_id)
       .eq("is_active", true)
-      .lt("plan_date", today)
       .in("status", ["pending", "in_progress"]);
+    
+    // includeToday가 true이면 오늘까지 포함, false이면 오늘 이전만
+    if (includeToday) {
+      pastUncompletedQuery = pastUncompletedQuery.lte("plan_date", today);
+    } else {
+      pastUncompletedQuery = pastUncompletedQuery.lt("plan_date", today);
+    }
+    
+    const { data: pastUncompletedPlans } = await pastUncompletedQuery;
 
     // 2.7 rescheduleDateRange가 지정된 경우, 해당 범위 내 플랜의 콘텐츠만 필터링 (Phase 4)
     // 날짜 범위 필터링 일관성 개선: 선택한 범위와 관련된 미진행 플랜만 처리
@@ -477,6 +488,7 @@ export const getReschedulePreview = withErrorHandling(_getReschedulePreview);
  * @param reason 재조정 사유 (선택)
  * @param rescheduleDateRange 재조정할 플랜 범위 (선택, null이면 전체 기간)
  * @param placementDateRange 재조정 플랜 배치 범위 (선택, null이면 자동 계산)
+ * @param includeToday 오늘 날짜 포함 여부 (기본값: false)
  * @returns 실행 결과
  */
 async function _rescheduleContents(
@@ -484,7 +496,8 @@ async function _rescheduleContents(
   adjustments: AdjustmentInput[],
   reason?: string,
   rescheduleDateRange?: { from: string; to: string } | null,
-  placementDateRange?: { from: string; to: string } | null
+  placementDateRange?: { from: string; to: string } | null,
+  includeToday: boolean = false
 ): Promise<RescheduleResult> {
   const user = await getCurrentUser();
   if (!user) {
@@ -581,7 +594,8 @@ async function _rescheduleContents(
         groupId,
         adjustments,
         rescheduleDateRange,
-        placementDateRange
+        placementDateRange,
+        includeToday
       );
       const newPlans = previewResult.plans_after;
 

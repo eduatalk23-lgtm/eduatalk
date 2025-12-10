@@ -30,7 +30,8 @@ type ContentSelectStepProps = {
   }>;
   onComplete: (
     selectedContentIds: Set<string>,
-    rescheduleDateRange: DateRange | null
+    rescheduleDateRange: DateRange | null,
+    includeToday: boolean
   ) => void;
   initialDateRange?: { from: string; to: string } | null;
 };
@@ -58,6 +59,7 @@ export function ContentSelectStep({
         }
   );
   const [dateRangeExpanded, setDateRangeExpanded] = useState(false);
+  const [includeToday, setIncludeToday] = useState(false);
 
   // 콘텐츠별 플랜 상태 계산 및 영향 범위 계산
   const contentStatusMap = useMemo(() => {
@@ -163,7 +165,7 @@ export function ContentSelectStep({
       }
     }
 
-    onComplete(selectedIds, rescheduleMode === "range" ? rescheduleDateRange : null);
+    onComplete(selectedIds, rescheduleMode === "range" ? rescheduleDateRange : null, includeToday);
   };
 
   const availableCount = Array.from(contentStatusMap.values()).filter(
@@ -442,6 +444,25 @@ export function ContentSelectStep({
                 )}
               </div>
             )}
+
+            {/* 오늘 날짜 포함 옵션 */}
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={includeToday}
+                  onChange={(e) => setIncludeToday(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  aria-label="오늘 날짜 포함"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">오늘 날짜 포함</div>
+                  <div className="mt-1 text-xs text-gray-600">
+                    오늘 날짜의 플랜도 재조정 대상에 포함됩니다. 이미 진행 중이거나 완료된 플랜은 제외됩니다.
+                  </div>
+                </div>
+              </label>
+            </div>
           </div>
 
           {/* 선택한 콘텐츠 요약 카드 */}
