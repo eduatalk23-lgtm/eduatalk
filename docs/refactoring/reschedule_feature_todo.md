@@ -729,9 +729,9 @@
   ```
 - **위험도**: 🟢 낮음
 
-#### [R3-11] 자동 제안 UI 컴포넌트
+#### [R3-11] 자동 제안 UI 컴포넌트 ✅
 
-- **파일**: `app/(student)/plan/_components/RescheduleRecommendations.tsx` (신규)
+- **파일**: `app/(student)/plan/_components/RescheduleRecommendations.tsx` (신규) ✅
 - **작업**:
   - 추천 재조정 목록 표시
   - 원클릭 재조정 실행
