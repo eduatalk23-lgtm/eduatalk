@@ -178,7 +178,7 @@ export function PlanRangeAdjustModal({
       onOpenChange={onClose}
       title="플랜 범위 조정"
       description={contentTitle}
-      maxWidth="3xl"
+      maxWidth="4xl"
     >
       <DialogContent>
         <div className="max-h-[calc(90vh-200px)] overflow-y-auto">

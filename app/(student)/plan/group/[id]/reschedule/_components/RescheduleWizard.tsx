@@ -1,6 +1,6 @@
 /**
  * 재조정 Wizard 컴포넌트
- * 
+ *
  * 3단계 Wizard로 재조정을 진행합니다.
  */
 
@@ -24,6 +24,7 @@ type RescheduleWizardProps = {
     is_active: boolean | null;
     content_id: string;
   }>;
+  initialDateRange?: { from: string; to: string } | null;
 };
 
 type WizardStep = 1 | 2 | 3;
@@ -33,6 +34,7 @@ export function RescheduleWizard({
   group,
   contents,
   existingPlans,
+  initialDateRange,
 }: RescheduleWizardProps) {
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(
@@ -41,10 +43,12 @@ export function RescheduleWizard({
   const [dateRange, setDateRange] = useState<{
     from: string | null;
     to: string | null;
-  } | null>(null);
+  } | null>(initialDateRange || null);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
   const [previewResult, setPreviewResult] = useState<any>(null);
-  const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
+  const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(
+    new Set()
+  );
 
   // Step 1 완료 핸들러
   const handleStep1Complete = (
@@ -105,14 +109,20 @@ export function RescheduleWizard({
               const isPast = currentStep > step;
 
               return (
-                <div 
-                  key={step} 
+                <div
+                  key={step}
                   className="flex items-center gap-2"
                   role="progressbar"
                   aria-valuenow={step}
                   aria-valuemin={1}
                   aria-valuemax={3}
-                  aria-label={`${step === 1 ? "콘텐츠 선택" : step === 2 ? "상세 조정" : "미리보기 & 확인"} 단계${isCompleted ? " 완료" : isCurrent ? " 진행 중" : ""}`}
+                  aria-label={`${
+                    step === 1
+                      ? "콘텐츠 선택"
+                      : step === 2
+                      ? "상세 조정"
+                      : "미리보기 & 확인"
+                  } 단계${isCompleted ? " 완료" : isCurrent ? " 진행 중" : ""}`}
                 >
                   <div
                     className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition flex-shrink-0 ${
@@ -185,6 +195,7 @@ export function RescheduleWizard({
               plan_date: (p as any).plan_date || "",
             }))}
             onComplete={handleStep1Complete}
+            initialDateRange={initialDateRange}
           />
         )}
         {currentStep === 2 && (
@@ -201,7 +212,7 @@ export function RescheduleWizard({
           <PreviewStep
             groupId={groupId}
             adjustments={adjustments}
-            dateRange={dateRange}
+            dateRange={dateRange && dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : null}
             onLoad={handleStep3Load}
             previewResult={previewResult}
           />
@@ -210,4 +221,3 @@ export function RescheduleWizard({
     </div>
   );
 }
-

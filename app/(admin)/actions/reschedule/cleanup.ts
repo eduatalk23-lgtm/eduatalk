@@ -49,10 +49,10 @@ export interface RecoveryResult {
  * @param groupId 플랜 그룹 ID
  * @returns 정리 결과
  */
-export async function cleanupOrphanedPlans(
+async function _cleanupOrphanedPlans(
   groupId: string
 ): Promise<CleanupResult> {
-  return withErrorHandling(async () => {
+  return (async () => {
     const { role } = await getCurrentUserRole();
     if (!isAdminRole(role)) {
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
@@ -146,8 +146,10 @@ export async function cleanupOrphanedPlans(
       cleanedPlans: cleanedCount,
       restoredPlans: restoredCount,
     };
-  });
+  })();
 }
+
+export const cleanupOrphanedPlans = withErrorHandling(_cleanupOrphanedPlans);
 
 /**
  * 실패한 재조정 복구
@@ -157,10 +159,10 @@ export async function cleanupOrphanedPlans(
  * @param rescheduleLogId 재조정 로그 ID
  * @returns 복구 결과
  */
-export async function recoverFailedReschedule(
+async function _recoverFailedReschedule(
   rescheduleLogId: string
 ): Promise<RecoveryResult> {
-  return withErrorHandling(async () => {
+  return (async () => {
     const { role } = await getCurrentUserRole();
     if (!isAdminRole(role)) {
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
@@ -210,6 +212,8 @@ export async function recoverFailedReschedule(
       success: true,
       recoveredLogs: 1,
     };
-  });
+  })();
 }
+
+export const recoverFailedReschedule = withErrorHandling(_recoverFailedReschedule);
 

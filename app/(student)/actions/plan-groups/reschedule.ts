@@ -79,23 +79,26 @@ export interface RescheduleResult {
  * @param dateRange 날짜 범위 (선택, null이면 전체 재생성)
  * @returns 미리보기 결과
  */
-export async function getReschedulePreview(
+async function _getReschedulePreview(
   groupId: string,
   adjustments: AdjustmentInput[],
   dateRange?: { from: string; to: string } | null
 ): Promise<ReschedulePreviewResult> {
-  return withErrorHandling(async () => {
-    const user = await getCurrentUser();
-    const tenantContext = await requireTenantContext();
-    const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+  
+  const tenantContext = await requireTenantContext();
+  const supabase = await createSupabaseServerClient();
 
-    // 1. 플랜 그룹 및 관련 데이터 조회
-    const { group, contents, exclusions, academySchedules } =
-      await getPlanGroupWithDetails(
-        groupId,
-        user.id,
-        tenantContext?.tenantId || null
-      );
+  // 1. 플랜 그룹 및 관련 데이터 조회
+  const { group, contents, exclusions, academySchedules } =
+    await getPlanGroupWithDetails(
+      groupId,
+      user.userId,
+      tenantContext?.tenantId || null
+    );
 
     if (!group) {
       throw new AppError(
@@ -139,15 +142,15 @@ export async function getReschedulePreview(
     const adjustedContents = applyAdjustments(contents, adjustments);
 
     // 4. 블록 세트 조회
-    const baseBlocks = await getBlockSetForPlanGroup(
+    const baseBlocksRaw = await getBlockSetForPlanGroup(
       group,
       group.student_id,
-      user.id,
+      user.userId,
       "student" as PlanGroupAllowedRole,
       tenantContext?.tenantId || null
     );
 
-    if (baseBlocks.length === 0) {
+    if (baseBlocksRaw.length === 0) {
       throw new AppError(
         "블록 세트를 찾을 수 없습니다.",
         ErrorCode.NOT_FOUND,
@@ -155,6 +158,31 @@ export async function getReschedulePreview(
         true
       );
     }
+
+    // BlockInfo 타입 변환 (blocks.ts의 BlockInfo → scheduler.ts의 BlockInfo)
+    const baseBlocks: Array<{
+      id: string;
+      day_of_week: number;
+      block_index: number;
+      start_time: string;
+      end_time: string;
+      duration_minutes: number;
+    }> = baseBlocksRaw.map((block, index) => {
+      const start = block.start_time.split(":").map(Number);
+      const end = block.end_time.split(":").map(Number);
+      const startMinutes = start[0] * 60 + start[1];
+      const endMinutes = end[0] * 60 + end[1];
+      const durationMinutes = endMinutes - startMinutes;
+
+      return {
+        id: `block-${index}`,
+        day_of_week: block.day_of_week,
+        block_index: index,
+        start_time: block.start_time,
+        end_time: block.end_time,
+        duration_minutes: durationMinutes,
+      };
+    });
 
     // 5. 스케줄러 설정 병합
     const { getMergedSchedulerSettings } = await import(
@@ -338,8 +366,9 @@ export async function getReschedulePreview(
       plans_before: plansBefore,
       plans_after: filteredPlans,
     };
-  });
 }
+
+export const getReschedulePreview = withErrorHandling(_getReschedulePreview);
 
 // ============================================
 // 실행 함수
@@ -356,14 +385,16 @@ export async function getReschedulePreview(
  * @param dateRange 날짜 범위 (선택, null이면 전체 재생성)
  * @returns 실행 결과
  */
-export async function rescheduleContents(
+async function _rescheduleContents(
   groupId: string,
   adjustments: AdjustmentInput[],
   reason?: string,
   dateRange?: { from: string; to: string } | null
 ): Promise<RescheduleResult> {
-  return withErrorHandling(async () => {
-    const user = await getCurrentUser();
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
     const tenantContext = await requireTenantContext();
 
     return executeRescheduleTransaction(groupId, async (supabase) => {
@@ -508,6 +539,7 @@ export async function rescheduleContents(
         plans_after_count: plansAfterCount,
       };
     });
-  });
 }
+
+export const rescheduleContents = withErrorHandling(_rescheduleContents);
 

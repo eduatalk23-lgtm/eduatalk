@@ -42,32 +42,35 @@ export interface RollbackResult {
  * @param rescheduleLogId 재조정 로그 ID
  * @returns 롤백 결과
  */
-export async function rollbackReschedule(
+async function _rollbackReschedule(
   rescheduleLogId: string
 ): Promise<RollbackResult> {
-  return withErrorHandling(async () => {
-    const user = await getCurrentUser();
-    const tenantContext = await requireTenantContext();
-    const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+  
+  const tenantContext = await requireTenantContext();
+  const supabase = await createSupabaseServerClient();
 
-    // 1. 재조정 로그 조회
-    const { data: log, error: logError } = await supabase
-      .from("reschedule_log")
-      .select("*")
-      .eq("id", rescheduleLogId)
-      .single();
+  // 1. 재조정 로그 조회
+  const { data: log, error: logError } = await supabase
+    .from("reschedule_log")
+    .select("*")
+    .eq("id", rescheduleLogId)
+    .single();
 
-    if (logError || !log) {
-      throw new AppError(
-        "재조정 로그를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
+  if (logError || !log) {
+    throw new AppError(
+      "재조정 로그를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
 
-    // 2. 권한 확인 (학생이 자신의 플랜만 롤백 가능)
-    if (log.student_id !== user.id) {
+  // 2. 권한 확인 (학생이 자신의 플랜만 롤백 가능)
+  if (log.student_id !== user.userId) {
       throw new AppError(
         "권한이 없습니다.",
         ErrorCode.FORBIDDEN,
@@ -233,6 +236,7 @@ export async function rollbackReschedule(
         canceledPlans: canceledCount,
       };
     });
-  });
 }
+
+export const rollbackReschedule = withErrorHandling(_rollbackReschedule);
 

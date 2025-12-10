@@ -232,7 +232,14 @@ export default function AcademyScheduleManagement({
     for (const newSchedule of newSchedules) {
       const validation = validateAcademyScheduleOverlap(
         newSchedule,
-        selectedAcademySchedules
+        selectedAcademySchedules.map(s => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          academy_name: s.academy_name ?? undefined,
+          subject: s.subject ?? undefined,
+          travel_time: s.travel_time ?? undefined,
+        }))
       );
       if (!validation.isValid) {
         alert(

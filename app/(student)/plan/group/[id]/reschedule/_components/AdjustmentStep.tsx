@@ -343,7 +343,7 @@ export function AdjustmentStep({
                       </div>
                       <div className="mt-1 text-blue-700">
                         범위: {currentRange.start} ~ {currentRange.end}
-                        {replacedContent.info?.total_page_or_time !== null && (
+                        {replacedContent.info?.total_page_or_time !== null && replacedContent.info?.total_page_or_time !== undefined && (
                           <span className="ml-2 text-xs text-blue-600">
                             (총{" "}
                             {replacedContent.content_type === "book"

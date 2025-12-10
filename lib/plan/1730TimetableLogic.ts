@@ -223,7 +223,7 @@ export function getContentAllocation(
     // 2-4: subject 필드도 매칭 조건에 포함
     if (content.subject) {
       const subjectAlloc = subjectAllocations.find(
-        a => a.subject_name === content.subject || a.subject_name.includes(content.subject)
+        a => a.subject_name === content.subject || (content.subject && a.subject_name.includes(content.subject))
       );
       if (subjectAlloc) {
         return {

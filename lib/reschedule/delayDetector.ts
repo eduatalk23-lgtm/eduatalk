@@ -95,7 +95,27 @@ function isValidDate(date: Date): boolean {
  * 플랜 완료 여부 확인
  */
 function isPlanCompleted(plan: Plan): boolean {
-  return plan.status === "completed" || plan.actual_end_time !== null;
+  // Plan 타입에 status가 없으므로, progress가 100이거나 completed_amount가 planned_end_page_or_time과 같으면 완료로 간주
+  const isProgressComplete = plan.progress === 100;
+  const isAmountComplete = 
+    plan.planned_end_page_or_time !== null &&
+    plan.planned_end_page_or_time !== undefined &&
+    plan.completed_amount !== null &&
+    plan.completed_amount !== undefined &&
+    plan.completed_amount >= plan.planned_end_page_or_time;
+  
+  // 타입 확장: 실제 DB에서 가져온 플랜은 status와 actual_end_time이 있을 수 있음
+  const planWithStatus = plan as Plan & { 
+    status?: string | null; 
+    actual_end_time?: string | null;
+  };
+  
+  return (
+    isProgressComplete ||
+    isAmountComplete ||
+    planWithStatus.status === "completed" ||
+    planWithStatus.actual_end_time !== null
+  );
 }
 
 /**

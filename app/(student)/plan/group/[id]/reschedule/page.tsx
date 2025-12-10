@@ -1,6 +1,6 @@
 /**
  * 플랜 그룹 재조정 페이지
- * 
+ *
  * 3단계 Wizard 형태로 재조정을 진행합니다.
  * - Step 1: 콘텐츠 선택
  * - Step 2: 상세 조정
@@ -16,12 +16,20 @@ import { RescheduleWizard } from "./_components/RescheduleWizard";
 
 type ReschedulePageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    suggestion?: string;
+    priority?: string;
+  }>;
 };
 
 export default async function ReschedulePage({
   params,
+  searchParams,
 }: ReschedulePageProps) {
   const { id } = await params;
+  const searchParamsData = await searchParams;
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -52,6 +60,23 @@ export default async function ReschedulePage({
     .select("id, status, is_active, content_id, plan_date")
     .eq("plan_group_id", id)
     .eq("student_id", user.id);
+
+  // URL 쿼리 파라미터에서 날짜 범위 파싱
+  let initialDateRange: { from: string; to: string } | null = null;
+  if (searchParamsData.from && searchParamsData.to) {
+    // 날짜 형식 검증 (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (
+      dateRegex.test(searchParamsData.from) &&
+      dateRegex.test(searchParamsData.to) &&
+      searchParamsData.from <= searchParamsData.to
+    ) {
+      initialDateRange = {
+        from: searchParamsData.from,
+        to: searchParamsData.to,
+      };
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
@@ -95,9 +120,9 @@ export default async function ReschedulePage({
           group={group}
           contents={contents}
           existingPlans={existingPlans || []}
+          initialDateRange={initialDateRange}
         />
       </div>
     </div>
   );
 }
-
