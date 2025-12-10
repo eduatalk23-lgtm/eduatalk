@@ -61,85 +61,126 @@ type ScheduleTableViewProps = {
   blocks: BlockData[];
 };
 
-// 전체 플랜에서 회차 계산을 위한 헬퍼
+// 회차 계산 최적화: 모든 플랜의 회차를 한 번에 계산
 // 저장된 sequence가 있으면 사용하고, 없으면 계산
 // 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
-function calculateSequenceForPlan(plan: Plan, allPlans: Plan[]): number {
-  // 저장된 sequence가 있으면 사용
-  if (plan.sequence !== null && plan.sequence !== undefined) {
-    return plan.sequence;
-  }
-
-  // 같은 content_id를 가진 플랜들 필터링
-  const sameContentPlans = allPlans.filter(
-    (p) => p.content_id === plan.content_id
-  );
-
-  // plan_number가 null이 아닌 경우, 같은 plan_number를 가진 첫 번째 플랜의 회차를 사용
-  if (plan.plan_number !== null) {
-    const firstPlanWithSameNumber = sameContentPlans.find(
-      (p) =>
-        p.plan_number === plan.plan_number &&
-        p.sequence !== null &&
-        p.sequence !== undefined
-    );
-
-    if (firstPlanWithSameNumber) {
-      // 같은 plan_number를 가진 플랜의 저장된 회차 사용
-      return firstPlanWithSameNumber.sequence!;
+function calculateAllSequences(plans: Plan[]): Map<string, number> {
+  const sequenceMap = new Map<string, number>();
+  
+  // content_id별로 그룹화
+  const plansByContent = new Map<string, Plan[]>();
+  plans.forEach(plan => {
+    if (!plansByContent.has(plan.content_id)) {
+      plansByContent.set(plan.content_id, []);
     }
-
-    // 저장된 회차가 없으면 계산
-    const firstPlanWithSameNumberForCalc = sameContentPlans.find(
-      (p) => p.plan_number === plan.plan_number
-    );
-
-    if (
-      firstPlanWithSameNumberForCalc &&
-      firstPlanWithSameNumberForCalc.id !== plan.id
-    ) {
-      // 같은 plan_number를 가진 첫 번째 플랜의 회차 계산 (재귀 호출)
-      return calculateSequenceForPlan(firstPlanWithSameNumberForCalc, allPlans);
-    }
-  }
-
-  // plan_number가 null이거나 같은 plan_number를 가진 첫 번째 플랜인 경우
-  // 날짜와 planned_start_page_or_time 순으로 정렬하여 회차 계산
-  const sortedPlans = sameContentPlans.sort((a, b) => {
-    // 날짜 순
-    if (a.plan_date !== b.plan_date) {
-      return a.plan_date.localeCompare(b.plan_date);
-    }
-    // 같은 날짜면 planned_start_page_or_time 순
-    const aStart = a.planned_start_page_or_time || 0;
-    const bStart = b.planned_start_page_or_time || 0;
-    return aStart - bStart;
+    plansByContent.get(plan.content_id)!.push(plan);
   });
-
-  // plan_number를 고려하여 회차 계산
-  const seenPlanNumbers = new Set<number | null>();
-  let sequence = 1;
-
-  for (const p of sortedPlans) {
-    if (p.id === plan.id) {
-      break;
-    }
-
-    const pn = p.plan_number;
-
-    // plan_number가 null이면 개별 카운트
-    if (pn === null) {
-      sequence++;
-    } else {
-      // plan_number가 있으면 같은 번호를 가진 그룹은 한 번만 카운트
-      if (!seenPlanNumbers.has(pn)) {
-        seenPlanNumbers.add(pn);
-        sequence++;
+  
+  // 각 content_id별로 회차 계산
+  plansByContent.forEach((contentPlans, contentId) => {
+    // sequence가 있는 플랜은 우선 사용
+    const plansWithSequence = contentPlans.filter(p => p.sequence !== null && p.sequence !== undefined);
+    if (plansWithSequence.length > 0) {
+      // 저장된 sequence를 사용하되, 같은 plan_number를 가진 플랜들은 같은 회차 사용
+      const planNumberToSequence = new Map<number | null, number>();
+      plansWithSequence.forEach(plan => {
+        const pn = plan.plan_number;
+        if (!planNumberToSequence.has(pn)) {
+          planNumberToSequence.set(pn, plan.sequence!);
+        }
+        sequenceMap.set(plan.id, planNumberToSequence.get(pn)!);
+      });
+      
+      // sequence가 없는 플랜들은 계산
+      const plansWithoutSequence = contentPlans.filter(p => p.sequence === null || p.sequence === undefined);
+      if (plansWithoutSequence.length === 0) {
+        return;
       }
+      
+      // 날짜와 planned_start_page_or_time 순으로 정렬
+      const sorted = [...plansWithoutSequence].sort((a, b) => {
+        if (a.plan_date !== b.plan_date) {
+          return a.plan_date.localeCompare(b.plan_date);
+        }
+        const aStart = a.planned_start_page_or_time || 0;
+        const bStart = b.planned_start_page_or_time || 0;
+        return aStart - bStart;
+      });
+      
+      // plan_number별 그룹화 및 회차 계산
+      const seenPlanNumbers = new Set<number | null>();
+      let sequence = 1;
+      
+      // 이미 계산된 plan_number의 최대 회차 찾기
+      if (planNumberToSequence.size > 0) {
+        const maxSequence = Math.max(...Array.from(planNumberToSequence.values()));
+        sequence = maxSequence + 1;
+      }
+      
+      sorted.forEach(plan => {
+        const pn = plan.plan_number;
+        
+        if (pn === null) {
+          sequenceMap.set(plan.id, sequence);
+          sequence++;
+        } else {
+          if (!seenPlanNumbers.has(pn)) {
+            seenPlanNumbers.add(pn);
+            sequenceMap.set(plan.id, sequence);
+            sequence++;
+          } else {
+            // 같은 plan_number를 가진 플랜은 첫 번째 플랜의 회차 사용
+            const firstPlan = sorted.find(p => p.plan_number === pn);
+            if (firstPlan && sequenceMap.has(firstPlan.id)) {
+              sequenceMap.set(plan.id, sequenceMap.get(firstPlan.id)!);
+            } else {
+              sequenceMap.set(plan.id, sequence);
+            }
+          }
+        }
+      });
+    } else {
+      // 모든 플랜이 sequence가 없는 경우 계산
+      // 날짜와 planned_start_page_or_time 순으로 정렬
+      const sorted = [...contentPlans].sort((a, b) => {
+        if (a.plan_date !== b.plan_date) {
+          return a.plan_date.localeCompare(b.plan_date);
+        }
+        const aStart = a.planned_start_page_or_time || 0;
+        const bStart = b.planned_start_page_or_time || 0;
+        return aStart - bStart;
+      });
+      
+      // plan_number별 그룹화 및 회차 계산
+      const seenPlanNumbers = new Set<number | null>();
+      let sequence = 1;
+      
+      sorted.forEach(plan => {
+        const pn = plan.plan_number;
+        
+        if (pn === null) {
+          sequenceMap.set(plan.id, sequence);
+          sequence++;
+        } else {
+          if (!seenPlanNumbers.has(pn)) {
+            seenPlanNumbers.add(pn);
+            sequenceMap.set(plan.id, sequence);
+            sequence++;
+          } else {
+            // 같은 plan_number를 가진 플랜은 첫 번째 플랜의 회차 사용
+            const firstPlan = sorted.find(p => p.plan_number === pn);
+            if (firstPlan && sequenceMap.has(firstPlan.id)) {
+              sequenceMap.set(plan.id, sequenceMap.get(firstPlan.id)!);
+            } else {
+              sequenceMap.set(plan.id, sequence);
+            }
+          }
+        }
+      });
     }
-  }
-
-  return sequence;
+  });
+  
+  return sequenceMap;
 }
 
 const dayTypeLabels: Record<string, string> = {
@@ -164,13 +205,14 @@ export function ScheduleTableView({
   contents,
   blocks,
 }: ScheduleTableViewProps) {
-  // 전체 플랜에서 회차 계산을 위한 Map 생성
-  const sequenceMap = new Map<string, number>();
-  if (plans && Array.isArray(plans)) {
-    plans.forEach((plan) => {
-      sequenceMap.set(plan.id, calculateSequenceForPlan(plan, plans));
-    });
-  }
+  // 전체 플랜에서 회차 계산을 위한 Map 생성 (useMemo로 최적화)
+  const sequenceMap = useMemo(() => {
+    if (!plans || !Array.isArray(plans)) {
+      return new Map<string, number>();
+    }
+    return calculateAllSequences(plans);
+  }, [plans]);
+  
   const [expandedDates, setExpandedDates] = useState<Map<string, boolean>>(new Map());
 
   const toggleDate = useCallback((date: string) => {

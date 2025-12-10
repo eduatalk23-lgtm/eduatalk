@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { X } from "lucide-react";
 import { previewPlansFromGroupAction, generatePlansFromGroupAction, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
 
@@ -78,56 +78,53 @@ function formatLearningAmount(plan: PlanPreview): string {
   return `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
 }
 
-// 회차 계산 (같은 콘텐츠의 날짜 순서대로, plan_number를 고려)
+// 회차 계산 최적화: 모든 플랜의 회차를 한 번에 계산
 // 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
-function calculateSequence(
-  plans: PlanPreview[],
-  currentIndex: number,
-  contentId: string,
-  planNumber: number | null
-): number {
-  // 같은 content_id를 가진 플랜들 중에서
-  // plan_number가 null이 아닌 경우, 같은 plan_number를 가진 첫 번째 플랜의 회차를 사용
-  // plan_number가 null인 경우, 날짜 순서대로 카운트
+function calculateAllSequences(plans: PlanPreview[]): Map<string, number> {
+  const sequenceMap = new Map<string, number>();
   
-  if (planNumber !== null) {
-    // 같은 plan_number를 가진 첫 번째 플랜 찾기
-    const firstPlanWithSameNumber = plans.findIndex(
-      (p, idx) => 
-        p.content_id === contentId && 
-        p.plan_number === planNumber &&
-        idx < currentIndex
-    );
-    
-    if (firstPlanWithSameNumber >= 0) {
-      // 같은 plan_number를 가진 첫 번째 플랜의 회차 계산
-      return calculateSequence(plans, firstPlanWithSameNumber, contentId, null);
+  // 1. content_id별로 그룹화
+  const plansByContent = new Map<string, PlanPreview[]>();
+  plans.forEach((plan) => {
+    if (!plansByContent.has(plan.content_id)) {
+      plansByContent.set(plan.content_id, []);
     }
-  }
+    plansByContent.get(plan.content_id)!.push(plan);
+  });
   
-  // plan_number가 null이거나 같은 plan_number를 가진 첫 번째 플랜인 경우
-  // 날짜 순서대로 카운트
-  let sequence = 1;
-  const seenPlanNumbers = new Set<number | null>();
-  
-  for (let i = 0; i < currentIndex; i++) {
-    if (plans[i].content_id === contentId) {
-      const pn = plans[i].plan_number;
-      
-      // plan_number가 null이면 개별 카운트
-      if (pn === null) {
-        sequence++;
-      } else {
-        // plan_number가 있으면 같은 번호를 가진 그룹은 한 번만 카운트
-        if (!seenPlanNumbers.has(pn)) {
-          seenPlanNumbers.add(pn);
-          sequence++;
-        }
+  // 2. 각 content_id별로 회차 계산
+  plansByContent.forEach((contentPlans, contentId) => {
+    // 날짜 순으로 정렬
+    const sorted = [...contentPlans].sort((a, b) => {
+      if (a.plan_date !== b.plan_date) {
+        return a.plan_date.localeCompare(b.plan_date);
       }
-    }
-  }
+      return (a.block_index || 0) - (b.block_index || 0);
+    });
+    
+    // plan_number별 그룹화
+    const planNumberGroups = new Map<number | null, PlanPreview[]>();
+    sorted.forEach(plan => {
+      const key = plan.plan_number;
+      if (!planNumberGroups.has(key)) {
+        planNumberGroups.set(key, []);
+      }
+      planNumberGroups.get(key)!.push(plan);
+    });
+    
+    // 회차 계산 (plan_number 그룹 단위)
+    let sequence = 1;
+    planNumberGroups.forEach((group, planNumber) => {
+      // 같은 plan_number를 가진 그룹의 모든 플랜에 같은 회차 할당
+      group.forEach(plan => {
+        const key = `${plan.plan_date}-${plan.block_index}-${plan.content_id}`;
+        sequenceMap.set(key, sequence);
+      });
+      sequence++;
+    });
+  });
   
-  return sequence;
+  return sequenceMap;
 }
 
 export function PlanPreviewDialog({
@@ -196,28 +193,40 @@ export function PlanPreviewDialog({
     });
   };
 
-  // 날짜별로 그룹화 및 정렬
-  const plansByDate = new Map<string, PlanPreview[]>();
-  plans.forEach((plan) => {
-    if (!plansByDate.has(plan.plan_date)) {
-      plansByDate.set(plan.plan_date, []);
-    }
-    plansByDate.get(plan.plan_date)!.push(plan);
-  });
+  // 날짜별로 그룹화 (useMemo로 최적화)
+  const plansByDate = useMemo(() => {
+    const map = new Map<string, PlanPreview[]>();
+    plans.forEach((plan) => {
+      if (!map.has(plan.plan_date)) {
+        map.set(plan.plan_date, []);
+      }
+      map.get(plan.plan_date)!.push(plan);
+    });
+    return map;
+  }, [plans]);
 
-  // 날짜별로 정렬 (날짜 순)
-  const sortedPlans = [...plans].sort((a, b) => {
-    if (a.plan_date !== b.plan_date) {
-      return a.plan_date.localeCompare(b.plan_date);
-    }
-    // 같은 날짜면 시간 순으로 정렬
-    if (a.start_time && b.start_time) {
-      return timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
-    }
-    return a.block_index - b.block_index;
-  });
+  // 날짜별로 정렬 (useMemo로 최적화)
+  const sortedPlans = useMemo(() => {
+    return [...plans].sort((a, b) => {
+      if (a.plan_date !== b.plan_date) {
+        return a.plan_date.localeCompare(b.plan_date);
+      }
+      // 같은 날짜면 시간 순으로 정렬
+      if (a.start_time && b.start_time) {
+        return timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
+      }
+      return a.block_index - b.block_index;
+    });
+  }, [plans]);
 
-  const sortedDates = Array.from(plansByDate.keys()).sort();
+  const sortedDates = useMemo(() => {
+    return Array.from(plansByDate.keys()).sort();
+  }, [plansByDate]);
+
+  // 회차 계산 (useMemo로 최적화)
+  const sequenceMap = useMemo(() => {
+    return calculateAllSequences(sortedPlans);
+  }, [sortedPlans]);
 
   if (!open) return null;
 
@@ -326,7 +335,8 @@ export function PlanPreviewDialog({
                     const duration = plan.start_time && plan.end_time
                       ? timeToMinutes(plan.end_time) - timeToMinutes(plan.start_time)
                       : 0;
-                    const sequence = calculateSequence(sortedPlans, index, plan.content_id, plan.plan_number);
+                    const sequenceKey = `${plan.plan_date}-${plan.block_index}-${plan.content_id}`;
+                    const sequence = sequenceMap.get(sequenceKey) || 1;
                     const dateObj = new Date(plan.plan_date);
                     const formattedDate = dateObj.toLocaleDateString("ko-KR", {
                       month: "short",

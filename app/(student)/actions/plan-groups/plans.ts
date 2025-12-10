@@ -1980,74 +1980,136 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
 
     // 4. 마스터 콘텐츠를 학생 콘텐츠로 매핑 (미리보기에서는 기존 복사본 확인만)
     // content_id 매핑: 마스터 콘텐츠 ID -> 학생 콘텐츠 ID
+    // 병렬 처리로 최적화
     const contentIdMap = new Map<string, string>();
 
-    for (const content of contents) {
-      let studentContentId = content.content_id;
+    // 1. 콘텐츠 타입별로 분류
+    const bookContents = contents.filter(c => c.content_type === "book");
+    const lectureContents = contents.filter(c => c.content_type === "lecture");
+    const customContents = contents.filter(c => c.content_type === "custom");
 
-      try {
-        // 마스터 콘텐츠인지 확인하고 기존 복사본이 있는지 확인
-        if (content.content_type === "book") {
-          const { data: masterBook } = await masterQueryClient
-            .from("master_books")
+    // 2. 마스터 콘텐츠 확인 (병렬)
+    const masterBookQueries = bookContents.map(content =>
+      Promise.resolve(
+        masterQueryClient
+          .from("master_books")
+          .select("id")
+          .eq("id", content.content_id)
+          .maybeSingle()
+      )
+        .then(result => ({ content, isMaster: !!result.data }))
+        .catch((error: unknown) => {
+          console.error(
+            `[planGroupActions] 마스터 교재 확인 실패: ${content.content_id}`,
+            error
+          );
+          return { content, isMaster: false };
+        })
+    );
+
+    const masterLectureQueries = lectureContents.map(content =>
+      Promise.resolve(
+        masterQueryClient
+          .from("master_lectures")
+          .select("id")
+          .eq("id", content.content_id)
+          .maybeSingle()
+      )
+        .then(result => ({ content, isMaster: !!result.data }))
+        .catch((error: unknown) => {
+          console.error(
+            `[planGroupActions] 마스터 강의 확인 실패: ${content.content_id}`,
+            error
+          );
+          return { content, isMaster: false };
+        })
+    );
+
+    const [masterBookResults, masterLectureResults] = await Promise.all([
+      Promise.all(masterBookQueries),
+      Promise.all(masterLectureQueries),
+    ]);
+
+    // 3. 학생 콘텐츠 확인 (병렬)
+    const studentBookQueries = masterBookResults
+      .filter((r: { content: typeof contents[0]; isMaster: boolean }) => r.isMaster)
+      .map(({ content }: { content: typeof contents[0]; isMaster: boolean }) =>
+        Promise.resolve(
+          queryClient
+            .from("books")
             .select("id")
-            .eq("id", content.content_id)
-            .maybeSingle();
+            .eq("student_id", studentId)
+            .eq("master_content_id", content.content_id)
+            .maybeSingle()
+        )
+          .then(result => ({ 
+            content, 
+            studentId: result.data?.id || content.content_id 
+          }))
+          .catch((error: unknown) => {
+            console.error(
+              `[planGroupActions] 학생 교재 확인 실패: ${content.content_id}`,
+              error
+            );
+            return { content, studentId: content.content_id };
+          })
+      );
 
-          if (masterBook) {
-            // 이미 복사된 학생 교재가 있는지 확인
-            const { data: existingBook } = await queryClient
-              .from("books")
-              .select("id")
-              .eq("student_id", studentId)
-              .eq("master_content_id", content.content_id)
-              .maybeSingle();
-
-            if (existingBook) {
-              studentContentId = existingBook.id;
-            }
-            // 미리보기에서는 복사하지 않고 기존 ID 사용
-            contentIdMap.set(content.content_id, studentContentId);
-          } else {
-            contentIdMap.set(content.content_id, content.content_id);
-          }
-        } else if (content.content_type === "lecture") {
-          const { data: masterLecture } = await masterQueryClient
-            .from("master_lectures")
+    const studentLectureQueries = masterLectureResults
+      .filter((r: { content: typeof contents[0]; isMaster: boolean }) => r.isMaster)
+      .map(({ content }: { content: typeof contents[0]; isMaster: boolean }) =>
+        Promise.resolve(
+          queryClient
+            .from("lectures")
             .select("id")
-            .eq("id", content.content_id)
-            .maybeSingle();
+            .eq("student_id", studentId)
+            .eq("master_content_id", content.content_id)
+            .maybeSingle()
+        )
+          .then(result => ({ 
+            content, 
+            studentId: result.data?.id || content.content_id 
+          }))
+          .catch((error: unknown) => {
+            console.error(
+              `[planGroupActions] 학생 강의 확인 실패: ${content.content_id}`,
+              error
+            );
+            return { content, studentId: content.content_id };
+          })
+      );
 
-          if (masterLecture) {
-            // 이미 복사된 학생 강의가 있는지 확인
-            const { data: existingLecture } = await queryClient
-              .from("lectures")
-              .select("id")
-              .eq("student_id", studentId)
-              .eq("master_content_id", content.content_id)
-              .maybeSingle();
+    const [studentBookResults, studentLectureResults] = await Promise.all([
+      Promise.all(studentBookQueries),
+      Promise.all(studentLectureQueries),
+    ]);
 
-            if (existingLecture) {
-              studentContentId = existingLecture.id;
-            }
-            contentIdMap.set(content.content_id, studentContentId);
-          } else {
-            contentIdMap.set(content.content_id, content.content_id);
-          }
-        } else {
-          contentIdMap.set(content.content_id, content.content_id);
-        }
-      } catch (error) {
-        console.error(
-          `[planGroupActions] 마스터 콘텐츠 확인 실패: ${content.content_id}`,
-          error
-        );
-        // 에러 발생 시 원본 ID 사용
+    // 4. contentIdMap 구성
+    masterBookResults
+      .filter((r: { content: typeof contents[0]; isMaster: boolean }) => !r.isMaster)
+      .forEach(({ content }: { content: typeof contents[0]; isMaster: boolean }) => {
         contentIdMap.set(content.content_id, content.content_id);
-      }
-    }
+      });
 
-    // 5. 콘텐츠 소요시간 정보 조회
+    masterLectureResults
+      .filter((r: { content: typeof contents[0]; isMaster: boolean }) => !r.isMaster)
+      .forEach(({ content }: { content: typeof contents[0]; isMaster: boolean }) => {
+        contentIdMap.set(content.content_id, content.content_id);
+      });
+
+    studentBookResults.forEach(({ content, studentId }: { content: typeof contents[0]; studentId: string }) => {
+      contentIdMap.set(content.content_id, studentId);
+    });
+
+    studentLectureResults.forEach(({ content, studentId }: { content: typeof contents[0]; studentId: string }) => {
+      contentIdMap.set(content.content_id, studentId);
+    });
+
+    customContents.forEach(content => {
+      contentIdMap.set(content.content_id, content.content_id);
+    });
+
+    // 5. 콘텐츠 소요시간 정보 조회 (병렬 처리로 최적화)
     const contentDurationMap = new Map<
       string,
       {
@@ -2059,102 +2121,184 @@ async function _previewPlansFromGroup(groupId: string): Promise<{
       }
     >();
 
+    // 콘텐츠 타입별로 분류
+    const bookContentsForDuration = contents.filter(c => c.content_type === "book");
+    const lectureContentsForDuration = contents.filter(c => c.content_type === "lecture");
+    const customContentsForDuration = contents.filter(c => c.content_type === "custom");
 
-    for (const content of contents) {
-      const finalContentId =
-        contentIdMap.get(content.content_id) || content.content_id;
-
-      if (content.content_type === "book") {
-        // 학생 교재 조회
-        const { data: studentBook } = await queryClient
+    // 학생 콘텐츠 조회 (병렬)
+    const studentBookDurationQueries = bookContentsForDuration.map(content => {
+      const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
+      return Promise.resolve(
+        queryClient
           .from("books")
           .select("id, total_pages, master_content_id")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
-          .maybeSingle();
+          .maybeSingle()
+      )
+        .then(result => ({ content, studentBook: result.data }))
+        .catch((error: unknown) => {
+          console.error(
+            `[planGroupActions] 학생 교재 조회 실패: ${finalContentId}`,
+            error
+          );
+          return { content, studentBook: null };
+        });
+    });
 
-        if (studentBook?.total_pages) {
-          contentDurationMap.set(content.content_id, {
-            content_type: "book",
-            content_id: content.content_id,
-            total_pages: studentBook.total_pages,
-          });
-        } else if (studentBook?.master_content_id) {
-          // 마스터 교재 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
-          const { data: masterBook } = await masterQueryClient
-            .from("master_books")
-            .select("id, total_pages")
-            .eq("id", studentBook.master_content_id)
-            .maybeSingle();
-
-          if (masterBook?.total_pages) {
-            contentDurationMap.set(content.content_id, {
-              content_type: "book",
-              content_id: content.content_id,
-              total_pages: masterBook.total_pages,
-            });
-          }
-        }
-      } else if (content.content_type === "lecture") {
-        // 학생 강의 조회
-        const { data: studentLecture } = await queryClient
+    const studentLectureDurationQueries = lectureContentsForDuration.map(content => {
+      const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
+      return Promise.resolve(
+        queryClient
           .from("lectures")
           .select("id, duration, master_content_id")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
-          .maybeSingle();
+          .maybeSingle()
+      )
+        .then(result => ({ content, studentLecture: result.data }))
+        .catch((error: unknown) => {
+          console.error(
+            `[planGroupActions] 학생 강의 조회 실패: ${finalContentId}`,
+            error
+          );
+          return { content, studentLecture: null };
+        });
+    });
 
-        if (studentLecture?.duration) {
-          contentDurationMap.set(content.content_id, {
-            content_type: "lecture",
-            content_id: content.content_id,
-            duration: studentLecture.duration,
-          });
-        } else if (studentLecture?.master_content_id) {
-          // 마스터 강의 조회 (관리자가 조회할 때는 Admin 클라이언트 사용)
-          const { data: masterLecture } = await masterQueryClient
-            .from("master_lectures")
-            .select("id, total_duration")
-            .eq("id", studentLecture.master_content_id)
-            .maybeSingle();
-
-          if (masterLecture?.total_duration) {
-            contentDurationMap.set(content.content_id, {
-              content_type: "lecture",
-              content_id: content.content_id,
-              duration: masterLecture.total_duration,
-            });
-          }
-        }
-      } else if (content.content_type === "custom") {
-
-        // 커스텀 콘텐츠 조회
-        const { data: customContent } = await queryClient
+    const customContentDurationQueries = customContentsForDuration.map(content => {
+      const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
+      return Promise.resolve(
+        queryClient
           .from("student_custom_contents")
           .select("id, total_page_or_time")
           .eq("id", finalContentId)
           .eq("student_id", studentId)
-          .maybeSingle();
+          .maybeSingle()
+      )
+        .then(result => ({ content, customContent: result.data }))
+        .catch((error: unknown) => {
+          console.error(
+            `[planGroupActions] 커스텀 콘텐츠 조회 실패: ${finalContentId}`,
+            error
+          );
+          return { content, customContent: null };
+        });
+    });
 
-        if (customContent?.total_page_or_time) {
-          contentDurationMap.set(content.content_id, {
-            content_type: "custom",
-            content_id: content.content_id,
-            total_page_or_time: customContent.total_page_or_time,
-          });
-        } else if (!customContent) {
-          // 일반 custom content가 존재하지 않으면 에러 발생
-          {
-            throw new AppError(
-              `Referenced custom content (${finalContentId}) does not exist`,
-              ErrorCode.VALIDATION_ERROR,
-              400,
-              true
-            );
-          }
-          // 더미 UUID인 경우는 contentDurationMap에 이미 기본값이 있으므로 스킵
-        }
+    const [studentBookDurationResults, studentLectureDurationResults, customContentResults] = await Promise.all([
+      Promise.all(studentBookDurationQueries),
+      Promise.all(studentLectureDurationQueries),
+      Promise.all(customContentDurationQueries),
+    ]);
+
+    // 학생 콘텐츠 결과 처리 및 마스터 콘텐츠 조회 필요 여부 확인
+    const masterBookQueriesForDuration: Array<Promise<{ content: typeof contents[0]; masterBook: { id: string; total_pages: number | null } | null }>> = [];
+    const masterLectureQueriesForDuration: Array<Promise<{ content: typeof contents[0]; masterLecture: { id: string; total_duration: number | null } | null }>> = [];
+
+    studentBookDurationResults.forEach(({ content, studentBook }: { content: typeof contents[0]; studentBook: { id: string; total_pages: number | null; master_content_id: string | null } | null }) => {
+      if (studentBook?.total_pages) {
+        contentDurationMap.set(content.content_id, {
+          content_type: "book",
+          content_id: content.content_id,
+          total_pages: studentBook.total_pages,
+        });
+      } else if (studentBook?.master_content_id) {
+        // 마스터 교재 조회 필요
+        masterBookQueriesForDuration.push(
+          Promise.resolve(
+            masterQueryClient
+              .from("master_books")
+              .select("id, total_pages")
+              .eq("id", studentBook.master_content_id)
+              .maybeSingle()
+          )
+            .then(result => ({ content, masterBook: result.data }))
+            .catch((error: unknown) => {
+              console.error(
+                `[planGroupActions] 마스터 교재 조회 실패: ${studentBook.master_content_id}`,
+                error
+              );
+              return { content, masterBook: null };
+            })
+        );
       }
+    });
+
+    studentLectureDurationResults.forEach(({ content, studentLecture }: { content: typeof contents[0]; studentLecture: { id: string; duration: number | null; master_content_id: string | null } | null }) => {
+      if (studentLecture?.duration) {
+        contentDurationMap.set(content.content_id, {
+          content_type: "lecture",
+          content_id: content.content_id,
+          duration: studentLecture.duration,
+        });
+      } else if (studentLecture?.master_content_id) {
+        // 마스터 강의 조회 필요
+        masterLectureQueriesForDuration.push(
+          Promise.resolve(
+            masterQueryClient
+              .from("master_lectures")
+              .select("id, total_duration")
+              .eq("id", studentLecture.master_content_id)
+              .maybeSingle()
+          )
+            .then(result => ({ content, masterLecture: result.data }))
+            .catch((error: unknown) => {
+              console.error(
+                `[planGroupActions] 마스터 강의 조회 실패: ${studentLecture.master_content_id}`,
+                error
+              );
+              return { content, masterLecture: null };
+            })
+        );
+      }
+    });
+
+    customContentResults.forEach(({ content, customContent }: { content: typeof contents[0]; customContent: { id: string; total_page_or_time: number | null } | null }) => {
+      if (customContent?.total_page_or_time) {
+        contentDurationMap.set(content.content_id, {
+          content_type: "custom",
+          content_id: content.content_id,
+          total_page_or_time: customContent.total_page_or_time,
+        });
+      } else if (!customContent) {
+        // 일반 custom content가 존재하지 않으면 에러 발생
+        throw new AppError(
+          `Referenced custom content (${contentIdMap.get(content.content_id) || content.content_id}) does not exist`,
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
+      }
+    });
+
+    // 마스터 콘텐츠 조회 (병렬)
+    if (masterBookQueriesForDuration.length > 0 || masterLectureQueriesForDuration.length > 0) {
+      const [masterBookResultsForDuration, masterLectureResultsForDuration] = await Promise.all([
+        Promise.all(masterBookQueriesForDuration),
+        Promise.all(masterLectureQueriesForDuration),
+      ]);
+
+      masterBookResultsForDuration.forEach(({ content, masterBook }) => {
+        if (masterBook?.total_pages) {
+          contentDurationMap.set(content.content_id, {
+            content_type: "book",
+            content_id: content.content_id,
+            total_pages: masterBook.total_pages,
+          });
+        }
+      });
+
+      masterLectureResultsForDuration.forEach(({ content, masterLecture }) => {
+        if (masterLecture?.total_duration) {
+          contentDurationMap.set(content.content_id, {
+            content_type: "lecture",
+            content_id: content.content_id,
+            duration: masterLecture.total_duration,
+          });
+        }
+      });
     }
 
     // 6. dateAvailableTimeRanges 추출
