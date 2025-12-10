@@ -212,7 +212,11 @@ export function RescheduleWizard({
           <PreviewStep
             groupId={groupId}
             adjustments={adjustments}
-            dateRange={dateRange && dateRange.from && dateRange.to ? { from: dateRange.from, to: dateRange.to } : null}
+            dateRange={
+              dateRange && dateRange.from && dateRange.to
+                ? { from: dateRange.from, to: dateRange.to }
+                : null
+            }
             onLoad={handleStep3Load}
             previewResult={previewResult}
           />

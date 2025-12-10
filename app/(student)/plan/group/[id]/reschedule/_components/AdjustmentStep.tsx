@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
@@ -47,12 +47,33 @@ export function AdjustmentStep({
   const [validationErrors, setValidationErrors] = useState<
     Map<string, string>
   >(new Map());
+  const [rangeInputs, setRangeInputs] = useState<
+    Map<string, { start: string; end: string }>
+  >(new Map());
 
   const selectedContents = useMemo(() => {
     return contents.filter(
       (c) => selectedContentIds.has(c.id || c.content_id)
     );
   }, [contents, selectedContentIds]);
+
+  // 문자열 상태 초기화
+  useEffect(() => {
+    const newMap = new Map();
+    selectedContents.forEach((content) => {
+      const contentId = content.id || content.content_id;
+      const adjustment = localAdjustments.get(contentId);
+      const currentRange = adjustment?.after.range || {
+        start: content.start_range,
+        end: content.end_range,
+      };
+      newMap.set(contentId, {
+        start: String(currentRange.start),
+        end: String(currentRange.end),
+      });
+    });
+    setRangeInputs(newMap);
+  }, [selectedContents, localAdjustments]);
 
   const handleRangeChange = (
     contentId: string,
@@ -108,6 +129,120 @@ export function AdjustmentStep({
     setLocalAdjustments(new Map(localAdjustments.set(contentId, adjustment)));
   };
 
+  // 범위 입력 핸들러 (문자열 처리)
+  const handleRangeInputChange = (
+    contentId: string,
+    field: "start" | "end",
+    value: string
+  ) => {
+    const newMap = new Map(rangeInputs);
+    const current = newMap.get(contentId) || { start: "", end: "" };
+    newMap.set(contentId, { ...current, [field]: value });
+    setRangeInputs(newMap);
+  };
+
+  // 범위 blur 핸들러 (숫자 변환 및 검증)
+  const handleRangeBlur = (
+    contentId: string,
+    field: "start" | "end"
+  ) => {
+    const inputValue = rangeInputs.get(contentId)?.[field] ?? "";
+    const trimmedValue = inputValue.trim();
+
+    if (trimmedValue === "") {
+      // 빈 값이면 기본값으로 복원
+      const content = contents.find((c) => (c.id || c.content_id) === contentId);
+      if (content) {
+        const adjustment = localAdjustments.get(contentId);
+        const defaultValue = adjustment?.after.range?.[field] ??
+          (field === "start" ? content.start_range : content.end_range);
+
+        const newMap = new Map(rangeInputs);
+        const current = newMap.get(contentId) || { start: "", end: "" };
+        newMap.set(contentId, { ...current, [field]: String(defaultValue) });
+        setRangeInputs(newMap);
+
+        handleRangeChange(contentId, field, defaultValue);
+      }
+      return;
+    }
+
+    const numValue = parseInt(trimmedValue, 10);
+    if (!isNaN(numValue) && numValue >= 0) {
+      handleRangeChange(contentId, field, numValue);
+    }
+  };
+
+  // 교체된 콘텐츠 범위 입력 핸들러
+  const handleReplacedRangeInputChange = (
+    contentId: string,
+    field: "start" | "end",
+    value: string
+  ) => {
+    // 문자열 상태 업데이트
+    const newMap = new Map(rangeInputs);
+    const current = newMap.get(contentId) || { start: "", end: "" };
+    newMap.set(contentId, { ...current, [field]: value });
+    setRangeInputs(newMap);
+
+    // 숫자로 변환하여 범위 업데이트 (빈 값이 아닐 때만)
+    if (value.trim() !== "") {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue) && numValue >= 0) {
+        const content = contents.find((c) => (c.id || c.content_id) === contentId);
+        const existing = localAdjustments.get(contentId);
+        const currentRange = existing?.after.range || (content ? {
+          start: content.start_range,
+          end: content.end_range,
+        } : { start: 0, end: 0 });
+        const newRange = {
+          ...currentRange,
+          [field]: numValue,
+        };
+
+        // replaceRange 및 localAdjustments 업데이트
+        if (replacingContentId === contentId) {
+          setReplaceRange(newRange);
+        }
+        if (existing && existing.change_type === "replace") {
+          const updated: AdjustmentInput = {
+            ...existing,
+            after: {
+              ...existing.after,
+              range: newRange,
+            },
+          };
+          setLocalAdjustments(
+            new Map(localAdjustments.set(contentId, updated))
+          );
+        }
+      }
+    }
+  };
+
+  // 교체된 콘텐츠 범위 blur 핸들러
+  const handleReplacedRangeBlur = (
+    contentId: string,
+    field: "start" | "end"
+  ) => {
+    const inputValue = rangeInputs.get(contentId)?.[field] ?? "";
+    const trimmedValue = inputValue.trim();
+
+    if (trimmedValue === "") {
+      // 빈 값이면 현재 범위 값으로 복원
+      const existing = localAdjustments.get(contentId);
+      if (existing && existing.change_type === "replace") {
+        const currentRange = existing.after.range;
+        const defaultValue = currentRange[field];
+
+        const newMap = new Map(rangeInputs);
+        const current = newMap.get(contentId) || { start: "", end: "" };
+        newMap.set(contentId, { ...current, [field]: String(defaultValue) });
+        setRangeInputs(newMap);
+      }
+    }
+  };
+
   const handleReplaceClick = (contentId: string) => {
     setReplacingContentId(contentId);
     const content = contents.find((c) => (c.id || c.content_id) === contentId);
@@ -119,6 +254,13 @@ export function AdjustmentStep({
         end: content.end_range,
       };
       setReplaceRange(currentRange);
+      // rangeInputs도 함께 초기화
+      const newMap = new Map(rangeInputs);
+      newMap.set(contentId, {
+        start: String(currentRange.start),
+        end: String(currentRange.end),
+      });
+      setRangeInputs(newMap);
     }
     setReplaceModalOpen(true);
   };
@@ -181,6 +323,13 @@ export function AdjustmentStep({
         })
       )
     );
+    // rangeInputs도 함께 업데이트
+    const newMap = new Map(rangeInputs);
+    newMap.set(contentId, {
+      start: String(range.start),
+      end: String(range.end),
+    });
+    setRangeInputs(newMap);
     setReplaceModalOpen(false);
     setReplacingContentId(null);
     setReplaceRange(null);
@@ -374,14 +523,11 @@ export function AdjustmentStep({
                         </label>
                       <input
                         type="number"
-                        value={currentRange.start}
+                        value={rangeInputs.get(contentId)?.start ?? String(currentRange.start)}
                         onChange={(e) =>
-                          handleRangeChange(
-                            contentId,
-                            "start",
-                            parseInt(e.target.value) || 0
-                          )
+                          handleRangeInputChange(contentId, "start", e.target.value)
                         }
+                        onBlur={() => handleRangeBlur(contentId, "start")}
                         className={`rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${
                           validationErrors.has(contentId)
                             ? "border-red-500 focus:border-red-500 focus:ring-red-500"
@@ -407,14 +553,11 @@ export function AdjustmentStep({
                         </label>
                       <input
                         type="number"
-                        value={currentRange.end}
+                        value={rangeInputs.get(contentId)?.end ?? String(currentRange.end)}
                         onChange={(e) =>
-                          handleRangeChange(
-                            contentId,
-                            "end",
-                            parseInt(e.target.value) || 0
-                          )
+                          handleRangeInputChange(contentId, "end", e.target.value)
                         }
+                        onBlur={() => handleRangeBlur(contentId, "end")}
                         className={`rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 ${
                           validationErrors.has(contentId)
                             ? "border-red-500 focus:border-red-500 focus:ring-red-500"
@@ -468,31 +611,11 @@ export function AdjustmentStep({
                     </label>
                     <input
                       type="number"
-                      value={currentRange.start}
-                      onChange={(e) => {
-                        const newRange = {
-                          ...currentRange,
-                          start: parseInt(e.target.value) || 0,
-                        };
-                        setReplaceRange(newRange);
-                        if (replacingContentId === contentId) {
-                          setReplaceRange(newRange);
-                        }
-                        // 교체된 콘텐츠의 범위도 업데이트
-                        const existing = localAdjustments.get(contentId);
-                        if (existing && existing.change_type === "replace") {
-                          const updated: AdjustmentInput = {
-                            ...existing,
-                            after: {
-                              ...existing.after,
-                              range: newRange,
-                            },
-                          };
-                          setLocalAdjustments(
-                            new Map(localAdjustments.set(contentId, updated))
-                          );
-                        }
-                      }}
+                      value={rangeInputs.get(contentId)?.start ?? String(currentRange.start)}
+                      onChange={(e) =>
+                        handleReplacedRangeInputChange(contentId, "start", e.target.value)
+                      }
+                      onBlur={() => handleReplacedRangeBlur(contentId, "start")}
                       className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       min={1}
                     />
@@ -506,30 +629,11 @@ export function AdjustmentStep({
                     </label>
                     <input
                       type="number"
-                      value={currentRange.end}
-                      onChange={(e) => {
-                        const newRange = {
-                          ...currentRange,
-                          end: parseInt(e.target.value) || 0,
-                        };
-                        if (replacingContentId === contentId) {
-                          setReplaceRange(newRange);
-                        }
-                        // 교체된 콘텐츠의 범위도 업데이트
-                        const existing = localAdjustments.get(contentId);
-                        if (existing && existing.change_type === "replace") {
-                          const updated: AdjustmentInput = {
-                            ...existing,
-                            after: {
-                              ...existing.after,
-                              range: newRange,
-                            },
-                          };
-                          setLocalAdjustments(
-                            new Map(localAdjustments.set(contentId, updated))
-                          );
-                        }
-                      }}
+                      value={rangeInputs.get(contentId)?.end ?? String(currentRange.end)}
+                      onChange={(e) =>
+                        handleReplacedRangeInputChange(contentId, "end", e.target.value)
+                      }
+                      onBlur={() => handleReplacedRangeBlur(contentId, "end")}
                       className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       min={currentRange.start}
                     />

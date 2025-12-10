@@ -80,12 +80,18 @@ export function generatePlansFromGroup(
   riskIndexMap?: Map<string, { riskScore: number }>,
   dateAvailableTimeRanges?: DateAvailableTimeRanges, // Step 2.5 스케줄 결과 (날짜별 사용 가능 시간 범위)
   dateTimeSlots?: DateTimeSlots, // Step 2.5 스케줄 결과 (날짜별 시간 타임라인)
-  contentDurationMap?: ContentDurationMap // 콘텐츠 소요시간 정보
+  contentDurationMap?: ContentDurationMap, // 콘텐츠 소요시간 정보
+  periodStart?: string, // 재조정 시 사용할 기간 시작일 (선택사항)
+  periodEnd?: string // 재조정 시 사용할 기간 종료일 (선택사항)
 ): ScheduledPlan[] {
   // 1. 학습 가능한 날짜 목록 생성 (제외일 제외)
+  // 재조정 시에는 전달된 periodStart/periodEnd 사용, 아니면 group의 기간 사용
+  const startDate = periodStart || group.period_start;
+  const endDate = periodEnd || group.period_end;
+  
   const availableDates = calculateAvailableDates(
-    group.period_start,
-    group.period_end,
+    startDate,
+    endDate,
     exclusions
   );
 
@@ -839,6 +845,31 @@ function generate1730TimetablePlans(
     exclusions
   );
 
+  // dates 배열과 cycleDays 간의 일관성 확인
+  const cycleDaysDates = new Set(cycleDays.map(d => d.date));
+  const datesSet = new Set(dates);
+  const missingInCycleDays = dates.filter(d => !cycleDaysDates.has(d));
+  const missingInDates = cycleDays.filter(d => d.day_type !== "exclusion" && !datesSet.has(d.date));
+  
+  if (missingInCycleDays.length > 0 || missingInDates.length > 0) {
+    console.warn("[generate1730TimetablePlans] dates 배열과 cycleDays 간 불일치:", {
+      datesCount: dates.length,
+      cycleDaysCount: cycleDays.length,
+      missingInCycleDays: missingInCycleDays,
+      missingInDates: missingInDates.map(d => ({ date: d.date, day_type: d.day_type })),
+    });
+  }
+
+  console.log("[generate1730TimetablePlans] 기간 및 주기 정보:", {
+    periodStart,
+    periodEnd,
+    datesCount: dates.length,
+    cycleDaysCount: cycleDays.length,
+    studyDaysCount: cycleDays.filter(d => d.day_type === "study").length,
+    reviewDaysCount: cycleDays.filter(d => d.day_type === "review").length,
+    exclusionDaysCount: cycleDays.filter(d => d.day_type === "exclusion").length,
+  });
+
   // 취약과목 집중 모드 확인
   const weakSubjectFocus = options?.weak_subject_focus === "high" || options?.weak_subject_focus === true;
   
@@ -893,27 +924,101 @@ function generate1730TimetablePlans(
     );
 
     const totalStudyDates = cycleDays.filter((d) => d.day_type === "study").length;
+    
+    // 학습일 배정 검증: allocatedDates가 실제로 학습일인지 확인
+    const studyDatesSet = new Set(
+      cycleDays.filter(d => d.day_type === "study").map(d => d.date)
+    );
+    const invalidDates = allocatedDates.filter(date => !studyDatesSet.has(date));
+    
+    if (invalidDates.length > 0) {
+      console.warn("[generate1730TimetablePlans] 학습일이 아닌 날짜가 배정됨:", {
+        content_id: content.content_id,
+        invalidDates,
+        allocatedDates,
+      });
+    }
+    
+    // 학습일 배정 검증
+    if (allocatedDates.length === 0) {
+      console.warn("[generate1730TimetablePlans] 학습일 배정 실패:", {
+        content_id: content.content_id,
+        content_type: content.content_type,
+        subject_type: allocation.subject_type,
+        weekly_days: allocation.weekly_days,
+        totalStudyDatesCount: totalStudyDates,
+        message: "학습일이 배정되지 않았습니다. 이 콘텐츠는 플랜이 생성되지 않습니다.",
+      });
+      // 학습일이 배정되지 않은 경우 빈 배열 저장 (나중에 스킵됨)
+      contentAllocationMap.set(content.content_id, []);
+      return;
+    }
+    
+    // 학습일 배정 검증: 최소 1개 이상의 학습일이 배정되었는지 확인
+    const validAllocatedDates = allocatedDates.filter(date => studyDatesSet.has(date));
+    if (validAllocatedDates.length === 0) {
+      console.warn("[generate1730TimetablePlans] 유효한 학습일 배정 없음:", {
+        content_id: content.content_id,
+        allocatedDates,
+        totalStudyDatesCount: totalStudyDates,
+        message: "유효한 학습일이 배정되지 않았습니다. 이 콘텐츠는 플랜이 생성되지 않습니다.",
+      });
+      contentAllocationMap.set(content.content_id, []);
+      return;
+    }
+    
+    // 유효한 학습일만 사용
+    if (validAllocatedDates.length !== allocatedDates.length) {
+      console.warn("[generate1730TimetablePlans] 일부 날짜가 학습일이 아님, 필터링:", {
+        content_id: content.content_id,
+        originalCount: allocatedDates.length,
+        validCount: validAllocatedDates.length,
+        invalidDates: allocatedDates.filter(date => !studyDatesSet.has(date)),
+      });
+    }
+
     console.log("[generate1730TimetablePlans] 배정 날짜 계산 결과:", {
       content_id: content.content_id,
       subject_type: allocation.subject_type,
       weekly_days: allocation.weekly_days,
-      allocatedDatesCount: allocatedDates.length,
+      allocatedDatesCount: validAllocatedDates.length,
       totalStudyDatesCount: totalStudyDates,
-      allocatedDates: allocatedDates.slice(0, 10), // 처음 10개만
+      allocatedDates: validAllocatedDates.slice(0, 10), // 처음 10개만
     });
 
-    contentAllocationMap.set(content.content_id, allocatedDates);
+    contentAllocationMap.set(content.content_id, validAllocatedDates);
   });
 
   // 학습 범위 분할 (배정된 날짜에 학습 범위 분배)
   const contentRangeMap = new Map<string, Map<string, { start: number; end: number }>>();
   filteredContents.forEach((content) => {
     const allocatedDates = contentAllocationMap.get(content.content_id) || [];
+    
+    // 학습일 배정 검증: 학습일이 없으면 스킵
+    if (allocatedDates.length === 0) {
+      console.warn("[generate1730TimetablePlans] 학습 범위 분할 스킵 (학습일 없음):", {
+        content_id: content.content_id,
+        content_type: content.content_type,
+      });
+      return;
+    }
+    
     const rangeMap = divideContentRange(
       content.total_amount,
       allocatedDates,
       content.content_id
     );
+    
+    // 학습 범위 분할 결과 검증
+    if (rangeMap.size === 0) {
+      console.warn("[generate1730TimetablePlans] 학습 범위 분할 결과 없음:", {
+        content_id: content.content_id,
+        allocatedDatesCount: allocatedDates.length,
+        total_amount: content.total_amount,
+      });
+      return;
+    }
+    
     // start_range를 기준으로 오프셋 적용
     const adjustedRangeMap = new Map<string, { start: number; end: number }>();
     rangeMap.forEach((range, date) => {
@@ -925,16 +1030,59 @@ function generate1730TimetablePlans(
     contentRangeMap.set(content.content_id, adjustedRangeMap);
   });
 
-  // 주차별로 그룹화
-  const weeks: string[][] = [];
-  for (let i = 0; i < dates.length; i += weekSize) {
-    weeks.push(dates.slice(i, i + weekSize));
-  }
+  // 주차별로 그룹화 (cycleDays 기반 - 제외일 고려)
+  const weeks = new Map<number, {
+    studyDays: string[];
+    reviewDays: string[];
+    allDays: string[];
+  }>();
+  
+  // cycleDays를 주차별로 그룹화
+  cycleDays.forEach((cycleDay) => {
+    if (cycleDay.day_type === "exclusion") {
+      // 제외일은 주차 그룹화에서 제외
+      return;
+    }
+    
+    const cycleNumber = cycleDay.cycle_number;
+    if (!weeks.has(cycleNumber)) {
+      weeks.set(cycleNumber, {
+        studyDays: [],
+        reviewDays: [],
+        allDays: [],
+      });
+    }
+    
+    const week = weeks.get(cycleNumber)!;
+    week.allDays.push(cycleDay.date);
+    
+    if (cycleDay.day_type === "study") {
+      week.studyDays.push(cycleDay.date);
+    } else if (cycleDay.day_type === "review") {
+      week.reviewDays.push(cycleDay.date);
+    }
+  });
 
   // 각 주차별로 학습일과 복습일 분리
-  weeks.forEach((weekDates, weekIndex) => {
-    const studyDaysList = weekDates.slice(0, studyDays); // 처음 N일은 학습
-    const reviewDaysList = weekDates.slice(studyDays, weekSize); // 나머지는 복습
+  console.log("[generate1730TimetablePlans] 주차별 그룹화 결과:", {
+    totalWeeks: weeks.size,
+    weeksInfo: Array.from(weeks.entries()).map(([cycleNumber, week]) => ({
+      cycleNumber,
+      studyDaysCount: week.studyDays.length,
+      reviewDaysCount: week.reviewDays.length,
+      allDaysCount: week.allDays.length,
+    })),
+  });
+  
+  Array.from(weeks.entries()).forEach(([cycleNumber, week]) => {
+    const studyDaysList = week.studyDays;
+    const reviewDaysList = week.reviewDays;
+
+    console.log("[generate1730TimetablePlans] 주차별 학습일/복습일:", {
+      cycleNumber,
+      studyDays: studyDaysList,
+      reviewDays: reviewDaysList,
+    });
 
     // 이번 주 학습일에 배정된 콘텐츠 범위 저장 (복습용)
     const weekContentRanges = new Map<string, {
@@ -980,10 +1128,38 @@ function generate1730TimetablePlans(
     });
 
     // 학습일 플랜에 블록 할당 (동적 생성)
+    console.log("[generate1730TimetablePlans] 학습일 플랜 생성 시작:", {
+      cycleNumber,
+      studyDaysList,
+      studyPlansByDateCount: studyPlansByDate.size,
+      studyPlansByDateKeys: Array.from(studyPlansByDate.keys()),
+      totalContentsCount: sortedContents.length,
+      contentsWithRangeMap: Array.from(contentRangeMap.keys()).length,
+    });
+    
+    // 학습일 플랜이 없는 경우 경고
+    if (studyPlansByDate.size === 0) {
+      console.warn("[generate1730TimetablePlans] 학습일 플랜이 생성되지 않음:", {
+        cycleNumber,
+        studyDaysList,
+        totalContentsCount: sortedContents.length,
+        contentsWithRangeMap: Array.from(contentRangeMap.keys()),
+        message: "이 주차에는 학습일 플랜이 생성되지 않았습니다. 복습일 플랜도 생성되지 않습니다.",
+      });
+    }
+    
     studyPlansByDate.forEach((datePlans, date) => {
       const availableRanges = dateAvailableTimeRanges?.get(date) || [];
       const timeSlots = dateTimeSlots?.get(date) || [];
       const studyTimeSlots = timeSlots.filter((slot) => slot.type === "학습시간");
+      
+      console.log("[generate1730TimetablePlans] 학습일 플랜 생성:", {
+        date,
+        cycleNumber,
+        plansCount: datePlans.length,
+        availableRangesCount: availableRanges.length,
+        studyTimeSlotsCount: studyTimeSlots.length,
+      });
       
       let slotIndex = 0;
       let blockIndex = 1;
@@ -1086,21 +1262,84 @@ function generate1730TimetablePlans(
     });
 
     // 2. 복습일: 해당 주차의 학습 범위를 복습
+    // 학습일에 실제로 플랜이 생성되었는지 확인
+    const hasStudyPlans = studyPlansByDate.size > 0;
+    const studyPlansCount = Array.from(studyPlansByDate.values()).reduce(
+      (sum, plans) => sum + plans.length,
+      0
+    );
+    
+    console.log("[generate1730TimetablePlans] 주차별 학습일/복습일 상태:", {
+      cycleNumber,
+      studyDaysCount: studyDaysList.length,
+      reviewDaysCount: reviewDaysList.length,
+      studyDaysList,
+      reviewDaysList,
+      studyPlansByDateCount: studyPlansByDate.size,
+      studyPlansCount,
+      weekContentRangesCount: weekContentRanges.size,
+      weekContentRangesKeys: Array.from(weekContentRanges.keys()),
+      hasStudyPlans,
+    });
+    
+    // 복습일 플랜 생성 전 전체 검증
+    if (reviewDaysList.length > 0 && (!hasStudyPlans || studyPlansCount === 0)) {
+      console.warn("[generate1730TimetablePlans] 복습일 플랜 생성 불가 (학습일 플랜 없음):", {
+        cycleNumber,
+        reviewDaysList,
+        studyPlansCount,
+        weekContentRangesCount: weekContentRanges.size,
+        message: "학습일 플랜이 없어 복습일 플랜을 생성할 수 없습니다.",
+      });
+    }
+    
     reviewDaysList.forEach((reviewDay) => {
-      if (!reviewDay || weekContentRanges.size === 0) return;
+      // 복습일 플랜 생성 가드: 학습일에 플랜이 없으면 복습일에도 플랜 생성 안 함
+      if (!reviewDay || weekContentRanges.size === 0 || !hasStudyPlans || studyPlansCount === 0) {
+        if (!hasStudyPlans || studyPlansCount === 0) {
+          console.warn("[generate1730TimetablePlans] 복습일 플랜 생성 스킵 (학습일 플랜 없음):", {
+            reviewDay,
+            cycleNumber,
+            studyPlansCount,
+            weekContentRangesCount: weekContentRanges.size,
+            hasStudyPlans,
+          });
+        } else if (weekContentRanges.size === 0) {
+          console.warn("[generate1730TimetablePlans] 복습일 플랜 생성 스킵 (복습 범위 없음):", {
+            reviewDay,
+            cycleNumber,
+            weekContentRangesCount: weekContentRanges.size,
+          });
+        }
+        return;
+      }
 
       // 복습 콘텐츠 목록 생성 (이번 주에 학습한 콘텐츠만)
       const reviewContents = sortedContents.filter((content) =>
         weekContentRanges.has(content.content_id)
       );
 
-      if (reviewContents.length === 0) return;
+      if (reviewContents.length === 0) {
+        console.warn("[generate1730TimetablePlans] 복습일 플랜 생성 스킵 (복습 콘텐츠 없음):", {
+          reviewDay,
+          cycleNumber,
+          weekContentRangesCount: weekContentRanges.size,
+        });
+        return;
+      }
 
       // Step 2.5 스케줄 결과 사용: 복습 콘텐츠 개수만큼 블록을 동적으로 생성
       const availableRanges = dateAvailableTimeRanges?.get(reviewDay) || [];
       let rangeIndex = 0;
       let blockIndex = 1;
 
+      console.log("[generate1730TimetablePlans] 복습일 플랜 생성:", {
+        reviewDay,
+        cycleNumber,
+        reviewContentsCount: reviewContents.length,
+        availableRangesCount: availableRanges.length,
+      });
+      
       reviewContents.forEach((content) => {
         const range = weekContentRanges.get(content.content_id);
         if (!range) return;
@@ -1110,6 +1349,14 @@ function generate1730TimetablePlans(
         }
 
         const timeRange = availableRanges[rangeIndex] || { start: "10:00", end: "19:00" };
+
+        console.log("[generate1730TimetablePlans] 복습일 플랜 생성 (개별):", {
+          reviewDay,
+          cycleNumber,
+          content_id: content.content_id,
+          range: `${range.startAmount}~${range.endAmount}`,
+          timeRange: `${timeRange.start}~${timeRange.end}`,
+        });
 
         plans.push({
           plan_date: reviewDay,

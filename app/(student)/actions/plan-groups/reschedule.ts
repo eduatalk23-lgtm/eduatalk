@@ -21,6 +21,9 @@ import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import { generatePlansFromGroup } from "@/lib/plan/scheduler";
 import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
+import { calculateUncompletedRangeBounds, applyUncompletedRangeToContents } from "@/lib/reschedule/uncompletedRangeCalculator";
+import { getAdjustedPeriod, getTodayDateString, PeriodCalculationError } from "@/lib/reschedule/periodCalculator";
+import { generatePreviewCacheKey, getCachedPreview, cachePreviewResult } from "@/lib/reschedule/previewCache";
 
 // ============================================
 // 타입 정의
@@ -84,6 +87,14 @@ async function _getReschedulePreview(
   adjustments: AdjustmentInput[],
   dateRange?: { from: string; to: string } | null
 ): Promise<ReschedulePreviewResult> {
+  // 캐시 조회 (Phase 3: 성능 최적화)
+  const cacheKey = generatePreviewCacheKey(groupId, adjustments, dateRange);
+  const cachedResult = await getCachedPreview(cacheKey);
+  if (cachedResult) {
+    console.log("[reschedule] 캐시된 미리보기 결과 반환:", cacheKey);
+    return cachedResult;
+  }
+
   const user = await getCurrentUser();
   if (!user) {
     throw new AppError("인증이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
@@ -138,8 +149,67 @@ async function _getReschedulePreview(
       isReschedulable(plan)
     );
 
+    // 2.5 오늘 이전 미진행 플랜 조회 및 미진행 범위 계산
+    const today = getTodayDateString();
+
+    // 2.6 재조정 기간 먼저 결정 (성능 최적화를 위해 먼저 계산)
+    // 이후 calculateAvailableDates와 generatePlansFromGroup에서 이 기간만 사용
+    let adjustedPeriod: { start: string; end: string };
+    try {
+      adjustedPeriod = getAdjustedPeriod(dateRange || null, today, group.period_end);
+    } catch (error) {
+      if (error instanceof PeriodCalculationError) {
+        throw new AppError(error.message, ErrorCode.VALIDATION_ERROR, 400, true);
+      }
+      throw error;
+    }
+
+    const { data: pastUncompletedPlans } = await supabase
+      .from("student_plan")
+      .select(
+        "content_id, planned_start_page_or_time, planned_end_page_or_time, completed_amount"
+      )
+      .eq("plan_group_id", groupId)
+      .eq("student_id", group.student_id)
+      .eq("is_active", true)
+      .lt("plan_date", today)
+      .in("status", ["pending", "in_progress"]);
+
+    // 2.7 dateRange가 지정된 경우, 해당 범위 내 플랜의 콘텐츠만 필터링 (Phase 4)
+    // 날짜 범위 필터링 일관성 개선: 선택한 범위와 관련된 미진행 플랜만 처리
+    let relevantPastUncompletedPlans = pastUncompletedPlans || [];
+    if (dateRange?.from && dateRange?.to) {
+      // 날짜 범위 내에 있는 기존 플랜의 콘텐츠 ID 추출
+      const contentIdsInRange = new Set(
+        reschedulablePlans.map(p => p.content_id).filter(Boolean)
+      );
+      // 해당 콘텐츠의 미진행 플랜만 필터링
+      relevantPastUncompletedPlans = relevantPastUncompletedPlans.filter(
+        p => contentIdsInRange.has(p.content_id)
+      );
+    }
+
+    // 미진행 범위 계산 (시작점과 종료점 포함)
+    const uncompletedBoundsMap = calculateUncompletedRangeBounds(relevantPastUncompletedPlans);
+
     // 3. 조정된 콘텐츠 생성
     const adjustedContents = applyAdjustments(contents, adjustments);
+
+    // 3.5 선택된 콘텐츠 ID 추출 (adjustments에서)
+    // Step 1에서 선택한 콘텐츠만 미진행 범위를 적용하기 위함
+    const selectedContentIds = new Set<string>(
+      adjustments.map(a => {
+        const content = contents.find(c => c.id === a.plan_content_id);
+        return content?.content_id || '';
+      }).filter(id => id !== '')
+    );
+
+    // 3.6 미진행 범위를 조정된 콘텐츠에 적용 (선택된 콘텐츠만)
+    const contentsWithUncompleted = applyUncompletedRangeToContents(
+      adjustedContents,
+      uncompletedBoundsMap,
+      selectedContentIds.size > 0 ? selectedContentIds : undefined
+    );
 
     // 4. 블록 세트 조회
     const baseBlocksRaw = await getBlockSetForPlanGroup(
@@ -209,9 +279,10 @@ async function _getReschedulePreview(
       "@/lib/scheduler/calculateAvailableDates"
     );
 
+    // adjustedPeriod를 사용하여 조정된 기간에 대해서만 스케줄 계산 (성능 최적화)
     const scheduleResult = calculateAvailableDates(
-      group.period_start,
-      group.period_end,
+      adjustedPeriod.start,  // 전체 기간 대신 조정된 기간 사용
+      adjustedPeriod.end,    // 전체 기간 대신 조정된 기간 사용
       baseBlocks.map((b) => ({
         day_of_week: b.day_of_week,
         start_time: b.start_time,
@@ -295,26 +366,27 @@ async function _getReschedulePreview(
     // 8. 콘텐츠 과목 정보 조회 (간단화: 빈 Map 사용)
     const contentSubjects = new Map<string, { subject?: string | null; subject_category?: string | null }>();
 
-    // 9. 실제 플랜 생성
+    // 9. 실제 플랜 생성 (미진행 범위가 적용된 콘텐츠 사용)
+    // 재조정 시에는 adjustedPeriod를 직접 전달하여 기간 일관성 보장
     const generatedPlans = generatePlansFromGroup(
       group,
-      adjustedContents,
+      contentsWithUncompleted,
       exclusions,
       academySchedules,
       baseBlocks,
       contentSubjects,
       undefined, // riskIndexMap
       dateAvailableTimeRanges,
-      dateTimeSlots
+      dateTimeSlots,
+      undefined, // contentDurationMap
+      adjustedPeriod.start, // 재조정 기간 시작일
+      adjustedPeriod.end // 재조정 기간 종료일
     );
 
-    // 10. 날짜 범위 필터링 (선택한 경우)
-    let filteredPlans = generatedPlans;
-    if (dateRange?.from && dateRange?.to) {
-      filteredPlans = generatedPlans.filter(
-        (plan) => plan.plan_date >= dateRange.from && plan.plan_date <= dateRange.to
-      );
-    }
+    // 10. 조정된 기간 내의 플랜만 필터링 (이미 adjustedPeriod로 생성되었으므로 필터링 불필요하지만 안전장치로 유지)
+    const filteredPlans = generatedPlans.filter(
+      (plan) => plan.plan_date >= adjustedPeriod.start && plan.plan_date <= adjustedPeriod.end
+    );
 
     // 11. 영향받는 날짜 계산
     const affectedDatesSet = new Set<string>();
@@ -349,7 +421,7 @@ async function _getReschedulePreview(
     }));
 
     // 14. 결과 반환
-    return {
+    const result: ReschedulePreviewResult = {
       plans_before_count: reschedulablePlans.length,
       plans_after_count: filteredPlans.length,
       affected_dates: affectedDates,
@@ -366,6 +438,11 @@ async function _getReschedulePreview(
       plans_before: plansBefore,
       plans_after: filteredPlans,
     };
+
+    // 15. 결과 캐싱 (Phase 3: 성능 최적화)
+    await cachePreviewResult(cacheKey, result);
+
+    return result;
 }
 
 export const getReschedulePreview = withErrorHandling(_getReschedulePreview);
@@ -481,15 +558,49 @@ async function _rescheduleContents(
         }
       }
 
-      // 7. 새 플랜 생성
-      // TODO: 실제 플랜 생성 로직 통합 필요
-      // generatePlansFromGroup 함수를 호출하여 새 플랜 생성
-      // 날짜 범위가 지정된 경우, 생성된 플랜 중 선택한 날짜 범위의 플랜만 저장
-      // 현재는 필터링 로직만 완료, 실제 생성은 별도 작업으로 분리
-      const plansAfterCount = 0; // TODO: 실제 생성된 플랜 수
-      
-      // 날짜 범위가 지정된 경우, 해당 범위의 플랜만 생성하도록 필터링
-      // 실제 구현 시: generatePlansFromGroup 호출 후 날짜 범위 필터링 적용
+      // 7. 새 플랜 생성 - 미리보기와 동일한 로직 사용
+      const previewResult = await _getReschedulePreview(groupId, adjustments, dateRange);
+      const newPlans = previewResult.plans_after;
+
+      // 8. 새 플랜 저장
+      let plansAfterCount = 0;
+      if (newPlans.length > 0) {
+        // ScheduledPlan을 student_plan 테이블 형식으로 변환
+        const planInserts = newPlans.map((plan) => ({
+          plan_group_id: groupId,
+          student_id: group.student_id,
+          tenant_id: group.tenant_id,
+          plan_date: plan.plan_date,
+          content_id: plan.content_id,
+          content_type: plan.content_type,
+          planned_start_page_or_time: plan.planned_start_page_or_time,
+          planned_end_page_or_time: plan.planned_end_page_or_time,
+          start_time: plan.start_time,
+          end_time: plan.end_time,
+          status: "pending",
+          is_active: true,
+        }));
+
+        // 배치 insert (Supabase는 한 번에 최대 1000개)
+        const BATCH_SIZE = 100;
+        for (let i = 0; i < planInserts.length; i += BATCH_SIZE) {
+          const batch = planInserts.slice(i, i + BATCH_SIZE);
+          const { error: insertError } = await supabase
+            .from("student_plan")
+            .insert(batch);
+
+          if (insertError) {
+            throw new AppError(
+              `새 플랜 저장 실패: ${insertError.message}`,
+              ErrorCode.DATABASE_ERROR,
+              500,
+              true
+            );
+          }
+        }
+
+        plansAfterCount = newPlans.length;
+      }
 
       // 8. 재조정 로그 저장
       const { data: rescheduleLog, error: logError } = await supabase

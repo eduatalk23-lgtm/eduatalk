@@ -58,11 +58,13 @@ if (typeof setInterval !== 'undefined') {
  * 
  * @param groupId 플랜 그룹 ID
  * @param adjustments 조정 요청 목록
+ * @param dateRange 날짜 범위 (선택)
  * @returns 캐시 키
  */
 export function generatePreviewCacheKey(
   groupId: string,
-  adjustments: AdjustmentInput[]
+  adjustments: AdjustmentInput[],
+  dateRange?: { from: string; to: string } | null
 ): string {
   // 조정 요청을 정렬하여 동일한 조정에 대해 같은 키 생성
   const sortedAdjustments = [...adjustments].sort((a, b) => {
@@ -74,11 +76,13 @@ export function generatePreviewCacheKey(
 
   // JSON 문자열로 직렬화하여 키 생성
   const adjustmentsStr = JSON.stringify(sortedAdjustments);
+  const dateRangeStr = dateRange ? `${dateRange.from}_${dateRange.to}` : 'full';
   
   // 간단한 해시 생성 (실제로는 crypto를 사용하는 것이 좋음)
   let hash = 0;
-  for (let i = 0; i < adjustmentsStr.length; i++) {
-    const char = adjustmentsStr.charCodeAt(i);
+  const fullStr = adjustmentsStr + dateRangeStr;
+  for (let i = 0; i < fullStr.length; i++) {
+    const char = fullStr.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32bit integer
   }
