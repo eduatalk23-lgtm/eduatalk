@@ -1,249 +1,434 @@
 /**
- * 재조정 패턴 분석
+ * 재조정 패턴 분석기
  * 
- * 재조정이 필요한 플랜 그룹을 감지하고 추천합니다.
+ * 재조정 이력을 분석하여 패턴을 파악하고 개선 제안을 생성합니다.
  * 
  * @module lib/reschedule/patternAnalyzer
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AdjustmentInput } from './scheduleEngine';
+import type { RescheduleLogItem } from "@/app/(student)/actions/plan-groups/rescheduleHistory";
 
 // ============================================
 // 타입 정의
 // ============================================
 
 /**
- * 재조정 추천
+ * 재조정 패턴 분석 결과
  */
-export interface RescheduleRecommendation {
-  groupId: string;
-  groupName: string | null;
-  reason: string;
-  suggestedAdjustments: AdjustmentInput[];
-  priority: 'low' | 'medium' | 'high';
-  estimatedImpact: {
-    plansAffected: number;
-    datesAffected: number;
+export interface ReschedulePatternAnalysis {
+  /** 재조정 빈도 */
+  frequency: {
+    total: number;
+    perMonth: number;
+    perWeek: number;
+    trend: "increasing" | "decreasing" | "stable";
+  };
+  /** 자주 재조정되는 콘텐츠 */
+  frequentlyRescheduledContents: Array<{
+    content_id: string;
+    rescheduleCount: number;
+    lastRescheduledAt: string;
+  }>;
+  /** 재조정 패턴 */
+  patterns: {
+    mostCommonType: "range" | "replace" | "full_regeneration";
+    averagePlansChanged: number;
+    averageAffectedDates: number;
+    commonDateRanges: Array<{
+      range: string; // 예: "1-7일", "8-14일"
+      count: number;
+    }>;
+  };
+  /** 개선 제안 */
+  suggestions: Array<{
+    type: "reduce_frequency" | "optimize_content" | "adjust_schedule";
+    priority: number; // 1-5
+    title: string;
+    description: string;
+    reason: string;
+  }>;
+}
+
+/**
+ * 재조정 효과 분석 결과
+ */
+export interface RescheduleEffectAnalysis {
+  /** 재조정 전후 비교 */
+  beforeAfter: {
+    averagePlansBefore: number;
+    averagePlansAfter: number;
+    averageChange: number;
+  };
+  /** 성공률 */
+  successRate: number;
+  /** 롤백률 */
+  rollbackRate: number;
+  /** 평균 재조정 간격 (일) */
+  averageIntervalDays: number;
+  /** 재조정 효과 평가 */
+  effectiveness: "high" | "medium" | "low";
+  /** 효과 설명 */
+  effectivenessDescription: string;
+}
+
+// ============================================
+// 패턴 분석
+// ============================================
+
+/**
+ * 재조정 빈도 분석
+ */
+function analyzeFrequency(logs: RescheduleLogItem[]): {
+  total: number;
+  perMonth: number;
+  perWeek: number;
+  trend: "increasing" | "decreasing" | "stable";
+} {
+  if (logs.length === 0) {
+    return {
+      total: 0,
+      perMonth: 0,
+      perWeek: 0,
+      trend: "stable",
+    };
+  }
+
+  // 날짜 범위 계산
+  const dates = logs
+    .map((log) => new Date(log.created_at))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const firstDate = dates[0];
+  const lastDate = dates[dates.length - 1];
+  const daysDiff =
+    (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24);
+
+  const perMonth = daysDiff > 0 ? (logs.length / daysDiff) * 30 : 0;
+  const perWeek = daysDiff > 0 ? (logs.length / daysDiff) * 7 : 0;
+
+  // 트렌드 분석 (최근 3개월 vs 이전 3개월)
+  const now = new Date();
+  const threeMonthsAgo = new Date(now);
+  threeMonthsAgo.setMonth(now.getMonth() - 3);
+  const sixMonthsAgo = new Date(now);
+  sixMonthsAgo.setMonth(now.getMonth() - 6);
+
+  const recentLogs = logs.filter(
+    (log) => new Date(log.created_at) >= threeMonthsAgo
+  );
+  const olderLogs = logs.filter(
+    (log) =>
+      new Date(log.created_at) >= sixMonthsAgo &&
+      new Date(log.created_at) < threeMonthsAgo
+  );
+
+  let trend: "increasing" | "decreasing" | "stable" = "stable";
+  if (recentLogs.length > olderLogs.length * 1.2) {
+    trend = "increasing";
+  } else if (recentLogs.length < olderLogs.length * 0.8) {
+    trend = "decreasing";
+  }
+
+  return {
+    total: logs.length,
+    perMonth: Math.round(perMonth * 10) / 10,
+    perWeek: Math.round(perWeek * 10) / 10,
+    trend,
   };
 }
 
 /**
- * 패턴 분석 결과
+ * 자주 재조정되는 콘텐츠 식별
  */
-export interface PatternAnalysisResult {
-  recommendations: RescheduleRecommendation[];
-  totalGroups: number;
-  analyzedGroups: number;
-}
+function identifyFrequentlyRescheduledContents(
+  logs: RescheduleLogItem[]
+): Array<{
+  content_id: string;
+  rescheduleCount: number;
+  lastRescheduledAt: string;
+}> {
+  const contentMap = new Map<
+    string,
+    { count: number; lastDate: string }
+  >();
 
-// ============================================
-// 패턴 분석 함수
-// ============================================
-
-/**
- * 재조정이 필요한 플랜 그룹 감지
- * 
- * 다음 패턴을 감지합니다:
- * 1. 완료율이 낮은 플랜 그룹 (진행이 느림)
- * 2. 계획된 기간이 지났지만 미완료 플랜이 많은 그룹
- * 3. 최근 재조정 후에도 완료율이 개선되지 않은 그룹
- * 
- * @param supabase Supabase 클라이언트
- * @param studentId 학생 ID
- * @returns 재조정 추천 목록
- */
-export async function detectRescheduleNeeds(
-  supabase: SupabaseClient,
-  studentId: string
-): Promise<RescheduleRecommendation[]> {
-  const recommendations: RescheduleRecommendation[] = [];
-
-  try {
-    // 1. 활성 플랜 그룹 조회
-    const { data: groups, error: groupsError } = await supabase
-      .from('plan_groups')
-      .select('id, name, period_start, period_end, status')
-      .eq('student_id', studentId)
-      .in('status', ['saved', 'active'])
-      .is('deleted_at', null);
-
-    if (groupsError || !groups) {
-      console.error('[patternAnalyzer] 플랜 그룹 조회 실패:', groupsError);
-      return [];
-    }
-
-    // 2. 각 플랜 그룹 분석
-    for (const group of groups) {
-      // 2-1. 플랜 통계 조회
-      const { data: plans, error: plansError } = await supabase
-        .from('student_plan')
-        .select('id, status, is_active, plan_date, actual_end_time')
-        .eq('plan_group_id', group.id)
-        .eq('student_id', studentId);
-
-      if (plansError || !plans) {
-        continue;
-      }
-
-      const totalPlans = plans.length;
-      const completedPlans = plans.filter(
-        (p) => p.status === 'completed' || p.actual_end_time !== null
-      ).length;
-      const activePlans = plans.filter((p) => p.is_active === true).length;
-      const completionRate = totalPlans > 0 ? (completedPlans / totalPlans) * 100 : 0;
-
-      // 2-2. 패턴 1: 완료율이 낮고 기간이 지난 경우
-      const now = new Date();
-      const periodEnd = new Date(group.period_end);
-      const isPeriodOver = now > periodEnd;
-
-      if (isPeriodOver && completionRate < 50 && activePlans > 0) {
-        recommendations.push({
-          groupId: group.id,
-          groupName: group.name,
-          reason: `기간이 지났지만 완료율이 ${Math.round(completionRate)}%로 낮습니다.`,
-          suggestedAdjustments: [], // TODO: 실제 조정 제안 생성
-          priority: 'high',
-          estimatedImpact: {
-            plansAffected: activePlans,
-            datesAffected: 0, // TODO: 실제 영향받는 날짜 계산
-          },
-        });
-      }
-
-      // 2-3. 패턴 2: 진행 속도가 느린 경우 (기간 중반인데 완료율이 30% 미만)
-      const periodStart = new Date(group.period_start);
-      const periodDuration = periodEnd.getTime() - periodStart.getTime();
-      const elapsed = now.getTime() - periodStart.getTime();
-      const progressRatio = periodDuration > 0 ? elapsed / periodDuration : 0;
-
-      if (
-        progressRatio > 0.5 &&
-        progressRatio < 1.0 &&
-        completionRate < 30 &&
-        activePlans > 0
-      ) {
-        recommendations.push({
-          groupId: group.id,
-          groupName: group.name,
-          reason: `기간의 ${Math.round(progressRatio * 100)}%가 지났지만 완료율이 ${Math.round(completionRate)}%입니다.`,
-          suggestedAdjustments: [],
-          priority: 'medium',
-          estimatedImpact: {
-            plansAffected: activePlans,
-            datesAffected: 0,
-          },
-        });
-      }
-
-      // 2-4. 패턴 3: 최근 재조정 후에도 개선되지 않은 경우
-      const { data: recentLogs } = await supabase
-        .from('reschedule_log')
-        .select('created_at, plans_before_count, plans_after_count')
-        .eq('plan_group_id', group.id)
-        .eq('student_id', studentId)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (recentLogs && recentLogs.length > 0) {
-        const recentLog = recentLogs[0];
-        const logDate = new Date(recentLog.created_at);
-        const daysSinceReschedule = (now.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24);
-
-        // 재조정 후 7일 이상 지났는데 완료율이 여전히 낮은 경우
-        if (daysSinceReschedule >= 7 && completionRate < 40 && activePlans > 0) {
-          recommendations.push({
-            groupId: group.id,
-            groupName: group.name,
-            reason: `최근 재조정 후 ${Math.round(daysSinceReschedule)}일이 지났지만 완료율이 ${Math.round(completionRate)}%로 낮습니다.`,
-            suggestedAdjustments: [],
-            priority: 'medium',
-            estimatedImpact: {
-              plansAffected: activePlans,
-              datesAffected: 0,
-            },
+  logs.forEach((log) => {
+    if (log.adjusted_contents && log.adjusted_contents.length > 0) {
+      log.adjusted_contents.forEach((contentId) => {
+        const existing = contentMap.get(contentId);
+        if (existing) {
+          existing.count++;
+          if (log.created_at > existing.lastDate) {
+            existing.lastDate = log.created_at;
+          }
+        } else {
+          contentMap.set(contentId, {
+            count: 1,
+            lastDate: log.created_at,
           });
         }
-      }
+      });
     }
+  });
 
-    // 3. 우선순위 정렬 (high > medium > low)
-    recommendations.sort((a, b) => {
-      const priorityOrder = { high: 3, medium: 2, low: 1 };
-      return priorityOrder[b.priority] - priorityOrder[a.priority];
-    });
-
-    return recommendations;
-  } catch (error) {
-    console.error('[patternAnalyzer] 패턴 분석 실패:', error);
-    return [];
-  }
+  return Array.from(contentMap.entries())
+    .map(([content_id, data]) => ({
+      content_id,
+      rescheduleCount: data.count,
+      lastRescheduledAt: data.lastDate,
+    }))
+    .sort((a, b) => b.rescheduleCount - a.rescheduleCount)
+    .slice(0, 5); // 상위 5개만 반환
 }
 
 /**
- * 플랜 그룹별 재조정 필요성 점수 계산
- * 
- * @param supabase Supabase 클라이언트
- * @param groupId 플랜 그룹 ID
- * @returns 재조정 필요성 점수 (0-100)
+ * 재조정 패턴 분석
  */
-export async function calculateRescheduleScore(
-  supabase: SupabaseClient,
-  groupId: string
-): Promise<number> {
-  try {
-    // 플랜 그룹 정보 조회
-    const { data: group } = await supabase
-      .from('plan_groups')
-      .select('period_start, period_end')
-      .eq('id', groupId)
-      .single();
-
-    if (!group) {
-      return 0;
-    }
-
-    // 플랜 통계 조회
-    const { data: plans } = await supabase
-      .from('student_plan')
-      .select('status, is_active, plan_date, actual_end_time')
-      .eq('plan_group_id', groupId);
-
-    if (!plans || plans.length === 0) {
-      return 0;
-    }
-
-    const totalPlans = plans.length;
-    const completedPlans = plans.filter(
-      (p) => p.status === 'completed' || p.actual_end_time !== null
-    ).length;
-    const activePlans = plans.filter((p) => p.is_active === true).length;
-    const completionRate = totalPlans > 0 ? (completedPlans / totalPlans) * 100 : 0;
-
-    // 점수 계산 (0-100)
-    let score = 0;
-
-    // 완료율이 낮을수록 점수 증가
-    score += (100 - completionRate) * 0.5;
-
-    // 기간이 지났는지 확인
-    const now = new Date();
-    const periodEnd = new Date(group.period_end);
-    if (now > periodEnd) {
-      score += 30; // 기간 초과 보너스
-    }
-
-    // 활성 플랜이 많을수록 점수 증가
-    if (activePlans > 0) {
-      score += Math.min(activePlans / totalPlans * 20, 20);
-    }
-
-    return Math.min(Math.round(score), 100);
-  } catch (error) {
-    console.error('[patternAnalyzer] 점수 계산 실패:', error);
-    return 0;
+function analyzePatterns(logs: RescheduleLogItem[]): {
+  mostCommonType: "range" | "replace" | "full_regeneration";
+  averagePlansChanged: number;
+  averageAffectedDates: number;
+  commonDateRanges: Array<{
+    range: string;
+    count: number;
+  }>;
+} {
+  if (logs.length === 0) {
+    return {
+      mostCommonType: "range",
+      averagePlansChanged: 0,
+      averageAffectedDates: 0,
+      commonDateRanges: [],
+    };
   }
+
+  // 평균 플랜 변화 계산
+  const totalPlansChanged = logs.reduce(
+    (sum, log) => sum + Math.abs(log.plans_after_count - log.plans_before_count),
+    0
+  );
+  const averagePlansChanged = Math.round((totalPlansChanged / logs.length) * 10) / 10;
+
+  // 평균 영향받는 날짜 수 계산
+  const totalAffectedDates = logs.reduce(
+    (sum, log) => sum + (log.affected_dates?.length || 0),
+    0
+  );
+  const averageAffectedDates = Math.round((totalAffectedDates / logs.length) * 10) / 10;
+
+  // 날짜 범위 패턴 분석
+  const dateRangeMap = new Map<string, number>();
+  logs.forEach((log) => {
+    if (log.date_range) {
+      const from = new Date(log.date_range.from);
+      const to = new Date(log.date_range.to);
+      const daysDiff = Math.ceil(
+        (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      let range: string;
+      if (daysDiff <= 7) {
+        range = "1-7일";
+      } else if (daysDiff <= 14) {
+        range = "8-14일";
+      } else if (daysDiff <= 30) {
+        range = "15-30일";
+      } else {
+        range = "30일 이상";
+      }
+
+      dateRangeMap.set(range, (dateRangeMap.get(range) || 0) + 1);
+    }
+  });
+
+  const commonDateRanges = Array.from(dateRangeMap.entries())
+    .map(([range, count]) => ({ range, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    mostCommonType: "range", // TODO: adjusted_contents에서 타입 추출
+    averagePlansChanged,
+    averageAffectedDates,
+    commonDateRanges,
+  };
 }
 
+/**
+ * 개선 제안 생성
+ */
+function generateSuggestions(
+  analysis: {
+    frequency: ReturnType<typeof analyzeFrequency>;
+    frequentlyRescheduledContents: ReturnType<typeof identifyFrequentlyRescheduledContents>;
+    patterns: ReturnType<typeof analyzePatterns>;
+  }
+): Array<{
+  type: "reduce_frequency" | "optimize_content" | "adjust_schedule";
+  priority: number;
+  title: string;
+  description: string;
+  reason: string;
+}> {
+  const suggestions: Array<{
+    type: "reduce_frequency" | "optimize_content" | "adjust_schedule";
+    priority: number;
+    title: string;
+    description: string;
+    reason: string;
+  }> = [];
+
+  // 재조정 빈도가 높으면 빈도 감소 제안
+  if (analysis.frequency.perMonth > 2) {
+    suggestions.push({
+      type: "reduce_frequency",
+      priority: 5,
+      title: "재조정 빈도 감소",
+      description: `현재 월 평균 ${analysis.frequency.perMonth}회 재조정하고 있습니다. 초기 플랜 설계를 더 신중하게 하면 재조정 빈도를 줄일 수 있습니다.`,
+      reason: `재조정 빈도가 높아 학습 계획의 안정성이 떨어집니다.`,
+    });
+  }
+
+  // 자주 재조정되는 콘텐츠가 있으면 최적화 제안
+  if (analysis.frequentlyRescheduledContents.length > 0) {
+    const topContent = analysis.frequentlyRescheduledContents[0];
+    if (topContent.rescheduleCount >= 3) {
+      suggestions.push({
+        type: "optimize_content",
+        priority: 4,
+        title: "콘텐츠 범위 최적화",
+        description: `${topContent.content_id} 콘텐츠가 ${topContent.rescheduleCount}회 재조정되었습니다. 초기 범위 설정을 재검토하는 것을 권장합니다.`,
+        reason: `특정 콘텐츠가 반복적으로 재조정되고 있습니다.`,
+      });
+    }
+  }
+
+  // 트렌드가 증가하면 일정 조정 제안
+  if (analysis.frequency.trend === "increasing") {
+    suggestions.push({
+      type: "adjust_schedule",
+      priority: 3,
+      title: "일정 조정 고려",
+      description: "재조정 빈도가 증가하고 있습니다. 학습 일정이나 목표를 재검토하는 것을 권장합니다.",
+      reason: `재조정 빈도가 증가하는 추세입니다.`,
+    });
+  }
+
+  return suggestions.sort((a, b) => b.priority - a.priority);
+}
+
+/**
+ * 재조정 패턴 분석
+ * 
+ * @param logs 재조정 로그 목록
+ * @returns 패턴 분석 결과
+ */
+export function analyzeReschedulePatterns(
+  logs: RescheduleLogItem[]
+): ReschedulePatternAnalysis {
+  const frequency = analyzeFrequency(logs);
+  const frequentlyRescheduledContents =
+    identifyFrequentlyRescheduledContents(logs);
+  const patterns = analyzePatterns(logs);
+  const suggestions = generateSuggestions({
+    frequency,
+    frequentlyRescheduledContents,
+    patterns,
+  });
+
+  return {
+    frequency,
+    frequentlyRescheduledContents,
+    patterns,
+    suggestions,
+  };
+}
+
+/**
+ * 재조정 효과 분석
+ * 
+ * @param logs 재조정 로그 목록
+ * @returns 효과 분석 결과
+ */
+export function analyzeRescheduleEffects(
+  logs: RescheduleLogItem[]
+): RescheduleEffectAnalysis {
+  if (logs.length === 0) {
+    return {
+      beforeAfter: {
+        averagePlansBefore: 0,
+        averagePlansAfter: 0,
+        averageChange: 0,
+      },
+      successRate: 0,
+      rollbackRate: 0,
+      averageIntervalDays: 0,
+      effectiveness: "low",
+      effectivenessDescription: "재조정 이력이 없습니다.",
+    };
+  }
+
+  // 재조정 전후 비교
+  const totalPlansBefore = logs.reduce(
+    (sum, log) => sum + log.plans_before_count,
+    0
+  );
+  const totalPlansAfter = logs.reduce(
+    (sum, log) => sum + log.plans_after_count,
+    0
+  );
+  const averagePlansBefore = Math.round((totalPlansBefore / logs.length) * 10) / 10;
+  const averagePlansAfter = Math.round((totalPlansAfter / logs.length) * 10) / 10;
+  const averageChange = averagePlansAfter - averagePlansBefore;
+
+  // 성공률 및 롤백률
+  const successfulLogs = logs.filter((log) => log.status === "completed");
+  const rolledBackLogs = logs.filter((log) => log.status === "rolled_back");
+  const successRate = Math.round((successfulLogs.length / logs.length) * 100);
+  const rollbackRate = Math.round((rolledBackLogs.length / logs.length) * 100);
+
+  // 평균 재조정 간격
+  const sortedLogs = [...logs].sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  let totalIntervalDays = 0;
+  for (let i = 1; i < sortedLogs.length; i++) {
+    const prevDate = new Date(sortedLogs[i - 1].created_at);
+    const currDate = new Date(sortedLogs[i].created_at);
+    const daysDiff =
+      (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+    totalIntervalDays += daysDiff;
+  }
+  const averageIntervalDays =
+    sortedLogs.length > 1
+      ? Math.round((totalIntervalDays / (sortedLogs.length - 1)) * 10) / 10
+      : 0;
+
+  // 효과 평가
+  let effectiveness: "high" | "medium" | "low" = "medium";
+  let effectivenessDescription = "";
+
+  if (successRate >= 90 && rollbackRate <= 5) {
+    effectiveness = "high";
+    effectivenessDescription = "재조정이 효과적으로 이루어지고 있습니다.";
+  } else if (successRate >= 70 && rollbackRate <= 15) {
+    effectiveness = "medium";
+    effectivenessDescription = "재조정이 대체로 효과적입니다. 일부 개선 여지가 있습니다.";
+  } else {
+    effectiveness = "low";
+    effectivenessDescription = "재조정 효과가 낮습니다. 재조정 전략을 재검토하는 것을 권장합니다.";
+  }
+
+  return {
+    beforeAfter: {
+      averagePlansBefore,
+      averagePlansAfter,
+      averageChange,
+    },
+    successRate,
+    rollbackRate,
+    averageIntervalDays,
+    effectiveness,
+    effectivenessDescription,
+  };
+}
