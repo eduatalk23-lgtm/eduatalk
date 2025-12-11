@@ -136,7 +136,20 @@ if (!parent) {
 2. JWT 토큰이 만료되었거나 손상되었을 때 발생
 3. 사용자 레코드가 제대로 생성되지 않았을 때 발생
 
-현재 코드에서는 이미 에러 처리가 되어 있어서, `parent_users` 레코드 생성 문제가 해결되면 이 에러도 해결될 것입니다.
+### 해결 방법
+
+`getCurrentUserRole` 및 `getCurrentUser` 함수에서 "User from sub claim in JWT does not exist" 에러를 명시적으로 처리하도록 수정했습니다:
+
+```typescript
+// "User from sub claim in JWT does not exist" 에러 처리
+const isUserNotFound =
+  errorCode === "user_not_found" ||
+  errorMessage.includes("user from sub claim") ||
+  errorMessage.includes("user from sub claim in jwt does not exist") ||
+  (authError.status === 403 && errorMessage.includes("does not exist"));
+```
+
+이제 이 에러는 조용히 처리되어 로그인 페이지가 정상적으로 표시됩니다.
 
 ---
 

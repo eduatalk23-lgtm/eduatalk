@@ -66,9 +66,11 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       }
 
       // 세션이 없거나 refresh token이 만료/손상된 것은 정상적인 상황일 수 있음 (로그인 페이지 등)
-      // "Auth session missing", "Refresh Token" 관련 에러는 조용히 처리
+      // "Auth session missing", "Refresh Token", "User from sub claim" 관련 에러는 조용히 처리
       const errorMessage = authError.message?.toLowerCase() || "";
       const errorName = authError.name?.toLowerCase() || "";
+      const errorCode = authError.code?.toLowerCase() || "";
+      
       const isSessionMissing =
         errorMessage.includes("session") ||
         errorMessage.includes("refresh token") ||
@@ -78,9 +80,17 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
           (errorMessage.includes("refresh token not found") ||
             errorMessage.includes("invalid refresh token") ||
             errorMessage.includes("refresh token expired")));
+      
+      // "User from sub claim in JWT does not exist" 에러 처리
+      // 이 에러는 이메일 인증 전이나 세션이 없을 때 발생할 수 있는 정상적인 상황
+      const isUserNotFound =
+        errorCode === "user_not_found" ||
+        errorMessage.includes("user from sub claim") ||
+        errorMessage.includes("user from sub claim in jwt does not exist") ||
+        (authError.status === 403 && errorMessage.includes("does not exist"));
 
-      if (!isSessionMissing) {
-        // 세션/토큰 관련이 아닌 다른 에러만 로깅
+      if (!isSessionMissing && !isUserNotFound) {
+        // 세션/토큰/사용자 없음 관련이 아닌 다른 에러만 로깅
         const errorDetails = {
           message: authError.message,
           status: authError.status,

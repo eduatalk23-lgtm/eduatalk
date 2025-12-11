@@ -34,16 +34,25 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       true // 인증 요청 플래그
     );
 
-    // refresh token 에러는 조용히 처리 (세션이 없는 것으로 간주)
+    // refresh token 에러나 사용자 없음 에러는 조용히 처리 (세션이 없는 것으로 간주)
     if (authError) {
       const errorMessage = authError.message?.toLowerCase() || "";
+      const errorCode = authError.code?.toLowerCase() || "";
+      
       const isRefreshTokenError = 
         errorMessage.includes("refresh token") ||
         errorMessage.includes("refresh_token") ||
         errorMessage.includes("session");
       
-      // refresh token 에러가 아닌 경우에만 로깅
-      if (!isRefreshTokenError) {
+      // "User from sub claim in JWT does not exist" 에러 처리
+      const isUserNotFound =
+        errorCode === "user_not_found" ||
+        errorMessage.includes("user from sub claim") ||
+        errorMessage.includes("user from sub claim in jwt does not exist") ||
+        (authError.status === 403 && errorMessage.includes("does not exist"));
+      
+      // refresh token 에러나 사용자 없음 에러가 아닌 경우에만 로깅
+      if (!isRefreshTokenError && !isUserNotFound) {
         console.error("[auth] getCurrentUser: getUser 실패", {
           message: authError.message,
           status: authError.status,
