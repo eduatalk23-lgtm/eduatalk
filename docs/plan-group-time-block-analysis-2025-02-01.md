@@ -16,6 +16,7 @@
 **위치**: `app/(student)/actions/plan-groups/create.ts:107`
 
 **문제**:
+
 - 캠프 모드에서 `block_set_id`가 `null`로 설정됨 (Line 1834-1835 in `campTemplateActions.ts`)
 - 일반 모드에서는 `block_set_id`가 필수
 - 두 모드 간 처리 로직이 분리되어 있어 일관성 부족
@@ -23,6 +24,7 @@
 **영향**: 캠프 모드에서 블록 세트 조회 실패 가능
 
 **관련 코드**:
+
 ```typescript
 // app/(admin)/actions/campTemplateActions.ts:1834-1835
 // 캠프 모드에서는 block_set_id를 null로 설정
@@ -36,25 +38,34 @@ creationData.block_set_id = null;
 **위치**: `app/(student)/actions/plan-groups/create.ts:45-68`
 
 **문제**:
+
 - `time_settings`를 `scheduler_options`에 병합할 때 `template_block_set_id`가 덮어쓸 수 있음
 - 복원 로직이 있지만 사전 방지가 부족
 
 **코드**:
+
 ```typescript
 // time_settings를 scheduler_options에 병합
 const mergedSchedulerOptions = data.scheduler_options || {};
 
 // template_block_set_id 보호 (캠프 모드에서 중요)
-const templateBlockSetId = (mergedSchedulerOptions as any).template_block_set_id;
+const templateBlockSetId = (mergedSchedulerOptions as any)
+  .template_block_set_id;
 
 if (data.time_settings) {
   Object.assign(mergedSchedulerOptions, data.time_settings);
-  
+
   // template_block_set_id가 덮어씌워졌는지 확인하고 복원
-  if (templateBlockSetId && !(mergedSchedulerOptions as any).template_block_set_id) {
-    console.warn("[_createPlanGroup] template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원:", {
-      template_block_set_id: templateBlockSetId,
-    });
+  if (
+    templateBlockSetId &&
+    !(mergedSchedulerOptions as any).template_block_set_id
+  ) {
+    console.warn(
+      "[_createPlanGroup] template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원:",
+      {
+        template_block_set_id: templateBlockSetId,
+      }
+    );
     (mergedSchedulerOptions as any).template_block_set_id = templateBlockSetId;
   }
 }
@@ -67,6 +78,7 @@ if (data.time_settings) {
 **위치**: `lib/scheduler/calculateAvailableDates.ts:547-774`
 
 **문제**:
+
 - `generateTimeSlots` 함수가 호출되지만 `daily_schedule`에 저장되는지 불명확
 - `time_slots` 생성과 저장 로직이 분리되어 있음
 
@@ -79,6 +91,7 @@ if (data.time_settings) {
 **위치**: `app/(student)/actions/plan-groups/create.ts:111`
 
 **문제**:
+
 - `non_study_time_blocks` 저장 전 검증이 없음
 - 형식 검증 및 중복 체크가 없음
 
@@ -105,11 +118,14 @@ if (data.time_settings) {
 **개선**: 병합 전 필드 제외 목록 확인 또는 병합 전략 명시
 
 **예시**:
+
 ```typescript
 // 개선안
-const protectedFields = ['template_block_set_id'];
+const protectedFields = ["template_block_set_id"];
 const timeSettingsToMerge = Object.fromEntries(
-  Object.entries(data.time_settings).filter(([key]) => !protectedFields.includes(key))
+  Object.entries(data.time_settings).filter(
+    ([key]) => !protectedFields.includes(key)
+  )
 );
 Object.assign(mergedSchedulerOptions, timeSettingsToMerge);
 ```
@@ -175,6 +191,7 @@ Object.assign(mergedSchedulerOptions, timeSettingsToMerge);
 **위치**: `app/(admin)/actions/campTemplateActions.ts:1834-1835`
 
 **문제**:
+
 ```typescript
 // 캠프 모드에서는 block_set_id를 null로 설정
 creationData.block_set_id = null;
@@ -207,16 +224,19 @@ creationData.block_set_id = null;
 ## 📊 5. 권장 개선 사항
 
 ### 우선순위 1 (Critical)
+
 1. 캠프 모드 `block_set_id` null 처리 수정
 2. `time_settings` 병합 시 보호 필드 명시적 처리
 3. `daily_schedule` 생성 및 저장 흐름 명확화
 
 ### 우선순위 2 (High)
+
 1. 중복 코드 공통 함수 추출
 2. `non_study_time_blocks` 검증 추가
 3. `block_set_id` 조회 로직 통합
 
 ### 우선순위 3 (Medium)
+
 1. 타입 안전성 개선 (`as any` 제거)
 2. 에러 처리 강화
 3. 로깅 개선
@@ -237,10 +257,10 @@ creationData.block_set_id = null;
 ---
 
 **참고 파일**:
+
 - `app/(student)/actions/plan-groups/create.ts`
 - `lib/data/planGroups.ts`
 - `lib/plan/blocks.ts`
 - `lib/utils/planGroupTransform.ts`
 - `app/(admin)/actions/campTemplateActions.ts`
 - `lib/scheduler/calculateAvailableDates.ts`
-

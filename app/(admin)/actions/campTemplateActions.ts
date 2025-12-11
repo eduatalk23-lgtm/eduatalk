@@ -27,6 +27,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
 import { calculateRecommendedRanges, type ScheduleSummary } from "@/lib/plan/rangeRecommendation";
 import { getRangeRecommendationConfig } from "@/lib/recommendations/config/configManager";
+import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
 
 /**
  * 캠프 템플릿 목록 조회
@@ -1831,24 +1832,95 @@ export const continueCampStepsForAdmin = withErrorHandling(
         wizardData as WizardData
       );
 
-      // 캠프 모드에서는 block_set_id를 null로 설정
-      creationData.block_set_id = null;
       creationData.plan_type = "camp";
       if (result.group.camp_template_id) {
         creationData.camp_template_id = result.group.camp_template_id;
+        
+        // 캠프 모드에서 템플릿 블록 세트 ID 조회
+        // getCampPlanGroupForReview 함수의 로직 참고
+        let tenantBlockSetId: string | null = null;
+        const schedulerOptions = (result.group.scheduler_options as any) || {};
+        
+        // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
+        const { data: templateBlockSetLink, error: linkError } = await supabase
+          .from("camp_template_block_sets")
+          .select("tenant_block_set_id")
+          .eq("camp_template_id", result.group.camp_template_id)
+          .maybeSingle();
+
+        if (linkError) {
+          console.error(
+            "[continueCampStepsForAdmin] 템플릿 블록 세트 연결 조회 에러:",
+            linkError
+          );
+        } else if (templateBlockSetLink) {
+          tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
+          console.log(
+            "[continueCampStepsForAdmin] 연결 테이블에서 block_set_id 발견:",
+            tenantBlockSetId
+          );
+        }
+
+        // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
+        if (!tenantBlockSetId) {
+          const templateBlockSetId = schedulerOptions.template_block_set_id;
+          if (templateBlockSetId) {
+            tenantBlockSetId = templateBlockSetId;
+            console.log(
+              "[continueCampStepsForAdmin] scheduler_options에서 template_block_set_id 발견 (Fallback):",
+              tenantBlockSetId
+            );
+          }
+        }
+
+        // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
+        if (!tenantBlockSetId) {
+          const { getCampTemplate } = await import("@/lib/data/campTemplates");
+          const template = await getCampTemplate(result.group.camp_template_id);
+          if (template?.template_data) {
+            try {
+              let templateData: any = null;
+              if (typeof template.template_data === "string") {
+                templateData = JSON.parse(template.template_data);
+              } else {
+                templateData = template.template_data;
+              }
+
+              if (templateData?.block_set_id) {
+                tenantBlockSetId = templateData.block_set_id;
+                console.log(
+                  "[continueCampStepsForAdmin] template_data에서 block_set_id 발견 (하위 호환성):",
+                  tenantBlockSetId
+                );
+              }
+            } catch (parseError) {
+              console.error(
+                "[continueCampStepsForAdmin] template_data 파싱 에러:",
+                parseError
+              );
+            }
+          }
+        }
+
+        // 조회된 block_set_id 설정
+        if (tenantBlockSetId) {
+          creationData.block_set_id = tenantBlockSetId;
+        } else {
+          console.warn(
+            "[continueCampStepsForAdmin] 템플릿 블록 세트 ID를 찾을 수 없습니다:",
+            result.group.camp_template_id
+          );
+        }
       }
       if (result.group.camp_invitation_id) {
         creationData.camp_invitation_id = result.group.camp_invitation_id;
       }
 
-      // time_settings를 scheduler_options에 병합
-      let mergedSchedulerOptions = creationData.scheduler_options || {};
-      if (creationData.time_settings) {
-        mergedSchedulerOptions = {
-          ...mergedSchedulerOptions,
-          ...creationData.time_settings,
-        };
-      }
+      // time_settings를 scheduler_options에 안전하게 병합 (보호 필드 자동 보호)
+      const mergedSchedulerOptions = mergeTimeSettingsSafely(
+        creationData.scheduler_options || {},
+        creationData.time_settings
+      );
 
       // 플랜 그룹 메타데이터 업데이트 (관리자가 직접 Supabase 사용)
       const updatePayload: Record<string, any> = {
