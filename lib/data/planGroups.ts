@@ -197,6 +197,33 @@ export async function getPlanGroupsForStudent(
 /**
  * 플랜 그룹 ID로 조회
  */
+/**
+ * 플랜 그룹을 ID로 조회합니다.
+ *
+ * 학생 ID와 테넌트 ID를 사용하여 RLS(Row Level Security)를 통해 접근 권한을 확인합니다.
+ * 삭제되지 않은 플랜 그룹만 조회합니다.
+ *
+ * Fallback 처리:
+ * - 컬럼이 없는 경우(에러 코드 42703) fallback 쿼리를 사용합니다.
+ * - scheduler_options 컬럼이 없는 경우 null로 설정합니다.
+ *
+ * @param groupId 플랜 그룹 ID
+ * @param studentId 학생 ID (RLS 확인용)
+ * @param tenantId 테넌트 ID (선택사항, RLS 확인용)
+ * @returns 플랜 그룹 객체 또는 null (조회 실패 시)
+ *
+ * @example
+ * ```typescript
+ * const group = await getPlanGroupById(
+ *   "group-123",
+ *   "student-456",
+ *   "tenant-789"
+ * );
+ * if (group) {
+ *   console.log(group.name);
+ * }
+ * ```
+ */
 export async function getPlanGroupById(
   groupId: string,
   studentId: string,
@@ -292,7 +319,55 @@ export async function getPlanGroupById(
 }
 
 /**
- * 플랜 그룹 생성
+ * 플랜 그룹을 생성합니다.
+ *
+ * 플랜 그룹의 메타데이터와 JSONB 필드들을 데이터베이스에 저장합니다.
+ * 생성 성공 시 플랜 그룹 ID를 반환합니다.
+ *
+ * JSONB 필드:
+ * - scheduler_options: 스케줄러 옵션
+ * - daily_schedule: 일별 스케줄 정보
+ * - subject_constraints: 교과 제약 조건
+ * - additional_period_reallocation: 추가 기간 재배치 정보
+ * - non_study_time_blocks: 학습 시간 제외 항목
+ *
+ * @param group 플랜 그룹 생성 데이터
+ * @param group.tenant_id 테넌트 ID (필수)
+ * @param group.student_id 학생 ID (필수)
+ * @param group.name 플랜 그룹 이름 (선택사항)
+ * @param group.plan_purpose 플랜 목적 (선택사항)
+ * @param group.scheduler_type 스케줄러 유형 (선택사항)
+ * @param group.scheduler_options 스케줄러 옵션 (JSONB, 선택사항)
+ * @param group.period_start 기간 시작일 (필수)
+ * @param group.period_end 기간 종료일 (필수)
+ * @param group.target_date 목표일 (선택사항)
+ * @param group.block_set_id 블록 세트 ID (선택사항)
+ * @param group.status 플랜 상태 (선택사항, 기본값: "draft")
+ * @param group.subject_constraints 교과 제약 조건 (JSONB, 선택사항)
+ * @param group.additional_period_reallocation 추가 기간 재배치 정보 (JSONB, 선택사항)
+ * @param group.non_study_time_blocks 학습 시간 제외 항목 (JSONB, 선택사항)
+ * @param group.daily_schedule 일별 스케줄 정보 (JSONB, 선택사항)
+ * @param group.plan_type 플랜 유형 (선택사항)
+ * @param group.camp_template_id 캠프 템플릿 ID (선택사항)
+ * @param group.camp_invitation_id 캠프 초대 ID (선택사항)
+ * @returns 생성 결과 객체 (success, groupId, error 포함)
+ *
+ * @example
+ * ```typescript
+ * const result = await createPlanGroup({
+ *   tenant_id: "tenant-123",
+ *   student_id: "student-456",
+ *   name: "2025년 1학기 학습 계획",
+ *   plan_purpose: "내신대비",
+ *   scheduler_type: "1730_timetable",
+ *   period_start: "2025-01-01",
+ *   period_end: "2025-06-30",
+ *   scheduler_options: { study_days: 6, review_days: 1 },
+ * });
+ * if (result.success) {
+ *   console.log("플랜 그룹 생성 성공:", result.groupId);
+ * }
+ * ```
  */
 export async function createPlanGroup(
   group: {

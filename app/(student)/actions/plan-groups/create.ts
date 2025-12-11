@@ -22,7 +22,35 @@ import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/er
 import { updatePlanGroupDraftAction } from "./update";
 
 /**
- * 플랜 그룹 생성 (JSON 데이터)
+ * 플랜 그룹을 생성하는 내부 함수입니다.
+ *
+ * 이 함수는 다음 작업을 수행합니다:
+ * 1. 사용자 인증 및 테넌트 컨텍스트 확인
+ * 2. 입력 데이터 검증 (PlanValidator 사용)
+ * 3. time_settings를 scheduler_options에 안전하게 병합 (보호 필드 보호)
+ * 4. study_review_cycle을 scheduler_options에 병합
+ * 5. 플랜 그룹 생성
+ * 6. 플랜 콘텐츠, 제외일, 학원 일정 생성
+ * 7. 실패 시 롤백 처리
+ *
+ * @param data 플랜 그룹 생성 데이터
+ * @param options 옵션 객체
+ * @param options.skipContentValidation 콘텐츠 검증 건너뛰기 (캠프 모드에서 Step 3 제출 시 사용)
+ * @returns 생성된 플랜 그룹 ID
+ * @throws AppError - 검증 실패 또는 데이터베이스 오류 시
+ *
+ * @example
+ * ```typescript
+ * const result = await _createPlanGroup({
+ *   name: "2025년 1학기 학습 계획",
+ *   plan_purpose: "내신대비",
+ *   scheduler_type: "1730_timetable",
+ *   period_start: "2025-01-01",
+ *   period_end: "2025-06-30",
+ *   // ... 기타 필드
+ * });
+ * console.log("생성된 플랜 그룹 ID:", result.groupId);
+ * ```
  */
 async function _createPlanGroup(
   data: PlanGroupCreationData,
@@ -239,6 +267,29 @@ async function _createPlanGroup(
   return { groupId };
 }
 
+/**
+ * 플랜 그룹 생성을 위한 Server Action입니다.
+ *
+ * `withErrorHandling`으로 래핑되어 있어 에러가 자동으로 로깅되고 처리됩니다.
+ * 개발 환경에서만 입력 데이터를 로깅합니다.
+ *
+ * @param data 플랜 그룹 생성 데이터
+ * @param options 옵션 객체
+ * @param options.skipContentValidation 콘텐츠 검증 건너뛰기 (캠프 모드에서 Step 3 제출 시 사용)
+ * @returns 생성된 플랜 그룹 ID 또는 에러 정보
+ *
+ * @example
+ * ```typescript
+ * // 클라이언트 컴포넌트에서 사용
+ * const result = await createPlanGroupAction({
+ *   name: "2025년 1학기 학습 계획",
+ *   // ... 기타 필드
+ * });
+ * if (result.success) {
+ *   router.push(`/plan/${result.groupId}`);
+ * }
+ * ```
+ */
 export const createPlanGroupAction = withErrorHandling(
   async (
     data: PlanGroupCreationData,

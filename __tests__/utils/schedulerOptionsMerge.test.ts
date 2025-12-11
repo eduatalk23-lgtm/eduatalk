@@ -8,6 +8,7 @@ import {
   mergeStudyReviewCycle,
 } from "@/lib/utils/schedulerOptionsMerge";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import type { SchedulerOptions } from "@/lib/types/plan";
 
 describe("mergeTimeSettingsSafely", () => {
   describe("정상 케이스", () => {
@@ -83,6 +84,121 @@ describe("mergeTimeSettingsSafely", () => {
       }).toThrow(PlanGroupError);
     });
   });
+
+  describe("경계값 테스트", () => {
+    it("빈 객체 병합", () => {
+      const schedulerOptions = { study_days: 6 };
+      const timeSettings = {};
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result).toEqual(schedulerOptions);
+    });
+
+    it("매우 큰 객체 병합", () => {
+      const schedulerOptions: Record<string, unknown> = { study_days: 6 };
+      const timeSettings: Record<string, unknown> = {};
+      
+      // 100개의 속성 추가
+      for (let i = 0; i < 100; i++) {
+        timeSettings[`key_${i}`] = `value_${i}`;
+      }
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result.study_days).toBe(6);
+      expect(result.key_0).toBe("value_0");
+      expect(result.key_99).toBe("value_99");
+    });
+
+    it("중첩된 객체 병합", () => {
+      const schedulerOptions = { study_days: 6 };
+      const timeSettings = {
+        lunch_time: {
+          start: "12:00",
+          end: "13:00",
+          nested: {
+            deep: "value",
+          },
+        },
+      };
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result.study_days).toBe(6);
+      expect(result.lunch_time).toEqual({
+        start: "12:00",
+        end: "13:00",
+        nested: {
+          deep: "value",
+        },
+      });
+    });
+
+    it("특수 문자 포함된 키 병합", () => {
+      const schedulerOptions = { study_days: 6 };
+      const timeSettings = {
+        "key-with-dash": "value1",
+        "key_with_underscore": "value2",
+        "key.with.dot": "value3",
+      };
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result.study_days).toBe(6);
+      expect(result["key-with-dash"]).toBe("value1");
+      expect(result["key_with_underscore"]).toBe("value2");
+      expect(result["key.with.dot"]).toBe("value3");
+    });
+
+    it("매우 긴 문자열 값 병합", () => {
+      const schedulerOptions = { study_days: 6 };
+      const longString = "a".repeat(10000);
+      const timeSettings = {
+        long_value: longString,
+      };
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result.study_days).toBe(6);
+      expect(result.long_value).toBe(longString);
+      expect((result.long_value as string).length).toBe(10000);
+    });
+
+    it("숫자 경계값 (0, 음수, 매우 큰 수)", () => {
+      const schedulerOptions = { study_days: 6 };
+      const timeSettings = {
+        zero_value: 0,
+        negative_value: -1,
+        large_value: Number.MAX_SAFE_INTEGER,
+        small_value: Number.MIN_SAFE_INTEGER,
+      };
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result.study_days).toBe(6);
+      expect(result.zero_value).toBe(0);
+      expect(result.negative_value).toBe(-1);
+      expect(result.large_value).toBe(Number.MAX_SAFE_INTEGER);
+      expect(result.small_value).toBe(Number.MIN_SAFE_INTEGER);
+    });
+
+    it("null, undefined 값 포함", () => {
+      const schedulerOptions = { study_days: 6 };
+      const timeSettings = {
+        null_value: null,
+        undefined_value: undefined,
+        empty_string: "",
+      };
+
+      const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+
+      expect(result.study_days).toBe(6);
+      expect(result.null_value).toBeNull();
+      expect(result.undefined_value).toBeUndefined();
+      expect(result.empty_string).toBe("");
+    });
+  });
 });
 
 describe("mergeStudyReviewCycle", () => {
@@ -100,7 +216,7 @@ describe("mergeStudyReviewCycle", () => {
     });
 
     it("studyReviewCycle을 병합", () => {
-      const schedulerOptions = { student_level: "high" };
+      const schedulerOptions: SchedulerOptions = { student_level: "high" };
       const studyReviewCycle = { study_days: 5, review_days: 2 };
 
       const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
@@ -150,6 +266,73 @@ describe("mergeStudyReviewCycle", () => {
       expect(() => {
         mergeStudyReviewCycle({}, { study_days: 5, review_days: "2" as any });
       }).toThrow(PlanGroupError);
+    });
+  });
+
+  describe("경계값 테스트", () => {
+    it("study_days가 0인 경우", () => {
+      const schedulerOptions: SchedulerOptions = { student_level: "high" };
+      const studyReviewCycle = { study_days: 0, review_days: 1 };
+
+      const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+
+      expect(result.study_days).toBe(0);
+      expect(result.review_days).toBe(1);
+    });
+
+    it("review_days가 0인 경우", () => {
+      const schedulerOptions: SchedulerOptions = { student_level: "high" };
+      const studyReviewCycle = { study_days: 6, review_days: 0 };
+
+      const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+
+      expect(result.study_days).toBe(6);
+      expect(result.review_days).toBe(0);
+    });
+
+    it("음수 값 처리", () => {
+      const schedulerOptions: SchedulerOptions = { student_level: "high" };
+      const studyReviewCycle = { study_days: -1, review_days: -2 };
+
+      // 음수는 숫자이므로 타입 검증은 통과하지만, 비즈니스 로직에서 검증해야 함
+      const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+
+      expect(result.study_days).toBe(-1);
+      expect(result.review_days).toBe(-2);
+    });
+
+    it("매우 큰 숫자 값 처리", () => {
+      const schedulerOptions: SchedulerOptions = { student_level: "high" };
+      const studyReviewCycle = {
+        study_days: Number.MAX_SAFE_INTEGER,
+        review_days: Number.MAX_SAFE_INTEGER - 1,
+      };
+
+      const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+
+      expect(result.study_days).toBe(Number.MAX_SAFE_INTEGER);
+      expect(result.review_days).toBe(Number.MAX_SAFE_INTEGER - 1);
+    });
+
+    it("소수점 숫자 처리", () => {
+      const schedulerOptions: SchedulerOptions = { student_level: "high" };
+      const studyReviewCycle = { study_days: 6.5, review_days: 1.5 };
+
+      // 소수점도 숫자이므로 타입 검증은 통과
+      const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+
+      expect(result.study_days).toBe(6.5);
+      expect(result.review_days).toBe(1.5);
+    });
+
+    it("빈 schedulerOptions와 병합", () => {
+      const schedulerOptions: SchedulerOptions = {};
+      const studyReviewCycle = { study_days: 5, review_days: 2 };
+
+      const result = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+
+      expect(result.study_days).toBe(5);
+      expect(result.review_days).toBe(2);
     });
   });
 });

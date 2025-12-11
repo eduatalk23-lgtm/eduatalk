@@ -220,5 +220,216 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
       expect(result.errors.length).toBeGreaterThan(0);
     });
   });
+
+  describe("경계값 테스트", () => {
+    it("최소 시간 값 (00:00)", () => {
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "수면",
+          start_time: "00:00",
+          end_time: "00:01",
+        },
+      ];
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("최대 시간 값 (23:59)", () => {
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "수면",
+          start_time: "23:58",
+          end_time: "23:59",
+        },
+      ];
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("경계값 초과 시간 (24:00)", () => {
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "수면",
+          start_time: "23:00",
+          end_time: "24:00", // 잘못된 형식
+        },
+      ];
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("경계값 초과 분 (60분)", () => {
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "점심식사",
+          start_time: "12:00",
+          end_time: "12:60", // 잘못된 형식
+        },
+      ];
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("특수 문자 포함된 타입", () => {
+      const blocks = [
+        {
+          type: "점심식사<script>alert('xss')</script>",
+          start_time: "12:00",
+          end_time: "13:00",
+        },
+      ] as any;
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      // 타입 검증에서 실패해야 함
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("특수 문자 포함된 시간 형식", () => {
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "점심식사",
+          start_time: "12:00<script>",
+          end_time: "13:00",
+        },
+      ];
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("매우 긴 문자열 타입", () => {
+      const longType = "점심식사".repeat(1000); // 약 3000자
+      const blocks = [
+        {
+          type: longType,
+          start_time: "12:00",
+          end_time: "13:00",
+        },
+      ] as any;
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      // 타입 검증에서 실패해야 함 (유효한 타입이 아님)
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("매우 긴 description", () => {
+      const longDescription = "설명".repeat(1000); // 약 2000자
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "점심식사",
+          start_time: "12:00",
+          end_time: "13:00",
+          description: longDescription,
+        },
+      ];
+
+      // description은 선택사항이므로 검증 통과해야 함
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("매우 많은 블록 (100개)", () => {
+      const blocks: NonStudyTimeBlock[] = [];
+      for (let i = 0; i < 100; i++) {
+        blocks.push({
+          type: "기타",
+          start_time: `${String(i % 24).padStart(2, "0")}:00`,
+          end_time: `${String((i % 24) + 1).padStart(2, "0")}:00`,
+        });
+      }
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      // 중복 체크에서 실패할 수 있음
+      // 하지만 시간이 다르므로 통과해야 함
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("요일 배열 최대값 (0-6)", () => {
+      const blocks: NonStudyTimeBlock[] = [
+        {
+          type: "수면",
+          start_time: "22:00",
+          end_time: "07:00",
+          day_of_week: [0, 1, 2, 3, 4, 5, 6], // 모든 요일
+        },
+      ];
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("요일 배열 경계값 초과 (7)", () => {
+      const blocks = [
+        {
+          type: "수면",
+          start_time: "22:00",
+          end_time: "07:00",
+          day_of_week: [0, 1, 2, 3, 4, 5, 6, 7], // 7은 유효하지 않음
+        },
+      ] as any;
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      // 검증 로직에 따라 실패할 수 있음
+      // 실제 구현에 따라 다를 수 있음
+      expect(result.valid).toBe(false);
+    });
+
+    it("요일 배열 음수값", () => {
+      const blocks = [
+        {
+          type: "수면",
+          start_time: "22:00",
+          end_time: "07:00",
+          day_of_week: [-1, 0, 1], // -1은 유효하지 않음
+        },
+      ] as any;
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      // 검증 로직에 따라 실패할 수 있음
+      expect(result.valid).toBe(false);
+    });
+
+    it("빈 문자열 시간", () => {
+      const blocks = [
+        {
+          type: "점심식사",
+          start_time: "",
+          end_time: "13:00",
+        },
+      ] as any;
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it("공백만 있는 시간", () => {
+      const blocks = [
+        {
+          type: "점심식사",
+          start_time: "   ",
+          end_time: "13:00",
+        },
+      ] as any;
+
+      const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+  });
 });
 

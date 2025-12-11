@@ -4,6 +4,7 @@
  */
 
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
+import type { SchedulerOptions, TimeSettings } from "@/lib/types/plan";
 
 /**
  * 병합 시 보호해야 할 필드 목록
@@ -15,15 +16,39 @@ const PROTECTED_FIELDS = ["template_block_set_id", "camp_template_id"];
  * time_settings를 scheduler_options에 안전하게 병합합니다.
  * 보호 필드는 병합 후에도 유지됩니다.
  *
+ * 보호 필드 목록: `template_block_set_id`, `camp_template_id`
+ * 이 필드들은 time_settings에 포함되어 있어도 병합 후 원래 값이 유지됩니다.
+ *
  * @param schedulerOptions - 기존 scheduler_options 객체
  * @param timeSettings - 병합할 time_settings 객체 (null 또는 undefined 가능)
  * @returns 병합된 scheduler_options 객체
  * @throws PlanGroupError - 입력값이 유효하지 않은 경우
+ *
+ * @example
+ * ```typescript
+ * const schedulerOptions = {
+ *   study_days: 6,
+ *   review_days: 1,
+ *   template_block_set_id: "protected-id",
+ * };
+ * const timeSettings = {
+ *   lunch_time: { start: "12:00", end: "13:00" },
+ *   template_block_set_id: "should-not-overwrite",
+ * };
+ *
+ * const merged = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
+ * // 결과: {
+ * //   study_days: 6,
+ * //   review_days: 1,
+ * //   lunch_time: { start: "12:00", end: "13:00" },
+ * //   template_block_set_id: "protected-id" // 보호 필드 유지
+ * // }
+ * ```
  */
 export function mergeTimeSettingsSafely(
-  schedulerOptions: Record<string, any>,
-  timeSettings: Record<string, any> | null | undefined
-): Record<string, any> {
+  schedulerOptions: SchedulerOptions & Partial<TimeSettings> & Record<string, unknown>,
+  timeSettings: Partial<TimeSettings> | null | undefined
+): SchedulerOptions & Partial<TimeSettings> & Record<string, unknown> {
   // 입력값 검증
   if (schedulerOptions === null || schedulerOptions === undefined) {
     throw new PlanGroupError(
@@ -90,15 +115,37 @@ export function mergeTimeSettingsSafely(
 /**
  * study_review_cycle을 scheduler_options에 병합합니다.
  *
+ * study_review_cycle의 `study_days`와 `review_days` 값을 scheduler_options에 병합합니다.
+ * 기존 scheduler_options의 다른 필드는 유지됩니다.
+ *
  * @param schedulerOptions - 기존 scheduler_options 객체
  * @param studyReviewCycle - 병합할 study_review_cycle 객체 (null 또는 undefined 가능)
  * @returns 병합된 scheduler_options 객체
  * @throws PlanGroupError - 입력값이 유효하지 않은 경우
+ *
+ * @example
+ * ```typescript
+ * const schedulerOptions = {
+ *   student_level: "high",
+ *   study_days: 6, // 기존 값
+ * };
+ * const studyReviewCycle = {
+ *   study_days: 5,
+ *   review_days: 2,
+ * };
+ *
+ * const merged = mergeStudyReviewCycle(schedulerOptions, studyReviewCycle);
+ * // 결과: {
+ * //   student_level: "high",
+ * //   study_days: 5, // 업데이트됨
+ * //   review_days: 2, // 추가됨
+ * // }
+ * ```
  */
 export function mergeStudyReviewCycle(
-  schedulerOptions: Record<string, any>,
+  schedulerOptions: SchedulerOptions,
   studyReviewCycle: { study_days: number; review_days: number } | null | undefined
-): Record<string, any> {
+): SchedulerOptions {
   // 입력값 검증
   if (schedulerOptions === null || schedulerOptions === undefined) {
     throw new PlanGroupError(

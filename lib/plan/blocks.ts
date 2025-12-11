@@ -26,15 +26,42 @@ export type BlockSetInfo = {
 
 /**
  * 플랜 그룹에 맞는 블록 세트를 조회합니다.
- * - 캠프 모드: 템플릿 블록 세트 조회 (연결 테이블 → 하위 호환성 → template_data)
- * - 일반 모드: 학생 블록 세트 조회 (block_set_id → active_block_set_id)
  *
- * @param group 플랜 그룹
+ * 조회 순서:
+ * 1. 캠프 모드: 템플릿 블록 세트 조회 (연결 테이블 → 하위 호환성 → template_data)
+ * 2. 일반 모드: 학생 블록 세트 조회 (block_set_id → active_block_set_id)
+ *
+ * 에러 처리:
+ * - 캠프 모드에서 블록 세트를 찾을 수 없으면 PlanGroupError를 throw합니다.
+ * - 일반 모드에서 블록 세트를 찾을 수 없으면 빈 배열을 반환하고 경고 로그를 남깁니다.
+ *
+ * @param group 플랜 그룹 객체
  * @param studentId 학생 ID
  * @param currentUserId 현재 사용자 ID
- * @param role 현재 사용자 역할
+ * @param role 현재 사용자 역할 (student, admin, consultant 등)
  * @param tenantId 테넌트 ID (캠프 모드에서 필요)
- * @returns 블록 정보 배열
+ * @returns 블록 정보 배열 (day_of_week, start_time, end_time 포함)
+ * @throws PlanGroupError - 캠프 모드에서 블록 세트를 찾을 수 없는 경우
+ *
+ * @example
+ * ```typescript
+ * // 캠프 모드
+ * const blocks = await getBlockSetForPlanGroup(
+ *   { plan_type: "camp", camp_template_id: "template-123", ... },
+ *   "student-id",
+ *   "user-id",
+ *   "student",
+ *   "tenant-id"
+ * );
+ *
+ * // 일반 모드
+ * const blocks = await getBlockSetForPlanGroup(
+ *   { plan_type: "individual", block_set_id: "block-set-123", ... },
+ *   "student-id",
+ *   "user-id",
+ *   "student"
+ * );
+ * ```
  */
 export async function getBlockSetForPlanGroup(
   group: PlanGroup,
@@ -124,7 +151,15 @@ export async function getBlockSetForPlanGroup(
 
 /**
  * 템플릿 블록 세트를 조회합니다.
- * 연결 테이블 → 하위 호환성 → template_data 순으로 조회합니다.
+ *
+ * 조회 순서:
+ * 1. 연결 테이블(camp_template_block_sets)에서 템플릿에 연결된 블록 세트 조회
+ * 2. 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
+ * 3. tenant_blocks에서 실제 블록 정보 조회
+ *
+ * @param templateId 캠프 템플릿 ID
+ * @param tenantId 테넌트 ID (선택사항)
+ * @returns 블록 정보 배열 또는 null (조회 실패 시)
  */
 async function getTemplateBlockSet(
   templateId: string,
@@ -192,12 +227,28 @@ async function getTemplateBlockSet(
 
 /**
  * 템플릿 블록 세트 ID를 조회합니다.
- * 연결 테이블 → scheduler_options → template_data 순서로 조회합니다.
+ *
+ * 조회 순서:
+ * 1. 연결 테이블(camp_template_block_sets)에서 직접 조회
+ * 2. scheduler_options.template_block_set_id 확인 (Fallback)
+ * 3. template_data.block_set_id 확인 (하위 호환성)
+ *
+ * 이 함수는 블록 세트 ID만 반환하며, 실제 블록 정보는 조회하지 않습니다.
+ * 블록 정보가 필요한 경우 `getTemplateBlockSet` 함수를 사용하세요.
  *
  * @param templateId 캠프 템플릿 ID
  * @param schedulerOptions scheduler_options 객체 (Fallback용, 선택사항)
  * @param tenantId 테넌트 ID (선택사항)
- * @returns tenant_block_set_id 또는 null
+ * @returns tenant_block_set_id 또는 null (조회 실패 시)
+ *
+ * @example
+ * ```typescript
+ * const blockSetId = await getTemplateBlockSetId(
+ *   "template-123",
+ *   { template_block_set_id: "fallback-id" }, // Fallback용
+ *   "tenant-id"
+ * );
+ * ```
  */
 export async function getTemplateBlockSetId(
   templateId: string,
@@ -275,6 +326,18 @@ export async function getTemplateBlockSetId(
 /**
  * 학생 블록 세트를 조회합니다.
  */
+/**
+ * 학생 블록 세트를 조회합니다.
+ *
+ * 블록 세트 소유자를 확인한 후, 해당 학생의 블록 스케줄을 조회합니다.
+ * 관리자/컨설턴트가 다른 학생 데이터를 조회하는 경우 Admin 클라이언트를 사용합니다.
+ *
+ * @param blockSetId 블록 세트 ID
+ * @param studentId 학생 ID
+ * @param currentUserId 현재 사용자 ID
+ * @param role 현재 사용자 역할
+ * @returns 블록 정보 배열 또는 null (조회 실패 시)
+ */
 async function getStudentBlockSet(
   blockSetId: string,
   studentId: string,
@@ -337,6 +400,14 @@ async function getStudentBlockSet(
 
 /**
  * 학생의 활성 블록 세트를 조회합니다.
+ *
+ * 학생의 `active_block_set_id`를 확인한 후, 해당 블록 세트의 블록 스케줄을 조회합니다.
+ * 관리자/컨설턴트가 다른 학생 데이터를 조회하는 경우 Admin 클라이언트를 사용합니다.
+ *
+ * @param studentId 학생 ID
+ * @param currentUserId 현재 사용자 ID
+ * @param role 현재 사용자 역할
+ * @returns 블록 정보 배열 또는 null (활성 블록 세트가 없거나 조회 실패 시)
  */
 async function getActiveBlockSet(
   studentId: string,
@@ -396,7 +467,13 @@ async function getActiveBlockSet(
 }
 
 /**
- * 블록 세트 조회 실패 시 에러 메시지를 생성합니다.
+ * 블록 세트 조회 실패 시 사용자에게 표시할 에러 메시지를 생성합니다.
+ *
+ * 플랜 그룹의 타입(캠프 모드/일반 모드)에 따라 적절한 에러 메시지를 반환합니다.
+ *
+ * @param group 플랜 그룹 객체
+ * @param hasBlocks 블록이 존재하는지 여부 (현재는 사용되지 않음)
+ * @returns 사용자에게 표시할 에러 메시지
  */
 export function getBlockSetErrorMessage(
   group: PlanGroup,
