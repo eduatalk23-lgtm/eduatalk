@@ -5,6 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { saveUserSession } from "@/lib/auth/sessionManager";
 import { getDefaultTenant } from "@/lib/data/tenants";
+import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
+import type { SignupRole, SignupMetadata, UserWithSignupMetadata } from "@/lib/types/auth";
 import { z } from "zod";
 
 const signInSchema = z.object({
@@ -123,10 +125,11 @@ export const signIn = _signIn;
  * 이메일 인증 완료 후 첫 로그인 시점에 호출되며, 완전한 인증 상태이므로 RLS 정책이 정상 작동합니다.
  */
 async function ensureUserRecord(
-  user: { id: string; user_metadata?: Record<string, any> | null }
+  user: UserWithSignupMetadata
 ): Promise<void> {
   try {
-    const signupRole = user.user_metadata?.signup_role as "student" | "parent" | null | undefined;
+    const metadata = user.user_metadata;
+    const signupRole = metadata?.signup_role;
     
     // signup_role이 없으면 레코드 생성 시도하지 않음
     if (!signupRole || (signupRole !== "student" && signupRole !== "parent")) {
@@ -134,8 +137,8 @@ async function ensureUserRecord(
     }
 
     const supabase = await createSupabaseServerClient();
-    const tenantId = user.user_metadata?.tenant_id as string | null | undefined;
-    const displayName = user.user_metadata?.display_name as string | null | undefined;
+    const tenantId = metadata?.tenant_id;
+    const displayName = metadata?.display_name;
 
     if (signupRole === "student") {
       // students 테이블에 레코드 존재 여부 확인
@@ -252,9 +255,23 @@ async function createStudentRecord(
 
     if (error) {
       // UNIQUE constraint violation (이미 존재하는 경우)는 성공으로 처리
-      if (error.code === "23505") {
+      if (error.code === DATABASE_ERROR_CODES.UNIQUE_VIOLATION) {
         console.log("[auth] 학생 레코드가 이미 존재합니다.", { userId });
         return { success: true };
+      }
+
+      // RLS 정책 위반 에러 명시적 처리
+      if (error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION) {
+        console.error("[auth] 학생 레코드 생성 실패 - RLS 정책 위반", {
+          userId,
+          tenantId: finalTenantId,
+          error: error.message,
+          code: error.code,
+        });
+        return {
+          success: false,
+          error: "레코드 생성 권한이 없습니다. RLS 정책을 확인하세요.",
+        };
       }
 
       console.error("[auth] 학생 레코드 생성 실패", {
@@ -316,9 +333,23 @@ async function createParentRecord(
 
     if (error) {
       // UNIQUE constraint violation (이미 존재하는 경우)는 성공으로 처리
-      if (error.code === "23505") {
+      if (error.code === DATABASE_ERROR_CODES.UNIQUE_VIOLATION) {
         console.log("[auth] 학부모 레코드가 이미 존재합니다.", { userId });
         return { success: true };
+      }
+
+      // RLS 정책 위반 에러 명시적 처리
+      if (error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION) {
+        console.error("[auth] 학부모 레코드 생성 실패 - RLS 정책 위반", {
+          userId,
+          tenantId: finalTenantId,
+          error: error.message,
+          code: error.code,
+        });
+        return {
+          success: false,
+          error: "레코드 생성 권한이 없습니다. RLS 정책을 확인하세요.",
+        };
       }
 
       console.error("[auth] 학부모 레코드 생성 실패", {
