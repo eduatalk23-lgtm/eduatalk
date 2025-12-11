@@ -13,7 +13,10 @@ column parent_student_links_2.name does not exist
 ```
 
 ### 원인
-`app/(admin)/actions/parentStudentLinkActions.ts`의 `getPendingLinkRequests` 함수에서 중첩 조인 쿼리가 실패했습니다.
+`app/(admin)/actions/parentStudentLinkActions.ts`의 다음 함수들에서 중첩 조인 쿼리가 실패했습니다:
+- `getPendingLinkRequests` 함수
+- `getStudentParents` 함수
+- `searchParents` 함수
 
 **문제 쿼리**:
 ```typescript
@@ -54,27 +57,40 @@ Supabase MCP를 사용하여 실제 데이터베이스 스키마를 확인한 �
 
 ### 수정 내용
 
-1. **쿼리 수정**: `parent_users`에서 `name`을 직접 가져오도록 변경
-   ```typescript
-   parent_users:parent_id(
-     id,
-     name  // users 테이블을 거치지 않고 직접 조회
-   )
-   ```
+#### 1. `getPendingLinkRequests` 함수
+- 쿼리: `parent_users:parent_id(id, name)`로 변경
+- 타입: `ParentStudentLinkWithStudentRow` 타입에서 중첩 구조 제거
+- 데이터 변환: `parent_users.name` 직접 사용
 
-2. **타입 정의 수정**: `ParentStudentLinkWithStudentRow` 타입에서 중첩 구조 제거
-   ```typescript
-   parent_users: {
-     id: string;
-     name: string | null;
-   } | null;
-   ```
+#### 2. `getStudentParents` 함수
+- 쿼리: `parent_users:parent_id(id, name)`로 변경
+- 타입: `ParentStudentLinkRow` 타입에서 중첩 구조 제거
+- 데이터 변환: `parent_users.name` 직접 사용, `email`은 `null` 처리
 
-3. **데이터 변환 로직 수정**: `parent_users.name`을 직접 사용
-   ```typescript
-   parentName: parentUser.name,
-   parentEmail: null, // TODO: email 조회 로직 추가 필요
-   ```
+#### 3. `searchParents` 함수
+- 쿼리: `parent_users`에서 직접 `name` 조회하도록 변경
+- 검색 조건: `users.name.ilike` → `name.ilike`로 변경
+- 타입: `SearchableParentRow` 타입에서 중첩 구조 제거
+- 데이터 변환: `parent.name` 직접 사용, `email`은 `null` 처리
+
+**공통 수정 패턴**:
+```typescript
+// ❌ 문제 있는 쿼리
+parent_users:parent_id(
+  id,
+  users:id(
+    id,
+    name,
+    email
+  )
+)
+
+// ✅ 수정된 쿼리
+parent_users:parent_id(
+  id,
+  name  // users 테이블을 거치지 않고 직접 조회
+)
+```
 
 ### 수정된 코드
 
@@ -127,13 +143,20 @@ const selectLinks = () => {
 
 ---
 
+## 수정된 함수 목록
+
+1. ✅ `getPendingLinkRequests` - 승인 대기 요청 조회
+2. ✅ `getStudentParents` - 학생에 연결된 학부모 목록 조회
+3. ✅ `searchParents` - 학부모 검색 (이름으로만 검색 가능)
+
 ## 테스트
 
 수정 후 다음을 확인해야 합니다:
 
-1. ✅ `getPendingLinkRequests` 함수가 에러 없이 실행되는지
+1. ✅ 모든 함수가 에러 없이 실행되는지
 2. ✅ `parentName`이 올바르게 조회되는지
 3. ⚠️ `parentEmail`이 `null`인지 (현재는 의도된 동작)
+4. ✅ `searchParents`에서 이름으로 검색이 정상 작동하는지
 
 ---
 

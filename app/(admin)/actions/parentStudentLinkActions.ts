@@ -42,11 +42,7 @@ type ParentStudentLinkRow = {
   relation: string;
   parent_users: {
     id: string;
-    users: {
-      id: string;
-      name: string | null;
-      email: string | null;
-    } | null;
+    name: string | null;
   } | null;
 };
 
@@ -70,11 +66,7 @@ type ParentStudentLinkWithStudentRow = {
 
 type SearchableParentRow = {
   id: string;
-  users: {
-    id: string;
-    name: string | null;
-    email: string | null;
-  } | null;
+  name: string | null;
 };
 
 /**
@@ -101,11 +93,7 @@ export async function getStudentParents(
           parent_id,
           parent_users:parent_id(
             id,
-            users:id(
-              id,
-              name,
-              email
-            )
+            name
           )
         `)
         .eq("student_id", studentId);
@@ -135,14 +123,11 @@ export async function getStudentParents(
         const parentUser = link.parent_users;
         if (!parentUser) return null;
 
-        const user = parentUser.users;
-        if (!user) return null;
-
         return {
           linkId: link.id,
           parentId: link.parent_id,
-          parentName: user.name,
-          parentEmail: user.email,
+          parentName: parentUser.name,
+          parentEmail: null, // TODO: email 조회 로직 추가 필요 (auth.users는 PostgREST로 직접 조회 불가)
           relation: link.relation || "other",
         };
       })
@@ -181,19 +166,15 @@ export async function searchParents(
   try {
     const searchQuery = query.trim();
 
-    // parent_users와 users 조인하여 검색
+    // parent_users에서 직접 검색 (name만 사용, email은 auth.users에 있어 조회 불가)
     const selectParents = () =>
       supabase
         .from("parent_users")
         .select(`
           id,
-          users:id(
-            id,
-            name,
-            email
-          )
+          name
         `)
-        .or(`users.name.ilike.%${searchQuery}%,users.email.ilike.%${searchQuery}%`)
+        .ilike("name", `%${searchQuery}%`)
         .limit(10);
 
     // tenant_id 필터 추가 (있는 경우)
@@ -224,13 +205,12 @@ export async function searchParents(
     // 데이터 변환
     const searchResults: SearchableParent[] = parents
       .map((parent: SearchableParentRow) => {
-        const user = parent.users;
-        if (!user) return null;
+        if (!parent.name) return null;
 
         return {
           id: parent.id,
-          name: user.name,
-          email: user.email,
+          name: parent.name,
+          email: null, // TODO: email 조회 로직 추가 필요 (auth.users는 PostgREST로 직접 조회 불가)
         };
       })
       .filter((p): p is SearchableParent => p !== null);
