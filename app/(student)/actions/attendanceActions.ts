@@ -190,7 +190,7 @@ export async function checkInWithQRCode(
           minute: "2-digit",
         });
 
-        await sendAttendanceSMSIfEnabled(
+        const smsResult = await sendAttendanceSMSIfEnabled(
           user.userId,
           "attendance_check_in",
           {
@@ -200,7 +200,52 @@ export async function checkInWithQRCode(
           },
           true // 학생 직접 체크인
         );
-        stepContext.smsSent = true;
+
+        // SMS 발송 결과 상세 로깅
+        stepContext.smsResult = {
+          success: smsResult.success,
+          skipped: smsResult.skipped,
+          errorType: smsResult.errorType,
+          error: smsResult.error,
+          details: smsResult.details,
+        };
+
+        if (smsResult.skipped) {
+          // 설정에 의해 건너뛴 경우 - info 레벨 로그
+          console.info(
+            `[AttendanceSMS] 입실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            {
+              studentId: user.userId,
+              reason: smsResult.reason,
+              details: smsResult.details,
+            }
+          );
+          stepContext.smsSkipped = true;
+        } else if (smsResult.error) {
+          // 실제 발송 실패 - error 레벨 로그
+          logError(
+            new AppError(
+              smsResult.error || "SMS 발송에 실패했습니다.",
+              ErrorCode.EXTERNAL_SERVICE_ERROR,
+              500,
+              false // 사용자에게 표시하지 않음 (출석 기록은 성공)
+            ),
+            {
+              ...stepContext,
+              smsErrorType: smsResult.errorType,
+              smsErrorDetails: smsResult.details,
+            }
+          );
+          stepContext.smsError = {
+            type: smsResult.errorType || "unknown",
+            message: smsResult.error,
+            details: smsResult.details,
+          };
+        } else {
+          // 성공
+          stepContext.smsSent = true;
+          stepContext.smsMsgId = smsResult.details?.msgId;
+        }
       }
     } catch (smsError) {
       // SMS 발송 실패는 로그만 남기고 무시
@@ -325,7 +370,7 @@ export async function checkInWithLocation(
           minute: "2-digit",
         });
 
-        await sendAttendanceSMSIfEnabled(
+        const smsResult = await sendAttendanceSMSIfEnabled(
           user.userId,
           "attendance_check_in",
           {
@@ -335,6 +380,19 @@ export async function checkInWithLocation(
           },
           true // 학생 직접 체크인
         );
+
+        // SMS 발송 결과 로깅
+        if (smsResult.skipped) {
+          console.info(
+            `[AttendanceSMS] 입실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            { studentId: user.userId, details: smsResult.details }
+          );
+        } else if (smsResult.error) {
+          console.error(
+            `[AttendanceSMS] 입실 SMS 발송 실패: ${smsResult.error}`,
+            { studentId: user.userId, errorType: smsResult.errorType, details: smsResult.details }
+          );
+        }
       }
     } catch (error) {
       console.error("[Attendance] 입실 SMS 발송 실패:", error);
@@ -533,7 +591,7 @@ export async function checkOutWithQRCode(
           minute: "2-digit",
         });
 
-        await sendAttendanceSMSIfEnabled(
+        const smsResult = await sendAttendanceSMSIfEnabled(
           user.userId,
           "attendance_check_out",
           {
@@ -543,7 +601,49 @@ export async function checkOutWithQRCode(
           },
           true // 학생 직접 체크인
         );
-        stepContext.smsSent = true;
+
+        // SMS 발송 결과 상세 로깅
+        stepContext.smsResult = {
+          success: smsResult.success,
+          skipped: smsResult.skipped,
+          errorType: smsResult.errorType,
+          error: smsResult.error,
+          details: smsResult.details,
+        };
+
+        if (smsResult.skipped) {
+          console.info(
+            `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            {
+              studentId: user.userId,
+              reason: smsResult.reason,
+              details: smsResult.details,
+            }
+          );
+          stepContext.smsSkipped = true;
+        } else if (smsResult.error) {
+          logError(
+            new AppError(
+              smsResult.error || "SMS 발송에 실패했습니다.",
+              ErrorCode.EXTERNAL_SERVICE_ERROR,
+              500,
+              false
+            ),
+            {
+              ...stepContext,
+              smsErrorType: smsResult.errorType,
+              smsErrorDetails: smsResult.details,
+            }
+          );
+          stepContext.smsError = {
+            type: smsResult.errorType || "unknown",
+            message: smsResult.error,
+            details: smsResult.details,
+          };
+        } else {
+          stepContext.smsSent = true;
+          stepContext.smsMsgId = smsResult.details?.msgId;
+        }
       }
     } catch (smsError) {
       // SMS 발송 실패는 로그만 남기고 무시
@@ -677,7 +777,7 @@ export async function checkOutWithLocation(
           minute: "2-digit",
         });
 
-        await sendAttendanceSMSIfEnabled(
+        const smsResult = await sendAttendanceSMSIfEnabled(
           user.userId,
           "attendance_check_out",
           {
@@ -687,6 +787,19 @@ export async function checkOutWithLocation(
           },
           true // 학생 직접 체크인
         );
+
+        // SMS 발송 결과 로깅
+        if (smsResult.skipped) {
+          console.info(
+            `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            { studentId: user.userId, details: smsResult.details }
+          );
+        } else if (smsResult.error) {
+          console.error(
+            `[AttendanceSMS] 퇴실 SMS 발송 실패: ${smsResult.error}`,
+            { studentId: user.userId, errorType: smsResult.errorType, details: smsResult.details }
+          );
+        }
       }
     } catch (error) {
       console.error("[Attendance] 퇴실 SMS 발송 실패:", error);
@@ -769,7 +882,7 @@ export async function checkOut(): Promise<{
           minute: "2-digit",
         });
 
-        await sendAttendanceSMSIfEnabled(
+        const smsResult = await sendAttendanceSMSIfEnabled(
           user.userId,
           "attendance_check_out",
           {
@@ -779,6 +892,19 @@ export async function checkOut(): Promise<{
           },
           true // 학생 직접 체크인
         );
+
+        // SMS 발송 결과 로깅
+        if (smsResult.skipped) {
+          console.info(
+            `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            { studentId: user.userId, details: smsResult.details }
+          );
+        } else if (smsResult.error) {
+          console.error(
+            `[AttendanceSMS] 퇴실 SMS 발송 실패: ${smsResult.error}`,
+            { studentId: user.userId, errorType: smsResult.errorType, details: smsResult.details }
+          );
+        }
       }
     } catch (error) {
       console.error("[Attendance] 퇴실 SMS 발송 실패:", error);

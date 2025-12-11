@@ -64,11 +64,7 @@ type ParentStudentLinkWithStudentRow = {
   } | null;
   parent_users: {
     id: string;
-    users: {
-      id: string;
-      name: string | null;
-      email: string | null;
-    } | null;
+    name: string | null;
   } | null;
 };
 
@@ -525,11 +521,7 @@ export async function getPendingLinkRequests(
           ),
           parent_users:parent_id(
             id,
-            users:id(
-              id,
-              name,
-              email
-            )
+            name
           )
         `)
         .or("is_approved.is.null,is_approved.eq.false")

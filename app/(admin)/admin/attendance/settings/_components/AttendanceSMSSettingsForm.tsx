@@ -8,6 +8,8 @@ import {
 import Button from "@/components/atoms/Button";
 import Label from "@/components/atoms/Label";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
+import { Badge } from "@/components/atoms/Badge";
+import { AlertTriangle } from "lucide-react";
 
 export function AttendanceSMSSettingsForm() {
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,12 @@ export function AttendanceSMSSettingsForm() {
                 <Label htmlFor="check_in_enabled">입실 알림</Label>
                 <p className="mt-1 text-xs text-gray-500">
                   학생이 입실할 때 학부모에게 SMS를 발송합니다.
+                  <br />
+                  <span className="text-gray-400">
+                    ※ 관리자가 직접 체크인한 경우에만 발송됩니다. 학생이 직접
+                    체크인한 경우는 "학생 직접 체크인 시 발송" 설정도 확인해야
+                    합니다.
+                  </span>
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -123,6 +131,12 @@ export function AttendanceSMSSettingsForm() {
                 <Label htmlFor="check_out_enabled">퇴실 알림</Label>
                 <p className="mt-1 text-xs text-gray-500">
                   학생이 퇴실할 때 학부모에게 SMS를 발송합니다.
+                  <br />
+                  <span className="text-gray-400">
+                    ※ 관리자가 직접 체크아웃한 경우에만 발송됩니다. 학생이 직접
+                    체크아웃한 경우는 "학생 직접 체크인 시 발송" 설정도 확인해야
+                    합니다.
+                  </span>
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -191,14 +205,31 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
-              <div>
-                <Label htmlFor="student_checkin_enabled">
-                  학생 직접 체크인 시 발송
-                </Label>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Label htmlFor="student_checkin_enabled">
+                    학생 직접 체크인 시 발송
+                  </Label>
+                  {!formData.attendance_sms_student_checkin_enabled && (
+                    <Badge variant="warning" size="xs">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      중요
+                    </Badge>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-gray-500">
                   학생이 QR코드나 위치로 직접 체크인/퇴실할 때도 SMS를
                   발송합니다.
                 </p>
+                {!formData.attendance_sms_student_checkin_enabled && (
+                  <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
+                    <p className="text-xs text-amber-800">
+                      ⚠️ 이 설정이 꺼져 있으면 학생이 직접 체크인해도 SMS가
+                      발송되지 않습니다. "입실 알림"이 켜져 있어도 이 설정이
+                      꺼져 있으면 발송되지 않으니 주의하세요.
+                    </p>
+                  </div>
+                )}
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
