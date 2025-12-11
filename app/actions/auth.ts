@@ -135,6 +135,7 @@ async function ensureUserRecord(
 
     const supabase = await createSupabaseServerClient();
     const tenantId = user.user_metadata?.tenant_id as string | null | undefined;
+    const displayName = user.user_metadata?.display_name as string | null | undefined;
 
     if (signupRole === "student") {
       // students 테이블에 레코드 존재 여부 확인
@@ -155,7 +156,7 @@ async function ensureUserRecord(
 
       // 레코드가 없으면 생성 시도
       if (!student) {
-        const result = await createStudentRecord(user.id, tenantId);
+        const result = await createStudentRecord(user.id, tenantId, displayName);
         if (result.success) {
           console.log("[auth] 첫 로그인 시 학생 레코드 생성 성공", {
             userId: user.id,
@@ -220,7 +221,8 @@ async function ensureUserRecord(
  */
 async function createStudentRecord(
   userId: string,
-  tenantId: string | null | undefined
+  tenantId: string | null | undefined,
+  displayName?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -240,9 +242,12 @@ async function createStudentRecord(
     }
 
     // students 테이블에 최소 필드로 레코드 생성
+    // name 필드는 NOT NULL 제약조건이 있으므로 displayName을 포함
+    // displayName이 없으면 빈 문자열 사용 (NOT NULL 제약조건 충족)
     const { error } = await supabase.from("students").insert({
       id: userId,
       tenant_id: finalTenantId,
+      name: displayName || "",
     });
 
     if (error) {
@@ -386,9 +391,10 @@ export async function signUp(
     if (authData.user) {
       const role = validation.data.role;
       const tenantId = validation.data.tenantId || null;
+      const displayName = validation.data.displayName;
 
       if (role === "student") {
-        const result = await createStudentRecord(authData.user.id, tenantId);
+        const result = await createStudentRecord(authData.user.id, tenantId, displayName);
         if (!result.success) {
           // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
           console.error("[auth] 학생 레코드 생성 실패:", result.error);

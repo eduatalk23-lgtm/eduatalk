@@ -166,11 +166,13 @@ if (data?.session && data.user) {
 **위치**: `app/actions/auth.ts`
 
 **기능**:
+
 - 첫 로그인 시 사용자 레코드 확인 및 생성
 - 완전한 인증 상태에서 실행되므로 RLS 정책 정상 작동
 - 레코드 생성 실패해도 로그인은 계속 진행
 
 **로직**:
+
 1. `user_metadata.signup_role` 확인
 2. 역할별 테이블에서 레코드 존재 여부 확인
 3. 레코드가 없으면 생성 시도
@@ -179,6 +181,7 @@ if (data?.session && data.user) {
 ### signIn() 함수 수정
 
 **변경 사항**:
+
 - 로그인 성공 후 `ensureUserRecord()` 호출 추가
 - 완전한 인증 상태에서 실행되므로 RLS 정책 정상 작동
 - 레코드 생성 실패해도 로그인은 계속 진행
