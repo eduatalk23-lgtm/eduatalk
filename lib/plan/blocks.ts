@@ -3,6 +3,8 @@ import type { SupabaseClientForStudentQuery } from "@/lib/supabase/clientSelecto
 import { selectClientForBlockSetQuery } from "@/lib/supabase/clientSelector";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
+import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
+import { logError } from "@/lib/errors/handler";
 
 export type BlockInfo = {
   day_of_week: number;
@@ -78,6 +80,44 @@ export async function getBlockSetForPlanGroup(
     }
   }
 
+  // 모든 조회 방법이 실패한 경우 에러 처리
+  if (baseBlocks.length === 0) {
+    const errorContext = {
+      groupId: group.id,
+      studentId,
+      planType: group.plan_type,
+      campTemplateId: group.camp_template_id,
+      blockSetId: group.block_set_id,
+      tenantId,
+    };
+    
+    // 캠프 모드에서 블록 세트가 필수인 경우 에러 throw
+    if (group.plan_type === "camp") {
+      const error = new PlanGroupError(
+        `캠프 템플릿(${group.camp_template_id})에 연결된 블록 세트를 찾을 수 없습니다.`,
+        PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+        ErrorUserMessages[PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND],
+        false,
+        errorContext
+      );
+      logError(error, {
+        function: "getBlockSetForPlanGroup",
+        ...errorContext,
+      });
+      throw error;
+    }
+    
+    // 일반 모드에서도 블록 세트가 없으면 경고 (빈 배열 반환)
+    logError(
+      new Error("블록 세트가 없어 빈 배열을 반환합니다."),
+      {
+        function: "getBlockSetForPlanGroup",
+        level: "warn",
+        ...errorContext,
+      }
+    );
+  }
+
   return baseBlocks;
 }
 
@@ -123,11 +163,19 @@ async function getTemplateBlockSet(
     .order("start_time", { ascending: true });
 
   if (blocksError) {
-    console.error("[blocks] 템플릿 블록 조회 실패:", {
+    const errorContext = {
       templateId,
       templateBlockSetId,
-      error: blocksError,
+      error: blocksError.message,
+      code: blocksError.code,
+      details: blocksError.details,
+      hint: blocksError.hint,
+    };
+    logError(blocksError, {
+      function: "getTemplateBlockSet",
+      ...errorContext,
     });
+    // 블록 조회 실패는 null 반환 (상위에서 처리)
     return null;
   }
 
@@ -166,7 +214,15 @@ export async function getTemplateBlockSetId(
     .maybeSingle();
 
   if (linkError) {
-    console.error("[blocks] 템플릿 블록 세트 연결 조회 에러:", linkError);
+    logError(linkError, {
+      function: "getTemplateBlockSetId",
+      templateId,
+      code: linkError.code,
+      details: linkError.details,
+      hint: linkError.hint,
+      level: "warn", // 연결 테이블 조회 실패는 치명적이지 않을 수 있으므로 경고 레벨
+    });
+    // 연결 테이블 조회 실패는 치명적이지 않을 수 있으므로 fallback으로 진행
   } else if (templateBlockSetLink) {
     return templateBlockSetLink.tenant_block_set_id;
   }
@@ -181,21 +237,39 @@ export async function getTemplateBlockSetId(
   const template = await getCampTemplate(templateId);
   if (template?.template_data) {
     try {
-      let templateData: any = null;
+      let templateData: { block_set_id?: string } | null = null;
       if (typeof template.template_data === "string") {
-        templateData = JSON.parse(template.template_data);
+        templateData = JSON.parse(template.template_data) as { block_set_id?: string };
       } else {
-        templateData = template.template_data;
+        templateData = template.template_data as { block_set_id?: string };
       }
 
       if (templateData?.block_set_id) {
         return templateData.block_set_id;
       }
     } catch (parseError) {
-      console.error("[blocks] template_data 파싱 에러:", parseError);
+      logError(parseError, {
+        function: "getTemplateBlockSetId",
+        templateId,
+        level: "warn", // 파싱 에러는 치명적이지 않으므로 경고 레벨
+      });
+      // 파싱 에러는 치명적이지 않으므로 null 반환
     }
   }
 
+  // 모든 조회 방법이 실패한 경우 null 반환 (정상적인 경우일 수 있음)
+  // 하지만 로깅은 강화
+  logError(
+    new Error("템플릿 블록 세트 ID를 찾을 수 없습니다."),
+    {
+      function: "getTemplateBlockSetId",
+      templateId,
+      tenantId,
+      hasSchedulerOptions: !!schedulerOptions,
+      level: "warn",
+    }
+  );
+  
   return null;
 }
 
@@ -243,10 +317,10 @@ async function getStudentBlockSet(
     .order("start_time", { ascending: true });
 
   if (blocksError) {
-    console.error("[blocks] 학생 블록 조회 실패:", {
+    logError(blocksError, {
+      function: "getStudentBlockSet",
       blockSetId,
       studentId,
-      error: blocksError,
     });
     return null;
   }
@@ -303,10 +377,10 @@ async function getActiveBlockSet(
     .order("start_time", { ascending: true });
 
   if (blocksError) {
-    console.error("[blocks] 활성 블록 세트 조회 실패:", {
+    logError(blocksError, {
+      function: "getActiveBlockSet",
       studentId,
       activeBlockSetId: student.active_block_set_id,
-      error: blocksError,
     });
     return null;
   }
@@ -339,4 +413,5 @@ export function getBlockSetErrorMessage(
     ? "블록 세트가 설정되지 않았거나, 활성 블록 세트에 등록된 블록이 없습니다. 블록 세트를 설정하고 블록을 추가해주세요."
     : "블록 세트가 설정되지 않았거나, 활성 블록 세트에 등록된 블록이 없습니다. 블록 세트를 설정하고 블록을 추가해주세요.";
 }
+
 

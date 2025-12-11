@@ -375,7 +375,25 @@ export class PlanValidator {
           }
           return true;
         },
-        { message: "시작 시간은 종료 시간보다 이전이어야 합니다." }
+        {
+          message: (blocks) => {
+            // 구체적인 에러 메시지 생성
+            const invalidBlocks: string[] = [];
+            for (let i = 0; i < blocks.length; i++) {
+              const block = blocks[i];
+              const start = this.parseTime(block.start_time);
+              const end = this.parseTime(block.end_time);
+              if (!start || !end || start >= end) {
+                invalidBlocks.push(
+                  `${i + 1}번째 항목(${block.type || "기타"}: ${block.start_time} ~ ${block.end_time})`
+                );
+              }
+            }
+            return invalidBlocks.length > 0
+              ? `시작 시간이 종료 시간보다 이전이어야 합니다. 문제가 있는 항목: ${invalidBlocks.join(", ")}`
+              : "시작 시간은 종료 시간보다 이전이어야 합니다.";
+          },
+        }
       )
       .refine(
         (blocks) => {
@@ -393,16 +411,53 @@ export class PlanValidator {
           }
           return true;
         },
-        { message: "중복된 시간 블록이 있습니다." }
+        {
+          message: (blocks) => {
+            // 구체적인 중복 항목 찾기
+            const keys = new Map<string, number[]>();
+            for (let i = 0; i < blocks.length; i++) {
+              const block = blocks[i];
+              const dayOfWeekKey = block.day_of_week
+                ?.sort((a, b) => a - b)
+                .join(",") || "all";
+              const key = `${block.start_time}-${block.end_time}-${dayOfWeekKey}`;
+              if (!keys.has(key)) {
+                keys.set(key, []);
+              }
+              keys.get(key)!.push(i + 1);
+            }
+            const duplicates = Array.from(keys.entries())
+              .filter(([_, indices]) => indices.length > 1)
+              .map(([key, indices]) => {
+                const [startTime, endTime] = key.split("-");
+                return `${indices.join(", ")}번째 항목(${startTime} ~ ${endTime})`;
+              });
+            return duplicates.length > 0
+              ? `중복된 시간 블록이 있습니다: ${duplicates.join(", ")}`
+              : "중복된 시간 블록이 있습니다.";
+          },
+        }
       );
 
     try {
       nonStudyTimeBlocksSchema.parse(blocks);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        errors.push(...error.errors.map((e) => e.message));
+        // Zod 에러 메시지를 더 구체적으로 처리
+        for (const zodError of error.errors) {
+          if (zodError.path.length > 0) {
+            const index = zodError.path[0];
+            const field = zodError.path[1] || "항목";
+            errors.push(
+              `${typeof index === "number" ? index + 1 : ""}번째 항목의 ${field}: ${zodError.message}`
+            );
+          } else {
+            errors.push(zodError.message);
+          }
+        }
       } else {
-        errors.push("학습 시간 제외 항목 검증에 실패했습니다.");
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push(`학습 시간 제외 항목 검증에 실패했습니다: ${errorMessage}`);
       }
     }
 

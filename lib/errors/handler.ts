@@ -62,17 +62,76 @@ export function getUserFacingMessage(error: unknown): string {
 }
 
 /**
+ * 민감 정보 필터링
+ */
+const SENSITIVE_FIELDS = [
+  "password",
+  "token",
+  "secret",
+  "apiKey",
+  "api_key",
+  "accessToken",
+  "access_token",
+  "refreshToken",
+  "refresh_token",
+  "authorization",
+  "auth",
+  "credential",
+  "credentials",
+];
+
+/**
+ * 객체에서 민감 정보를 필터링합니다.
+ */
+function filterSensitiveData(data: unknown, depth = 0): unknown {
+  // 최대 깊이 제한 (무한 재귀 방지)
+  if (depth > 10) {
+    return "[Max depth reached]";
+  }
+
+  if (data === null || data === undefined) {
+    return data;
+  }
+
+  if (typeof data !== "object") {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => filterSensitiveData(item, depth + 1));
+  }
+
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    const lowerKey = key.toLowerCase();
+    // 민감 필드 체크
+    if (SENSITIVE_FIELDS.some((field) => lowerKey.includes(field))) {
+      filtered[key] = "[FILTERED]";
+    } else if (typeof value === "object" && value !== null) {
+      filtered[key] = filterSensitiveData(value, depth + 1);
+    } else {
+      filtered[key] = value;
+    }
+  }
+
+  return filtered;
+}
+
+/**
  * 에러 로깅 (향후 에러 트래킹 서비스 통합 가능)
  */
 export function logError(
   error: unknown,
   context?: Record<string, unknown>
 ): void {
+  // 민감 정보 필터링
+  const filteredContext = context ? filterSensitiveData(context) : undefined;
+  
   const errorInfo: Record<string, unknown> = {
     message: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
     context: {
-      ...context,
+      ...(filteredContext as Record<string, unknown>),
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
     },

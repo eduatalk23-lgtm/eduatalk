@@ -62,9 +62,18 @@ async function _createPlanGroup(
     );
 
     if (missingTimeSlots.length > 0) {
-      console.warn(
-        "[_createPlanGroup] daily_schedule에 time_slots가 없는 날짜가 있습니다:",
-        missingTimeSlots.map((d) => d.date)
+      const missingDates = missingTimeSlots.map((d) => d.date);
+      const { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } = await import("@/lib/errors/planGroupErrors");
+      throw new PlanGroupError(
+        `daily_schedule에 time_slots가 없는 날짜가 있습니다: ${missingDates.join(", ")}`,
+        PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED,
+        ErrorUserMessages[PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED],
+        false,
+        {
+          missingDates,
+          totalDays: data.daily_schedule.length,
+          missingCount: missingTimeSlots.length,
+        }
       );
     }
   }
@@ -463,15 +472,15 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     name: `${group.name || "플랜 그룹"} (복사본)`,
     plan_purpose: group.plan_purpose,
     scheduler_type: group.scheduler_type,
-    scheduler_options: (group as any).scheduler_options || null,
+    scheduler_options: group.scheduler_options ?? null,
     period_start: group.period_start,
     period_end: group.period_end,
     target_date: group.target_date,
     block_set_id: group.block_set_id,
     status: "draft",
-    subject_constraints: (group as any).subject_constraints || null,
-    additional_period_reallocation: (group as any).additional_period_reallocation || null,
-    non_study_time_blocks: (group as any).non_study_time_blocks || null,
+    subject_constraints: group.subject_constraints ?? null,
+    additional_period_reallocation: group.additional_period_reallocation ?? null,
+    non_study_time_blocks: group.non_study_time_blocks ?? null,
   });
 
   if (!newGroupResult.success || !newGroupResult.groupId) {

@@ -4,8 +4,9 @@
  * 데이터베이스의 PlanGroup 형식을 WizardData 형식으로 변환하는 함수들
  */
 
-import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, SchedulerOptions, TimeSettings } from "@/lib/types/plan";
 import { classifyPlanContents } from "@/lib/data/planContents";
+import { logError } from "@/lib/errors/handler";
 
 /**
  * WizardData 타입 (PlanGroupWizard에서 사용)
@@ -117,21 +118,25 @@ export async function transformPlanGroupToWizardData(
   if (group.plan_type === "camp" && group.camp_template_id && !blockSetId) {
     try {
       const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
-      const schedulerOptions = (group.scheduler_options as any) || {};
+      const schedulerOptions = (group.scheduler_options as (SchedulerOptions & Partial<TimeSettings>) | null) ?? {};
       const templateBlockSetId = await getTemplateBlockSetId(
         group.camp_template_id,
-        schedulerOptions
+        schedulerOptions as Record<string, unknown>
       );
       if (templateBlockSetId) {
         blockSetId = templateBlockSetId;
       }
     } catch (error) {
-      console.error("[planGroupTransform] 템플릿 블록 세트 ID 조회 실패:", error);
+      logError(error, {
+        function: "transformPlanGroupToWizardData",
+        campTemplateId: group.camp_template_id,
+        groupId: group.id,
+      });
     }
   }
 
   // scheduler_options에서 time_settings 추출
-  const schedulerOptions = (group.scheduler_options as any) || {};
+  const schedulerOptions = (group.scheduler_options as (SchedulerOptions & Partial<TimeSettings>) | null) ?? {};
   const timeSettings = {
     lunch_time: schedulerOptions.lunch_time,
     camp_study_hours: schedulerOptions.camp_study_hours,
@@ -179,31 +184,41 @@ export async function transformPlanGroupToWizardData(
     period_end: group.period_end,
     target_date: group.target_date || undefined,
     block_set_id: blockSetId,
-    student_contents: studentContents.map((c) => ({
-      content_type: c.content_type as "book" | "lecture" | "custom",
-      content_id: c.masterContentId || c.content_id, // 추천 콘텐츠의 경우 원본 마스터 콘텐츠 ID 사용
-      start_range: c.start_range,
-      end_range: c.end_range,
-      start_detail_id: (c as any).start_detail_id ?? null,
-      end_detail_id: (c as any).end_detail_id ?? null,
-      title: c.title,
-      subject_category: c.subject_category || undefined,  // 변경: null → undefined
-    })),
-    recommended_contents: recommendedContents.map((c) => ({
-      content_type: c.content_type as "book" | "lecture" | "custom",
-      content_id: c.content_id, // 이미 마스터 콘텐츠 ID
-      start_range: c.start_range,
-      end_range: c.end_range,
-      start_detail_id: (c as any).start_detail_id ?? null,
-      end_detail_id: (c as any).end_detail_id ?? null,
-      title: c.title,
-      subject_category: c.subject_category || undefined,  // 변경: null → undefined
-      // 자동 추천 정보 포함
-      is_auto_recommended: (c as any).is_auto_recommended ?? false,
-      recommendation_source: (c as any).recommendation_source ?? null,
-      recommendation_reason: (c as any).recommendation_reason ?? null,
-      recommendation_metadata: (c as any).recommendation_metadata ?? null,
-    })),
+    student_contents: studentContents.map((c) => {
+      // 원본 contents 배열에서 content_id로 매칭하여 start_detail_id와 end_detail_id 가져오기
+      const originalContent = contents.find(
+        (orig) => orig.content_id === c.content_id || orig.content_id === c.masterContentId
+      );
+      return {
+        content_type: c.content_type as "book" | "lecture" | "custom",
+        content_id: c.masterContentId || c.content_id, // 추천 콘텐츠의 경우 원본 마스터 콘텐츠 ID 사용
+        start_range: c.start_range,
+        end_range: c.end_range,
+        start_detail_id: originalContent?.start_detail_id ?? null,
+        end_detail_id: originalContent?.end_detail_id ?? null,
+        title: c.title,
+        subject_category: c.subject_category || undefined,  // 변경: null → undefined
+      };
+    }),
+    recommended_contents: recommendedContents.map((c) => {
+      // 원본 contents 배열에서 content_id로 매칭하여 start_detail_id와 end_detail_id 가져오기
+      const originalContent = contents.find((orig) => orig.content_id === c.content_id);
+      return {
+        content_type: c.content_type as "book" | "lecture" | "custom",
+        content_id: c.content_id, // 이미 마스터 콘텐츠 ID
+        start_range: c.start_range,
+        end_range: c.end_range,
+        start_detail_id: originalContent?.start_detail_id ?? null,
+        end_detail_id: originalContent?.end_detail_id ?? null,
+        title: c.title,
+        subject_category: c.subject_category || undefined,  // 변경: null → undefined
+        // 자동 추천 정보 포함
+        is_auto_recommended: c.is_auto_recommended ?? false,
+        recommendation_source: c.recommendation_source ?? null,
+        recommendation_reason: c.recommendation_reason ?? null,
+        recommendation_metadata: c.recommendation_metadata ?? null,
+      };
+    }),
     // 제외일 변환: 캠프 플랜인 경우 템플릿 제외일인지 확인하여 source/is_locked 설정
     exclusions: await (async () => {
       // 캠프 플랜인 경우 템플릿 데이터 조회

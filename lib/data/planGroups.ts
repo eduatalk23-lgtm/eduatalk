@@ -1,6 +1,7 @@
 // 플랜 그룹 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { PostgrestError } from "@supabase/supabase-js";
 import {
   PlanGroup,
   PlanContent,
@@ -11,6 +12,37 @@ import {
 } from "@/lib/types/plan";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/**
+ * PostgrestError 타입 가드 함수
+ */
+function isPostgrestError(error: unknown): error is PostgrestError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    "code" in error
+  );
+}
+
+/**
+ * 에러에서 details와 hint를 안전하게 추출
+ */
+function getErrorDetails(error: unknown): {
+  details: unknown;
+  hint: string | null;
+} {
+  if (isPostgrestError(error)) {
+    return {
+      details: error.details ?? null,
+      hint: error.hint ?? null,
+    };
+  }
+  return {
+    details: null,
+    hint: null,
+  };
+}
 
 /**
  * 플랜 그룹 필터
@@ -103,9 +135,9 @@ export async function getPlanGroupsForStudent(
     
     // fallback 성공 시 scheduler_options를 null로 설정
     if (fallbackResult.data && !error) {
-      planGroupsData = fallbackResult.data.map((group: any) => ({ ...group, scheduler_options: null })) as PlanGroup[];
+      planGroupsData = fallbackResult.data.map((group: PlanGroup) => ({ ...group, scheduler_options: null })) as PlanGroup[];
     } else {
-      planGroupsData = (fallbackResult.data as any) as PlanGroup[] | null;
+      planGroupsData = (fallbackResult.data as PlanGroup[] | null) ?? null;
     }
   }
 
@@ -751,11 +783,12 @@ export async function getPlanContents(
 
   if (error) {
     // 에러 정보를 더 자세히 로깅
+    const { details, hint } = getErrorDetails(error);
     const errorInfo: Record<string, unknown> = {
-      message: error.message || String(error),
-      code: error.code || "UNKNOWN",
-      details: (error as any).details || null,
-      hint: (error as any).hint || null,
+      message: isPostgrestError(error) ? error.message : String(error),
+      code: isPostgrestError(error) ? error.code : "UNKNOWN",
+      details,
+      hint,
       groupId,
       tenantId,
     };
@@ -1185,9 +1218,9 @@ export async function getAcademySchedules(
     
     // tenant_id를 null로 설정
     if (retryResult.data && !error) {
-      schedulesData = retryResult.data.map((schedule: any) => ({ ...schedule, tenant_id: null })) as AcademySchedule[];
+      schedulesData = retryResult.data.map((schedule: AcademySchedule) => ({ ...schedule, tenant_id: null })) as AcademySchedule[];
     } else {
-      schedulesData = (retryResult.data as any) as AcademySchedule[] | null;
+      schedulesData = (retryResult.data as AcademySchedule[] | null) ?? null;
     }
   }
 
@@ -1197,14 +1230,19 @@ export async function getAcademySchedules(
   }
 
   // travel_time 추출 및 반환
+  type ScheduleWithAcademies = AcademySchedule & {
+    academies?: { travel_time?: number } | Array<{ travel_time?: number }> | null;
+  };
+  
   return (
     schedulesData?.map((schedule) => {
-      const scheduleWithAcademies = schedule as any;
+      const scheduleWithAcademies = schedule as ScheduleWithAcademies;
+      const travelTime = Array.isArray(scheduleWithAcademies.academies)
+        ? scheduleWithAcademies.academies[0]?.travel_time ?? 60
+        : (scheduleWithAcademies.academies as { travel_time?: number } | null)?.travel_time ?? 60;
       return {
         ...schedule,
-        travel_time: Array.isArray(scheduleWithAcademies.academies)
-          ? scheduleWithAcademies.academies[0]?.travel_time ?? 60
-          : (scheduleWithAcademies.academies as { travel_time?: number })?.travel_time ?? 60,
+        travel_time: travelTime,
       };
     }) || []
   );
@@ -1236,9 +1274,9 @@ export async function getStudentAcademySchedules(
   }
 
   let { data, error } = await query;
-  let studentSchedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
+  let studentSchedulesData: AcademySchedule[] | null = (data as AcademySchedule[] | null) ?? null;
 
-  if (error && error.code === "42703") {
+  if (error && isPostgrestError(error) && error.code === "42703") {
     // academy_id가 없는 경우를 대비한 fallback
     const fallbackSelect = () =>
       supabase
@@ -1257,11 +1295,11 @@ export async function getStudentAcademySchedules(
     const fallbackResult = await fallbackQuery;
     error = fallbackResult.error;
     
-    // academy_id를 null로 설정
+    // academy_id를 빈 문자열로 설정
     if (fallbackResult.data && !error) {
-      studentSchedulesData = fallbackResult.data.map((schedule: any) => ({ ...schedule, academy_id: null as any })) as AcademySchedule[];
+      studentSchedulesData = fallbackResult.data.map((schedule: AcademySchedule) => ({ ...schedule, academy_id: "" })) as AcademySchedule[];
     } else {
-      studentSchedulesData = (fallbackResult.data as any) as AcademySchedule[] | null;
+      studentSchedulesData = (fallbackResult.data as AcademySchedule[] | null) ?? null;
     }
   }
 
@@ -1271,7 +1309,11 @@ export async function getStudentAcademySchedules(
   }
 
   // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
-  const schedules = (studentSchedulesData as any[] | null) ?? [];
+  type ScheduleWithAcademies = AcademySchedule & {
+    academies?: { travel_time?: number } | null;
+  };
+  
+  const schedules = (studentSchedulesData ?? []) as ScheduleWithAcademies[];
   return schedules.map((schedule) => ({
     ...schedule,
     travel_time: schedule.academies?.travel_time ?? 60, // 기본값 60분
@@ -1905,9 +1947,9 @@ export async function getPlanGroupWithDetailsForAdmin(
       
       // academy_id를 null로 설정
       if (fallbackResult.data && !error) {
-        adminSchedulesData = fallbackResult.data.map((schedule: any) => ({ ...schedule, academy_id: null as any })) as AcademySchedule[];
+        adminSchedulesData = fallbackResult.data.map((schedule: AcademySchedule) => ({ ...schedule, academy_id: "" })) as AcademySchedule[];
       } else {
-        adminSchedulesData = (fallbackResult.data as any) as AcademySchedule[] | null;
+        adminSchedulesData = (fallbackResult.data as AcademySchedule[] | null) ?? null;
       }
     }
 
@@ -1923,7 +1965,11 @@ export async function getPlanGroupWithDetailsForAdmin(
     }
 
     // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
-    const schedules = (adminSchedulesData as any[] | null) ?? [];
+    type ScheduleWithAcademies = AcademySchedule & {
+      academies?: { travel_time?: number } | null;
+    };
+    
+    const schedules = (adminSchedulesData ?? []) as ScheduleWithAcademies[];
     const academySchedules = schedules.map((schedule) => ({
       ...schedule,
       travel_time: schedule.academies?.travel_time ?? 60, // 기본값 60분
