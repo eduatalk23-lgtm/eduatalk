@@ -3,6 +3,7 @@
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
 
 // 타입 정의
 export type StudentParent = {
@@ -21,6 +22,65 @@ export type SearchableParent = {
 
 export type ParentRelation = "father" | "mother" | "guardian" | "other";
 
+export type PendingLinkRequest = {
+  id: string;
+  studentId: string;
+  studentName: string | null;
+  studentGrade: string | null;
+  studentClass: string | null;
+  parentId: string;
+  parentName: string | null;
+  parentEmail: string | null;
+  relation: string;
+  created_at: string;
+};
+
+// Supabase 쿼리 결과 타입
+type ParentStudentLinkRow = {
+  id: string;
+  parent_id: string;
+  relation: string;
+  parent_users: {
+    id: string;
+    users: {
+      id: string;
+      name: string | null;
+      email: string | null;
+    } | null;
+  } | null;
+};
+
+type ParentStudentLinkWithStudentRow = {
+  id: string;
+  student_id: string;
+  parent_id: string;
+  relation: string;
+  created_at: string;
+  students: {
+    id: string;
+    name: string | null;
+    grade: string | null;
+    class: string | null;
+  } | null;
+  parent_users: {
+    id: string;
+    users: {
+      id: string;
+      name: string | null;
+      email: string | null;
+    } | null;
+  } | null;
+};
+
+type SearchableParentRow = {
+  id: string;
+  users: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+};
+
 /**
  * 학생에 연결된 학부모 목록 조회
  */
@@ -30,7 +90,7 @@ export async function getStudentParents(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -75,7 +135,7 @@ export async function getStudentParents(
 
     // 데이터 변환
     const parents: StudentParent[] = links
-      .map((link: any) => {
+      .map((link: ParentStudentLinkRow) => {
         const parentUser = link.parent_users;
         if (!parentUser) return null;
 
@@ -112,7 +172,7 @@ export async function searchParents(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // 최소 2글자 이상 검색
@@ -167,7 +227,7 @@ export async function searchParents(
 
     // 데이터 변환
     const searchResults: SearchableParent[] = parents
-      .map((parent: any) => {
+      .map((parent: SearchableParentRow) => {
         const user = parent.users;
         if (!user) return null;
 
@@ -200,13 +260,13 @@ export async function createParentStudentLink(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // relation 값 검증
   const validRelations: ParentRelation[] = ["father", "mother", "guardian", "other"];
   if (!validRelations.includes(relation)) {
-    return { success: false, error: "올바른 관계를 선택해주세요." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -229,7 +289,7 @@ export async function createParentStudentLink(
     }
 
     if (existing) {
-      return { success: false, error: "이미 연결된 학부모입니다." };
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_ALREADY_EXISTS };
     }
 
     // 연결 생성
@@ -246,7 +306,7 @@ export async function createParentStudentLink(
     if (error) {
       // UNIQUE 제약조건 에러 처리
       if (error.code === "23505") {
-        return { success: false, error: "이미 연결된 학부모입니다." };
+        return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_ALREADY_EXISTS };
       }
 
       console.error("[admin/parentStudentLink] 연결 생성 실패", error);
@@ -278,7 +338,7 @@ export async function deleteParentStudentLink(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -300,7 +360,7 @@ export async function deleteParentStudentLink(
     }
 
     if (!link) {
-      return { success: false, error: "연결을 찾을 수 없습니다." };
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_NOT_FOUND };
     }
 
     const studentId = link.student_id;
@@ -342,13 +402,13 @@ export async function updateLinkRelation(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // relation 값 검증
   const validRelations: ParentRelation[] = ["father", "mother", "guardian", "other"];
   if (!validRelations.includes(relation)) {
-    return { success: false, error: "올바른 관계를 선택해주세요." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -370,7 +430,7 @@ export async function updateLinkRelation(
     }
 
     if (!link) {
-      return { success: false, error: "연결을 찾을 수 없습니다." };
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_NOT_FOUND };
     }
 
     const studentId = link.student_id;
@@ -398,6 +458,513 @@ export async function updateLinkRelation(
     return {
       success: false,
       error: "관계 수정 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 승인 대기 중인 연결 요청 목록 조회
+ */
+export async function getPendingLinkRequests(
+  tenantId?: string
+): Promise<{
+  success: boolean;
+  data?: PendingLinkRequest[];
+  error?: string;
+}> {
+  const { role, tenantId: userTenantId } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const targetTenantId = tenantId || userTenantId;
+
+  try {
+    // 테넌트 필터링: 먼저 해당 테넌트의 학생 ID 목록 조회
+    let studentIds: string[] | undefined;
+    if (targetTenantId) {
+      const { data: students, error: studentsError } = await supabase
+        .from("students")
+        .select("id")
+        .eq("tenant_id", targetTenantId);
+
+      if (studentsError) {
+        console.error(
+          "[admin/parentStudentLink] 학생 목록 조회 실패",
+          studentsError
+        );
+        return {
+          success: false,
+          error: "학생 목록을 조회할 수 없습니다.",
+        };
+      }
+
+      studentIds = students?.map((s) => s.id) || [];
+      if (studentIds.length === 0) {
+        // 해당 테넌트에 학생이 없으면 빈 배열 반환
+        return { success: true, data: [] };
+      }
+    }
+
+    const selectLinks = () => {
+      let query = supabase
+        .from("parent_student_links")
+        .select(`
+          id,
+          student_id,
+          parent_id,
+          relation,
+          created_at,
+          students:student_id(
+            id,
+            name,
+            grade,
+            class
+          ),
+          parent_users:parent_id(
+            id,
+            users:id(
+              id,
+              name,
+              email
+            )
+          )
+        `)
+        .or("is_approved.is.null,is_approved.eq.false")
+        .order("created_at", { ascending: false });
+
+      // 테넌트 필터링: 학생 ID 목록으로 필터링
+      if (studentIds && studentIds.length > 0) {
+        query = query.in("student_id", studentIds);
+      }
+
+      return query;
+    };
+
+    let { data: links, error } = await selectLinks();
+
+    // 컬럼 없음 에러 처리 (42703)
+    if (error && error.code === "42703") {
+      ({ data: links, error } = await selectLinks());
+    }
+
+    if (error) {
+      console.error(
+        "[admin/parentStudentLink] 승인 대기 요청 조회 실패",
+        error
+      );
+      return {
+        success: false,
+        error: error.message || "승인 대기 요청을 조회할 수 없습니다.",
+      };
+    }
+
+    if (!links) {
+      return { success: true, data: [] };
+    }
+
+    // 데이터 변환
+    const requests: PendingLinkRequest[] = links
+      .map((link: ParentStudentLinkWithStudentRow) => {
+        const student = link.students;
+        if (!student) return null;
+
+        const parentUser = link.parent_users;
+        if (!parentUser) return null;
+
+        const user = parentUser.users;
+        if (!user) return null;
+
+        return {
+          id: link.id,
+          studentId: link.student_id,
+          studentName: student.name,
+          studentGrade: student.grade,
+          studentClass: student.class,
+          parentId: link.parent_id,
+          parentName: user.name,
+          parentEmail: user.email,
+          relation: link.relation || "other",
+          created_at: link.created_at,
+        };
+      })
+      .filter((r): r is PendingLinkRequest => r !== null);
+
+    return { success: true, data: requests };
+  } catch (error) {
+    console.error(
+      "[admin/parentStudentLink] 승인 대기 요청 조회 중 오류",
+      error
+    );
+    return {
+      success: false,
+      error: "승인 대기 요청 조회 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 연결 요청 승인
+ */
+export async function approveLinkRequest(
+  linkId: string
+): Promise<{ success: boolean; error?: string }> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  try {
+    // 먼저 요청 존재 여부 확인
+    const { data: link, error: fetchError } = await supabase
+      .from("parent_student_links")
+      .select("id, student_id, is_approved")
+      .eq("id", linkId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[admin/parentStudentLink] 요청 조회 실패", fetchError);
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.FETCH_ERROR,
+      };
+    }
+
+    if (!link) {
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND };
+    }
+
+    // 이미 승인된 경우
+    if (link.is_approved === true) {
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_ALREADY_APPROVED };
+    }
+
+    // 승인 처리
+    const { error } = await supabase
+      .from("parent_student_links")
+      .update({
+        is_approved: true,
+        approved_at: new Date().toISOString(),
+      })
+      .eq("id", linkId);
+
+    if (error) {
+      console.error("[admin/parentStudentLink] 요청 승인 실패", error);
+      return {
+        success: false,
+        error: error.message || "요청 승인에 실패했습니다.",
+      };
+    }
+
+    revalidatePath("/admin/parent-links");
+    revalidatePath(`/admin/students/${link.student_id}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[admin/parentStudentLink] 요청 승인 중 오류", error);
+    return {
+      success: false,
+      error: "요청 승인 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 연결 요청 거부 (삭제)
+ */
+export async function rejectLinkRequest(
+  linkId: string
+): Promise<{ success: boolean; error?: string }> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  try {
+    // 먼저 요청 존재 여부 확인
+    const { data: link, error: fetchError } = await supabase
+      .from("parent_student_links")
+      .select("id, student_id")
+      .eq("id", linkId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("[admin/parentStudentLink] 요청 조회 실패", fetchError);
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.FETCH_ERROR,
+      };
+    }
+
+    if (!link) {
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND };
+    }
+
+    const studentId = link.student_id;
+
+    // 요청 삭제 (거부)
+    const { error } = await supabase
+      .from("parent_student_links")
+      .delete()
+      .eq("id", linkId);
+
+    if (error) {
+      console.error("[admin/parentStudentLink] 요청 거부 실패", error);
+      return {
+        success: false,
+        error: error.message || "요청 거부에 실패했습니다.",
+      };
+    }
+
+    revalidatePath("/admin/parent-links");
+    revalidatePath(`/admin/students/${studentId}`);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[admin/parentStudentLink] 요청 거부 중 오류", error);
+    return {
+      success: false,
+      error: "요청 거부 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 여러 연결 요청을 한 번에 승인
+ */
+export async function approveLinkRequests(
+  linkIds: string[]
+): Promise<{
+  success: boolean;
+  approvedCount?: number;
+  errors?: Array<{ linkId: string; error: string }>;
+}> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, errors: [] };
+  }
+
+  if (!linkIds || linkIds.length === 0) {
+    return { success: false, errors: [] };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const errors: Array<{ linkId: string; error: string }> = [];
+  let approvedCount = 0;
+  const studentIds = new Set<string>();
+
+  try {
+    // 병렬 처리
+    const updatePromises = linkIds.map(async (linkId) => {
+      try {
+        // 먼저 요청 존재 여부 확인
+        const { data: link, error: fetchError } = await supabase
+          .from("parent_student_links")
+          .select("id, student_id, is_approved")
+          .eq("id", linkId)
+          .maybeSingle();
+
+        if (fetchError || !link) {
+          return {
+            linkId,
+            error: fetchError
+              ? PARENT_STUDENT_LINK_MESSAGES.errors.FETCH_ERROR
+              : PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND,
+            link: null,
+          };
+        }
+
+        // 이미 승인된 경우
+        if (link.is_approved === true) {
+          return {
+            linkId,
+            error: "이미 승인된 요청입니다.",
+            link: null,
+          };
+        }
+
+        // 승인 처리
+        const { error } = await supabase
+          .from("parent_student_links")
+          .update({
+            is_approved: true,
+            approved_at: new Date().toISOString(),
+          })
+          .eq("id", linkId);
+
+        if (error) {
+          return {
+            linkId,
+            error: error.message || "요청 승인에 실패했습니다.",
+            link: null,
+          };
+        }
+
+        return { linkId, error: null, link };
+      } catch (error) {
+        console.error(
+          `[admin/parentStudentLink] 요청 승인 중 오류 (linkId: ${linkId})`,
+          error
+        );
+        return {
+          linkId,
+          error: "요청 승인 중 오류가 발생했습니다.",
+          link: null,
+        };
+      }
+    });
+
+    const results = await Promise.all(updatePromises);
+
+    // 결과 집계
+    for (const result of results) {
+      if (result.error) {
+        errors.push({ linkId: result.linkId, error: result.error });
+      } else if (result.link) {
+        approvedCount++;
+        studentIds.add(result.link.student_id);
+      }
+    }
+
+    // 성공한 항목이 있으면 경로 재검증
+    if (approvedCount > 0) {
+      revalidatePath("/admin/parent-links");
+      for (const studentId of studentIds) {
+        revalidatePath(`/admin/students/${studentId}`);
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      approvedCount,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  } catch (error) {
+    console.error("[admin/parentStudentLink] 일괄 승인 중 오류", error);
+    return {
+      success: false,
+      approvedCount: 0,
+      errors: [{ linkId: "", error: "일괄 승인 중 오류가 발생했습니다." }],
+    };
+  }
+}
+
+/**
+ * 여러 연결 요청을 한 번에 거부 (삭제)
+ */
+export async function rejectLinkRequests(
+  linkIds: string[]
+): Promise<{
+  success: boolean;
+  rejectedCount?: number;
+  errors?: Array<{ linkId: string; error: string }>;
+}> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, errors: [] };
+  }
+
+  if (!linkIds || linkIds.length === 0) {
+    return { success: false, errors: [] };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const errors: Array<{ linkId: string; error: string }> = [];
+  let rejectedCount = 0;
+  const studentIds = new Set<string>();
+
+  try {
+    // 병렬 처리
+    const deletePromises = linkIds.map(async (linkId) => {
+      try {
+        // 먼저 요청 존재 여부 확인
+        const { data: link, error: fetchError } = await supabase
+          .from("parent_student_links")
+          .select("id, student_id")
+          .eq("id", linkId)
+          .maybeSingle();
+
+        if (fetchError || !link) {
+          return {
+            linkId,
+            error: fetchError
+              ? PARENT_STUDENT_LINK_MESSAGES.errors.FETCH_ERROR
+              : PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND,
+            studentId: null,
+          };
+        }
+
+        const studentId = link.student_id;
+
+        // 요청 삭제 (거부)
+        const { error } = await supabase
+          .from("parent_student_links")
+          .delete()
+          .eq("id", linkId);
+
+        if (error) {
+          return {
+            linkId,
+            error: error.message || "요청 거부에 실패했습니다.",
+            studentId: null,
+          };
+        }
+
+        return { linkId, error: null, studentId };
+      } catch (error) {
+        console.error(
+          `[admin/parentStudentLink] 요청 거부 중 오류 (linkId: ${linkId})`,
+          error
+        );
+        return {
+          linkId,
+          error: "요청 거부 중 오류가 발생했습니다.",
+          studentId: null,
+        };
+      }
+    });
+
+    const results = await Promise.all(deletePromises);
+
+    // 결과 집계
+    for (const result of results) {
+      if (result.error) {
+        errors.push({ linkId: result.linkId, error: result.error });
+      } else if (result.studentId) {
+        rejectedCount++;
+        studentIds.add(result.studentId);
+      }
+    }
+
+    // 성공한 항목이 있으면 경로 재검증
+    if (rejectedCount > 0) {
+      revalidatePath("/admin/parent-links");
+      for (const studentId of studentIds) {
+        revalidatePath(`/admin/students/${studentId}`);
+      }
+    }
+
+    return {
+      success: errors.length === 0,
+      rejectedCount,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  } catch (error) {
+    console.error("[admin/parentStudentLink] 일괄 거부 중 오류", error);
+    return {
+      success: false,
+      rejectedCount: 0,
+      errors: [{ linkId: "", error: "일괄 거부 중 오류가 발생했습니다." }],
     };
   }
 }

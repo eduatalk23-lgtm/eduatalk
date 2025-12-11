@@ -96,9 +96,8 @@ export default async function CampContinuePage({
         .eq("id", group.camp_template_id)
         .maybeSingle();
 
-      if (templateBlockSetData?.template_data) {
-        const templateData = templateBlockSetData.template_data as any;
-        tenantBlockSetId = templateData.block_set_id || null;
+      if (templateBlockSetData?.template_data?.block_set_id) {
+        tenantBlockSetId = templateBlockSetData.template_data.block_set_id;
       }
     }
 

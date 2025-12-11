@@ -340,44 +340,51 @@ export function ParentLinksSection({ studentId }: { studentId: string }) {
 
 ### 3.1 승인 프로세스 구현
 
-**파일**: `app/(admin)/actions/parentStudentLinkActions.ts` 수정
+**파일**: `app/(admin)/actions/parentStudentLinkActions.ts` 수정 ✅ 완료
 
 #### 추가 함수
 
-- [ ] `approveLinkRequest(linkId: string)`
+- [x] `approveLinkRequest(linkId: string)` ✅
 
   - 연결 요청 승인
   - `is_approved: true`, `approved_at: now()` 설정
   - 반환: `{ success: boolean; error?: string }`
 
-- [ ] `rejectLinkRequest(linkId: string)`
+- [x] `rejectLinkRequest(linkId: string)` ✅
 
-  - 연결 요청 거부
-  - 연결 삭제 또는 `is_approved: false` 설정
+  - 연결 요청 거부 (삭제 방식)
+  - 연결 삭제로 처리
   - 반환: `{ success: boolean; error?: string }`
 
-- [ ] `getPendingLinkRequests(tenantId?: string)`
+- [x] `getPendingLinkRequests(tenantId?: string)` ✅
   - 승인 대기 중인 연결 요청 목록 조회
-  - 반환 타입: `{ id: string; studentId: string; studentName: string | null; parentId: string; parentName: string | null; relation: string; created_at: string }[]`
+  - 반환 타입: `PendingLinkRequest[]`
+  - 테넌트 필터링 지원
 
 ---
 
 ### 3.2 관리자 승인 UI
 
-**파일**: `app/(admin)/admin/parent-links/page.tsx` (신규)
+**파일**: `app/(admin)/admin/parent-links/page.tsx` (신규) ✅ 완료
 
 #### 기능
 
-- [ ] 승인 대기 중인 연결 요청 목록 표시
-- [ ] 학생 정보, 학부모 정보, 관계 표시
-- [ ] 승인/거부 버튼
-- [ ] 일괄 승인 기능 (선택사항)
+- [x] 승인 대기 중인 연결 요청 목록 표시 ✅
+- [x] 학생 정보, 학부모 정보, 관계 표시 ✅
+- [x] 승인/거부 버튼 ✅
+- [ ] 일괄 승인 기능 (선택사항) - 미구현
 
 #### UI 구성
 
-- 테이블 형태로 요청 목록 표시
-- 각 요청에 승인/거부 버튼
-- 승인/거부 후 목록 자동 갱신
+- 카드 형태로 요청 목록 표시 ✅
+- 각 요청에 승인/거부 버튼 ✅
+- 승인/거부 후 목록 자동 갱신 (콜백 패턴) ✅
+
+#### 컴포넌트
+
+- `PendingLinkRequestsList`: 요청 목록 표시 및 관리
+- `PendingLinkRequestCard`: 개별 요청 카드 (승인/거부 버튼)
+- `PendingLinkRequestsSkeleton`: 로딩 스켈레톤
 
 ---
 
@@ -387,8 +394,8 @@ export function ParentLinksSection({ studentId }: { studentId: string }) {
 
 #### 옵션
 
-- [ ] 자동 승인 활성화/비활성화
-- [ ] 자동 승인 조건 설정
+- [ ] 자동 승인 활성화/비활성화 (미구현)
+- [ ] 자동 승인 조건 설정 (미구현)
   - 같은 테넌트 내에서만
   - 특정 관계만 (예: 아버지/어머니만)
 
@@ -396,6 +403,8 @@ export function ParentLinksSection({ studentId }: { studentId: string }) {
 
 - `createLinkRequest`에서 자동 승인 옵션 확인
 - 조건 만족 시 자동으로 `is_approved: true` 설정
+
+**참고**: 자동 승인 기능은 우선순위가 낮아 Phase 3에서 제외되었습니다. 필요 시 향후 구현 예정입니다.
 
 ---
 
@@ -646,4 +655,99 @@ Phase 2 구현이 완료되었습니다. 다음 단계는:
 
 ---
 
-**마지막 업데이트**: 2025-01-31
+---
+
+## Phase 3 완료 요약 (2025-02-01)
+
+### 구현 완료 항목
+
+1. ✅ **Server Actions** (`parentStudentLinkActions.ts`)
+
+   - `getPendingLinkRequests` - 승인 대기 중인 연결 요청 목록 조회
+   - `approveLinkRequest` - 연결 요청 승인
+   - `rejectLinkRequest` - 연결 요청 거부 (삭제)
+
+2. ✅ **관리자 승인 UI**
+
+   - `ParentLinksPage` - 승인 대기 요청 관리 페이지
+   - `PendingLinkRequestsList` - 요청 목록 표시 및 관리
+   - `PendingLinkRequestCard` - 개별 요청 카드 (승인/거부 버튼)
+   - `PendingLinkRequestsSkeleton` - 로딩 스켈레톤
+
+3. ✅ **RLS 정책 추가**
+
+   - `parent_student_links_select_pending_for_admin` - 관리자가 승인 대기 요청 조회
+   - `parent_student_links_update_for_admin` - 관리자가 요청 승인
+   - `parent_student_links_delete_for_admin` - 관리자가 요청 거부
+   - 마이그레이션 파일: `20250201000000_add_parent_student_links_admin_policies.sql`
+
+4. ✅ **네비게이션 추가**
+
+   - "학생 관리" 카테고리에 "학부모 연결 관리" 메뉴 항목 추가
+   - 경로: `/admin/parent-links`
+
+### 개선 사항
+
+- Phase 1, Phase 2와 동일한 패턴 적용 (콜백 기반 상태 업데이트)
+- 로컬 상태 관리로 불필요한 페이지 새로고침 방지
+- 타입 안전성 유지 (명시적 타입 정의)
+- 테넌트 필터링 지원 (관리자만 본인 테넌트 요청 조회)
+
+### 미구현 항목 (선택사항)
+
+- ~~자동 승인 옵션 (우선순위: Low)~~ ✅ 완료 (2025-02-02)
+- ~~일괄 승인 기능 (우선순위: Low)~~ ✅ 완료 (2025-02-02)
+
+---
+
+## Phase 3 추가 구현 완료 요약 (2025-02-02)
+
+### 구현 완료 항목
+
+1. ✅ **일괄 승인 기능**
+
+   - `approveLinkRequests` - 여러 연결 요청을 한 번에 승인
+   - `rejectLinkRequests` - 여러 연결 요청을 한 번에 거부
+   - `PendingLinkRequestsList`에 체크박스 선택 기능 추가
+   - `PendingLinkRequestCard`에 체크박스 및 선택 상태 스타일 추가
+   - 전체 선택/해제 기능
+   - 선택된 항목 수 표시
+   - 일괄 작업 버튼 (선택 항목 승인/거부)
+
+2. ✅ **자동 승인 옵션**
+
+   - 마이그레이션 파일: `20250202000001_add_auto_approve_settings.sql`
+     - `tenants.settings` JSONB 필드에 `parentLinkAutoApprove` 설정 구조 추가
+   - `tenantSettingsActions.ts` (신규)
+     - `getAutoApproveSettings` - 테넌트 자동 승인 설정 조회
+     - `updateAutoApproveSettings` - 테넌트 자동 승인 설정 업데이트
+   - `lib/utils/autoApprove.ts` (신규)
+     - `checkAutoApproveConditions` - 자동 승인 조건 확인 유틸리티 함수
+   - `TenantSettingsForm`에 자동 승인 설정 UI 추가
+     - 자동 승인 활성화/비활성화 토글
+     - 같은 테넌트 내에서만 자동 승인 체크박스
+     - 자동 승인할 관계 선택 (다중 선택)
+   - `createLinkRequest`에 자동 승인 로직 통합
+     - 학생과 학부모의 `tenant_id` 조회
+     - 자동 승인 설정 조회 및 조건 확인
+     - 조건 만족 시 자동으로 `is_approved: true`, `approved_at` 설정
+
+### 개선 사항
+
+- 일괄 승인 시 부분 실패에 대한 상세 에러 메시지 제공
+- 자동 승인 실패 시 수동 승인으로 안전하게 폴백
+- 타입 안전성 유지 (명시적 타입 정의)
+- 기존 패턴과 일관성 유지 (콜백 기반 상태 업데이트)
+
+### 다음 단계
+
+Phase 3의 모든 기능이 구현 완료되었습니다. 다음 단계는:
+
+1. **수동 테스트 수행**: 실제 환경에서 기능 검증
+   - 일괄 승인/거부 기능 테스트
+   - 자동 승인 조건별 테스트 (같은 테넌트, 다른 테넌트, 관계별)
+2. **성능 검증**: 대량 요청 처리 시 성능 확인
+
+---
+
+**마지막 업데이트**: 2025-02-02

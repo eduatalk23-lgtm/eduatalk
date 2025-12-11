@@ -36,7 +36,10 @@ export function SubjectTypesManager() {
       const data = await getCurriculumRevisionsAction();
       setRevisions(data);
       if (data.length > 0 && !selectedRevisionId) {
-        setSelectedRevisionId(data[0].id);
+        const firstRevision = data[0];
+        if (firstRevision?.id) {
+          setSelectedRevisionId(firstRevision.id);
+        }
       }
     } catch (error) {
       console.error("개정교육과정 조회 실패:", error);

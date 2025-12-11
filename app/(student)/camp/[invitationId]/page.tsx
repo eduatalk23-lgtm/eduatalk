@@ -120,32 +120,32 @@ export default async function CampParticipationPage({
   }
 
   // 템플릿 데이터를 initialData로 변환
-  const templateData = template.template_data as any;
+  const templateData = template.template_data;
 
   // 개발 환경에서 디버깅 로그
   if (process.env.NODE_ENV === "development") {
     console.log("[CampParticipationPage] 템플릿 데이터 검증:", {
-      period_start: templateData.period_start,
-      period_end: templateData.period_end,
-      block_set_id: templateData.block_set_id,
-      scheduler_type: templateData.scheduler_type,
-      exclusions: templateData.exclusions?.length || 0,
-      academy_schedules: templateData.academy_schedules?.length || 0,
+      period_start: templateData?.period_start,
+      period_end: templateData?.period_end,
+      block_set_id: templateData?.block_set_id,
+      scheduler_type: templateData?.scheduler_type,
+      exclusions: templateData?.exclusions?.length || 0,
+      academy_schedules: templateData?.academy_schedules?.length || 0,
     });
   }
 
   // 템플릿 데이터 필수 필드 검증
   const validationErrors: string[] = [];
-  if (!templateData.period_start || !templateData.period_end) {
+  if (!templateData?.period_start || !templateData?.period_end) {
     validationErrors.push("템플릿에 학습 기간이 설정되지 않았습니다.");
   }
   // block_set_id 검증은 블록세트 조회 후에 수행 (새로운 연결 테이블 방식)
-  if (!templateData.scheduler_type) {
+  if (!templateData?.scheduler_type) {
     validationErrors.push("템플릿에 스케줄러 유형이 설정되지 않았습니다.");
   }
 
   // 날짜 형식 검증
-  if (templateData.period_start && templateData.period_end) {
+  if (templateData?.period_start && templateData?.period_end) {
     const startDate = new Date(templateData.period_start);
     const endDate = new Date(templateData.period_end);
 
@@ -242,7 +242,7 @@ export default async function CampParticipationPage({
   }
   
   // 하위 호환성: template_data.block_set_id도 확인 (마이그레이션 전 데이터용)
-  if (!templateBlockSet && templateData.block_set_id) {
+  if (!templateBlockSet && templateData?.block_set_id) {
     const { data: legacyBlockSetData, error: legacyError } = await supabase
       .from("tenant_block_sets")
       .select("id, name")
@@ -295,16 +295,16 @@ export default async function CampParticipationPage({
         : null,
       studentBlockSetsCount: studentBlockSets.length,
       totalBlockSetsCount: blockSets.length,
-      templateBlockSetId: templateData.block_set_id,
+      templateBlockSetId: templateData?.block_set_id,
       willBeSelected: blockSets.some(
-        (bs) => bs.id === templateData.block_set_id
+        (bs) => bs.id === templateData?.block_set_id
       ),
     });
   }
 
   // 템플릿 제외일에 source와 is_locked 필드 추가
-  const templateExclusions = (templateData.exclusions || []).map(
-    (exclusion: any) => ({
+  const templateExclusions = (templateData?.exclusions || []).map(
+    (exclusion) => ({
       ...exclusion,
       source: "template" as const,
       is_locked: true, // 템플릿에서 추가한 제외일은 삭제 불가
@@ -312,8 +312,8 @@ export default async function CampParticipationPage({
   );
 
   // 템플릿 학원 일정에 source와 is_locked 필드 추가
-  const templateAcademySchedules = (templateData.academy_schedules || []).map(
-    (schedule: any) => ({
+  const templateAcademySchedules = (templateData?.academy_schedules || []).map(
+    (schedule) => ({
       ...schedule,
       source: "template" as const,
       is_locked: true, // 템플릿에서 추가한 학원 일정은 삭제 불가 (필요시)
@@ -326,7 +326,7 @@ export default async function CampParticipationPage({
     name: template.name, // 템플릿 이름 사용
     academy_schedules: templateAcademySchedules, // 템플릿 학원 일정 (학생 추가 가능)
     student_contents: [], // 학생이 선택
-    recommended_contents: templateData.recommended_contents || [], // 템플릿 추천 콘텐츠
+    recommended_contents: templateData?.recommended_contents || [], // 템플릿 추천 콘텐츠
     exclusions: templateExclusions, // 템플릿 제외일 (source, is_locked 포함)
   };
 
@@ -339,17 +339,17 @@ export default async function CampParticipationPage({
     student_contents: draftData?.student_contents || [],
     recommended_contents:
       draftData?.recommended_contents ||
-      templateData.recommended_contents ||
+      templateData?.recommended_contents ||
       [],
     exclusions: draftData?.exclusions || templateExclusions,
     // 블록세트 ID 명시적으로 설정 (연결 테이블에서 가져온 블록 세트 ID 사용)
     // Draft가 있어도 템플릿의 블록 세트를 우선 사용 (캠프 모드에서는 템플릿 블록세트 사용)
-    block_set_id: draftData?.block_set_id || templateBlockSet?.id || templateData.block_set_id || "",
+    block_set_id: draftData?.block_set_id || templateBlockSet?.id || templateData?.block_set_id || "",
     // Draft의 groupId 포함 (저장 시 업데이트용)
     groupId: draftData?.groupId,
     // 템플릿 고정 필드 정보 포함 (학생 입력 허용 여부 등)
     // templateLockedFields가 없으면 빈 객체로 초기화하여 필드가 모두 활성화되도록 함
-    templateLockedFields: templateData.templateLockedFields || {
+    templateLockedFields: templateData?.templateLockedFields || {
       step1: {},
       step2: {},
     },

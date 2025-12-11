@@ -9,14 +9,9 @@ import {
   deleteLecture,
   deleteCustomContent,
 } from "@/app/(student)/actions/contentActions";
+import type { ContentListItem } from "./ContentsList";
 
 type TabKey = "books" | "lectures" | "custom";
-
-type ContentListItem = {
-  id: string;
-  title: string;
-  [key: string]: any;
-};
 
 type Row = { label: string; value: string | number | null };
 
@@ -142,7 +137,7 @@ export function ContentsListClient({
             onDelete={getDeleteHandler()}
             detailRows={getDetailRows(activeTab, item)}
             subText={getSubText(activeTab, item)}
-            linkedBook={(item as any).linkedBook}
+            linkedBook={item.linkedBook}
             isSelected={selectedIds.has(item.id)}
             onSelect={(checked) => select(item.id, checked)}
           />

@@ -236,7 +236,7 @@ export default function TemplateBlocksViewer({
                           }
                           
                           // template_data 업데이트
-                          const templateData = templateResult.template.template_data as any || {};
+                          const templateData = templateResult.template.template_data || {};
                           const updatedTemplateData = {
                             ...templateData,
                             block_set_id: set.id,

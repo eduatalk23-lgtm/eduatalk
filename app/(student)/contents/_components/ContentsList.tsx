@@ -11,11 +11,25 @@ import {
 import { ContentsListClient } from "./ContentsListClient";
 
 type TabKey = "books" | "lectures" | "custom";
-type ContentListItem = {
+export type ContentListItem = {
   id: string;
   title: string;
-  [key: string]: any;
-};
+  revision?: string | null;
+  semester?: string | null;
+  subject_category?: string | null;
+  subject?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
+  difficulty_level?: string | null;
+  total_pages?: number | null;
+  total_episodes?: number | null;
+  duration?: number | null;
+  content_type?: string | null;
+  total_page_or_time?: number | null;
+  linked_book_id?: string | null;
+  linkedBook?: { id: string; title: string } | null;
+  // 알 수 없는 필드가 있을 경우를 위한 fallback
+} & Record<string, unknown>;
 
 type ContentsListProps = {
   activeTab: TabKey;
@@ -55,7 +69,7 @@ async function ContentsListContent({
   // 강의의 경우 연결된 교재 정보 조회
   if (activeTab === "lectures" && list.length > 0) {
     const linkedBookIds = list
-      .map((item) => (item as any).linked_book_id)
+      .map((item) => item.linked_book_id)
       .filter((id): id is string => !!id);
     
     if (linkedBookIds.length > 0) {
@@ -71,9 +85,12 @@ async function ContentsListContent({
       
       // 각 강의에 연결된 교재 정보 추가
       list.forEach((item) => {
-        const linkedBookId = (item as any).linked_book_id;
+        const linkedBookId = item.linked_book_id;
         if (linkedBookId && linkedBooksMap.has(linkedBookId)) {
-          (item as any).linkedBook = linkedBooksMap.get(linkedBookId);
+          const linkedBook = linkedBooksMap.get(linkedBookId);
+          if (linkedBook) {
+            item.linkedBook = linkedBook;
+          }
         }
       });
     }

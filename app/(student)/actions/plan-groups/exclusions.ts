@@ -315,13 +315,12 @@ async function _deletePlanExclusion(formData: FormData): Promise<void> {
       const { getCampTemplate } = await import("@/lib/data/campTemplates");
       const template = await getCampTemplate(planGroup.camp_template_id);
 
-      if (template) {
-        const templateData = template.template_data as any;
-        const templateExclusions = templateData.exclusions || [];
+      if (template?.template_data?.exclusions) {
+        const templateExclusions = template.template_data.exclusions;
 
         // 템플릿 제외일 목록에 해당 제외일이 있는지 확인
         const isTemplateExclusion = templateExclusions.some(
-          (te: any) => te.exclusion_date === exclusion.exclusion_date
+          (te) => te.exclusion_date === exclusion.exclusion_date
         );
 
         if (isTemplateExclusion) {

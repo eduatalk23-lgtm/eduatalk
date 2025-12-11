@@ -103,7 +103,7 @@ export default function AcademyScheduleManagement({
       if (academiesWithSchedules.length > 0 && !selectedAcademyId) {
         setSelectedAcademyId(academiesWithSchedules[0].id);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("학원 일정 로드 실패:", error);
     } finally {
       setLoading(false);
@@ -130,8 +130,9 @@ export default function AcademyScheduleManagement({
         onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
 
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "학원 추가에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "학원 추가에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };
@@ -165,8 +166,9 @@ export default function AcademyScheduleManagement({
         setNewAcademyTravelTime("60");
 
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "학원 수정에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "학원 수정에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };
@@ -187,8 +189,9 @@ export default function AcademyScheduleManagement({
         }
 
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "학원 삭제에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "학원 삭제에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };
@@ -271,8 +274,9 @@ export default function AcademyScheduleManagement({
         setIsAddingSchedule(false);
 
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "학원 일정 추가에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "학원 일정 추가에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };
@@ -322,8 +326,9 @@ export default function AcademyScheduleManagement({
         setScheduleSubject("");
 
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "학원 일정 수정에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "학원 일정 수정에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };

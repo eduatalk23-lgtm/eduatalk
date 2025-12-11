@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTransition } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -30,7 +30,7 @@ export function StudentSearchModal({
   const [selectedRelation, setSelectedRelation] = useState<ParentRelation>("mother");
   const [isSearching, setIsSearching] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 검색 실행
   const performSearch = useCallback(
@@ -59,19 +59,19 @@ export function StudentSearchModal({
 
   // Debounce 검색
   useEffect(() => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
 
     const timer = setTimeout(() => {
       performSearch(searchQuery);
     }, 300);
 
-    setDebounceTimer(timer);
+    debounceTimerRef.current = timer;
 
     return () => {
-      if (timer) {
-        clearTimeout(timer);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
     };
   }, [searchQuery, performSearch]);
@@ -83,12 +83,12 @@ export function StudentSearchModal({
       setSearchResults([]);
       setSelectedRelation("mother");
       setIsSearching(false);
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-        setDebounceTimer(null);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
       }
     }
-  }, [isOpen, debounceTimer]);
+  }, [isOpen]);
 
   function handleRequest(studentId: string) {
     startTransition(async () => {

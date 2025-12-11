@@ -4,39 +4,46 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTransition } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  searchParents,
-  createParentStudentLink,
-  type SearchableParent,
-  type StudentParent,
-  type ParentRelation,
-} from "@/app/(admin)/actions/parentStudentLinkActions";
 
-type ParentSearchModalProps = {
+type SearchModalProps<T> = {
   isOpen: boolean;
   onClose: () => void;
-  studentId: string;
-  existingParents: StudentParent[];
+  title: string;
+  searchPlaceholder: string;
+  searchLabel: string;
+  searchFn: (query: string) => Promise<{ success: boolean; data?: T[]; error?: string }>;
+  renderResult: (item: T, onSelect: (item: T) => void, isPending: boolean) => React.ReactNode;
+  onSelect: (item: T) => Promise<{ success: boolean; error?: string }>;
+  relationOptions?: { value: string; label: string }[];
+  onRelationChange?: (relation: string) => void;
+  selectedRelation?: string;
+  successMessage?: string;
   onSuccess?: () => void;
+  filterExisting?: (item: T) => boolean;
 };
 
-export function ParentSearchModal({
+export function SearchModal<T extends { id: string }>({
   isOpen,
   onClose,
-  studentId,
-  existingParents,
+  title,
+  searchPlaceholder,
+  searchLabel,
+  searchFn,
+  renderResult,
+  onSelect,
+  relationOptions,
+  onRelationChange,
+  selectedRelation,
+  successMessage,
   onSuccess,
-}: ParentSearchModalProps) {
+  filterExisting,
+}: SearchModalProps<T>) {
   const { showSuccess, showError } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchableParent[]>([]);
-  const [selectedRelation, setSelectedRelation] = useState<ParentRelation>("mother");
+  const [searchResults, setSearchResults] = useState<T[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isPending, startTransition] = useTransition();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 이미 연결된 학부모 ID 목록
-  const existingParentIds = new Set(existingParents.map((p) => p.parentId));
 
   // 검색 실행
   const performSearch = useCallback(
@@ -48,13 +55,13 @@ export function ParentSearchModal({
       }
 
       setIsSearching(true);
-      const result = await searchParents(query.trim());
+      const result = await searchFn(query.trim());
 
       if (result.success && result.data) {
-        // 이미 연결된 학부모 필터링
-        const filtered = result.data.filter(
-          (parent) => !existingParentIds.has(parent.id)
-        );
+        // 기존 항목 필터링 (있는 경우)
+        const filtered = filterExisting
+          ? result.data.filter(filterExisting)
+          : result.data;
         setSearchResults(filtered);
       } else {
         setSearchResults([]);
@@ -64,7 +71,7 @@ export function ParentSearchModal({
       }
       setIsSearching(false);
     },
-    [existingParentIds, showError]
+    [searchFn, filterExisting, showError]
   );
 
   // Debounce 검색
@@ -91,7 +98,6 @@ export function ParentSearchModal({
     if (!isOpen) {
       setSearchQuery("");
       setSearchResults([]);
-      setSelectedRelation("mother");
       setIsSearching(false);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -100,20 +106,18 @@ export function ParentSearchModal({
     }
   }, [isOpen]);
 
-  function handleLink(parentId: string) {
+  function handleSelect(item: T) {
     startTransition(async () => {
-      const result = await createParentStudentLink(
-        studentId,
-        parentId,
-        selectedRelation
-      );
+      const result = await onSelect(item);
 
       if (result.success) {
-        showSuccess("학부모가 연결되었습니다.");
+        if (successMessage) {
+          showSuccess(successMessage);
+        }
         onSuccess?.();
         onClose();
       } else {
-        showError(result.error || "연결에 실패했습니다.");
+        showError(result.error || "처리에 실패했습니다.");
       }
     });
   }
@@ -122,7 +126,7 @@ export function ParentSearchModal({
     <Dialog
       open={isOpen}
       onOpenChange={onClose}
-      title="학부모 검색 및 연결"
+      title={title}
       maxWidth="lg"
     >
       <DialogContent>
@@ -130,17 +134,17 @@ export function ParentSearchModal({
           {/* 검색 입력 */}
           <div>
             <label
-              htmlFor="parent-search"
+              htmlFor="search-input"
               className="mb-2 block text-sm font-medium text-gray-700"
             >
-              이름 또는 이메일로 검색
+              {searchLabel}
             </label>
             <input
-              id="parent-search"
+              id="search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="최소 2글자 이상 입력하세요..."
+              placeholder={searchPlaceholder}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
             {searchQuery.length > 0 && searchQuery.length < 2 && (
@@ -151,28 +155,29 @@ export function ParentSearchModal({
           </div>
 
           {/* 관계 선택 */}
-          <div>
-            <label
-              htmlFor="relation-select"
-              className="mb-2 block text-sm font-medium text-gray-700"
-            >
-              관계
-            </label>
-            <select
-              id="relation-select"
-              value={selectedRelation}
-              onChange={(e) =>
-                setSelectedRelation(e.target.value as ParentRelation)
-              }
-              disabled={isPending}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100"
-            >
-              <option value="father">아버지</option>
-              <option value="mother">어머니</option>
-              <option value="guardian">보호자</option>
-              <option value="other">기타</option>
-            </select>
-          </div>
+          {relationOptions && onRelationChange && selectedRelation && (
+            <div>
+              <label
+                htmlFor="relation-select"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
+                관계
+              </label>
+              <select
+                id="relation-select"
+                value={selectedRelation}
+                onChange={(e) => onRelationChange(e.target.value)}
+                disabled={isPending}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100"
+              >
+                {relationOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* 검색 결과 */}
           {isSearching && (
@@ -193,28 +198,7 @@ export function ParentSearchModal({
                 검색 결과 ({searchResults.length}개)
               </div>
               <div className="max-h-64 space-y-2 overflow-y-auto">
-                {searchResults.map((parent) => (
-                  <div
-                    key={parent.id}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 transition hover:bg-gray-50"
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">
-                        {parent.name || "이름 없음"}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {parent.email || "-"}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleLink(parent.id)}
-                      disabled={isPending}
-                      className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                    >
-                      {isPending ? "연결 중..." : "연결"}
-                    </button>
-                  </div>
-                ))}
+                {searchResults.map((item) => renderResult(item, handleSelect, isPending))}
               </div>
             </div>
           )}

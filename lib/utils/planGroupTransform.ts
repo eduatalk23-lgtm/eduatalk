@@ -118,9 +118,8 @@ export async function transformPlanGroupToWizardData(
     try {
       const { getCampTemplate } = await import("@/lib/data/campTemplates");
       const template = await getCampTemplate(group.camp_template_id);
-      if (template) {
-        const templateData = template.template_data as any;
-        blockSetId = templateData.block_set_id || "";
+      if (template?.template_data?.block_set_id) {
+        blockSetId = template.template_data.block_set_id;
       }
     } catch (error) {
       console.error("[planGroupTransform] 템플릿 데이터 조회 실패 (block_set_id)", error);
@@ -209,9 +208,8 @@ export async function transformPlanGroupToWizardData(
         try {
           const { getCampTemplate } = await import("@/lib/data/campTemplates");
           const template = await getCampTemplate(group.camp_template_id);
-          if (template) {
-            const templateData = template.template_data as any;
-            templateExclusions = templateData.exclusions || [];
+          if (template?.template_data?.exclusions) {
+            templateExclusions = template.template_data.exclusions;
           }
           // 템플릿이 없으면 빈 배열로 처리 (정상적인 상황일 수 있음)
         } catch (error) {
@@ -266,9 +264,8 @@ export async function transformPlanGroupToWizardData(
         try {
           const { getCampTemplate } = await import("@/lib/data/campTemplates");
           const template = await getCampTemplate(group.camp_template_id);
-          if (template) {
-            const templateData = template.template_data as any;
-            templateAcademySchedules = templateData.academy_schedules || [];
+          if (template?.template_data?.academy_schedules) {
+            templateAcademySchedules = template.template_data.academy_schedules;
           }
           // 템플릿이 없으면 빈 배열로 처리 (정상적인 상황일 수 있음)
         } catch (error) {

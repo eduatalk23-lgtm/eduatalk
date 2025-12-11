@@ -65,9 +65,13 @@ export function usePlanSubmission({
         let creationData;
         try {
            creationData = buildPayload();
-        } catch (err: any) {
+        } catch (err: unknown) {
            console.error("Payload Build Error", err);
-           const msg = err instanceof PlanGroupError ? err.userMessage : err.message || "데이터 변환 중 오류가 발생했습니다.";
+           const msg = err instanceof PlanGroupError 
+             ? err.userMessage 
+             : err instanceof Error 
+             ? err.message 
+             : "데이터 변환 중 오류가 발생했습니다.";
            setValidationErrors([msg]);
            if (!silent) toast.showError(msg);
            return;
@@ -133,9 +137,13 @@ export function usePlanSubmission({
         let creationData;
         try {
             creationData = buildPayload();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Payload Build Error (Submit)", err);
-            const msg = err instanceof PlanGroupError ? err.userMessage : err.message || "데이터 변환 오류";
+            const msg = err instanceof PlanGroupError 
+              ? err.userMessage 
+              : err instanceof Error 
+              ? err.message 
+              : "데이터 변환 오류";
             setValidationErrors([msg]);
             toast.showError(msg);
             setIsSubmitting(false);

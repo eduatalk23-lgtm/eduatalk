@@ -2976,9 +2976,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
               .eq("id", result.group.camp_template_id)
               .maybeSingle();
 
-            if (templateData?.template_data) {
-              const templateDataObj = templateData.template_data as any;
-              tenantBlockSetId = templateDataObj.block_set_id || null;
+            if (templateData?.template_data?.block_set_id) {
+              tenantBlockSetId = templateData.template_data.block_set_id;
             }
           }
 

@@ -282,6 +282,12 @@ const adminCategories: NavigationCategory[] = [
         href: "/admin/attendance/settings",
         icon: "📍",
       },
+      {
+        id: "admin-parent-links",
+        label: "학부모 연결 관리",
+        href: "/admin/parent-links",
+        icon: "👨‍👩‍👧",
+      },
     ],
   },
   {

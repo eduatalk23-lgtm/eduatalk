@@ -83,9 +83,8 @@ export async function calculateScheduleAvailability(
         // 또는 template_data.block_set_id 확인 (마이그레이션 전 데이터용)
         const { getCampTemplate } = await import("@/lib/data/campTemplates");
         const template = await getCampTemplate(params.campTemplateId);
-        if (template && template.template_data) {
-          const templateData = template.template_data as any;
-          templateBlockSetId = templateData.block_set_id || params.blockSetId || null;
+        if (template?.template_data?.block_set_id) {
+          templateBlockSetId = template.template_data.block_set_id || params.blockSetId || null;
         } else {
           // 연결 테이블에 없고 템플릿 데이터도 없으면 blockSetId를 직접 사용
           templateBlockSetId = params.blockSetId;

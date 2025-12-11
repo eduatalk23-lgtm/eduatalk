@@ -38,8 +38,9 @@ export function AssignTenantDialog({
         .then((result) => {
           if (result.success && result.data) {
             setTenants(result.data);
-            if (result.data.length > 0) {
-              setSelectedTenantId(result.data[0].id);
+            const firstTenant = result.data[0];
+            if (firstTenant?.id) {
+              setSelectedTenantId(firstTenant.id);
             }
           } else {
             setError(result.error || "테넌트 목록을 불러올 수 없습니다.");

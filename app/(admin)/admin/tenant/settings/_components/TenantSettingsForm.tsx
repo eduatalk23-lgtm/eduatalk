@@ -1,6 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  getAutoApproveSettings,
+  updateAutoApproveSettings,
+  type AutoApproveSettings,
+  type ParentRelation,
+} from "@/app/(admin)/actions/tenantSettingsActions";
 
 type Tenant = {
   id: string;
@@ -22,6 +28,41 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
   const [type, setType] = useState(tenant.type);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // 자동 승인 설정 상태
+  const [autoApproveSettings, setAutoApproveSettings] = useState<AutoApproveSettings>({
+    enabled: false,
+    conditions: {
+      sameTenantOnly: true,
+      allowedRelations: ["father", "mother"],
+    },
+  });
+  const [isLoadingAutoApprove, setIsLoadingAutoApprove] = useState(true);
+  const [isSavingAutoApprove, setIsSavingAutoApprove] = useState(false);
+  const [autoApproveMessage, setAutoApproveMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  // 자동 승인 설정 로드
+  useEffect(() => {
+    async function loadAutoApproveSettings() {
+      setIsLoadingAutoApprove(true);
+      const result = await getAutoApproveSettings(tenant.id);
+
+      if (result.success && result.data) {
+        setAutoApproveSettings(result.data);
+      } else {
+        setAutoApproveMessage({
+          type: "error",
+          text: result.error || "자동 승인 설정을 불러올 수 없습니다.",
+        });
+      }
+      setIsLoadingAutoApprove(false);
+    }
+
+    loadAutoApproveSettings();
+  }, [tenant.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +89,65 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // 자동 승인 설정 저장
+  const handleSaveAutoApprove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingAutoApprove(true);
+    setAutoApproveMessage(null);
+
+    try {
+      const result = await updateAutoApproveSettings(
+        autoApproveSettings,
+        tenant.id
+      );
+
+      if (result.success) {
+        setAutoApproveMessage({
+          type: "success",
+          text: "자동 승인 설정이 저장되었습니다.",
+        });
+      } else {
+        setAutoApproveMessage({
+          type: "error",
+          text: result.error || "자동 승인 설정 저장에 실패했습니다.",
+        });
+      }
+    } catch (error) {
+      console.error("[tenant] 자동 승인 설정 저장 실패", error);
+      setAutoApproveMessage({
+        type: "error",
+        text: "자동 승인 설정 저장 중 오류가 발생했습니다.",
+      });
+    } finally {
+      setIsSavingAutoApprove(false);
+    }
+  };
+
+  // 관계 선택 토글
+  const toggleRelation = (relation: ParentRelation) => {
+    setAutoApproveSettings((prev) => {
+      const relations = prev.conditions.allowedRelations;
+      const newRelations = relations.includes(relation)
+        ? relations.filter((r) => r !== relation)
+        : [...relations, relation];
+
+      return {
+        ...prev,
+        conditions: {
+          ...prev.conditions,
+          allowedRelations: newRelations,
+        },
+      };
+    });
+  };
+
+  const relationLabels: Record<ParentRelation, string> = {
+    father: "아버지",
+    mother: "어머니",
+    guardian: "보호자",
+    other: "기타",
   };
 
   return (
@@ -121,6 +221,134 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* 자동 승인 설정 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="mb-4 text-xl font-semibold">학부모 연결 자동 승인</h2>
+        <p className="mb-4 text-sm text-gray-600">
+          조건을 만족하는 연결 요청을 자동으로 승인할 수 있습니다.
+        </p>
+
+        {autoApproveMessage && (
+          <div
+            className={`mb-4 rounded-lg p-3 ${
+              autoApproveMessage.type === "success"
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
+            {autoApproveMessage.text}
+          </div>
+        )}
+
+        {isLoadingAutoApprove ? (
+          <div className="py-4 text-center text-sm text-gray-500">
+            설정을 불러오는 중...
+          </div>
+        ) : (
+          <form onSubmit={handleSaveAutoApprove} className="space-y-4">
+            {/* 자동 승인 활성화 토글 */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="autoApproveEnabled"
+                checked={autoApproveSettings.enabled}
+                onChange={(e) =>
+                  setAutoApproveSettings((prev) => ({
+                    ...prev,
+                    enabled: e.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label
+                htmlFor="autoApproveEnabled"
+                className="text-sm font-medium text-gray-900"
+              >
+                자동 승인 활성화
+              </label>
+            </div>
+
+            {/* 조건 설정 (활성화 시에만 표시) */}
+            {autoApproveSettings.enabled && (
+              <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                {/* 같은 테넌트만 체크박스 */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="sameTenantOnly"
+                    checked={autoApproveSettings.conditions.sameTenantOnly}
+                    onChange={(e) =>
+                      setAutoApproveSettings((prev) => ({
+                        ...prev,
+                        conditions: {
+                          ...prev.conditions,
+                          sameTenantOnly: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label
+                    htmlFor="sameTenantOnly"
+                    className="text-sm font-medium text-gray-900"
+                  >
+                    같은 테넌트 내에서만 자동 승인
+                  </label>
+                </div>
+
+                {/* 관계 선택 다중 선택 */}
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-900">
+                    자동 승인할 관계 선택
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    {(
+                      ["father", "mother", "guardian", "other"] as ParentRelation[]
+                    ).map((relation) => (
+                      <label
+                        key={relation}
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 transition hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={autoApproveSettings.conditions.allowedRelations.includes(
+                            relation
+                          )}
+                          onChange={() => toggleRelation(relation)}
+                          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {relationLabels[relation]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {autoApproveSettings.conditions.allowedRelations.length ===
+                    0 && (
+                    <p className="mt-2 text-xs text-red-600">
+                      최소 하나 이상의 관계를 선택해야 합니다.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={
+                  isSavingAutoApprove ||
+                  autoApproveSettings.conditions.allowedRelations.length === 0
+                }
+                className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSavingAutoApprove ? "저장 중..." : "설정 저장"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

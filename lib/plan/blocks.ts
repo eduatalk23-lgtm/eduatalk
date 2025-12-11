@@ -105,9 +105,8 @@ async function getTemplateBlockSet(
     // 2. 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
     const { getCampTemplate } = await import("@/lib/data/campTemplates");
     const template = await getCampTemplate(templateId);
-    if (template && template.template_data) {
-      const templateData = template.template_data as any;
-      templateBlockSetId = templateData.block_set_id || null;
+    if (template?.template_data?.block_set_id) {
+      templateBlockSetId = template.template_data.block_set_id;
     }
   }
 

@@ -34,6 +34,28 @@ import { Step7ScheduleResult } from "./Step7ScheduleResult";
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+/**
+ * 템플릿 고정 필드 타입
+ */
+export type TemplateLockedFields = {
+  step1?: {
+    allow_student_name?: boolean;
+    allow_student_plan_purpose?: boolean;
+    allow_student_scheduler_type?: boolean;
+    allow_student_period?: boolean;
+    allow_student_block_set_id?: boolean;
+    allow_student_student_level?: boolean;
+    allow_student_subject_allocations?: boolean;
+    allow_student_study_review_cycle?: boolean;
+  };
+  // 향후 확장 가능
+  step2?: Record<string, boolean>;
+  step3?: Record<string, boolean>;
+  step4?: Record<string, boolean>;
+  step5?: Record<string, boolean>;
+  step6?: Record<string, boolean>;
+};
+
 export type WizardData = {
   // Step 1
   name: string;
@@ -202,7 +224,7 @@ export type WizardData = {
     description?: string;
   }>;
   // 템플릿 고정 필드 (템플릿 모드에서만 사용)
-  templateLockedFields?: any;
+  templateLockedFields?: TemplateLockedFields;
   // 캠프 관련 필드 (Step 7에서 사용)
   plan_type?: "individual" | "integrated" | "camp";
   camp_template_id?: string | null;

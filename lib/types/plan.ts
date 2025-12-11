@@ -1,5 +1,43 @@
 // 플랜 관련 타입 정의
 
+import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+
+/**
+ * OCR 데이터 타입
+ */
+type OCRData = {
+  text?: string;
+  confidence?: number;
+  bounding_boxes?: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+};
+
+/**
+ * 페이지 분석 데이터 타입
+ */
+type PageAnalysis = {
+  difficulty?: number;
+  topics?: string[];
+  keywords?: string[];
+  summary?: string;
+  [key: string]: unknown; // 확장 가능한 필드
+};
+
+/**
+ * 에피소드 분석 데이터 타입
+ */
+type EpisodeAnalysis = {
+  duration?: number;
+  difficulty?: number;
+  topics?: string[];
+  summary?: string;
+  [key: string]: unknown; // 확장 가능한 필드
+};
+
 /**
  * 플랜 목적
  */
@@ -29,7 +67,7 @@ export type CampTemplate = {
   name: string;
   description: string | null;
   program_type: CampProgramType;
-  template_data: any; // WizardData 구조의 JSON (Partial<WizardData>)
+  template_data: Partial<WizardData> | null;
   status: "draft" | "active" | "archived";
   camp_start_date: string | null; // 캠프 시작일 (date)
   camp_end_date: string | null; // 캠프 종료일 (date)
@@ -434,8 +472,8 @@ export type MasterBook = MasterContentFields & {
   
   // AI 분석 필드 (향후 확장용)
   pdf_url: string | null;
-  ocr_data: any | null; // JSONB
-  page_analysis: any | null; // JSONB
+  ocr_data: OCRData | null; // JSONB
+  page_analysis: PageAnalysis | null; // JSONB
   overall_difficulty: number | null; // 0.00 ~ 10.00
 };
 
@@ -467,7 +505,7 @@ export type MasterLecture = MasterContentFields & {
   // AI 분석 필드 (향후 확장용)
   video_url?: string | null;
   transcript?: string | null;
-  episode_analysis?: any | null; // JSONB
+  episode_analysis?: EpisodeAnalysis | null; // JSONB
   overall_difficulty?: number | null; // 0.00 ~ 10.00
 };
 

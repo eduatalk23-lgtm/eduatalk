@@ -8,6 +8,7 @@ import {
   type StudentParent,
   type ParentRelation,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
+import { ConfirmDialog } from "@/components/organisms/Dialog";
 
 type ParentCardProps = {
   parent: StudentParent;
@@ -27,10 +28,12 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
   const [relation, setRelation] = useState<ParentRelation>(
     (parent.relation as ParentRelation) || "other"
   );
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   function handleUpdateRelation(newRelation: ParentRelation) {
     if (newRelation === relation) return;
 
+    const previousRelation = relation; // 이전 값 저장
     setRelation(newRelation);
     startTransition(async () => {
       const result = await updateLinkRelation(parent.linkId, newRelation);
@@ -39,23 +42,24 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
         showSuccess("관계가 수정되었습니다.");
         onRefresh?.();
       } else {
-        setRelation(relation); // 롤백
+        setRelation(previousRelation); // 이전 값으로 롤백
         showError(result.error || "관계 수정에 실패했습니다.");
       }
     });
   }
 
   function handleDeleteLink() {
-    if (!confirm("정말 연결을 해제하시겠습니까?")) {
-      return;
-    }
+    setIsDeleteDialogOpen(true);
+  }
 
+  function handleConfirmDelete() {
     startTransition(async () => {
       const result = await deleteParentStudentLink(parent.linkId);
 
       if (result.success) {
         showSuccess("연결이 해제되었습니다.");
         onRefresh?.();
+        setIsDeleteDialogOpen(false);
       } else {
         showError(result.error || "연결 해제에 실패했습니다.");
       }
@@ -94,6 +98,18 @@ export function ParentCard({ parent, onRefresh }: ParentCardProps) {
           {isPending ? "처리 중..." : "연결 해제"}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="연결 해제 확인"
+        description="정말 연결을 해제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="연결 해제"
+        cancelLabel="취소"
+        onConfirm={handleConfirmDelete}
+        variant="destructive"
+        isLoading={isPending}
+      />
     </div>
   );
 }

@@ -38,7 +38,10 @@ export default function SubjectGroupSidebar({
       setGroups(data || []);
       // 첫 번째 교과를 기본으로 선택
       if (data && data.length > 0 && !selectedGroupId) {
-        onGroupSelect(data[0].id);
+        const firstGroup = data[0];
+        if (firstGroup?.id) {
+          onGroupSelect(firstGroup.id);
+        }
       }
     } catch (error) {
       console.error("교과 조회 실패:", error);

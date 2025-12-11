@@ -25,8 +25,9 @@ export function QRCodeManageContent() {
       } else {
         setError(result.error || "QR 코드 이력을 불러올 수 없습니다.");
       }
-    } catch (err: any) {
-      setError(err.message || "QR 코드 이력을 불러올 수 없습니다.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "QR 코드 이력을 불러올 수 없습니다.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -49,8 +50,9 @@ export function QRCodeManageContent() {
       } else {
         alert(result.error || "QR 코드 비활성화에 실패했습니다.");
       }
-    } catch (err: any) {
-      alert(err.message || "QR 코드 비활성화 중 오류가 발생했습니다.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "QR 코드 비활성화 중 오류가 발생했습니다.";
+      alert(errorMessage);
     } finally {
       setDeactivating(null);
     }

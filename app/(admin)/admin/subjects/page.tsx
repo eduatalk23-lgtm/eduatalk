@@ -29,7 +29,10 @@ export default function SubjectsPage() {
       setRevisions(data || []);
       // 첫 번째 개정교육과정을 기본으로 선택
       if (data && data.length > 0 && !selectedRevisionId) {
-        setSelectedRevisionId(data[0].id);
+        const firstRevision = data[0];
+        if (firstRevision?.id) {
+          setSelectedRevisionId(firstRevision.id);
+        }
       }
     } catch (error) {
       console.error("개정교육과정 조회 실패:", error);

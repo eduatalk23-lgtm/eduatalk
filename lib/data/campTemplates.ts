@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
+import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 
 /**
  * 캠프 템플릿 조회
@@ -50,7 +51,7 @@ export async function createCampTemplate(data: {
   name: string;
   description?: string;
   program_type: string;
-  template_data: any; // WizardData JSON
+  template_data: Partial<WizardData> | null;
   created_by: string;
   camp_start_date?: string;
   camp_end_date?: string;
@@ -58,7 +59,18 @@ export async function createCampTemplate(data: {
 }): Promise<{ success: boolean; templateId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const insertData: any = {
+  const insertData: {
+    tenant_id: string;
+    name: string;
+    description: string | null;
+    program_type: string;
+    template_data: Partial<WizardData> | null;
+    status: "draft";
+    created_by?: string;
+    camp_start_date?: string;
+    camp_end_date?: string;
+    camp_location?: string;
+  } = {
     tenant_id: data.tenant_id,
     name: data.name,
     description: data.description || null,

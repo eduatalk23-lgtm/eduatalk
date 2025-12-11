@@ -40,7 +40,10 @@ export function SubjectsManager() {
       const data = await getCurriculumRevisionsAction();
       setRevisions(data);
       if (data.length > 0 && !selectedRevisionId) {
-        setSelectedRevisionId(data[0].id);
+        const firstRevision = data[0];
+        if (firstRevision?.id) {
+          setSelectedRevisionId(firstRevision.id);
+        }
       }
     } catch (error) {
       console.error("개정교육과정 조회 실패:", error);
@@ -52,7 +55,10 @@ export function SubjectsManager() {
       const data = await getSubjectCategoriesAction(revisionId);
       setSubjectCategories(data);
       if (data.length > 0 && !selectedCategoryId) {
-        setSelectedCategoryId(data[0].id);
+        const firstCategory = data[0];
+        if (firstCategory?.id) {
+          setSelectedCategoryId(firstCategory.id);
+        }
       }
     } catch (error) {
       console.error("교과 조회 실패:", error);

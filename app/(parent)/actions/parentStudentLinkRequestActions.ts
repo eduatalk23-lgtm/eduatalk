@@ -3,6 +3,9 @@
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getAutoApproveSettings } from "@/app/(admin)/actions/tenantSettingsActions";
+import { checkAutoApproveConditions } from "@/lib/utils/autoApprove";
+import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
 
 // 타입 정의
 export type SearchableStudent = {
@@ -36,12 +39,12 @@ export async function searchStudentsForLink(
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "parent") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // 본인만 검색 가능
   if (userId !== parentId) {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // 최소 2글자 이상 검색
@@ -133,18 +136,18 @@ export async function createLinkRequest(
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "parent") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // 본인만 요청 가능
   if (userId !== parentId) {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // relation 값 검증
   const validRelations: ParentRelation[] = ["father", "mother", "guardian", "other"];
   if (!validRelations.includes(relation)) {
-    return { success: false, error: "올바른 관계를 선택해주세요." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -169,28 +172,97 @@ export async function createLinkRequest(
     if (existing) {
       // 이미 승인된 경우
       if (existing.is_approved === true) {
-        return { success: false, error: "이미 연결된 학생입니다." };
+        return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.ALREADY_LINKED };
       }
       // 대기 중인 경우
-      return { success: false, error: "이미 연결 요청이 존재합니다." };
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_ALREADY_EXISTS };
     }
 
-    // 연결 요청 생성 (is_approved: false)
+    // 자동 승인 로직: 학생과 학부모의 tenant_id 조회 (병렬 처리)
+    const [studentResult, parentResult] = await Promise.all([
+      supabase
+        .from("students")
+        .select("tenant_id")
+        .eq("id", studentId)
+        .maybeSingle(),
+      supabase
+        .from("parent_users")
+        .select("tenant_id")
+        .eq("id", parentId)
+        .maybeSingle(),
+    ]);
+
+    const { data: student, error: studentError } = studentResult;
+    const { data: parent, error: parentError } = parentResult;
+
+    if (studentError) {
+      console.error("[parent/linkRequest] 학생 정보 조회 실패", studentError);
+      // 에러가 있어도 계속 진행 (자동 승인 실패 시 수동 승인으로 폴백)
+    }
+
+    if (parentError) {
+      console.error("[parent/linkRequest] 학부모 정보 조회 실패", parentError);
+      // 에러가 있어도 계속 진행 (자동 승인 실패 시 수동 승인으로 폴백)
+    }
+
+    // 자동 승인 설정 조회 및 조건 확인
+    let shouldAutoApprove = false;
+    if (student?.tenant_id) {
+      try {
+        const autoApproveResult = await getAutoApproveSettings(
+          student.tenant_id
+        );
+
+        if (
+          autoApproveResult.success &&
+          autoApproveResult.data &&
+          student?.tenant_id &&
+          parent?.tenant_id
+        ) {
+          shouldAutoApprove = checkAutoApproveConditions(
+            autoApproveResult.data,
+            student.tenant_id,
+            parent.tenant_id,
+            relation
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[parent/linkRequest] 자동 승인 설정 조회 실패",
+          error
+        );
+        // 에러 발생 시 수동 승인으로 폴백
+      }
+    }
+
+    // 연결 요청 생성 (자동 승인 조건 만족 시 is_approved: true)
+    const insertData: {
+      student_id: string;
+      parent_id: string;
+      relation: string;
+      is_approved: boolean;
+      approved_at?: string;
+    } = {
+      student_id: studentId,
+      parent_id: parentId,
+      relation: relation,
+      is_approved: shouldAutoApprove,
+    };
+
+    if (shouldAutoApprove) {
+      insertData.approved_at = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from("parent_student_links")
-      .insert({
-        student_id: studentId,
-        parent_id: parentId,
-        relation: relation,
-        is_approved: false,
-      })
+      .insert(insertData)
       .select("id")
       .single();
 
     if (error) {
       // UNIQUE 제약조건 에러 처리
       if (error.code === "23505") {
-        return { success: false, error: "이미 연결 요청이 존재합니다." };
+        return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_ALREADY_EXISTS };
       }
 
       console.error("[parent/linkRequest] 연결 요청 생성 실패", error);
@@ -221,12 +293,12 @@ export async function getLinkRequests(
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "parent") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // 본인만 조회 가능
   if (userId !== parentId) {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -322,12 +394,12 @@ export async function cancelLinkRequest(
   const { userId, role } = await getCurrentUserRole();
 
   if (!userId || role !== "parent") {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   // 본인만 취소 가능
   if (userId !== parentId) {
-    return { success: false, error: "권한이 없습니다." };
+    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -355,7 +427,7 @@ export async function cancelLinkRequest(
 
     // 대기 중인 요청만 취소 가능
     if (link.is_approved === true) {
-      return { success: false, error: "이미 승인된 요청은 취소할 수 없습니다." };
+      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.CANNOT_CANCEL_APPROVED };
     }
 
     // 요청 삭제

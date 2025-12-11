@@ -134,7 +134,11 @@ export function convertDataToSheet(
   }
 
   // 헤더 결정
-  const sheetHeaders = headers || Object.keys(data[0]);
+  const firstItem = data[0];
+  if (!firstItem) {
+    return headers ? [headers] : [];
+  }
+  const sheetHeaders = headers || Object.keys(firstItem);
 
   // 헤더 행
   const rows: any[][] = [sheetHeaders];
