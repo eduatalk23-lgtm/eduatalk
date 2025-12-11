@@ -23,10 +23,33 @@ export function isRateLimitError(error: unknown): boolean {
 }
 
 /**
+ * Refresh token 에러 체크 (재시도 불가능)
+ */
+export function isRefreshTokenError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  
+  const err = error as ErrorWithCode;
+  const errorMessage = err.message?.toLowerCase() || "";
+  const errorCode = err.code?.toLowerCase() || "";
+  
+  return (
+    errorMessage.includes("refresh token") ||
+    errorMessage.includes("refresh_token") ||
+    errorMessage.includes("session") ||
+    errorCode === "refresh_token_not_found"
+  );
+}
+
+/**
  * 재시도 가능한 에러 체크
  */
 export function isRetryableError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
+  
+  // Refresh token 에러는 재시도 불가능
+  if (isRefreshTokenError(error)) {
+    return false;
+  }
   
   const err = error as ErrorWithCode;
   return (
@@ -58,6 +81,11 @@ export async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error;
+
+      // Refresh token 에러는 즉시 반환 (재시도 불가능)
+      if (isRefreshTokenError(error)) {
+        throw error;
+      }
 
       // Rate limit 에러인 경우 더 긴 대기 시간
       if (isRateLimitError(error) && attempt < maxRetries) {

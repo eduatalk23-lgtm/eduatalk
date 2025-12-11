@@ -37,71 +37,131 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // Rate limit 에러 처리 및 재시도 (인증 요청이므로 더 긴 대기 시간)
-    const {
-      data: { user },
-      error: authError,
-    } = await retryWithBackoff(
-      async () => {
-        const result = await supabase.auth.getUser();
-        if (result.error && isRateLimitError(result.error)) {
-          throw result.error;
-        }
-        return result;
-      },
-      2,
-      2000,
-      true // 인증 요청 플래그
-    );
-
-    if (authError) {
-      // Rate limit 에러 처리
-      if (isRateLimitError(authError)) {
-        console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
-          status: authError.status,
-          code: authError.code,
-        });
-        // Rate limit인 경우 null 반환 (재시도는 이미 retryWithBackoff에서 처리됨)
-        return { userId: null, role: null, tenantId: null };
-      }
-
-      // 세션이 없거나 refresh token이 만료/손상된 것은 정상적인 상황일 수 있음 (로그인 페이지 등)
-      // "Auth session missing", "Refresh Token", "User from sub claim" 관련 에러는 조용히 처리
-      const errorMessage = authError.message?.toLowerCase() || "";
-      const errorName = authError.name?.toLowerCase() || "";
-      const errorCode = authError.code?.toLowerCase() || "";
-
-      const isSessionMissing =
-        errorMessage.includes("session") ||
+    // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
+    // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
+    const initialResult = await supabase.auth.getUser();
+    
+    // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
+    if (initialResult.error) {
+      const errorMessage = initialResult.error.message?.toLowerCase() || "";
+      const errorCode = initialResult.error.code?.toLowerCase() || "";
+      
+      const isRefreshTokenError = 
         errorMessage.includes("refresh token") ||
         errorMessage.includes("refresh_token") ||
-        errorName === "authsessionmissingerror" ||
-        (errorName === "authapierror" &&
-          (errorMessage.includes("refresh token not found") ||
-            errorMessage.includes("invalid refresh token") ||
-            errorMessage.includes("refresh token expired")));
-
-      // "User from sub claim in JWT does not exist" 에러 처리
-      // 이 에러는 이메일 인증 전이나 세션이 없을 때 발생할 수 있는 정상적인 상황
-      const isUserNotFound =
-        errorCode === "user_not_found" ||
-        errorMessage.includes("user from sub claim") ||
-        errorMessage.includes("user from sub claim in jwt does not exist") ||
-        (authError.status === 403 && errorMessage.includes("does not exist"));
-
-      if (!isSessionMissing && !isUserNotFound) {
-        // 세션/토큰/사용자 없음 관련이 아닌 다른 에러만 로깅
-        const errorDetails = {
-          message: authError.message,
-          status: authError.status,
-          code: authError.code,
-          name: authError.name,
-        };
-        console.error("[auth] getUser 실패", errorDetails);
+        errorMessage.includes("session") ||
+        errorCode === "refresh_token_not_found";
+      
+      if (isRefreshTokenError) {
+        // Refresh token 에러는 조용히 처리하고 null 반환
+        return { userId: null, role: null, tenantId: null };
       }
+      
+      // Rate limit 에러인 경우에만 재시도
+      if (isRateLimitError(initialResult.error)) {
+        const {
+          data: { user },
+          error: authError,
+        } = await retryWithBackoff(
+          async () => {
+            const result = await supabase.auth.getUser();
+            if (result.error && isRateLimitError(result.error)) {
+              throw result.error;
+            }
+            return result;
+          },
+          2,
+          2000,
+          true // 인증 요청 플래그
+        );
+        
+        if (authError) {
+          // Rate limit 에러 처리
+          if (isRateLimitError(authError)) {
+            console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
+              status: authError.status,
+              code: authError.code,
+            });
+            return { userId: null, role: null, tenantId: null };
+          }
+          
+          // 다른 에러는 아래 로직에서 처리
+          const errorMessage = authError.message?.toLowerCase() || "";
+          const errorName = authError.name?.toLowerCase() || "";
+          const errorCode = authError.code?.toLowerCase() || "";
 
-      return { userId: null, role: null, tenantId: null };
+          const isSessionMissing =
+            errorMessage.includes("session") ||
+            errorMessage.includes("refresh token") ||
+            errorMessage.includes("refresh_token") ||
+            errorName === "authsessionmissingerror" ||
+            (errorName === "authapierror" &&
+              (errorMessage.includes("refresh token not found") ||
+                errorMessage.includes("invalid refresh token") ||
+                errorMessage.includes("refresh token expired")));
+
+          const isUserNotFound =
+            errorCode === "user_not_found" ||
+            errorMessage.includes("user from sub claim") ||
+            errorMessage.includes("user from sub claim in jwt does not exist") ||
+            (authError.status === 403 && errorMessage.includes("does not exist"));
+
+          if (!isSessionMissing && !isUserNotFound) {
+            const errorDetails = {
+              message: authError.message,
+              status: authError.status,
+              code: authError.code,
+              name: authError.name,
+            };
+            console.error("[auth] getUser 실패", errorDetails);
+          }
+
+          return { userId: null, role: null, tenantId: null };
+        }
+        
+        if (!user) {
+          return { userId: null, role: null, tenantId: null };
+        }
+        
+        // user가 있으면 아래 로직 계속
+      } else {
+        // Rate limit이 아닌 다른 에러는 아래 로직에서 처리
+        const errorMessage = initialResult.error.message?.toLowerCase() || "";
+        const errorName = initialResult.error.name?.toLowerCase() || "";
+        const errorCode = initialResult.error.code?.toLowerCase() || "";
+
+        const isSessionMissing =
+          errorMessage.includes("session") ||
+          errorMessage.includes("refresh token") ||
+          errorMessage.includes("refresh_token") ||
+          errorName === "authsessionmissingerror" ||
+          (errorName === "authapierror" &&
+            (errorMessage.includes("refresh token not found") ||
+              errorMessage.includes("invalid refresh token") ||
+              errorMessage.includes("refresh token expired")));
+
+        const isUserNotFound =
+          errorCode === "user_not_found" ||
+          errorMessage.includes("user from sub claim") ||
+          errorMessage.includes("user from sub claim in jwt does not exist") ||
+          (initialResult.error.status === 403 && errorMessage.includes("does not exist"));
+
+        if (!isSessionMissing && !isUserNotFound) {
+          const errorDetails = {
+            message: initialResult.error.message,
+            status: initialResult.error.status,
+            code: initialResult.error.code,
+            name: initialResult.error.name,
+          };
+          console.error("[auth] getUser 실패", errorDetails);
+        }
+
+        return { userId: null, role: null, tenantId: null };
+      }
     }
+    
+    // 정상적인 경우 계속 진행
+    const { user } = initialResult.data;
 
     if (!user) {
       return { userId: null, role: null, tenantId: null };
@@ -275,14 +335,14 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
   } catch (error) {
     // refresh token 에러는 조용히 처리
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const isRefreshTokenError = 
+    const isRefreshTokenError =
       errorMessage.toLowerCase().includes("refresh token") ||
       errorMessage.toLowerCase().includes("refresh_token") ||
       errorMessage.toLowerCase().includes("session") ||
-      (error instanceof Error && 
-       'code' in error && 
-       String(error.code).toLowerCase() === "refresh_token_not_found");
-    
+      (error instanceof Error &&
+        "code" in error &&
+        String(error.code).toLowerCase() === "refresh_token_not_found");
+
     if (!isRefreshTokenError) {
       const errorStack = error instanceof Error ? error.stack : undefined;
       console.error("[auth] getCurrentUserRole 실패", {
@@ -290,7 +350,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
         stack: errorStack,
       });
     }
-    
+
     return { userId: null, role: null, tenantId: null };
   }
 }

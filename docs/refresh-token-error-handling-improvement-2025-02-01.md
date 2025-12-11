@@ -70,10 +70,35 @@ if (getUserError) {
 }
 ```
 
-### 2. `lib/auth/getCurrentUserRole.ts` 수정
+### 2. `lib/auth/rateLimitHandler.ts` 수정
 
 **변경 내용**:
-- catch 블록에서 refresh token 에러를 명시적으로 필터링
+- `isRefreshTokenError()` 함수 추가: refresh token 에러를 감지하는 유틸리티 함수
+- `isRetryableError()` 수정: refresh token 에러는 재시도 불가능하도록 수정
+- `retryWithBackoff()` 수정: refresh token 에러는 즉시 반환하도록 수정
+
+```typescript
+export function isRefreshTokenError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  
+  const err = error as ErrorWithCode;
+  const errorMessage = err.message?.toLowerCase() || "";
+  const errorCode = err.code?.toLowerCase() || "";
+  
+  return (
+    errorMessage.includes("refresh token") ||
+    errorMessage.includes("refresh_token") ||
+    errorMessage.includes("session") ||
+    errorCode === "refresh_token_not_found"
+  );
+}
+```
+
+### 3. `lib/auth/getCurrentUserRole.ts` 수정
+
+**변경 내용**:
+- refresh token 에러를 먼저 체크하여 즉시 반환 (재시도 불필요)
+- Rate limit 에러인 경우에만 재시도
 - refresh token 에러는 조용히 처리하고 null 반환
 
 ```typescript
@@ -100,11 +125,12 @@ if (getUserError) {
 }
 ```
 
-### 3. `lib/auth/getCurrentUser.ts` (사용자가 이미 수정)
+### 4. `lib/auth/getCurrentUser.ts` 수정
 
 **변경 내용**:
-- refresh token 에러 필터링 로직 개선
-- `errorCode === "refresh_token_not_found"` 체크 제거 (이미 `errorMessage.includes("refresh token")`로 충분)
+- refresh token 에러를 먼저 체크하여 즉시 반환 (재시도 불필요)
+- Rate limit 에러인 경우에만 재시도
+- refresh token 에러는 조용히 처리하고 null 반환
 
 ---
 
@@ -114,13 +140,20 @@ if (getUserError) {
    - `getUser()` 호출 시 에러 처리 추가
    - refresh token 에러 시 로그인 페이지로 리다이렉트
 
-2. `lib/auth/getCurrentUserRole.ts`
-   - catch 블록에서 refresh token 에러 필터링 추가
+2. `lib/auth/rateLimitHandler.ts`
+   - `isRefreshTokenError()` 함수 추가
+   - `isRetryableError()`에서 refresh token 에러는 재시도 불가능하도록 수정
+   - `retryWithBackoff()`에서 refresh token 에러는 즉시 반환하도록 수정
+
+3. `lib/auth/getCurrentUserRole.ts`
+   - refresh token 에러를 먼저 체크하여 즉시 반환
+   - Rate limit 에러인 경우에만 재시도
    - refresh token 에러는 조용히 처리
 
-3. `lib/auth/getCurrentUser.ts`
-   - 사용자가 이미 수정 완료
-   - refresh token 에러 처리 로직 개선
+4. `lib/auth/getCurrentUser.ts`
+   - refresh token 에러를 먼저 체크하여 즉시 반환
+   - Rate limit 에러인 경우에만 재시도
+   - refresh token 에러는 조용히 처리
 
 ---
 
