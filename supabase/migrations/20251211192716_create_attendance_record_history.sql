@@ -30,7 +30,11 @@ CREATE INDEX idx_attendance_record_history_modified_at
 -- RLS 정책
 ALTER TABLE attendance_record_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "관리자는 자신의 테넌트 내 출석 기록 수정 이력을 조회할 수 있음"
+-- 기존 정책이 있으면 삭제
+DROP POLICY IF EXISTS "attendance_record_history_select" ON attendance_record_history;
+DROP POLICY IF EXISTS "attendance_record_history_insert" ON attendance_record_history;
+
+CREATE POLICY "attendance_record_history_select"
   ON attendance_record_history
   FOR SELECT
   USING (
@@ -39,8 +43,7 @@ CREATE POLICY "관리자는 자신의 테넌트 내 출석 기록 수정 이력�
     )
   );
 
--- 관리자는 자신의 테넌트 내 출석 기록 수정 이력을 생성할 수 있음
-CREATE POLICY "관리자는 자신의 테넌트 내 출석 기록 수정 이력을 생성할 수 있음"
+CREATE POLICY "attendance_record_history_insert"
   ON attendance_record_history
   FOR INSERT
   WITH CHECK (
