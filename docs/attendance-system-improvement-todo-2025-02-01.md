@@ -241,6 +241,39 @@ export async function checkOutWithQRCode(
 
 ### 진행 중 / 남은 항목
 
+### 2단계: 단기 개선 (1주) ✅ **완료**
+
+#### 2.1 출석 기록 수정 기능 (관리자) ✅
+
+- [x] 데이터베이스 마이그레이션 (`attendance_record_history` 테이블 생성)
+- [x] 타입 정의 추가 (`UpdateAttendanceRecordRequest`, `AttendanceRecordHistory`)
+- [x] 서버 액션 구현 (`updateAttendanceRecord`, `getAttendanceRecordHistory`)
+- [x] UI 컴포넌트 구현 (수정 폼, 수정 페이지)
+- [x] 출석 목록에 수정 버튼 추가
+- **완료일**: 2025-02-01
+
+#### 2.2 출석 통계 대시보드 개선 ✅
+
+- [x] 통계 데이터 조회 함수 구현 (`lib/domains/attendance/statistics.ts`)
+  - 일별 출석 통계 (`getDailyAttendanceStats`)
+  - 입실 방법별 통계 (`getCheckInMethodStats`)
+  - 시간대별 입실 분포 (`getCheckInTimeDistribution`)
+  - 학생별 출석률 랭킹 (`getStudentAttendanceRanking`)
+- [x] 차트 컴포넌트 구현
+  - 일별 출석률 차트 (Line Chart)
+  - 입실 방법별 통계 차트 (Pie Chart)
+  - 시간대별 입실 분포 차트 (Area Chart)
+- [x] 통계 페이지 구현 (`/admin/attendance/statistics`)
+- **완료일**: 2025-02-01
+
+#### 2.3 출석 알림 설정 (학생별) ✅
+
+- [x] 학생 설정 페이지에 출석 알림 섹션 추가
+- [x] 서버 액션 수정 (`updateNotificationSettings`에 출석 알림 필드 추가)
+- [x] 관리자 페이지에서 학생별 알림 설정 관리 (`/admin/students/[id]/attendance-settings`)
+- [x] 학생별 출석 알림 설정 업데이트 서버 액션 (`updateStudentAttendanceSettings`)
+- **완료일**: 2025-02-01
+
 ### 선택사항 (장기)
 
 3. Phase 4: 테스트 및 문서화
@@ -308,9 +341,10 @@ export async function checkOutWithQRCode(
 
 ### 전체 진행률
 
-- **총 15개 항목 중 12개 완료**: 80.0%
+- **총 18개 항목 중 15개 완료**: 83.3%
 - **핵심 기능**: 완료 (Phase 1, 2, 3)
 - **추가 개선**: 완료 (Phase 3)
+- **단기 개선**: 완료 (2단계: 단기 개선)
 - **테스트 및 문서화**: 미시작 (Phase 4)
 
 ---

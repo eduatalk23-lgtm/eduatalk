@@ -8,6 +8,7 @@ import {
   getAttendanceByStudent,
   calculateAttendanceStats,
   deleteAttendanceRecord as deleteRecord,
+  validateAttendanceRecord,
 } from "@/lib/domains/attendance/service";
 import type {
   CreateAttendanceRecordInput,
@@ -18,6 +19,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import type { UpdateAttendanceRecordRequest, AttendanceRecordHistory } from "@/lib/types/attendance";
 
 /**
  * 출석 기록 생성 또는 수정
@@ -335,4 +337,159 @@ export async function deleteAttendanceRecordAction(
     return { success: true };
   });
   return await handler();
+}
+
+/**
+ * 출석 기록 수정
+ */
+export async function updateAttendanceRecord(
+  recordId: string,
+  updates: UpdateAttendanceRecordRequest
+): Promise<{ success: boolean; error?: string }> {
+  return await withErrorHandling(async () => {
+    // 1. 관리자 인증 확인
+    const admin = await requireAdminAuth();
+    
+    // 2. 테넌트 컨텍스트 확인
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "테넌트 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404
+      );
+    }
+    
+    const supabase = await createSupabaseServerClient();
+    
+    // 3. 기존 기록 조회 및 원본 백업
+    const { data: existingRecord, error: fetchError } = await supabase
+      .from("attendance_records")
+      .select("*")
+      .eq("id", recordId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .single();
+    
+    if (fetchError || !existingRecord) {
+      throw new AppError(
+        "출석 기록을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404
+      );
+    }
+    
+    // 4. 수정 데이터 준비
+    const updateData: Partial<typeof existingRecord> = {
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (updates.check_in_time !== undefined) {
+      updateData.check_in_time = updates.check_in_time;
+    }
+    if (updates.check_out_time !== undefined) {
+      updateData.check_out_time = updates.check_out_time;
+    }
+    if (updates.check_in_method !== undefined) {
+      updateData.check_in_method = updates.check_in_method;
+    }
+    if (updates.check_out_method !== undefined) {
+      updateData.check_out_method = updates.check_out_method;
+    }
+    if (updates.status !== undefined) {
+      updateData.status = updates.status;
+    }
+    if (updates.notes !== undefined) {
+      updateData.notes = updates.notes;
+    }
+    
+    // 5. 검증 (수정된 데이터 기준)
+    const updatedRecord = { ...existingRecord, ...updateData };
+    // 검증을 위해 student_id와 attendance_date를 포함한 전체 입력 객체 생성
+    const validationInput: UpdateAttendanceRecordInput = {
+      ...updateData,
+    };
+    const validation = await validateAttendanceRecord(validationInput, existingRecord);
+    if (!validation.valid) {
+      throw new AppError(
+        validation.errors[0]?.message || "검증 실패",
+        ErrorCode.VALIDATION_ERROR,
+        400
+      );
+    }
+    
+    // 6. 트랜잭션: 기록 수정 + 이력 저장
+    const { error: updateError } = await supabase
+      .from("attendance_records")
+      .update(updateData)
+      .eq("id", recordId);
+    
+    if (updateError) {
+      throw new AppError(
+        `출석 기록 수정 실패: ${updateError.message}`,
+        ErrorCode.DATABASE_ERROR,
+        500
+      );
+    }
+    
+    // 7. 수정 이력 저장
+    const { error: historyError } = await supabase
+      .from("attendance_record_history")
+      .insert({
+        attendance_record_id: recordId,
+        tenant_id: tenantContext.tenantId,
+        student_id: existingRecord.student_id,
+        before_data: existingRecord,
+        after_data: updatedRecord,
+        modified_by: admin.userId,
+        reason: updates.reason,
+      });
+    
+    if (historyError) {
+      // 이력 저장 실패는 경고만 하고 롤백하지 않음 (기록 수정은 성공)
+      console.error("[attendance] 수정 이력 저장 실패:", historyError);
+    }
+    
+    revalidatePath("/admin/attendance");
+    revalidatePath(`/admin/attendance/${recordId}/edit`);
+    
+    return { success: true };
+  });
+}
+
+/**
+ * 출석 기록 수정 이력 조회
+ */
+export async function getAttendanceRecordHistory(
+  recordId: string
+): Promise<{ data: AttendanceRecordHistory[] | null; error?: string }> {
+  return await withErrorHandling(async () => {
+    await requireAdminAuth();
+    const tenantContext = await getTenantContext();
+    
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "테넌트 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404
+      );
+    }
+    
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("attendance_record_history")
+      .select("*")
+      .eq("attendance_record_id", recordId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .order("modified_at", { ascending: false });
+    
+    if (error) {
+      throw new AppError(
+        `이력 조회 실패: ${error.message}`,
+        ErrorCode.DATABASE_ERROR,
+        500
+      );
+    }
+    
+    return { data: data as AttendanceRecordHistory[] | null };
+  });
 }

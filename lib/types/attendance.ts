@@ -25,3 +25,32 @@ export type StudentAttendanceNotificationSettings = {
   attendance_late_enabled: boolean | null;
 };
 
+/**
+ * 출석 기록 수정 이력
+ */
+export type AttendanceRecordHistory = {
+  id: string;
+  attendance_record_id: string;
+  tenant_id: string;
+  student_id: string;
+  before_data: Record<string, unknown>;
+  after_data: Record<string, unknown>;
+  modified_by: string;
+  modified_at: string;
+  reason: string;
+  created_at: string;
+};
+
+/**
+ * 출석 기록 수정 요청
+ */
+export type UpdateAttendanceRecordRequest = {
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  check_in_method?: "manual" | "qr" | "location" | "auto" | null;
+  check_out_method?: "manual" | "qr" | "location" | "auto" | null;
+  status?: "present" | "absent" | "late" | "early_leave" | "excused";
+  notes?: string | null;
+  reason: string; // 수정 사유 (필수)
+};
+

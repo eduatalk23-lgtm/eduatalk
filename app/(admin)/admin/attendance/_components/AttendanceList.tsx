@@ -69,14 +69,22 @@ export function AttendanceList({
                   {ATTENDANCE_STATUS_LABELS[record.status as keyof typeof ATTENDANCE_STATUS_LABELS]}
                 </span>
               </div>
-              {onDelete && (
-                <button
-                  onClick={() => onDelete(record.id, record.student_id)}
-                  className="text-sm text-red-600 hover:text-red-800"
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/admin/attendance/${record.id}/edit`}
+                  className="text-sm text-indigo-600 hover:text-indigo-800"
                 >
-                  삭제
-                </button>
-              )}
+                  수정
+                </Link>
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(record.id, record.student_id)}
+                    className="text-sm text-red-600 hover:text-red-800"
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
             </div>
             <div className="space-y-1 text-sm text-gray-600">
               {record.check_in_time && (

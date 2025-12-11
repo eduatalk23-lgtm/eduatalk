@@ -14,6 +14,10 @@ type NotificationSettings = {
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;
   quiet_hours_end: string;
+  attendance_check_in_enabled?: boolean | null;
+  attendance_check_out_enabled?: boolean | null;
+  attendance_absent_enabled?: boolean | null;
+  attendance_late_enabled?: boolean | null;
 };
 
 export async function updateNotificationSettings(

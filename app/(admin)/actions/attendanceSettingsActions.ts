@@ -422,3 +422,128 @@ export async function updateAttendanceSMSSettings(
     };
   }
 }
+
+/**
+ * 학생별 출석 알림 설정 업데이트
+ */
+export async function updateStudentAttendanceSettings(
+  studentId: string,
+  settings: {
+    attendance_check_in_enabled?: boolean | null;
+    attendance_check_out_enabled?: boolean | null;
+    attendance_absent_enabled?: boolean | null;
+    attendance_late_enabled?: boolean | null;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminAuth();
+    const tenantContext = await getTenantContext();
+
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "테넌트 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 학생이 해당 테넌트에 속하는지 확인
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("id")
+      .eq("id", studentId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .single();
+
+    if (studentError || !student) {
+      throw new AppError(
+        "학생을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 기존 설정 확인
+    const { data: existing } = await supabase
+      .from("student_notification_preferences")
+      .select("id")
+      .eq("student_id", studentId)
+      .single();
+
+    const updateData = {
+      attendance_check_in_enabled: settings.attendance_check_in_enabled ?? null,
+      attendance_check_out_enabled: settings.attendance_check_out_enabled ?? null,
+      attendance_absent_enabled: settings.attendance_absent_enabled ?? null,
+      attendance_late_enabled: settings.attendance_late_enabled ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existing) {
+      // 업데이트
+      const { error } = await supabase
+        .from("student_notification_preferences")
+        .update(updateData)
+        .eq("student_id", studentId);
+
+      if (error) {
+        console.error("[attendanceSettings] 학생 알림 설정 업데이트 실패:", error);
+        throw new AppError(
+          error.message || "학생 알림 설정 업데이트에 실패했습니다.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+    } else {
+      // 생성
+      const { error } = await supabase
+        .from("student_notification_preferences")
+        .insert({
+          student_id: studentId,
+          ...updateData,
+        });
+
+      if (error) {
+        console.error("[attendanceSettings] 학생 알림 설정 생성 실패:", error);
+        throw new AppError(
+          error.message || "학생 알림 설정 생성에 실패했습니다.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+    }
+
+    revalidatePath(`/admin/students/${studentId}/attendance-settings`);
+    revalidatePath(`/admin/students/${studentId}`);
+    return { success: true };
+  } catch (error) {
+    // Next.js의 redirect()와 notFound()는 재throw
+    if (
+      error &&
+      typeof error === "object" &&
+      "digest" in error &&
+      typeof (error as { digest: string }).digest === "string"
+    ) {
+      const digest = (error as { digest: string }).digest;
+      if (
+        digest.startsWith("NEXT_REDIRECT") ||
+        digest.startsWith("NEXT_NOT_FOUND")
+      ) {
+        throw error;
+      }
+    }
+
+    const normalizedError = normalizeError(error);
+    logError(normalizedError, { function: "updateStudentAttendanceSettings" });
+
+    return {
+      success: false,
+      error: getUserFacingMessage(normalizedError),
+    };
+  }
+}
