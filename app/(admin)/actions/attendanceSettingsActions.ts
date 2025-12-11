@@ -243,7 +243,7 @@ export async function getAttendanceSMSSettings(): Promise<{
     const { data: tenant, error } = await supabase
       .from("tenants")
       .select(
-        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient"
+        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient, attendance_sms_show_failure_to_user"
       )
       .eq("id", tenantContext.tenantId)
       .single();
@@ -279,6 +279,8 @@ export async function getAttendanceSMSSettings(): Promise<{
           tenant.attendance_sms_student_checkin_enabled ?? false,
         attendance_sms_recipient:
           (tenant.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto',
+        attendance_sms_show_failure_to_user:
+          tenant.attendance_sms_show_failure_to_user ?? false,
       },
     };
   } catch (error) {
@@ -339,6 +341,8 @@ export async function updateAttendanceSMSSettings(
       attendance_sms_student_checkin_enabled:
         input.attendance_sms_student_checkin_enabled,
       attendance_sms_recipient: input.attendance_sms_recipient,
+      attendance_sms_show_failure_to_user:
+        input.attendance_sms_show_failure_to_user ?? false,
       updated_at: new Date().toISOString(),
     };
 
@@ -375,7 +379,7 @@ export async function updateAttendanceSMSSettings(
     const { data: verifyData, error: verifyError } = await supabase
       .from("tenants")
       .select(
-        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient"
+        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient, attendance_sms_show_failure_to_user"
       )
       .eq("id", tenantContext.tenantId)
       .single();

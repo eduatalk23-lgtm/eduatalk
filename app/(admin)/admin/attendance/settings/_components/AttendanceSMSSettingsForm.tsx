@@ -23,6 +23,7 @@ export function AttendanceSMSSettingsForm() {
     attendance_sms_late_enabled: true,
     attendance_sms_student_checkin_enabled: false,
     attendance_sms_recipient: 'auto' as 'mother' | 'father' | 'both' | 'auto',
+    attendance_sms_show_failure_to_user: false,
   });
 
   const loadSettings = useCallback(async () => {
@@ -43,6 +44,8 @@ export function AttendanceSMSSettingsForm() {
             result.data.attendance_sms_student_checkin_enabled ?? false,
           attendance_sms_recipient:
             result.data.attendance_sms_recipient ?? 'auto',
+          attendance_sms_show_failure_to_user:
+            result.data.attendance_sms_show_failure_to_user ?? false,
         });
       }
     } catch (err: any) {
@@ -240,6 +243,36 @@ export function AttendanceSMSSettingsForm() {
                     setFormData({
                       ...formData,
                       attendance_sms_student_checkin_enabled: e.target.checked,
+                    })
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div>
+                <Label htmlFor="show_failure_to_user">
+                  SMS 발송 실패 시 사용자에게 알림
+                </Label>
+                <p className="mt-1 text-xs text-gray-500">
+                  SMS 발송에 실패한 경우 사용자에게 경고 메시지를 표시합니다.
+                  <br />
+                  <span className="text-gray-400">
+                    (출석 기록은 정상 저장됩니다.)
+                  </span>
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="show_failure_to_user"
+                  checked={formData.attendance_sms_show_failure_to_user}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      attendance_sms_show_failure_to_user: e.target.checked,
                     })
                   }
                   className="sr-only peer"

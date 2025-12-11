@@ -23,13 +23,14 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  */
 export async function checkInWithQRCode(
   qrData: string
-): Promise<{ success: boolean; error?: string }> {
-  const stepContext: Record<string, unknown> = {
-    function: "checkInWithQRCode",
-    timestamp: new Date().toISOString(),
-  };
-
+): Promise<{ success: boolean; error?: string; smsFailure?: string }> {
   try {
+    return await withErrorHandling(async () => {
+    const stepContext: Record<string, unknown> = {
+      function: "checkInWithQRCode",
+      timestamp: new Date().toISOString(),
+    };
+
     // Step 1: 인증 확인
     stepContext.step = "authentication";
     const user = await requireStudentAuth();
@@ -47,14 +48,13 @@ export async function checkInWithQRCode(
 
     const verification = await verifyQRCode(qrData);
     if (!verification.valid) {
-      const error = new AppError(
+      throw new AppError(
         verification.error || "QR 코드가 유효하지 않습니다.",
         ErrorCode.VALIDATION_ERROR,
         400,
-        true
+        true,
+        { stepContext }
       );
-      logError(error, stepContext);
-      throw error;
     }
     stepContext.verifiedQRCodeId = verification.qrCodeId;
     stepContext.verifiedTenantId = verification.tenantId;
@@ -62,18 +62,19 @@ export async function checkInWithQRCode(
     // Step 4: 테넌트 일치 확인
     stepContext.step = "tenant_verification";
     if (verification.tenantId !== tenantContext?.tenantId) {
-      const error = new AppError(
+      throw new AppError(
         "다른 학원의 QR 코드입니다.",
         ErrorCode.VALIDATION_ERROR,
         403,
-        true
+        true,
+        {
+          stepContext: {
+            ...stepContext,
+            verificationTenantId: verification.tenantId,
+            contextTenantId: tenantContext?.tenantId,
+          },
+        }
       );
-      logError(error, {
-        ...stepContext,
-        verificationTenantId: verification.tenantId,
-        contextTenantId: tenantContext?.tenantId,
-      });
-      throw error;
     }
 
     // Step 5: 날짜 준비
@@ -87,18 +88,19 @@ export async function checkInWithQRCode(
     stepContext.step = "existing_record_check";
     const existing = await findAttendanceByStudentAndDate(user.userId, today);
     if (existing && existing.check_in_time) {
-      const error = new AppError(
+      throw new AppError(
         "이미 입실 체크가 완료되었습니다.",
         ErrorCode.VALIDATION_ERROR,
         400,
-        true
+        true,
+        {
+          stepContext: {
+            ...stepContext,
+            existingRecordId: existing.id,
+            existingCheckInTime: existing.check_in_time,
+          },
+        }
       );
-      logError(error, {
-        ...stepContext,
-        existingRecordId: existing.id,
-        existingCheckInTime: existing.check_in_time,
-      });
-      throw error;
     }
     stepContext.hasExistingRecord = !!existing;
     stepContext.existingRecordId = existing?.id || null;
@@ -143,7 +145,14 @@ export async function checkInWithQRCode(
           ? (recordError as { hint?: string }).hint
           : undefined,
       };
-      throw recordError;
+      
+      throw new AppError(
+        errorMessage,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { stepContext }
+      );
     }
 
     // Step 8: SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
@@ -216,7 +225,6 @@ export async function checkInWithQRCode(
             `[AttendanceSMS] 입실 SMS 발송 건너뛰기: ${smsResult.error}`,
             {
               studentId: user.userId,
-              reason: smsResult.reason,
               details: smsResult.details,
             }
           );
@@ -241,6 +249,24 @@ export async function checkInWithQRCode(
             message: smsResult.error,
             details: smsResult.details,
           };
+
+          // 설정 확인: SMS 발송 실패 시 사용자에게 알림 표시 여부
+          try {
+            const tenantContext = await getTenantContext();
+            const supabase = await createSupabaseServerClient();
+            const { data: tenant } = await supabase
+              .from("tenants")
+              .select("attendance_sms_show_failure_to_user")
+              .eq("id", tenantContext?.tenantId)
+              .single();
+
+            if (tenant?.attendance_sms_show_failure_to_user) {
+              stepContext.smsFailureMessage = smsResult.error;
+            }
+          } catch (configError) {
+            // 설정 확인 실패는 무시
+            console.error("[checkInWithQRCode] SMS 설정 확인 실패:", configError);
+          }
         } else {
           // 성공
           stepContext.smsSent = true;
@@ -264,6 +290,7 @@ export async function checkInWithQRCode(
 
     revalidatePath("/attendance/check-in");
     return { success: true };
+    })();
   } catch (error) {
     // Next.js의 redirect()와 notFound()는 재throw
     if (
@@ -282,17 +309,6 @@ export async function checkInWithQRCode(
     }
 
     const normalizedError = normalizeError(error);
-
-    // 최종 에러 로깅 (모든 컨텍스트 포함)
-    logError(normalizedError, {
-      ...stepContext,
-      finalError: true,
-      errorMessage: normalizedError.message,
-      errorCode: normalizedError.code,
-      errorStatusCode: normalizedError.statusCode,
-      isUserFacing: normalizedError.isUserFacing,
-    });
-
     return {
       success: false,
       error: getUserFacingMessage(normalizedError),
@@ -413,13 +429,14 @@ export async function checkInWithLocation(
  */
 export async function checkOutWithQRCode(
   qrData: string
-): Promise<{ success: boolean; error?: string }> {
-  const stepContext: Record<string, unknown> = {
-    function: "checkOutWithQRCode",
-    timestamp: new Date().toISOString(),
-  };
-
+): Promise<{ success: boolean; error?: string; smsFailure?: string }> {
   try {
+    return await withErrorHandling(async () => {
+    const stepContext: Record<string, unknown> = {
+      function: "checkOutWithQRCode",
+      timestamp: new Date().toISOString(),
+    };
+
     // Step 1: 인증 확인
     stepContext.step = "authentication";
     const user = await requireStudentAuth();
@@ -437,14 +454,13 @@ export async function checkOutWithQRCode(
 
     const verification = await verifyQRCode(qrData);
     if (!verification.valid) {
-      const error = new AppError(
+      throw new AppError(
         verification.error || "QR 코드가 유효하지 않습니다.",
         ErrorCode.VALIDATION_ERROR,
         400,
-        true
+        true,
+        { stepContext }
       );
-      logError(error, stepContext);
-      throw error;
     }
     stepContext.verifiedQRCodeId = verification.qrCodeId;
     stepContext.verifiedTenantId = verification.tenantId;
@@ -452,18 +468,19 @@ export async function checkOutWithQRCode(
     // Step 4: 테넌트 일치 확인
     stepContext.step = "tenant_verification";
     if (verification.tenantId !== tenantContext?.tenantId) {
-      const error = new AppError(
+      throw new AppError(
         "다른 학원의 QR 코드입니다.",
         ErrorCode.VALIDATION_ERROR,
         403,
-        true
+        true,
+        {
+          stepContext: {
+            ...stepContext,
+            verificationTenantId: verification.tenantId,
+            contextTenantId: tenantContext?.tenantId,
+          },
+        }
       );
-      logError(error, {
-        ...stepContext,
-        verificationTenantId: verification.tenantId,
-        contextTenantId: tenantContext?.tenantId,
-      });
-      throw error;
     }
 
     // Step 5: 날짜 준비
@@ -477,14 +494,13 @@ export async function checkOutWithQRCode(
     stepContext.step = "check_in_record_check";
     const existing = await findAttendanceByStudentAndDate(user.userId, today);
     if (!existing) {
-      const error = new AppError(
+      throw new AppError(
         "입실 기록이 없습니다. 먼저 입실 체크를 해주세요.",
         ErrorCode.NOT_FOUND,
         404,
-        true
+        true,
+        { stepContext }
       );
-      logError(error, stepContext);
-      throw error;
     }
     stepContext.existingRecordId = existing.id;
     stepContext.existingCheckInTime = existing.check_in_time;
@@ -493,17 +509,18 @@ export async function checkOutWithQRCode(
     // Step 7: 이미 퇴실 처리 확인
     stepContext.step = "check_out_status_check";
     if (existing.check_out_time) {
-      const error = new AppError(
+      throw new AppError(
         "이미 퇴실 처리되었습니다.",
         ErrorCode.VALIDATION_ERROR,
         400,
-        true
+        true,
+        {
+          stepContext: {
+            ...stepContext,
+            existingCheckOutTime: existing.check_out_time,
+          },
+        }
       );
-      logError(error, {
-        ...stepContext,
-        existingCheckOutTime: existing.check_out_time,
-      });
-      throw error;
     }
 
     // Step 8: 퇴실 기록 업데이트
@@ -544,7 +561,14 @@ export async function checkOutWithQRCode(
           ? (recordError as { hint?: string }).hint
           : undefined,
       };
-      throw recordError;
+      
+      throw new AppError(
+        errorMessage,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { stepContext }
+      );
     }
 
     // Step 9: SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
@@ -616,7 +640,6 @@ export async function checkOutWithQRCode(
             `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
             {
               studentId: user.userId,
-              reason: smsResult.reason,
               details: smsResult.details,
             }
           );
@@ -640,6 +663,24 @@ export async function checkOutWithQRCode(
             message: smsResult.error,
             details: smsResult.details,
           };
+
+          // 설정 확인: SMS 발송 실패 시 사용자에게 알림 표시 여부
+          try {
+            const tenantContext = await getTenantContext();
+            const supabase = await createSupabaseServerClient();
+            const { data: tenant } = await supabase
+              .from("tenants")
+              .select("attendance_sms_show_failure_to_user")
+              .eq("id", tenantContext?.tenantId)
+              .single();
+
+            if (tenant?.attendance_sms_show_failure_to_user) {
+              stepContext.smsFailureMessage = smsResult.error;
+            }
+          } catch (configError) {
+            // 설정 확인 실패는 무시
+            console.error("[checkOutWithQRCode] SMS 설정 확인 실패:", configError);
+          }
         } else {
           stepContext.smsSent = true;
           stepContext.smsMsgId = smsResult.details?.msgId;
@@ -661,7 +702,15 @@ export async function checkOutWithQRCode(
     }
 
     revalidatePath("/attendance/check-in");
-    return { success: true };
+    
+    // SMS 발송 실패 메시지 확인
+    const smsFailureMessage = stepContext.smsFailureMessage as string | undefined;
+    
+    return { 
+      success: true,
+      ...(smsFailureMessage && { smsFailure: smsFailureMessage }),
+    };
+    })();
   } catch (error) {
     // Next.js의 redirect()와 notFound()는 재throw
     if (
@@ -680,17 +729,6 @@ export async function checkOutWithQRCode(
     }
 
     const normalizedError = normalizeError(error);
-
-    // 최종 에러 로깅 (모든 컨텍스트 포함)
-    logError(normalizedError, {
-      ...stepContext,
-      finalError: true,
-      errorMessage: normalizedError.message,
-      errorCode: normalizedError.code,
-      errorStatusCode: normalizedError.statusCode,
-      isUserFacing: normalizedError.isUserFacing,
-    });
-
     return {
       success: false,
       error: getUserFacingMessage(normalizedError),

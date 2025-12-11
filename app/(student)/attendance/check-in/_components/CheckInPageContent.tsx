@@ -5,6 +5,7 @@ import { getTodayAttendance } from "@/app/(student)/actions/attendanceActions";
 import { AttendanceStatus } from "./AttendanceStatus";
 import { QRCodeScanner } from "./QRCodeScanner";
 import { LocationCheckIn } from "./LocationCheckIn";
+import { LocationCheckOut } from "./LocationCheckOut";
 import { checkOut } from "@/app/(student)/actions/attendanceActions";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
@@ -183,6 +184,8 @@ export function CheckInPageContent({
             title={
               attendance.check_in_method === "qr"
                 ? "퇴실 QR 코드 스캔"
+                : attendance.check_in_method === "location"
+                ? "퇴실 방법 선택"
                 : "퇴실 체크"
             }
           />
@@ -190,8 +193,21 @@ export function CheckInPageContent({
             {attendance.check_in_method === "qr" ? (
               // QR 입실인 경우: QR 스캔 필수
               <QRCodeScanner mode="check-out" onSuccess={handleCheckInSuccess} />
+            ) : attendance.check_in_method === "location" ? (
+              // 위치 입실인 경우: 위치로 퇴실 또는 버튼으로 퇴실 선택 가능
+              <div className="space-y-3">
+                <LocationCheckOut onSuccess={handleCheckInSuccess} />
+                <Button
+                  onClick={handleCheckOut}
+                  disabled={checkingOut}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {checkingOut ? "퇴실 처리 중..." : "버튼으로 퇴실 체크"}
+                </Button>
+              </div>
             ) : (
-              // 위치 입실 또는 수동 입실인 경우: 버튼 클릭으로 처리
+              // 수동 입실인 경우: 버튼 클릭으로 처리
               <Button
                 onClick={handleCheckOut}
                 disabled={checkingOut}

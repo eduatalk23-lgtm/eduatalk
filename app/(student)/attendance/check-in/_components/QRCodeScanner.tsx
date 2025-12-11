@@ -20,6 +20,7 @@ export function QRCodeScanner({
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [smsFailure, setSmsFailure] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-reader";
 
@@ -67,6 +68,9 @@ export function QRCodeScanner({
                 : await checkInWithQRCode(decodedText);
             if (result.success) {
               setSuccess(true);
+              if (result.smsFailure) {
+                setSmsFailure(result.smsFailure);
+              }
               if (onSuccess) {
                 setTimeout(() => {
                   onSuccess();
@@ -152,6 +156,16 @@ export function QRCodeScanner({
           {mode === "check-out"
             ? "퇴실 체크가 완료되었습니다!"
             : "출석 체크가 완료되었습니다!"}
+        </div>
+      )}
+
+      {smsFailure && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+          <p className="font-medium">⚠️ SMS 발송 실패</p>
+          <p className="mt-1 text-xs">{smsFailure}</p>
+          <p className="mt-1 text-xs text-amber-600">
+            출석 기록은 정상 저장되었습니다.
+          </p>
         </div>
       )}
 

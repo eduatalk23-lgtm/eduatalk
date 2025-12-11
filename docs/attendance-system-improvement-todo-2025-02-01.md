@@ -1,6 +1,6 @@
 # 출석 시스템 개선 TODO
 
-**작성일**: 2025-02-01  
+**작성일**: 2025-12-11  
 **목적**: 출석 기능 및 SMS 알림 시스템 전반 개선
 
 ---
@@ -38,7 +38,7 @@
   - 퇴실 시간 및 방법 기록 (`check_out_method: "qr"`)
   - SMS 발송 처리
   - 에러 핸들링 및 로깅
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
 
 #### 1.2 퇴실 QR 스캐너 컴포넌트 추가/수정 ✅
 
@@ -46,7 +46,7 @@
   - 입실/퇴실 모드 구분 가능하도록 props 추가 (`mode: "check-in" | "check-out"`)
   - 퇴실 전용 메시지 및 UI
   - 하위 호환성 유지 (기본값: `"check-in"`)
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
 
 #### 1.3 퇴실 페이지 UI 개선 ✅
 
@@ -56,7 +56,7 @@
   - 위치 입실인 경우: 버튼 클릭으로 처리
   - 수동 입실인 경우: 버튼 클릭만으로 처리
   - 조건부 렌더링으로 적절한 UI 표시
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
 
 #### 1.4 퇴실 방법별 처리 로직 구현 ✅
 
@@ -64,7 +64,7 @@
   - 위치 기반 퇴실 처리
   - 위치 검증 로직
   - 퇴실 시간 및 방법 기록 (`check_out_method: "location"`)
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
   - **참고**: 현재는 UI에서 사용되지 않지만, 향후 위치 기반 퇴실 기능 확장 시 활용 가능
 
 ---
@@ -78,7 +78,7 @@
   - 설정 상태를 반환하여 UI에서 표시 가능하도록 개선 (`ShouldSendAttendanceSMSResult` 타입)
   - 디버깅을 위한 로그 레벨 조정
   - 상세 정보 반환: `shouldSend`, `reason`, `details`
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
 
 #### 2.2 SMS 발송 실패 처리 개선 ✅
 
@@ -87,7 +87,7 @@
   - 설정 비활성화인 경우와 실제 발송 실패 구분 (`SendAttendanceSMSResult` 타입)
   - 로그 레벨 조정: 설정 비활성화는 `console.info`, 발송 실패는 `logError`
   - 모든 출석 액션 함수에 적용 (checkInWithQRCode, checkInWithLocation, checkOutWithQRCode, checkOutWithLocation, checkOut)
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
 
 #### 2.3 관리자 설정 페이지 개선 ✅
 
@@ -95,7 +95,7 @@
   - "학생 직접 체크인 시 발송" 설정의 중요성 강조 (경고 배지 및 메시지 박스 추가)
   - 설정 설명 개선 (설정 간 관계 설명 추가)
   - UI 개선: 중요 설정에 경고 아이콘 및 배지 추가
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
   - **참고**: 기본값 변경은 검토 중 (현재: false)
 
 #### 2.4 SMS 발송 로그 확인 기능 ✅
@@ -107,7 +107,7 @@
   - 페이지네이션 지원
   - 전화번호 마스킹 처리
   - 통계 카드: 전체/성공/실패/대기
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase2-implementation-2025-02-01.md`)
   - **참고**: 재발송 기능은 향후 개선 사항으로 남겨둠
 
 ---
@@ -120,7 +120,7 @@
   - 입실 방법 저장 및 퇴실 시 활용 (Phase 1에서 완료)
   - 퇴실 방법 선택 UI 개선 (Phase 1에서 완료)
   - 입실/퇴실 방법 불일치 방지 (QR 입실 시 QR 퇴실 강제)
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase1-implementation-2025-02-01.md`)
 
 #### 3.2 출석 상태 표시 개선 ✅
 
@@ -128,7 +128,7 @@
   - 입실/퇴실 방법 명확히 표시 (아이콘 추가)
   - QR 스캔 필요 여부 표시 (파란색 안내 박스)
   - SMS 발송 상태 표시 (성공/실패/대기 아이콘 및 텍스트)
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase3-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase3-implementation-2025-02-01.md`)
 
 #### 3.3 에러 처리 및 사용자 피드백 개선 ✅ **부분 완료**
 
@@ -148,7 +148,7 @@
   - 중복 처리 방지 강화 (`validateNoDuplicateAttendance`)
   - 통합 검증 함수 구현 (`validateAttendanceRecord`)
   - `recordAttendance`에 검증 통합
-  - **완료일**: 2025-02-01 (참고: `docs/attendance-system-phase3-implementation-2025-02-01.md`)
+  - **완료일**: 2025-12-11 (참고: `docs/attendance-system-phase3-implementation-2025-02-01.md`)
 
 ---
 
@@ -169,8 +169,17 @@
 #### 4.3 문서화
 
 - [ ] 출석 기능 사용 가이드 작성
+  - 문서: `docs/attendance/user-guide.md`
+  - 상태: 미작성
+  - 담당자: (미정)
 - [ ] SMS 설정 가이드 작성
+  - 문서: `docs/attendance/sms-settings-guide.md`
+  - 상태: 미작성
+  - 담당자: (미정)
 - [ ] 관리자 매뉴얼 업데이트
+  - 문서: `docs/attendance/admin-manual.md` (또는 기존 매뉴얼 경로)
+  - 상태: 미작성
+  - 담당자: (미정)
 
 ---
 
@@ -217,18 +226,18 @@ export async function checkOutWithQRCode(
 
 ### ✅ 완료된 항목
 
-1. ✅ Phase 1.1: 퇴실 QR 스캔 액션 함수 추가 (2025-02-01)
-2. ✅ Phase 1.2: 퇴실 QR 스캐너 컴포넌트 추가/수정 (2025-02-01)
-3. ✅ Phase 1.3: 퇴실 페이지 UI 개선 (2025-02-01)
-4. ✅ Phase 1.4: 퇴실 방법별 처리 로직 구현 (2025-02-01)
-5. ✅ Phase 2.1: SMS 발송 설정 확인 로직 개선 (2025-02-01)
-6. ✅ Phase 2.2: SMS 발송 실패 처리 개선 (2025-02-01)
-7. ✅ Phase 2.3: 관리자 설정 페이지 개선 (2025-02-01)
-8. ✅ Phase 2.4: SMS 발송 로그 확인 기능 (2025-02-01)
-9. ✅ Phase 3.1: 입실/퇴실 방법 일관성 확보 (2025-02-01)
-10. ✅ Phase 3.2: 출석 상태 표시 개선 (2025-02-01)
-11. ✅ Phase 3.3: 에러 처리 및 사용자 피드백 개선 (2025-02-01, 부분 완료)
-12. ✅ Phase 3.4: 출석 기록 검증 로직 추가 (2025-02-01)
+1. ✅ Phase 1.1: 퇴실 QR 스캔 액션 함수 추가 (2025-12-11)
+2. ✅ Phase 1.2: 퇴실 QR 스캐너 컴포넌트 추가/수정 (2025-12-11)
+3. ✅ Phase 1.3: 퇴실 페이지 UI 개선 (2025-12-11)
+4. ✅ Phase 1.4: 퇴실 방법별 처리 로직 구현 (2025-12-11)
+5. ✅ Phase 2.1: SMS 발송 설정 확인 로직 개선 (2025-12-11)
+6. ✅ Phase 2.2: SMS 발송 실패 처리 개선 (2025-12-11)
+7. ✅ Phase 2.3: 관리자 설정 페이지 개선 (2025-12-11)
+8. ✅ Phase 2.4: SMS 발송 로그 확인 기능 (2025-12-11)
+9. ✅ Phase 3.1: 입실/퇴실 방법 일관성 확보 (2025-12-11)
+10. ✅ Phase 3.2: 출석 상태 표시 개선 (2025-12-11)
+11. ✅ Phase 3.3: 에러 처리 및 사용자 피드백 개선 (2025-12-11, 부분 완료)
+12. ✅ Phase 3.4: 출석 기록 검증 로직 추가 (2025-12-11)
 
 ### 진행 중 / 남은 항목
 
@@ -284,6 +293,7 @@ export async function checkOutWithQRCode(
 - `docs/attendance-system-phase1-implementation-2025-02-01.md` - Phase 1 구현 완료 보고서
 - `docs/attendance-system-phase2-implementation-2025-02-01.md` - Phase 2 구현 완료 보고서
 - `docs/attendance-system-phase3-implementation-2025-02-01.md` - Phase 3 구현 완료 보고서
+- `docs/attendance-system-review-and-future-plans-2025-02-01.md` - 출석 시스템 점검 및 향후 계획
 
 ---
 
@@ -305,4 +315,4 @@ export async function checkOutWithQRCode(
 
 ---
 
-**마지막 업데이트**: 2025-02-01
+**마지막 업데이트**: 2025-12-11
