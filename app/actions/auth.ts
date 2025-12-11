@@ -190,7 +190,7 @@ async function ensureUserRecord(
 
       // 레코드가 없으면 생성 시도
       if (!parent) {
-        const result = await createParentRecord(user.id, tenantId);
+        const result = await createParentRecord(user.id, tenantId, displayName);
         if (result.success) {
           console.log("[auth] 첫 로그인 시 학부모 레코드 생성 성공", {
             userId: user.id,
@@ -289,7 +289,8 @@ async function createStudentRecord(
  */
 async function createParentRecord(
   userId: string,
-  tenantId: string | null | undefined
+  tenantId: string | null | undefined,
+  displayName?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -305,9 +306,12 @@ async function createParentRecord(
     }
 
     // parent_users 테이블에 최소 필드로 레코드 생성
+    // name 필드는 NOT NULL 제약조건이 있으므로 displayName을 포함
+    // displayName이 없으면 빈 문자열 사용 (NOT NULL 제약조건 충족)
     const { error } = await supabase.from("parent_users").insert({
       id: userId,
       tenant_id: finalTenantId ?? null,
+      name: displayName || "",
     });
 
     if (error) {
@@ -400,7 +404,7 @@ export async function signUp(
           console.error("[auth] 학생 레코드 생성 실패:", result.error);
         }
       } else if (role === "parent") {
-        const result = await createParentRecord(authData.user.id, tenantId);
+        const result = await createParentRecord(authData.user.id, tenantId, displayName);
         if (!result.success) {
           // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
           console.error("[auth] 학부모 레코드 생성 실패:", result.error);
