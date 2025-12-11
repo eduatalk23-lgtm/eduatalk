@@ -4,6 +4,7 @@ import { WizardData } from "../PlanGroupWizard";
 import { PlanGroupCreationData, ContentType, PlanPurpose } from "@/lib/types/plan";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { validateDataConsistency } from "@/lib/utils/planGroupDataSync";
+import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
 
 type UsePlanPayloadBuilderOptions = {
   validateOnBuild?: boolean;
@@ -100,10 +101,10 @@ export function usePlanPayloadBuilder(
     // properly formatted as expected by the legacy logic if strictly needed, 
     // OR just rely on the new top-level fields if the backend supports them.
     // Based on `syncWizardDataToCreationData` logic:
-    if (wizardData.study_review_cycle) {
-      schedulerOptions.study_days = wizardData.study_review_cycle.study_days;
-      schedulerOptions.review_days = wizardData.study_review_cycle.review_days;
-    }
+    schedulerOptions = mergeStudyReviewCycle(
+      schedulerOptions,
+      wizardData.study_review_cycle
+    );
     if (wizardData.student_level) {
       schedulerOptions.student_level = wizardData.student_level;
     }
@@ -113,10 +114,11 @@ export function usePlanPayloadBuilder(
     if (wizardData.content_allocations) {
         schedulerOptions.content_allocations = wizardData.content_allocations;
     }
-    // Time settings merge
-    if (wizardData.time_settings) {
-        Object.assign(schedulerOptions, wizardData.time_settings);
-    }
+    // Time settings merge (보호 필드 자동 보호)
+    schedulerOptions = mergeTimeSettingsSafely(
+      schedulerOptions,
+      wizardData.time_settings
+    );
 
     // 5. Construct Final Payload
     const finalPayload: PlanGroupCreationData = {

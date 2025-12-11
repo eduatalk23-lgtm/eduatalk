@@ -1,6 +1,7 @@
 // 플랜 검증 로직 집중화
 
-import { PlanGroupCreationData, PlanStatus, PlanPurpose, SchedulerType } from "@/lib/types/plan";
+import { z } from "zod";
+import { PlanGroupCreationData, PlanStatus, PlanPurpose, SchedulerType, NonStudyTimeBlock } from "@/lib/types/plan";
 
 /**
  * 검증 결과
@@ -62,6 +63,13 @@ export class PlanValidator {
     );
     errors.push(...purposeValidation.errors);
     warnings.push(...purposeValidation.warnings);
+
+    // 6. 학습 시간 제외 항목 검증
+    const nonStudyTimeBlocksValidation = this.validateNonStudyTimeBlocks(
+      data.non_study_time_blocks
+    );
+    errors.push(...nonStudyTimeBlocksValidation.errors);
+    warnings.push(...nonStudyTimeBlocksValidation.warnings);
 
     return {
       valid: errors.length === 0,
@@ -323,6 +331,82 @@ export class PlanValidator {
     return Math.ceil(
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
+  }
+
+  /**
+   * 학습 시간 제외 항목 검증
+   */
+  static validateNonStudyTimeBlocks(
+    blocks: NonStudyTimeBlock[] | null | undefined
+  ): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!blocks || blocks.length === 0) {
+      return { valid: true, errors, warnings };
+    }
+
+    // Zod 스키마 정의
+    const nonStudyTimeBlockSchema = z.object({
+      type: z.enum(["아침식사", "점심식사", "저녁식사", "수면", "기타"]),
+      start_time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: "시작 시간은 HH:mm 형식이어야 합니다.",
+      }),
+      end_time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, {
+        message: "종료 시간은 HH:mm 형식이어야 합니다.",
+      }),
+      day_of_week: z
+        .array(z.number().min(0).max(6))
+        .optional(),
+      description: z.string().optional(),
+    });
+
+    const nonStudyTimeBlocksSchema = z
+      .array(nonStudyTimeBlockSchema)
+      .refine(
+        (blocks) => {
+          // 시간 범위 검증 (start < end)
+          for (const block of blocks) {
+            const start = this.parseTime(block.start_time);
+            const end = this.parseTime(block.end_time);
+            if (!start || !end || start >= end) {
+              return false;
+            }
+          }
+          return true;
+        },
+        { message: "시작 시간은 종료 시간보다 이전이어야 합니다." }
+      )
+      .refine(
+        (blocks) => {
+          // 중복 체크
+          const keys = new Set<string>();
+          for (const block of blocks) {
+            const dayOfWeekKey = block.day_of_week
+              ?.sort((a, b) => a - b)
+              .join(",") || "all";
+            const key = `${block.start_time}-${block.end_time}-${dayOfWeekKey}`;
+            if (keys.has(key)) {
+              return false;
+            }
+            keys.add(key);
+          }
+          return true;
+        },
+        { message: "중복된 시간 블록이 있습니다." }
+      );
+
+    try {
+      nonStudyTimeBlocksSchema.parse(blocks);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        errors.push(...error.errors.map((e) => e.message));
+      } else {
+        errors.push("학습 시간 제외 항목 검증에 실패했습니다.");
+      }
+    }
+
+    return { valid: errors.length === 0, errors, warnings };
   }
 }
 

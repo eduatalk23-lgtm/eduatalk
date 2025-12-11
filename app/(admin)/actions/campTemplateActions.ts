@@ -1404,63 +1404,13 @@ export const getCampPlanGroupForReview = withErrorHandling(
           result.group.camp_template_id
         );
       } else {
-        // block_set_id 찾기: camp_template_id로 직접 조회 (가장 간단하고 명확한 방법)
-        let tenantBlockSetId: string | null = null;
+        // block_set_id 찾기: 공통 함수 사용
+        const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
         const schedulerOptions = (result.group.scheduler_options as any) || {};
-        
-        // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
-        const { data: templateBlockSetLink, error: linkError } = await supabase
-          .from("camp_template_block_sets")
-          .select("tenant_block_set_id")
-          .eq("camp_template_id", result.group.camp_template_id)
-          .maybeSingle();
-
-        if (linkError) {
-          console.error(
-            "[getCampPlanGroupForReview] 템플릿 블록 세트 연결 조회 에러:",
-            linkError
-          );
-        } else if (templateBlockSetLink) {
-          tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
-          console.log("[getCampPlanGroupForReview] 연결 테이블에서 block_set_id 발견:", tenantBlockSetId);
-        }
-
-        // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
-        if (!tenantBlockSetId) {
-          let templateBlockSetId = schedulerOptions.template_block_set_id;
-
-          console.log("[getCampPlanGroupForReview] scheduler_options에서 조회:", {
-            fromSchedulerOptions: templateBlockSetId,
-            schedulerOptions: JSON.stringify(schedulerOptions),
-          });
-
-          if (templateBlockSetId) {
-            tenantBlockSetId = templateBlockSetId;
-            console.log("[getCampPlanGroupForReview] scheduler_options에서 template_block_set_id 발견 (Fallback):", tenantBlockSetId);
-          }
-        }
-
-        // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
-        if (!tenantBlockSetId && template.template_data) {
-          try {
-            let templateData: any = null;
-            if (typeof template.template_data === "string") {
-              templateData = JSON.parse(template.template_data);
-            } else {
-              templateData = template.template_data;
-            }
-
-            if (templateData?.block_set_id) {
-              tenantBlockSetId = templateData.block_set_id;
-              console.log("[getCampPlanGroupForReview] template_data에서 block_set_id 발견 (하위 호환성):", tenantBlockSetId);
-            }
-          } catch (parseError) {
-            console.error(
-              "[getCampPlanGroupForReview] template_data 파싱 에러:",
-              parseError
-            );
-          }
-        }
+        const tenantBlockSetId = await getTemplateBlockSetId(
+          result.group.camp_template_id,
+          schedulerOptions
+        );
 
         if (tenantBlockSetId) {
           // 2. tenant_block_sets에서 블록 세트 정보 조회
@@ -1836,71 +1786,13 @@ export const continueCampStepsForAdmin = withErrorHandling(
       if (result.group.camp_template_id) {
         creationData.camp_template_id = result.group.camp_template_id;
         
-        // 캠프 모드에서 템플릿 블록 세트 ID 조회
-        // getCampPlanGroupForReview 함수의 로직 참고
-        let tenantBlockSetId: string | null = null;
+        // 캠프 모드에서 템플릿 블록 세트 ID 조회 (공통 함수 사용)
+        const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
         const schedulerOptions = (result.group.scheduler_options as any) || {};
-        
-        // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
-        const { data: templateBlockSetLink, error: linkError } = await supabase
-          .from("camp_template_block_sets")
-          .select("tenant_block_set_id")
-          .eq("camp_template_id", result.group.camp_template_id)
-          .maybeSingle();
-
-        if (linkError) {
-          console.error(
-            "[continueCampStepsForAdmin] 템플릿 블록 세트 연결 조회 에러:",
-            linkError
-          );
-        } else if (templateBlockSetLink) {
-          tenantBlockSetId = templateBlockSetLink.tenant_block_set_id;
-          console.log(
-            "[continueCampStepsForAdmin] 연결 테이블에서 block_set_id 발견:",
-            tenantBlockSetId
-          );
-        }
-
-        // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
-        if (!tenantBlockSetId) {
-          const templateBlockSetId = schedulerOptions.template_block_set_id;
-          if (templateBlockSetId) {
-            tenantBlockSetId = templateBlockSetId;
-            console.log(
-              "[continueCampStepsForAdmin] scheduler_options에서 template_block_set_id 발견 (Fallback):",
-              tenantBlockSetId
-            );
-          }
-        }
-
-        // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
-        if (!tenantBlockSetId) {
-          const { getCampTemplate } = await import("@/lib/data/campTemplates");
-          const template = await getCampTemplate(result.group.camp_template_id);
-          if (template?.template_data) {
-            try {
-              let templateData: any = null;
-              if (typeof template.template_data === "string") {
-                templateData = JSON.parse(template.template_data);
-              } else {
-                templateData = template.template_data;
-              }
-
-              if (templateData?.block_set_id) {
-                tenantBlockSetId = templateData.block_set_id;
-                console.log(
-                  "[continueCampStepsForAdmin] template_data에서 block_set_id 발견 (하위 호환성):",
-                  tenantBlockSetId
-                );
-              }
-            } catch (parseError) {
-              console.error(
-                "[continueCampStepsForAdmin] template_data 파싱 에러:",
-                parseError
-              );
-            }
-          }
-        }
+        const tenantBlockSetId = await getTemplateBlockSetId(
+          result.group.camp_template_id,
+          schedulerOptions
+        );
 
         // 조회된 block_set_id 설정
         if (tenantBlockSetId) {

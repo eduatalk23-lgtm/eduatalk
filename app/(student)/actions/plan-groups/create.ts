@@ -17,7 +17,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
-import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
+import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
 
 /**
  * 플랜 그룹 생성 (JSON 데이터)
@@ -44,16 +44,16 @@ async function _createPlanGroup(
 
   // 플랜 그룹 생성
   // time_settings를 scheduler_options에 안전하게 병합 (보호 필드 자동 보호)
-  const mergedSchedulerOptions = mergeTimeSettingsSafely(
+  let mergedSchedulerOptions = mergeTimeSettingsSafely(
     data.scheduler_options || {},
     data.time_settings
   );
 
   // study_review_cycle을 scheduler_options에 병합
-  if (data.study_review_cycle) {
-    mergedSchedulerOptions.study_days = data.study_review_cycle.study_days;
-    mergedSchedulerOptions.review_days = data.study_review_cycle.review_days;
-  }
+  mergedSchedulerOptions = mergeStudyReviewCycle(
+    mergedSchedulerOptions,
+    data.study_review_cycle
+  );
 
   // daily_schedule 검증 (time_slots 포함 여부 확인)
   if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
@@ -328,16 +328,16 @@ async function _savePlanGroupDraft(
 
   // 플랜 그룹 생성 (draft 상태)
   // time_settings를 scheduler_options에 안전하게 병합 (보호 필드 자동 보호)
-  const mergedSchedulerOptions = mergeTimeSettingsSafely(
+  let mergedSchedulerOptions = mergeTimeSettingsSafely(
     data.scheduler_options || {},
     data.time_settings
   );
 
   // study_review_cycle을 scheduler_options에 병합
-  if (data.study_review_cycle) {
-    mergedSchedulerOptions.study_days = data.study_review_cycle.study_days;
-    mergedSchedulerOptions.review_days = data.study_review_cycle.review_days;
-  }
+  mergedSchedulerOptions = mergeStudyReviewCycle(
+    mergedSchedulerOptions,
+    data.study_review_cycle
+  );
 
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,

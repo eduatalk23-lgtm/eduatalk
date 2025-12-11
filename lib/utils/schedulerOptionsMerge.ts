@@ -42,3 +42,25 @@ export function mergeTimeSettingsSafely(
   return merged;
 }
 
+/**
+ * study_review_cycle을 scheduler_options에 병합합니다.
+ *
+ * @param schedulerOptions - 기존 scheduler_options 객체
+ * @param studyReviewCycle - 병합할 study_review_cycle 객체 (null 또는 undefined 가능)
+ * @returns 병합된 scheduler_options 객체
+ */
+export function mergeStudyReviewCycle(
+  schedulerOptions: Record<string, any>,
+  studyReviewCycle: { study_days: number; review_days: number } | null | undefined
+): Record<string, any> {
+  if (!studyReviewCycle) {
+    return schedulerOptions;
+  }
+
+  return {
+    ...schedulerOptions,
+    study_days: studyReviewCycle.study_days,
+    review_days: studyReviewCycle.review_days,
+  };
+}
+

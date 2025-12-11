@@ -25,6 +25,7 @@
 **완료 일자**: 2025-02-01
 
 **구현 내용**:
+
 - `continueCampStepsForAdmin` 함수에서 `block_set_id = null` 제거
 - 템플릿 블록 세트 ID 조회 로직 추가 (연결 테이블 → scheduler_options → template_data 순서)
 - 조회된 `tenant_block_set_id`를 `creationData.block_set_id`에 설정
@@ -56,6 +57,7 @@
 **완료 일자**: 2025-02-01
 
 **구현 내용**:
+
 - `lib/utils/schedulerOptionsMerge.ts` 파일 생성
 - `mergeTimeSettingsSafely` 함수 구현 (보호 필드: `template_block_set_id`, `camp_template_id`)
 - `_createPlanGroup`, `_savePlanGroupDraft`, `continueCampStepsForAdmin` 함수에서 공통 함수 사용
@@ -114,6 +116,7 @@ export function mergeTimeSettingsSafely(
 **완료 일자**: 2025-02-01
 
 **구현 내용**:
+
 - `calculateAvailableDates` 함수는 이미 `time_slots`를 포함하여 반환하는 것을 확인
 - `_createPlanGroup` 함수에서 `daily_schedule` 저장 전 검증 로직 추가
 - `time_slots`가 없는 날짜가 있으면 경고 로그 출력
@@ -399,11 +402,13 @@ const nonStudyTimeBlocksSchema = z.array(nonStudyTimeBlockSchema).refine(
 ### 완료된 작업
 
 1. **캠프 모드 `block_set_id` null 처리 수정**
+
    - `continueCampStepsForAdmin` 함수에서 `block_set_id = null` 제거
    - 템플릿 블록 세트 ID 조회 로직 추가 (연결 테이블 → scheduler_options → template_data 순서)
    - 조회된 `tenant_block_set_id`를 `creationData.block_set_id`에 설정
 
 2. **`time_settings` 병합 시 보호 필드 명시적 처리**
+
    - `lib/utils/schedulerOptionsMerge.ts` 파일 생성
    - `mergeTimeSettingsSafely` 함수 구현 (보호 필드: `template_block_set_id`, `camp_template_id`)
    - `_createPlanGroup`, `_savePlanGroupDraft`, `continueCampStepsForAdmin` 함수에서 공통 함수 사용

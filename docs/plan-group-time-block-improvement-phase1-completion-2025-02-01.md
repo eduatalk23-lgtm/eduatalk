@@ -2,7 +2,8 @@
 
 **작업 일자**: 2025-02-01  
 **작업 범위**: 우선순위 1 (Critical) 작업 완료  
-**관련 문서**: 
+**관련 문서**:
+
 - `plan-group-time-block-analysis-2025-02-01.md`
 - `plan-group-time-block-improvement-todo.md`
 
@@ -19,15 +20,18 @@
 ### 1. 캠프 모드 `block_set_id` null 처리 수정
 
 **문제점**:
+
 - `app/(admin)/actions/campTemplateActions.ts:1834-1835`에서 캠프 모드 생성 시 `block_set_id`를 `null`로 설정
 - 이로 인해 블록 세트 조회 실패 및 UI 표시 문제 발생
 
 **해결 방법**:
+
 - `continueCampStepsForAdmin` 함수에서 `block_set_id = null` 제거
 - 템플릿 블록 세트 ID 조회 로직 추가
 - `getCampPlanGroupForReview` 함수의 조회 로직 참고 (연결 테이블 → scheduler_options → template_data 순서)
 
 **구현 내용**:
+
 ```typescript
 // 템플릿 블록 세트 ID 조회 로직 추가
 if (result.group.camp_template_id) {
@@ -40,7 +44,7 @@ if (result.group.camp_template_id) {
 
   // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
   // 3. template_data에서 block_set_id 확인 (하위 호환성)
-  
+
   if (tenantBlockSetId) {
     creationData.block_set_id = tenantBlockSetId;
   }
@@ -48,6 +52,7 @@ if (result.group.camp_template_id) {
 ```
 
 **수정 파일**:
+
 - `app/(admin)/actions/campTemplateActions.ts`
 
 ---
@@ -55,11 +60,13 @@ if (result.group.camp_template_id) {
 ### 2. `time_settings` 병합 시 보호 필드 명시적 처리
 
 **문제점**:
+
 - `app/(student)/actions/plan-groups/create.ts:45-68`에서 `Object.assign`으로 병합 시 `template_block_set_id`가 덮어쓸 수 있음
 - 현재는 사후 복원 로직만 있어 사전 방지 부족
 - `_savePlanGroupDraft`와 `bulkCreatePlanGroupsForCamp`에도 동일한 문제 존재
 
 **해결 방법**:
+
 - `lib/utils/schedulerOptionsMerge.ts` 파일 생성
 - `mergeTimeSettingsSafely` 함수 구현 (보호 필드 목록 정의 및 병합 전 제외)
 - 세 위치에서 공통 함수 사용:
@@ -68,6 +75,7 @@ if (result.group.camp_template_id) {
   - `continueCampStepsForAdmin` (Line 1844-1851)
 
 **구현 내용**:
+
 ```typescript
 // lib/utils/schedulerOptionsMerge.ts
 const PROTECTED_FIELDS = ["template_block_set_id", "camp_template_id"];
@@ -82,9 +90,9 @@ export function mergeTimeSettingsSafely(
 
   // 보호 필드 추출
   const protected = Object.fromEntries(
-    PROTECTED_FIELDS
-      .filter((key) => schedulerOptions[key] !== undefined)
-      .map((key) => [key, schedulerOptions[key]])
+    PROTECTED_FIELDS.filter((key) => schedulerOptions[key] !== undefined).map(
+      (key) => [key, schedulerOptions[key]]
+    )
   );
 
   // 병합 (보호 필드 제외)
@@ -99,6 +107,7 @@ export function mergeTimeSettingsSafely(
 ```
 
 **수정 파일**:
+
 - `lib/utils/schedulerOptionsMerge.ts` (신규 생성)
 - `app/(student)/actions/plan-groups/create.ts`
 - `app/(admin)/actions/campTemplateActions.ts`
@@ -108,15 +117,18 @@ export function mergeTimeSettingsSafely(
 ### 3. `daily_schedule` 생성 및 저장 흐름 명확화
 
 **문제점**:
+
 - `lib/scheduler/calculateAvailableDates.ts`에서 `time_slots`는 생성되지만 저장 시 검증 부재
 - `app/(student)/actions/plan-groups/create.ts:112`에서 `daily_schedule` 저장 전 검증 없음
 
 **해결 방법**:
+
 - `calculateAvailableDates` 함수는 이미 `time_slots`를 포함하여 반환하는 것을 확인 (Line 1087)
 - `_createPlanGroup` 함수에서 저장 전 `daily_schedule` 검증 로직 추가
 - 각 날짜의 `time_slots` 존재 여부 확인 및 누락 시 경고 로그
 
 **구현 내용**:
+
 ```typescript
 // daily_schedule 검증 로직 추가
 if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
@@ -134,6 +146,7 @@ if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
 ```
 
 **수정 파일**:
+
 - `app/(student)/actions/plan-groups/create.ts`
 
 ---
@@ -143,6 +156,7 @@ if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
 ### 수정된 파일 목록
 
 1. **신규 생성**
+
    - `lib/utils/schedulerOptionsMerge.ts` - 스케줄러 옵션 병합 유틸리티
 
 2. **수정**
@@ -172,6 +186,7 @@ if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
 ### Phase 2: High 개선 (예정)
 
 1. 중복 코드 공통 함수 추출
+
    - `study_review_cycle` 병합 로직 통합
    - `block_set_id` 조회 로직 통합
 
@@ -197,4 +212,3 @@ if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
 
 **작성자**: AI Assistant  
 **작성 일자**: 2025-02-01
-

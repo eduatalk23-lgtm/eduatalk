@@ -116,13 +116,17 @@ export async function transformPlanGroupToWizardData(
   let blockSetId = group.block_set_id || "";
   if (group.plan_type === "camp" && group.camp_template_id && !blockSetId) {
     try {
-      const { getCampTemplate } = await import("@/lib/data/campTemplates");
-      const template = await getCampTemplate(group.camp_template_id);
-      if (template?.template_data?.block_set_id) {
-        blockSetId = template.template_data.block_set_id;
+      const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
+      const schedulerOptions = (group.scheduler_options as any) || {};
+      const templateBlockSetId = await getTemplateBlockSetId(
+        group.camp_template_id,
+        schedulerOptions
+      );
+      if (templateBlockSetId) {
+        blockSetId = templateBlockSetId;
       }
     } catch (error) {
-      console.error("[planGroupTransform] 템플릿 데이터 조회 실패 (block_set_id)", error);
+      console.error("[planGroupTransform] 템플릿 블록 세트 ID 조회 실패:", error);
     }
   }
 

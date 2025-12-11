@@ -143,6 +143,63 @@ async function getTemplateBlockSet(
 }
 
 /**
+ * 템플릿 블록 세트 ID를 조회합니다.
+ * 연결 테이블 → scheduler_options → template_data 순서로 조회합니다.
+ *
+ * @param templateId 캠프 템플릿 ID
+ * @param schedulerOptions scheduler_options 객체 (Fallback용, 선택사항)
+ * @param tenantId 테넌트 ID (선택사항)
+ * @returns tenant_block_set_id 또는 null
+ */
+export async function getTemplateBlockSetId(
+  templateId: string,
+  schedulerOptions?: Record<string, any> | null,
+  tenantId?: string | null
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. 연결 테이블에서 직접 조회
+  const { data: templateBlockSetLink, error: linkError } = await supabase
+    .from("camp_template_block_sets")
+    .select("tenant_block_set_id")
+    .eq("camp_template_id", templateId)
+    .maybeSingle();
+
+  if (linkError) {
+    console.error("[blocks] 템플릿 블록 세트 연결 조회 에러:", linkError);
+  } else if (templateBlockSetLink) {
+    return templateBlockSetLink.tenant_block_set_id;
+  }
+
+  // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
+  if (schedulerOptions?.template_block_set_id) {
+    return schedulerOptions.template_block_set_id;
+  }
+
+  // 3. template_data에서 block_set_id 확인 (하위 호환성)
+  const { getCampTemplate } = await import("@/lib/data/campTemplates");
+  const template = await getCampTemplate(templateId);
+  if (template?.template_data) {
+    try {
+      let templateData: any = null;
+      if (typeof template.template_data === "string") {
+        templateData = JSON.parse(template.template_data);
+      } else {
+        templateData = template.template_data;
+      }
+
+      if (templateData?.block_set_id) {
+        return templateData.block_set_id;
+      }
+    } catch (parseError) {
+      console.error("[blocks] template_data 파싱 에러:", parseError);
+    }
+  }
+
+  return null;
+}
+
+/**
  * 학생 블록 세트를 조회합니다.
  */
 async function getStudentBlockSet(
