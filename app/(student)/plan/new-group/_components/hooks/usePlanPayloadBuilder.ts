@@ -93,7 +93,7 @@ export function usePlanPayloadBuilder(
     // We try to flatten where possible but must respect PlanGroupCreationData structure.
     
     // Construct base scheduler options
-    const schedulerOptions: Record<string, any> = {
+    let schedulerOptions: Record<string, any> = {
       ...(wizardData.scheduler_options || {}),
     };
 

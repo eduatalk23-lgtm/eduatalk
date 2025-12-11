@@ -61,7 +61,7 @@ export function mergeTimeSettingsSafely(
 
   try {
     // 보호 필드 추출 (schedulerOptions에 존재하는 경우만)
-    const protected = Object.fromEntries(
+    const protectedFields = Object.fromEntries(
       PROTECTED_FIELDS
         .filter((key) => schedulerOptions[key] !== undefined)
         .map((key) => [key, schedulerOptions[key]])
@@ -71,7 +71,7 @@ export function mergeTimeSettingsSafely(
     const merged = {
       ...schedulerOptions,
       ...timeSettings,
-      ...protected, // 보호 필드 재적용
+      ...protectedFields, // 보호 필드 재적용
     };
 
     return merged;

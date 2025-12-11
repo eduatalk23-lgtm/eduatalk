@@ -9,9 +9,39 @@ import {
   AcademySchedule,
   PlanGroupCreationData,
   PlanFilters,
+  SchedulerOptions,
+  SubjectConstraints,
+  AdditionalPeriodReallocation,
+  NonStudyTimeBlock,
+  DailyScheduleInfo,
 } from "@/lib/types/plan";
+import { logError } from "@/lib/errors/handler";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/**
+ * 플랜 그룹 생성 시 사용하는 payload 타입
+ */
+type PlanGroupPayload = {
+  tenant_id: string;
+  student_id: string;
+  name: string | null;
+  plan_purpose: string | null;
+  scheduler_type: string | null;
+  scheduler_options?: SchedulerOptions | null;
+  period_start: string;
+  period_end: string;
+  target_date: string | null;
+  block_set_id: string | null;
+  status: string;
+  subject_constraints?: SubjectConstraints | null;
+  additional_period_reallocation?: AdditionalPeriodReallocation | null;
+  non_study_time_blocks?: NonStudyTimeBlock[] | null;
+  daily_schedule?: DailyScheduleInfo[] | null;
+  plan_type?: string | null;
+  camp_template_id?: string | null;
+  camp_invitation_id?: string | null;
+};
 
 /**
  * PostgrestError 타입 가드 함수
@@ -245,24 +275,15 @@ export async function getPlanGroupById(
     }
   }
 
-  if (error && error.code !== "PGRST116") {
-    // 에러 객체의 모든 속성을 안전하게 추출
-    const errorInfo: Record<string, unknown> = {
-      message: error.message || String(error),
-      code: error.code || "UNKNOWN",
-    };
-    
-    // 에러 객체의 다른 속성들도 추출
-    if ("details" in error) errorInfo.details = (error as { details?: unknown }).details;
-    if ("hint" in error) errorInfo.hint = (error as { hint?: unknown }).hint;
-    if ("statusCode" in error) errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
-    
-    console.error("[data/planGroups] 플랜 그룹 조회 실패", {
-      error: errorInfo,
+  if (error && isPostgrestError(error) && error.code !== "PGRST116") {
+    const { details, hint } = getErrorDetails(error);
+    logError(error, {
+      function: "getPlanGroupById",
       groupId,
       studentId,
       tenantId,
-      errorString: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      details,
+      hint,
     });
     return null;
   }
@@ -280,16 +301,16 @@ export async function createPlanGroup(
     name?: string | null;
     plan_purpose: string | null;
     scheduler_type: string | null;
-    scheduler_options?: any | null;
+    scheduler_options?: SchedulerOptions | null;
     period_start: string;
     period_end: string;
     target_date?: string | null;
     block_set_id?: string | null;
     status?: string;
-    subject_constraints?: any | null;
-    additional_period_reallocation?: any | null;
-    non_study_time_blocks?: any | null;
-    daily_schedule?: any | null; // JSONB: 일별 스케줄 정보
+    subject_constraints?: SubjectConstraints | null;
+    additional_period_reallocation?: AdditionalPeriodReallocation | null;
+    non_study_time_blocks?: NonStudyTimeBlock[] | null;
+    daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보
     // 캠프 관련 필드
     plan_type?: string | null;
     camp_template_id?: string | null;
@@ -298,7 +319,7 @@ export async function createPlanGroup(
 ): Promise<{ success: boolean; groupId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: any = {
+  const payload: PlanGroupPayload = {
     tenant_id: group.tenant_id,
     student_id: group.student_id,
     name: group.name || null,

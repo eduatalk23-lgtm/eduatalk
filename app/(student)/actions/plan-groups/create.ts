@@ -18,6 +18,8 @@ import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
 import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
+import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
+import { updatePlanGroupDraftAction } from "./update";
 
 /**
  * 플랜 그룹 생성 (JSON 데이터)
@@ -63,7 +65,6 @@ async function _createPlanGroup(
 
     if (missingTimeSlots.length > 0) {
       const missingDates = missingTimeSlots.map((d) => d.date);
-      const { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } = await import("@/lib/errors/planGroupErrors");
       throw new PlanGroupError(
         `daily_schedule에 time_slots가 없는 날짜가 있습니다: ${missingDates.join(", ")}`,
         PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED,
@@ -90,7 +91,6 @@ async function _createPlanGroup(
 
   // 기존 draft가 있으면 업데이트
   if (existingGroup) {
-    const { updatePlanGroupDraftAction } = await import("./update");
     await updatePlanGroupDraftAction(existingGroup.id, data);
     revalidatePath("/plan");
     return { groupId: existingGroup.id };
@@ -246,8 +246,8 @@ export const createPlanGroupAction = withErrorHandling(
       skipContentValidation?: boolean;
     }
   ) => {
-    try {
-      // 입력 데이터 로깅 (민감 정보 제외)
+    // 입력 데이터 로깅 (개발 환경에서만, 민감 정보 제외)
+    if (process.env.NODE_ENV === "development") {
       console.log("[createPlanGroupAction] 플랜 그룹 생성 시작:", {
         name: data.name,
         plan_purpose: data.plan_purpose,
@@ -260,41 +260,9 @@ export const createPlanGroupAction = withErrorHandling(
         academy_schedules_count: data.academy_schedules?.length || 0,
         skipContentValidation: options?.skipContentValidation,
       });
-
-      return await _createPlanGroup(data, options);
-    } catch (error) {
-      // 상세한 에러 로깅
-      const errorInfo: Record<string, unknown> = {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        data: {
-          name: data.name,
-          plan_purpose: data.plan_purpose,
-          scheduler_type: data.scheduler_type,
-          period_start: data.period_start,
-          period_end: data.period_end,
-          block_set_id: data.block_set_id,
-          contents_count: data.contents?.length || 0,
-          exclusions_count: data.exclusions?.length || 0,
-          academy_schedules_count: data.academy_schedules?.length || 0,
-        },
-        options,
-      };
-
-      // AppError인 경우 추가 정보 포함
-      if (error instanceof AppError) {
-        errorInfo.code = error.code;
-        errorInfo.statusCode = error.statusCode;
-        errorInfo.isUserFacing = error.isUserFacing;
-        if (error.details) {
-          errorInfo.details = error.details;
-        }
-      }
-
-      console.error("[createPlanGroupAction] 에러 발생:", JSON.stringify(errorInfo, null, 2));
-      throw error;
     }
+
+    return await _createPlanGroup(data, options);
   }
 );
 
@@ -329,7 +297,6 @@ async function _savePlanGroupDraft(
 
   // 기존 draft가 있으면 업데이트
   if (existingGroup) {
-    const { updatePlanGroupDraftAction } = await import("./update");
     await updatePlanGroupDraftAction(existingGroup.id, data);
     revalidatePath("/plan");
     return { groupId: existingGroup.id };

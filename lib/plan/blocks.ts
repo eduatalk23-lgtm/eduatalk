@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { logError } from "@/lib/errors/handler";
+import { getCampTemplate } from "@/lib/data/campTemplates";
 
 export type BlockInfo = {
   day_of_week: number;
@@ -143,7 +144,6 @@ async function getTemplateBlockSet(
     templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
   } else {
     // 2. 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
-    const { getCampTemplate } = await import("@/lib/data/campTemplates");
     const template = await getCampTemplate(templateId);
     if (template?.template_data?.block_set_id) {
       templateBlockSetId = template.template_data.block_set_id;
@@ -233,7 +233,6 @@ export async function getTemplateBlockSetId(
   }
 
   // 3. template_data에서 block_set_id 확인 (하위 호환성)
-  const { getCampTemplate } = await import("@/lib/data/campTemplates");
   const template = await getCampTemplate(templateId);
   if (template?.template_data) {
     try {
