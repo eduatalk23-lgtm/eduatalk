@@ -273,13 +273,24 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
     });
     return { userId: user.id, role: null, tenantId: null };
   } catch (error) {
+    // refresh token 에러는 조용히 처리
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error("[auth] getCurrentUserRole 실패", {
-      message: errorMessage,
-      stack: errorStack,
-      error,
-    });
+    const isRefreshTokenError = 
+      errorMessage.toLowerCase().includes("refresh token") ||
+      errorMessage.toLowerCase().includes("refresh_token") ||
+      errorMessage.toLowerCase().includes("session") ||
+      (error instanceof Error && 
+       'code' in error && 
+       String(error.code).toLowerCase() === "refresh_token_not_found");
+    
+    if (!isRefreshTokenError) {
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      console.error("[auth] getCurrentUserRole 실패", {
+        message: errorMessage,
+        stack: errorStack,
+      });
+    }
+    
     return { userId: null, role: null, tenantId: null };
   }
 }

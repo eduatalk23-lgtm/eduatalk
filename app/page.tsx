@@ -41,7 +41,30 @@ export default async function Home() {
   } else {
     // role이 null이면 user_metadata에서 signup_role 확인하여 초기 설정 페이지로 리다이렉트
     const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: getUserError } = await supabase.auth.getUser();
+    
+    // refresh token 에러는 조용히 처리 (세션이 없는 것으로 간주)
+    if (getUserError) {
+      const errorMessage = getUserError.message?.toLowerCase() || "";
+      const errorCode = getUserError.code?.toLowerCase() || "";
+      
+      const isRefreshTokenError = 
+        errorMessage.includes("refresh token") ||
+        errorMessage.includes("refresh_token") ||
+        errorMessage.includes("session") ||
+        errorCode === "refresh_token_not_found";
+      
+      if (!isRefreshTokenError) {
+        console.error("[auth] getUser 실패", {
+          message: getUserError.message,
+          status: getUserError.status,
+          code: getUserError.code,
+        });
+      }
+      
+      // 세션이 없으면 로그인 페이지로 리다이렉트
+      redirect("/login");
+    }
     
     if (user?.user_metadata?.signup_role === "parent") {
       // 학부모 초기 설정 페이지로 리다이렉트 (향후 구현)
