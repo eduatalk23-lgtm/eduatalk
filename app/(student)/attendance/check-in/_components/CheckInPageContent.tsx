@@ -176,17 +176,30 @@ export function CheckInPageContent({
         </Card>
       )}
 
-      {/* 퇴실 버튼 */}
+      {/* 퇴실 처리 */}
       {hasCheckedIn && !hasCheckedOut && (
         <Card>
+          <CardHeader
+            title={
+              attendance.check_in_method === "qr"
+                ? "퇴실 QR 코드 스캔"
+                : "퇴실 체크"
+            }
+          />
           <CardContent>
-            <Button
-              onClick={handleCheckOut}
-              disabled={checkingOut}
-              className="w-full"
-            >
-              {checkingOut ? "퇴실 처리 중..." : "퇴실 체크"}
-            </Button>
+            {attendance.check_in_method === "qr" ? (
+              // QR 입실인 경우: QR 스캔 필수
+              <QRCodeScanner mode="check-out" onSuccess={handleCheckInSuccess} />
+            ) : (
+              // 위치 입실 또는 수동 입실인 경우: 버튼 클릭으로 처리
+              <Button
+                onClick={handleCheckOut}
+                disabled={checkingOut}
+                className="w-full"
+              >
+                {checkingOut ? "퇴실 처리 중..." : "퇴실 체크"}
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

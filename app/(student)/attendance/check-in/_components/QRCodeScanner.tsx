@@ -2,14 +2,21 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { checkInWithQRCode } from "@/app/(student)/actions/attendanceActions";
+import {
+  checkInWithQRCode,
+  checkOutWithQRCode,
+} from "@/app/(student)/actions/attendanceActions";
 import Button from "@/components/atoms/Button";
 
 type QRCodeScannerProps = {
+  mode?: "check-in" | "check-out";
   onSuccess?: () => void;
 };
 
-export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
+export function QRCodeScanner({
+  mode = "check-in",
+  onSuccess,
+}: QRCodeScannerProps) {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -54,7 +61,10 @@ export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
             setScanning(false);
             scannerRef.current = null;
 
-            const result = await checkInWithQRCode(decodedText);
+            const result =
+              mode === "check-out"
+                ? await checkOutWithQRCode(decodedText)
+                : await checkInWithQRCode(decodedText);
             if (result.success) {
               setSuccess(true);
               if (onSuccess) {
@@ -63,10 +73,20 @@ export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
                 }, 1000);
               }
             } else {
-              setError(result.error || "출석 체크에 실패했습니다.");
+              setError(
+                result.error ||
+                  (mode === "check-out"
+                    ? "퇴실 체크에 실패했습니다."
+                    : "출석 체크에 실패했습니다.")
+              );
             }
           } catch (err: any) {
-            setError(err.message || "출석 체크 중 오류가 발생했습니다.");
+            setError(
+              err.message ||
+                (mode === "check-out"
+                  ? "퇴실 체크 중 오류가 발생했습니다."
+                  : "출석 체크 중 오류가 발생했습니다.")
+            );
             setScanning(false);
           }
         },
@@ -113,7 +133,7 @@ export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
 
       {!scanning ? (
         <Button onClick={startScan} className="w-full">
-          QR 코드 스캔 시작
+          {mode === "check-out" ? "퇴실 QR 코드 스캔 시작" : "QR 코드 스캔 시작"}
         </Button>
       ) : (
         <Button onClick={stopScan} variant="outline" className="w-full">
@@ -129,7 +149,9 @@ export function QRCodeScanner({ onSuccess }: QRCodeScannerProps) {
 
       {success && (
         <div className="rounded-lg bg-green-50 p-3 text-sm text-green-600">
-          출석 체크가 완료되었습니다!
+          {mode === "check-out"
+            ? "퇴실 체크가 완료되었습니다!"
+            : "출석 체크가 완료되었습니다!"}
         </div>
       )}
 

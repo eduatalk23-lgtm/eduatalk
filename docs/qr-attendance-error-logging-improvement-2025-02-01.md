@@ -46,6 +46,7 @@ if (error) {
 ```
 
 **개선 효과**:
+
 - Supabase 에러 코드 확인 가능
 - 에러 상세 정보(details, hint) 확인 가능
 - 입력 데이터 확인 가능
@@ -93,22 +94,27 @@ try {
 } catch (recordError) {
   // 출석 기록 저장 에러 상세 정보 추가
   stepContext.recordError = {
-    message: recordError instanceof Error ? recordError.message : String(recordError),
-    code: recordError && typeof recordError === "object" && "code" in recordError 
-      ? (recordError as { code: string }).code 
-      : undefined,
-    details: recordError && typeof recordError === "object" && "details" in recordError
-      ? (recordError as { details?: unknown }).details
-      : undefined,
-    hint: recordError && typeof recordError === "object" && "hint" in recordError
-      ? (recordError as { hint?: string }).hint
-      : undefined,
+    message:
+      recordError instanceof Error ? recordError.message : String(recordError),
+    code:
+      recordError && typeof recordError === "object" && "code" in recordError
+        ? (recordError as { code: string }).code
+        : undefined,
+    details:
+      recordError && typeof recordError === "object" && "details" in recordError
+        ? (recordError as { details?: unknown }).details
+        : undefined,
+    hint:
+      recordError && typeof recordError === "object" && "hint" in recordError
+        ? (recordError as { hint?: string }).hint
+        : undefined,
   };
   throw recordError;
 }
 ```
 
 **개선 효과**:
+
 - `stepContext`에 에러 상세 정보가 포함되어 최종 에러 로그에 기록됨
 - Supabase 에러 코드, details, hint 정보 확인 가능
 - 에러 원인 파악이 용이해짐
@@ -149,13 +155,14 @@ export async function insertAttendanceRecord(
 ): Promise<AttendanceRecord> {
   // RLS 정책 우회를 위해 Admin 클라이언트 사용
   const adminClient = createSupabaseAdminClient();
-  const supabase = adminClient || await createSupabaseServerClient();
-  
+  const supabase = adminClient || (await createSupabaseServerClient());
+
   // ... 나머지 코드
 }
 ```
 
 **개선 효과**:
+
 - 학생이 자신의 출석 기록을 생성할 수 있음
 - RLS 정책 위반 에러 해결
 - Admin 클라이언트가 없을 경우 서버 클라이언트로 fallback
@@ -182,6 +189,7 @@ if (recordError instanceof Error) {
 ```
 
 **개선 효과**:
+
 - `"[object Object]"` 메시지 문제 해결
 - 에러 메시지가 정확하게 표시됨
 
@@ -190,14 +198,17 @@ if (recordError instanceof Error) {
 ## 📊 기타 예상되는 에러 원인 (향후 대비)
 
 1. **UNIQUE 제약 조건 위반** (에러 코드: `23505`)
+
    - `attendance_records` 테이블의 `(student_id, attendance_date)` UNIQUE 제약 조건
    - 동시 요청으로 인한 중복 삽입 시도
 
 2. **NOT NULL 제약 조건 위반** (에러 코드: `23502`)
+
    - 필수 필드 누락
    - `tenant_id` 또는 `student_id`가 null인 경우
 
 3. **외래 키 제약 조건 위반** (에러 코드: `23503`)
+
    - 존재하지 않는 `tenant_id` 또는 `student_id` 참조
 
 4. **데이터베이스 연결 문제** (에러 코드: `08000`, `08003`, `08006`)
@@ -209,15 +220,16 @@ if (recordError instanceof Error) {
 ## 📝 변경 파일
 
 1. `lib/domains/attendance/repository.ts`
-   - `insertAttendanceRecord`: 
+
+   - `insertAttendanceRecord`:
      - 에러 로깅 추가
      - Admin 클라이언트 사용으로 RLS 정책 우회
-   - `updateAttendanceRecord`: 
+   - `updateAttendanceRecord`:
      - 에러 로깅 추가
      - Admin 클라이언트 사용으로 RLS 정책 우회
 
 2. `app/(student)/actions/attendanceActions.ts`
-   - `checkInWithQRCode`: 
+   - `checkInWithQRCode`:
      - 출석 기록 저장 에러 상세 캡처 추가
      - 에러 메시지 처리 개선 (`"[object Object]"` 문제 해결)
 
@@ -242,4 +254,3 @@ if (recordError instanceof Error) {
 - ✅ 상세 에러 로깅 추가
 
 **작업 완료**: 2025-02-01
-
