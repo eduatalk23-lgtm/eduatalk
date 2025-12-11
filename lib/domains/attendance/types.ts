@@ -104,3 +104,18 @@ export type AttendanceFilters = {
   status?: AttendanceStatus;
 };
 
+// ============================================
+// 검증 결과
+// ============================================
+
+export type ValidationError = {
+  field: string;
+  message: string;
+  code: string;
+};
+
+export type ValidationResult = {
+  valid: boolean;
+  errors: ValidationError[];
+};
+

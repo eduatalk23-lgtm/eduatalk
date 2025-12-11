@@ -956,3 +956,96 @@ export async function getTodayAttendance(): Promise<{
   });
   return await handler();
 }
+
+/**
+ * 오늘 출석 관련 SMS 발송 상태 조회
+ */
+export async function getTodayAttendanceSMSStatus(): Promise<{
+  success: boolean;
+  data?: {
+    checkInSMS?: {
+      status: "pending" | "sent" | "delivered" | "failed";
+      sentAt: string | null;
+      errorMessage: string | null;
+    } | null;
+    checkOutSMS?: {
+      status: "pending" | "sent" | "delivered" | "failed";
+      sentAt: string | null;
+      errorMessage: string | null;
+    } | null;
+  } | null;
+  error?: string;
+}> {
+  const handler = withErrorHandling(async () => {
+    const user = await requireStudentAuth();
+    const tenantContext = await getTenantContext();
+    const supabase = await createSupabaseServerClient();
+
+    if (!tenantContext?.tenantId) {
+      return {
+        success: true,
+        data: null,
+      };
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const todayStart = `${today}T00:00:00Z`;
+    const todayEnd = `${today}T23:59:59Z`;
+
+    // 오늘 날짜의 출석 관련 SMS 로그 조회
+    const { data: smsLogs, error } = await supabase
+      .from("sms_logs")
+      .select("id, status, sent_at, error_message, message_content, created_at")
+      .eq("tenant_id", tenantContext.tenantId)
+      .eq("recipient_id", user.userId)
+      .gte("created_at", todayStart)
+      .lte("created_at", todayEnd)
+      .or("message_content.ilike.%입실%,message_content.ilike.%퇴실%")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[getTodayAttendanceSMSStatus] SMS 로그 조회 실패:", error);
+      return {
+        success: true,
+        data: null,
+      };
+    }
+
+    // 입실/퇴실 SMS 분리
+    const checkInSMS = smsLogs?.find((log) =>
+      log.message_content.includes("입실")
+    );
+    const checkOutSMS = smsLogs?.find((log) =>
+      log.message_content.includes("퇴실")
+    );
+
+    return {
+      success: true,
+      data: {
+        checkInSMS: checkInSMS
+          ? {
+              status: checkInSMS.status as
+                | "pending"
+                | "sent"
+                | "delivered"
+                | "failed",
+              sentAt: checkInSMS.sent_at,
+              errorMessage: checkInSMS.error_message,
+            }
+          : null,
+        checkOutSMS: checkOutSMS
+          ? {
+              status: checkOutSMS.status as
+                | "pending"
+                | "sent"
+                | "delivered"
+                | "failed",
+              sentAt: checkOutSMS.sent_at,
+              errorMessage: checkOutSMS.error_message,
+            }
+          : null,
+      },
+    };
+  });
+  return await handler();
+}
