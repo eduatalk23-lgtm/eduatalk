@@ -132,6 +132,37 @@ export function isRefreshTokenError(error: unknown): boolean {
 - Rate limit 에러인 경우에만 재시도
 - refresh token 에러는 조용히 처리하고 null 반환
 
+### 5. `lib/supabase/server.ts` 수정 (자동 토큰 갱신 비활성화)
+
+**변경 내용**:
+- `createServerClient` 호출 시 `auth.autoRefreshToken: false` 옵션 추가
+- `auth.persistSession: false` 옵션 추가
+- 서버에서는 자동 토큰 갱신이 불필요하므로 비활성화하여 에러 발생을 최소화
+
+```typescript
+return createServerClient(
+  env.NEXT_PUBLIC_SUPABASE_URL || "",
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+  {
+    auth: {
+      autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+      persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+    },
+    global: {
+      fetch: rateLimitedFetch,
+    },
+    cookies: {
+      // ... 기존 코드
+    },
+  }
+);
+```
+
+**효과**:
+- Supabase가 자동으로 토큰을 갱신하려고 시도하지 않아 에러 발생을 줄임
+- 유효하지 않은 refresh token으로 인한 내부 에러 로깅 최소화
+- 서버 컴포넌트에서는 토큰 갱신이 불필요하므로 성능 개선
+
 ---
 
 ## 수정된 파일 목록
@@ -154,6 +185,11 @@ export function isRefreshTokenError(error: unknown): boolean {
    - refresh token 에러를 먼저 체크하여 즉시 반환
    - Rate limit 에러인 경우에만 재시도
    - refresh token 에러는 조용히 처리
+
+5. `lib/supabase/server.ts`
+   - `createServerClient` 호출 시 `auth.autoRefreshToken: false` 옵션 추가
+   - `auth.persistSession: false` 옵션 추가
+   - 자동 토큰 갱신 비활성화로 에러 발생 최소화
 
 ---
 
@@ -210,6 +246,7 @@ export function isRefreshTokenError(error: unknown): boolean {
 1. **콘솔 에러 로그 감소**
    - 불필요한 refresh token 에러 로그 제거
    - 실제 문제 파악이 쉬워짐
+   - 자동 토큰 갱신 비활성화로 에러 발생 자체를 줄임
 
 2. **사용자 경험 개선**
    - 세션이 없는 경우 자연스럽게 로그인 페이지로 이동
@@ -219,6 +256,10 @@ export function isRefreshTokenError(error: unknown): boolean {
    - 모든 인증 관련 함수에서 동일한 에러 처리 방식 적용
    - 유지보수성 개선
 
+4. **성능 개선**
+   - 불필요한 토큰 갱신 시도를 제거하여 성능 개선
+   - 서버 컴포넌트에서 불필요한 네트워크 요청 감소
+
 ---
 
 ## 참고 사항
@@ -226,6 +267,8 @@ export function isRefreshTokenError(error: unknown): boolean {
 - Supabase의 `@supabase/ssr` 패키지는 자동으로 refresh token을 관리합니다
 - 서버 컴포넌트에서는 쿠키를 읽기 전용으로만 사용하므로, 토큰 갱신은 클라이언트 사이드에서 처리됩니다
 - 유효하지 않은 refresh token이 쿠키에 남아있는 것은 정상적인 상황일 수 있으며, 이를 조용히 처리하는 것이 적절합니다
+- **자동 토큰 갱신 비활성화**: 서버에서는 `auth.autoRefreshToken: false`를 설정하여 Supabase가 자동으로 토큰을 갱신하려고 시도하지 않도록 합니다. 이렇게 하면 유효하지 않은 refresh token으로 인한 에러 발생을 최소화할 수 있습니다.
+- **Supabase 내부 로깅**: Supabase의 내부 에러 로깅을 완전히 억제할 수는 없지만, 자동 토큰 갱신을 비활성화하여 에러 발생 자체를 줄일 수 있습니다.
 
 ---
 

@@ -57,6 +57,10 @@ export async function createSupabaseServerClient(
       env.NEXT_PUBLIC_SUPABASE_URL || "",
       env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
       {
+      auth: {
+        autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+        persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+      },
       global: {
         fetch: rateLimitedFetch, // Rate limit 처리된 fetch 사용
       },
@@ -132,6 +136,10 @@ export async function createSupabaseServerClient(
         env.NEXT_PUBLIC_SUPABASE_URL || "",
         env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
         {
+          auth: {
+            autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+            persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+          },
           cookies: {
             get() { return undefined; },
             set() {},
@@ -144,6 +152,10 @@ export async function createSupabaseServerClient(
       console.error("[supabase/server] Fallback 클라이언트 생성도 실패", fallbackError);
       // 최후의 수단: 빈 URL과 키로 클라이언트 생성 (사용 시 에러 발생)
       return createServerClient("", "", {
+        auth: {
+          autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+          persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+        },
         cookies: {
           get() { return undefined; },
           set() {},

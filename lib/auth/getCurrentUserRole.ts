@@ -40,23 +40,23 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
     // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
     // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
     const initialResult = await supabase.auth.getUser();
-    
+
     // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
     if (initialResult.error) {
       const errorMessage = initialResult.error.message?.toLowerCase() || "";
       const errorCode = initialResult.error.code?.toLowerCase() || "";
-      
-      const isRefreshTokenError = 
+
+      const isRefreshTokenError =
         errorMessage.includes("refresh token") ||
         errorMessage.includes("refresh_token") ||
         errorMessage.includes("session") ||
         errorCode === "refresh_token_not_found";
-      
+
       if (isRefreshTokenError) {
         // Refresh token 에러는 조용히 처리하고 null 반환
         return { userId: null, role: null, tenantId: null };
       }
-      
+
       // Rate limit 에러인 경우에만 재시도
       if (isRateLimitError(initialResult.error)) {
         const {
@@ -74,7 +74,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
           2000,
           true // 인증 요청 플래그
         );
-        
+
         if (authError) {
           // Rate limit 에러 처리
           if (isRateLimitError(authError)) {
@@ -84,7 +84,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
             });
             return { userId: null, role: null, tenantId: null };
           }
-          
+
           // 다른 에러는 아래 로직에서 처리
           const errorMessage = authError.message?.toLowerCase() || "";
           const errorName = authError.name?.toLowerCase() || "";
@@ -103,8 +103,11 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
           const isUserNotFound =
             errorCode === "user_not_found" ||
             errorMessage.includes("user from sub claim") ||
-            errorMessage.includes("user from sub claim in jwt does not exist") ||
-            (authError.status === 403 && errorMessage.includes("does not exist"));
+            errorMessage.includes(
+              "user from sub claim in jwt does not exist"
+            ) ||
+            (authError.status === 403 &&
+              errorMessage.includes("does not exist"));
 
           if (!isSessionMissing && !isUserNotFound) {
             const errorDetails = {
@@ -118,11 +121,11 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
 
           return { userId: null, role: null, tenantId: null };
         }
-        
+
         if (!user) {
           return { userId: null, role: null, tenantId: null };
         }
-        
+
         // user가 있으면 아래 로직 계속
       } else {
         // Rate limit이 아닌 다른 에러는 아래 로직에서 처리
@@ -144,7 +147,8 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
           errorCode === "user_not_found" ||
           errorMessage.includes("user from sub claim") ||
           errorMessage.includes("user from sub claim in jwt does not exist") ||
-          (initialResult.error.status === 403 && errorMessage.includes("does not exist"));
+          (initialResult.error.status === 403 &&
+            errorMessage.includes("does not exist"));
 
         if (!isSessionMissing && !isUserNotFound) {
           const errorDetails = {
@@ -159,7 +163,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
         return { userId: null, role: null, tenantId: null };
       }
     }
-    
+
     // 정상적인 경우 계속 진행
     const { user } = initialResult.data;
 
