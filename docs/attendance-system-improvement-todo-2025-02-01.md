@@ -349,4 +349,4 @@ export async function checkOutWithQRCode(
 
 ---
 
-**마지막 업데이트**: 2025-12-11
+**마지막 업데이트**: 2025-02-01
