@@ -22,6 +22,8 @@ import { ScoreTrendSectionSkeleton } from "./_components/ScoreTrendSectionSkelet
 import { SessionListSectionSkeleton } from "./_components/SessionListSectionSkeleton";
 import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSectionSkeleton";
 import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSectionSkeleton";
+import { ParentLinksSection } from "./_components/ParentLinksSection";
+import { ParentLinksSectionSkeleton } from "./_components/ParentLinksSectionSkeleton";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -60,85 +62,92 @@ export default async function AdminStudentDetailPage({
   return (
     <StudentDetailWrapper studentId={studentId} studentName={student.name}>
       <div className="p-6 md:p-10">
-      <div className="mb-8">
-        <h1 className="text-h1 text-gray-900">
-          {student.name ?? "이름 없음"} 학생 상세
-        </h1>
-      </div>
+        <div className="mb-8">
+          <h1 className="text-h1 text-gray-900">
+            {student.name ?? "이름 없음"} 학생 상세
+          </h1>
+        </div>
 
-      {/* 위험 분석 및 추천 (항상 표시) */}
-      <div className="mb-6 grid gap-6 md:grid-cols-2">
-        <RiskCard studentId={studentId} />
-        <RecommendationPanel studentId={studentId} />
-      </div>
+        {/* 위험 분석 및 추천 (항상 표시) */}
+        <div className="mb-6 grid gap-6 md:grid-cols-2">
+          <RiskCard studentId={studentId} />
+          <RecommendationPanel studentId={studentId} />
+        </div>
 
-      {/* 탭 구조 */}
-      <StudentDetailTabs defaultTab={defaultTab}>
-        {/* 기본정보 탭 */}
-        <TabContent tab="basic">
-          <BasicInfoSection student={student} isAdmin={role === "admin"} />
-        </TabContent>
+        {/* 탭 구조 */}
+        <StudentDetailTabs defaultTab={defaultTab}>
+          {/* 기본정보 탭 */}
+          <TabContent tab="basic">
+            <div className="space-y-6">
+              <BasicInfoSection student={student} isAdmin={role === "admin"} />
+              <Suspense fallback={<ParentLinksSectionSkeleton />}>
+                <ParentLinksSection studentId={studentId} />
+              </Suspense>
+            </div>
+          </TabContent>
 
-        {/* 학습계획 탭 */}
-        <TabContent tab="plan">
-          <Suspense fallback={<PlanListSectionSkeleton />}>
-            <PlanListSection studentId={studentId} />
-          </Suspense>
-        </TabContent>
+          {/* 학습계획 탭 */}
+          <TabContent tab="plan">
+            <Suspense fallback={<PlanListSectionSkeleton />}>
+              <PlanListSection studentId={studentId} />
+            </Suspense>
+          </TabContent>
 
-        {/* 콘텐츠 탭 */}
-        <TabContent tab="content">
-          <Suspense fallback={<ContentListSectionSkeleton />}>
-            <ContentListSection studentId={studentId} />
-          </Suspense>
-        </TabContent>
+          {/* 콘텐츠 탭 */}
+          <TabContent tab="content">
+            <Suspense fallback={<ContentListSectionSkeleton />}>
+              <ContentListSection studentId={studentId} />
+            </Suspense>
+          </TabContent>
 
-        {/* 성적 탭 */}
-        <TabContent tab="score">
-          <Suspense fallback={<ScoreTrendSectionSkeleton />}>
-            <ScoreTrendSection studentId={studentId} />
-          </Suspense>
-        </TabContent>
+          {/* 성적 탭 */}
+          <TabContent tab="score">
+            <Suspense fallback={<ScoreTrendSectionSkeleton />}>
+              <ScoreTrendSection studentId={studentId} />
+            </Suspense>
+          </TabContent>
 
-        {/* 학습기록 탭 */}
-        <TabContent tab="session">
-          <Suspense fallback={<SessionListSectionSkeleton />}>
-            <SessionListSection studentId={studentId} />
-          </Suspense>
-        </TabContent>
+          {/* 학습기록 탭 */}
+          <TabContent tab="session">
+            <Suspense fallback={<SessionListSectionSkeleton />}>
+              <SessionListSection studentId={studentId} />
+            </Suspense>
+          </TabContent>
 
-        {/* 분석 리포트 탭 */}
-        <TabContent tab="analysis">
-          <Suspense fallback={<AnalysisReportSectionSkeleton />}>
-            <AnalysisReportSection studentId={studentId} />
-          </Suspense>
-        </TabContent>
+          {/* 분석 리포트 탭 */}
+          <TabContent tab="analysis">
+            <Suspense fallback={<AnalysisReportSectionSkeleton />}>
+              <AnalysisReportSection studentId={studentId} />
+            </Suspense>
+          </TabContent>
 
-        {/* 상담노트 탭 */}
-        <TabContent tab="consulting">
-          <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
-            <ConsultingNotesSection studentId={studentId} consultantId={userId} />
-          </Suspense>
-        </TabContent>
+          {/* 상담노트 탭 */}
+          <TabContent tab="consulting">
+            <Suspense fallback={<ConsultingNotesSectionSkeleton />}>
+              <ConsultingNotesSection
+                studentId={studentId}
+                consultantId={userId}
+              />
+            </Suspense>
+          </TabContent>
 
-        {/* 출석 탭 */}
-        <TabContent tab="attendance">
-          <Suspense
-            fallback={
-              <div className="rounded-lg border border-gray-200 bg-white p-6">
-                <div className="text-sm text-gray-500">로딩 중...</div>
-              </div>
-            }
-          >
-            <AttendanceSection
-              studentId={studentId}
-              studentName={student.name}
-            />
-          </Suspense>
-        </TabContent>
-      </StudentDetailTabs>
+          {/* 출석 탭 */}
+          <TabContent tab="attendance">
+            <Suspense
+              fallback={
+                <div className="rounded-lg border border-gray-200 bg-white p-6">
+                  <div className="text-sm text-gray-500">로딩 중...</div>
+                </div>
+              }
+            >
+              <AttendanceSection
+                studentId={studentId}
+                studentName={student.name}
+              />
+            </Suspense>
+          </TabContent>
+        </StudentDetailTabs>
       </div>
     </StudentDetailWrapper>
   );
 }
-

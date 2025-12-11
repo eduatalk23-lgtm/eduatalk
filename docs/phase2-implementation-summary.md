@@ -1,168 +1,196 @@
 # Phase 2 구현 완료 요약
 
 ## 구현 일자
-2025-01-XX
+
+2025-01-31
 
 ## 구현 내용
 
-### 생성/수정 파일
+### 수정/추가 파일
 
-#### 문서 파일
-- `docs/students-table-schema-analysis.md`: students 테이블 스키마 분석 문서
-- `docs/parent-users-table-schema-analysis.md`: parent_users 테이블 스키마 분석 문서
-- `docs/migration-review-summary.md`: 마이그레이션 파일 검토 요약
-- `docs/migration-planning.md`: tenant_id nullable 변경 마이그레이션 계획
+#### Server Actions
+- `app/(parent)/actions/parentStudentLinkRequestActions.ts` (신규)
+  - `searchStudentsForLink` - 학생 검색
+  - `createLinkRequest` - 연결 요청 생성
+  - `getLinkRequests` - 연결 요청 목록 조회
+  - `cancelLinkRequest` - 연결 요청 취소
 
-#### 코드 파일
-- `lib/auth/getTenantInfo.ts`: tenant 정보 조회 헬퍼 함수 생성 (신규)
-- `lib/auth/getCurrentUserRole.ts`: 타입 안전성 개선 (SignupRole 타입 추가, CurrentUserRole 확장)
-- `app/(student)/layout.tsx`: getTenantInfo() 사용으로 리팩토링
-- `app/(parent)/layout.tsx`: getTenantInfo() 사용으로 리팩토링
-- `app/(admin)/layout.tsx`: getTenantInfo() 사용으로 리팩토링
+#### 컴포넌트
+- `app/(parent)/parent/settings/_components/StudentSearchModal.tsx` (신규)
+  - 학생 검색 모달
+  - 실시간 검색 (debounce 300ms)
+  - 관계 선택 및 연결 요청 생성
 
-### 주요 변경 사항
+- `app/(parent)/parent/settings/_components/LinkRequestList.tsx` (신규)
+  - 연결 요청 목록 표시
+  - 상태 배지 (대기 중/승인됨/거부됨)
+  - 요청 취소 기능
 
-#### 1. 스키마 분석 문서 작성
+- `app/(parent)/parent/settings/_components/LinkedStudentsSection.tsx` (신규)
+  - 연결된 자녀 및 요청 목록 통합 컴포넌트
+  - 클라이언트 사이드 상태 관리
 
-**students 테이블 분석**:
-- ERD 문서 기준: `tenant_id NOT NULL`
-- 실제 코드: `tenant_id nullable`
-- 불일치 발견 및 권장사항 제시
+#### 페이지 수정
+- `app/(parent)/parent/settings/page.tsx`
+  - LinkedStudentsSection 컴포넌트 통합
+  - 연결 요청 목록 조회 로직 추가
+  - 기존 플레이스홀더 제거
 
-**parent_users 테이블 분석**:
-- ERD 문서 기준: `tenant_id nullable`
-- 실제 코드: `tenant_id nullable`
-- 일치 확인, 변경 불필요
+#### 마이그레이션
+- `supabase/migrations/20250131000000_add_parent_student_links_insert_policy.sql` (신규)
+  - `parent_student_links_insert_own` 정책 추가
+  - `parent_student_links_select_own` 정책 추가
+  - `parent_student_links_delete_own` 정책 추가
 
-#### 2. 마이그레이션 계획 수립
+## 주요 변경 사항
 
-**결정사항**:
-- `students.tenant_id`를 nullable로 변경 권장
-- `parent_users.tenant_id`는 변경 불필요 (이미 nullable)
+### 1. Server Actions 구현
 
-**이유**:
-1. 코드와 ERD 일치성 확보
-2. Phase 1 fallback 로직과 일관성
-3. 회원가입 플로우 개선 가능 (Phase 3)
+#### searchStudentsForLink
+- 학부모 권한 확인
+- 최소 2글자 이상 검색어 필요
+- 이미 연결되거나 요청 중인 학생 제외
+- 검색 결과 최대 10개 반환
 
-**마이그레이션 파일**:
-- 마이그레이션 SQL 작성 (문서에 포함)
-- 롤백 마이그레이션 작성 (문서에 포함)
-- 테스트 계획 수립
+#### createLinkRequest
+- 학부모 권한 확인
+- 본인만 요청 생성 가능
+- 중복 요청 체크
+- `is_approved: false`로 설정
+- relation 값 검증
 
-#### 3. getTenantInfo() 헬퍼 함수 생성
+#### getLinkRequests
+- 학부모 권한 확인
+- 본인 요청만 조회
+- 상태별 정렬 (대기 중 → 승인됨 → 거부됨)
 
-**파일**: `lib/auth/getTenantInfo.ts`
+#### cancelLinkRequest
+- 학부모 권한 확인
+- 본인 요청만 취소 가능
+- 대기 중인 요청만 취소 가능
 
-**기능**:
-- `getTenantContext()`와 `tenants` 테이블 조회를 통합
-- 중복 코드 제거
-- 에러 처리 및 로깅 추가
+### 2. 컴포넌트 구현
 
-**반환 타입**:
-```typescript
-Promise<{ name: string; type?: string } | null>
-```
+#### StudentSearchModal
+- ParentSearchModal 패턴 참고
+- 실시간 검색 (debounce 300ms)
+- 관계 선택 드롭다운
+- 연결 요청 생성 후 모달 닫기 및 목록 새로고침
 
-#### 4. 레이아웃 파일 리팩토링
+#### LinkRequestList
+- 요청 목록 표시
+- 상태별 배지 (색상 구분)
+- 대기 중인 요청만 취소 버튼 표시
+- 취소 후 목록 자동 갱신
 
-**변경 전** (중복 코드):
-```typescript
-let tenantInfo = null;
-const tenantContext = await getTenantContext();
-if (tenantContext?.tenantId) {
-  const supabase = await createSupabaseServerClient();
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("name, type")
-    .eq("id", tenantContext.tenantId)
-    .maybeSingle();
-  if (tenant) {
-    tenantInfo = {
-      name: tenant.name,
-      type: tenant.type || undefined,
-    };
-  }
-}
-```
+#### LinkedStudentsSection
+- 클라이언트 컴포넌트로 상태 관리
+- 연결된 자녀 목록 및 요청 목록 통합
+- 검색 모달 열기/닫기 관리
+- 콜백 기반 상태 업데이트
 
-**변경 후** (간결한 코드):
-```typescript
-const tenantInfo = await getTenantInfo();
-```
+### 3. RLS 정책 추가
 
-**리팩토링된 파일**:
-- `app/(student)/layout.tsx`
-- `app/(parent)/layout.tsx`
-- `app/(admin)/layout.tsx`
+#### parent_student_links_insert_own
+- 학부모가 자신의 연결 요청 생성 가능
+- `auth.uid() = parent_id` 조건
+- `parent_users` 테이블 존재 확인
 
-#### 5. 타입 안전성 개선
+#### parent_student_links_select_own
+- 학부모가 자신의 연결 요청 조회 가능
+- `auth.uid() = parent_id` 조건
+- `parent_users` 테이블 존재 확인
 
-**SignupRole 타입 추가**:
-```typescript
-export type SignupRole = "student" | "parent";
-```
+#### parent_student_links_delete_own
+- 학부모가 자신의 대기 중인 요청 취소 가능
+- `auth.uid() = parent_id` 조건
+- `is_approved IS NULL OR is_approved = false` 조건
+- `parent_users` 테이블 존재 확인
 
-**CurrentUserRole 타입 확장**:
-```typescript
-export type CurrentUserRole = {
-  userId: string | null;
-  role: UserRole;
-  tenantId: string | null;
-  signupRole?: SignupRole; // 옵셔널 필드 추가
-};
-```
+## 동작 방식
 
-**fallback 로직 개선**:
-- fallback 사용 시 `signupRole` 필드도 반환하도록 수정
+### 연결 요청 생성 플로우
+
+1. 학부모가 설정 페이지 접근
+2. "학생 연결 요청" 버튼 클릭
+3. StudentSearchModal 열림
+4. 학생 이름으로 검색 (최소 2글자)
+5. 검색 결과에서 학생 선택
+6. 관계 선택 (아버지/어머니/보호자/기타)
+7. "연결 요청" 버튼 클릭
+8. `createLinkRequest` Server Action 호출
+9. `parent_student_links`에 레코드 생성 (`is_approved: false`)
+10. 모달 닫기 및 목록 새로고침
+
+### 연결 요청 취소 플로우
+
+1. 학부모가 설정 페이지에서 요청 목록 확인
+2. 대기 중인 요청의 "요청 취소" 버튼 클릭
+3. `cancelLinkRequest` Server Action 호출
+4. 요청 삭제
+5. 목록 자동 갱신
 
 ## 검증 완료 항목
 
-- [x] 스키마 분석 문서 작성 완료
-- [x] 마이그레이션 계획 수립 완료
-- [x] getTenantInfo() 함수 구현 완료
-- [x] 모든 레이아웃 파일 리팩토링 완료
-- [x] 타입 안전성 개선 완료
-- [x] 타입 에러 없음 확인 (린터 검증 완료)
+- [x] 코드 구현 완료
+- [x] 린터 에러 없음
+- [x] 타입 안전성 확보
+- [x] 권한 검증 구현
+- [x] 에러 처리 구현
+- [x] RLS 정책 추가
+- [x] 문서 업데이트 완료
 
 ## 수동 테스트 필요 항목
 
 다음 항목들은 실제 환경에서 수동 테스트가 필요합니다:
 
-1. **레이아웃 동작 확인**
-   - 학생 레이아웃에서 tenant 정보 표시 확인
-   - 학부모 레이아웃에서 tenant 정보 표시 확인
-   - 관리자 레이아웃에서 tenant 정보 표시 확인
+1. **학부모가 학생 검색**
+   - 설정 페이지 접근
+   - "학생 연결 요청" 버튼 클릭
+   - 학생 이름으로 검색
+   - 검색 결과 표시 확인
 
-2. **기존 기능 정상 동작 확인**
-   - 기존 사용자 로그인 후 대시보드 접근
-   - tenant 정보가 정상적으로 표시되는지 확인
+2. **학부모가 연결 요청 생성**
+   - 학생 선택 및 관계 선택
+   - "연결 요청" 버튼 클릭
+   - 요청 생성 성공 확인
+   - 요청 목록에 표시 확인
 
-3. **에러 처리 확인**
-   - tenant_id가 없는 경우 null 반환 확인
-   - Super Admin의 경우 null 반환 확인
+3. **학부모가 연결 요청 취소**
+   - 대기 중인 요청의 "요청 취소" 버튼 클릭
+   - 요청 취소 성공 확인
+   - 목록에서 제거 확인
+
+4. **권한 검증**
+   - 다른 학부모의 요청 조회/취소 시도
+   - 권한 오류 확인
+
+5. **중복 요청 방지**
+   - 동일 학생에 대한 중복 요청 시도
+   - 적절한 에러 메시지 표시 확인
 
 ## 예상 효과
 
-- ✅ 코드 중복 제거 (레이아웃 파일 간 일관성 확보)
-- ✅ 유지보수성 향상 (tenant 정보 조회 로직 통합)
-- ✅ 타입 안전성 개선 (SignupRole 타입 추가)
-- ✅ 마이그레이션 계획 수립 완료 (Phase 3 준비)
+- ✅ 학부모가 직접 학생 연결 요청 생성 가능
+- ✅ 연결 요청 상태 확인 가능
+- ✅ 대기 중인 요청 취소 가능
+- ✅ 승인된 요청은 자동으로 연결된 자녀 목록에 표시 (Phase 3에서 구현)
 
 ## 다음 단계
 
 Phase 2 구현이 완료되었습니다. 다음 단계는:
 
 1. **수동 테스트 수행**: 위의 테스트 항목들을 실제 환경에서 검증
-2. **마이그레이션 실행** (선택사항): `students.tenant_id` nullable 변경 마이그레이션 실행
-3. **코드 리뷰**: 팀 내 코드 리뷰 진행
-4. **Phase 3 준비**: 장기 개선 작업 계획 수립
+2. **Phase 3 준비**: 승인 프로세스 및 관리자 승인 UI 구현
+   - `approveLinkRequest` Server Action 추가
+   - `rejectLinkRequest` Server Action 추가
+   - 관리자 승인 페이지 구현
 
 ## 참고
 
-- [Phase 2 TODO 문서](./sidebar-missing-after-signup-fix-todo.md)
-- [Phase 2 계획](./phase-2.plan.md)
-- [students 테이블 분석](./students-table-schema-analysis.md)
-- [parent_users 테이블 분석](./parent-users-table-schema-analysis.md)
-- [마이그레이션 계획](./migration-planning.md)
+- [Phase 2 TODO 문서](./student-parent-link-system-implementation-todo.md)
+- [구현 계획](./phase-2.plan.md)
 
+---
+
+**마지막 업데이트**: 2025-01-31
