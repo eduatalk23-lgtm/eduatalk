@@ -117,8 +117,22 @@ export async function checkInWithQRCode(
       stepContext.recordStatus = record.status;
     } catch (recordError) {
       // 출석 기록 저장 에러 상세 정보 추가
+      // Supabase 에러 객체는 Error 인스턴스가 아닐 수 있으므로 안전하게 처리
+      let errorMessage = "알 수 없는 오류가 발생했습니다.";
+      if (recordError instanceof Error) {
+        errorMessage = recordError.message;
+      } else if (recordError && typeof recordError === "object") {
+        if ("message" in recordError && typeof recordError.message === "string") {
+          errorMessage = recordError.message;
+        } else {
+          errorMessage = JSON.stringify(recordError);
+        }
+      } else {
+        errorMessage = String(recordError);
+      }
+
       stepContext.recordError = {
-        message: recordError instanceof Error ? recordError.message : String(recordError),
+        message: errorMessage,
         code: recordError && typeof recordError === "object" && "code" in recordError 
           ? (recordError as { code: string }).code 
           : undefined,

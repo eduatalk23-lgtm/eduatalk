@@ -4,6 +4,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   AttendanceRecord,
   CreateAttendanceRecordInput,
@@ -40,12 +41,15 @@ export async function findAttendanceByStudentAndDate(
 
 /**
  * 출석 기록 생성
+ * RLS 정책 우회를 위해 Admin 클라이언트 사용
  */
 export async function insertAttendanceRecord(
   tenantId: string,
   input: CreateAttendanceRecordInput
 ): Promise<AttendanceRecord> {
-  const supabase = await createSupabaseServerClient();
+  // RLS 정책 우회를 위해 Admin 클라이언트 사용
+  const adminClient = createSupabaseAdminClient();
+  const supabase = adminClient || await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("attendance_records")
@@ -72,6 +76,7 @@ export async function insertAttendanceRecord(
       hint: error.hint,
       tenantId,
       input,
+      usingAdminClient: !!adminClient,
     });
     throw error;
   }
@@ -81,12 +86,15 @@ export async function insertAttendanceRecord(
 
 /**
  * 출석 기록 수정
+ * RLS 정책 우회를 위해 Admin 클라이언트 사용
  */
 export async function updateAttendanceRecord(
   recordId: string,
   input: UpdateAttendanceRecordInput
 ): Promise<AttendanceRecord> {
-  const supabase = await createSupabaseServerClient();
+  // RLS 정책 우회를 위해 Admin 클라이언트 사용
+  const adminClient = createSupabaseAdminClient();
+  const supabase = adminClient || await createSupabaseServerClient();
 
   const updateData: Partial<AttendanceRecord> = {};
 
@@ -125,6 +133,7 @@ export async function updateAttendanceRecord(
       hint: error.hint,
       recordId,
       input,
+      usingAdminClient: !!adminClient,
     });
     throw error;
   }
