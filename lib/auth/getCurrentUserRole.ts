@@ -70,7 +70,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       const errorMessage = authError.message?.toLowerCase() || "";
       const errorName = authError.name?.toLowerCase() || "";
       const errorCode = authError.code?.toLowerCase() || "";
-      
+
       const isSessionMissing =
         errorMessage.includes("session") ||
         errorMessage.includes("refresh token") ||
@@ -80,7 +80,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
           (errorMessage.includes("refresh token not found") ||
             errorMessage.includes("invalid refresh token") ||
             errorMessage.includes("refresh token expired")));
-      
+
       // "User from sub claim in JWT does not exist" 에러 처리
       // 이 에러는 이메일 인증 전이나 세션이 없을 때 발생할 수 있는 정상적인 상황
       const isUserNotFound =
