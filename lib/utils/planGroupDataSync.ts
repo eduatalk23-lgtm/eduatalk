@@ -4,7 +4,13 @@
  */
 
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import type { PlanGroupCreationData } from "@/lib/types/plan";
+import type {
+  PlanGroupCreationData,
+  PlanPurpose,
+  SchedulerType,
+  PlanContentInput,
+  ExclusionType,
+} from "@/lib/types/plan";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
 
@@ -109,10 +115,24 @@ export function syncWizardDataToCreationData(
     }
 
     // 4. PlanGroupCreationData 구성
+    // plan_purpose 변환: 빈 문자열은 null, "모의고사(수능)"은 "모의고사"로 변환
+    const normalizedPlanPurpose: PlanPurpose | null =
+      !wizardData.plan_purpose || wizardData.plan_purpose === ""
+        ? null
+        : wizardData.plan_purpose === "모의고사(수능)"
+          ? "모의고사"
+          : (wizardData.plan_purpose as PlanPurpose);
+
+    // scheduler_type 변환: 빈 문자열은 null
+    const normalizedSchedulerType: SchedulerType | null =
+      !wizardData.scheduler_type || wizardData.scheduler_type === ""
+        ? null
+        : (wizardData.scheduler_type as SchedulerType);
+
     const creationData: PlanGroupCreationData = {
       name: wizardData.name || null,
-      plan_purpose: wizardData.plan_purpose as any,
-      scheduler_type: wizardData.scheduler_type as any,
+      plan_purpose: normalizedPlanPurpose,
+      scheduler_type: normalizedSchedulerType,
       scheduler_options:
         Object.keys(finalSchedulerOptions).length > 0 ? finalSchedulerOptions : null,
       period_start: wizardData.period_start,
@@ -120,20 +140,12 @@ export function syncWizardDataToCreationData(
       target_date: wizardData.target_date || null,
       block_set_id: wizardData.block_set_id || null,
       contents: allContents.map((c, idx) => {
-        const contentItem: any = {
-          content_type: c.content_type,
-          content_id: c.content_id,
-          start_range: c.start_range,
-          end_range: c.end_range,
-          start_detail_id: (c as any).start_detail_id ?? null,
-          end_detail_id: (c as any).end_detail_id ?? null,
-          display_order: idx,
-        };
-        
+        // PlanContentInput 타입에 맞게 구성
         // master_content_id 설정
+        let masterContentId: string | null = null;
         // 1. WizardData에서 명시적으로 설정된 경우 우선 사용
-        if ((c as any).master_content_id) {
-          contentItem.master_content_id = (c as any).master_content_id;
+        if ("master_content_id" in c && c.master_content_id) {
+          masterContentId = c.master_content_id;
         } else {
           // 2. 추천 콘텐츠인 경우: content_id 자체가 마스터 콘텐츠 ID
           // 추천 콘텐츠는 recommended_contents에 포함되어 있고, is_auto_recommended 또는 recommendation_source가 있음
@@ -141,31 +153,56 @@ export function syncWizardDataToCreationData(
             (rc) => rc.content_id === c.content_id && rc.content_type === c.content_type
           );
           if (isRecommended) {
-            contentItem.master_content_id = c.content_id; // 추천 콘텐츠는 content_id가 마스터 콘텐츠 ID
+            masterContentId = c.content_id; // 추천 콘텐츠는 content_id가 마스터 콘텐츠 ID
           }
         }
-        
+
+        const contentItem: PlanContentInput & {
+          is_auto_recommended?: boolean;
+          recommendation_source?: "auto" | "admin" | "template" | null;
+          recommendation_reason?: string | null;
+          recommendation_metadata?: {
+            scoreDetails?: {
+              schoolGrade?: number | null;
+              schoolAverageGrade?: number | null;
+              mockPercentile?: number | null;
+              mockGrade?: number | null;
+              riskScore?: number;
+            };
+            priority?: number;
+          } | null;
+        } = {
+          content_type: c.content_type,
+          content_id: c.content_id,
+          start_range: c.start_range,
+          end_range: c.end_range,
+          start_detail_id: "start_detail_id" in c ? (c.start_detail_id ?? null) : null,
+          end_detail_id: "end_detail_id" in c ? (c.end_detail_id ?? null) : null,
+          display_order: idx,
+          ...(masterContentId && { master_content_id: masterContentId }),
+        };
+
         // 자동 추천 관련 필드 추가
         // Step 4에서 자동 배정된 콘텐츠는 is_auto_recommended: true, recommendation_source: "auto"로 설정됨
         // 이 플래그들은 DB에 저장되어 관리자 일괄 적용 기능과 구분됨
-        if ((c as any).is_auto_recommended !== undefined) {
-          contentItem.is_auto_recommended = (c as any).is_auto_recommended;
+        if ("is_auto_recommended" in c && c.is_auto_recommended !== undefined) {
+          contentItem.is_auto_recommended = c.is_auto_recommended;
         }
-        if ((c as any).recommendation_source) {
-          contentItem.recommendation_source = (c as any).recommendation_source;
+        if ("recommendation_source" in c && c.recommendation_source) {
+          contentItem.recommendation_source = c.recommendation_source as "auto" | "admin" | "template" | null;
         }
-        if ((c as any).recommendation_reason) {
-          contentItem.recommendation_reason = (c as any).recommendation_reason;
+        if ("recommendation_reason" in c && c.recommendation_reason) {
+          contentItem.recommendation_reason = c.recommendation_reason;
         }
-        if ((c as any).recommendation_metadata) {
-          contentItem.recommendation_metadata = (c as any).recommendation_metadata;
+        if ("recommendation_metadata" in c && c.recommendation_metadata) {
+          contentItem.recommendation_metadata = c.recommendation_metadata;
         }
-        
+
         return contentItem;
       }),
       exclusions: wizardData.exclusions.map((e) => ({
         exclusion_date: e.exclusion_date,
-        exclusion_type: e.exclusion_type,
+        exclusion_type: e.exclusion_type as ExclusionType,
         reason: e.reason || null,
       })),
       academy_schedules: wizardData.academy_schedules.map((s) => ({
@@ -334,7 +371,7 @@ export function syncCreationDataToWizardData(data: {
         ...(c.title && { title: c.title }),
         ...(c.subject_category && { subject_category: c.subject_category }),
         // master_content_id가 있으면 포함 (마스터에서 가져온 교재/강의 표시용)
-        ...((c as any).master_content_id && { master_content_id: (c as any).master_content_id }),
+        ...("master_content_id" in c && c.master_content_id && { master_content_id: c.master_content_id }),
       };
 
       if (c.is_auto_recommended || c.recommendation_source) {
@@ -343,17 +380,25 @@ export function syncCreationDataToWizardData(data: {
           is_auto_recommended: c.is_auto_recommended ?? false,
           recommendation_source: c.recommendation_source ?? null,
           recommendation_reason: c.recommendation_reason ?? null,
-        } as any);
+        });
       } else {
         studentContents.push(contentItem);
       }
     });
 
     // WizardData 구성
+    // plan_purpose 변환: null은 빈 문자열로, PlanPurpose는 그대로 사용
+    const wizardPlanPurpose: WizardData["plan_purpose"] =
+      group.plan_purpose === null ? "" : (group.plan_purpose as WizardData["plan_purpose"]);
+
+    // scheduler_type 변환: null은 빈 문자열로, SchedulerType은 그대로 사용
+    const wizardSchedulerType: WizardData["scheduler_type"] =
+      group.scheduler_type === null ? "" : (group.scheduler_type as WizardData["scheduler_type"]);
+
     const wizardData: WizardData = {
       name: group.name || "",
-      plan_purpose: (group.plan_purpose as any) || "",
-      scheduler_type: (group.scheduler_type as any) || "",
+      plan_purpose: wizardPlanPurpose,
+      scheduler_type: wizardSchedulerType,
       scheduler_options:
         Object.keys(schedulerOptionsWithoutTimeSettings).length > 0
           ? schedulerOptionsWithoutTimeSettings
@@ -364,7 +409,7 @@ export function syncCreationDataToWizardData(data: {
       block_set_id: group.block_set_id || "",
       exclusions: exclusions.map((e) => ({
         exclusion_date: e.exclusion_date,
-        exclusion_type: e.exclusion_type as any,
+        exclusion_type: e.exclusion_type as ExclusionType,
         reason: e.reason || undefined,
       })),
       academy_schedules: academySchedules.map((s) => ({

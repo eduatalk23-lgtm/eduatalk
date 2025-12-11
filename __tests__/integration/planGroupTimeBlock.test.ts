@@ -16,6 +16,12 @@ import { createPlanGroup } from "@/lib/data/planGroups";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
 import type { PlanGroup, NonStudyTimeBlock, DailyScheduleInfo } from "@/lib/types/plan";
+import {
+  createTestTenant,
+  createTestStudent,
+  createTestBlockSet,
+  cleanupTestData,
+} from "../helpers/supabase";
 
 describe("플랜 그룹 시간 블록 기능 통합 테스트", () => {
   // 테스트용 데이터
@@ -25,21 +31,21 @@ describe("플랜 그룹 시간 블록 기능 통합 테스트", () => {
   let testCampTemplateId: string;
 
   beforeAll(async () => {
-    // 실제 구현 시:
-    // 1. 테스트용 테넌트 생성
-    // 2. 테스트용 학생 생성
-    // 3. 테스트용 블록 세트 생성
-    // 4. 테스트용 캠프 템플릿 생성
-    // testTenantId = await createTestTenant();
-    // testStudentId = await createTestStudent(testTenantId);
-    // testBlockSetId = await createTestBlockSet(testTenantId);
+    // 실제 구현 시 주석 해제:
+    // testTenantId = await createTestTenant("통합 테스트 테넌트");
+    // testStudentId = await createTestStudent(testTenantId, "통합 테스트 학생");
+    // testBlockSetId = await createTestBlockSet(testTenantId, testStudentId, "통합 테스트 블록 세트");
     // testCampTemplateId = await createTestCampTemplate(testTenantId, testBlockSetId);
+    
+    // 스킵: 실제 데이터베이스 연결 필요
+    // 테스트 환경 설정 가이드는 docs/integration-test-setup.md 참조
   });
 
   afterAll(async () => {
-    // 실제 구현 시:
-    // 1. 테스트 데이터 정리
-    // await cleanupTestData(testTenantId, testStudentId, testBlockSetId, testCampTemplateId);
+    // 실제 구현 시 주석 해제:
+    // if (testTenantId && testStudentId) {
+    //   await cleanupTestData(testTenantId, testStudentId, testBlockSetId, testCampTemplateId);
+    // }
   });
 
   describe("캠프 모드", () => {

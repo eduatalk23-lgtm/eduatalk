@@ -13,7 +13,12 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
-import { PlanGroupCreationData, PlanGroup } from "@/lib/types/plan";
+import type {
+  PlanGroupCreationData,
+  PlanGroup,
+  SchedulerOptions,
+  PlanStatus,
+} from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { normalizePlanPurpose } from "./utils";
 
@@ -59,7 +64,7 @@ async function _updatePlanGroupDraft(
   }
 
   // 수정 권한 확인 (draft 또는 saved 상태에서 수정 가능)
-  if (!PlanStatusManager.canEdit(group.status as any)) {
+  if (!PlanStatusManager.canEdit(group.status as PlanStatus)) {
     throw new AppError(
       `${group.status} 상태에서는 플랜 그룹을 수정할 수 없습니다.`,
       ErrorCode.VALIDATION_ERROR,
@@ -85,10 +90,12 @@ async function _updatePlanGroupDraft(
 
   // 플랜 그룹 메타데이터 업데이트
   // time_settings를 scheduler_options에 병합
-  let mergedSchedulerOptions = data.scheduler_options || {};
+  let mergedSchedulerOptions: SchedulerOptions = (data.scheduler_options as SchedulerOptions) || {};
   
   // template_block_set_id 보호 (캠프 모드에서 중요)
-  const templateBlockSetId = (mergedSchedulerOptions as any).template_block_set_id;
+  const templateBlockSetId = "template_block_set_id" in mergedSchedulerOptions
+    ? (mergedSchedulerOptions.template_block_set_id as string | undefined)
+    : undefined;
   
   if (data.time_settings) {
     mergedSchedulerOptions = {
@@ -97,18 +104,21 @@ async function _updatePlanGroupDraft(
     };
     
     // template_block_set_id가 덮어씌워졌는지 확인하고 복원
-    if (templateBlockSetId && !(mergedSchedulerOptions as any).template_block_set_id) {
+    if (templateBlockSetId && !("template_block_set_id" in mergedSchedulerOptions)) {
       console.warn("[_updatePlanGroupDraft] template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원:", {
         template_block_set_id: templateBlockSetId,
       });
-      (mergedSchedulerOptions as any).template_block_set_id = templateBlockSetId;
+      mergedSchedulerOptions = {
+        ...mergedSchedulerOptions,
+        template_block_set_id: templateBlockSetId,
+      } as SchedulerOptions;
     }
   }
   
   // 최종 확인
-  if ((mergedSchedulerOptions as any).template_block_set_id) {
+  if ("template_block_set_id" in mergedSchedulerOptions) {
     console.log("[_updatePlanGroupDraft] 최종 mergedSchedulerOptions에 template_block_set_id 보존됨:", {
-      template_block_set_id: (mergedSchedulerOptions as any).template_block_set_id,
+      template_block_set_id: mergedSchedulerOptions.template_block_set_id,
     });
   }
 
@@ -301,7 +311,7 @@ async function _updatePlanGroup(
     name?: string | null;
     plan_purpose?: string | null;
     scheduler_type?: string | null;
-    scheduler_options?: any | null;
+    scheduler_options?: SchedulerOptions | null;
     period_start?: string;
     period_end?: string;
     target_date?: string | null;
@@ -322,7 +332,7 @@ async function _updatePlanGroup(
   }
 
   // 상태별 수정 권한 체크
-  if (!PlanStatusManager.canEdit(group.status as any)) {
+  if (!PlanStatusManager.canEdit(group.status as PlanStatus)) {
     throw new AppError(
       `${group.status} 상태에서는 플랜 그룹을 수정할 수 없습니다.`,
       ErrorCode.VALIDATION_ERROR,

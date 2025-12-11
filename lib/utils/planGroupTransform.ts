@@ -16,7 +16,7 @@ export type PartialWizardData = {
   name: string;
   plan_purpose: string;
   scheduler_type: string;
-  scheduler_options?: any;
+  scheduler_options?: SchedulerOptions;
   time_settings?: {
     lunch_time?: { start: string; end: string };
     camp_study_hours?: { start: string; end: string };
@@ -330,10 +330,10 @@ export async function transformPlanGroupToWizardData(
             review_days: schedulerOptions.review_days || 1,
           }
         : undefined,
-    student_level: (group.scheduler_options as any)?.student_level,
-    subject_allocations: (group.scheduler_options as any)?.subject_allocations,
+    student_level: schedulerOptions.student_level,
+    subject_allocations: schedulerOptions.subject_allocations,
     subject_constraints: group.subject_constraints
-      ? (group.subject_constraints as any) // 타입 변환 필요 시 any 사용
+      ? (group.subject_constraints as PartialWizardData["subject_constraints"])
       : undefined,
     additional_period_reallocation: group.additional_period_reallocation || undefined,
     non_study_time_blocks: group.non_study_time_blocks || undefined,
