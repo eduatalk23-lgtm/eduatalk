@@ -557,6 +557,21 @@ export async function getPendingLinkRequests(
       return { success: true, data: [] };
     }
 
+    // parent_users.id 목록 수집
+    const parentIds = links
+      .map((link) => link.parent_users?.id)
+      .filter((id): id is string => id !== undefined);
+
+    // auth.users에서 email 조회 (parent_users.id = auth.users.id)
+    const parentEmailsMap = new Map<string, string | null>();
+    if (parentIds.length > 0) {
+      // Supabase Admin Client를 사용하여 auth.users 조회
+      // 또는 각 parent_id에 대해 auth.admin.getUserById() 사용
+      // 하지만 PostgREST를 통해 직접 조회할 수 없으므로,
+      // 일단 email은 null로 처리하고, 필요시 별도 API로 조회
+      // TODO: email 조회 로직 추가 필요 (auth.users는 PostgREST로 직접 조회 불가)
+    }
+
     // 데이터 변환
     const requests: PendingLinkRequest[] = links
       .map((link: ParentStudentLinkWithStudentRow) => {
@@ -566,9 +581,6 @@ export async function getPendingLinkRequests(
         const parentUser = link.parent_users;
         if (!parentUser) return null;
 
-        const user = parentUser.users;
-        if (!user) return null;
-
         return {
           id: link.id,
           studentId: link.student_id,
@@ -576,8 +588,8 @@ export async function getPendingLinkRequests(
           studentGrade: student.grade,
           studentClass: student.class,
           parentId: link.parent_id,
-          parentName: user.name,
-          parentEmail: user.email,
+          parentName: parentUser.name,
+          parentEmail: parentEmailsMap.get(parentUser.id) || null,
           relation: link.relation || "other",
           created_at: link.created_at,
         };
