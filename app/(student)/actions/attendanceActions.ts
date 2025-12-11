@@ -105,15 +105,32 @@ export async function checkInWithQRCode(
 
     // Step 7: 출석 기록 저장
     stepContext.step = "attendance_record_save";
-    const record = await recordAttendance({
-      student_id: user.userId,
-      attendance_date: today,
-      check_in_time: now,
-      check_in_method: "qr",
-      status: "present",
-    });
-    stepContext.recordId = record.id;
-    stepContext.recordStatus = record.status;
+    try {
+      const record = await recordAttendance({
+        student_id: user.userId,
+        attendance_date: today,
+        check_in_time: now,
+        check_in_method: "qr",
+        status: "present",
+      });
+      stepContext.recordId = record.id;
+      stepContext.recordStatus = record.status;
+    } catch (recordError) {
+      // 출석 기록 저장 에러 상세 정보 추가
+      stepContext.recordError = {
+        message: recordError instanceof Error ? recordError.message : String(recordError),
+        code: recordError && typeof recordError === "object" && "code" in recordError 
+          ? (recordError as { code: string }).code 
+          : undefined,
+        details: recordError && typeof recordError === "object" && "details" in recordError
+          ? (recordError as { details?: unknown }).details
+          : undefined,
+        hint: recordError && typeof recordError === "object" && "hint" in recordError
+          ? (recordError as { hint?: string }).hint
+          : undefined,
+      };
+      throw recordError;
+    }
 
     // Step 8: SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
     stepContext.step = "sms_notification";

@@ -64,6 +64,15 @@ export async function insertAttendanceRecord(
     .single<AttendanceRecord>();
 
   if (error) {
+    // 에러 상세 정보 로깅 추가
+    console.error("[attendance/repository] 출석 기록 생성 실패", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      tenantId,
+      input,
+    });
     throw error;
   }
 
@@ -108,6 +117,15 @@ export async function updateAttendanceRecord(
     .single<AttendanceRecord>();
 
   if (error) {
+    // 에러 상세 정보 로깅 추가
+    console.error("[attendance/repository] 출석 기록 수정 실패", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      recordId,
+      input,
+    });
     throw error;
   }
 
