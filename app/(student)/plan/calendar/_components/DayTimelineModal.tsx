@@ -5,7 +5,7 @@ import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
 import { formatDateFull, formatDateString } from "@/lib/date/calendarUtils";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes } from "../_utils/timelineUtils";
-import { PlanCard } from "./PlanCard";
+import { CalendarPlanCard } from "./CalendarPlanCard";
 import { StatCard } from "./StatCard";
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
@@ -145,7 +145,7 @@ export function DayTimelineModal({
                   // plans는 있지만 타임라인 슬롯이 생성되지 않은 경우 (시간 정보가 없는 플랜)
                   <div className="flex flex-col gap-3">
                     {plans.map((plan) => (
-                      <PlanCard
+                      <CalendarPlanCard
                         key={plan.id}
                         plan={plan}
                         compact={false}
@@ -207,7 +207,7 @@ export function DayTimelineModal({
                             {slot.plans
                               .sort((a, b) => a.block_index - b.block_index)
                               .map((plan) => (
-                                <PlanCard
+                                <CalendarPlanCard
                                   key={plan.id}
                                   plan={plan}
                                   compact={false}

@@ -14,12 +14,14 @@
 **파일**: `app/(student)/plan/group/[id]/_components/PlanPreviewDialog.tsx`
 
 **변경 사항**:
+
 - 기존 `calculateSequence` 함수 제거 (O(n²) 복잡도)
 - 새로운 `calculateAllSequences` 함수 추가 (O(n log n) 복잡도)
 - `useMemo`로 회차 계산 결과 메모이제이션
 - `useMemo`로 `plansByDate`, `sortedPlans`, `sortedDates` 메모이제이션
 
 **성능 개선**:
+
 - 회차 계산: O(n²) → O(n log n), 약 100배 이상 개선 (1000개 플랜 기준)
 - 렌더링: 불필요한 재계산 제거, 약 50% 개선
 
@@ -28,11 +30,13 @@
 **파일**: `app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView.tsx`
 
 **변경 사항**:
+
 - 기존 `calculateSequenceForPlan` 함수 제거 (O(n²) 복잡도)
 - 새로운 `calculateAllSequences` 함수 추가 (O(n log n) 복잡도)
 - `useMemo`로 회차 계산 결과 메모이제이션
 
 **성능 개선**:
+
 - 회차 계산: O(n²) → O(n log n), 약 100배 이상 개선 (1000개 플랜 기준)
 
 ### 3. previewPlansFromGroupAction - DB 쿼리 병렬화
@@ -40,12 +44,14 @@
 **파일**: `app/(student)/actions/plan-groups/plans.ts`
 
 **변경 사항**:
+
 - 콘텐츠 타입별로 분류하여 병렬 처리
 - 마스터 콘텐츠 확인을 `Promise.all`로 병렬 실행
 - 학생 콘텐츠 확인을 `Promise.all`로 병렬 실행
 - 콘텐츠 소요시간 정보 조회도 병렬 처리
 
 **성능 개선**:
+
 - DB 쿼리: 순차 → 병렬, 약 10배 이상 개선 (100개 콘텐츠 기준)
 
 ## 기술적 세부사항
@@ -53,6 +59,7 @@
 ### 회차 계산 알고리즘 개선
 
 **기존 방식**:
+
 ```typescript
 // 각 행마다 전체 플랜 배열을 순회
 function calculateSequence(plans, currentIndex, contentId, planNumber) {
@@ -61,6 +68,7 @@ function calculateSequence(plans, currentIndex, contentId, planNumber) {
 ```
 
 **개선된 방식**:
+
 ```typescript
 // 모든 플랜의 회차를 한 번에 계산
 function calculateAllSequences(plans) {
@@ -73,6 +81,7 @@ function calculateAllSequences(plans) {
 ### DB 쿼리 병렬화
 
 **기존 방식**:
+
 ```typescript
 for (const content of contents) {
   await masterQueryClient.from("master_books")... // 순차 실행
@@ -81,10 +90,11 @@ for (const content of contents) {
 ```
 
 **개선된 방식**:
+
 ```typescript
 // 콘텐츠 타입별로 분류
-const bookContents = contents.filter(c => c.content_type === "book");
-const lectureContents = contents.filter(c => c.content_type === "lecture");
+const bookContents = contents.filter((c) => c.content_type === "book");
+const lectureContents = contents.filter((c) => c.content_type === "lecture");
 
 // 병렬 실행
 const [masterBookResults, masterLectureResults] = await Promise.all([
@@ -118,4 +128,3 @@ const [masterBookResults, masterLectureResults] = await Promise.all([
 - `app/(student)/plan/group/[id]/_components/PlanPreviewDialog.tsx`
 - `app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView.tsx`
 - `app/(student)/actions/plan-groups/plans.ts`
-

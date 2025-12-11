@@ -3,7 +3,7 @@
 import type { PlanWithContent } from "../_types/plan";
 import type { AcademySchedule } from "@/lib/types/plan";
 import { getTimeSlotColorClass, getTimeSlotIcon } from "../_utils/timelineUtils";
-import { PlanCard } from "./PlanCard";
+import { CalendarPlanCard } from "./CalendarPlanCard";
 
 type TimelineSlot = {
   start: string;
@@ -94,7 +94,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
                   return (a.block_index || 0) - (b.block_index || 0);
                 })
                 .map((plan) => (
-                  <PlanCard
+                  <CalendarPlanCard
                     key={plan.id}
                     plan={plan}
                     compact={false}

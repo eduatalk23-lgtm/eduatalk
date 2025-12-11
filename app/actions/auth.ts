@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { saveUserSession } from "@/lib/auth/sessionManager";
+import { getDefaultTenant } from "@/lib/data/tenants";
 import { z } from "zod";
 
 const signInSchema = z.object({
@@ -35,7 +36,7 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
     password: validation.data.password,
   });
 
-  // 로그인 성공 시 세션 정보 저장
+  // 로그인 성공 시 세션 정보 저장 및 레코드 확인
   if (data?.session && data.user) {
     const expiresAt = data.session.expires_at
       ? new Date(data.session.expires_at * 1000)
@@ -48,6 +49,12 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
       expiresAt
     ).catch((err) => {
       console.error("[auth] 세션 저장 실패 (무시됨):", err);
+    });
+
+    // 첫 로그인 시 레코드 확인 및 생성 (완전한 인증 상태이므로 RLS 정책 정상 작동)
+    // 실패해도 로그인은 계속 진행
+    ensureUserRecord(data.user).catch((err) => {
+      console.error("[auth] 레코드 확인/생성 실패 (무시됨):", err);
     });
   }
 
@@ -111,6 +118,227 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
 // _signIn은 이제 객체를 반환할 수 있으므로 직접 export
 export const signIn = _signIn;
 
+/**
+ * 첫 로그인 시 사용자 레코드 확인 및 생성
+ * 이메일 인증 완료 후 첫 로그인 시점에 호출되며, 완전한 인증 상태이므로 RLS 정책이 정상 작동합니다.
+ */
+async function ensureUserRecord(
+  user: { id: string; user_metadata?: Record<string, any> | null }
+): Promise<void> {
+  try {
+    const signupRole = user.user_metadata?.signup_role as "student" | "parent" | null | undefined;
+    
+    // signup_role이 없으면 레코드 생성 시도하지 않음
+    if (!signupRole || (signupRole !== "student" && signupRole !== "parent")) {
+      return;
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const tenantId = user.user_metadata?.tenant_id as string | null | undefined;
+
+    if (signupRole === "student") {
+      // students 테이블에 레코드 존재 여부 확인
+      const { data: student, error: checkError } = await supabase
+        .from("students")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("[auth] 학생 레코드 확인 실패", {
+          userId: user.id,
+          error: checkError.message,
+          code: checkError.code,
+        });
+        return;
+      }
+
+      // 레코드가 없으면 생성 시도
+      if (!student) {
+        const result = await createStudentRecord(user.id, tenantId);
+        if (result.success) {
+          console.log("[auth] 첫 로그인 시 학생 레코드 생성 성공", {
+            userId: user.id,
+            tenantId: tenantId || "기본 tenant",
+          });
+        } else {
+          console.error("[auth] 첫 로그인 시 학생 레코드 생성 실패", {
+            userId: user.id,
+            error: result.error,
+          });
+        }
+      } else {
+        console.log("[auth] 학생 레코드가 이미 존재합니다.", { userId: user.id });
+      }
+    } else if (signupRole === "parent") {
+      // parent_users 테이블에 레코드 존재 여부 확인
+      const { data: parent, error: checkError } = await supabase
+        .from("parent_users")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error("[auth] 학부모 레코드 확인 실패", {
+          userId: user.id,
+          error: checkError.message,
+          code: checkError.code,
+        });
+        return;
+      }
+
+      // 레코드가 없으면 생성 시도
+      if (!parent) {
+        const result = await createParentRecord(user.id, tenantId);
+        if (result.success) {
+          console.log("[auth] 첫 로그인 시 학부모 레코드 생성 성공", {
+            userId: user.id,
+            tenantId: tenantId || "기본 tenant 또는 null",
+          });
+        } else {
+          console.error("[auth] 첫 로그인 시 학부모 레코드 생성 실패", {
+            userId: user.id,
+            error: result.error,
+          });
+        }
+      } else {
+        console.log("[auth] 학부모 레코드가 이미 존재합니다.", { userId: user.id });
+      }
+    }
+  } catch (error) {
+    // 레코드 생성 실패는 로그인 성공에 영향 없음
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[auth] ensureUserRecord 예외", {
+      userId: user.id,
+      error: errorMessage,
+    });
+  }
+}
+
+/**
+ * 회원가입 시 학생 레코드 생성
+ */
+async function createStudentRecord(
+  userId: string,
+  tenantId: string | null | undefined
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // tenant_id가 없으면 기본 tenant 조회
+    let finalTenantId = tenantId;
+    if (!finalTenantId) {
+      const defaultTenant = await getDefaultTenant();
+      if (!defaultTenant) {
+        console.error("[auth] Default Tenant가 존재하지 않습니다. 학생 레코드 생성 실패");
+        return {
+          success: false,
+          error: "기본 기관 정보가 설정되지 않았습니다.",
+        };
+      }
+      finalTenantId = defaultTenant.id;
+    }
+
+    // students 테이블에 최소 필드로 레코드 생성
+    const { error } = await supabase.from("students").insert({
+      id: userId,
+      tenant_id: finalTenantId,
+    });
+
+    if (error) {
+      // UNIQUE constraint violation (이미 존재하는 경우)는 성공으로 처리
+      if (error.code === "23505") {
+        console.log("[auth] 학생 레코드가 이미 존재합니다.", { userId });
+        return { success: true };
+      }
+
+      console.error("[auth] 학생 레코드 생성 실패", {
+        userId,
+        tenantId: finalTenantId,
+        error: error.message,
+        code: error.code,
+      });
+      return {
+        success: false,
+        error: error.message || "학생 레코드 생성에 실패했습니다.",
+      };
+    }
+
+    console.log("[auth] 학생 레코드 생성 성공", { userId, tenantId: finalTenantId });
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[auth] createStudentRecord 예외", {
+      userId,
+      error: errorMessage,
+    });
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 회원가입 시 학부모 레코드 생성
+ */
+async function createParentRecord(
+  userId: string,
+  tenantId: string | null | undefined
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // tenant_id가 없으면 기본 tenant 조회 (nullable이므로 선택사항)
+    let finalTenantId = tenantId;
+    if (!finalTenantId) {
+      const defaultTenant = await getDefaultTenant();
+      if (defaultTenant) {
+        finalTenantId = defaultTenant.id;
+      }
+      // defaultTenant가 없어도 parent_users는 nullable이므로 계속 진행
+    }
+
+    // parent_users 테이블에 최소 필드로 레코드 생성
+    const { error } = await supabase.from("parent_users").insert({
+      id: userId,
+      tenant_id: finalTenantId ?? null,
+    });
+
+    if (error) {
+      // UNIQUE constraint violation (이미 존재하는 경우)는 성공으로 처리
+      if (error.code === "23505") {
+        console.log("[auth] 학부모 레코드가 이미 존재합니다.", { userId });
+        return { success: true };
+      }
+
+      console.error("[auth] 학부모 레코드 생성 실패", {
+        userId,
+        tenantId: finalTenantId,
+        error: error.message,
+        code: error.code,
+      });
+      return {
+        success: false,
+        error: error.message || "학부모 레코드 생성에 실패했습니다.",
+      };
+    }
+
+    console.log("[auth] 학부모 레코드 생성 성공", { userId, tenantId: finalTenantId });
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[auth] createParentRecord 예외", {
+      userId,
+      error: errorMessage,
+    });
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
 const signUpSchema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다.").min(1, "이메일을 입력해주세요."),
   password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
@@ -138,7 +366,7 @@ export async function signUp(
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email: validation.data.email,
       password: validation.data.password,
       options: {
@@ -152,6 +380,26 @@ export async function signUp(
 
     if (error) {
       return { error: error.message || "회원가입에 실패했습니다." };
+    }
+
+    // 회원가입 성공 시 레코드 생성 시도
+    if (authData.user) {
+      const role = validation.data.role;
+      const tenantId = validation.data.tenantId || null;
+
+      if (role === "student") {
+        const result = await createStudentRecord(authData.user.id, tenantId);
+        if (!result.success) {
+          // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
+          console.error("[auth] 학생 레코드 생성 실패:", result.error);
+        }
+      } else if (role === "parent") {
+        const result = await createParentRecord(authData.user.id, tenantId);
+        if (!result.success) {
+          // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
+          console.error("[auth] 학부모 레코드 생성 실패:", result.error);
+        }
+      }
     }
 
     // 회원가입 성공 - 이메일 확인 안내와 함께 리다이렉트

@@ -20,7 +20,9 @@ import { updateCampTemplateAction } from "@/app/(admin)/actions/campTemplateActi
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { WizardValidator } from "@/lib/validation/wizardValidator";
 import { PlanValidator } from "@/lib/validation/planValidator";
-import { syncWizardDataToCreationData, validateDataConsistency } from "@/lib/utils/planGroupDataSync";
+import { validateDataConsistency } from "@/lib/utils/planGroupDataSync";
+import { useWizardValidation } from "./hooks/useWizardValidation";
+import { usePlanSubmission } from "./hooks/usePlanSubmission";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { Step1BasicInfo } from "./Step1BasicInfo";
 import { Step2TimeSettings } from "./Step2TimeSettings";
@@ -30,7 +32,7 @@ import { Step6FinalReview } from "./Step6FinalReview";
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./Step7ScheduleResult";
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type WizardData = {
   // Step 1
@@ -199,6 +201,12 @@ export type WizardData = {
     day_of_week?: number[]; // 0-6, 없으면 매일
     description?: string;
   }>;
+  // 템플릿 고정 필드 (템플릿 모드에서만 사용)
+  templateLockedFields?: any;
+  // 캠프 관련 필드 (Step 7에서 사용)
+  plan_type?: "individual" | "integrated" | "camp";
+  camp_template_id?: string | null;
+  camp_invitation_id?: string | null;
   // Step 4 - 필수 교과 설정 UI 표시 여부
   show_required_subjects_ui?: boolean;
   // Step 6 - 콘텐츠별 전략/취약 설정 (우선순위)
@@ -210,51 +218,6 @@ export type WizardData = {
   }>;
   // Step 6 - 전략/취약 설정 모드 ("subject" | "content")
   allocation_mode?: "subject" | "content";
-  // 템플릿 고정 필드 (템플릿 모드에서만 사용)
-  templateLockedFields?: {
-    // Step 1 고정 필드
-    step1?: {
-      name?: boolean;
-      plan_purpose?: boolean;
-      scheduler_type?: boolean;
-      period_start?: boolean;
-      period_end?: boolean;
-      block_set_id?: boolean;
-      student_level?: boolean;
-      subject_allocations?: boolean;
-      study_review_cycle?: boolean;
-      // 학생 입력 허용 필드
-      allow_student_name?: boolean;
-      allow_student_plan_purpose?: boolean;
-      allow_student_scheduler_type?: boolean;
-      allow_student_period?: boolean; // period_start, period_end 통합
-      allow_student_block_set_id?: boolean;
-      allow_student_student_level?: boolean;
-      allow_student_subject_allocations?: boolean;
-      allow_student_study_review_cycle?: boolean;
-      allow_student_additional_period_reallocation?: boolean;
-    };
-    // Step 2 고정 필드
-    step2?: {
-      exclusions?: boolean; // 전체 제외일 고정
-      exclusion_items?: string[]; // 특정 제외일 ID 배열 (exclusion_date 기준)
-      academy_schedules?: boolean; // 전체 학원 일정 고정
-      academy_schedule_items?: string[]; // 특정 학원 일정 ID 배열
-      time_settings?: boolean; // 전체 시간 설정 고정
-      time_settings_fields?: string[]; // 특정 시간 설정 필드 배열
-      // 신규 필드
-      non_study_time_blocks?: boolean; // 학습 시간 제외 항목 사용/미사용
-      allow_student_exclusions?: boolean; // 학생이 제외일 입력 가능 여부
-      allow_student_academy_schedules?: boolean; // 학생이 학원 일정 입력 가능 여부
-      allow_student_time_settings?: boolean; // 학생이 시간 설정 입력 가능 여부
-      allow_student_non_study_time_blocks?: boolean; // 학생이 학습 시간 제외 항목 입력 가능 여부
-    };
-    // Step 3 고정 필드
-    step3?: {
-      student_contents?: boolean; // 전체 학생 콘텐츠 고정
-      student_content_items?: string[]; // 특정 콘텐츠 ID 배열 (content_id 기준)
-    };
-  };
 };
 
 type PlanGroupWizardProps = {
@@ -390,9 +353,7 @@ export function PlanGroupWizard({
   const initialStep = (initialData as any)?._startStep 
     ? ((initialData as any)._startStep as WizardStep)
     : 1;
-  const [currentStep, setCurrentStep] = useState<WizardStep>(initialStep);
-  const [blockSets, setBlockSets] = useState(initialBlockSets);
-  // 하위 호환성: initialData에 contents가 있으면 student_contents로 변환
+
   const getInitialContents = () => {
     if (initialData?.student_contents || initialData?.recommended_contents) {
       return {
@@ -413,36 +374,81 @@ export function PlanGroupWizard({
     };
   };
 
-  const initialContentsData = useMemo(() => getInitialContents(), [initialData]);
-  const normalizedSchedulerType: WizardData["scheduler_type"] =
-    (initialData?.scheduler_type as string) === "자동스케줄러"
-      ? "1730_timetable"
-      : (initialData?.scheduler_type as WizardData["scheduler_type"]) || "1730_timetable";
+  const initialContentsState = useMemo(getInitialContents, [initialData]);
 
-  const [wizardData, setWizardData] = useState<WizardData>({
+  const [currentStep, setCurrentStep] = useState<WizardStep>(initialStep);
+  const [blockSets, setBlockSets] = useState(initialBlockSets);
+  
+  // WizardData 초기값 설정
+  const [wizardData, setWizardData] = useState<WizardData>(() => ({
     name: initialData?.name || "",
+    // plan_purpose 정규화 처리
     plan_purpose: denormalizePlanPurpose(initialData?.plan_purpose),
-    scheduler_type: normalizedSchedulerType,
+    scheduler_type: (initialData?.scheduler_type as any) || "1730_timetable",
     period_start: initialData?.period_start || "",
     period_end: initialData?.period_end || "",
+    target_date: initialData?.target_date || undefined,
     block_set_id: initialData?.block_set_id || "",
-    exclusions: initialData?.exclusions || [],
-    academy_schedules: initialData?.academy_schedules || [],
+    // scheduler_options 초기화
+    scheduler_options: {
+      ...(initialData?.scheduler_options || {}),
+      study_days:
+        (initialData?.scheduler_options as any)?.study_days ||
+        initialData?.study_review_cycle?.study_days ||
+        6,
+      review_days:
+        (initialData?.scheduler_options as any)?.review_days ||
+        initialData?.study_review_cycle?.review_days ||
+        1,
+      student_level:
+        initialData?.student_level ||
+        (initialData?.scheduler_options as any)?.student_level,
+    },
+    exclusions:
+      initialData?.exclusions?.map((e: any) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: e.exclusion_type,
+        reason: e.reason,
+        source: e.source,
+        is_locked: e.is_locked,
+      })) || [],
+    academy_schedules:
+      initialData?.academy_schedules?.map((s: any) => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name,
+        subject: s.subject,
+        travel_time: s.travel_time,
+        source: s.source,
+        is_locked: s.is_locked,
+      })) || [],
     time_settings: initialData?.time_settings,
-    student_contents: initialContentsData?.student_contents || [],
-    recommended_contents: initialContentsData?.recommended_contents || [],
-    target_date: initialData?.target_date,
-    scheduler_options: initialData?.scheduler_options,
+    student_contents: initialContentsState.student_contents,
+    recommended_contents: initialContentsState.recommended_contents,
     // 1730 Timetable 추가 필드
-    study_review_cycle: initialData?.study_review_cycle || (initialData?.scheduler_options?.study_days || initialData?.scheduler_options?.review_days ? {
-      study_days: initialData.scheduler_options.study_days || 6,
-      review_days: initialData.scheduler_options.review_days || 1,
-    } : undefined),
-    student_level: initialData?.student_level,
-    subject_allocations: initialData?.subject_allocations,
+    study_review_cycle: initialData?.study_review_cycle || {
+      study_days: (initialData?.scheduler_options as any)?.study_days || 6,
+      review_days: (initialData?.scheduler_options as any)?.review_days || 1,
+    },
+    student_level:
+      initialData?.student_level ||
+      (initialData?.scheduler_options as any)?.student_level,
+    subject_allocations:
+      initialData?.subject_allocations ||
+      (initialData?.scheduler_options as any)?.subject_allocations,
+    content_allocations: (initialData?.scheduler_options as any)
+      ?.content_allocations,
     subject_constraints: initialData?.subject_constraints,
-    additional_period_reallocation: initialData?.additional_period_reallocation,
+    additional_period_reallocation:
+      initialData?.additional_period_reallocation,
     non_study_time_blocks: initialData?.non_study_time_blocks,
+    // 일별 스케줄 정보
+    daily_schedule: initialData?.daily_schedule,
+    // 캠프 정보 (초기 데이터에서)
+    plan_type: initialData?.plan_type,
+    camp_template_id: initialData?.camp_template_id,
+    camp_invitation_id: initialData?.camp_invitation_id,
     templateLockedFields: initialData?.templateLockedFields || (isTemplateMode ? {
       step1: {
         allow_student_name: false,
@@ -462,13 +468,9 @@ export function PlanGroupWizard({
         allow_student_non_study_time_blocks: false,
       },
     } : undefined),
-  });
-  // 초기 검증 에러 (템플릿 데이터 검증 결과)
-  const initialValidationErrors = (initialData as any)?._validationErrors as string[] | undefined;
-  const [validationErrors, setValidationErrors] = useState<string[]>(initialValidationErrors || []);
-  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
-  const [isPending, startTransition] = useTransition();
-  const isSubmittingRef = useRef(false); // 중복 호출 방지용
+  }));
+
+  // State for Draft and Template
   const [draftGroupId, setDraftGroupId] = useState<string | null>(
     initialData?.groupId || null
   );
@@ -476,14 +478,52 @@ export function PlanGroupWizard({
   const templateProgramType = initialData?.templateProgramType || "기타";
   const templateStatus = initialData?.templateStatus || "draft";
 
-  // 디버깅: templateId 확인 (템플릿 모드일 때만, 새 템플릿 생성 시에는 정상)
-  // 새 템플릿 생성 시에는 templateId가 없을 수 있음 (정상)
-  // if (isTemplateMode && !templateId && process.env.NODE_ENV === "development") {
-  //   console.warn("[PlanGroupWizard] 템플릿 모드인데 templateId가 없습니다:", {
-  //     initialData,
-  //     templateId,
-  //   });
-  // }
+  // 디버깅: templateId 확인
+  // if (isTemplateMode && !templateId && process.env.NODE_ENV === "development") { ... }
+
+  // Validation Hook
+  const {
+    validationErrors,
+    validationWarnings,
+    setValidationErrors,
+    setValidationWarnings,
+    validateStep,
+    clearValidationState
+  } = useWizardValidation({
+    wizardData,
+    isTemplateMode
+  });
+
+  // Submission Hook
+  const { isSubmitting, executeSave, handleSubmit } = usePlanSubmission({
+      wizardData,
+      draftGroupId,
+      setDraftGroupId,
+      currentStep,
+      setCurrentStep,
+      setValidationErrors,
+      isCampMode,
+      campInvitationId,
+      initialData,
+      isAdminContinueMode,
+      isAdminMode: isAdminMode || false,
+      onSaveRequest,
+  });
+
+  // Alias for backward compatibility / readability
+  const handleSaveDraft = executeSave;
+  
+  // 초기 검증 에러 처리 (usePlanSubmission/validation 초기화와 충돌 방지 위해 hook 이후에 처리하거나 hook 내부로 이동 권장되지만, 우선 여기서 상태 동기화)
+  useEffect(() => {
+     if ((initialData as any)?._validationErrors) {
+         setValidationErrors((initialData as any)._validationErrors);
+     }
+  }, [initialData, setValidationErrors]);
+  
+  // Removed isPending/startTransition as usePlanSubmission handles loading state
+  // const [isPending, startTransition] = useTransition();
+  // const isSubmittingRef = useRef(false); 
+
   const [activationDialogOpen, setActivationDialogOpen] = useState(false);
   const [activeGroupNames, setActiveGroupNames] = useState<string[]>([]);
 
@@ -507,86 +547,7 @@ export function PlanGroupWizard({
     setValidationWarnings([]);
   };
 
-  const validateStep = (step: WizardStep): boolean => {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // 템플릿 모드에서 학생 입력 허용 필드 확인 헬퍼
-    const isStudentInputAllowed = (fieldName: string): boolean => {
-      if (!isTemplateMode) return false;
-      const lockedFields = wizardData.templateLockedFields?.step1 || {};
-      const allowFieldName = `allow_student_${fieldName}` as keyof typeof lockedFields;
-      return lockedFields[allowFieldName] === true;
-    };
-
-    if (step === 1) {
-      // 템플릿 모드가 아닐 때만 이름 검증 (템플릿 모드에서는 항상 필요)
-      if (!isTemplateMode) {
-        if (!wizardData.name || wizardData.name.trim() === "") {
-          errors.push("플랜 이름을 입력해주세요.");
-        }
-      }
-
-      // 플랜 목적: 학생 입력 허용이 아닐 때만 필수
-      if (!isStudentInputAllowed("plan_purpose")) {
-        if (!wizardData.plan_purpose) {
-          errors.push("플랜 목적을 선택해주세요.");
-        }
-      }
-
-      // 스케줄러 유형: 학생 입력 허용이 아닐 때만 필수
-      if (!isStudentInputAllowed("scheduler_type")) {
-        if (!wizardData.scheduler_type) {
-          errors.push("스케줄러 유형을 선택해주세요.");
-        }
-      }
-
-      // 학습 기간: 학생 입력 허용이 아닐 때만 필수
-      if (!isStudentInputAllowed("period")) {
-        if (!wizardData.period_start || !wizardData.period_end) {
-          errors.push("학습 기간을 설정해주세요.");
-        } else {
-          const periodValidation = PlanValidator.validatePeriod(
-            wizardData.period_start,
-            wizardData.period_end
-          );
-          errors.push(...periodValidation.errors);
-          warnings.push(...periodValidation.warnings);
-        }
-      }
-
-      // 블록 세트는 기본값 옵션이 추가되어 검증 제거
-
-      // 학생 수준 항목이 삭제되어 검증 제거
-    }
-
-    if (step === 2) {
-      // 제외일과 학원 일정은 선택사항이므로 검증 불필요
-    }
-
-    if (step === 3) {
-      // Step 3: 스케줄 미리보기 단계
-      // 스케줄 미리보기는 확인만 하는 단계이므로 검증 불필요
-    }
-
-    if (step === 4) {
-      // Step 4: 콘텐츠 선택 단계
-      // 템플릿 모드에서는 콘텐츠 선택 검증 건너뛰기 (필수 교과 설정만 진행)
-      if (!isTemplateMode) {
-        // 최소 1개 이상의 콘텐츠 필요
-        const totalContents =
-          wizardData.student_contents.length +
-          wizardData.recommended_contents.length;
-        if (totalContents === 0) {
-          errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
-        }
-      }
-    }
-
-    setValidationErrors(errors);
-    setValidationWarnings(warnings);
-    return errors.length === 0;
-  };
+  // validateStep Logic replaced by useWizardValidation hook
 
   const handleNext = () => {
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
@@ -670,529 +631,7 @@ export function PlanGroupWizard({
     }
   };
 
-  const handleSaveDraft = useCallback(
-    (silent = false) => {
-      const executeSave = async () => {
-        if (!wizardData.name || wizardData.name.trim() === "") {
-          if (!silent) {
-            setValidationErrors(["플랜 이름을 입력해주세요."]);
-          }
-          return;
-        }
 
-        if (isTemplateMode) {
-          if (!onTemplateSave) {
-            if (!silent) {
-              toast.showError("템플릿 저장에 실패했습니다.");
-            }
-            return;
-          }
-
-          const templateWizardData = {
-            ...wizardData,
-          } as WizardData;
-
-          try {
-            // 템플릿 저장은 항상 onTemplateSave를 통해 처리 (기본 정보 포함)
-            await onTemplateSave(templateWizardData);
-
-            if (!silent) {
-              toast.showSuccess("저장되었습니다.");
-            }
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : "템플릿 저장에 실패했습니다.";
-            if (!silent) {
-              toast.showError(errorMessage);
-            }
-          }
-          return;
-        }
-
-        if (
-          currentStep === 1 &&
-          (!wizardData.plan_purpose ||
-            !wizardData.scheduler_type ||
-            !wizardData.period_start ||
-            !wizardData.period_end)
-        ) {
-          return;
-        }
-
-        // 데이터 일관성 검증
-        const consistencyCheck = validateDataConsistency(wizardData);
-        if (!consistencyCheck.valid) {
-          throw new PlanGroupError(
-            consistencyCheck.errors.join(", "),
-            PlanGroupErrorCodes.DATA_INCONSISTENCY,
-            consistencyCheck.errors.join("\n"),
-            true
-          );
-        }
-
-        // 데이터 변환 (일관성 보장)
-        const creationData = syncWizardDataToCreationData(wizardData);
-
-        if (isCampMode) {
-          creationData.block_set_id = null;
-          if (campInvitationId) {
-            creationData.camp_invitation_id = campInvitationId;
-          }
-          if (initialData?.templateId) {
-            creationData.camp_template_id = initialData.templateId;
-          }
-          creationData.plan_type = "camp";
-        }
-
-        if (draftGroupId) {
-          await updatePlanGroupDraftAction(draftGroupId, creationData);
-          if (!silent) {
-            toast.showSuccess("저장되었습니다.");
-          }
-        } else {
-          const result = await savePlanGroupDraftAction(creationData);
-          if (result?.groupId) {
-            setDraftGroupId(result.groupId);
-            if (!silent) {
-              toast.showSuccess("저장되었습니다.");
-            }
-          } else {
-            throw new PlanGroupError(
-              "Draft 생성 결과가 없습니다.",
-              PlanGroupErrorCodes.DRAFT_SAVE_FAILED,
-              "임시 저장에 실패했습니다. 다시 시도해주세요.",
-              true
-            );
-          }
-        }
-      };
-
-      return new Promise<void>((resolve, reject) => {
-        startTransition(() => {
-          executeSave()
-            .then(resolve)
-            .catch((error) => {
-              const planGroupError = toPlanGroupError(
-                error,
-                PlanGroupErrorCodes.DRAFT_SAVE_FAILED
-              );
-              if (!silent) {
-                toast.showError(planGroupError.userMessage);
-                setValidationErrors([planGroupError.userMessage]);
-              }
-              if (!isRecoverableError(planGroupError)) {
-                console.error("[PlanGroupWizard] Draft 저장 실패:", planGroupError);
-              }
-              reject(error);
-            });
-        });
-      });
-    },
-    [
-      wizardData,
-      isTemplateMode,
-      onTemplateSave,
-      templateId,
-      templateProgramType,
-      templateStatus,
-      toast,
-      currentStep,
-      isCampMode,
-      campInvitationId,
-      initialData?.templateId,
-      draftGroupId,
-    ]
-  );
-
-  const handleSubmit = (generatePlans: boolean = true) => {
-    // 중복 호출 방지: 이미 실행 중이면 무시
-    if (isSubmittingRef.current || isPending) {
-      return;
-    }
-
-    // Step 6 검증 (학습 분량 관련만)
-    if (currentStep === 6) {
-      if (!validateStep(6)) {
-        return;
-      }
-    } else if (!isTemplateMode && !isCampMode) {
-      // 일반 모드에서 Step 6가 아닌 경우 (이전 버전 호환성)
-      if (!validateStep(6)) {
-        return;
-      }
-    }
-
-    isSubmittingRef.current = true;
-
-    startTransition(async () => {
-      try {
-        // 데이터 일관성 검증
-        const consistencyCheck = validateDataConsistency(wizardData);
-        if (!consistencyCheck.valid) {
-          throw new PlanGroupError(
-            consistencyCheck.errors.join(", "),
-            PlanGroupErrorCodes.DATA_INCONSISTENCY,
-            consistencyCheck.errors.join("\n"),
-            true
-          );
-        }
-
-        // 전체 검증 수행
-        // 템플릿 모드일 때는 Step 1, 2, 3만 검증 (Step 4, 6 제외)
-        // 캠프 모드일 때는 Step 1, 2, 3, 4만 검증 (Step 6 제외 - subject_allocations는 관리자 검토 후 설정)
-        let allValidation;
-        if (isTemplateMode) {
-          const step1 = WizardValidator.validateStep(1, wizardData);
-          const step2 = WizardValidator.validateStep(2, wizardData);
-          const step3 = WizardValidator.validateStep(2.5, wizardData); // Step 2.5는 스케줄 확인
-          allValidation = {
-            valid: step1.valid && step2.valid && step3.valid,
-            errors: [...step1.errors, ...step2.errors, ...step3.errors],
-            warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings],
-          };
-        } else if (isCampMode) {
-          // 캠프 모드: 현재 단계에 따라 검증
-          if (currentStep === 5) {
-            // Step 5: 추천 콘텐츠 및 제약 조건 검증
-            const step1 = WizardValidator.validateStep(1, wizardData);
-            const step2 = WizardValidator.validateStep(2, wizardData);
-            const step3 = WizardValidator.validateStep(2.5, wizardData);
-            const step4 = WizardValidator.validateStep(4, wizardData);
-            const step5 = WizardValidator.validateStep(5, wizardData);
-            allValidation = {
-              valid: step1.valid && step2.valid && step3.valid && step4.valid && step5.valid,
-              errors: [...step1.errors, ...step2.errors, ...step3.errors, ...step4.errors, ...step5.errors],
-              warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings, ...step4.warnings, ...step5.warnings],
-            };
-          } else if (currentStep === 6) {
-            // Step 6: 학습 분량 검증만
-            const step6 = WizardValidator.validateStep(6, wizardData);
-            allValidation = {
-              valid: step6.valid,
-              errors: step6.errors,
-              warnings: step6.warnings,
-            };
-          } else {
-            // 기타: Step 1, 2, 3, 4만 검증
-            const step1 = WizardValidator.validateStep(1, wizardData);
-            const step2 = WizardValidator.validateStep(2, wizardData);
-            const step3 = WizardValidator.validateStep(2.5, wizardData);
-            const step4 = WizardValidator.validateStep(4, wizardData);
-            allValidation = {
-              valid: step1.valid && step2.valid && step3.valid && step4.valid,
-              errors: [...step1.errors, ...step2.errors, ...step3.errors, ...step4.errors],
-              warnings: [...step1.warnings, ...step2.warnings, ...step3.warnings, ...step4.warnings],
-            };
-          }
-        } else {
-          allValidation = WizardValidator.validateAll(wizardData);
-        }
-        
-        if (!allValidation.valid) {
-          setValidationErrors(allValidation.errors);
-          setValidationWarnings(allValidation.warnings);
-          throw new PlanGroupError(
-            allValidation.errors.join(", "),
-            PlanGroupErrorCodes.VALIDATION_FAILED,
-            allValidation.errors.join("\n"),
-            true
-          );
-        }
-
-        // 템플릿 모드일 때는 onTemplateSave 호출 후 종료 (플랜 그룹 생성 건너뛰기)
-        if (isTemplateMode && onTemplateSave) {
-          // 템플릿 모드: template_block_sets는 별도 테이블이므로
-          // 템플릿 저장 시 block_set_id는 template_block_sets의 ID를 참조
-          // 하지만 템플릿 생성 시에는 templateId가 없어서 블록 세트를 생성할 수 없음
-          // 따라서 템플릿 저장 시 block_set_id가 없어도 저장 가능 (나중에 edit 페이지에서 생성)
-          const templateWizardData = {
-            ...wizardData,
-            // block_set_id는 template_block_sets의 ID이므로 그대로 저장
-            // 템플릿 생성 시에는 없을 수 있음 (정상)
-          } as WizardData;
-          
-          await onTemplateSave(templateWizardData);
-          toast.showSuccess("템플릿이 저장되었습니다.");
-          return;
-        }
-
-        // 캠프 모드일 때 제출 핸들러 변경
-        if (isCampMode) {
-          // 관리자 모드에서 남은 단계 진행 (isAdminContinueMode 또는 isAdminMode && isEditMode)
-          if (isAdminContinueMode || (isAdminMode && isEditMode && draftGroupId)) {
-            const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
-            
-            try {
-              const result = await continueCampStepsForAdmin(draftGroupId || (initialData?.groupId as string), wizardData, currentStep);
-
-              if (result.success) {
-                toast.showSuccess("저장되었습니다.");
-                // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동
-                if (currentStep === 4) {
-                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
-                  setCurrentStep(5);
-                  return;
-                }
-                // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동
-                if (currentStep === 5) {
-                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
-                  // URL에 step=6 파라미터 추가하여 페이지 리렌더링 시에도 Step 6 유지
-                  const templateId = initialData?.templateId;
-                  const groupId = draftGroupId || (initialData?.groupId as string);
-                  if (templateId && groupId) {
-                    // window.location.href로 확실한 페이지 이동 보장
-                    window.location.href = `/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=6`;
-                  } else {
-                    setCurrentStep(6);
-                  }
-                  return;
-                }
-                // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동 (플랜 생성은 Step 7에서)
-                if (currentStep === 6) {
-                  setDraftGroupId(draftGroupId || (initialData?.groupId as string));
-                  // URL에 step=7 파라미터 추가하여 페이지 리렌더링 시에도 Step 7 유지
-                  const templateId = initialData?.templateId;
-                  const groupId = draftGroupId || (initialData?.groupId as string);
-                  if (templateId && groupId) {
-                    // window.location.href로 확실한 페이지 이동 보장
-                    window.location.href = `/admin/camp-templates/${templateId}/participants/${groupId}/continue?step=7`;
-                  } else {
-                    setCurrentStep(7);
-                  }
-                  return;
-                }
-                // Step 7은 onComplete에서 처리 (플랜 생성 및 페이지 이동)
-              } else {
-                const errorMessage = result.error || "저장에 실패했습니다.";
-                setValidationErrors([errorMessage]);
-                toast.showError(errorMessage);
-              }
-            } catch (error) {
-              console.error("[PlanGroupWizard] 관리자 캠프 남은 단계 진행 실패:", error);
-              const errorMessage = error instanceof Error ? error.message : "저장에 실패했습니다.";
-              setValidationErrors([errorMessage]);
-              toast.showError(errorMessage);
-            }
-            return;
-          }
-
-          // 학생 모드에서 남은 단계 진행 (isEditMode && groupId가 있는 경우)
-          // updatePlanGroupDraftAction을 사용하여 플랜 그룹 업데이트
-          if (isEditMode && draftGroupId && !isAdminMode) {
-            const { updatePlanGroupDraftAction } = await import("@/app/(student)/actions/planGroupActions");
-            const { syncWizardDataToCreationData } = await import("@/lib/utils/planGroupDataSync");
-            
-            try {
-              // wizardData를 PlanGroupCreationData로 변환
-              const creationData = syncWizardDataToCreationData(wizardData);
-              
-              // 캠프 모드 관련 필드 설정
-              if (isCampMode) {
-                creationData.block_set_id = null;
-                if (campInvitationId) {
-                  creationData.camp_invitation_id = campInvitationId;
-                }
-                if (initialData?.templateId) {
-                  creationData.camp_template_id = initialData.templateId;
-                }
-                creationData.plan_type = "camp";
-              }
-              
-              await updatePlanGroupDraftAction(draftGroupId, creationData);
-              
-              toast.showSuccess("저장되었습니다.");
-              // Step 7에서 플랜 생성 후 상세 페이지로 이동
-              if (currentStep === 7) {
-                router.push(`/plan/group/${draftGroupId}`, { scroll: true });
-              }
-            } catch (error) {
-              console.error("[PlanGroupWizard] 캠프 남은 단계 진행 실패:", error);
-              const errorMessage = error instanceof Error ? error.message : "저장에 실패했습니다.";
-              setValidationErrors([errorMessage]);
-              toast.showError(errorMessage);
-            }
-            return;
-          }
-
-          // 캠프 참여 제출 (초기 참여 시 - 학생만)
-          if (campInvitationId && !isAdminMode) {
-            const { submitCampParticipation } = await import("@/app/(student)/actions/campActions");
-            
-            try {
-              const result = await submitCampParticipation(campInvitationId, wizardData);
-
-              if (result.success && result.groupId) {
-                toast.showSuccess("캠프 참여가 완료되었습니다.");
-                // 제출 완료 상세 페이지로 이동
-                const targetInvitationId = result.invitationId || campInvitationId;
-                const targetPath = targetInvitationId 
-                  ? `/camp/${targetInvitationId}/submitted`
-                  : `/plan/group/${result.groupId}`;
-                
-                // startTransition 내부에서 직접 라우팅 (Next.js router.push는 클라이언트 사이드 네비게이션)
-                router.push(targetPath, { scroll: true });
-              } else {
-                const errorMessage = result.error || "캠프 참여에 실패했습니다.";
-                const planGroupError = toPlanGroupError(
-                  new Error(errorMessage),
-                  PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
-                );
-                setValidationErrors([planGroupError.userMessage]);
-                toast.showError(planGroupError.userMessage);
-              }
-            } catch (error) {
-              // submitCampParticipation에서 에러가 발생한 경우
-              const errorMessage = error instanceof Error 
-                ? error.message 
-                : "캠프 참여 중 오류가 발생했습니다.";
-              const planGroupError = toPlanGroupError(
-                error instanceof Error ? error : new Error(errorMessage),
-                PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
-              );
-              setValidationErrors([planGroupError.userMessage]);
-              toast.showError(planGroupError.userMessage);
-            }
-            return;
-          }
-        }
-
-        // 데이터 변환 (일관성 보장)
-        const creationData = syncWizardDataToCreationData(wizardData);
-
-        // 데이터 검증 로그 추가
-        console.log("[PlanGroupWizard] 생성 데이터 검증:", {
-          name: creationData.name,
-          plan_purpose: creationData.plan_purpose,
-          scheduler_type: creationData.scheduler_type,
-          period_start: creationData.period_start,
-          period_end: creationData.period_end,
-          block_set_id: creationData.block_set_id,
-          contents_count: creationData.contents?.length || 0,
-          exclusions_count: creationData.exclusions?.length || 0,
-          academy_schedules_count: creationData.academy_schedules?.length || 0,
-          currentStep,
-          isCampMode,
-          isTemplateMode,
-        });
-
-        // 캠프 모드에서는 block_set_id가 template_block_sets 테이블의 ID이므로
-        // plan_groups.block_set_id (student_block_sets 참조)에 저장할 수 없음
-        // 따라서 null로 설정
-        if (isCampMode) {
-          creationData.block_set_id = null;
-          // 캠프 관련 필드 설정
-          if (campInvitationId) {
-            creationData.camp_invitation_id = campInvitationId;
-          }
-          if (initialData?.templateId) {
-            creationData.camp_template_id = initialData.templateId;
-          }
-          creationData.plan_type = "camp";
-        }
-
-        let finalGroupId: string;
-
-        // 이미 플랜 그룹이 생성되어 있으면 업데이트, 아니면 새로 생성
-        if (draftGroupId) {
-          // 기존 플랜 그룹 업데이트 (수정 모드 또는 이전 단계에서 생성된 경우)
-          await updatePlanGroupDraftAction(draftGroupId, creationData);
-          finalGroupId = draftGroupId;
-        } else {
-          // 새 플랜 그룹 생성
-          // 캠프 모드에서 Step 4에서 제출할 때는 콘텐츠 검증 건너뛰기 (콘텐츠가 없어도 제출 가능)
-          const skipContentValidation = isCampMode && currentStep === 4 && !isAdminContinueMode;
-          const result = await createPlanGroupAction(creationData, {
-            skipContentValidation,
-          });
-          if (!result?.groupId) {
-            throw new PlanGroupError(
-              "플랜 그룹 생성 결과가 없습니다.",
-              PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED,
-              "플랜 그룹 생성에 실패했습니다. 다시 시도해주세요.",
-              true
-            );
-          }
-          finalGroupId = result.groupId;
-        }
-
-        // 플랜 그룹 상태를 "saved"로 변경 (플랜 생성 전에 필요)
-        try {
-          await updatePlanGroupStatus(finalGroupId, "saved");
-        } catch (error) {
-          // 상태 변경 실패는 무시하고 계속 진행 (이미 saved 상태일 수 있음)
-          const planGroupError = toPlanGroupError(
-            error,
-            PlanGroupErrorCodes.PLAN_GROUP_UPDATE_FAILED
-          );
-          console.warn("[PlanGroupWizard] 플랜 그룹 상태 변경 실패:", planGroupError);
-        }
-
-        // Step 5에서 호출된 경우 데이터만 저장하고 Step 6으로 이동 (플랜 생성은 Step 6 → Step 7 전환 시)
-        if (currentStep === 5) {
-          setDraftGroupId(finalGroupId);
-          setCurrentStep(6);
-          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
-          return;
-        }
-
-        // Step 6에서 호출된 경우 데이터만 저장하고 Step 7로 이동
-        // 플랜 생성은 Step 7에서 처리
-        if (currentStep === 6) {
-          setDraftGroupId(finalGroupId);
-          setCurrentStep(7);
-          toast.showSuccess("저장되었습니다. 다음 단계에서 플랜을 생성합니다.");
-          return;
-        }
-
-        // Step 4에서 호출된 경우 데이터만 저장하고 Step 5로 이동
-        if (currentStep === 4 && !generatePlans) {
-          setDraftGroupId(finalGroupId);
-          setCurrentStep(5);
-          toast.showSuccess("저장되었습니다.");
-          return;
-        }
-      } catch (error) {
-        // 원본 에러 상세 로깅
-        console.error("[PlanGroupWizard] 원본 에러:", {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          errorType: error instanceof Error ? error.constructor.name : typeof error,
-          errorObject: error,
-        });
-
-        // AppError인 경우 추가 정보 로깅
-        if (error instanceof Error && "code" in error) {
-          console.error("[PlanGroupWizard] 에러 상세 정보:", {
-            code: (error as { code?: unknown }).code,
-            statusCode: (error as { statusCode?: unknown }).statusCode,
-            isUserFacing: (error as { isUserFacing?: unknown }).isUserFacing,
-            details: (error as { details?: unknown }).details,
-          });
-        }
-
-        const planGroupError = toPlanGroupError(
-          error,
-          PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED
-        );
-        setValidationErrors([planGroupError.userMessage]);
-        toast.showError(planGroupError.userMessage);
-        
-        // 복구 불가능한 에러인 경우 로깅
-        if (!isRecoverableError(planGroupError)) {
-          console.error("[PlanGroupWizard] 플랜 그룹 저장 실패:", {
-            planGroupError,
-            userMessage: planGroupError.userMessage,
-            code: planGroupError.code,
-            recoverable: planGroupError.recoverable,
-            context: planGroupError.context,
-          });
-        }
-      } finally {
-        // 실행 완료 후 플래그 해제
-        isSubmittingRef.current = false;
-      }
-    });
-  };
 
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
@@ -1263,7 +702,7 @@ export function PlanGroupWizard({
                   router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan", { scroll: true });
                 }
               }}
-              disabled={isPending}
+              disabled={isSubmitting}
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               취소
@@ -1271,10 +710,10 @@ export function PlanGroupWizard({
             <button
               type="button"
               onClick={() => handleSaveDraft(false)}
-              disabled={isPending || !wizardData.name}
+              disabled={isSubmitting || !wizardData.name}
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isPending ? "저장 중..." : "저장"}
+              {isSubmitting ? "저장 중..." : "저장"}
             </button>
           </div>
         </div>
@@ -1315,17 +754,15 @@ export function PlanGroupWizard({
             data={wizardData}
             onUpdate={updateWizardData}
             blockSets={blockSets}
-            isTemplateMode={isTemplateMode}
-            templateId={templateId}
-            isCampMode={isCampMode}
-            onBlockSetCreated={(newBlockSet) => {
-              setBlockSets([...blockSets, newBlockSet]);
-              // 새로 생성된 블록 세트를 자동으로 선택
+            onBlockSetCreated={(newBlockSet: any) => {
+              setBlockSets((prev) => [...prev, newBlockSet]);
+              // 새 블록셋 선택
               updateWizardData({ block_set_id: newBlockSet.id });
             }}
-            onBlockSetsLoaded={(latestBlockSets) => {
+            onBlockSetsLoaded={(latestBlockSets: any) => {
               setBlockSets(latestBlockSets);
             }}
+            isTemplateMode={isTemplateMode}
             editable={!isAdminContinueMode}
             campTemplateInfo={
               isCampMode
@@ -1523,7 +960,7 @@ export function PlanGroupWizard({
           <button
             type="button"
             onClick={handleBack}
-            disabled={currentStep === 1 || isPending}
+            disabled={currentStep === 1 || isSubmitting}
             className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             이전
@@ -1532,12 +969,12 @@ export function PlanGroupWizard({
         <button
           type="button"
           onClick={handleNext}
-          disabled={isPending || currentStep === 7}
+          disabled={isSubmitting || currentStep === 7}
           className={`items-center justify-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400 ${
             currentStep === 7 ? "hidden" : "inline-flex"
           }`}
         >
-          {isPending
+          {isSubmitting
             ? "저장 중..."
             : isLastStep
             ? "완료"

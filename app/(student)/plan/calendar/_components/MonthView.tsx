@@ -7,7 +7,7 @@ import { formatDateString, isToday } from "@/lib/date/calendarUtils";
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, timeToMinutes } from "../_utils/timelineUtils";
-import { PlanCard } from "./PlanCard";
+import { CalendarPlanCard } from "./CalendarPlanCard";
 import { DayTimelineModal } from "./DayTimelineModal";
 
 type MonthViewProps = {
@@ -290,7 +290,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                     const connectionState = getPlanConnectionState(dateStr, plan.id);
                     
                     items.push(
-                      <PlanCard
+                      <CalendarPlanCard
                         key={plan.id}
                         plan={plan}
                         compact={true}
@@ -318,7 +318,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                   const connectionState = getPlanConnectionState(dateStr, plan.id);
                   
                   items.push(
-                    <PlanCard
+                    <CalendarPlanCard
                       key={plan.id}
                       plan={plan}
                       compact={true}

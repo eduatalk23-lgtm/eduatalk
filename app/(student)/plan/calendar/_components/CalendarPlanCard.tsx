@@ -2,7 +2,7 @@
 
 import { Clock, Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
-import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
+import { getContentTypeIcon } from "../../_shared/utils";
 
 type PlanCardProps = {
   plan: PlanWithContent;
@@ -16,7 +16,18 @@ type PlanCardProps = {
   isMiddle?: boolean;
 };
 
-export function PlanCard({ 
+/**
+ * CalendarPlanCard - Calendar-specific plan card component
+ * 
+ * Specialized for displaying plans within calendar views (day, week, month).
+ * Includes features like:
+ * - Compact mode for timeline displays
+ * - Connection indicators for split plans
+ * - Time-based styling and progress display
+ * 
+ * For generic plan group cards, use _shared/PlanCard instead.
+ */
+export function CalendarPlanCard({ 
   plan, 
   compact = false, 
   showTime = true, 
@@ -26,7 +37,7 @@ export function PlanCard({
   isLast = false,
   isMiddle = false,
 }: PlanCardProps) {
-  const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type];
+  const contentTypeIcon = getContentTypeIcon(plan.content_type);
   const isCompleted = plan.progress != null && plan.progress >= 100;
   const isActive = plan.actual_start_time && !plan.actual_end_time;
   const progressPercentage = plan.progress != null ? Math.round(plan.progress) : null;

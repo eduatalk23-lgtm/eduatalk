@@ -1,12 +1,31 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
+import {
+  isRateLimitError,
+  retryWithBackoff,
+} from "@/lib/auth/rateLimitHandler";
 
-export type UserRole = "student" | "consultant" | "admin" | "parent" | "superadmin" | null;
+export type UserRole =
+  | "student"
+  | "consultant"
+  | "admin"
+  | "parent"
+  | "superadmin"
+  | null;
+
+/**
+ * 회원가입 시 선택한 역할 타입
+ */
+export type SignupRole = "student" | "parent";
 
 export type CurrentUserRole = {
   userId: string | null;
   role: UserRole;
   tenantId: string | null;
+  /**
+   * 회원가입 시 선택한 역할 (옵셔널)
+   * Phase 1 fallback 로직에서 사용됨
+   */
+  signupRole?: SignupRole;
 };
 
 /**
@@ -17,7 +36,7 @@ export type CurrentUserRole = {
 export async function getCurrentUserRole(): Promise<CurrentUserRole> {
   try {
     const supabase = await createSupabaseServerClient();
-    
+
     // Rate limit 에러 처리 및 재시도 (인증 요청이므로 더 긴 대기 시간)
     const {
       data: { user },
@@ -50,17 +69,16 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       // "Auth session missing", "Refresh Token" 관련 에러는 조용히 처리
       const errorMessage = authError.message?.toLowerCase() || "";
       const errorName = authError.name?.toLowerCase() || "";
-      const isSessionMissing = 
+      const isSessionMissing =
         errorMessage.includes("session") ||
         errorMessage.includes("refresh token") ||
         errorMessage.includes("refresh_token") ||
         errorName === "authsessionmissingerror" ||
-        errorName === "authapierror" && (
-          errorMessage.includes("refresh token not found") ||
-          errorMessage.includes("invalid refresh token") ||
-          errorMessage.includes("refresh token expired")
-        );
-      
+        (errorName === "authapierror" &&
+          (errorMessage.includes("refresh token not found") ||
+            errorMessage.includes("invalid refresh token") ||
+            errorMessage.includes("refresh token expired")));
+
       if (!isSessionMissing) {
         // 세션/토큰 관련이 아닌 다른 에러만 로깅
         const errorDetails = {
@@ -71,13 +89,23 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
         };
         console.error("[auth] getUser 실패", errorDetails);
       }
-      
+
       return { userId: null, role: null, tenantId: null };
     }
 
     if (!user) {
       return { userId: null, role: null, tenantId: null };
     }
+
+    // user_metadata에서 signup_role과 tenant_id 미리 추출 (재사용)
+    const signupRole = user.user_metadata?.signup_role as
+      | string
+      | null
+      | undefined;
+    const tenantIdFromMetadata = user.user_metadata?.tenant_id as
+      | string
+      | null
+      | undefined;
 
     // 1. admin_users 테이블에서 조회 (최우선)
     const selectAdmin = () =>
@@ -112,7 +140,7 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
         role: admin.role,
         tenant_id: (admin as { tenant_id?: string | null })?.tenant_id,
       });
-      
+
       // superadmin인 경우 tenant_id는 null이어야 함
       if (admin.role === "superadmin") {
         console.log("[getCurrentUserRole] superadmin으로 인식");
@@ -125,14 +153,21 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       console.log("[getCurrentUserRole] admin/consultant로 인식:", admin.role);
       return {
         userId: user.id,
-        role: admin.role === "admin" || admin.role === "consultant" ? admin.role : "admin",
+        role:
+          admin.role === "admin" || admin.role === "consultant"
+            ? admin.role
+            : "admin",
         tenantId: admin.tenant_id ?? null,
       };
     }
 
     // 2. parent_users 테이블에서 조회
     const selectParent = () =>
-      supabase.from("parent_users").select("id").eq("id", user.id).maybeSingle();
+      supabase
+        .from("parent_users")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
 
     let { data: parent, error: parentError } = await selectParent();
 
@@ -162,7 +197,11 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
 
     // 3. students 테이블에서 조회 (tenant_id 포함)
     const selectStudent = () =>
-      supabase.from("students").select("id,tenant_id").eq("id", user.id).maybeSingle();
+      supabase
+        .from("students")
+        .select("id,tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
 
     let { data: student, error: studentError } = await selectStudent();
 
@@ -190,17 +229,37 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
       };
     }
 
-    // 어떤 테이블에도 없으면 null 반환
-    console.warn("[auth] 사용자 역할을 찾을 수 없음", { 
+    // 모든 테이블 조회 실패 시 user_metadata의 signup_role 확인 (fallback)
+    if (!admin && !parent && !student) {
+      if (signupRole === "student" || signupRole === "parent") {
+        console.log("[auth] 테이블 레코드 없음, signup_role fallback 사용", {
+          userId: user.id,
+          signupRole,
+          tenantIdFromMetadata,
+        });
+        return {
+          userId: user.id,
+          role: signupRole as "student" | "parent",
+          tenantId: tenantIdFromMetadata ?? null,
+          signupRole: signupRole as SignupRole,
+        };
+      }
+    }
+
+    // 어떤 테이블에도 없고 signup_role도 없으면 null 반환
+    console.warn("[auth] 사용자 역할을 찾을 수 없음", {
       userId: user.id,
       email: user.email,
       adminFound: !!admin,
       parentFound: !!parent,
       studentFound: !!student,
-      studentError: studentError ? {
-        code: studentError.code,
-        message: studentError.message,
-      } : null,
+      signupRole,
+      studentError: studentError
+        ? {
+            code: studentError.code,
+            message: studentError.message,
+          }
+        : null,
     });
     return { userId: user.id, role: null, tenantId: null };
   } catch (error) {
@@ -214,4 +273,3 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
     return { userId: null, role: null, tenantId: null };
   }
 }
-

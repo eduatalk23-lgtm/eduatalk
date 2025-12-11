@@ -6,7 +6,7 @@
 export { ContentCard } from "./ContentCard";
 export { RangeSettingModal } from "./RangeSettingModal";
 export { ContentRangeInput } from "./ContentRangeInput";
-export { ProgressIndicator } from "./ProgressIndicator";
+export { ContentSelectionProgress } from "./ContentSelectionProgress";
 export { ContentSelector } from "./ContentSelector";
 export { StudentContentsPanel } from "./StudentContentsPanel";
 export { RecommendedContentsPanel } from "./RecommendedContentsPanel";

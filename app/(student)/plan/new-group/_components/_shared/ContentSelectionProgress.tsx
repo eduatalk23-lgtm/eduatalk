@@ -6,13 +6,16 @@ import { ProgressIndicatorProps } from "@/lib/types/content-selection";
 import { cn } from "@/lib/cn";
 
 /**
- * ProgressIndicator - 콘텐츠 선택 진행률 표시
+ * ContentSelectionProgress - 콘텐츠 선택 진행률 표시
  * 
+ * Content selection specific progress indicator with features:
  * - 전체 진행률 (X/9)
  * - 필수 과목 체크 (국/수/영)
- * - 경고 메시지
+ * - 경고 메시지 및 초과 경고
+ * 
+ * For simple progress bars, use _shared/ProgressIndicator instead.
  */
-export const ProgressIndicator = React.memo(function ProgressIndicator({
+export const ContentSelectionProgress = React.memo(function ContentSelectionProgress({
   current,
   max,
   requiredSubjects = [],

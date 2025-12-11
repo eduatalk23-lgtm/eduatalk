@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { cn } from "@/lib/cn";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { calculateProgressPercentage, getProgressColor } from "./utils";
 
 interface ProgressIndicatorProps {
   completedCount: number;
@@ -17,13 +18,9 @@ export const ProgressIndicator = memo(function ProgressIndicator({
   showPercentage = true,
   compact = false,
 }: ProgressIndicatorProps) {
-  const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const percentage = calculateProgressPercentage(completedCount, totalCount);
   
-  const getProgressColor = () => {
-    if (completedCount === totalCount && totalCount > 0) return "green";
-    if (completedCount > 0) return "blue";
-    return "orange";
-  };
+  const progressColor = getProgressColor(completedCount, totalCount);
 
   if (compact) {
     return (
@@ -32,7 +29,7 @@ export const ProgressIndicator = memo(function ProgressIndicator({
           <ProgressBar
             value={percentage}
             height="sm"
-            color={getProgressColor()}
+            color={progressColor}
           />
         </div>
         <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
@@ -56,7 +53,7 @@ export const ProgressIndicator = memo(function ProgressIndicator({
             <ProgressBar
               value={percentage}
               height="sm"
-              color={getProgressColor()}
+              color={progressColor}
             />
           </div>
           {showPercentage && (

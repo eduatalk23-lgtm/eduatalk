@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { WizardData } from "./PlanGroupWizard";
-import { ProgressIndicator } from "./_shared/ProgressIndicator";
+import { ContentSelectionProgress } from "./_shared/ContentSelectionProgress";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
 import {
   getCurriculumRevisionsAction,
@@ -502,7 +502,7 @@ export default function Step4RecommendedContents({
 
         {/* 콘텐츠 선택 진행률 */}
         <div className="mb-6">
-          <ProgressIndicator
+          <ContentSelectionProgress
             current={totalCount}
             max={9}
             requiredSubjects={progressRequiredSubjects}

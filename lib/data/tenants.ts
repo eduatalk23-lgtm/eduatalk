@@ -93,3 +93,41 @@ export async function updateTenant(
   return { success: true };
 }
 
+/**
+ * 기본 Tenant 조회
+ * 회원가입 시 tenant_id가 없을 경우 사용
+ */
+export async function getDefaultTenant(): Promise<{ id: string } | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data: defaultTenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("name", "Default Tenant")
+      .maybeSingle<{ id: string }>();
+
+    if (tenantError) {
+      // PGRST116은 레코드가 없는 경우이므로 null 반환
+      if (tenantError.code === "PGRST116") {
+        console.warn("[data/tenants] Default Tenant가 존재하지 않습니다.");
+        return null;
+      }
+      console.error("[data/tenants] Default Tenant 조회 실패", {
+        error: tenantError.message,
+        code: tenantError.code,
+      });
+      return null;
+    }
+
+    return defaultTenant ?? null;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[data/tenants] getDefaultTenant 실패", {
+      message: errorMessage,
+      error,
+    });
+    return null;
+  }
+}
+

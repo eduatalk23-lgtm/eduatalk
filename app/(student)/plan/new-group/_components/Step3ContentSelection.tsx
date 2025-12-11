@@ -10,7 +10,7 @@ import {
   StudentContentsPanel,
   RecommendedContentsPanel,
   MasterContentsPanel,
-  ProgressIndicator,
+  ContentSelectionProgress,
   UnifiedContentsView,
 } from "./_shared";
 import { BookOpen, Sparkles, Package } from "lucide-react";
@@ -868,7 +868,7 @@ export function Step3ContentSelection({
       )}
 
       {/* 진행률 표시 */}
-      <ProgressIndicator
+      <ContentSelectionProgress
         current={currentTotal}
         max={maxContents}
         requiredSubjects={requiredSubjects}

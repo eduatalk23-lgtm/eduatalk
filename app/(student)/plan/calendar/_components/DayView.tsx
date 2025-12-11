@@ -10,7 +10,7 @@ import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
 import { StatCard } from "./StatCard";
-import { PlanCard } from "./PlanCard";
+import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
 
 type PlanConnection = {
