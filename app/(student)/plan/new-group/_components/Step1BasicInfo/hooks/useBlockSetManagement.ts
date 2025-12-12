@@ -4,12 +4,13 @@ import {
   getBlockSets,
   updateBlockSet,
 } from "@/app/actions/blockSets";
-import { addBlock, deleteBlock } from "@/app/actions/blocks";
+import { addBlock, deleteBlock, addBlocksToMultipleDays } from "@/app/actions/blocks";
 import {
   createTenantBlockSet,
   getTenantBlockSets,
   updateTenantBlockSet,
   addTenantBlock,
+  addTenantBlocksToMultipleDays,
   deleteTenantBlock,
 } from "@/app/(admin)/actions/tenantBlockSets";
 import {
@@ -207,31 +208,59 @@ export function useBlockSetManagement({
             blockSetName = result.name;
           }
 
-          // 2. 시간 블록 추가 (공통 로직)
+          // 2. 시간 블록 추가 (일괄 처리로 최적화)
           if (addedBlocks.length > 0) {
-            for (const block of addedBlocks) {
-              const blockFormData = new FormData();
-              blockFormData.append("day", String(block.day));
-              blockFormData.append("start_time", block.startTime);
-              blockFormData.append("end_time", block.endTime);
-              blockFormData.append("block_set_id", blockSetId);
+            // 같은 시간대를 가진 블록들을 그룹화
+            const blocksByTime = addedBlocks.reduce((acc, block) => {
+              const timeKey = `${block.startTime}-${block.endTime}`;
+              if (!acc[timeKey]) {
+                acc[timeKey] = {
+                  startTime: block.startTime,
+                  endTime: block.endTime,
+                  days: [],
+                };
+              }
+              acc[timeKey].days.push(block.day);
+              return acc;
+            }, {} as Record<string, { startTime: string; endTime: string; days: number[] }>);
 
+            // 각 시간대별로 일괄 추가
+            for (const timeKey in blocksByTime) {
+              const { startTime, endTime, days } = blocksByTime[timeKey];
+              
               try {
                 if (isTemplateMode) {
-                  await addTenantBlock(blockFormData);
+                  const blockFormData = new FormData();
+                  blockFormData.append("target_days", days.join(","));
+                  blockFormData.append("start_time", startTime);
+                  blockFormData.append("end_time", endTime);
+                  blockFormData.append("block_set_id", blockSetId);
+                  await addTenantBlocksToMultipleDays(blockFormData);
                 } else {
-                  await addBlock(blockFormData);
+                  const blockFormData = new FormData();
+                  blockFormData.append("target_days", days.join(","));
+                  blockFormData.append("start_time", startTime);
+                  blockFormData.append("end_time", endTime);
+                  blockFormData.append("block_set_id", blockSetId);
+                  await addBlocksToMultipleDays(blockFormData);
                 }
-              } catch (error) {
-                const planGroupError = toPlanGroupError(
-                  error,
-                  PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                  { day: block.day }
-                );
-                console.error(
-                  `[Step1BasicInfo] 블록 추가 실패 (요일 ${block.day}):`,
-                  planGroupError
-                );
+              } catch (error: any) {
+                // INFO: 접두사가 있는 경우 부분 성공 메시지로 처리
+                if (error?.message?.startsWith("INFO:")) {
+                  console.log("[Step1BasicInfo] 블록 추가 부분 성공:", error.message);
+                  // 부분 성공은 계속 진행
+                } else {
+                  const planGroupError = toPlanGroupError(
+                    error,
+                    PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+                    { days: days.join(",") }
+                  );
+                  console.error(
+                    `[Step1BasicInfo] 블록 추가 실패 (요일 ${days.join(",")}):`,
+                    planGroupError
+                  );
+                  // 일부 실패해도 계속 진행 (부분 성공 허용)
+                }
               }
             }
           }
@@ -245,13 +274,13 @@ export function useBlockSetManagement({
 
           // 5. 폼 초기화 (상태 업데이트를 한 번에 처리)
           startTransition(() => {
-            setNewBlockSetName("");
-            setBlockSetMode("select");
-            setAddedBlocks([]);
-            setBlockStartTime("");
-            setBlockEndTime("");
-            setSelectedWeekdays([]);
-            setCurrentPage(1);
+          setNewBlockSetName("");
+          setBlockSetMode("select");
+          setAddedBlocks([]);
+          setBlockStartTime("");
+          setBlockEndTime("");
+          setSelectedWeekdays([]);
+          setCurrentPage(1);
           });
         } catch (error) {
           alert(
@@ -321,29 +350,39 @@ export function useBlockSetManagement({
     startTransition(() => {
       (async () => {
         try {
-          // 블록 추가 (템플릿/일반 모드 분기)
-          for (const day of selectedWeekdays) {
-            const blockFormData = new FormData();
-            blockFormData.append("day", String(day));
-            blockFormData.append("start_time", blockStartTime);
-            blockFormData.append("end_time", blockEndTime);
-            blockFormData.append("block_set_id", editingBlockSetId);
+          // 블록 일괄 추가 (템플릿/일반 모드 분기)
+          const blockFormData = new FormData();
+          blockFormData.append("target_days", selectedWeekdays.join(","));
+          blockFormData.append("start_time", blockStartTime);
+          blockFormData.append("end_time", blockEndTime);
+          blockFormData.append("block_set_id", editingBlockSetId);
 
-            try {
-              if (isTemplateMode) {
-                await addTenantBlock(blockFormData);
-              } else {
-                await addBlock(blockFormData);
-              }
-            } catch (error) {
+          try {
+            if (isTemplateMode) {
+              await addTenantBlocksToMultipleDays(blockFormData);
+            } else {
+              await addBlocksToMultipleDays(blockFormData);
+            }
+          } catch (error: any) {
+            // INFO: 접두사가 있는 경우 부분 성공 메시지로 처리
+            if (error?.message?.startsWith("INFO:")) {
+              console.log("[Step1BasicInfo] 블록 추가 부분 성공:", error.message);
+              // 부분 성공은 계속 진행
+            } else {
               const planGroupError = toPlanGroupError(
                 error,
                 PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                { day }
+                { days: selectedWeekdays.join(",") }
               );
               console.error(
-                `[Step1BasicInfo] 블록 추가 실패 (요일 ${day}):`,
+                `[Step1BasicInfo] 블록 추가 실패 (요일 ${selectedWeekdays.join(",")}):`,
                 planGroupError
+              );
+              // 에러가 발생해도 사용자에게 알림
+              alert(
+                error instanceof Error
+                  ? error.message
+                  : "블록 추가 중 오류가 발생했습니다."
               );
             }
           }
@@ -410,17 +449,17 @@ export function useBlockSetManagement({
             await updateTenantBlockSet(formData);
           } else {
             await updateBlockSet(formData);
-          }
+            }
 
           // 최신 블록 세트 목록 새로고침 (공통 함수 사용)
           const latestBlockSets = await refreshBlockSets();
 
           // 업데이트된 블록 세트 찾아서 선택 유지
-          const updatedSet = latestBlockSets.find(
-            (set) => set.id === editingBlockSetId
-          );
-          if (updatedSet) {
-            onUpdate({ block_set_id: updatedSet.id });
+            const updatedSet = latestBlockSets.find(
+              (set) => set.id === editingBlockSetId
+            );
+            if (updatedSet) {
+              onUpdate({ block_set_id: updatedSet.id });
           }
 
           setBlockSetMode("select");

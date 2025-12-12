@@ -360,6 +360,143 @@ async function _addTenantBlock(formData: FormData): Promise<void> {
 }
 
 /**
+ * 테넌트 블록 일괄 추가 (여러 요일에 동일 시간대 블록 추가)
+ */
+async function _addTenantBlocksToMultipleDays(formData: FormData): Promise<void> {
+  const { role } = await getCurrentUserRole();
+  if (role !== "admin" && role !== "consultant") {
+    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+  }
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    throw new AppError("기관 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+
+  const targetDays = formData.get("target_days"); // "1,2,3,4,5" 형식
+  const startTime = formData.get("start_time");
+  const endTime = formData.get("end_time");
+  const blockSetId = formData.get("block_set_id");
+
+  if (!targetDays || typeof targetDays !== "string") {
+    throw new AppError("대상 요일이 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  if (!startTime || typeof startTime !== "string") {
+    throw new AppError("시작 시간이 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  if (!endTime || typeof endTime !== "string") {
+    throw new AppError("종료 시간이 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  if (!blockSetId || typeof blockSetId !== "string") {
+    throw new AppError("블록 세트 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  const targetDayNums = targetDays
+    .split(",")
+    .map((d) => Number(d.trim()))
+    .filter((d) => !isNaN(d) && d >= 0 && d <= 6);
+
+  if (targetDayNums.length === 0) {
+    throw new AppError("추가할 요일을 최소 1개 이상 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 블록 세트 존재 및 권한 확인
+  const { data: blockSet } = await supabase
+    .from("tenant_block_sets")
+    .select("id")
+    .eq("id", blockSetId)
+    .eq("tenant_id", tenantContext.tenantId)
+    .single();
+
+  if (!blockSet) {
+    throw new AppError("블록 세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+
+  // 각 대상 요일로 블록 추가 (겹치는 블록은 스킵하고 나머지만 추가)
+  const insertPromises = targetDayNums.map(async (targetDay) => {
+    // 대상 요일의 기존 블록 조회
+    const { data: existingBlock } = await supabase
+      .from("tenant_blocks")
+      .select("id")
+      .eq("tenant_block_set_id", blockSetId)
+      .eq("day_of_week", targetDay)
+      .eq("start_time", startTime)
+      .eq("end_time", endTime)
+      .maybeSingle();
+
+    if (existingBlock) {
+      return { 
+        targetDay, 
+        skipped: true, 
+        reason: "이미 같은 시간 블록이 있습니다"
+      };
+    }
+
+    // 블록 삽입
+    const { error } = await supabase.from("tenant_blocks").insert({
+      tenant_block_set_id: blockSetId,
+      day_of_week: targetDay,
+      start_time: startTime,
+      end_time: endTime,
+    });
+
+    if (error) {
+      return { 
+        targetDay, 
+        skipped: true, 
+        reason: error.message || "블록 추가 중 오류가 발생했습니다"
+      };
+    }
+
+    return { 
+      targetDay, 
+      skipped: false
+    };
+  });
+
+  const results = await Promise.all(insertPromises);
+  const successResults = results.filter((r) => !r.skipped);
+  const skippedResults = results.filter((r) => r.skipped);
+
+  // 부분 성공도 허용하되, 상세한 피드백 제공
+  if (successResults.length === 0) {
+    // 모든 요일이 실패한 경우
+    const skippedDays = skippedResults.map((r) => ["일", "월", "화", "수", "목", "금", "토"][r.targetDay]).join(", ");
+    const reasons = skippedResults.map((r) => r.reason).filter(Boolean).join("; ");
+    throw new AppError(
+      `모든 요일(${skippedDays})로의 추가가 실패했습니다. ${reasons}`,
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  revalidatePath("/admin/time-management");
+
+  // 부분 성공인 경우 상세 정보 제공 (성공으로 처리하되 정보 메시지 전달)
+  if (skippedResults.length > 0) {
+    const successDays = successResults.map((r) => ["일", "월", "화", "수", "목", "금", "토"][r.targetDay]).join(", ");
+    const skippedDays = skippedResults.map((r) => ["일", "월", "화", "수", "목", "금", "토"][r.targetDay]).join(", ");
+    
+    // 부분 성공 정보를 포함한 정보성 메시지 (성공으로 처리)
+    const infoMessage = `${successDays}요일에 블록이 추가되었습니다. ${skippedDays}요일은 이미 같은 시간 블록이 있어 스킵되었습니다.`;
+    
+    // 정보 메시지를 포함한 에러로 전달 (클라이언트에서 성공 메시지로 표시)
+    throw new AppError(
+      `INFO: ${infoMessage}`,
+      ErrorCode.BUSINESS_LOGIC_ERROR,
+      200,
+      true
+    );
+  }
+}
+
+/**
  * 테넌트 블록 삭제
  */
 async function _deleteTenantBlock(formData: FormData): Promise<void> {
@@ -428,5 +565,6 @@ export const updateTenantBlockSet = withErrorHandling(_updateTenantBlockSet);
 export const deleteTenantBlockSet = withErrorHandling(_deleteTenantBlockSet);
 export const getTenantBlockSets = withErrorHandling(_getTenantBlockSets);
 export const addTenantBlock = withErrorHandling(_addTenantBlock);
+export const addTenantBlocksToMultipleDays = withErrorHandling(_addTenantBlocksToMultipleDays);
 export const deleteTenantBlock = withErrorHandling(_deleteTenantBlock);
 
