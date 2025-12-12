@@ -17,15 +17,28 @@ Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
 ```
 
 ### 원인
-JSX에서 동적 Tailwind 클래스명을 템플릿 리터럴로 사용하여 파싱 에러 발생:
+두 가지 문제가 있었습니다:
+
+1. **JSX에서 동적 Tailwind 클래스명을 템플릿 리터럴로 사용** (라인 145, 167)
+   - Tailwind CSS는 런타임에 계산된 값을 클래스명에 직접 사용할 수 없습니다.
+
+2. **닫는 태그 누락** (라인 97)
+   - `<div className="flex gap-1">` 태그가 닫히지 않아 파싱 에러 발생
 
 ```tsx
-// ❌ 잘못된 사용 (라인 145, 167)
+// ❌ 잘못된 사용
 className={`... top-[${(i / 24) * 100}%]`}
 className={`... top-[${blockStyle.top}] h-[${blockStyle.height}]`}
-```
 
-Tailwind CSS는 런타임에 계산된 값을 클래스명에 직접 사용할 수 없습니다.
+// ❌ 닫는 태그 누락
+<div className="flex gap-1">
+  {/* 시간 축 */}
+  <div>...</div>
+  {/* 요일별 타임라인 */}
+  <div>...</div>
+  </div> {/* 이 닫는 태그가 없었음 */}
+</div>
+```
 
 ## 해결 방법
 
@@ -40,6 +53,10 @@ Tailwind CSS는 런타임에 계산된 값을 클래스명에 직접 사용할 �
 2. **블록 위치 및 높이 수정** (라인 167)
    - 동적 Tailwind 클래스 `top-[${blockStyle.top}] h-[${blockStyle.height}]` 제거
    - 인라인 스타일 `style={{ top: blockStyle.top, height: blockStyle.height }}` 추가
+
+3. **닫는 태그 추가** (라인 196)
+   - 97번 라인의 `<div className="flex gap-1">` 태그를 닫는 `</div>` 추가
+   - JSX 구조가 올바르게 닫히도록 수정
 
 ### 수정 후 코드
 

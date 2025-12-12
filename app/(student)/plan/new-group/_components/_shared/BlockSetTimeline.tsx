@@ -193,6 +193,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
               );
             })}
           </div>
+          </div>
         </div>
 
         {/* 범례 */}
