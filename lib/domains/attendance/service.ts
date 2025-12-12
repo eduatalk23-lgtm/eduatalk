@@ -158,7 +158,8 @@ export async function deleteAttendanceRecord(
  * 입실/퇴실 시간 검증
  */
 export function validateAttendanceTimes(
-  record: AttendanceRecord | CreateAttendanceRecordInput | UpdateAttendanceRecordInput
+  record: AttendanceRecord | CreateAttendanceRecordInput | UpdateAttendanceRecordInput,
+  existingRecord?: AttendanceRecord | null
 ): ValidationResult {
   const errors: ValidationError[] = [];
   const now = new Date();
@@ -171,17 +172,25 @@ export function validateAttendanceTimes(
 
   // 1. check_out_time이 있으면 check_in_time도 있어야 함
   if (checkOutTime && !checkInTime) {
-    errors.push({
-      field: "check_out_time",
-      message: "퇴실 시간이 있으면 입실 시간도 필요합니다.",
-      code: "CHECK_OUT_WITHOUT_CHECK_IN",
-    });
+    // 기존 기록의 입실 시간 확인
+    const existingCheckInTime = existingRecord?.check_in_time;
+    if (!existingCheckInTime) {
+      errors.push({
+        field: "check_out_time",
+        message: "퇴실 시간이 있으면 입실 시간도 필요합니다.",
+        code: "CHECK_OUT_WITHOUT_CHECK_IN",
+      });
+    }
   }
 
   // 2. check_in_time과 check_out_time이 모두 있으면 시간 순서 검증
-  if (checkInTime && checkOutTime) {
-    const checkIn = new Date(checkInTime);
-    const checkOut = new Date(checkOutTime);
+  // 입력값에 없으면 기존 기록의 값을 사용
+  const finalCheckInTime = checkInTime ?? existingRecord?.check_in_time ?? null;
+  const finalCheckOutTime = checkOutTime ?? null;
+
+  if (finalCheckInTime && finalCheckOutTime) {
+    const checkIn = new Date(finalCheckInTime);
+    const checkOut = new Date(finalCheckOutTime);
 
     // check_in_time이 check_out_time보다 이전이어야 함
     if (checkIn >= checkOut) {
@@ -237,7 +246,8 @@ export function validateAttendanceTimes(
  * 입실/퇴실 방법 일관성 검증
  */
 export function validateAttendanceMethodConsistency(
-  record: AttendanceRecord | CreateAttendanceRecordInput | UpdateAttendanceRecordInput
+  record: AttendanceRecord | CreateAttendanceRecordInput | UpdateAttendanceRecordInput,
+  existingRecord?: AttendanceRecord | null
 ): ValidationResult {
   const errors: ValidationError[] = [];
 
@@ -249,15 +259,22 @@ export function validateAttendanceMethodConsistency(
 
   // check_out_method가 있으면 check_in_method도 있어야 함
   if (checkOutMethod && !checkInMethod) {
-    errors.push({
-      field: "check_out_method",
-      message: "퇴실 방법이 있으면 입실 방법도 필요합니다.",
-      code: "CHECK_OUT_METHOD_WITHOUT_CHECK_IN_METHOD",
-    });
+    // 기존 기록의 입실 방법 확인
+    const existingCheckInMethod = existingRecord?.check_in_method;
+    if (!existingCheckInMethod) {
+      errors.push({
+        field: "check_out_method",
+        message: "퇴실 방법이 있으면 입실 방법도 필요합니다.",
+        code: "CHECK_OUT_METHOD_WITHOUT_CHECK_IN_METHOD",
+      });
+    }
   }
 
+  // 입력값에 없으면 기존 기록의 값을 사용
+  const finalCheckInMethod = checkInMethod ?? existingRecord?.check_in_method ?? null;
+
   // QR 입실인 경우 퇴실도 QR이어야 함
-  if (checkInMethod === "qr" && checkOutMethod && checkOutMethod !== "qr") {
+  if (finalCheckInMethod === "qr" && checkOutMethod && checkOutMethod !== "qr") {
     errors.push({
       field: "check_out_method",
       message: "QR 코드로 입실한 경우 퇴실도 QR 코드로 해야 합니다.",
@@ -267,7 +284,7 @@ export function validateAttendanceMethodConsistency(
 
   // 위치 입실인 경우 퇴실은 위치 또는 수동 가능
   if (
-    checkInMethod === "location" &&
+    finalCheckInMethod === "location" &&
     checkOutMethod &&
     checkOutMethod !== "location" &&
     checkOutMethod !== "manual"
@@ -301,14 +318,21 @@ export function validateAttendanceMethodConsistency(
 export async function validateNoDuplicateAttendance(
   studentId: string,
   date: string,
+  input: CreateAttendanceRecordInput | UpdateAttendanceRecordInput,
   existingRecord?: AttendanceRecord | null
 ): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
 
   // 기존 기록이 있으면 중복 체크
   if (existingRecord) {
-    // 이미 입실 시간이 기록되어 있는지 확인
-    if (existingRecord.check_in_time) {
+    // 입력값에서 check_in_time과 check_out_time 추출
+    const inputCheckInTime =
+      "check_in_time" in input ? input.check_in_time : undefined;
+    const inputCheckOutTime =
+      "check_out_time" in input ? input.check_out_time : undefined;
+
+    // 입실 시간 업데이트 시에만 중복 체크 수행
+    if (inputCheckInTime !== undefined && existingRecord.check_in_time) {
       errors.push({
         field: "check_in_time",
         message: "이미 입실 기록이 있습니다.",
@@ -316,8 +340,8 @@ export async function validateNoDuplicateAttendance(
       });
     }
 
-    // 이미 퇴실 시간이 기록되어 있는지 확인
-    if (existingRecord.check_out_time) {
+    // 퇴실 시간 업데이트 시에만 중복 체크 수행
+    if (inputCheckOutTime !== undefined && existingRecord.check_out_time) {
       errors.push({
         field: "check_out_time",
         message: "이미 퇴실 기록이 있습니다.",
@@ -341,14 +365,14 @@ export async function validateAttendanceRecord(
 ): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
 
-  // 1. 시간 검증
-  const timeValidation = validateAttendanceTimes(input);
+  // 1. 시간 검증 (기존 기록 정보 전달)
+  const timeValidation = validateAttendanceTimes(input, existingRecord);
   if (!timeValidation.valid) {
     errors.push(...timeValidation.errors);
   }
 
-  // 2. 방법 일관성 검증
-  const methodValidation = validateAttendanceMethodConsistency(input);
+  // 2. 방법 일관성 검증 (기존 기록 정보 전달)
+  const methodValidation = validateAttendanceMethodConsistency(input, existingRecord);
   if (!methodValidation.valid) {
     errors.push(...methodValidation.errors);
   }
@@ -358,6 +382,7 @@ export async function validateAttendanceRecord(
     const duplicateValidation = await validateNoDuplicateAttendance(
       input.student_id,
       input.attendance_date,
+      input,
       existingRecord
     );
     if (!duplicateValidation.valid) {
