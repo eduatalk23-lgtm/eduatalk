@@ -7,7 +7,8 @@ import { getAuthErrorMessage } from "@/lib/auth/authErrorMessages";
  * Supabase 이메일 인증 콜백 라우트
  * 
  * 이메일 인증 링크를 클릭한 후 Supabase에서 리다이렉트되는 엔드포인트입니다.
- * 인증 코드를 세션으로 교환하고 사용자를 적절한 페이지로 리다이렉트합니다.
+ * Supabase SSR은 쿠키를 통해 자동으로 세션을 관리하므로,
+ * exchangeCodeForSession 대신 쿠키에서 세션을 확인합니다.
  */
 export async function GET(request: Request) {
   try {
@@ -34,12 +35,16 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/login?error=${errorMessage}`);
     }
 
-    // 인증 코드를 세션으로 교환
+    // Supabase SSR 클라이언트 생성 (쿠키 자동 관리)
+    // Supabase SSR은 이메일 인증 링크 클릭 시 쿠키에 세션을 자동 저장
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     
-    // 인증 성공
-    if (!error && data?.session) {
+    // exchangeCodeForSession 대신, 쿠키를 통해 세션 확인
+    // Supabase SSR은 쿠키에서 자동으로 세션을 읽어옵니다
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    // 인증 성공 (세션이 쿠키에 저장됨)
+    if (!error && user) {
       // 프로덕션 환경에서 로드 밸런서를 고려한 리다이렉트 처리
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
@@ -74,13 +79,12 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/login?error=${encodedMessage}`);
     }
 
-    // 예상치 못한 상황 (에러도 없고 세션도 없는 경우)
+    // 예상치 못한 상황 (에러도 없고 사용자도 없는 경우)
     logError(new Error("인증 처리 중 예상치 못한 상황 발생"), {
       route: "/auth/callback",
       url: request.url,
       searchParams: Object.fromEntries(searchParams),
-      hasData: !!data,
-      hasSession: !!data?.session,
+      hasUser: !!user,
       timestamp: new Date().toISOString(),
     });
 

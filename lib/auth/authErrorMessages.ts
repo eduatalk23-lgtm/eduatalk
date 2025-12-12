@@ -26,6 +26,21 @@ export function getAuthErrorMessage(error: AuthError | null | undefined): string
   const errorCode = error.code?.toLowerCase() || "";
   const errorStatus = error.status;
 
+  // PKCE 관련 오류 (가장 구체적인 에러를 먼저 체크)
+  const pkcePatterns = [
+    "code verifier",
+    "code_verifier",
+    "code verifier should be non-empty",
+    "both auth code and code verifier should be non-empty",
+    "validation_failed",
+  ];
+  if (
+    pkcePatterns.some((pattern) => errorMessage.includes(pattern)) ||
+    errorCode === "validation_failed"
+  ) {
+    return "인증 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  }
+
   // 만료된 코드
   const expiredPatterns = [
     "expired",
