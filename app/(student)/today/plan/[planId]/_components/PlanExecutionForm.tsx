@@ -244,8 +244,8 @@ export function PlanExecutionForm({
   if (isCompleting) {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-gradient-to-br from-indigo-50 to-white p-8 text-center shadow-md">
-          <div className="mb-4 flex justify-center">
+        <div className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-indigo-300 bg-gradient-to-br from-indigo-50 to-white p-8 text-center shadow-md">
+          <div className="flex justify-center">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
           </div>
           <p className="text-base font-bold text-indigo-900">학습 기록을 정리하고 있어요… 잠시만 기다려 주세요.</p>
@@ -264,9 +264,9 @@ export function PlanExecutionForm({
           </div>
         )}
 
-        <div className="rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-white p-5 shadow-md">
-          <div className="mb-4">
-            <div className="mb-2 flex items-center gap-2">
+        <div className="flex flex-col gap-4 rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-white p-5 shadow-md">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
               <StatusBadge status="RUNNING" size="md" />
               <h3 className="text-base font-bold text-yellow-900">현재 이 플랜의 타이머가 실행 중이에요</h3>
             </div>
@@ -291,11 +291,11 @@ export function PlanExecutionForm({
         </div>
 
         {/* 학습 기록 폼 (비활성화) - 타이머 정리 전까지 비활성화 */}
-        <div className="opacity-50">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">학습 기록</h2>
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+        <div className="flex flex-col gap-4 opacity-50">
+          <h2 className="text-lg font-semibold text-gray-900">학습 기록</h2>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="block text-sm font-semibold text-gray-700">
                 시작 {unitLabel}
               </label>
               <input
@@ -305,8 +305,8 @@ export function PlanExecutionForm({
                 className="w-full rounded-lg border-2 border-gray-300 bg-gray-100 px-4 py-3 text-base"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+            <div className="flex flex-col gap-1.5">
+              <label className="block text-sm font-semibold text-gray-700">
                 종료 {unitLabel}
               </label>
               <input
@@ -316,8 +316,8 @@ export function PlanExecutionForm({
                 className="w-full rounded-lg border-2 border-gray-300 bg-gray-100 px-4 py-3 text-base"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+            <div className="flex flex-col gap-1.5">
+              <label className="block text-sm font-semibold text-gray-700">
                 메모 (선택)
               </label>
               <textarea
@@ -328,7 +328,7 @@ export function PlanExecutionForm({
               />
             </div>
           </div>
-          <div className="mt-4">
+          <div>
             <button
               disabled
               className="w-full rounded-lg bg-gray-400 px-4 py-3 text-base font-semibold text-white"
@@ -351,14 +351,14 @@ export function PlanExecutionForm({
       )}
 
       {/* 학습 기록 폼 (Primary Action) - 시각적으로 가장 강조 */}
-      <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-lg">
-        <div className="mb-1 flex items-center gap-2">
+      <div className="flex flex-col gap-5 rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-lg">
+        <div className="flex items-center gap-2">
           <h2 className="text-xl font-bold text-gray-900">학습 기록</h2>
           <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
             필수
           </span>
         </div>
-        <div className="mb-5 space-y-2">
+        <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-gray-900">
             {mode === "camp" 
               ? "이 캠프 세션에서 실제로 학습한 범위를 입력해 주세요."
@@ -370,9 +370,9 @@ export function PlanExecutionForm({
               : "입력한 내용은 오늘의 학습 기록으로 저장되며 나중에 다시 확인할 수 있습니다."}
           </p>
         </div>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="block text-sm font-semibold text-gray-700">
               시작 {unitLabel} <span className="text-red-500">*</span>
             </label>
             <input
@@ -392,11 +392,11 @@ export function PlanExecutionForm({
               placeholder="시작 값을 입력하세요"
             />
             {errors.startPageOrTime && (
-              <p className="mt-1.5 text-sm font-medium text-red-600">{errors.startPageOrTime}</p>
+              <p className="text-sm font-medium text-red-600">{errors.startPageOrTime}</p>
             )}
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+          <div className="flex flex-col gap-1.5">
+            <label className="block text-sm font-semibold text-gray-700">
               종료 {unitLabel} <span className="text-red-500">*</span>
             </label>
             <input
@@ -416,16 +416,16 @@ export function PlanExecutionForm({
               placeholder="종료 값을 입력하세요"
             />
             {errors.endPageOrTime && (
-              <p className="mt-1.5 text-sm font-medium text-red-600">{errors.endPageOrTime}</p>
+              <p className="text-sm font-medium text-red-600">{errors.endPageOrTime}</p>
             )}
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               {mode === "camp" 
                 ? "해당 블록에서 실제로 완료한 학습 범위를 입력하세요. 시작 값은 0 이상이어야 하며, 종료 값은 시작 값 이상이어야 합니다. 다른 블록의 상태는 변경되지 않습니다."
                 : "플랜에서 실제로 학습한 시작·종료 범위를 입력하세요. 시작 값은 0 이상이어야 하며, 종료 값은 시작 값 이상이어야 합니다."}
             </p>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+          <div className="flex flex-col gap-1.5">
+            <label className="block text-sm font-semibold text-gray-700">
               메모 {mode === "camp" ? "(선택 입력)" : "(선택)"}
             </label>
             <textarea
@@ -442,11 +442,11 @@ export function PlanExecutionForm({
       </div>
 
       {/* 상태 A 안내 메시지 */}
-      <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+      <div className="flex flex-col gap-1 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
         <p className="text-sm font-medium text-indigo-900">
           이 플랜의 학습이 종료되었습니다.
         </p>
-        <p className="mt-1 text-xs text-indigo-700">
+        <p className="text-xs text-indigo-700">
           이제 실제로 학습한 범위를 입력하고 완료를 확정해 주세요.
         </p>
       </div>
@@ -470,12 +470,11 @@ export function PlanExecutionForm({
       </div>
 
       {/* 타이머 · 일정 제어 (Secondary) - 덜 눈에 띄게 표시 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 shadow-sm">
-        <div className="flex flex-col gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">타이머 · 일정 제어</h2>
-            <p className="mt-1 text-xs text-gray-500">타이머를 다시 실행하거나 일정 조정이 필요할 때 사용하세요.</p>
-          </div>
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold text-gray-700">타이머 · 일정 제어</h2>
+          <p className="text-xs text-gray-500">타이머를 다시 실행하거나 일정 조정이 필요할 때 사용하세요.</p>
+        </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               onClick={handleStart}
@@ -499,11 +498,10 @@ export function PlanExecutionForm({
 
       {/* 연결된 학습 블록 (Secondary) - 덜 눈에 띄게 표시 */}
       {relatedPlans.length > 1 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4 shadow-sm">
-          <div className="flex flex-col gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700">연결된 학습 블록</h3>
-              <p className="mt-1 text-xs text-gray-500">
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-4 shadow-sm">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-gray-700">연결된 학습 블록</h3>
+            <p className="text-xs text-gray-500">
                 {mode === "camp" 
                   ? "이 캠프 내에서 이어지는 학습 블록들이에요. 현재 블록만 완료되며, 다른 블록의 상태는 변경되지 않습니다."
                   : "같은 플랜 번호로 묶인 블록들이에요. 이 페이지에서 완료 처리되는 것은 현재 블록만이며, 다른 블록의 상태는 변경되지 않습니다."}

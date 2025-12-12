@@ -122,17 +122,18 @@ export default async function PlanExecutionPage({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
-      <Link
-        href={backLinkHref}
-        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-gray-900"
-      >
-        <span>←</span>
-        <span>{backLinkText}</span>
-      </Link>
+      <div className="flex flex-col gap-6">
+        <Link
+          href={backLinkHref}
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+        >
+          <span>←</span>
+          <span>{backLinkText}</span>
+        </Link>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="mb-8">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold text-blue-700">
               {contentTypeLabels[plan.content_type]}
             </span>
@@ -141,14 +142,14 @@ export default async function PlanExecutionPage({
                 챕터: {plan.chapter}
               </span>
             )}
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{content.title}</h1>
+            {content.subject && (
+              <p className="text-sm font-medium text-gray-600">과목: {content.subject}</p>
+            )}
           </div>
-          <h1 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">{content.title}</h1>
-          {content.subject && (
-            <p className="text-sm font-medium text-gray-600">과목: {content.subject}</p>
-          )}
-        </div>
 
-        <div className="mb-6 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-5">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-gray-600">예상 범위</span>
             <span className="font-bold text-gray-900">
@@ -166,11 +167,11 @@ export default async function PlanExecutionPage({
               </span>
             </div>
           )}
-        </div>
+          </div>
 
-        {hasCompletedTimer && formattedActualStart && formattedActualEnd && formattedPureStudyTime && (
-          <div className="mb-6 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-md">
-            <h2 className="mb-4 text-base font-bold text-emerald-900">학습 완료 기록</h2>
+          {hasCompletedTimer && formattedActualStart && formattedActualEnd && formattedPureStudyTime && (
+            <div className="flex flex-col gap-4 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-md">
+              <h2 className="text-base font-bold text-emerald-900">학습 완료 기록</h2>
             <div className="grid gap-3 text-sm text-emerald-950 sm:grid-cols-3">
               <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
                 <span className="text-xs font-medium text-emerald-600">시작 시간</span>
@@ -186,7 +187,9 @@ export default async function PlanExecutionPage({
               </div>
             </div>
           </div>
-        )}
+          )}
+        </div>
+      </div>
 
         <PlanExecutionForm
           mode={mode}

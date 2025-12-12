@@ -270,10 +270,10 @@ export function PlanTimerCard({
 
   if (!allowTimerControl && timerStatus === "NOT_STARTED") {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-3">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-1">
           <h3 className="font-semibold text-gray-900">{planTitle}</h3>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             이 블록은 같은 플랜 번호의 대표 타이머 카드에서 제어됩니다.
           </p>
         </div>
@@ -288,10 +288,10 @@ export function PlanTimerCard({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="mb-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-1">
         <h3 className="font-semibold text-gray-900">{planTitle}</h3>
-        <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
           <span className="text-xs">
             {contentType === "book" ? "📚" : contentType === "lecture" ? "🎧" : "📝"}
           </span>
@@ -304,7 +304,7 @@ export function PlanTimerCard({
       </div>
 
       {showTimer && (
-        <div className="mb-3">
+        <div className="flex flex-col gap-2">
           <TimerDisplay
             seconds={seconds}
             status={timerStatus}
@@ -313,7 +313,7 @@ export function PlanTimerCard({
             compact={true}
           />
           {pauseCount != null && pauseCount > 0 && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="text-xs text-gray-500">
               일시정지: {pauseCount}회
               {pausedDurationSeconds != null && pausedDurationSeconds > 0 && (
                 <span> ({formatTime(pausedDurationSeconds)})</span>
@@ -324,9 +324,9 @@ export function PlanTimerCard({
       )}
 
       {showCompletionMeta && (
-        <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
+        <div className="flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
           <div className="font-semibold text-indigo-950">학습 완료 기록</div>
-          <dl className="mt-2 grid grid-cols-[92px,1fr] gap-1">
+          <dl className="grid grid-cols-[92px,1fr] gap-1">
             <dt className="text-indigo-700">시작 시간</dt>
             <dd className="text-right font-medium">{formattedStartTime}</dd>
             <dt className="text-indigo-700">종료 시간</dt>
@@ -351,7 +351,7 @@ export function PlanTimerCard({
       {isCompleted && (
         <button
           onClick={() => router.push(buildPlanExecutionUrl(planId, campMode))}
-          className="mt-2 w-full rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
+          className="w-full rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
         >
           상세보기
         </button>

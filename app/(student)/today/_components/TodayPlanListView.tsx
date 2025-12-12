@@ -48,8 +48,8 @@ export function TodayPlanListView({
   };
 
   return (
-    <div className="mb-6">
-      <div className="mb-4 flex items-center justify-end">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-end">
         <ViewModeSelector mode={viewMode} onChange={handleModeChange} />
       </div>
 

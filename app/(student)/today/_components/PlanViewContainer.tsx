@@ -308,7 +308,7 @@ export function PlanViewContainer({
 
   if (loading && groups.length === 0) {
     return (
-      <div className="mb-6 flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8">
         <div className="text-gray-500">로딩 중...</div>
       </div>
     );

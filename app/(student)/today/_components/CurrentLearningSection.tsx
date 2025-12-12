@@ -27,7 +27,7 @@ export async function CurrentLearningSection({ campMode = false }: CurrentLearni
     }
 
     return (
-      <div className="mb-6">
+      <div>
         <ActiveLearningWidget activePlan={activePlan} campMode={campMode} />
       </div>
     );

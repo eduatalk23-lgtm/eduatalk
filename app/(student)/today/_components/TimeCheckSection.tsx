@@ -67,14 +67,14 @@ export function TimeCheckSection({
   const isPausedState = Boolean(isPaused);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
         <Clock className="h-4 w-4" />
         시간 정보
       </h3>
 
       {/* 시작/종료 시간 및 시간 이벤트 */}
-      <div className="mb-4 space-y-2 border-b border-gray-100 pb-4">
+      <div className="flex flex-col gap-2 space-y-2 border-b border-gray-100 pb-4">
         {/* Optimistic 타임스탬프 또는 실제 타임스탬프 표시 */}
         {/* 시작 시간 */}
         {(optimisticTimestamps.start || timeStats.firstStartTime) && (
@@ -172,14 +172,14 @@ export function TimeCheckSection({
 
       {/* 완료 상태 표시 */}
       {timeStats.isCompleted && (
-        <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-green-50 p-3">
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-green-50 p-3">
           <CheckCircle className="h-5 w-5 text-green-600" />
           <span className="text-sm font-semibold text-green-900">학습 완료</span>
         </div>
       )}
 
       {/* 타이머 컨트롤 버튼 - 서버 상태만 사용 */}
-      <div className="mt-6">
+      <div>
         <TimerControlButtons
           planId={planId}
           isActive={isActive}
@@ -197,7 +197,7 @@ export function TimeCheckSection({
 
       {/* 타이머 초기화 버튼 */}
       {(timeStats.firstStartTime || timeStats.lastEndTime || timeStats.totalDuration > 0) && onReset && (
-        <div className="mt-4 border-t border-gray-200 pt-4">
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4">
           <button
             onClick={async () => {
               if (onReset) {
