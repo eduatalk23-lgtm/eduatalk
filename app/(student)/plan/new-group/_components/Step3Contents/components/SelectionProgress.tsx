@@ -18,13 +18,13 @@ export function SelectionProgress({
   remainingSlots,
 }: SelectionProgressProps) {
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold text-gray-900">
             학습 대상 콘텐츠
           </h2>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="text-sm text-gray-600">
             플랜에 포함할 교재와 강의를 선택하고 학습 범위를 지정해주세요. (최대
             9개)
           </p>
@@ -42,7 +42,7 @@ export function SelectionProgress({
         </div>
       </div>
       {/* 진행 바 */}
-      <div className="mt-4">
+      <div>
         <ProgressBar
           value={(totalCount / 9) * 100}
           color="indigo"
@@ -50,7 +50,7 @@ export function SelectionProgress({
         />
       </div>
       {!canAddMore && !isCampMode && (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-sm text-amber-800">
             ⚠️ 최대 9개의 콘텐츠를 모두 선택하셨습니다. 추천 콘텐츠는 받을 수
             없습니다.
@@ -58,14 +58,14 @@ export function SelectionProgress({
         </div>
       )}
       {!canAddMore && isCampMode && (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-sm text-amber-800">
             ⚠️ 최대 9개의 콘텐츠를 모두 선택하셨습니다.
           </p>
         </div>
       )}
       {canAddMore && totalCount > 0 && (
-        <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
           <p className="text-sm text-blue-800">
             💡 {remainingSlots}개의 콘텐츠를 더 선택할 수 있습니다.{" "}
             {!isCampMode &&

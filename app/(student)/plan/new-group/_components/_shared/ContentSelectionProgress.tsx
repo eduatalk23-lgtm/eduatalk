@@ -37,7 +37,7 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
     requiredSubjects.some((subj) => !subj.selected);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6">
       {/* 진행률 헤더 */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">
@@ -69,14 +69,14 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
       </div>
 
       {/* 진행률 바 */}
-      <div className="mt-4">
+      <div className="flex flex-col gap-2">
         <ProgressBar
           value={Math.min(percentage, 100)}
           variant={isOverLimit ? "error" : isComplete ? "success" : undefined}
           color={isOverLimit ? undefined : isComplete ? undefined : "blue"}
           size="sm"
         />
-        <div className="mt-2 flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">
             {current === 0
               ? "콘텐츠를 선택해주세요"
@@ -92,7 +92,7 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
 
       {/* 필수 과목 체크 (캠프 모드에서만 표시) */}
       {hasRequiredSubjects && (
-        <div className="mt-4 rounded-lg bg-gray-50 p-4">
+        <div className="flex flex-col gap-2 rounded-lg bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">
               필수 과목
@@ -101,7 +101,7 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
               <CheckCircle className="h-4 w-4 text-green-500" />
             )}
           </div>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {requiredSubjects.map((subj) => (
               <div
                 key={subj.subject}
@@ -126,7 +126,7 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
 
       {/* 경고 메시지 */}
       {showWarning && warningMessage && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
+        <div className="flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
           <p className="text-sm text-yellow-800">{warningMessage}</p>
         </div>
@@ -134,7 +134,7 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
 
       {/* 초과 경고 */}
       {isOverLimit && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 p-3">
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600" />
           <p className="text-sm text-red-800">
             최대 {max}개까지만 선택할 수 있습니다. {current - max}개를
@@ -145,11 +145,11 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
 
       {/* 필수 과목 미선택 경고 (캠프 모드에서만 표시) */}
       {hasRequiredSubjects && someRequiredMissing && current >= max && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
+        <div className="flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
-          <div className="text-sm text-yellow-800">
+          <div className="flex flex-col gap-1 text-sm text-yellow-800">
             <p className="font-medium">필수 과목을 모두 선택해주세요</p>
-            <p className="mt-1">
+            <p>
               {requiredSubjects
                 .filter((s) => !s.selected)
                 .map((s) => s.subject)
