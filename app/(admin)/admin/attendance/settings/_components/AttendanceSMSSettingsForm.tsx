@@ -7,6 +7,7 @@ import {
 } from "@/app/(admin)/actions/attendanceSettingsActions";
 import Button from "@/components/atoms/Button";
 import Label from "@/components/atoms/Label";
+import ToggleSwitch from "@/components/atoms/ToggleSwitch";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { Badge } from "@/components/atoms/Badge";
 import { AlertTriangle } from "lucide-react";
@@ -88,6 +89,8 @@ export function AttendanceSMSSettingsForm() {
       if (result.success) {
         setSuccess(true);
         setError(null);
+        // 저장 성공 후 설정 다시 로드
+        await loadSettings();
         setTimeout(() => setSuccess(false), 3000);
       } else {
         // 서버에서 반환된 에러 메시지 표시
@@ -151,21 +154,16 @@ export function AttendanceSMSSettingsForm() {
                   </span>
                 </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="check_in_enabled"
-                  checked={formData.attendance_sms_check_in_enabled}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attendance_sms_check_in_enabled: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              <ToggleSwitch
+                id="check_in_enabled"
+                checked={formData.attendance_sms_check_in_enabled}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    attendance_sms_check_in_enabled: checked,
+                  })
+                }
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -181,21 +179,16 @@ export function AttendanceSMSSettingsForm() {
                   </span>
                 </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="check_out_enabled"
-                  checked={formData.attendance_sms_check_out_enabled}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attendance_sms_check_out_enabled: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              <ToggleSwitch
+                id="check_out_enabled"
+                checked={formData.attendance_sms_check_out_enabled}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    attendance_sms_check_out_enabled: checked,
+                  })
+                }
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -205,21 +198,16 @@ export function AttendanceSMSSettingsForm() {
                   학생이 결석할 때 학부모에게 SMS를 발송합니다.
                 </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="absent_enabled"
-                  checked={formData.attendance_sms_absent_enabled}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attendance_sms_absent_enabled: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              <ToggleSwitch
+                id="absent_enabled"
+                checked={formData.attendance_sms_absent_enabled}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    attendance_sms_absent_enabled: checked,
+                  })
+                }
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -229,21 +217,16 @@ export function AttendanceSMSSettingsForm() {
                   학생이 지각할 때 학부모에게 SMS를 발송합니다.
                 </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="late_enabled"
-                  checked={formData.attendance_sms_late_enabled}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attendance_sms_late_enabled: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              <ToggleSwitch
+                id="late_enabled"
+                checked={formData.attendance_sms_late_enabled}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    attendance_sms_late_enabled: checked,
+                  })
+                }
+              />
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
@@ -273,21 +256,16 @@ export function AttendanceSMSSettingsForm() {
                   </div>
                 )}
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="student_checkin_enabled"
-                  checked={formData.attendance_sms_student_checkin_enabled}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attendance_sms_student_checkin_enabled: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              <ToggleSwitch
+                id="student_checkin_enabled"
+                checked={formData.attendance_sms_student_checkin_enabled}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    attendance_sms_student_checkin_enabled: checked,
+                  })
+                }
+              />
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
@@ -303,21 +281,16 @@ export function AttendanceSMSSettingsForm() {
                   </span>
                 </p>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="show_failure_to_user"
-                  checked={formData.attendance_sms_show_failure_to_user}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      attendance_sms_show_failure_to_user: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              <ToggleSwitch
+                id="show_failure_to_user"
+                checked={formData.attendance_sms_show_failure_to_user}
+                onCheckedChange={(checked) =>
+                  setFormData({
+                    ...formData,
+                    attendance_sms_show_failure_to_user: checked,
+                  })
+                }
+              />
             </div>
 
             <div className="pt-4 border-t">

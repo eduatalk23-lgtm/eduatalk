@@ -37,3 +37,7 @@ export type { SkeletonProps } from "./Skeleton";
 export { ProgressBar, default as ProgressBarDefault } from "./ProgressBar";
 export type { ProgressBarProps, ProgressBarVariant, ProgressBarSize } from "./ProgressBar";
 
+// ToggleSwitch
+export { default as ToggleSwitch } from "./ToggleSwitch";
+export type { ToggleSwitchProps } from "./ToggleSwitch";
+

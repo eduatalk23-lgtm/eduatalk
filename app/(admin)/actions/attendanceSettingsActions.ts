@@ -2,6 +2,7 @@
 
 import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { revalidatePath } from "next/cache";
 import {
@@ -11,6 +12,7 @@ import {
   getUserFacingMessage,
   logError,
 } from "@/lib/errors";
+import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
 import type { AttendanceSMSSettings } from "@/lib/types/attendance";
 
 export type LocationSettingsInput = {
@@ -356,7 +358,16 @@ export async function updateAttendanceSMSSettings(
       );
     }
 
-    const supabase = await createSupabaseServerClient();
+    // Admin 클라이언트 사용 (RLS 정책 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
 
     // 업데이트할 데이터 준비
     const updateData = {
@@ -377,6 +388,7 @@ export async function updateAttendanceSMSSettings(
       tenantId: tenantContext.tenantId,
       inputData: input,
       updateData,
+      usingAdminClient: true,
     });
 
     // SMS 설정 업데이트
@@ -384,17 +396,33 @@ export async function updateAttendanceSMSSettings(
       .from("tenants")
       .update(updateData)
       .eq("id", tenantContext.tenantId)
-      .select();
+      .select(
+        "attendance_sms_check_in_enabled, attendance_sms_check_out_enabled, attendance_sms_absent_enabled, attendance_sms_late_enabled, attendance_sms_student_checkin_enabled, attendance_sms_recipient, attendance_sms_show_failure_to_user"
+      );
 
+    // 에러 처리
     if (error) {
       console.error("[attendanceSettings] SMS 설정 업데이트 실패:", {
         error,
         errorCode: error.code,
         errorMessage: error.message,
         errorDetails: error.details,
+        errorHint: error.hint,
         tenantId: tenantContext.tenantId,
         updateData,
+        isRLSPolicyViolation: error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION,
       });
+
+      // RLS 정책 위반 에러 명시적 처리
+      if (error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION) {
+        throw new AppError(
+          "권한이 없습니다. 관리자 권한으로 다시 시도해주세요.",
+          ErrorCode.FORBIDDEN,
+          403,
+          true
+        );
+      }
+
       throw new AppError(
         error.message || "SMS 설정 업데이트에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -403,7 +431,78 @@ export async function updateAttendanceSMSSettings(
       );
     }
 
-    // 저장 성공 여부 확인 (재조회하여 검증)
+    // update().select() 결과 확인
+    if (!data || data.length === 0) {
+      console.error("[attendanceSettings] 업데이트된 행이 없습니다:", {
+        tenantId: tenantContext.tenantId,
+        updateData,
+        errorCode: error?.code,
+        errorMessage: error?.message,
+      });
+      throw new AppError(
+        "SMS 설정 업데이트에 실패했습니다. 업데이트된 행이 없습니다. RLS 정책 문제일 수 있습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    const updatedRow = data[0];
+    console.log("[attendanceSettings] 업데이트 직후 결과 확인:", {
+      tenantId: tenantContext.tenantId,
+      updatedRow,
+      requested: updateData,
+      immediateMatch: {
+        checkIn: updatedRow.attendance_sms_check_in_enabled === input.attendance_sms_check_in_enabled,
+        checkOut: updatedRow.attendance_sms_check_out_enabled === input.attendance_sms_check_out_enabled,
+        absent: updatedRow.attendance_sms_absent_enabled === input.attendance_sms_absent_enabled,
+        late: updatedRow.attendance_sms_late_enabled === input.attendance_sms_late_enabled,
+        studentCheckIn: updatedRow.attendance_sms_student_checkin_enabled === input.attendance_sms_student_checkin_enabled,
+        recipient: updatedRow.attendance_sms_recipient === input.attendance_sms_recipient,
+        showFailure: updatedRow.attendance_sms_show_failure_to_user === (input.attendance_sms_show_failure_to_user ?? false),
+      },
+    });
+
+    // 업데이트 직후 값 불일치 확인
+    const mismatches: string[] = [];
+    if (updatedRow.attendance_sms_check_in_enabled !== input.attendance_sms_check_in_enabled) {
+      mismatches.push(`입실 알림: 요청=${input.attendance_sms_check_in_enabled}, 저장=${updatedRow.attendance_sms_check_in_enabled}`);
+    }
+    if (updatedRow.attendance_sms_check_out_enabled !== input.attendance_sms_check_out_enabled) {
+      mismatches.push(`퇴실 알림: 요청=${input.attendance_sms_check_out_enabled}, 저장=${updatedRow.attendance_sms_check_out_enabled}`);
+    }
+    if (updatedRow.attendance_sms_absent_enabled !== input.attendance_sms_absent_enabled) {
+      mismatches.push(`결석 알림: 요청=${input.attendance_sms_absent_enabled}, 저장=${updatedRow.attendance_sms_absent_enabled}`);
+    }
+    if (updatedRow.attendance_sms_late_enabled !== input.attendance_sms_late_enabled) {
+      mismatches.push(`지각 알림: 요청=${input.attendance_sms_late_enabled}, 저장=${updatedRow.attendance_sms_late_enabled}`);
+    }
+    if (updatedRow.attendance_sms_student_checkin_enabled !== input.attendance_sms_student_checkin_enabled) {
+      mismatches.push(`학생 직접 체크인: 요청=${input.attendance_sms_student_checkin_enabled}, 저장=${updatedRow.attendance_sms_student_checkin_enabled}`);
+    }
+    if (updatedRow.attendance_sms_recipient !== input.attendance_sms_recipient) {
+      mismatches.push(`SMS 수신자: 요청=${input.attendance_sms_recipient}, 저장=${updatedRow.attendance_sms_recipient}`);
+    }
+    if (updatedRow.attendance_sms_show_failure_to_user !== (input.attendance_sms_show_failure_to_user ?? false)) {
+      mismatches.push(`SMS 발송 실패 알림: 요청=${input.attendance_sms_show_failure_to_user ?? false}, 저장=${updatedRow.attendance_sms_show_failure_to_user}`);
+    }
+
+    if (mismatches.length > 0) {
+      console.error("[attendanceSettings] 업데이트 직후 값 불일치 감지:", {
+        tenantId: tenantContext.tenantId,
+        mismatches,
+        updatedRow,
+        requested: updateData,
+      });
+      throw new AppError(
+        `SMS 설정 저장 중 오류가 발생했습니다. 일부 설정이 올바르게 저장되지 않았습니다: ${mismatches.join(", ")}`,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 추가 검증: 재조회하여 최종 확인 (이중 검증)
     const { data: verifyData, error: verifyError } = await supabase
       .from("tenants")
       .select(
@@ -413,30 +512,58 @@ export async function updateAttendanceSMSSettings(
       .single();
 
     if (verifyError) {
-      console.error("[attendanceSettings] SMS 설정 검증 실패:", {
+      console.error("[attendanceSettings] SMS 설정 재검증 실패:", {
         error: verifyError,
         errorCode: verifyError.code,
         errorMessage: verifyError.message,
         tenantId: tenantContext.tenantId,
       });
-      // 검증 실패해도 업데이트는 성공했을 수 있으므로 경고만 로깅
+      // 재검증 실패는 경고만 로깅 (이미 업데이트는 성공했을 수 있음)
     } else if (verifyData) {
+      // 최종 검증: 재조회한 값과 요청한 값 비교
+      const finalMismatches: string[] = [];
+      if (verifyData.attendance_sms_recipient !== input.attendance_sms_recipient) {
+        finalMismatches.push(`SMS 수신자: 요청=${input.attendance_sms_recipient}, 저장=${verifyData.attendance_sms_recipient}`);
+      }
+      if (verifyData.attendance_sms_student_checkin_enabled !== input.attendance_sms_student_checkin_enabled) {
+        finalMismatches.push(`학생 직접 체크인: 요청=${input.attendance_sms_student_checkin_enabled}, 저장=${verifyData.attendance_sms_student_checkin_enabled}`);
+      }
+      if (verifyData.attendance_sms_check_in_enabled !== input.attendance_sms_check_in_enabled) {
+        finalMismatches.push(`입실 알림: 요청=${input.attendance_sms_check_in_enabled}, 저장=${verifyData.attendance_sms_check_in_enabled}`);
+      }
+      if (verifyData.attendance_sms_check_out_enabled !== input.attendance_sms_check_out_enabled) {
+        finalMismatches.push(`퇴실 알림: 요청=${input.attendance_sms_check_out_enabled}, 저장=${verifyData.attendance_sms_check_out_enabled}`);
+      }
+      if (verifyData.attendance_sms_absent_enabled !== input.attendance_sms_absent_enabled) {
+        finalMismatches.push(`결석 알림: 요청=${input.attendance_sms_absent_enabled}, 저장=${verifyData.attendance_sms_absent_enabled}`);
+      }
+      if (verifyData.attendance_sms_late_enabled !== input.attendance_sms_late_enabled) {
+        finalMismatches.push(`지각 알림: 요청=${input.attendance_sms_late_enabled}, 저장=${verifyData.attendance_sms_late_enabled}`);
+      }
+      if (verifyData.attendance_sms_show_failure_to_user !== (input.attendance_sms_show_failure_to_user ?? false)) {
+        finalMismatches.push(`SMS 발송 실패 알림: 요청=${input.attendance_sms_show_failure_to_user ?? false}, 저장=${verifyData.attendance_sms_show_failure_to_user}`);
+      }
+
+      if (finalMismatches.length > 0) {
+        console.error("[attendanceSettings] 재검증 시 값 불일치 감지:", {
+          tenantId: tenantContext.tenantId,
+          mismatches: finalMismatches,
+          verifyData,
+          requested: input,
+        });
+        throw new AppError(
+          `SMS 설정 저장 후 검증 중 오류가 발생했습니다. 일부 설정이 올바르게 저장되지 않았습니다: ${finalMismatches.join(", ")}`,
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+
       console.log("[attendanceSettings] SMS 설정 업데이트 성공 및 검증 완료:", {
         tenantId: tenantContext.tenantId,
         savedData: verifyData,
-        // 중요 필드 비교 로그
-        recipientMatch: verifyData.attendance_sms_recipient === input.attendance_sms_recipient,
-        checkInMatch: verifyData.attendance_sms_check_in_enabled === input.attendance_sms_check_in_enabled,
-        checkOutMatch: verifyData.attendance_sms_check_out_enabled === input.attendance_sms_check_out_enabled,
+        allFieldsMatch: true,
       });
-      
-      // 저장된 값이 요청한 값과 일치하는지 확인
-      if (verifyData.attendance_sms_recipient !== input.attendance_sms_recipient) {
-        console.warn("[attendanceSettings] SMS 수신자 값 불일치:", {
-          requested: input.attendance_sms_recipient,
-          saved: verifyData.attendance_sms_recipient,
-        });
-      }
     }
 
     revalidatePath("/admin/attendance/settings");
