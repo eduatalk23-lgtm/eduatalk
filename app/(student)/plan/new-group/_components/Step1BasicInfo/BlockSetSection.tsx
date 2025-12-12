@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { HelpCircle, RefreshCw, Plus, Pencil } from "lucide-react";
 import { CollapsibleSection } from "../_summary/CollapsibleSection";
 import { BlockSetTimeline } from "../_shared/BlockSetTimeline";
@@ -78,6 +79,18 @@ export function BlockSetSection({
     setAddedBlocks,
   } = management;
 
+  // 중복된 ID를 가진 블록 세트 제거 (첫 번째 항목만 유지)
+  const uniqueBlockSets = useMemo(() => {
+    const seen = new Set<string>();
+    return blockSets.filter((set) => {
+      if (seen.has(set.id)) {
+        return false;
+      }
+      seen.add(set.id);
+      return true;
+    });
+  }, [blockSets]);
+
   return (
     <>
       <CollapsibleSection
@@ -144,8 +157,8 @@ export function BlockSetSection({
         <div>
           {(() => {
             const selectedSet =
-              data.block_set_id && blockSets
-                ? blockSets.find((set) => set.id === data.block_set_id)
+              data.block_set_id && uniqueBlockSets
+                ? uniqueBlockSets.find((set) => set.id === data.block_set_id)
                 : null;
             const rawBlocks = selectedSet?.blocks ?? [];
             const blocks = rawBlocks.map((block, index) => ({
@@ -167,25 +180,25 @@ export function BlockSetSection({
                 : ""
             }`}
           >
-            {blockSets.length > 0 ? (
+            {uniqueBlockSets.length > 0 ? (
               <>
                 {(() => {
                   const startIndex = (currentPage - 1) * itemsPerPage;
                   const endIndex = startIndex + itemsPerPage;
-                  const paginatedBlockSets = blockSets.slice(
+                  const paginatedBlockSets = uniqueBlockSets.slice(
                     startIndex,
                     endIndex
                   );
-                  const totalPages = Math.ceil(blockSets.length / itemsPerPage);
+                  const totalPages = Math.ceil(uniqueBlockSets.length / itemsPerPage);
 
                   return (
                     <>
-                      {paginatedBlockSets.map((set) => {
+                      {paginatedBlockSets.map((set, index) => {
                         const blockCount = set.blocks?.length ?? 0;
                         const isSelected = data.block_set_id === set.id;
                         return (
                           <div
-                            key={set.id}
+                            key={`${set.id}-${startIndex + index}`}
                             className={`flex items-center justify-between rounded-lg border px-3 py-2 transition-colors ${
                               isSelected
                                 ? "border-gray-900 bg-gray-50"
@@ -474,7 +487,7 @@ export function BlockSetSection({
                     isPending ||
                     !editingBlockSetName.trim() ||
                     editingBlockSetName ===
-                      blockSets?.find((s) => s.id === editingBlockSetId)?.name
+                      uniqueBlockSets?.find((s) => s.id === editingBlockSetId)?.name
                   }
                   className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
                 >
@@ -485,7 +498,7 @@ export function BlockSetSection({
 
             {/* 현재 블록 목록 */}
             {(() => {
-              const selectedSet = blockSets?.find(
+              const selectedSet = uniqueBlockSets?.find(
                 (set) => set.id === editingBlockSetId
               );
               const blocks = selectedSet?.blocks ?? [];
