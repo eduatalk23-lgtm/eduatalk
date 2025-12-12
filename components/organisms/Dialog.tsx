@@ -113,7 +113,7 @@ function DialogComponent({
 
         {/* Header */}
         {(title || description) && (
-          <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className="flex flex-col gap-1.5 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             {title && (
               <h2
                 className={cn(
@@ -125,7 +125,7 @@ function DialogComponent({
               </h2>
             )}
             {description && (
-              <p className="mt-1.5 text-sm text-gray-700 dark:text-gray-300">{description}</p>
+              <p className="text-sm text-gray-700 dark:text-gray-300">{description}</p>
             )}
           </div>
         )}

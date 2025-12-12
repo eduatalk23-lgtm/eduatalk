@@ -51,8 +51,8 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="flex flex-col gap-1 flex-1">
+            <div className="flex items-center gap-2">
               {isIOS ? (
                 <Share2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               ) : (
@@ -89,11 +89,11 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
         </div>
 
         {isIOS && (
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+          <div className="flex flex-col gap-3 pt-3 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
               <Share2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium mb-1">설치 방법:</p>
+              <div className="flex flex-col gap-1">
+                <p className="font-medium">설치 방법:</p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>하단 공유 버튼 <Share2 className="w-3 h-3 inline" /> 클릭</li>
                   <li>&quot;홈 화면에 추가&quot; 선택</li>

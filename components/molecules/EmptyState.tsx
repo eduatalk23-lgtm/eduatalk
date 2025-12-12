@@ -36,32 +36,34 @@ function EmptyStateComponent({
         className
       )}
     >
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto flex flex-col gap-4 max-w-md">
         {icon && (
-          <div className={cn("mx-auto", isCompact ? "mb-3 text-4xl" : "mb-4 text-6xl")}>
+          <div className={cn("mx-auto", isCompact ? "text-4xl" : "text-6xl")}>
             {typeof icon === "string" ? icon : icon}
           </div>
         )}
-        <h3
-          className={cn(
-            "font-semibold text-gray-900",
-            isCompact ? "mb-1 text-base" : "mb-2 text-lg"
-          )}
-        >
-          {title}
-        </h3>
-        {description && (
-          <p
+        <div className="flex flex-col gap-1">
+          <h3
             className={cn(
-              "text-gray-500",
-              isCompact ? "text-xs" : "mb-6 text-sm"
+              "font-semibold text-gray-900",
+              isCompact ? "text-base" : "text-lg"
             )}
           >
-            {description}
-          </p>
-        )}
+            {title}
+          </h3>
+          {description && (
+            <p
+              className={cn(
+                "text-gray-500",
+                isCompact ? "text-xs" : "text-sm"
+              )}
+            >
+              {description}
+            </p>
+          )}
+        </div>
         {actionLabel && (actionHref || onAction) && (
-          <div className={cn(isCompact ? "mt-4" : "mt-6")}>
+          <div>
             {actionHref ? (
               <Link href={actionHref}>
                 <Button size={isCompact ? "sm" : "md"}>

@@ -73,7 +73,7 @@ function SidebarContent({
             >
               <span>⏱️</span>
               <span>TimeLevelUp</span>
-              <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
+              <span className="text-xs text-gray-500">{roleLabel}</span>
             </a>
             <button
               onClick={toggleCollapse}
@@ -254,15 +254,15 @@ export function RoleBasedLayout({
         {/* 상단 네비게이션 (모바일용) */}
         {showSidebar && (
           <nav className="md:hidden sticky top-0 z-50 border-b border-gray-200 bg-white">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-col gap-2 p-4">
+              <div className="flex items-center justify-between">
                 <a
                   href={dashboardHref}
                   className="flex items-center gap-2 text-lg font-semibold text-gray-900"
                 >
                   <span>⏱️</span>
                   <span>TimeLevelUp</span>
-                  <span className="ml-2 text-xs text-gray-500">{roleLabel}</span>
+                  <span className="text-xs text-gray-500">{roleLabel}</span>
                 </a>
                 <MobileSidebar
                   role={role}
@@ -273,7 +273,7 @@ export function RoleBasedLayout({
               </div>
               {/* 기관 정보 (모바일 - Superadmin 제외 모든 역할) */}
               {tenantInfo && role !== "superadmin" && (
-                <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2">
+                <div className="rounded-lg bg-gray-50 px-3 py-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">🏢</span>
                     <div className="flex-1 min-w-0">

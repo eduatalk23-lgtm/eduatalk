@@ -26,10 +26,10 @@ function ErrorStateComponent({
         className
       )}
     >
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 text-5xl">⚠️</div>
-        <h3 className="mb-2 text-lg font-semibold text-red-900">{title}</h3>
-        <p className="mb-6 text-sm text-red-700">{description}</p>
+      <div className="mx-auto flex flex-col gap-4 max-w-md">
+        <div className="text-5xl">⚠️</div>
+        <h3 className="text-lg font-semibold text-red-900">{title}</h3>
+        <p className="text-sm text-red-700">{description}</p>
         {onRetry && (
           <Button variant="destructive" onClick={onRetry}>
             {retryLabel}

@@ -17,10 +17,12 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div className="rounded-xl border border-red-200 bg-red-50 p-12 text-center">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 text-6xl">{icon}</div>
-        <h3 className="mb-2 text-lg font-semibold text-red-900">{title}</h3>
-        <p className="mb-6 text-sm text-red-700">{message}</p>
+      <div className="mx-auto flex flex-col gap-4 max-w-md">
+        <div className="text-6xl">{icon}</div>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-lg font-semibold text-red-900">{title}</h3>
+          <p className="text-sm text-red-700">{message}</p>
+        </div>
         {actionLabel && actionHref && (
           <Link
             href={actionHref}

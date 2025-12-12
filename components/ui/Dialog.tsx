@@ -78,7 +78,7 @@ export function Dialog({
         onClick={(e) => e.stopPropagation()}
       >
         {(title || description) && (
-          <div className="border-b border-gray-200 px-6 py-4">
+          <div className="flex flex-col gap-1.5 border-b border-gray-200 px-6 py-4">
             {title && (
               <h2
                 className={cn(
@@ -90,7 +90,7 @@ export function Dialog({
               </h2>
             )}
             {description && (
-              <div className="mt-1.5 text-sm text-gray-700">{description}</div>
+              <div className="text-sm text-gray-700">{description}</div>
             )}
           </div>
         )}

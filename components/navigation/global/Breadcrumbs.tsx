@@ -115,7 +115,7 @@ export function Breadcrumbs({ role, className, dynamicLabels: propDynamicLabels 
         {enrichedChain.map((item, index) => (
           <li key={`${item.href}-${index}`} className="flex items-center gap-1 flex-shrink-0">
             {index > 0 && (
-              <span className="text-gray-400 mx-1" aria-hidden="true">
+              <span className="text-gray-400" aria-hidden="true">
                 /
               </span>
             )}

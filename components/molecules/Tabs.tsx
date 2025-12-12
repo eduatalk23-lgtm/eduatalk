@@ -86,7 +86,7 @@ function TabsComponent({
             {tab.badge !== undefined && (
               <span
                 className={cn(
-                  "ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium",
+                  "rounded-full px-1.5 py-0.5 text-xs font-medium",
                   isActive
                     ? "bg-gray-900 text-white"
                     : "bg-gray-200 text-gray-600"

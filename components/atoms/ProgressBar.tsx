@@ -64,9 +64,9 @@ function ProgressBarComponent({
   autoColor = false,
 }: ProgressBarProps) {
   const percentage = Math.min(100, Math.max(0, (value / max) * 100));
-  
+
   // height가 있으면 size로 변환 (height가 우선)
-  const finalSize = height ? heightToSizeMap[height] : (size || "md");
+  const finalSize = height ? heightToSizeMap[height] : size || "md";
   const finalShowLabel = showValue !== undefined ? showValue : showLabel;
 
   // 자동 색상 결정 로직: variant나 color가 없고 autoColor가 true일 때
@@ -78,11 +78,7 @@ function ProgressBarComponent({
   } else if (autoColor) {
     // value에 따라 자동 결정
     const autoColorValue: ProgressBarColor =
-      percentage >= 100
-        ? "green"
-        : percentage >= 50
-        ? "indigo"
-        : "orange";
+      percentage >= 100 ? "green" : percentage >= 50 ? "indigo" : "orange";
     finalColorClass = colorClasses[autoColorValue];
   } else {
     // 기본값
@@ -122,4 +118,3 @@ function ProgressBarComponent({
 
 export const ProgressBar = memo(ProgressBarComponent);
 export default ProgressBar;
-

@@ -19,11 +19,11 @@ export function SectionHeader({
   className = "",
 }: SectionHeaderProps) {
   return (
-    <div className={`mb-4 flex items-center justify-between ${className}`}>
-      <div>
+    <div className={`flex items-center justify-between ${className}`}>
+      <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
         {description && (
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
+          <p className="text-sm text-gray-500">{description}</p>
         )}
       </div>
       {actionLabel && actionHref && (

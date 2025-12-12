@@ -17,10 +17,12 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4 text-6xl">{icon}</div>
-        <h3 className="mb-2 text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="mb-6 text-sm text-gray-500">{description}</p>
+      <div className="mx-auto flex flex-col gap-4 max-w-md">
+        <div className="text-6xl">{icon}</div>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <p className="text-sm text-gray-500">{description}</p>
+        </div>
         {actionLabel && actionHref && (
           <Link
             href={actionHref}

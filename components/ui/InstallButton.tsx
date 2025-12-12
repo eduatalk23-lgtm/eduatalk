@@ -50,14 +50,16 @@ export default function InstallButton({
       size={size}
       className={cn(className)}
     >
-      {showIcon &&
-        (isIOS ? (
-          <Share2 className="w-4 h-4 mr-2" />
-        ) : (
-          <Download className="w-4 h-4 mr-2" />
-        ))}
-      {isInstalled ? "설치됨" : isIOS ? "설치 안내" : "앱 설치하기"}
-      {isInstalled && <Check className="w-4 h-4 ml-2" />}
+      <div className="flex items-center gap-2">
+        {showIcon &&
+          (isIOS ? (
+            <Share2 className="w-4 h-4" />
+          ) : (
+            <Download className="w-4 h-4" />
+          ))}
+        <span>{isInstalled ? "설치됨" : isIOS ? "설치 안내" : "앱 설치하기"}</span>
+        {isInstalled && <Check className="w-4 h-4" />}
+      </div>
     </Button>
   );
 }
