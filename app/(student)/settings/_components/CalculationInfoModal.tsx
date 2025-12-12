@@ -136,8 +136,8 @@ export function CalculationInfoModal({
                 계산 원리
               </h3>
               <div className="bg-gray-50 rounded-lg p-4 flex flex-col gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-900 mb-1">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium text-gray-900">
                   중학교 입학년도 계산
                 </p>
                 <p className="text-sm text-gray-700">

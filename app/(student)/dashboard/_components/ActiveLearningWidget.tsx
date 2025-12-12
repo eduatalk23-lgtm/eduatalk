@@ -110,16 +110,16 @@ export function ActiveLearningWidget({ activePlan: initialActivePlan, campMode =
   }[activePlan.contentType];
 
   return (
-    <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 shadow-sm">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🎯</span>
           <h3 className="text-lg font-semibold text-gray-900">현재 학습 중</h3>
         </div>
       </div>
 
-      <div className="mb-4">
-        <div className="mb-2 flex items-center gap-2">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
           <span className="text-xl">{contentTypeIcon}</span>
           <h4 className="font-semibold text-gray-900">{activePlan.title}</h4>
         </div>

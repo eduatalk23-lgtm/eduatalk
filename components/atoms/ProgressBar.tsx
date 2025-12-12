@@ -108,7 +108,7 @@ function ProgressBarComponent({
         />
       </div>
       {finalShowLabel && (
-        <div className="mt-1 text-right text-xs font-medium text-gray-600">
+        <div className="text-right text-xs font-medium text-gray-600">
           {Math.round(percentage)}%
         </div>
       )}

@@ -213,30 +213,31 @@ export function DeviceManagement() {
                 className="rounded-lg border border-gray-200 bg-white p-4"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        {session.device_name || "알 수 없는 기기"}
-                      </span>
-                    </div>
-                    {session.ip_address && (
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {session.device_name || "알 수 없는 기기"}
+                        </span>
+                      </div>
+                      {session.ip_address && (
+                        <p className="text-xs text-gray-500">
+                          IP: {session.ip_address}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500">
-                        IP: {session.ip_address}
+                        마지막 활동: {formatDate(session.last_active_at)}
                       </p>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      마지막 활동: {formatDate(session.last_active_at)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      로그인: {formatDate(session.created_at)}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRevokeSession(session.id)}
-                    disabled={revokingSessionId === session.id}
-                    className="ml-4 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
+                      <p className="text-xs text-gray-500">
+                        로그인: {formatDate(session.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRevokeSession(session.id)}
+                      disabled={revokingSessionId === session.id}
+                      className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
                     {revokingSessionId === session.id
                       ? "처리 중..."
                       : "로그아웃"}

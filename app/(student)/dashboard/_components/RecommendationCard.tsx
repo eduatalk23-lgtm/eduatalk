@@ -26,7 +26,7 @@ export async function RecommendationCard() {
         <ul className="flex flex-col gap-3">
           {topRecommendations.map((rec, index) => (
             <li key={index} className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
                 {index + 1}
               </span>
               <p className="flex-1 text-sm text-gray-700 leading-relaxed">{rec}</p>
