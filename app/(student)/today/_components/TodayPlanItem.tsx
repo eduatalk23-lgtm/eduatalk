@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { Plan } from "@/lib/data/studentPlans";
 import { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
-import { Badge } from "@/components/ui/Badge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Badge } from "@/components/atoms/Badge";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 
 type TodayPlanItemProps = {

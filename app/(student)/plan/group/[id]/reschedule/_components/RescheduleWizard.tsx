@@ -13,6 +13,7 @@ import { AdjustmentStep } from "./AdjustmentStep";
 import { PreviewStep } from "./PreviewStep";
 import type { PlanGroup, PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type RescheduleWizardProps = {
   groupId: string;
@@ -105,12 +106,11 @@ export function RescheduleWizard({
             <span>진행률</span>
             <span>{Math.round(progressPercentage)}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-gray-200">
-            <div
-              className="h-2 rounded-full bg-blue-600 transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
+          <ProgressBar
+            value={progressPercentage}
+            color="blue"
+            size="sm"
+          />
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

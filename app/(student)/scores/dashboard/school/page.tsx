@@ -6,7 +6,7 @@ import { DashboardSubTabs } from "../_components/DashboardSubTabs";
 import { fetchSchoolScores } from "../_utils/scoreQueries";
 import { SemesterChartsSection } from "../_components/SemesterChartsSection";
 import { SubjectTrendSection } from "../_components/SubjectTrendSection";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 import { SchoolSummarySection } from "./_components/SchoolSummarySection";
 import { SchoolWeakSubjectSection } from "./_components/SchoolWeakSubjectSection";
 import { SchoolInsightPanel } from "./_components/SchoolInsightPanel";
@@ -27,15 +27,16 @@ export default async function SchoolScoresDashboardPage() {
 
   return (
     <section className="mx-auto max-w-6xl p-6 md:p-8">
-      <div className="mb-6 flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-gray-900">내신 성적 대시보드</h1>
-        <p className="text-sm text-gray-600">
-          내신 성적을 학년·학기별로 분석하고 시각화합니다.
-        </p>
-      </div>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-h1 text-gray-900">내신 성적 대시보드</h1>
+          <p className="text-sm text-gray-600">
+            내신 성적을 학년·학기별로 분석하고 시각화합니다.
+          </p>
+        </div>
 
-      {/* 탭 네비게이션 */}
-      <div className="mb-6 flex flex-col gap-4">
+        {/* 탭 네비게이션 */}
+        <div className="flex flex-col gap-4">
         <ScoreTypeTabs />
         <DashboardSubTabs />
       </div>
@@ -64,13 +65,13 @@ export default async function SchoolScoresDashboardPage() {
         <div className="flex flex-col gap-8">
           {/* 내신 성적 요약 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">내신 성적 요약</h2>
+            <h2 className="text-h2 text-gray-900">내신 성적 요약</h2>
             <SchoolSummarySection schoolScores={schoolScores} />
           </div>
 
           {/* 내신 학기별 변화 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">학기별 변화</h2>
+            <h2 className="text-h2 text-gray-900">학기별 변화</h2>
             <Card>
               <SemesterChartsSection schoolScores={schoolScores} />
             </Card>
@@ -78,7 +79,7 @@ export default async function SchoolScoresDashboardPage() {
 
           {/* 교과별 성적 트렌드 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">교과별 성적 변화</h2>
+            <h2 className="text-h2 text-gray-900">교과별 성적 변화</h2>
             <Card>
               <SubjectTrendSection schoolScores={schoolScores} />
             </Card>
@@ -86,13 +87,13 @@ export default async function SchoolScoresDashboardPage() {
 
           {/* 상세 지표 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">상세 지표</h2>
+            <h2 className="text-h2 text-gray-900">상세 지표</h2>
             <SchoolDetailedMetrics schoolScores={schoolScores} />
           </div>
 
           {/* 히트맵 및 분포 차트 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">히트맵 및 분포 분석</h2>
+            <h2 className="text-h2 text-gray-900">히트맵 및 분포 분석</h2>
             <Card>
               <SchoolHeatmapChart schoolScores={schoolScores} />
             </Card>
@@ -103,13 +104,13 @@ export default async function SchoolScoresDashboardPage() {
 
           {/* 취약 과목 분석 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">취약 과목 분석</h2>
+            <h2 className="text-h2 text-gray-900">취약 과목 분석</h2>
             <SchoolWeakSubjectSection schoolScores={schoolScores} />
           </div>
 
           {/* 학습 인사이트 */}
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">학습 인사이트</h2>
+            <h2 className="text-h2 text-gray-900">학습 인사이트</h2>
             <SchoolInsightPanel schoolScores={schoolScores} />
           </div>
         </div>

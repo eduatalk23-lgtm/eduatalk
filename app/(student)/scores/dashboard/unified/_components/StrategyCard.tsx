@@ -1,4 +1,4 @@
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader } from "@/components/molecules/Card";
 import type { StrategyResult, StrategyType } from "@/lib/types/scoreDashboard";
 import { cn } from "@/lib/cn";
 

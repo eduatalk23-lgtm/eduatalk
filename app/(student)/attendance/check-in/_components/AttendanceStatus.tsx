@@ -177,41 +177,43 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
           {/* 입실 정보 */}
           {hasCheckedIn && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">입실</span>
-                {smsStatus?.checkInSMS && (
-                  <div className="flex items-center gap-1">
-                    {getSMSStatusIcon(smsStatus.checkInSMS.status)}
-                    <span className="text-xs text-gray-500">
-                      {getSMSStatusLabel(smsStatus.checkInSMS.status)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900">
-                  {formatTime(attendance.check_in_time)}
-                </span>
-                <div className="flex items-center gap-2">
-                  {getMethodIcon(attendance.check_in_method) && (
-                    <div className="text-gray-500">
-                      {(() => {
-                        const Icon = getMethodIcon(attendance.check_in_method);
-                        return Icon ? <Icon size={16} /> : null;
-                      })()}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">입실</span>
+                  {smsStatus?.checkInSMS && (
+                    <div className="flex items-center gap-1">
+                      {getSMSStatusIcon(smsStatus.checkInSMS.status)}
+                      <span className="text-xs text-gray-500">
+                        {getSMSStatusLabel(smsStatus.checkInSMS.status)}
+                      </span>
                     </div>
                   )}
-                  <span className="text-xs text-gray-500">
-                    {getMethodLabel(attendance.check_in_method)}
-                  </span>
                 </div>
-              </div>
-              {smsStatus?.checkInSMS?.status === "failed" &&
-                smsStatus.checkInSMS.errorMessage && (
-                  <div className="mt-2 text-xs text-red-600">
-                    {smsStatus.checkInSMS.errorMessage}
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-gray-900">
+                    {formatTime(attendance.check_in_time)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {getMethodIcon(attendance.check_in_method) && (
+                      <div className="text-gray-500">
+                        {(() => {
+                          const Icon = getMethodIcon(attendance.check_in_method);
+                          return Icon ? <Icon size={16} /> : null;
+                        })()}
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-500">
+                      {getMethodLabel(attendance.check_in_method)}
+                    </span>
                   </div>
-                )}
+                </div>
+                {smsStatus?.checkInSMS?.status === "failed" &&
+                  smsStatus.checkInSMS.errorMessage && (
+                    <div className="text-xs text-red-600">
+                      {smsStatus.checkInSMS.errorMessage}
+                    </div>
+                  )}
+              </div>
             </div>
           )}
 
@@ -230,41 +232,43 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
           {/* 퇴실 정보 */}
           {hasCheckedOut && (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">퇴실</span>
-                {smsStatus?.checkOutSMS && (
-                  <div className="flex items-center gap-1">
-                    {getSMSStatusIcon(smsStatus.checkOutSMS.status)}
-                    <span className="text-xs text-gray-500">
-                      {getSMSStatusLabel(smsStatus.checkOutSMS.status)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900">
-                  {formatTime(attendance.check_out_time)}
-                </span>
-                <div className="flex items-center gap-2">
-                  {getMethodIcon(attendance.check_out_method) && (
-                    <div className="text-gray-500">
-                      {(() => {
-                        const Icon = getMethodIcon(attendance.check_out_method);
-                        return Icon ? <Icon size={16} /> : null;
-                      })()}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-600">퇴실</span>
+                  {smsStatus?.checkOutSMS && (
+                    <div className="flex items-center gap-1">
+                      {getSMSStatusIcon(smsStatus.checkOutSMS.status)}
+                      <span className="text-xs text-gray-500">
+                        {getSMSStatusLabel(smsStatus.checkOutSMS.status)}
+                      </span>
                     </div>
                   )}
-                  <span className="text-xs text-gray-500">
-                    {getMethodLabel(attendance.check_out_method)}
-                  </span>
                 </div>
-              </div>
-              {smsStatus?.checkOutSMS?.status === "failed" &&
-                smsStatus.checkOutSMS.errorMessage && (
-                  <div className="mt-2 text-xs text-red-600">
-                    {smsStatus.checkOutSMS.errorMessage}
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-gray-900">
+                    {formatTime(attendance.check_out_time)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {getMethodIcon(attendance.check_out_method) && (
+                      <div className="text-gray-500">
+                        {(() => {
+                          const Icon = getMethodIcon(attendance.check_out_method);
+                          return Icon ? <Icon size={16} /> : null;
+                        })()}
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-500">
+                      {getMethodLabel(attendance.check_out_method)}
+                    </span>
                   </div>
-                )}
+                </div>
+                {smsStatus?.checkOutSMS?.status === "failed" &&
+                  smsStatus.checkOutSMS.errorMessage && (
+                    <div className="text-xs text-red-600">
+                      {smsStatus.checkOutSMS.errorMessage}
+                    </div>
+                  )}
+              </div>
             </div>
           )}
         </div>

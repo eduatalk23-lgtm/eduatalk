@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 import { getGradeColor } from "@/lib/scores/gradeColors";
 
 type SchoolDetailedMetricsProps = {
@@ -203,10 +203,11 @@ export function SchoolDetailedMetrics({
       {gradeStats.length > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              학년별 상세 통계
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                학년별 상세 통계
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {gradeStats.map((stat) => {
                 const gradeColor = getGradeColor(Math.round(stat.averageGrade));
                 return (
@@ -214,7 +215,7 @@ export function SchoolDetailedMetrics({
                     key={stat.grade}
                     className="rounded-lg border border-gray-200 p-4"
                   >
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between">
                       <h4 className="text-base font-semibold text-gray-900">
                         {stat.grade}학년
                       </h4>
@@ -252,6 +253,7 @@ export function SchoolDetailedMetrics({
                 );
               })}
             </div>
+            </div>
           </div>
         </Card>
       )}
@@ -260,10 +262,11 @@ export function SchoolDetailedMetrics({
       {semesterStats.length > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              학기별 상세 통계
-            </h3>
-            <div className="overflow-x-auto">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                학기별 상세 통계
+              </h3>
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
@@ -311,6 +314,7 @@ export function SchoolDetailedMetrics({
                 </tbody>
               </table>
             </div>
+            </div>
           </div>
         </Card>
       )}
@@ -319,10 +323,11 @@ export function SchoolDetailedMetrics({
       {subjectAverages.length > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              과목별 평균 등급
-            </h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                과목별 평균 등급
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {subjectAverages.map((item) => {
                 const gradeColor = getGradeColor(Math.round(item.average));
                 const trendIcon =
@@ -368,6 +373,7 @@ export function SchoolDetailedMetrics({
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
         </Card>

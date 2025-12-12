@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type PlanItemProps = {
   plan: PlanWithContent;
@@ -207,12 +208,11 @@ function PlanItemComponent({
                   <span>진행률</span>
                   <span>{progress}%</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-                  <div
-                    className="h-full bg-blue-500 transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={progress}
+                  color="blue"
+                  size="sm"
+                />
               </div>
             )}
           </div>
@@ -271,12 +271,11 @@ function PlanItemComponent({
                 <span>진행률</span>
                 <span>{progress}%</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full bg-blue-500 transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={progress}
+                color="blue"
+                size="xs"
+              />
             </div>
           )}
         </div>

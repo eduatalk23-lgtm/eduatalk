@@ -12,6 +12,7 @@ import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinut
 import { StatCard } from "./StatCard";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type PlanConnection = {
   planIds: string[];
@@ -502,16 +503,12 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
                                     <span className="text-sm font-medium text-gray-700">
                                       {progressPercentage}%
                                     </span>
-                                    <div className="h-2 w-20 overflow-hidden rounded-full bg-gray-200">
-                                      <div
-                                        className={`h-full transition-all ${
-                                          isCompleted
-                                            ? "bg-green-500"
-                                            : isActive
-                                            ? "bg-blue-500"
-                                            : "bg-gray-400"
-                                        }`}
-                                        style={{ width: `${progressPercentage}%` }}
+                                    <div className="w-20">
+                                      <ProgressBar
+                                        value={progressPercentage}
+                                        variant={isCompleted ? "success" : isActive ? "default" : undefined}
+                                        color={isCompleted ? undefined : isActive ? "blue" : undefined}
+                                        size="xs"
                                       />
                                     </div>
                                   </>

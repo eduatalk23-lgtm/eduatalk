@@ -1,5 +1,5 @@
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type TodayGoalsProps = {
   todayProgress: TodayProgress;

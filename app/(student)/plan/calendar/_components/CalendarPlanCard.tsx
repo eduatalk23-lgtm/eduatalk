@@ -3,6 +3,7 @@
 import { Clock, Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import { getContentTypeIcon } from "../../_shared/utils";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type PlanCardProps = {
   plan: PlanWithContent;
@@ -191,12 +192,13 @@ export function CalendarPlanCard({
             }`}>
               {progressPercentage}%
             </span>
-            <div className="h-3 w-20 md:w-24 overflow-hidden rounded-full bg-gray-200 shadow-inner">
-              <div
-                className={`h-full transition-all duration-500 ${
-                  isCompleted ? "bg-green-500" : isActive ? "bg-blue-500" : "bg-gray-400"
-                }`}
-                style={{ width: `${progressPercentage}%` }}
+            <div className="w-20 md:w-24">
+              <ProgressBar
+                value={progressPercentage}
+                variant={isCompleted ? "success" : isActive ? "default" : undefined}
+                color={isCompleted ? undefined : isActive ? "blue" : undefined}
+                size="sm"
+                className="shadow-inner"
               />
             </div>
           </div>

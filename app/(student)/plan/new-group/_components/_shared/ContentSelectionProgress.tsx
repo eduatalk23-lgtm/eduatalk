@@ -4,6 +4,7 @@ import React from "react";
 import { AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import { ProgressIndicatorProps } from "@/lib/types/content-selection";
 import { cn } from "@/lib/cn";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 /**
  * ContentSelectionProgress - 콘텐츠 선택 진행률 표시
@@ -69,19 +70,12 @@ export const ContentSelectionProgress = React.memo(function ContentSelectionProg
 
       {/* 진행률 바 */}
       <div className="mt-4">
-        <div className="h-3 w-full overflow-hidden rounded-full bg-gray-100">
-          <div
-            className={cn(
-              "h-full transition-all duration-300",
-              isOverLimit
-                ? "bg-red-500"
-                : isComplete
-                ? "bg-green-500"
-                : "bg-blue-500"
-            )}
-            style={{ width: `${Math.min(percentage, 100)}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={Math.min(percentage, 100)}
+          variant={isOverLimit ? "error" : isComplete ? "success" : undefined}
+          color={isOverLimit ? undefined : isComplete ? undefined : "blue"}
+          size="sm"
+        />
         <div className="mt-2 flex items-center justify-between text-sm">
           <span className="text-gray-600">
             {current === 0

@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Plus } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 
 type EmptyScoresStateProps = {
   onAddClick?: () => void;
@@ -28,7 +28,7 @@ export function EmptyScoresState({
       {onAddClick && (
         <button
           onClick={onAddClick}
-          className="mt-2 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
         >
           <Plus className="h-4 w-4" />
           {actionLabel}

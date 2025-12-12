@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 import { getGradeColor } from "@/lib/scores/gradeColors";
 
 type MockDetailedMetricsProps = {
@@ -262,10 +262,11 @@ export function MockDetailedMetrics({
       {roundStats.length > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              회차별 상세 통계
-            </h3>
-            <div className="overflow-x-auto">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                회차별 상세 통계
+              </h3>
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
@@ -331,6 +332,7 @@ export function MockDetailedMetrics({
                 </tbody>
               </table>
             </div>
+            </div>
           </div>
         </Card>
       )}
@@ -339,10 +341,11 @@ export function MockDetailedMetrics({
       {examTypeStats.length > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              시험 유형별 상세 통계
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                시험 유형별 상세 통계
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {examTypeStats.map((stat) => {
                 const gradeColor = getGradeColor(
                   stat.averageGrade > 0 ? Math.round(stat.averageGrade) : null
@@ -352,7 +355,7 @@ export function MockDetailedMetrics({
                     key={stat.type}
                     className="rounded-lg border border-gray-200 p-4"
                   >
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between">
                       <h4 className="text-base font-semibold text-gray-900">
                         {stat.type}
                       </h4>
@@ -414,9 +417,10 @@ export function MockDetailedMetrics({
       {subjectAverages.length > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              과목별 평균 성적
-            </h3>
+            <div className="flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                과목별 평균 성적
+              </h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {subjectAverages.map((item) => {
                 const gradeColor = getGradeColor(
@@ -471,6 +475,7 @@ export function MockDetailedMetrics({
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
         </Card>

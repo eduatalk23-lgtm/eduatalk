@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type GoalProgressSectionProps = {
   goals: Array<{

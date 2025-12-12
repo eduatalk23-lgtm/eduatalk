@@ -109,6 +109,7 @@ QR 코드 생성 기능은 관리자가 학원 출석 체크를 위한 QR 코드
 ### 1. QR 코드 생성 프로세스
 
 #### 구현 위치
+
 - **서비스**: `lib/services/qrCodeService.ts` - `generateAttendanceQRCode()`
 - **도메인 서비스**: `lib/domains/qrCode/service.ts` - `createQRCode()`
 - **Repository**: `lib/domains/qrCode/repository.ts` - `createQRCode()`
@@ -134,7 +135,7 @@ const qrData: QRCodeData = {
   qrCodeId: tempId,
   tenantId: tenantContext.tenantId,
   timestamp: Date.now(),
-  type: "attendance"
+  type: "attendance",
 };
 const qrDataString = JSON.stringify(qrData);
 
@@ -142,7 +143,7 @@ const qrDataString = JSON.stringify(qrData);
 const qrCodeUrl = await QRCode.toDataURL(qrDataString, {
   width: 400,
   margin: 2,
-  errorCorrectionLevel: "M"
+  errorCorrectionLevel: "M",
 });
 
 // Step 6: 기존 활성 QR 코드 자동 비활성화
@@ -172,20 +173,21 @@ const deepLinkUrl = `${baseUrl}/attendance/check-in/qr?code=${qrCodeRecord.id}`;
 const deepLinkQrCodeUrl = await QRCode.toDataURL(deepLinkUrl, {
   width: 400,
   margin: 2,
-  errorCorrectionLevel: "M"
+  errorCorrectionLevel: "M",
 });
 
 // Step 11: DB에 실제 QR 코드 데이터 및 이미지 URL 업데이트
 await supabase
   .from("attendance_qr_codes")
   .update({
-    qr_data: actualQrDataString,      // JSON 데이터 (하위 호환)
-    qr_code_url: deepLinkQrCodeUrl,   // Deep Link 이미지
+    qr_data: actualQrDataString, // JSON 데이터 (하위 호환)
+    qr_code_url: deepLinkQrCodeUrl, // Deep Link 이미지
   })
   .eq("id", qrCodeRecord.id);
 ```
 
 #### 특징
+
 - **2단계 생성**: 임시 ID로 먼저 생성 후 실제 ID로 업데이트
 - **이중 형식**: JSON 형식(하위 호환) + Deep Link URL 형식
 - **자동 비활성화**: 새 QR 코드 생성 시 기존 활성 QR 코드 자동 비활성화
@@ -194,6 +196,7 @@ await supabase
 ### 2. 활성 QR 코드 조회
 
 #### 구현 위치
+
 - **도메인 서비스**: `lib/domains/qrCode/service.ts` - `getActiveQRCode()`
 - **Repository**: `lib/domains/qrCode/repository.ts` - `getActiveQRCode()`
 
@@ -205,7 +208,7 @@ const qrCode = await supabase
   .from("attendance_qr_codes")
   .select("*")
   .eq("tenant_id", tenantId)
-  .eq("is_active", true)                    // 활성 상태
+  .eq("is_active", true) // 활성 상태
   .gt("expires_at", new Date().toISOString()) // 만료되지 않음
   .order("created_at", { ascending: false }) // 최신순
   .limit(1)
@@ -213,6 +216,7 @@ const qrCode = await supabase
 ```
 
 #### 특징
+
 - **자동 필터링**: 활성 상태이고 만료되지 않은 QR 코드만 조회
 - **최신 우선**: 생성 시간 기준 최신 QR 코드 우선 조회
 - **단일 결과**: 하나의 활성 QR 코드만 반환
@@ -220,6 +224,7 @@ const qrCode = await supabase
 ### 3. 기존 활성 QR 코드 비활성화
 
 #### 구현 위치
+
 - **Repository**: `lib/domains/qrCode/repository.ts` - `deactivateAllActiveQRCodes()`
 
 #### 비활성화 로직
@@ -238,6 +243,7 @@ await supabase
 ```
 
 #### 특징
+
 - **일괄 처리**: 테넌트의 모든 활성 QR 코드를 한 번에 비활성화
 - **이력 추적**: 비활성화 시간 및 비활성화한 사용자 기록
 - **원자적 연산**: 트랜잭션으로 안전하게 처리
@@ -245,6 +251,7 @@ await supabase
 ### 4. QR 코드 이력 조회
 
 #### 구현 위치
+
 - **도메인 서비스**: `lib/domains/qrCode/service.ts` - `getQRCodeHistory()`
 - **Repository**: `lib/domains/qrCode/repository.ts` - `getQRCodeHistory()`
 
@@ -261,6 +268,7 @@ const history = await supabase
 ```
 
 #### 특징
+
 - **최신순 정렬**: 생성 시간 기준 내림차순 정렬
 - **제한 조회**: 기본 50개, 필요에 따라 조정 가능
 - **전체 이력**: 활성/비활성 상태와 관계없이 모든 QR 코드 조회
@@ -366,25 +374,30 @@ const history = await supabase
 #### 1. QR 코드 생성 및 표시
 
 1. **QR 코드 페이지 접속**
+
    - URL: `/admin/attendance/qr-code`
    - 관리자 계정으로 로그인 필요
 
 2. **자동 생성 또는 표시**
+
    - 활성 QR 코드가 있으면 자동으로 표시
    - 활성 QR 코드가 없으면 자동으로 생성 후 표시
 
 3. **QR 코드 정보 확인**
+
    - **생성 시간**: QR 코드가 생성된 시간
    - **만료 시간**: QR 코드가 만료되는 시간 (기본 24시간 후)
    - **사용 횟수**: 현재까지 스캔된 횟수
    - **마지막 사용**: 가장 최근에 스캔된 시간
 
 4. **QR 코드 다운로드**
+
    - "다운로드" 버튼 클릭
    - PNG 이미지로 다운로드
    - 파일명: `attendance-qr-code.png`
 
 5. **QR 코드 인쇄**
+
    - "인쇄" 버튼 클릭
    - 인쇄용 페이지가 새 창으로 열림
    - 인쇄 대화상자에서 인쇄 실행
@@ -397,10 +410,12 @@ const history = await supabase
 #### 2. QR 코드 관리
 
 1. **QR 코드 관리 페이지 접속**
+
    - URL: `/admin/attendance/qr-code/manage`
    - 관리자 계정으로 로그인 필요
 
 2. **QR 코드 이력 조회**
+
    - 최근 50개 QR 코드 이력 표시
    - 각 QR 코드의 상세 정보 확인:
      - **상태**: 활성/비활성
@@ -426,14 +441,15 @@ const history = await supabase
 
 ```typescript
 type QRCodeData = {
-  qrCodeId: string;      // 데이터베이스 ID (UUID)
-  tenantId: string;      // 테넌트(학원) ID (UUID)
-  timestamp: number;      // 생성 타임스탬프 (밀리초)
-  type: "attendance";     // QR 코드 타입 (고정값)
+  qrCodeId: string; // 데이터베이스 ID (UUID)
+  tenantId: string; // 테넌트(학원) ID (UUID)
+  timestamp: number; // 생성 타임스탬프 (밀리초)
+  type: "attendance"; // QR 코드 타입 (고정값)
 };
 ```
 
 **예시**:
+
 ```json
 {
   "qrCodeId": "550e8400-e29b-41d4-a716-446655440000",
@@ -450,6 +466,7 @@ https://domain.com/attendance/check-in/qr?code={qrCodeId}
 ```
 
 **예시**:
+
 ```
 https://eduatalk.com/attendance/check-in/qr?code=550e8400-e29b-41d4-a716-446655440000
 ```
@@ -477,35 +494,35 @@ CREATE TABLE attendance_qr_codes (
 
 #### 필드 설명
 
-| 필드 | 타입 | 설명 |
-|------|------|------|
-| `id` | uuid | QR 코드 고유 ID (PK) |
-| `tenant_id` | uuid | 테넌트(학원) ID (FK) |
-| `qr_data` | text | QR 코드 데이터 (JSON 문자열) |
-| `qr_code_url` | text | QR 코드 이미지 URL (Data URL) |
-| `is_active` | boolean | 활성 상태 (true: 활성, false: 비활성) |
-| `expires_at` | timestamptz | 만료 시간 |
-| `created_by` | uuid | 생성자 사용자 ID |
-| `created_at` | timestamptz | 생성 시간 |
-| `deactivated_at` | timestamptz | 비활성화 시간 (NULL: 활성) |
-| `deactivated_by` | uuid | 비활성화한 사용자 ID (NULL: 활성) |
-| `usage_count` | integer | 사용 횟수 (스캔된 횟수) |
-| `last_used_at` | timestamptz | 마지막 사용 시간 (NULL: 미사용) |
+| 필드             | 타입        | 설명                                  |
+| ---------------- | ----------- | ------------------------------------- |
+| `id`             | uuid        | QR 코드 고유 ID (PK)                  |
+| `tenant_id`      | uuid        | 테넌트(학원) ID (FK)                  |
+| `qr_data`        | text        | QR 코드 데이터 (JSON 문자열)          |
+| `qr_code_url`    | text        | QR 코드 이미지 URL (Data URL)         |
+| `is_active`      | boolean     | 활성 상태 (true: 활성, false: 비활성) |
+| `expires_at`     | timestamptz | 만료 시간                             |
+| `created_by`     | uuid        | 생성자 사용자 ID                      |
+| `created_at`     | timestamptz | 생성 시간                             |
+| `deactivated_at` | timestamptz | 비활성화 시간 (NULL: 활성)            |
+| `deactivated_by` | uuid        | 비활성화한 사용자 ID (NULL: 활성)     |
+| `usage_count`    | integer     | 사용 횟수 (스캔된 횟수)               |
+| `last_used_at`   | timestamptz | 마지막 사용 시간 (NULL: 미사용)       |
 
 #### 인덱스
 
 ```sql
 -- 테넌트별 조회 최적화
-CREATE INDEX idx_attendance_qr_codes_tenant_id 
+CREATE INDEX idx_attendance_qr_codes_tenant_id
   ON attendance_qr_codes(tenant_id);
 
 -- 활성 QR 코드 조회 최적화
-CREATE INDEX idx_attendance_qr_codes_active 
-  ON attendance_qr_codes(tenant_id, is_active, expires_at) 
+CREATE INDEX idx_attendance_qr_codes_active
+  ON attendance_qr_codes(tenant_id, is_active, expires_at)
   WHERE is_active = true;
 
 -- 생성 시간 기준 정렬 최적화
-CREATE INDEX idx_attendance_qr_codes_created_at 
+CREATE INDEX idx_attendance_qr_codes_created_at
   ON attendance_qr_codes(tenant_id, created_at DESC);
 ```
 
@@ -515,7 +532,7 @@ CREATE INDEX idx_attendance_qr_codes_created_at
 
 ```sql
 -- 관리자는 자신의 테넌트 내 모든 QR 코드 조회 가능
-CREATE POLICY "attendance_qr_codes_select_admin" 
+CREATE POLICY "attendance_qr_codes_select_admin"
   ON attendance_qr_codes FOR SELECT
   USING (
     EXISTS (
@@ -527,7 +544,7 @@ CREATE POLICY "attendance_qr_codes_select_admin"
   );
 
 -- 관리자만 QR 코드 생성 가능
-CREATE POLICY "attendance_qr_codes_insert_admin" 
+CREATE POLICY "attendance_qr_codes_insert_admin"
   ON attendance_qr_codes FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -539,7 +556,7 @@ CREATE POLICY "attendance_qr_codes_insert_admin"
   );
 
 -- 관리자만 QR 코드 수정 가능
-CREATE POLICY "attendance_qr_codes_update_admin" 
+CREATE POLICY "attendance_qr_codes_update_admin"
   ON attendance_qr_codes FOR UPDATE
   USING (
     EXISTS (
@@ -555,7 +572,7 @@ CREATE POLICY "attendance_qr_codes_update_admin"
 
 ```sql
 -- 학생은 활성 QR 코드만 조회 가능 (검증용)
-CREATE POLICY "attendance_qr_codes_select_student" 
+CREATE POLICY "attendance_qr_codes_select_student"
   ON attendance_qr_codes FOR SELECT
   USING (
     is_active = true
@@ -657,10 +674,10 @@ try {
   if (error?.digest?.startsWith("NEXT_REDIRECT")) {
     throw error;
   }
-  
+
   const normalizedError = normalizeError(error);
   logError(normalizedError, { function: "generateQRCodeAction" });
-  
+
   return {
     success: false,
     error: getUserFacingMessage(normalizedError),
@@ -774,9 +791,9 @@ type QRCodeRecord = {
 
 ```typescript
 await QRCode.toDataURL(data, {
-  width: 400,                    // 이미지 너비 (픽셀)
-  margin: 2,                     // 여백 (QR 코드 모듈 단위)
-  errorCorrectionLevel: "M",     // 오류 정정 레벨: L, M, Q, H
+  width: 400, // 이미지 너비 (픽셀)
+  margin: 2, // 여백 (QR 코드 모듈 단위)
+  errorCorrectionLevel: "M", // 오류 정정 레벨: L, M, Q, H
 });
 ```
 
@@ -790,6 +807,7 @@ await QRCode.toDataURL(data, {
 ### Deep Link 동작
 
 QR 코드를 카메라 앱에서 스캔하면:
+
 1. URL 형식으로 인식
 2. 브라우저에서 해당 URL 열기
 3. `/attendance/check-in/qr?code={qrCodeId}` 페이지로 이동
@@ -819,6 +837,7 @@ QR 코드를 카메라 앱에서 스캔하면:
 **증상**: "QR 코드 생성에 실패했습니다" 메시지
 
 **해결 방법**:
+
 - 관리자 권한 확인
 - 테넌트 정보 확인
 - 데이터베이스 연결 확인
@@ -829,6 +848,7 @@ QR 코드를 카메라 앱에서 스캔하면:
 **증상**: QR 코드 이미지가 보이지 않음
 
 **해결 방법**:
+
 - Data URL 형식 확인
 - 이미지 로딩 에러 확인
 - 브라우저 개발자 도구에서 네트워크 탭 확인
@@ -838,6 +858,7 @@ QR 코드를 카메라 앱에서 스캔하면:
 **증상**: 새 QR 코드 생성 시 기존 QR 코드가 여전히 활성 상태
 
 **해결 방법**:
+
 - 데이터베이스에서 직접 확인
 - `deactivateAllActiveQRCodes` 함수 실행 확인
 - 트랜잭션 로그 확인
@@ -847,6 +868,7 @@ QR 코드를 카메라 앱에서 스캔하면:
 **증상**: QR 코드 스캔 시 앱이 자동으로 열리지 않음
 
 **해결 방법**:
+
 - Base URL 설정 확인
 - Deep Link URL 형식 확인
 - 카메라 앱 설정 확인 (일부 앱은 Deep Link 미지원)
@@ -864,4 +886,3 @@ QR 코드를 카메라 앱에서 스캔하면:
 
 **작성일**: 2025년 2월 1일  
 **최종 수정일**: 2025년 2월 1일
-

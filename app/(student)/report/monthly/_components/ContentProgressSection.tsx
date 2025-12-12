@@ -1,6 +1,6 @@
 "use client";
 
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type ContentProgressSectionProps = {
   progressList: Array<{

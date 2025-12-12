@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { cn } from "@/lib/cn";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { calculateProgressPercentage, getProgressColor } from "./utils";
 
 interface ProgressIndicatorProps {

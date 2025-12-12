@@ -22,20 +22,20 @@
 // ============================================
 
 // Badge → atoms/Badge (개선됨)
-export { Badge } from "./Badge";
+export { Badge } from "../atoms/Badge";
 
 // LoadingSkeleton → atoms/Skeleton (개선됨)
 export { LoadingSkeleton } from "./LoadingSkeleton";
 
 // ProgressBar → atoms/ProgressBar (개선됨)
-export { ProgressBar } from "./ProgressBar";
+export { ProgressBar } from "../atoms/ProgressBar";
 
 // ============================================
 // Molecules로 마이그레이션된 컴포넌트
 // ============================================
 
 // Card → molecules/Card (개선됨)
-export { Card, CardHeader } from "./Card";
+export { Card, CardHeader, CardContent, CardFooter } from "../molecules/Card";
 
 // EmptyState → molecules/EmptyState (개선됨)
 export { EmptyState } from "./EmptyState";
@@ -50,7 +50,7 @@ export { default as FormInput } from "./FormInput";
 export { SectionHeader } from "./SectionHeader";
 
 // Toast → molecules/Toast (개선됨)
-export { Toast } from "./Toast";
+export { Toast } from "../molecules/Toast";
 
 // ============================================
 // Organisms로 마이그레이션된 컴포넌트

@@ -89,15 +89,16 @@ export function NotificationSettingsView({
 
       {/* 알림 유형 설정 */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">알림 유형</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">학습 시작 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                플랜을 시작할 때 알림을 받습니다
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">알림 유형</h2>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">학습 시작 알림</div>
+                <div className="text-sm text-gray-500">
+                  플랜을 시작할 때 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("plan_start_enabled")}
@@ -115,13 +116,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">학습 완료 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                플랜을 완료할 때 알림을 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">학습 완료 알림</div>
+                <div className="text-sm text-gray-500">
+                  플랜을 완료할 때 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("plan_complete_enabled")}
@@ -141,13 +142,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">일일 목표 달성 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                일일 학습 목표를 달성했을 때 알림을 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">일일 목표 달성 알림</div>
+                <div className="text-sm text-gray-500">
+                  일일 학습 목표를 달성했을 때 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("daily_goal_achieved_enabled")}
@@ -169,13 +170,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">주간 리포트 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                주간 학습 리포트를 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">주간 리포트 알림</div>
+                <div className="text-sm text-gray-500">
+                  주간 학습 리포트를 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("weekly_report_enabled")}
@@ -195,13 +196,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">플랜 지연 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                예정된 시간보다 늦게 시작할 때 알림을 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">플랜 지연 알림</div>
+                <div className="text-sm text-gray-500">
+                  예정된 시간보다 늦게 시작할 때 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("plan_delay_enabled")}
@@ -221,37 +222,41 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          {settings.plan_delay_enabled && (
-            <div className="ml-4 mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                지연 임계값 (분)
-              </label>
-              <input
-                type="number"
-                min="5"
-                max="120"
-                step="5"
-                value={settings.plan_delay_threshold_minutes}
-                onChange={(e) =>
-                  handleChange(
-                    "plan_delay_threshold_minutes",
-                    parseInt(e.target.value) || 30
-                  )
-                }
-                className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                예정 시간보다 이 시간만큼 늦으면 알림을 받습니다
-              </p>
-            </div>
-          )}
+            {settings.plan_delay_enabled && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    지연 임계값 (분)
+                  </label>
+                  <input
+                    type="number"
+                    min="5"
+                    max="120"
+                    step="5"
+                    value={settings.plan_delay_threshold_minutes}
+                    onChange={(e) =>
+                      handleChange(
+                        "plan_delay_threshold_minutes",
+                        parseInt(e.target.value) || 30
+                      )
+                    }
+                    className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                  <p className="text-xs text-gray-500">
+                    예정 시간보다 이 시간만큼 늦으면 알림을 받습니다
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* 알림 시간 설정 */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">알림 시간</h2>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">알림 시간</h2>
+          <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
             <label className="w-32 text-sm font-medium text-gray-700">
               알림 시작 시간
@@ -281,13 +286,15 @@ export function NotificationSettingsView({
             />
             <span className="text-sm text-gray-500">까지</span>
           </div>
+          </div>
         </div>
       </div>
 
       {/* 방해 금지 시간 설정 */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">방해 금지 시간</h2>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">방해 금지 시간</h2>
           <button
             type="button"
             onClick={() => handleToggle("quiet_hours_enabled")}
@@ -339,24 +346,26 @@ export function NotificationSettingsView({
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 출석 알림 설정 */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">출석 알림 설정</h2>
-        <p className="mb-4 text-sm text-gray-500">
-          출석 관련 SMS 알림을 받을 항목을 선택하세요. 설정하지 않으면 학원 기본 설정을 따릅니다.
-        </p>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">입실 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                입실 시 SMS 알림을 받습니다
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">출석 알림 설정</h2>
+          <p className="text-sm text-gray-500">
+            출석 관련 SMS 알림을 받을 항목을 선택하세요. 설정하지 않으면 학원 기본 설정을 따릅니다.
+          </p>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">입실 알림</div>
+                <div className="text-sm text-gray-500">
+                  입실 시 SMS 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("attendance_check_in_enabled")}
@@ -380,13 +389,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">퇴실 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                퇴실 시 SMS 알림을 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">퇴실 알림</div>
+                <div className="text-sm text-gray-500">
+                  퇴실 시 SMS 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("attendance_check_out_enabled")}
@@ -410,13 +419,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">결석 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                결석 시 SMS 알림을 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">결석 알림</div>
+                <div className="text-sm text-gray-500">
+                  결석 시 SMS 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("attendance_absent_enabled")}
@@ -440,13 +449,13 @@ export function NotificationSettingsView({
             </button>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-gray-900">지각 알림</div>
-              <div className="mt-1 text-sm text-gray-500">
-                지각 시 SMS 알림을 받습니다
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <div className="font-medium text-gray-900">지각 알림</div>
+                <div className="text-sm text-gray-500">
+                  지각 시 SMS 알림을 받습니다
+                </div>
               </div>
-            </div>
             <button
               type="button"
               onClick={() => handleToggle("attendance_late_enabled")}
@@ -468,6 +477,7 @@ export function NotificationSettingsView({
                 )}
               />
             </button>
+            </div>
           </div>
         </div>
       </div>

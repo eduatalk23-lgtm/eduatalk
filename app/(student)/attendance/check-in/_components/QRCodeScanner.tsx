@@ -161,11 +161,13 @@ export function QRCodeScanner({
 
       {smsFailure && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-          <p className="font-medium">⚠️ SMS 발송 실패</p>
-          <p className="mt-1 text-xs">{smsFailure}</p>
-          <p className="mt-1 text-xs text-amber-600">
-            출석 기록은 정상 저장되었습니다.
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">⚠️ SMS 발송 실패</p>
+            <p className="text-xs">{smsFailure}</p>
+            <p className="text-xs text-amber-600">
+              출석 기록은 정상 저장되었습니다.
+            </p>
+          </div>
         </div>
       )}
 

@@ -6,7 +6,7 @@
 
 import React from "react";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 
 type ScoreConsistencyAnalysisProps = {
   schoolScores: SchoolScoreRow[];
@@ -144,10 +144,11 @@ export function ScoreConsistencyAnalysis({
       {schoolConsistency && (
         <Card>
           <div className="p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-3">
-              내신 성적 일관성
-            </h3>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-gray-900">
+                내신 성적 일관성
+              </h3>
+              <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">일관성 점수</span>
                 <span className="text-2xl font-bold text-gray-900">
@@ -167,7 +168,7 @@ export function ScoreConsistencyAnalysis({
                 </span>
               </div>
               <div
-                className={`mt-3 rounded-lg border p-3 text-center ${getLevelColor(
+                className={`rounded-lg border p-3 text-center ${getLevelColor(
                   schoolConsistency.level
                 )}`}
               >
@@ -184,10 +185,11 @@ export function ScoreConsistencyAnalysis({
       {mockConsistency && (
         <Card>
           <div className="p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-3">
-              모의고사 성적 일관성
-            </h3>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-gray-900">
+                모의고사 성적 일관성
+              </h3>
+              <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">일관성 점수</span>
                 <span className="text-2xl font-bold text-gray-900">
@@ -207,7 +209,7 @@ export function ScoreConsistencyAnalysis({
                 </span>
               </div>
               <div
-                className={`mt-3 rounded-lg border p-3 text-center ${getLevelColor(
+                className={`rounded-lg border p-3 text-center ${getLevelColor(
                   mockConsistency.level
                 )}`}
               >
@@ -224,10 +226,11 @@ export function ScoreConsistencyAnalysis({
       {crossConsistency && (
         <Card>
           <div className="p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-3">
-              내신-모의고사 일관성
-            </h3>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-base font-semibold text-gray-900">
+                내신-모의고사 일관성
+              </h3>
+              <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">일관성 점수</span>
                 <span className="text-2xl font-bold text-gray-900">
@@ -240,13 +243,13 @@ export function ScoreConsistencyAnalysis({
                   {crossConsistency.avgDiff}등급
                 </span>
               </div>
-              <div className="text-xs text-gray-500 mt-2">
+              <div className="text-xs text-gray-500">
                 핵심 과목(국어, 수학, 영어)의
                 <br />
                 내신-모의고사 등급 차이 기준
               </div>
               <div
-                className={`mt-3 rounded-lg border p-3 text-center ${getLevelColor(
+                className={`rounded-lg border p-3 text-center ${getLevelColor(
                   crossConsistency.level
                 )}`}
               >

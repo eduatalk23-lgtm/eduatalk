@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 import { getGradeColor, getTrendColor } from "@/lib/scores/gradeColors";
 
 type MockSummarySectionProps = {

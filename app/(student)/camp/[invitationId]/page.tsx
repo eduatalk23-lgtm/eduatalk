@@ -360,16 +360,18 @@ export default async function CampParticipationPage({
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-10">
-      <div className="mb-8">
+      <div className="flex flex-col gap-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl font-semibold text-gray-900">
-              {template.name} 참여하기
-            </h1>
-            <p className="mt-2 text-sm text-gray-700">
-              템플릿 기반 정보를 확인하고, 학원 일정과 학습 콘텐츠를
-              입력해주세요.
-            </p>
+            <div className="flex flex-col gap-2">
+              <h1 className="text-h1 text-gray-900">
+                {template.name} 참여하기
+              </h1>
+              <p className="text-sm text-gray-700">
+                템플릿 기반 정보를 확인하고, 학원 일정과 학습 콘텐츠를
+                입력해주세요.
+              </p>
+            </div>
           </div>
           <Link
             href="/camp"

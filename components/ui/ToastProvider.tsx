@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useMemo } from "react";
-import { Toast } from "./Toast";
+import { Toast } from "../molecules/Toast";
 
 type ToastType = "success" | "error" | "info";
 
@@ -75,10 +75,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <Toast
             key={toast.id}
+            id={toast.id}
             message={toast.message}
-            type={toast.type}
+            variant={toast.type === "success" ? "success" : toast.type === "error" ? "error" : "info"}
             duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
+            onClose={removeToast}
           />
         ))}
       </div>

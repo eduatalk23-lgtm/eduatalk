@@ -6,7 +6,7 @@ import { StudentProfileCard } from "./_components/StudentProfileCard";
 import { InternalAnalysisCard } from "./_components/InternalAnalysisCard";
 import { MockAnalysisCard } from "./_components/MockAnalysisCard";
 import { StrategyCard } from "./_components/StrategyCard";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 import Link from "next/link";
 
 /**
@@ -118,7 +118,7 @@ export default async function UnifiedScoreDashboardPage() {
     return (
       <section className="mx-auto max-w-6xl p-6 md:p-8">
         <div className="mb-6 flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-gray-900">성적 대시보드</h1>
+          <h1 className="text-h1 text-gray-900">성적 대시보드</h1>
           <p className="text-sm text-gray-600">
             내신 및 모의고사 성적을 통합 분석하고 입시 전략을 제시합니다.
           </p>

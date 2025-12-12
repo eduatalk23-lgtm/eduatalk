@@ -1,4 +1,4 @@
-import { Card, CardHeader } from "@/components/ui/Card";
+import { Card, CardHeader } from "@/components/molecules/Card";
 import type { InternalAnalysis } from "@/lib/types/scoreDashboard";
 
 interface InternalAnalysisCardProps {

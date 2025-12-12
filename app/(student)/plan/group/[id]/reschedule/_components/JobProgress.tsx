@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { getRescheduleJobStatus } from "@/lib/reschedule/jobQueue";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { RescheduleJob } from "@/lib/reschedule/jobQueue";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type JobProgressProps = {
   jobId: string;
@@ -144,12 +145,11 @@ export function JobProgress({ jobId, groupId }: JobProgressProps) {
               <span className="text-sm font-medium text-gray-700">진행률</span>
               <span className="text-sm text-gray-600">{job.progress}%</span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${job.progress}%` }}
-              />
-            </div>
+            <ProgressBar
+              value={job.progress}
+              color="blue"
+              size="sm"
+            />
           </div>
         )}
 

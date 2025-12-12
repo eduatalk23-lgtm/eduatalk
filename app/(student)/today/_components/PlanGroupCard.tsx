@@ -26,6 +26,7 @@ import { useState, useEffect, useTransition, useMemo, memo } from "react";
 import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -351,7 +352,7 @@ function PlanGroupCardComponent({
           </div>
           <div className="flex flex-col gap-2">
             <div className="text-4xl">{contentInfo.icon}</div>
-            <h2 className="text-2xl font-bold text-gray-900">{contentInfo.title}</h2>
+            <h2 className="text-h2 text-gray-900">{contentInfo.title}</h2>
           </div>
         </div>
 
@@ -388,12 +389,11 @@ function PlanGroupCardComponent({
               <div className="text-3xl font-bold text-indigo-600">
                 {aggregatedInfo.totalProgress}%
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className="h-full bg-indigo-500 transition-all duration-300"
-                  style={{ width: `${aggregatedInfo.totalProgress}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={aggregatedInfo.totalProgress}
+                color="indigo"
+                size="md"
+              />
             </div>
 
             <div className="flex flex-col gap-1 text-center">
@@ -489,12 +489,11 @@ function PlanGroupCardComponent({
               <span className="text-gray-600">전체 진행률</span>
               <span className="font-semibold text-gray-900">{aggregatedInfo.totalProgress}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className="h-full bg-indigo-500 transition-all duration-300"
-                style={{ width: `${aggregatedInfo.totalProgress}%` }}
-              />
-            </div>
+            <ProgressBar
+              value={aggregatedInfo.totalProgress}
+              color="indigo"
+              size="sm"
+            />
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>총 학습 시간: {formatTime(aggregatedInfo.totalStudyTime)}</span>
               <span>

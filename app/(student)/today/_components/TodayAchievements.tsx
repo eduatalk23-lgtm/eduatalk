@@ -1,7 +1,7 @@
 "use client";
 
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 import {
   formatKoreanDateWithDay,
   getRelativeDateLabel,

@@ -86,12 +86,14 @@ export function LocationCheckIn({ onSuccess }: LocationCheckInProps) {
 
       {success && (
         <div className="rounded-lg bg-green-50 p-3 text-sm text-green-600">
-          출석 체크가 완료되었습니다!
-          {distance !== null && (
-            <p className="mt-1 text-xs">
-              학원에서 {distance}m 떨어진 위치입니다.
-            </p>
-          )}
+          <div className="flex flex-col gap-1">
+            <p>출석 체크가 완료되었습니다!</p>
+            {distance !== null && (
+              <p className="text-xs">
+                학원에서 {distance}m 떨어진 위치입니다.
+              </p>
+            )}
+          </div>
         </div>
       )}
 

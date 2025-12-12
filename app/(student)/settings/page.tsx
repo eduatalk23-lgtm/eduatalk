@@ -37,6 +37,7 @@ import { SkeletonForm } from "@/components/ui/SkeletonForm";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { cn } from "@/lib/cn";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
 import { changeUserRole } from "@/app/actions/userRole";
@@ -639,12 +640,11 @@ export default function SettingsPage() {
                 </div>
                 
                 {/* 단계별 진행 바 */}
-                <div className="w-full bg-indigo-200 rounded-full h-2">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(setupProgress.completedCount / setupProgress.totalSteps) * 100}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={(setupProgress.completedCount / setupProgress.totalSteps) * 100}
+                  color="indigo"
+                  size="sm"
+                />
                 
                 {/* 단계별 체크리스트 */}
                 <div className="flex flex-col gap-2">

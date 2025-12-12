@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import { getGradeColor } from "@/lib/scores/gradeColors";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 
 type SchoolScoreRow = {
   id: string;

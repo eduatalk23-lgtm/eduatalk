@@ -87,7 +87,7 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
         <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium text-gray-500">학습 플랜</p>
-            <h1 className="text-3xl font-semibold text-gray-900">학생별 플랜 목록</h1>
+            <h1 className="text-h1 text-gray-900">학생별 플랜 목록</h1>
             <p className="text-sm text-gray-500">
               기간별로 생성된 학습 계획을 확인하고 관리하세요.
             </p>

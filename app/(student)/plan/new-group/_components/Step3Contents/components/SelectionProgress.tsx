@@ -1,3 +1,5 @@
+import { ProgressBar } from "@/components/atoms/ProgressBar";
+
 type SelectionProgressProps = {
   totalCount: number;
   studentCount: number;
@@ -41,12 +43,11 @@ export function SelectionProgress({
       </div>
       {/* 진행 바 */}
       <div className="mt-4">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-          <div
-            className="h-full rounded-full bg-indigo-600 transition-all duration-300"
-            style={{ width: `${(totalCount / 9) * 100}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={(totalCount / 9) * 100}
+          color="indigo"
+          size="sm"
+        />
       </div>
       {!canAddMore && !isCampMode && (
         <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">

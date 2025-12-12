@@ -16,7 +16,7 @@ import {
   deleteSubject,
 } from "@/app/(admin)/actions/subjectActions";
 import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 
 type SubjectGroupWithSubjects = SubjectGroup & { subjects: Subject[] };
 

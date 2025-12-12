@@ -12,7 +12,7 @@
 import React, { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addSchoolScore } from "@/app/(student)/actions/scoreActions";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/molecules/Card";
 
 type SchoolScoreFormProps = {
   grade: string;
