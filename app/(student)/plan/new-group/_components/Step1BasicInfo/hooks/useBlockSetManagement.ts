@@ -158,9 +158,18 @@ export function useBlockSetManagement({
       return;
     }
 
+    // 중복 호출 방지
+    if (isPending) {
+      return;
+    }
+
     startTransition(() => {
       (async () => {
         try {
+          let blockSetId: string;
+          let blockSetName: string;
+
+          // 1. 블록 세트 생성 (템플릿/일반 모드 분기)
           if (isTemplateMode) {
             const templateFormData = new FormData();
             templateFormData.append("name", newBlockSetName.trim());
@@ -170,67 +179,22 @@ export function useBlockSetManagement({
             });
 
             const templateResult = await createTenantBlockSet(templateFormData);
-            const templateBlockSetId = templateResult.blockSetId;
-            const templateBlockSetName = templateResult.name;
+            blockSetId = templateResult.blockSetId;
+            blockSetName = templateResult.name;
 
             console.log("[Step1BasicInfo] 테넌트 블록 세트 생성 성공:", {
-              block_set_id: templateBlockSetId,
-              name: templateBlockSetName,
+              block_set_id: blockSetId,
+              name: blockSetName,
             });
-
-            if (addedBlocks.length > 0) {
-              for (const block of addedBlocks) {
-                const blockFormData = new FormData();
-                blockFormData.append("day", String(block.day));
-                blockFormData.append("start_time", block.startTime);
-                blockFormData.append("end_time", block.endTime);
-                blockFormData.append("block_set_id", templateBlockSetId);
-
-                try {
-                  await addTenantBlock(blockFormData);
-                } catch (error) {
-                  const planGroupError = toPlanGroupError(
-                    error,
-                    PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                    { day: block.day }
-                  );
-                  console.error(
-                    `[Step1BasicInfo] 테넌트 블록 추가 실패 (요일 ${block.day}):`,
-                    planGroupError
-                  );
-                }
-              }
-            }
-
-            console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회");
-            const latestBlockSets = await getTenantBlockSets();
-            console.log("[Step1BasicInfo] 최신 블록 세트 목록 조회 결과:", {
-              count: latestBlockSets.length,
-              block_set_ids: latestBlockSets.map((bs) => bs.id),
-            });
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
-
-            onUpdate({ block_set_id: templateBlockSetId });
-
-            setNewBlockSetName("");
-            setBlockSetMode("select");
-            setAddedBlocks([]);
-            setBlockStartTime("");
-            setBlockEndTime("");
-            setSelectedWeekdays([]);
-            setCurrentPage(1);
-            return;
+          } else {
+            const formData = new FormData();
+            formData.append("name", newBlockSetName.trim());
+            const result = await createBlockSet(formData);
+            blockSetId = result.blockSetId;
+            blockSetName = result.name;
           }
 
-          // 일반 모드
-          const formData = new FormData();
-          formData.append("name", newBlockSetName.trim());
-          const result = await createBlockSet(formData);
-          const blockSetId = result.blockSetId;
-          const blockSetName = result.name;
-
+          // 2. 시간 블록 추가 (공통 로직)
           if (addedBlocks.length > 0) {
             for (const block of addedBlocks) {
               const blockFormData = new FormData();
@@ -240,7 +204,11 @@ export function useBlockSetManagement({
               blockFormData.append("block_set_id", blockSetId);
 
               try {
-                await addBlock(blockFormData);
+                if (isTemplateMode) {
+                  await addTenantBlock(blockFormData);
+                } else {
+                  await addBlock(blockFormData);
+                }
               } catch (error) {
                 const planGroupError = toPlanGroupError(
                   error,
@@ -255,13 +223,26 @@ export function useBlockSetManagement({
             }
           }
 
-          const newBlockSet = { id: blockSetId, name: blockSetName };
-          if (onBlockSetCreated) {
-            onBlockSetCreated(newBlockSet);
+          // 3. 최신 블록 세트 목록 다시 불러오기 (공통 로직)
+          const latestBlockSets = isTemplateMode
+            ? await getTenantBlockSets()
+            : await getBlockSets();
+
+          // 4. 목록 업데이트
+          if (onBlockSetsLoaded) {
+            onBlockSetsLoaded(latestBlockSets);
           }
 
+          // 5. 새로 생성된 블록 세트 찾기 및 콜백 호출
+          const newBlockSet = latestBlockSets.find((bs) => bs.id === blockSetId);
+          if (newBlockSet && onBlockSetCreated) {
+            onBlockSetCreated({ id: blockSetId, name: blockSetName });
+          }
+
+          // 6. 새 블록 세트 선택
           onUpdate({ block_set_id: blockSetId });
 
+          // 7. 폼 초기화
           setNewBlockSetName("");
           setBlockSetMode("select");
           setAddedBlocks([]);
