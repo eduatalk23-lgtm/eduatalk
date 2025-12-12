@@ -142,7 +142,8 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                             : i % 3 === 0
                             ? "border-t border-gray-300"
                             : "border-t border-dashed border-gray-200"
-                        } top-[${(i / 24) * 100}%]`}
+                        }`}
+                        style={{ top: `${(i / 24) * 100}%` }}
                       />
                     ))}
 
@@ -164,7 +165,11 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                           key={idx}
                           className={`group absolute left-0 right-0 mx-1 rounded ${
                             colorClass || "bg-blue-500"
-                          } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between top-[${blockStyle.top}] h-[${blockStyle.height}]`}
+                          } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
+                          style={{
+                            top: blockStyle.top,
+                            height: blockStyle.height,
+                          }}
                           title={`${block.start_time} ~ ${block.end_time}`}
                         >
                           {/* 시작 시간 - 상단 */}
