@@ -6,7 +6,7 @@ import { updateAttendanceRecord } from "@/app/(admin)/actions/attendanceActions"
 import type { UpdateAttendanceRecordRequest } from "@/lib/types/attendance";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
-import { Label } from "@/components/atoms/Label";
+import Label from "@/components/atoms/Label";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 
 type EditAttendanceRecordFormProps = {
