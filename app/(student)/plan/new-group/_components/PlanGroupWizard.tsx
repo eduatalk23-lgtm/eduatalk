@@ -552,10 +552,31 @@ export function PlanGroupWizard({
   const [activationDialogOpen, setActivationDialogOpen] = useState(false);
   const [activeGroupNames, setActiveGroupNames] = useState<string[]>([]);
 
+  // block_set_id 변경 추적 (자동 저장 방지용)
+  const prevBlockSetIdRef = useRef<string | undefined>(wizardData.block_set_id);
+  const isBlockSetIdOnlyChangeRef = useRef(false);
+
   // 단계 변경 시 스크롤을 상단으로 이동
   useEffect(() => {
     scrollToTop();
   }, [currentStep]);
+
+  // block_set_id 변경 감지 (자동 저장 방지를 위한 추적)
+  useEffect(() => {
+    const currentBlockSetId = wizardData.block_set_id;
+    const prevBlockSetId = prevBlockSetIdRef.current;
+
+    if (prevBlockSetId !== currentBlockSetId) {
+      // block_set_id가 변경되었음을 표시
+      isBlockSetIdOnlyChangeRef.current = true;
+      prevBlockSetIdRef.current = currentBlockSetId;
+
+      // 다음 렌더링 사이클에서 플래그 리셋 (다른 필드 변경과 구분)
+      setTimeout(() => {
+        isBlockSetIdOnlyChangeRef.current = false;
+      }, 0);
+    }
+  }, [wizardData.block_set_id]);
 
   const updateWizardData = (
     updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)
@@ -779,11 +800,6 @@ export function PlanGroupWizard({
             data={wizardData}
             onUpdate={updateWizardData}
             blockSets={blockSets}
-            onBlockSetCreated={(newBlockSet: any) => {
-              setBlockSets((prev) => [...prev, newBlockSet]);
-              // 새 블록셋 선택
-              updateWizardData({ block_set_id: newBlockSet.id });
-            }}
             onBlockSetsLoaded={(latestBlockSets: any) => {
               setBlockSets(latestBlockSets);
             }}

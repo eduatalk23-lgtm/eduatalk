@@ -109,6 +109,19 @@ export function useBlockSetManagement({
     }
   }, [data.block_set_id, blockSets, isCampMode]);
 
+  // 공통: 블록 세트 목록 새로고침 함수
+  const refreshBlockSets = async () => {
+    const latestBlockSets = isTemplateMode
+      ? await getTenantBlockSets()
+      : await getBlockSets();
+
+    if (onBlockSetsLoaded) {
+      onBlockSetsLoaded(latestBlockSets);
+    }
+
+    return latestBlockSets;
+  };
+
   const toggleWeekday = (day: number) => {
     setSelectedWeekdays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
@@ -223,33 +236,23 @@ export function useBlockSetManagement({
             }
           }
 
-          // 3. 최신 블록 세트 목록 다시 불러오기 (공통 로직)
-          const latestBlockSets = isTemplateMode
-            ? await getTenantBlockSets()
-            : await getBlockSets();
+          // 3. 최신 블록 세트 목록 다시 불러오기 (공통 함수 사용)
+          await refreshBlockSets();
 
-          // 4. 목록 업데이트
-          if (onBlockSetsLoaded) {
-            onBlockSetsLoaded(latestBlockSets);
-          }
-
-          // 5. 새로 생성된 블록 세트 찾기 및 콜백 호출
-          const newBlockSet = latestBlockSets.find((bs) => bs.id === blockSetId);
-          if (newBlockSet && onBlockSetCreated) {
-            onBlockSetCreated({ id: blockSetId, name: blockSetName });
-          }
-
-          // 6. 새 블록 세트 선택
+          // 4. 새 블록 세트 선택 (onBlockSetsLoaded 이후에 한 번만 호출)
+          // 상태 업데이트를 startTransition 밖에서 수행하여 불필요한 리렌더링 방지
           onUpdate({ block_set_id: blockSetId });
 
-          // 7. 폼 초기화
-          setNewBlockSetName("");
-          setBlockSetMode("select");
-          setAddedBlocks([]);
-          setBlockStartTime("");
-          setBlockEndTime("");
-          setSelectedWeekdays([]);
-          setCurrentPage(1);
+          // 5. 폼 초기화 (상태 업데이트를 한 번에 처리)
+          startTransition(() => {
+            setNewBlockSetName("");
+            setBlockSetMode("select");
+            setAddedBlocks([]);
+            setBlockStartTime("");
+            setBlockEndTime("");
+            setSelectedWeekdays([]);
+            setCurrentPage(1);
+          });
         } catch (error) {
           alert(
             error instanceof Error
@@ -266,17 +269,7 @@ export function useBlockSetManagement({
     startTransition(() => {
       (async () => {
         try {
-          if (isTemplateMode) {
-            const latestBlockSets = await getTenantBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
-          } else {
-            const latestBlockSets = await getBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
-          }
+          await refreshBlockSets();
           setBlockSetMode("select");
           setCurrentPage(1);
         } catch (error) {
@@ -328,61 +321,35 @@ export function useBlockSetManagement({
     startTransition(() => {
       (async () => {
         try {
-          if (isTemplateMode) {
-            for (const day of selectedWeekdays) {
-              const blockFormData = new FormData();
-              blockFormData.append("day", String(day));
-              blockFormData.append("start_time", blockStartTime);
-              blockFormData.append("end_time", blockEndTime);
-              blockFormData.append("block_set_id", editingBlockSetId);
+          // 블록 추가 (템플릿/일반 모드 분기)
+          for (const day of selectedWeekdays) {
+            const blockFormData = new FormData();
+            blockFormData.append("day", String(day));
+            blockFormData.append("start_time", blockStartTime);
+            blockFormData.append("end_time", blockEndTime);
+            blockFormData.append("block_set_id", editingBlockSetId);
 
-              try {
+            try {
+              if (isTemplateMode) {
                 await addTenantBlock(blockFormData);
-              } catch (error) {
-                const planGroupError = toPlanGroupError(
-                  error,
-                  PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                  { day }
-                );
-                console.error(
-                  `[Step1BasicInfo] 테넌트 블록 추가 실패 (요일 ${day}):`,
-                  planGroupError
-                );
-              }
-            }
-
-            const latestBlockSets = await getTenantBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
-          } else {
-            for (const day of selectedWeekdays) {
-              const blockFormData = new FormData();
-              blockFormData.append("day", String(day));
-              blockFormData.append("start_time", blockStartTime);
-              blockFormData.append("end_time", blockEndTime);
-              blockFormData.append("block_set_id", editingBlockSetId);
-
-              try {
+              } else {
                 await addBlock(blockFormData);
-              } catch (error) {
-                const planGroupError = toPlanGroupError(
-                  error,
-                  PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
-                  { day }
-                );
-                console.error(
-                  `[Step1BasicInfo] 블록 추가 실패 (요일 ${day}):`,
-                  planGroupError
-                );
               }
-            }
-
-            const latestBlockSets = await getBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
+            } catch (error) {
+              const planGroupError = toPlanGroupError(
+                error,
+                PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
+                { day }
+              );
+              console.error(
+                `[Step1BasicInfo] 블록 추가 실패 (요일 ${day}):`,
+                planGroupError
+              );
             }
           }
+
+          // 최신 블록 세트 목록 새로고침 (공통 함수 사용)
+          await refreshBlockSets();
 
           setSelectedWeekdays([]);
           setBlockStartTime("");
@@ -407,21 +374,15 @@ export function useBlockSetManagement({
           const blockFormData = new FormData();
           blockFormData.append("id", blockId);
 
+          // 블록 삭제 (템플릿/일반 모드 분기)
           if (isTemplateMode) {
             await deleteTenantBlock(blockFormData);
-
-            const latestBlockSets = await getTenantBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
           } else {
             await deleteBlock(blockFormData);
-
-            const latestBlockSets = await getBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
           }
+
+          // 최신 블록 세트 목록 새로고침 (공통 함수 사용)
+          await refreshBlockSets();
         } catch (error) {
           alert(
             error instanceof Error ? error.message : "블록 삭제에 실패했습니다."
@@ -444,34 +405,22 @@ export function useBlockSetManagement({
           formData.append("id", editingBlockSetId);
           formData.append("name", editingBlockSetName.trim());
 
+          // 블록 세트 이름 업데이트 (템플릿/일반 모드 분기)
           if (isTemplateMode) {
             await updateTenantBlockSet(formData);
-
-            const latestBlockSets = await getTenantBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
-
-            const updatedSet = latestBlockSets.find(
-              (set) => set.id === editingBlockSetId
-            );
-            if (updatedSet) {
-              onUpdate({ block_set_id: updatedSet.id });
-            }
           } else {
             await updateBlockSet(formData);
+          }
 
-            const latestBlockSets = await getBlockSets();
-            if (onBlockSetsLoaded) {
-              onBlockSetsLoaded(latestBlockSets);
-            }
+          // 최신 블록 세트 목록 새로고침 (공통 함수 사용)
+          const latestBlockSets = await refreshBlockSets();
 
-            const updatedSet = latestBlockSets.find(
-              (set) => set.id === editingBlockSetId
-            );
-            if (updatedSet) {
-              onUpdate({ block_set_id: updatedSet.id });
-            }
+          // 업데이트된 블록 세트 찾아서 선택 유지
+          const updatedSet = latestBlockSets.find(
+            (set) => set.id === editingBlockSetId
+          );
+          if (updatedSet) {
+            onUpdate({ block_set_id: updatedSet.id });
           }
 
           setBlockSetMode("select");
