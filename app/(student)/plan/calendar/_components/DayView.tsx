@@ -211,13 +211,13 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
       {/* 날짜 헤더 및 요약 정보 */}
       <div className={`rounded-xl border-2 p-6 shadow-lg ${bgColorClass}`}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className={`text-3xl font-bold mb-2 ${textColorClass}`}>
+          <div className="flex flex-col gap-3">
+            <h2 className={`text-3xl font-bold ${textColorClass}`}>
               {formatDateFull(currentDate)}
             </h2>
             {/* 날짜 타입 배지 */}
             {dayTypeInfo && dayType !== "normal" && (
-              <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className={`rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-sm ${dayTypeBadgeClass}`}>
                   {dayTypeInfo.icon} {dayTypeInfo.label}
                 </span>
@@ -263,8 +263,8 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
         </div>
         <div className="p-6">
           {TIME_BLOCKS.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
-              <div className="text-4xl mb-2">📅</div>
+            <div className="flex flex-col gap-2 py-12 text-center text-gray-400">
+              <div className="text-4xl">📅</div>
               <div className="text-lg font-medium">이 날짜에는 플랜이 없습니다</div>
             </div>
           ) : (
@@ -466,7 +466,7 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
                                 )}
                                 {/* 시간 정보 */}
                                 {plan.start_time && plan.end_time && (
-                                  <div className="mt-1 flex items-center gap-1 text-xs text-blue-600">
+                                  <div className="flex items-center gap-1 text-xs text-blue-600">
                                     <span>⏰</span>
                                     <span>{plan.start_time} ~ {plan.end_time}</span>
                                   </div>

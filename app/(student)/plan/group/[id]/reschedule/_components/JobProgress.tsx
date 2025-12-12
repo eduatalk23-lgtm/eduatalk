@@ -70,9 +70,9 @@ export function JobProgress({ jobId, groupId }: JobProgressProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
+        <div className="flex flex-col gap-4 text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">작업 상태를 확인하는 중...</p>
+          <p className="text-sm text-gray-600">작업 상태를 확인하는 중...</p>
         </div>
       </div>
     );
@@ -117,16 +117,16 @@ export function JobProgress({ jobId, groupId }: JobProgressProps) {
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <div className="mb-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+      <div className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold text-gray-900">재조정 진행 상황</h3>
-        <p className="mt-1 text-sm text-gray-600">작업 ID: {jobId}</p>
+        <p className="text-sm text-gray-600">작업 ID: {jobId}</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 상태 */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">상태</span>
             <span
               className={`rounded px-2 py-1 text-xs font-medium ${getStatusColor(
@@ -140,8 +140,8 @@ export function JobProgress({ jobId, groupId }: JobProgressProps) {
 
         {/* 진행률 */}
         {job.status === "processing" && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700">진행률</span>
               <span className="text-sm text-gray-600">{job.progress}%</span>
             </div>
@@ -169,11 +169,11 @@ export function JobProgress({ jobId, groupId }: JobProgressProps) {
 
         {/* 결과 */}
         {job.status === "completed" && job.result && (
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+          <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 p-4">
             <p className="text-sm font-medium text-green-800">
               재조정 완료
             </p>
-            <p className="mt-1 text-xs text-green-700">
+            <p className="text-xs text-green-700">
               기존 플랜: {job.result.plans_before_count}개 → 새 플랜:{" "}
               {job.result.plans_after_count}개
             </p>

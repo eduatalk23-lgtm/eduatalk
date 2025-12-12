@@ -99,10 +99,10 @@ export function RescheduleWizard({
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       {/* 진행 표시 */}
-      <div className="border-b border-gray-200 px-4 py-4 sm:px-6">
+      <div className="flex flex-col gap-4 border-b border-gray-200 px-4 py-4 sm:px-6">
         {/* 진행률 바 */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between text-xs text-gray-600">
             <span>진행률</span>
             <span>{Math.round(progressPercentage)}%</span>
           </div>
