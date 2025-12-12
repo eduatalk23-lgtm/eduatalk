@@ -329,6 +329,33 @@ export async function updateAttendanceSMSSettings(
       );
     }
 
+    // 입력 데이터 검증
+    const validRecipientValues = ['mother', 'father', 'both', 'auto'] as const;
+    if (!validRecipientValues.includes(input.attendance_sms_recipient)) {
+      throw new AppError(
+        `SMS 수신자 선택 값이 올바르지 않습니다. 허용된 값: ${validRecipientValues.join(', ')}`,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // boolean 값 검증
+    if (
+      typeof input.attendance_sms_check_in_enabled !== 'boolean' ||
+      typeof input.attendance_sms_check_out_enabled !== 'boolean' ||
+      typeof input.attendance_sms_absent_enabled !== 'boolean' ||
+      typeof input.attendance_sms_late_enabled !== 'boolean' ||
+      typeof input.attendance_sms_student_checkin_enabled !== 'boolean'
+    ) {
+      throw new AppError(
+        'SMS 설정 값이 올바르지 않습니다. 모든 설정은 boolean 값이어야 합니다.',
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
     const supabase = await createSupabaseServerClient();
 
     // 업데이트할 데이터 준비
@@ -348,6 +375,7 @@ export async function updateAttendanceSMSSettings(
 
     console.log("[attendanceSettings] SMS 설정 업데이트 시작:", {
       tenantId: tenantContext.tenantId,
+      inputData: input,
       updateData,
     });
 
@@ -385,13 +413,30 @@ export async function updateAttendanceSMSSettings(
       .single();
 
     if (verifyError) {
-      console.error("[attendanceSettings] SMS 설정 검증 실패:", verifyError);
+      console.error("[attendanceSettings] SMS 설정 검증 실패:", {
+        error: verifyError,
+        errorCode: verifyError.code,
+        errorMessage: verifyError.message,
+        tenantId: tenantContext.tenantId,
+      });
       // 검증 실패해도 업데이트는 성공했을 수 있으므로 경고만 로깅
     } else if (verifyData) {
       console.log("[attendanceSettings] SMS 설정 업데이트 성공 및 검증 완료:", {
         tenantId: tenantContext.tenantId,
         savedData: verifyData,
+        // 중요 필드 비교 로그
+        recipientMatch: verifyData.attendance_sms_recipient === input.attendance_sms_recipient,
+        checkInMatch: verifyData.attendance_sms_check_in_enabled === input.attendance_sms_check_in_enabled,
+        checkOutMatch: verifyData.attendance_sms_check_out_enabled === input.attendance_sms_check_out_enabled,
       });
+      
+      // 저장된 값이 요청한 값과 일치하는지 확인
+      if (verifyData.attendance_sms_recipient !== input.attendance_sms_recipient) {
+        console.warn("[attendanceSettings] SMS 수신자 값 불일치:", {
+          requested: input.attendance_sms_recipient,
+          saved: verifyData.attendance_sms_recipient,
+        });
+      }
     }
 
     revalidatePath("/admin/attendance/settings");

@@ -59,23 +59,62 @@ export function AttendanceSMSSettingsForm() {
     loadSettings();
   }, [loadSettings]);
 
+  const handleRecipientChange = (value: string) => {
+    setFormData({
+      ...formData,
+      attendance_sms_recipient: value as 'mother' | 'father' | 'both' | 'auto',
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     setSuccess(false);
 
+    // 폼 데이터 유효성 검증
+    const validRecipientValues = ['mother', 'father', 'both', 'auto'] as const;
+    if (!validRecipientValues.includes(formData.attendance_sms_recipient)) {
+      setError('SMS 수신자 선택 값이 올바르지 않습니다.');
+      setSaving(false);
+      return;
+    }
+
     try {
+      console.log('[AttendanceSMSSettingsForm] 폼 제출 데이터:', formData);
       const result = await updateAttendanceSMSSettings(formData);
+      console.log('[AttendanceSMSSettingsForm] 서버 응답:', result);
 
       if (result.success) {
         setSuccess(true);
+        setError(null);
         setTimeout(() => setSuccess(false), 3000);
       } else {
-        setError(result.error || "SMS 설정 저장에 실패했습니다.");
+        // 서버에서 반환된 에러 메시지 표시
+        const errorMessage = result.error || "SMS 설정 저장에 실패했습니다.";
+        console.error('[AttendanceSMSSettingsForm] 저장 실패:', errorMessage);
+        setError(errorMessage);
       }
     } catch (err: any) {
-      setError(err.message || "SMS 설정 저장 중 오류가 발생했습니다.");
+      // 네트워크 에러 또는 예상치 못한 에러 처리
+      console.error('[AttendanceSMSSettingsForm] 예외 발생:', err);
+      
+      let errorMessage = "SMS 설정 저장 중 오류가 발생했습니다.";
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      // 네트워크 에러인지 확인
+      if (err?.name === 'NetworkError' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT') {
+        errorMessage = "네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해주세요.";
+      }
+      
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -296,12 +335,7 @@ export function AttendanceSMSSettingsForm() {
                       name="sms_recipient"
                       value="auto"
                       checked={formData.attendance_sms_recipient === 'auto'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          attendance_sms_recipient: e.target.value as 'auto',
-                        })
-                      }
+                      onChange={(e) => handleRecipientChange(e.target.value)}
                       className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">
@@ -314,12 +348,7 @@ export function AttendanceSMSSettingsForm() {
                       name="sms_recipient"
                       value="mother"
                       checked={formData.attendance_sms_recipient === 'mother'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          attendance_sms_recipient: e.target.value as 'mother',
-                        })
-                      }
+                      onChange={(e) => handleRecipientChange(e.target.value)}
                       className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">어머니만</span>
@@ -330,12 +359,7 @@ export function AttendanceSMSSettingsForm() {
                       name="sms_recipient"
                       value="father"
                       checked={formData.attendance_sms_recipient === 'father'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          attendance_sms_recipient: e.target.value as 'father',
-                        })
-                      }
+                      onChange={(e) => handleRecipientChange(e.target.value)}
                       className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">아버지만</span>
@@ -346,12 +370,7 @@ export function AttendanceSMSSettingsForm() {
                       name="sms_recipient"
                       value="both"
                       checked={formData.attendance_sms_recipient === 'both'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          attendance_sms_recipient: e.target.value as 'both',
-                        })
-                      }
+                      onChange={(e) => handleRecipientChange(e.target.value)}
                       className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">둘 다</span>
