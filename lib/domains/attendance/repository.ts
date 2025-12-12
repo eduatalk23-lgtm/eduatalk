@@ -4,7 +4,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import type {
   AttendanceRecord,
   CreateAttendanceRecordInput,
@@ -48,8 +48,10 @@ export async function insertAttendanceRecord(
   input: CreateAttendanceRecordInput
 ): Promise<AttendanceRecord> {
   // RLS 정책 우회를 위해 Admin 클라이언트 사용
-  const adminClient = createSupabaseAdminClient();
-  const supabase = adminClient || await createSupabaseServerClient();
+  const supabase = await getSupabaseClientForRLSBypass({
+    forceAdmin: false,
+    fallbackToServer: true,
+  });
 
   const { data, error } = await supabase
     .from("attendance_records")
@@ -76,7 +78,6 @@ export async function insertAttendanceRecord(
       hint: error.hint,
       tenantId,
       input,
-      usingAdminClient: !!adminClient,
     });
     throw error;
   }
@@ -93,8 +94,10 @@ export async function updateAttendanceRecord(
   input: UpdateAttendanceRecordInput
 ): Promise<AttendanceRecord> {
   // RLS 정책 우회를 위해 Admin 클라이언트 사용
-  const adminClient = createSupabaseAdminClient();
-  const supabase = adminClient || await createSupabaseServerClient();
+  const supabase = await getSupabaseClientForRLSBypass({
+    forceAdmin: false,
+    fallbackToServer: true,
+  });
 
   const updateData: Partial<AttendanceRecord> = {};
 
@@ -133,7 +136,6 @@ export async function updateAttendanceRecord(
       hint: error.hint,
       recordId,
       input,
-      usingAdminClient: !!adminClient,
     });
     throw error;
   }

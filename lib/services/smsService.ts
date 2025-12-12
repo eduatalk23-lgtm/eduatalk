@@ -6,6 +6,7 @@
 
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 
 export interface SendSMSOptions {
   recipientPhone: string;
@@ -246,14 +247,18 @@ export async function sendSMS(
   const normalizedPhone = phoneValidation.normalized;
 
   // 1. SMS 로그 생성 (pending 상태) - 재시도가 아닌 경우에만
-  const supabase = await createSupabaseServerClient();
+  // RLS 우회를 위해 Admin 클라이언트 사용 (SMS 로그는 시스템이 생성)
+  const logClient = await getSupabaseClientForRLSBypass({
+    forceAdmin: true,
+    fallbackToServer: false, // Admin 클라이언트 필수
+  });
   let smsLog;
 
   const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
   const messageEndpoint = `${baseUrl}/v1/message`;
 
   if (retryCount === 0) {
-    const { data: logData, error: logError } = await supabase
+    const { data: logData, error: logError } = await logClient
       .from("sms_logs")
       .insert({
         tenant_id: tenantId,
@@ -275,8 +280,8 @@ export async function sendSMS(
     }
     smsLog = logData;
   } else {
-    // 재시도인 경우 기존 로그 조회
-    const { data: logData } = await supabase
+    // 재시도인 경우 기존 로그 조회 (RLS 우회 필요)
+    const { data: logData } = await logClient
       .from("sms_logs")
       .select("id")
       .eq("tenant_id", tenantId)
@@ -424,7 +429,7 @@ export async function sendSMS(
       // messageKey가 없어도 code가 1000이면 성공으로 간주 (일부 API는 messageKey를 반환하지 않을 수 있음)
       const messageKey = messageResponse.messageKey || `ref-${refKeyValue}`;
 
-      await supabase
+      await logClient
         .from("sms_logs")
         .update({
           status: "sent",
@@ -459,7 +464,7 @@ export async function sendSMS(
       response: messageResponse,
     });
 
-    await supabase
+    await logClient
       .from("sms_logs")
       .update({
         status: "failed",
@@ -551,7 +556,7 @@ export async function sendSMS(
       };
     }
 
-    await supabase
+    await logClient
       .from("sms_logs")
       .update({
         status: "failed",
@@ -728,9 +733,12 @@ export async function cancelScheduledMessage(
       : result.code;
 
     if (responseCode === 1000) {
-      // SMS 로그 상태 업데이트
-      const supabase = await createSupabaseServerClient();
-      await supabase
+      // SMS 로그 상태 업데이트 (RLS 우회 필요)
+      const logClient = await getSupabaseClientForRLSBypass({
+        forceAdmin: true,
+        fallbackToServer: false,
+      });
+      await logClient
         .from("sms_logs")
         .update({
           status: "failed",

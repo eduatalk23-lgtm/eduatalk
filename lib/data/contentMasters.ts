@@ -2,7 +2,7 @@
 // master_books, master_lectures 테이블 사용
 
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { MasterBook, MasterLecture, MasterCustomContent, BookDetail, LectureEpisode } from "@/lib/types/plan";
 import { 
   getSubjectGroups, 
@@ -1063,8 +1063,7 @@ export async function copyMasterToStudentContent(
  */
 export async function getCurriculumRevisions(): Promise<Array<{ id: string; name: string }>> {
   // Admin 클라이언트 우선 사용 (RLS 우회), 없으면 일반 서버 클라이언트 사용
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  const supabase = await getClientForRLSBypass();
 
   const { data, error } = await supabase
     .from("curriculum_revisions")
@@ -1230,8 +1229,7 @@ export async function getSemesterList(): Promise<string[]> {
 export async function getPublishersForFilter(
   tenantId?: string | null
 ): Promise<Array<{ id: string; name: string }>> {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  const supabase = await getClientForRLSBypass();
 
   // master_books에서 실제로 사용된 publisher_id 조회
   let publisherQuery = supabase
@@ -1290,8 +1288,7 @@ export async function getPublishersForFilter(
 export async function getPlatformsForFilter(
   tenantId?: string | null
 ): Promise<Array<{ id: string; name: string }>> {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  const supabase = await getClientForRLSBypass();
 
   // master_lectures에서 실제로 사용된 platform_id 조회
   let platformQuery = supabase
@@ -1348,8 +1345,7 @@ export async function getPlatformsForFilter(
 export async function getDifficultiesForMasterBooks(
   tenantId?: string | null
 ): Promise<string[]> {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  const supabase = await getClientForRLSBypass();
 
   let query = supabase
     .from("master_books")
@@ -1386,8 +1382,7 @@ export async function getDifficultiesForMasterBooks(
 export async function getDifficultiesForMasterLectures(
   tenantId?: string | null
 ): Promise<string[]> {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  const supabase = await getClientForRLSBypass();
 
   let query = supabase
     .from("master_lectures")
