@@ -10,11 +10,55 @@ import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { getStudentPhones, getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 
 /**
- * 출석 관련 SMS 발송
+ * 테넌트 설정과 학생 정보를 기반으로 SMS 수신자 전화번호 목록 결정
  */
-export async function sendAttendanceSMS(
+function determineRecipientPhones(
+  recipientSetting: 'mother' | 'father' | 'both' | 'auto',
+  student: { mother_phone: string | null; father_phone: string | null }
+): string[] {
+  const recipientPhones: string[] = [];
+  
+  switch (recipientSetting) {
+    case 'mother':
+      if (student.mother_phone) {
+        recipientPhones.push(student.mother_phone);
+      }
+      break;
+    case 'father':
+      if (student.father_phone) {
+        recipientPhones.push(student.father_phone);
+      }
+      break;
+    case 'both':
+      if (student.mother_phone) {
+        recipientPhones.push(student.mother_phone);
+      }
+      if (student.father_phone) {
+        recipientPhones.push(student.father_phone);
+      }
+      break;
+    case 'auto':
+    default: {
+      // 기존 로직: 먼저 있는 번호 사용
+      const parentContact = student.mother_phone || student.father_phone;
+      if (parentContact) {
+        recipientPhones.push(parentContact);
+      }
+      break;
+    }
+  }
+  
+  return recipientPhones;
+}
+
+/**
+ * 출석 관련 SMS 발송 (내부 사용, 권한 체크 없음)
+ * 학생 직접 체크인/체크아웃 시 사용
+ */
+export async function sendAttendanceSMSInternal(
   studentId: string,
   templateType:
     | "attendance_check_in"
@@ -24,7 +68,6 @@ export async function sendAttendanceSMS(
   variables: Record<string, string>
 ): Promise<{ success: boolean; msgId?: string; error?: string }> {
   const handler = withErrorHandling(async () => {
-    await requireAdminAuth();
     const tenantContext = await getTenantContext();
 
     if (!tenantContext?.tenantId) {
@@ -56,24 +99,10 @@ export async function sendAttendanceSMS(
 
     const recipientSetting = (tenant?.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto';
 
-    // 학생 정보 조회 (mother_phone, father_phone 사용)
-    const { data: student, error: studentError } = await supabase
-      .from("students")
-      .select("id, name, mother_phone, father_phone")
-      .eq("id", studentId)
-      .maybeSingle();
+    // 학생 전화번호 정보 조회 (공통 헬퍼 함수 사용)
+    const studentPhoneData = await getStudentPhones(studentId);
 
-    if (studentError) {
-      console.error("[SMS] 학생 정보 조회 실패:", studentError);
-      throw new AppError(
-        "학생 정보를 조회하는 중 오류가 발생했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true
-      );
-    }
-
-    if (!student) {
+    if (!studentPhoneData) {
       throw new AppError(
         "학생 정보를 찾을 수 없습니다.",
         ErrorCode.NOT_FOUND,
@@ -82,38 +111,11 @@ export async function sendAttendanceSMS(
       );
     }
 
-    // 설정에 따라 수신자 결정
-    let recipientPhones: string[] = [];
-    
-    switch (recipientSetting) {
-      case 'mother':
-        if (student.mother_phone) {
-          recipientPhones = [student.mother_phone];
-        }
-        break;
-      case 'father':
-        if (student.father_phone) {
-          recipientPhones = [student.father_phone];
-        }
-        break;
-      case 'both':
-        if (student.mother_phone) {
-          recipientPhones.push(student.mother_phone);
-        }
-        if (student.father_phone) {
-          recipientPhones.push(student.father_phone);
-        }
-        break;
-      case 'auto':
-      default: {
-        // 기존 로직: 먼저 있는 번호 사용
-        const parentContact = student.mother_phone || student.father_phone;
-        if (parentContact) {
-          recipientPhones = [parentContact];
-        }
-        break;
-      }
-    }
+    // 설정에 따라 수신자 결정 (공통 함수 사용)
+    const recipientPhones = determineRecipientPhones(recipientSetting, {
+      mother_phone: studentPhoneData.mother_phone,
+      father_phone: studentPhoneData.father_phone,
+    });
 
     if (recipientPhones.length === 0) {
       throw new AppError(
@@ -127,7 +129,7 @@ export async function sendAttendanceSMS(
     // 템플릿 포맷팅
     const message = formatSMSTemplate(templateType, {
       ...variables,
-      학생명: student.name || "학생",
+      학생명: studentPhoneData.name || "학생",
     });
 
     // SMS 발송 (여러 수신자인 경우 각각 발송)
@@ -154,6 +156,26 @@ export async function sendAttendanceSMS(
 
     revalidatePath("/admin/sms");
     return { success: true, msgId: lastMsgId };
+  });
+  return handler();
+}
+
+/**
+ * 출석 관련 SMS 발송 (관리자 전용)
+ * 관리자 액션에서 사용
+ */
+export async function sendAttendanceSMS(
+  studentId: string,
+  templateType:
+    | "attendance_check_in"
+    | "attendance_check_out"
+    | "attendance_absent"
+    | "attendance_late",
+  variables: Record<string, string>
+): Promise<{ success: boolean; msgId?: string; error?: string }> {
+  const handler = withErrorHandling(async () => {
+    await requireAdminAuth();
+    return await sendAttendanceSMSInternal(studentId, templateType, variables);
   });
   return handler();
 }
@@ -207,54 +229,10 @@ export async function sendBulkAttendanceSMS(
 
     const recipientSetting = (tenant?.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto';
 
-    type StudentData = { id: string; name: string | null; mother_phone: string | null; father_phone: string | null };
-    type ProfileData = { id: string; phone?: string | null; mother_phone?: string | null; father_phone?: string | null };
+    // 학생 전화번호 정보 일괄 조회 (공통 헬퍼 함수 사용)
+    const studentsWithPhones = await getStudentPhonesBatch(studentIds);
 
-    // 학생 정보 일괄 조회 (phone, mother_phone, father_phone 모두 조회)
-    const { data: students, error: studentsError } = await supabase
-      .from("students")
-      .select("id, name, mother_phone, father_phone")
-      .in("id", studentIds);
-
-    // student_profiles 테이블에서 phone 정보 조회
-    let profiles: ProfileData[] = [];
-    if (studentIds.length > 0) {
-      try {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("student_profiles")
-          .select("id, phone, mother_phone, father_phone")
-          .in("id", studentIds);
-        
-        if (!profilesError && profilesData) {
-          profiles = profilesData as ProfileData[];
-        }
-      } catch {
-        // student_profiles 테이블이 없으면 무시
-      }
-    }
-
-    // 프로필 정보를 학생 정보와 병합
-    const studentsWithPhones = ((students ?? []) as StudentData[]).map((student) => {
-      const profile = profiles.find((p) => p.id === student.id);
-      return {
-        ...student,
-        phone: profile?.phone ?? null,
-        mother_phone: profile?.mother_phone ?? student.mother_phone ?? null,
-        father_phone: profile?.father_phone ?? student.father_phone ?? null,
-      };
-    });
-
-    if (studentsError) {
-      console.error("[SMS] 학생 정보 조회 실패:", studentsError);
-      throw new AppError(
-        "학생 정보를 조회하는 중 오류가 발생했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true
-      );
-    }
-
-    if (!students || students.length === 0) {
+    if (studentsWithPhones.length === 0) {
       throw new AppError(
         "학생 정보를 찾을 수 없습니다.",
         ErrorCode.NOT_FOUND,
@@ -271,37 +249,11 @@ export async function sendBulkAttendanceSMS(
     }> = [];
 
     for (const student of studentsWithPhones) {
-      // 설정에 따라 수신자 결정
-      let recipientPhones: string[] = [];
-      
-      switch (recipientSetting) {
-        case 'mother':
-          if (student.mother_phone) {
-            recipientPhones = [student.mother_phone];
-          }
-          break;
-        case 'father':
-          if (student.father_phone) {
-            recipientPhones = [student.father_phone];
-          }
-          break;
-        case 'both':
-          if (student.mother_phone) {
-            recipientPhones.push(student.mother_phone);
-          }
-          if (student.father_phone) {
-            recipientPhones.push(student.father_phone);
-          }
-          break;
-        case 'auto':
-        default:
-          // 기존 로직: 먼저 있는 번호 사용
-          const parentContact = student.mother_phone || student.father_phone;
-          if (parentContact) {
-            recipientPhones = [parentContact];
-          }
-          break;
-      }
+      // 설정에 따라 수신자 결정 (공통 함수 사용)
+      const recipientPhones = determineRecipientPhones(recipientSetting, {
+        mother_phone: student.mother_phone,
+        father_phone: student.father_phone,
+      });
 
       // 각 수신자에게 SMS 발송 대상 추가
       for (const recipientPhone of recipientPhones) {
@@ -428,28 +380,10 @@ export async function sendBulkGeneralSMS(
       );
     }
 
-    type StudentData = { id: string; name: string | null; mother_phone?: string | null; father_phone?: string | null };
-    type ProfileData = { id: string; phone?: string | null; mother_phone?: string | null; father_phone?: string | null };
-    type StudentWithPhones = StudentData & { phone: string | null; mother_phone: string | null; father_phone: string | null };
+    // 학생 전화번호 정보 일괄 조회 (공통 헬퍼 함수 사용)
+    const studentsWithPhones = await getStudentPhonesBatch(studentIds);
 
-    // 학생 정보 일괄 조회
-    const supabase = await createSupabaseServerClient();
-    const { data: students, error: studentsError } = await supabase
-      .from("students")
-      .select("id, name")
-      .in("id", studentIds);
-
-    if (studentsError) {
-      console.error("[SMS] 학생 정보 조회 실패:", studentsError);
-      throw new AppError(
-        "학생 정보를 조회하는 중 오류가 발생했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true
-      );
-    }
-
-    if (!students || students.length === 0) {
+    if (studentsWithPhones.length === 0) {
       throw new AppError(
         "학생 정보를 찾을 수 없습니다.",
         ErrorCode.NOT_FOUND,
@@ -459,6 +393,7 @@ export async function sendBulkGeneralSMS(
     }
 
     // 학원명 조회
+    const supabase = await createSupabaseServerClient();
     const { data: tenant } = await supabase
       .from("tenants")
       .select("name")
@@ -467,38 +402,8 @@ export async function sendBulkGeneralSMS(
 
     const academyName = tenant?.name || "학원";
 
-    // student_profiles 테이블에서 phone 정보 조회 (학생 본인 연락처)
-    const studentIdList = (students as StudentData[]).map((s) => s.id);
-    let profiles: ProfileData[] = [];
-    
-    if (studentIdList.length > 0) {
-      try {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from("student_profiles")
-          .select("id, phone, mother_phone, father_phone")
-          .in("id", studentIdList);
-        
-        if (!profilesError && profilesData) {
-          profiles = profilesData as ProfileData[];
-        }
-      } catch {
-        // student_profiles 테이블이 없으면 무시
-      }
-    }
-
-    // 프로필 정보를 학생 정보와 병합 (student_profiles 우선, 없으면 students 테이블 사용)
-    const studentsWithPhones: StudentWithPhones[] = (students as StudentData[]).map((s) => {
-      const profile = profiles.find((p) => p.id === s.id);
-      return {
-        ...s,
-        phone: profile?.phone ?? null,
-        mother_phone: profile?.mother_phone ?? s.mother_phone ?? null,
-        father_phone: profile?.father_phone ?? s.father_phone ?? null,
-      };
-    });
-
     // 전송 대상자에 따라 전화번호 선택
-    const getPhoneByRecipientType = (student: StudentWithPhones, type: "student" | "mother" | "father"): string | null => {
+    const getPhoneByRecipientType = (student: { phone: string | null; mother_phone: string | null; father_phone: string | null }, type: "student" | "mother" | "father"): string | null => {
       switch (type) {
         case "student":
           return student.phone;

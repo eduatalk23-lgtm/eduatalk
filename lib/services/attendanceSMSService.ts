@@ -5,7 +5,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sendAttendanceSMS } from "@/app/actions/smsActions";
+import { sendAttendanceSMSInternal } from "@/app/actions/smsActions";
 import type { AttendanceSMSSettings } from "@/lib/types/attendance";
 
 /**
@@ -232,8 +232,8 @@ export async function sendAttendanceSMSIfEnabled(
       };
     }
 
-    // SMS 발송
-    const result = await sendAttendanceSMS(studentId, smsType, variables);
+    // SMS 발송 (내부 함수 사용, 권한 체크 없음)
+    const result = await sendAttendanceSMSInternal(studentId, smsType, variables);
 
     if (!result.success) {
       console.error(
@@ -262,12 +262,16 @@ export async function sendAttendanceSMSIfEnabled(
         msgId: result.msgId,
       },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[AttendanceSMS] ${smsType} 발송 중 오류:`, error);
     // SMS 발송 실패는 로그만 남기고 출석 기록 저장은 정상 처리
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "알 수 없는 오류가 발생했습니다.";
+    
     return {
       success: true, // 출석 기록 저장은 성공으로 처리
-      error: error?.message || "알 수 없는 오류가 발생했습니다.",
+      error: errorMessage,
       errorType: "unknown",
       details: {
         smsType,
