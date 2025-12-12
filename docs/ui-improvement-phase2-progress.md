@@ -12,17 +12,16 @@
 - Breadcrumbs, SchoolSelect, Tabs, ErrorState, EmptyState
 - SectionHeader, ProgressBar 등
 
-### Phase 3: 학생 페이지 우선순위 1 Spacing 수정 (진행 중)
+### Phase 3: 학생 페이지 우선순위 1 Spacing 수정 ✅
 - dashboard: ActiveLearningWidget, RecommendationCard ✅
 - settings: CalculationInfoModal, DeviceManagement ✅
-- today: 진행 예정
-- plan: 진행 예정
+- today: PlanRangeAdjustModal, PlanMemoModal, DraggablePlanList, PlanViewContainer, CurrentLearningSection, TimeCheckSection, PlanTimerCard, TodayPlanListView, PlanExecutionForm, plan/[planId]/page ✅
+- plan: JobProgress, RescheduleWizard, DayView, ContentSelectionProgress, CalendarPlanCard, SelectionProgress, PlanGroupWizard, RescheduleRecommendations, ContentReplaceModal, PlanGroupListItem, Step3Contents 관련 컴포넌트, Step1BasicInfo 관련 컴포넌트 등 약 20개 파일 ✅
 
 ## 남은 작업
 
-### 학생 페이지 우선순위 1
-- today: 약 10개 파일
-- plan: 약 20개 파일
+### 학생 페이지 우선순위 1 ✅
+- 완료됨
 
 ### 학생 페이지 우선순위 2
 - contents: 약 30개 파일
