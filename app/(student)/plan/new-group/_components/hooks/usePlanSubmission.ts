@@ -52,6 +52,7 @@ export function usePlanSubmission({
   // Payload Builder Hook
   const { build: buildPayload } = usePlanPayloadBuilder(wizardData, {
     validateOnBuild: true,
+    isCampMode,
   });
 
   /* -------------------------------------------------------------------------- */
@@ -61,6 +62,14 @@ export function usePlanSubmission({
     async (silent: boolean = false) => {
       try {
         setValidationErrors([]);
+        
+        // 기간 검증 (이중 안전장치): 캠프 모드가 아닐 때만 검증
+        if (!isCampMode && (!wizardData.period_start || !wizardData.period_end)) {
+          const errorMsg = "기간 설정이 필요합니다. Step 1에서 학습 기간을 입력해주세요.";
+          setValidationErrors([errorMsg]);
+          if (!silent) toast.showError(errorMsg);
+          return;
+        }
         
         let creationData;
         try {
@@ -120,6 +129,7 @@ export function usePlanSubmission({
       isCampMode,
       campInvitationId,
       initialData,
+      wizardData,
     ]
   );
 
@@ -133,6 +143,15 @@ export function usePlanSubmission({
       setValidationErrors([]);
 
       try {
+        // 0. 기간 검증 (이중 안전장치): 캠프 모드가 아닐 때만 검증
+        if (!isCampMode && (!wizardData.period_start || !wizardData.period_end)) {
+          const errorMsg = "기간 설정이 필요합니다. Step 1에서 학습 기간을 입력해주세요.";
+          setValidationErrors([errorMsg]);
+          toast.showError(errorMsg);
+          setIsSubmitting(false);
+          return;
+        }
+        
         // 1. Payload Build
         let creationData;
         try {

@@ -8,6 +8,7 @@ import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/sche
 
 type UsePlanPayloadBuilderOptions = {
   validateOnBuild?: boolean;
+  isCampMode?: boolean;
 };
 
 type PayloadBuildResult = {
@@ -30,8 +31,20 @@ export function usePlanPayloadBuilder(
     if (!wizardData.name || wizardData.name.trim() === "") {
       errors.push("플랜 그룹 이름이 필요합니다.");
     }
-    if (!wizardData.period_start || !wizardData.period_end) {
-      errors.push("기간 설정이 필요합니다.");
+    
+    // 기간 검증: 캠프 모드가 아닐 때만 검증
+    // 템플릿 모드에서 학생 입력 허용이 아닐 때만 필수
+    const isStudentInputAllowed = (fieldName: string): boolean => {
+      const lockedFields = wizardData.templateLockedFields?.step1 || {};
+      const allowFieldName = `allow_student_${fieldName}` as keyof typeof lockedFields;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (lockedFields as any)[allowFieldName] === true;
+    };
+    
+    if (!options.isCampMode && !isStudentInputAllowed("period")) {
+      if (!wizardData.period_start || !wizardData.period_end) {
+        errors.push("기간 설정이 필요합니다. Step 1에서 학습 기간을 입력해주세요.");
+      }
     }
     if (!wizardData.block_set_id) {
        // Note: block_set_id might be missing in 'Draft' mode or early stages, 
@@ -222,7 +235,7 @@ export function usePlanPayloadBuilder(
       errors,
       warnings
     };
-  }, [wizardData, options.validateOnBuild]);
+  }, [wizardData, options.validateOnBuild, options.isCampMode]);
 
   const build = () => {
     if (!isValid && options.validateOnBuild) {
