@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";
 
 const MAX_BLOCK_SETS = 5;
 
@@ -404,44 +405,8 @@ async function _getBlockSets(): Promise<Array<{ id: string; name: string; blocks
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  const { data: blockSets, error: setsError } = await supabase
-    .from("student_block_sets")
-    .select("id, name")
-    .eq("student_id", user.id)
-    .order("display_order", { ascending: true });
-
-  if (setsError) {
-    throw setsError;
-  }
-
-  if (!blockSets || blockSets.length === 0) {
-    return [];
-  }
-
-  // 각 블록 세트의 시간 블록 조회
-  const blockSetsWithBlocks = await Promise.all(
-    blockSets.map(async (set) => {
-      const { data: blocks, error: blocksError } = await supabase
-        .from("student_block_schedule")
-        .select("id, day_of_week, start_time, end_time")
-        .eq("block_set_id", set.id)
-        .eq("student_id", user.id)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
-      if (blocksError) {
-        console.error(`[blockSets] 블록 조회 실패 (세트 ${set.id}):`, blocksError);
-        return { ...set, blocks: [] };
-      }
-
-      return {
-        ...set,
-        blocks: (blocks as Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>) ?? [],
-      };
-    })
-  );
-
-  return blockSetsWithBlocks;
+  // 공통 함수 사용
+  return await fetchBlockSetsWithBlocks(user.id);
 }
 
 // 에러 핸들링 래퍼 적용

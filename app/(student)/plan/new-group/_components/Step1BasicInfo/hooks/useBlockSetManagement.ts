@@ -266,11 +266,18 @@ export function useBlockSetManagement({
           }
 
           // 3. 최신 블록 세트 목록 다시 불러오기 (공통 함수 사용)
-          await refreshBlockSets();
+          const latestBlockSets = await refreshBlockSets();
 
-          // 4. 새 블록 세트 선택 (onBlockSetsLoaded 이후에 한 번만 호출)
-          // 상태 업데이트를 startTransition 밖에서 수행하여 불필요한 리렌더링 방지
-          onUpdate({ block_set_id: blockSetId });
+          // 4. 새 블록 세트가 목록에 포함되었는지 확인 후 선택
+          const newBlockSet = latestBlockSets.find(set => set.id === blockSetId);
+          if (newBlockSet) {
+            // 새로고침 완료 후 안전하게 선택
+            onUpdate({ block_set_id: blockSetId });
+          } else {
+            console.warn("[Step1BasicInfo] 새로 생성된 블록 세트를 목록에서 찾을 수 없습니다:", blockSetId);
+            // 목록 새로고침 후에도 없으면 사용자에게 알림
+            alert("블록 세트가 생성되었지만 목록에 반영되지 않았습니다. 새로고침 버튼을 클릭해주세요.");
+          }
 
           // 5. 폼 초기화 (상태 업데이트를 한 번에 처리)
           startTransition(() => {
@@ -388,7 +395,13 @@ export function useBlockSetManagement({
           }
 
           // 최신 블록 세트 목록 새로고침 (공통 함수 사용)
-          await refreshBlockSets();
+          const latestBlockSets = await refreshBlockSets();
+          
+          // 새로고침 완료 확인 (디버깅용)
+          const updatedSet = latestBlockSets.find(set => set.id === editingBlockSetId);
+          if (!updatedSet) {
+            console.warn("[Step1BasicInfo] 블록 추가 후 세트를 찾을 수 없습니다:", editingBlockSetId);
+          }
 
           setSelectedWeekdays([]);
           setBlockStartTime("");
@@ -421,7 +434,15 @@ export function useBlockSetManagement({
           }
 
           // 최신 블록 세트 목록 새로고침 (공통 함수 사용)
-          await refreshBlockSets();
+          const latestBlockSets = await refreshBlockSets();
+          
+          // 새로고침 완료 확인 (디버깅용)
+          if (editingBlockSetId) {
+            const updatedSet = latestBlockSets.find(set => set.id === editingBlockSetId);
+            if (!updatedSet) {
+              console.warn("[Step1BasicInfo] 블록 삭제 후 세트를 찾을 수 없습니다:", editingBlockSetId);
+            }
+          }
         } catch (error) {
           alert(
             error instanceof Error ? error.message : "블록 삭제에 실패했습니다."
@@ -455,11 +476,15 @@ export function useBlockSetManagement({
           const latestBlockSets = await refreshBlockSets();
 
           // 업데이트된 블록 세트 찾아서 선택 유지
-            const updatedSet = latestBlockSets.find(
-              (set) => set.id === editingBlockSetId
-            );
-            if (updatedSet) {
-              onUpdate({ block_set_id: updatedSet.id });
+          const updatedSet = latestBlockSets.find(
+            (set) => set.id === editingBlockSetId
+          );
+          if (updatedSet) {
+            // 새로고침 완료 후 안전하게 선택 유지
+            onUpdate({ block_set_id: updatedSet.id });
+          } else {
+            console.warn("[Step1BasicInfo] 이름 수정 후 블록 세트를 목록에서 찾을 수 없습니다:", editingBlockSetId);
+            // 목록에서 찾을 수 없어도 계속 진행 (이름은 이미 업데이트됨)
           }
 
           setBlockSetMode("select");
