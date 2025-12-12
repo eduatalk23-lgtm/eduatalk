@@ -28,11 +28,11 @@ export function WeekdaySelector({
   ];
 
   return (
-    <div className="mb-4">
-      <label className="mb-2 block text-xs font-medium text-gray-900">
+    <div className="flex flex-col gap-2">
+      <label className="block text-xs font-medium text-gray-900">
         추가할 요일 선택
       </label>
-      <div className="mb-2 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={onSelectAll}

@@ -95,7 +95,7 @@ export function ContentRangeSelector({
                             페이지 {detail.page_number}
                           </span>
                           {detail.major_unit && (
-                            <span className="ml-2 text-gray-600">
+                            <span className="ml-1 text-gray-600">
                               · {detail.major_unit}
                               {detail.minor_unit && ` - ${detail.minor_unit}`}
                             </span>
@@ -128,7 +128,7 @@ export function ContentRangeSelector({
                             {detail.episode_number}강
                           </span>
                           {detail.episode_title && (
-                            <span className="ml-2 text-gray-600">
+                            <span className="ml-1 text-gray-600">
                               · {detail.episode_title}
                             </span>
                           )}
@@ -172,7 +172,7 @@ export function ContentRangeSelector({
                             페이지 {detail.page_number}
                           </span>
                           {detail.major_unit && (
-                            <span className="ml-2 text-gray-600">
+                            <span className="ml-1 text-gray-600">
                               · {detail.major_unit}
                               {detail.minor_unit && ` - ${detail.minor_unit}`}
                             </span>
@@ -205,7 +205,7 @@ export function ContentRangeSelector({
                             {detail.episode_number}강
                           </span>
                           {detail.episode_title && (
-                            <span className="ml-2 text-gray-600">
+                            <span className="ml-1 text-gray-600">
                               · {detail.episode_title}
                             </span>
                           )}

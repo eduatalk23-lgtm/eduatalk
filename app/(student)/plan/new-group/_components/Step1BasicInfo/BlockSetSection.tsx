@@ -90,7 +90,7 @@ export function BlockSetSection({
                 e.stopPropagation();
                 setShowBlockSetDescDialog(true);
               }}
-              className="ml-1 inline-flex items-center text-gray-800 hover:text-gray-900"
+              className="inline-flex items-center text-gray-800 hover:text-gray-900"
               title="블록 세트 설명"
             >
               <HelpCircle className="h-4 w-4" />
@@ -104,7 +104,7 @@ export function BlockSetSection({
         }
         showStudentInputToggle={isTemplateMode}
       >
-        <div className="mb-2 flex items-center justify-end">
+        <div className="flex items-center justify-end">
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -141,7 +141,7 @@ export function BlockSetSection({
         </div>
 
         {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
-        <div className="mb-4">
+        <div>
           {(() => {
             const selectedSet =
               data.block_set_id && blockSets
@@ -161,7 +161,7 @@ export function BlockSetSection({
         {/* 기존 블록 세트 선택 */}
         {blockSetMode === "select" && (
           <div
-            className={`mb-4 space-y-2 ${
+            className={`flex flex-col gap-2 ${
               !editable || (isCampMode && !canStudentInputBlockSetId)
                 ? "opacity-60"
                 : ""
@@ -302,7 +302,7 @@ export function BlockSetSection({
               </p>
             )}
             {(!editable || (isCampMode && !canStudentInputBlockSetId)) && (
-              <p className="mt-2 text-xs text-gray-600">
+              <p className="text-xs text-gray-600">
                 {!editable
                   ? "읽기 전용 모드입니다."
                   : "블록 세트는 템플릿에서 고정되어 수정할 수 없습니다."}
@@ -314,10 +314,10 @@ export function BlockSetSection({
         {/* 블록 세트 생성 폼 */}
         {blockSetMode === "create" &&
           (!isCampMode || canStudentInputBlockSetId) && (
-            <div className="mb-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
               {/* 블록 세트 이름 */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-900">
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-medium text-gray-900">
                   블록 세트 이름
                 </label>
                 <input
@@ -330,8 +330,8 @@ export function BlockSetSection({
               </div>
 
               {/* 시간 블록 추가 */}
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
-                <h3 className="mb-3 text-sm font-semibold text-gray-900">
+              <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+                <h3 className="text-sm font-semibold text-gray-900">
                   시간 블록 추가
                 </h3>
 
@@ -344,9 +344,9 @@ export function BlockSetSection({
                 />
 
                 {/* 시간 입력 */}
-                <div className="mb-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-900">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-xs font-medium text-gray-900">
                       시작 시간
                     </label>
                     <input
@@ -356,8 +356,8 @@ export function BlockSetSection({
                       onChange={(e) => setBlockStartTime(e.target.value)}
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-900">
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-xs font-medium text-gray-900">
                       종료 시간
                     </label>
                     <input
@@ -454,10 +454,10 @@ export function BlockSetSection({
 
         {/* 블록 세트 수정 폼 */}
         {blockSetMode === "edit" && editingBlockSetId && (
-          <div className="mb-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             {/* 블록 세트 이름 수정 */}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900">
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-medium text-gray-900">
                 블록 세트 이름
               </label>
               <div className="flex gap-2">
@@ -511,8 +511,8 @@ export function BlockSetSection({
               }, {} as Record<number, typeof blocks>);
 
               return (
-                <div className="rounded-lg border border-gray-200 bg-white p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-gray-900">
+                <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
+                  <h3 className="text-sm font-semibold text-gray-900">
                     등록된 시간 블록 ({blocks.length}개)
                   </h3>
                   <div className="space-y-2">
@@ -549,8 +549,8 @@ export function BlockSetSection({
             })()}
 
             {/* 시간 블록 추가 */}
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-gray-900">
                 시간 블록 추가
               </h3>
               {/* ... (요일 선택/시간 입력 UI 동일) */}
@@ -562,9 +562,9 @@ export function BlockSetSection({
                 onSelectWeekends={selectWeekends}
               />
 
-              <div className="mb-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-900">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="block text-xs font-medium text-gray-900">
                     시작 시간
                   </label>
                   <input
@@ -574,8 +574,8 @@ export function BlockSetSection({
                     onChange={(e) => setBlockStartTime(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-900">
+                <div className="flex flex-col gap-1">
+                  <label className="block text-xs font-medium text-gray-900">
                     종료 시간
                   </label>
                   <input
@@ -636,8 +636,8 @@ export function BlockSetSection({
             학생의 생활 패턴(학교 등교, 학원 시간 등)을 고려하여 학습 가능한
             시간을 설정하면, 해당 시간 내에서 콘텐츠가 자동으로 배정됩니다.
           </p>
-          <div className="rounded-lg bg-gray-50 p-4">
-            <h4 className="mb-2 text-sm font-medium text-gray-900">
+          <div className="flex flex-col gap-2 rounded-lg bg-gray-50 p-4">
+            <h4 className="text-sm font-medium text-gray-900">
               사용 예시
             </h4>
             <ul className="list-disc space-y-1 pl-4 text-xs text-gray-600">

@@ -237,11 +237,11 @@ export function Step1BasicInfo({
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold text-gray-900">
           {isCampMode ? "캠프 기본 정보" : "플랜 기본 정보"}
         </h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           {isCampMode
             ? "캠프의 목적과 기간, 스케줄러 유형을 설정해주세요."
             : "플랜의 목적과 기간, 스케줄러 유형을 설정해주세요."}
@@ -258,10 +258,10 @@ export function Step1BasicInfo({
         }
         showStudentInputToggle={isTemplateMode}
       >
-        <div>
+        <div className="flex flex-col gap-1">
           <label
             htmlFor="plan_name"
-            className="mb-2 block text-sm font-medium text-gray-800"
+            className="block text-sm font-medium text-gray-800"
           >
             {isCampMode ? "캠프 이름" : "플랜 이름"}{" "}
             <span className="text-red-500">*</span>
@@ -289,12 +289,12 @@ export function Step1BasicInfo({
             required
           />
           {isFieldLocked("name") && (
-            <p className="mt-1 text-xs text-gray-600">
+            <p className="text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 있습니다.
             </p>
           )}
           {isCampMode && !canStudentInputName && (
-            <p className="mt-1 text-xs text-gray-600">
+            <p className="text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
             </p>
           )}
@@ -349,7 +349,7 @@ export function Step1BasicInfo({
             ))}
           </div>
           {isCampMode && !canStudentInputPlanPurpose && (
-            <p className="mt-2 text-xs text-gray-600">
+            <p className="text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
             </p>
           )}
@@ -390,7 +390,7 @@ export function Step1BasicInfo({
       >
         {/* 스케줄러 유형 선택 (한 줄) */}
         <div
-          className={`mb-4 flex gap-2 ${
+          className={`flex gap-2 ${
             isCampMode && !canStudentInputSchedulerType ? "opacity-60" : ""
           }`}
         >
@@ -430,7 +430,7 @@ export function Step1BasicInfo({
           ))}
         </div>
         {isCampMode && !canStudentInputSchedulerType && (
-          <p className="mb-2 text-xs text-gray-600">
+          <p className="text-xs text-gray-600">
             스케줄러 유형은 템플릿에서 고정되어 수정할 수 없습니다.
           </p>
         )}
@@ -456,48 +456,48 @@ export function Step1BasicInfo({
               </button>
 
               {show1730Desc && (
-                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
-                  <h4 className="mb-3 font-semibold text-blue-800">
+                <div className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
+                  <h4 className="font-semibold text-blue-800">
                     1730 Timetable 동작 방식
                   </h4>
-                  <ul className="space-y-2 text-blue-800">
+                  <ul className="flex flex-col gap-2 text-blue-800">
                     <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
+                      <span>•</span>
                       <span>
                         주 단위로 학습과 복습을 체계적으로 관리하는
                         스케줄러입니다.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
+                      <span>•</span>
                       <span>
                         기본적으로 <strong>6일 학습 + 1일 복습</strong> 패턴으로
                         구성됩니다.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
+                      <span>•</span>
                       <span>
                         학습일에는 새로운 콘텐츠를 순환 배정하여 다양한 과목을
                         학습합니다.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
+                      <span>•</span>
                       <span>
                         복습일에는 해당 주에 학습한 내용을 복습하여 학습 효과를
                         극대화합니다.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
+                      <span>•</span>
                       <span>
                         학습일과 복습일의 비율을 조절하여 자신에게 맞는 학습
                         패턴을 설정할 수 있습니다. (학습일 + 복습일 = 7일)
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="mt-1">•</span>
+                      <span>•</span>
                       <span>
                         정기적인 복습을 통해 장기 기억 강화와 학습 내용의 완전한
                         이해를 도모합니다.
@@ -509,22 +509,22 @@ export function Step1BasicInfo({
             </div>
 
             {/* 옵션 */}
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="mb-3 flex items-center justify-between">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">
                   1730 Timetable 옵션
                 </h3>
                 {renderStudentInputCheckbox("allow_student_study_review_cycle")}
               </div>
               <div
-                className={`space-y-4 ${
+                className={`flex flex-col gap-4 ${
                   isCampMode && !canStudentInputStudyReviewCycle
                     ? "opacity-60"
                     : ""
                 }`}
               >
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-900">
+                <div className="flex flex-col gap-2">
+                  <label className="block text-xs font-medium text-gray-900">
                     학습일 수
                   </label>
                   <div className="flex items-center gap-3">
@@ -604,8 +604,8 @@ export function Step1BasicInfo({
                     </button>
                   </div>
                 </div>
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-900">
+                <div className="flex flex-col gap-1">
+                  <label className="block text-xs font-medium text-gray-900">
                     복습일 수
                   </label>
                   <div className="flex items-center gap-3">
@@ -690,7 +690,7 @@ export function Step1BasicInfo({
                       +
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="text-xs text-gray-600">
                     학습일 + 복습일 = 7일로 고정됩니다. 복습일은 최소 1일이어야
                     합니다.
                   </p>

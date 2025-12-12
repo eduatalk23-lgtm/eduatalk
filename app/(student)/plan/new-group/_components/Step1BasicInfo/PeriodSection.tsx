@@ -69,7 +69,7 @@ export function PeriodSection({
     >
       {/* 기간 입력 유형 선택 */}
       <div
-        className={`mb-4 flex flex-wrap gap-2 ${
+        className={`flex flex-wrap gap-2 ${
           isFieldLocked("period_start") ||
           isFieldLocked("period_end") ||
           (isCampMode && !canStudentInputPeriod)
@@ -149,20 +149,20 @@ export function PeriodSection({
         </button>
       </div>
       {(isFieldLocked("period_start") || isFieldLocked("period_end")) && (
-        <p className="mb-2 text-xs text-gray-600">
+        <p className="text-xs text-gray-600">
           학습 기간은 템플릿에서 고정되어 있습니다.
         </p>
       )}
       {isCampMode && !canStudentInputPeriod && (
-        <p className="mb-2 text-xs text-gray-600">
+        <p className="text-xs text-gray-600">
           학습 기간은 템플릿에서 고정되어 수정할 수 없습니다.
         </p>
       )}
 
       {/* D-day 입력 */}
       {periodInputType === "dday" && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <label className="mb-2 block text-sm font-medium text-gray-800">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label className="block text-sm font-medium text-gray-800">
             시험일 입력
           </label>
           <input
@@ -203,10 +203,10 @@ export function PeriodSection({
             min={today}
           />
           {ddayState.calculated && data.period_start && data.period_end && (
-            <div className="mt-3 rounded-lg bg-white p-3">
-              <div className="text-sm text-gray-600">
+            <div className="flex flex-col gap-1 rounded-lg bg-white p-3">
+              <div className="flex flex-col gap-1 text-sm text-gray-600">
                 <div className="font-medium text-gray-800">학습 기간</div>
-                <div className="mt-1">
+                <div>
                   시작일:{" "}
                   <span className="font-medium">{data.period_start}</span>
                 </div>
@@ -222,8 +222,8 @@ export function PeriodSection({
 
       {/* 주 단위 입력 */}
       {periodInputType === "weeks" && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <label className="mb-2 block text-sm font-medium text-gray-900">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <label className="block text-sm font-medium text-gray-900">
             시작일 입력
           </label>
           <input
@@ -261,8 +261,8 @@ export function PeriodSection({
           />
 
           {weeksState.startDate && (
-            <div className="mt-4">
-              <label className="mb-2 block text-sm font-medium text-gray-900">
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-medium text-gray-900">
                 학습 주수
               </label>
               <div className="flex items-center gap-3">
@@ -317,7 +317,7 @@ export function PeriodSection({
                   +
                 </button>
               </div>
-              <p className="mt-2 text-xs text-gray-600">
+              <p className="text-xs text-gray-600">
                 종료일:{" "}
                 <span className="font-medium">
                   {data.period_end || "자동 계산됨"}
@@ -331,8 +331,8 @@ export function PeriodSection({
       {/* 직접 입력 */}
       {periodInputType === "direct" && (
         <div className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-800">
               시작일
             </label>
             <input
@@ -368,8 +368,8 @@ export function PeriodSection({
               min={today}
             />
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-800">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-800">
               종료일
             </label>
             <input
@@ -405,7 +405,7 @@ export function PeriodSection({
       
       {/* 추가 기간 학습 범위 재배치 (1730 Timetable) */}
       {data.scheduler_type === "1730_timetable" && (
-        <div className="mt-6">
+        <div>
           <CollapsibleSection
             title="추가 기간 학습 범위 재배치 (선택사항)"
             defaultOpen={!!data.additional_period_reallocation}
@@ -505,10 +505,10 @@ export function PeriodSection({
               </p>
 
               {data.additional_period_reallocation && (
-                <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-900">
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-900">
                         추가 기간 시작일
                       </label>
                       <input
@@ -566,8 +566,8 @@ export function PeriodSection({
                         }
                       />
                     </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-gray-900">
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-900">
                         추가 기간 종료일
                       </label>
                       <input
@@ -627,7 +627,7 @@ export function PeriodSection({
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
                     <p className="text-xs text-blue-800">
                       <strong>재배치 범위:</strong>{" "}
                       {
@@ -640,11 +640,11 @@ export function PeriodSection({
                           .original_period_end
                       }
                     </p>
-                    <p className="mt-1 text-xs text-blue-800">
+                    <p className="text-xs text-blue-800">
                       학습 기간의 콘텐츠를 추가 기간에 재배치하여 복습을
                       진행합니다.
                     </p>
-                    <p className="mt-1 text-xs text-blue-800">
+                    <p className="text-xs text-blue-800">
                       복습 소요시간은 원본 학습 소요시간의 25%로 자동
                       계산됩니다.
                     </p>
