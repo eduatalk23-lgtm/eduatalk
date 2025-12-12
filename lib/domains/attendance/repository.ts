@@ -53,6 +53,10 @@ export async function insertAttendanceRecord(
     fallbackToServer: true,
   });
 
+  if (!supabase) {
+    throw new Error("Supabase client uninitialized");
+  }
+
   const { data, error } = await supabase
     .from("attendance_records")
     .insert({
@@ -118,6 +122,10 @@ export async function updateAttendanceRecord(
   }
   if (input.notes !== undefined) {
     updateData.notes = input.notes;
+  }
+
+  if (!supabase) {
+    throw new Error("Supabase client uninitialized");
   }
 
   const { data, error } = await supabase

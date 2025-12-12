@@ -201,6 +201,7 @@ export function Step3Contents({
             선택한 콘텐츠 추가하기 ({totalCount}/9)
           </button>
         </div>
+      </div>
       )}
 
       {/* Added Content List */}

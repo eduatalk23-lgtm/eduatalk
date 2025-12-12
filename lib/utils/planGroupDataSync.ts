@@ -116,27 +116,29 @@ export function syncWizardDataToCreationData(
 
     // 4. PlanGroupCreationData 구성
     // plan_purpose 변환: 빈 문자열은 null, "모의고사(수능)"은 "모의고사"로 변환
+    const wizardPlanPurpose = wizardData.plan_purpose as string;
     const normalizedPlanPurpose: PlanPurpose | null =
-      !wizardData.plan_purpose || wizardData.plan_purpose === ""
+      !wizardPlanPurpose || wizardPlanPurpose === ""
         ? null
-        : wizardData.plan_purpose === "모의고사(수능)"
+        : wizardPlanPurpose === "모의고사(수능)"
           ? "모의고사"
-          : (wizardData.plan_purpose as PlanPurpose);
+          : (wizardPlanPurpose as PlanPurpose);
 
     // scheduler_type 변환: 빈 문자열은 null
+    const wizardSchedulerType = wizardData.scheduler_type as string; // Cast to string for empty check
     const normalizedSchedulerType: SchedulerType | null =
-      !wizardData.scheduler_type || wizardData.scheduler_type === ""
+      !wizardSchedulerType || wizardSchedulerType === ""
         ? null
-        : (wizardData.scheduler_type as SchedulerType);
+        : (wizardSchedulerType as SchedulerType);
 
     const creationData: PlanGroupCreationData = {
       name: wizardData.name || null,
-      plan_purpose: normalizedPlanPurpose,
-      scheduler_type: normalizedSchedulerType,
+      plan_purpose: normalizedPlanPurpose || "모의고사", // Default fallback if null
+      scheduler_type: normalizedSchedulerType || "1730_timetable", // Default fallback if null
       scheduler_options:
         Object.keys(finalSchedulerOptions).length > 0 ? finalSchedulerOptions : null,
-      period_start: wizardData.period_start,
-      period_end: wizardData.period_end,
+      period_start: wizardData.period_start || new Date().toISOString().split('T')[0], // Fallback to today
+      period_end: wizardData.period_end || new Date().toISOString().split('T')[0],
       target_date: wizardData.target_date || null,
       block_set_id: wizardData.block_set_id || null,
       contents: allContents.map((c, idx) => {
@@ -148,12 +150,11 @@ export function syncWizardDataToCreationData(
           masterContentId = c.master_content_id;
         } else {
           // 2. 추천 콘텐츠인 경우: content_id 자체가 마스터 콘텐츠 ID
-          // 추천 콘텐츠는 recommended_contents에 포함되어 있고, is_auto_recommended 또는 recommendation_source가 있음
           const isRecommended = wizardData.recommended_contents.some(
             (rc) => rc.content_id === c.content_id && rc.content_type === c.content_type
           );
           if (isRecommended) {
-            masterContentId = c.content_id; // 추천 콘텐츠는 content_id가 마스터 콘텐츠 ID
+            masterContentId = c.content_id;
           }
         }
 
@@ -161,16 +162,7 @@ export function syncWizardDataToCreationData(
           is_auto_recommended?: boolean;
           recommendation_source?: "auto" | "admin" | "template" | null;
           recommendation_reason?: string | null;
-          recommendation_metadata?: {
-            scoreDetails?: {
-              schoolGrade?: number | null;
-              schoolAverageGrade?: number | null;
-              mockPercentile?: number | null;
-              mockGrade?: number | null;
-              riskScore?: number;
-            };
-            priority?: number;
-          } | null;
+          recommendation_metadata?: any;
         } = {
           content_type: c.content_type,
           content_id: c.content_id,
@@ -179,7 +171,7 @@ export function syncWizardDataToCreationData(
           start_detail_id: "start_detail_id" in c ? (c.start_detail_id ?? null) : null,
           end_detail_id: "end_detail_id" in c ? (c.end_detail_id ?? null) : null,
           display_order: idx,
-          ...(masterContentId && { master_content_id: masterContentId }),
+          ...(masterContentId ? { master_content_id: masterContentId } : {}),
         };
 
         // 자동 추천 관련 필드 추가
@@ -189,10 +181,10 @@ export function syncWizardDataToCreationData(
           contentItem.is_auto_recommended = c.is_auto_recommended;
         }
         if ("recommendation_source" in c && c.recommendation_source) {
-          contentItem.recommendation_source = c.recommendation_source as "auto" | "admin" | "template" | null;
+          contentItem.recommendation_source = (c.recommendation_source as any) as "auto" | "admin" | "template" | null;
         }
         if ("recommendation_reason" in c && c.recommendation_reason) {
-          contentItem.recommendation_reason = c.recommendation_reason;
+          contentItem.recommendation_reason = typeof c.recommendation_reason === 'string' ? c.recommendation_reason : null;
         }
         if ("recommendation_metadata" in c && c.recommendation_metadata) {
           contentItem.recommendation_metadata = c.recommendation_metadata;
@@ -294,6 +286,7 @@ export function syncCreationDataToWizardData(data: {
     recommendation_reason?: string | null;
     title?: string; // 콘텐츠 제목
     subject_category?: string; // 과목 카테고리
+    master_content_id?: string | null; // 마스터 콘텐츠 ID
   }>;
   exclusions: Array<{
     exclusion_date: string;
@@ -365,20 +358,20 @@ export function syncCreationDataToWizardData(data: {
         start_range: c.start_range,
         end_range: c.end_range,
         // 상세 정보 ID 포함
-        ...(c.start_detail_id && { start_detail_id: c.start_detail_id }),
-        ...(c.end_detail_id && { end_detail_id: c.end_detail_id }),
+      ...((c.start_detail_id) ? { start_detail_id: c.start_detail_id } : {}),
+        ...((c.end_detail_id) ? { end_detail_id: c.end_detail_id } : {}),
         // title과 subject_category가 있으면 포함
-        ...(c.title && { title: c.title }),
-        ...(c.subject_category && { subject_category: c.subject_category }),
+        ...((c.title) ? { title: c.title } : {}),
+        ...((c.subject_category) ? { subject_category: c.subject_category } : {}),
         // master_content_id가 있으면 포함 (마스터에서 가져온 교재/강의 표시용)
-        ...("master_content_id" in c && c.master_content_id && { master_content_id: c.master_content_id }),
+        ...("master_content_id" in c && c.master_content_id ? { master_content_id: c.master_content_id } : {}),
       };
 
       if (c.is_auto_recommended || c.recommendation_source) {
         recommendedContents.push({
           ...contentItem,
           is_auto_recommended: c.is_auto_recommended ?? false,
-          recommendation_source: c.recommendation_source ?? null,
+          recommendation_source: (c.recommendation_source as any) ?? null,
           recommendation_reason: c.recommendation_reason ?? null,
         });
       } else {

@@ -26,12 +26,12 @@ type ContentsListClientProps = {
 function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
   if (tab === "books") {
     return [
-      { label: "개정교육과정", value: item.revision },
-      { label: "학년/학기", value: item.semester },
-      { label: "교과", value: item.subject_category },
-      { label: "과목", value: item.subject },
-      { label: "출판사", value: item.publisher },
-      { label: "난이도", value: item.difficulty_level },
+      { label: "개정교육과정", value: item.revision ?? null },
+      { label: "학년/학기", value: item.semester ?? null },
+      { label: "교과", value: item.subject_category ?? null },
+      { label: "과목", value: item.subject ?? null },
+      { label: "출판사", value: item.publisher ?? null },
+      { label: "난이도", value: item.difficulty_level ?? null },
       {
         label: "총 페이지",
         value: item.total_pages ? `${item.total_pages}p` : null,
@@ -41,12 +41,12 @@ function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
 
   if (tab === "lectures") {
     return [
-      { label: "개정교육과정", value: item.revision },
-      { label: "학년/학기", value: item.semester },
-      { label: "교과", value: item.subject_category },
-      { label: "과목", value: item.subject },
-      { label: "플랫폼", value: item.platform },
-      { label: "난이도", value: item.difficulty_level },
+      { label: "개정교육과정", value: item.revision ?? null },
+      { label: "학년/학기", value: item.semester ?? null },
+      { label: "교과", value: item.subject_category ?? null },
+      { label: "과목", value: item.subject ?? null },
+      { label: "플랫폼", value: item.platform ?? null },
+      { label: "난이도", value: item.difficulty_level ?? null },
       {
         label: "총 회차",
         value: item.total_episodes ? `${item.total_episodes}회` : null,
@@ -60,8 +60,8 @@ function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
 
   if (tab === "custom") {
     return [
-      { label: "콘텐츠 유형", value: item.content_type },
-      { label: "과목", value: item.subject },
+      { label: "콘텐츠 유형", value: item.content_type ?? null },
+      { label: "과목", value: item.subject ?? null },
       {
         label: item.content_type === "book" ? "총 페이지" : "총 시간",
         value: item.total_page_or_time

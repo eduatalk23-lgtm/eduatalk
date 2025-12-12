@@ -14,22 +14,22 @@ type TabKey = "books" | "lectures" | "custom";
 export type ContentListItem = {
   id: string;
   title: string;
-  revision?: string | null;
-  semester?: string | null;
-  subject_category?: string | null;
-  subject?: string | null;
-  publisher?: string | null;
-  platform?: string | null;
-  difficulty_level?: string | null;
-  total_pages?: number | null;
-  total_episodes?: number | null;
-  duration?: number | null;
-  content_type?: string | null;
-  total_page_or_time?: number | null;
-  linked_book_id?: string | null;
+  revision?: string | null | undefined;
+  semester?: string | null | undefined;
+  subject_category?: string | null | undefined;
+  subject?: string | null | undefined;
+  publisher?: string | null | undefined;
+  platform?: string | null | undefined;
+  difficulty_level?: string | null | undefined;
+  total_pages?: number | null | undefined;
+  total_episodes?: number | null | undefined;
+  duration?: number | null | undefined;
+  content_type?: string | null | undefined;
+  total_page_or_time?: number | null | undefined;
+  linked_book_id?: string | null | undefined;
   linkedBook?: { id: string; title: string } | null;
   // 알 수 없는 필드가 있을 경우를 위한 fallback
-} & Record<string, unknown>;
+} & Record<string, any>;
 
 type ContentsListProps = {
   activeTab: TabKey;
@@ -464,11 +464,11 @@ async function fetchContentsByTab(
 export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
   if (tab === "books") {
     return [
-      { label: "개정교육과정", value: item.revision },
-      { label: "교과", value: item.subject_category },
-      { label: "과목", value: item.subject },
-      { label: "출판사", value: item.publisher },
-      { label: "난이도", value: item.difficulty_level },
+      { label: "개정교육과정", value: item.revision ?? null },
+      { label: "교과", value: item.subject_category ?? null },
+      { label: "과목", value: item.subject ?? null },
+      { label: "출판사", value: item.publisher ?? null },
+      { label: "난이도", value: item.difficulty_level ?? null },
       {
         label: "총 페이지",
         value: item.total_pages ? `${item.total_pages}p` : null,
@@ -478,11 +478,11 @@ export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
 
   if (tab === "lectures") {
     return [
-      { label: "개정교육과정", value: item.revision },
-      { label: "교과", value: item.subject_category },
-      { label: "과목", value: item.subject },
-      { label: "플랫폼", value: item.platform },
-      { label: "난이도", value: item.difficulty_level },
+      { label: "개정교육과정", value: item.revision ?? null },
+      { label: "교과", value: item.subject_category ?? null },
+      { label: "과목", value: item.subject ?? null },
+      { label: "플랫폼", value: item.platform ?? null },
+      { label: "난이도", value: item.difficulty_level ?? null },
       {
         label: "총 회차",
         value: item.total_episodes ? `${item.total_episodes}회` : null,
@@ -496,8 +496,8 @@ export function getDetailRows(tab: TabKey, item: ContentListItem): Row[] {
 
   if (tab === "custom") {
     return [
-      { label: "콘텐츠 유형", value: item.content_type },
-      { label: "과목", value: item.subject },
+      { label: "콘텐츠 유형", value: item.content_type ?? null },
+      { label: "과목", value: item.subject ?? null },
       {
         label: item.content_type === "book" ? "총 페이지" : "총 시간",
         value: item.total_page_or_time

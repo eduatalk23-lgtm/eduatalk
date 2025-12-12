@@ -178,6 +178,7 @@ export function ScoreConsistencyAnalysis({
               </div>
             </div>
           </div>
+          </div>
         </Card>
       )}
 
@@ -219,6 +220,7 @@ export function ScoreConsistencyAnalysis({
               </div>
             </div>
           </div>
+          </div>
         </Card>
       )}
 
@@ -258,6 +260,7 @@ export function ScoreConsistencyAnalysis({
                 </span>
               </div>
             </div>
+          </div>
           </div>
         </Card>
       )}

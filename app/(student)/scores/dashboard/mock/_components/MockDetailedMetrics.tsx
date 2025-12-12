@@ -410,6 +410,7 @@ export function MockDetailedMetrics({
               })}
             </div>
           </div>
+          </div>
         </Card>
       )}
 

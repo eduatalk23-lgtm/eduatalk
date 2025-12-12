@@ -252,6 +252,14 @@ export async function sendSMS(
     forceAdmin: true,
     fallbackToServer: false, // Admin 클라이언트 필수
   });
+  
+  if (!logClient) {
+    return {
+      success: false,
+      error: "시스템 오류: 로깅 클라이언트를 초기화할 수 없습니다.",
+    };
+  }
+
   let smsLog;
 
   const baseUrl = env.PPURIO_API_BASE_URL || "https://message.ppurio.com";
@@ -281,7 +289,11 @@ export async function sendSMS(
     smsLog = logData;
   } else {
     // 재시도인 경우 기존 로그 조회 (RLS 우회 필요)
-    const { data: logData } = await logClient
+    if (!logClient) {
+    return { success: false, error: "로깅 클라이언트 초기화 실패" };
+  }
+
+  const { data: logData } = await logClient
       .from("sms_logs")
       .select("id")
       .eq("tenant_id", tenantId)
@@ -738,14 +750,16 @@ export async function cancelScheduledMessage(
         forceAdmin: true,
         fallbackToServer: false,
       });
-      await logClient
-        .from("sms_logs")
-        .update({
-          status: "failed",
-          error_message: "예약 발송이 취소되었습니다.",
-        })
-        .eq("tenant_id", tenantId)
-        .eq("status", "pending");
+      if (logClient) {
+        await logClient
+          .from("sms_logs")
+          .update({
+            status: "failed",
+            error_message: "예약 발송이 취소되었습니다.",
+          })
+          .eq("tenant_id", tenantId)
+          .eq("status", "pending");
+      }
 
       return { success: true };
     } else {

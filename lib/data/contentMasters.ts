@@ -1,7 +1,7 @@
 // 콘텐츠 마스터 데이터 액세스 레이어
 // master_books, master_lectures 테이블 사용
 
-import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, createSupabasePublicClient, createSupabaseAdminClient } from "@/lib/supabase/server";
 import { getClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { MasterBook, MasterLecture, MasterCustomContent, BookDetail, LectureEpisode } from "@/lib/types/plan";
 import { 
@@ -624,6 +624,8 @@ export async function copyMasterBookToStudent(
     return { bookId: existingBook.id };
   }
 
+  if (!supabase) throw new Error("Supabase client uninitialized");
+
   const { data: studentBook, error } = await supabase
     .from("books")
     .insert({
@@ -671,7 +673,9 @@ export async function copyMasterBookToStudent(
       display_order: detail.display_order,
     }));
 
-    const { error: detailsError } = await supabase
+    if (!supabase) throw new Error("Supabase client uninitialized");
+  
+  const { error: detailsError } = await supabase
       .from("student_book_details")
       .insert(studentBookDetails);
 
@@ -710,6 +714,8 @@ export async function copyMasterLectureToStudent(
     throw new Error("강의를 찾을 수 없습니다.");
   }
 
+  if (!supabase) throw new Error("Supabase client uninitialized");
+  
   // 중복 체크: 같은 master_lecture_id를 가진 학생 강의가 이미 있는지 확인
   const { data: existingLecture } = await supabase
     .from("lectures")
@@ -723,6 +729,8 @@ export async function copyMasterLectureToStudent(
     return { lectureId: existingLecture.id };
   }
 
+  if (!supabase) throw new Error("Supabase client uninitialized");
+  
   const { data: studentLecture, error } = await supabase
     .from("lectures")
     .insert({
@@ -1065,6 +1073,11 @@ export async function getCurriculumRevisions(): Promise<Array<{ id: string; name
   // Admin 클라이언트 우선 사용 (RLS 우회), 없으면 일반 서버 클라이언트 사용
   const supabase = await getClientForRLSBypass();
 
+  if (!supabase) {
+    console.error("[data/contentMasters] Supabase client uninitialized");
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("curriculum_revisions")
     .select("id, name")
@@ -1078,7 +1091,7 @@ export async function getCurriculumRevisions(): Promise<Array<{ id: string; name
   console.log("[data/contentMasters] 개정교육과정 조회 결과:", {
     count: data?.length || 0,
     data: data || [],
-    hasAdminClient: !!supabaseAdmin,
+    hasAdminClient: !!supabase,
   });
 
   return (data as Array<{ id: string; name: string }> | null) ?? [];
@@ -1230,6 +1243,7 @@ export async function getPublishersForFilter(
   tenantId?: string | null
 ): Promise<Array<{ id: string; name: string }>> {
   const supabase = await getClientForRLSBypass();
+  if (!supabase) return [];
 
   // master_books에서 실제로 사용된 publisher_id 조회
   let publisherQuery = supabase
@@ -1289,8 +1303,10 @@ export async function getPlatformsForFilter(
   tenantId?: string | null
 ): Promise<Array<{ id: string; name: string }>> {
   const supabase = await getClientForRLSBypass();
+  if (!supabase) return [];
 
   // master_lectures에서 실제로 사용된 platform_id 조회
+  
   let platformQuery = supabase
     .from("master_lectures")
     .select("platform_id")
@@ -1347,6 +1363,7 @@ export async function getDifficultiesForMasterBooks(
 ): Promise<string[]> {
   const supabase = await getClientForRLSBypass();
 
+  if (!supabase) return [];
   let query = supabase
     .from("master_books")
     .select("difficulty_level")
@@ -1384,6 +1401,7 @@ export async function getDifficultiesForMasterLectures(
 ): Promise<string[]> {
   const supabase = await getClientForRLSBypass();
 
+  if (!supabase) return [];
   let query = supabase
     .from("master_lectures")
     .select("difficulty_level")

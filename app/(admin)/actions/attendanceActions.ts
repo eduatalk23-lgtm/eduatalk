@@ -346,7 +346,7 @@ export async function updateAttendanceRecord(
   recordId: string,
   updates: UpdateAttendanceRecordRequest
 ): Promise<{ success: boolean; error?: string }> {
-  return await withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     // 1. 관리자 인증 확인
     const admin = await requireAdminAuth();
     
@@ -454,6 +454,8 @@ export async function updateAttendanceRecord(
     
     return { success: true };
   });
+
+  return await handler();
 }
 
 /**
@@ -462,7 +464,7 @@ export async function updateAttendanceRecord(
 export async function getAttendanceRecordHistory(
   recordId: string
 ): Promise<{ data: AttendanceRecordHistory[] | null; error?: string }> {
-  return await withErrorHandling(async () => {
+  const handler = withErrorHandling(async () => {
     await requireAdminAuth();
     const tenantContext = await getTenantContext();
     
@@ -492,4 +494,6 @@ export async function getAttendanceRecordHistory(
     
     return { data: data as AttendanceRecordHistory[] | null };
   });
+
+  return await handler();
 }

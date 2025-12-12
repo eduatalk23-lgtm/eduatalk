@@ -75,7 +75,7 @@ export default async function SMSLogsPage({
           <CardContent>
             <div className="text-sm text-gray-500">전체 로그</div>
             <div className="text-2xl font-semibold text-gray-900">{total}</div>
-          </div>
+          </CardContent>
         </Card>
         <Card>
           <CardContent>
@@ -83,7 +83,7 @@ export default async function SMSLogsPage({
             <div className="text-2xl font-semibold text-green-600">
               {logs.filter((log) => log.status === "sent" || log.status === "delivered").length}
             </div>
-          </div>
+          </CardContent>
         </Card>
         <Card>
           <CardContent>
@@ -91,7 +91,7 @@ export default async function SMSLogsPage({
             <div className="text-2xl font-semibold text-red-600">
               {logs.filter((log) => log.status === "failed").length}
             </div>
-          </div>
+          </CardContent>
         </Card>
         <Card>
           <CardContent>

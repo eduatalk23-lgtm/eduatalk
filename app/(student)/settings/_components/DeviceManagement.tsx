@@ -244,6 +244,7 @@ export function DeviceManagement() {
                   </button>
                 </div>
               </div>
+            </div>
             ))}
           </div>
         </div>

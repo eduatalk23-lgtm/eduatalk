@@ -181,3 +181,30 @@ export function createSupabasePublicClient() {
     }
   );
 }
+
+/**
+ * Admin 권한을 가진 Supabase 클라이언트 생성 (Service Role Key 사용)
+ * 주의: 서버 사이드에서만 사용해야 하며, 절대 클라이언트에 노출되면 안 됨
+ */
+export function createSupabaseAdminClient() {
+  // Service Role Key가 없는 경우 에러 처리하거나 Anon Key로 대체 (보안상 취약할 수 있음)
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("[supabase/server] SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. 권한 문제가 발생할 수 있습니다.");
+  }
+
+  return createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      global: {
+         fetch: (...args) => fetch(...args),
+      }
+    }
+  );
+}

@@ -69,7 +69,7 @@ export function mergeTemplateDataWithStudentInput(
     // 캠프 모드: 전략과목/취약과목 설정은 관리자 검토 후 설정하므로 undefined
     subject_allocations: undefined,
     student_level:
-      studentInput.student_level || templateData.student_level || undefined,
+      studentInput.student_level || templateData.student_level || "medium",
     // 기타 필드들도 studentInput 우선
     time_settings: studentInput.time_settings || templateData.time_settings,
     scheduler_options:
@@ -105,7 +105,7 @@ export function applyTemplateLockedFields(
 
   // Step 1 잠금 필드 적용
   if (lockedFields.step1) {
-    const step1 = lockedFields.step1;
+    const step1 = lockedFields.step1 as any; // 타입 추론 오류 회피
 
     // 필드 고정
     if (step1.name === true) {
@@ -139,7 +139,7 @@ export function applyTemplateLockedFields(
 
   // Step 2 잠금 필드 적용
   if (lockedFields.step2) {
-    const step2 = lockedFields.step2;
+    const step2 = lockedFields.step2 as any; // 타입 추론 오류 회피
 
     // 제외일 고정
     if (step2.exclusions === true) {
@@ -177,7 +177,7 @@ export function applyTemplateLockedFields(
 
   // Step 3 잠금 필드 적용
   if (lockedFields.step3) {
-    const step3 = lockedFields.step3;
+    const step3 = lockedFields.step3 as any; // 타입 추론 오류 회피
 
     // 학생 콘텐츠 고정
     if (step3.student_contents === true) {

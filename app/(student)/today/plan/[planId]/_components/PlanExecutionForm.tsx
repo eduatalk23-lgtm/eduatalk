@@ -494,7 +494,7 @@ export function PlanExecutionForm({
             )}
           </div>
         </div>
-      </div>
+
 
       {/* 연결된 학습 블록 (Secondary) - 덜 눈에 띄게 표시 */}
       {relatedPlans.length > 1 && (
@@ -546,7 +546,6 @@ export function PlanExecutionForm({
               })}
             </div>
           </div>
-        </div>
       )}
     </div>
   );

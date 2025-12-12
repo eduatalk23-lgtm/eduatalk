@@ -106,6 +106,7 @@ export default async function MockScoresDashboardPage() {
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

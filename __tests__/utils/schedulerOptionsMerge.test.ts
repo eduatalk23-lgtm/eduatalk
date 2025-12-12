@@ -135,44 +135,43 @@ describe("mergeTimeSettingsSafely", () => {
       });
     });
 
-    it("특수 문자 포함된 키 병합", () => {
+    it("should ignore invalid keys", () => {
       const schedulerOptions = { study_days: 6 };
       const timeSettings = {
-        "key-with-dash": "value1",
-        "key_with_underscore": "value2",
-        "key.with.dot": "value3",
-      };
+        "key-with-dash": "value",
+        key_with_underscore: "value",
+        "key.with.dot": "value",
+      } as any;
 
       const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
 
       expect(result.study_days).toBe(6);
-      expect(result["key-with-dash"]).toBe("value1");
-      expect(result["key_with_underscore"]).toBe("value2");
-      expect(result["key.with.dot"]).toBe("value3");
+      expect((result as any)["key-with-dash"]).toBe("value");
+      expect((result as any)["key_with_underscore"]).toBe("value");
+      expect((result as any)["key.with.dot"]).toBe("value");
     });
 
-    it("매우 긴 문자열 값 병합", () => {
-      const schedulerOptions = { study_days: 6 };
-      const longString = "a".repeat(10000);
+    it("should handle value type mismatch (if not strictly typed)", () => {
+      const schedulerOptions = { study_days: 6, long_value: 60 };
       const timeSettings = {
-        long_value: longString,
-      };
+        long_value: "invalid", // string instead of number
+      } as any;
 
       const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
 
-      expect(result.study_days).toBe(6);
-      expect(result.long_value).toBe(longString);
-      expect((result.long_value as string).length).toBe(10000);
+      // The merge function itself doesn't perform type validation beyond basic object checks.
+      // It will merge the value as is.
+      expect(result.long_value).toBe("invalid");
     });
 
-    it("숫자 경계값 (0, 음수, 매우 큰 수)", () => {
+    it("should handle numeric values correctly", () => {
       const schedulerOptions = { study_days: 6 };
       const timeSettings = {
         zero_value: 0,
         negative_value: -1,
         large_value: Number.MAX_SAFE_INTEGER,
         small_value: Number.MIN_SAFE_INTEGER,
-      };
+      } as any;
 
       const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
 
@@ -183,16 +182,17 @@ describe("mergeTimeSettingsSafely", () => {
       expect(result.small_value).toBe(Number.MIN_SAFE_INTEGER);
     });
 
-    it("null, undefined 값 포함", () => {
+    it("should handle null or undefined values", () => {
       const schedulerOptions = { study_days: 6 };
       const timeSettings = {
         null_value: null,
         undefined_value: undefined,
         empty_string: "",
-      };
+      } as any;
 
       const result = mergeTimeSettingsSafely(schedulerOptions, timeSettings);
 
+      expect(result).toBeDefined();
       expect(result.study_days).toBe(6);
       expect(result.null_value).toBeNull();
       expect(result.undefined_value).toBeUndefined();

@@ -364,44 +364,30 @@ export class PlanValidator {
     const nonStudyTimeBlocksSchema = z
       .array(nonStudyTimeBlockSchema)
       .refine(
-        (blocks) => {
+        (blocks: any[]): boolean => {
           // 시간 범위 검증 (start < end)
+          if (!blocks) return true;
           for (const block of blocks) {
             const start = this.parseTime(block.start_time);
             const end = this.parseTime(block.end_time);
-            if (!start || !end || start >= end) {
+            if (start === null || end === null || start >= end) {
               return false;
             }
           }
           return true;
         },
         {
-          message: (blocks) => {
-            // 구체적인 에러 메시지 생성
-            const invalidBlocks: string[] = [];
-            for (let i = 0; i < blocks.length; i++) {
-              const block = blocks[i];
-              const start = this.parseTime(block.start_time);
-              const end = this.parseTime(block.end_time);
-              if (!start || !end || start >= end) {
-                invalidBlocks.push(
-                  `${i + 1}번째 항목(${block.type || "기타"}: ${block.start_time} ~ ${block.end_time})`
-                );
-              }
-            }
-            return invalidBlocks.length > 0
-              ? `시작 시간이 종료 시간보다 이전이어야 합니다. 문제가 있는 항목: ${invalidBlocks.join(", ")}`
-              : "시작 시간은 종료 시간보다 이전이어야 합니다.";
-          },
+          message: "시작 시간은 종료 시간보다 빨라야 하며, 유효한 시간 형식이어야 합니다.",
         }
       )
       .refine(
-        (blocks) => {
+        (blocks: any[]): boolean => {
           // 중복 체크
+          if (!blocks) return true;
           const keys = new Set<string>();
           for (const block of blocks) {
             const dayOfWeekKey = block.day_of_week
-              ?.sort((a, b) => a - b)
+              ?.sort((a: number, b: number) => a - b)
               .join(",") || "all";
             const key = `${block.start_time}-${block.end_time}-${dayOfWeekKey}`;
             if (keys.has(key)) {
@@ -412,30 +398,7 @@ export class PlanValidator {
           return true;
         },
         {
-          message: (blocks) => {
-            // 구체적인 중복 항목 찾기
-            const keys = new Map<string, number[]>();
-            for (let i = 0; i < blocks.length; i++) {
-              const block = blocks[i];
-              const dayOfWeekKey = block.day_of_week
-                ?.sort((a, b) => a - b)
-                .join(",") || "all";
-              const key = `${block.start_time}-${block.end_time}-${dayOfWeekKey}`;
-              if (!keys.has(key)) {
-                keys.set(key, []);
-              }
-              keys.get(key)!.push(i + 1);
-            }
-            const duplicates = Array.from(keys.entries())
-              .filter(([_, indices]) => indices.length > 1)
-              .map(([key, indices]) => {
-                const [startTime, endTime] = key.split("-");
-                return `${indices.join(", ")}번째 항목(${startTime} ~ ${endTime})`;
-              });
-            return duplicates.length > 0
-              ? `중복된 시간 블록이 있습니다: ${duplicates.join(", ")}`
-              : "중복된 시간 블록이 있습니다.";
-          },
+          message: "중복된 시간대가 존재합니다. 시간을 조정해주세요.",
         }
       );
 

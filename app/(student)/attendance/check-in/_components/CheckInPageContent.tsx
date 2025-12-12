@@ -232,6 +232,7 @@ export function CheckInPageContent({
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

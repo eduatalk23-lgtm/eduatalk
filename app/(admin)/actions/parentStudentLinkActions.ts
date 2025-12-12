@@ -43,7 +43,10 @@ type ParentStudentLinkRow = {
   parent_users: {
     id: string;
     name: string | null;
-  } | null;
+  } | {
+    id: string;
+    name: string | null;
+  }[] | null;
 };
 
 type ParentStudentLinkWithStudentRow = {
@@ -57,11 +60,19 @@ type ParentStudentLinkWithStudentRow = {
     name: string | null;
     grade: string | null;
     class: string | null;
-  } | null;
+  } | {
+    id: string;
+    name: string | null;
+    grade: string | null;
+    class: string | null;
+  }[] | null;
   parent_users: {
     id: string;
     name: string | null;
-  } | null;
+  } | {
+    id: string;
+    name: string | null;
+  }[] | null;
 };
 
 type SearchableParentRow = {
@@ -119,15 +130,15 @@ export async function getStudentParents(
 
     // 데이터 변환
     const parents: StudentParent[] = links
-      .map((link: ParentStudentLinkRow) => {
-        const parentUser = link.parent_users;
+      .map((link: ParentStudentLinkRow): StudentParent | null => {
+        const parentUser = Array.isArray(link.parent_users) ? link.parent_users[0] : link.parent_users;
         if (!parentUser) return null;
 
         return {
           linkId: link.id,
           parentId: link.parent_id,
           parentName: parentUser.name,
-          parentEmail: null, // TODO: email 조회 로직 추가 필요 (auth.users는 PostgREST로 직접 조회 불가)
+          parentEmail: null,
           relation: link.relation || "other",
         };
       })
@@ -204,13 +215,13 @@ export async function searchParents(
 
     // 데이터 변환
     const searchResults: SearchableParent[] = parents
-      .map((parent: SearchableParentRow) => {
+      .map((parent: SearchableParentRow): SearchableParent | null => {
         if (!parent.name) return null;
 
         return {
           id: parent.id,
           name: parent.name,
-          email: null, // TODO: email 조회 로직 추가 필요 (auth.users는 PostgREST로 직접 조회 불가)
+          email: null,
         };
       })
       .filter((p): p is SearchableParent => p !== null);
@@ -539,7 +550,10 @@ export async function getPendingLinkRequests(
 
     // parent_users.id 목록 수집
     const parentIds = links
-      .map((link) => link.parent_users?.id)
+      .map((link) => {
+        const parentUser = Array.isArray(link.parent_users) ? link.parent_users[0] : link.parent_users;
+        return parentUser?.id;
+      })
       .filter((id): id is string => id !== undefined);
 
     // auth.users에서 email 조회 (parent_users.id = auth.users.id)
@@ -555,10 +569,10 @@ export async function getPendingLinkRequests(
     // 데이터 변환
     const requests: PendingLinkRequest[] = links
       .map((link: ParentStudentLinkWithStudentRow) => {
-        const student = link.students;
+        const student = Array.isArray(link.students) ? link.students[0] : link.students;
         if (!student) return null;
 
-        const parentUser = link.parent_users;
+        const parentUser = Array.isArray(link.parent_users) ? link.parent_users[0] : link.parent_users;
         if (!parentUser) return null;
 
         return {

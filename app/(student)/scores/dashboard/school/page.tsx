@@ -115,6 +115,7 @@ export default async function SchoolScoresDashboardPage() {
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

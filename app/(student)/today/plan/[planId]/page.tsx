@@ -189,7 +189,7 @@ export default async function PlanExecutionPage({
           </div>
           )}
         </div>
-      </div>
+
 
         <PlanExecutionForm
           mode={mode}

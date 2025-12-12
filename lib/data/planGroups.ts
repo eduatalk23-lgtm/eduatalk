@@ -179,7 +179,7 @@ export async function getPlanGroupsForStudent(
 
       // fallback 성공 시 scheduler_options를 null로 설정
       if (fallbackResult.data && !error) {
-        planGroupsData = fallbackResult.data.map((group: PlanGroup) => ({
+        planGroupsData = fallbackResult.data.map((group: any) => ({
           ...group,
           scheduler_options: null,
         })) as PlanGroup[];
@@ -1409,7 +1409,11 @@ export async function getAcademySchedules(
     
     // tenant_id를 null로 설정
     if (retryResult.data && !error) {
-      schedulesData = retryResult.data.map((schedule: AcademySchedule) => ({ ...schedule, tenant_id: null })) as AcademySchedule[];
+      schedulesData = retryResult.data.map((schedule: any) => ({
+        ...schedule,
+        tenant_id: null,
+        academy_id: schedule.academy_id || "", 
+      })) as AcademySchedule[];
     } else {
       schedulesData = (retryResult.data as AcademySchedule[] | null) ?? null;
     }
@@ -1492,7 +1496,12 @@ export async function getStudentAcademySchedules(
     
     // academy_id를 빈 문자열로 설정
     if (fallbackResult.data && !error) {
-      studentSchedulesData = fallbackResult.data.map((schedule: AcademySchedule) => ({ ...schedule, academy_id: "" })) as AcademySchedule[];
+      studentSchedulesData = fallbackResult.data.map((schedule: any) => ({
+        ...schedule,
+        academy_id: "", 
+        tenant_id: "",
+        academy_name: schedule.academy_name || null,
+      })) as AcademySchedule[];
     } else {
       studentSchedulesData = (fallbackResult.data as AcademySchedule[] | null) ?? null;
     }
@@ -2196,6 +2205,9 @@ export async function getPlanGroupWithDetailsForAdmin(
 
   // 관리자용 학원 일정 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
   const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
+    let adminSchedulesData: AcademySchedule[] | null = null; // Declare adminSchedulesData here
+    
+    // 1. Service Role Key로 시도 (RLS 우회)
     const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
     const adminClient = createSupabaseAdminClient();
     
@@ -2223,7 +2235,7 @@ export async function getPlanGroupWithDetailsForAdmin(
         .order("start_time", { ascending: true });
 
     let { data, error } = await selectSchedules();
-    let adminSchedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
+    adminSchedulesData = data as AcademySchedule[] | null;
 
     if (error && error.code === "42703") {
       // academy_id가 없는 경우를 대비한 fallback
@@ -2243,9 +2255,12 @@ export async function getPlanGroupWithDetailsForAdmin(
       
       // academy_id를 null로 설정
       if (fallbackResult.data && !error) {
-        adminSchedulesData = fallbackResult.data.map((schedule: AcademySchedule) => ({ ...schedule, academy_id: "" })) as AcademySchedule[];
-      } else {
-        adminSchedulesData = (fallbackResult.data as AcademySchedule[] | null) ?? null;
+        adminSchedulesData = fallbackResult.data.map((schedule: any) => ({
+            ...schedule,
+            academy_id: schedule.academy_id || "", // Ensure string
+            tenant_id: schedule.tenant_id || "", 
+            academy_name: schedule.academy_name || null,
+          })) as AcademySchedule[];
       }
     }
 
