@@ -62,10 +62,10 @@ export function ContentList({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="mb-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-col gap-1">
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        <p className="mt-1 text-xs text-gray-600">
+        <p className="text-xs text-gray-600">
           {contentType === "book" ? "학습 중인 교재를" : "학습 중인 강의를"}{" "}
           추가하고 싶다면{" "}
           <Link
@@ -80,9 +80,9 @@ export function ContentList({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
           <p className="text-sm text-gray-600">{emptyMessage}</p>
-          <p className="mt-2 text-xs text-gray-600">
+          <p className="text-xs text-gray-600">
             {contentType === "book" ? "학습 중인 교재를" : "학습 중인 강의를"}{" "}
             추가하고 싶다면{" "}
             <Link

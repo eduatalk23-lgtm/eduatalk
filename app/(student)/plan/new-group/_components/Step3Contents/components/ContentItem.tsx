@@ -52,15 +52,15 @@ export function ContentItem({
         checked={isSelected}
         onChange={onToggle}
         disabled={!editable}
-        className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
       />
       <div className="flex-1">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
+          <div className="flex flex-1 flex-col gap-1">
             <div className="text-sm font-medium text-gray-900">
               {item.title}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
               <span
                 className={`rounded px-1.5 py-0.5 ${
                   contentType === "book"
@@ -121,7 +121,7 @@ export function ContentItem({
 
         {/* 선택된 경우 상세 정보 표시 */}
         {isSelected && (
-          <div className="mt-3 space-y-3">
+          <div className="flex flex-col gap-3">
             {isLoading ? (
               <div className="text-xs text-gray-600">
                 상세 정보를 불러오는 중...

@@ -66,9 +66,9 @@ export function AddedContentList({
 
   if (studentContents.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+      <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
         <p className="text-sm text-gray-600">추가된 콘텐츠가 없습니다.</p>
-        <p className="mt-1 text-xs text-gray-600">
+        <p className="text-xs text-gray-600">
           위 폼에서 콘텐츠를 선택하고 범위를 입력한 후 추가해주세요.
         </p>
       </div>
@@ -98,7 +98,7 @@ export function AddedContentList({
                 학생 콘텐츠
               </span>
             </div>
-            <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2 text-xs text-gray-600">
               <span>
                 {content.content_type === "book" && "📚 책"}
                 {content.content_type === "lecture" && "🎧 강의"}
@@ -142,7 +142,7 @@ export function AddedContentList({
             type="button"
             onClick={() => onRemove(index)}
             disabled={!editable}
-            className={`ml-4 text-sm ${
+            className={`text-sm ${
               !editable
                 ? "cursor-not-allowed text-gray-600"
                 : "text-red-600 hover:text-red-800"

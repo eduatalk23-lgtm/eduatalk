@@ -144,8 +144,8 @@ export function Step3Contents({
 
       {/* Add Button Area */}
       {selectedContentIds.size > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-600">
               선택된 콘텐츠: {selectedContentIds.size}개
             </span>
@@ -155,21 +155,22 @@ export function Step3Contents({
               </span>
             )}
           </div>
-          {Array.from(selectedContentIds).map((id) => {
-            const range = contentRanges.get(id);
-            const hasRange =
-              range &&
-              range.start &&
-              range.end &&
-              range.start.trim() !== "" &&
-              range.end.trim() !== "";
-            if (!hasRange) {
-              const isBook = contents.books.some((b) => b.id === id);
-              return (
-                <div
-                  key={id}
-                  className="mb-2 rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-xs text-yellow-800"
-                >
+          <div className="flex flex-col gap-2">
+            {Array.from(selectedContentIds).map((id) => {
+              const range = contentRanges.get(id);
+              const hasRange =
+                range &&
+                range.start &&
+                range.end &&
+                range.start.trim() !== "" &&
+                range.end.trim() !== "";
+              if (!hasRange) {
+                const isBook = contents.books.some((b) => b.id === id);
+                return (
+                  <div
+                    key={id}
+                    className="rounded-lg border border-yellow-200 bg-yellow-50 p-2 text-xs text-yellow-800"
+                  >
                   {isBook ? "📚" : "🎧"}{" "}
                   {getContentTitleFromMaster(contents, isBook ? "book" : "lecture", id)}: 
                   학습 범위를 입력해주세요

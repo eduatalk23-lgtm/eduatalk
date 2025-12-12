@@ -28,8 +28,8 @@ export function ContentRangeSelector({
   if (contentInfo.details.length === 0) {
     return (
       <div className="grid gap-2 md:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-800">
+        <div className="flex flex-col gap-1">
+          <label className="block text-xs font-medium text-gray-800">
             {contentType === "book" ? "시작 페이지" : "시작 강의 번호"}
           </label>
           <input
@@ -42,8 +42,8 @@ export function ContentRangeSelector({
             disabled={!editable}
           />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-800">
+        <div className="flex flex-col gap-1">
+          <label className="block text-xs font-medium text-gray-800">
             {contentType === "book" ? "종료 페이지" : "종료 강의 번호"}
           </label>
           <input
@@ -64,8 +64,8 @@ export function ContentRangeSelector({
     <>
       <div className="space-y-3">
         {/* 시작 범위 선택 */}
-        <div>
-          <div className="mb-2 text-xs font-medium text-gray-800">
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-800">
             시작 범위 선택
           </div>
           <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -141,8 +141,8 @@ export function ContentRangeSelector({
         </div>
 
         {/* 끝 범위 선택 */}
-        <div>
-          <div className="mb-2 text-xs font-medium text-gray-800">
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-800">
             끝 범위 선택
           </div>
           <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -234,9 +234,9 @@ export function ContentRangeSelector({
               );
               if (rangeDetails.length > 0) {
                 return (
-                  <div className="mt-2 text-xs text-gray-600">
+                  <div className="flex flex-col gap-1 text-xs text-gray-600">
                     <div className="font-medium">포함된 단원:</div>
-                    <div className="mt-1 space-y-0.5">
+                    <div className="flex flex-col gap-0.5">
                       {rangeDetails.map((d, idx) => (
                         <div key={idx}>
                           페이지 {d.page_number}
@@ -264,9 +264,9 @@ export function ContentRangeSelector({
               );
                if (rangeEpisodes.length > 0) {
                 return (
-                  <div className="mt-2 text-xs text-gray-600">
+                  <div className="flex flex-col gap-1 text-xs text-gray-600">
                     <div className="font-medium">포함된 강의:</div>
-                    <div className="mt-1 space-y-0.5">
+                    <div className="flex flex-col gap-0.5">
                       {rangeEpisodes.map((e, idx) => (
                         <div key={idx}>
                           {e.episode_number}강 
