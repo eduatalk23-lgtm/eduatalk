@@ -90,10 +90,10 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
 
   if (sortedPlans.length === 0) {
     return (
-      <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">📚</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+      <div className="flex flex-col gap-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <div className="mx-auto flex flex-col gap-2 max-w-md">
+          <div className="text-6xl">📚</div>
+          <h3 className="text-lg font-semibold text-gray-900">
             오늘 배울 내용이 없습니다
           </h3>
           <p className="text-sm text-gray-500">
@@ -121,8 +121,8 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
   })();
 
   return (
-    <div className="mb-6">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">선택 날짜 플랜</h2>
+    <div className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold text-gray-900">선택 날짜 플랜</h2>
       <div className="space-y-3">
         {sortedPlans.map((plan, index) => {
           const isActive = !!plan.actual_start_time && !plan.actual_end_time;

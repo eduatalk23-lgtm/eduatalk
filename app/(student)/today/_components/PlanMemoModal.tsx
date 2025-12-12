@@ -133,7 +133,7 @@ export function PlanMemoModal({
                         className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600"
                         aria-label={`${item.label} 템플릿 추가`}
                       >
-                        <span className="mr-1">{item.icon}</span>
+                        <span>{item.icon}</span>
                         {item.label}
                       </button>
                     ))}
@@ -146,10 +146,10 @@ export function PlanMemoModal({
                       <button
                         key={index}
                         onClick={() => handleQuickInputClick(item.template)}
-                        className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600"
+                        className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600"
                         aria-label={`${item.label} 빠른 입력 추가`}
                       >
-                        <span className="mr-1">{item.icon}</span>
+                        <span>{item.icon}</span>
                         {item.label}
                       </button>
                     ))}

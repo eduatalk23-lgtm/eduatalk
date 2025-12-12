@@ -184,8 +184,8 @@ export function PlanRangeAdjustModal({
         <div className="max-h-[calc(90vh-200px)] overflow-y-auto">
           <div className="flex flex-col gap-6">
             {/* 현재 범위 */}
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">현재 범위</h3>
+            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="text-sm font-semibold text-gray-900">현재 범위</h3>
               <div className="flex flex-col gap-2">
                 {ranges.map((range, index) => (
                   <div key={range.planId} className="text-sm text-gray-700">
@@ -200,8 +200,8 @@ export function PlanRangeAdjustModal({
             </div>
 
             {/* 조정 방식 선택 */}
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <h3 className="mb-3 text-sm font-semibold text-gray-900">범위 조정 방법</h3>
+            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="text-sm font-semibold text-gray-900">범위 조정 방법</h3>
               <div className="flex flex-col gap-2">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
