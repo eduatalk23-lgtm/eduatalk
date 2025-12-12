@@ -55,9 +55,9 @@ export function RescheduleRecommendations({
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <div className="flex items-center justify-center py-8">
-          <div className="text-center">
+          <div className="flex flex-col gap-2 text-center">
             <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent"></div>
-            <p className="mt-2 text-sm text-gray-600">추천을 분석하는 중...</p>
+            <p className="text-sm text-gray-600">추천을 분석하는 중...</p>
           </div>
         </div>
       </div>
@@ -95,8 +95,8 @@ export function RescheduleRecommendations({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AlertCircle className="h-5 w-5 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">
@@ -111,19 +111,19 @@ export function RescheduleRecommendations({
         </button>
       </div>
 
-      <p className="mb-4 text-sm text-gray-600">
+      <p className="text-sm text-gray-600">
         다음 플랜 그룹의 재조정을 권장합니다.
       </p>
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {recommendations.map((rec) => (
           <div
             key={rec.groupId}
             className={`rounded-lg border p-4 ${getPriorityColor(rec.priority)}`}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="mb-2 flex items-center gap-2">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-1 flex-col gap-2">
+                <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-900">
                     {rec.groupName || "이름 없음"}
                   </span>
@@ -139,12 +139,12 @@ export function RescheduleRecommendations({
                     {getPriorityLabel(rec.priority)}
                   </span>
                 </div>
-                <p className="mb-2 text-sm text-gray-700">{rec.reason}</p>
+                <p className="text-sm text-gray-700">{rec.reason}</p>
                 <div className="text-xs text-gray-600">
                   영향받는 플랜: {rec.estimatedImpact.plansAffected}개
                 </div>
               </div>
-              <div className="ml-4 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Link
                   href={`/plan/group/${rec.groupId}`}
                   className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50"

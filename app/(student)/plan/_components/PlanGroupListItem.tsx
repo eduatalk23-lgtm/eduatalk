@@ -197,8 +197,10 @@ export function PlanGroupListItem({
               onClick={handleViewClick}
               className="text-gray-700 hover:text-gray-900 hover:bg-gray-100"
             >
-              <Eye className="h-4 w-4 mr-1" />
-              보기
+              <div className="flex items-center gap-1">
+                <Eye className="h-4 w-4" />
+                <span>보기</span>
+              </div>
             </Button>
 
             {/* 삭제 버튼 */}
@@ -213,8 +215,10 @@ export function PlanGroupListItem({
                 }}
                 className="text-gray-700 hover:text-red-600 hover:bg-red-50"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
-                삭제
+                <div className="flex items-center gap-1">
+                  <Trash2 className="h-4 w-4" />
+                  <span>삭제</span>
+                </div>
               </Button>
             ) : (
               <Button
@@ -224,8 +228,10 @@ export function PlanGroupListItem({
                 className="text-gray-300 cursor-not-allowed"
                 title="캠프 플랜은 삭제할 수 없습니다"
               >
-                <Trash2 className="h-4 w-4 mr-1" />
-                삭제
+                <div className="flex items-center gap-1">
+                  <Trash2 className="h-4 w-4" />
+                  <span>삭제</span>
+                </div>
               </Button>
             )}
 
@@ -262,7 +268,7 @@ export function PlanGroupListItem({
               
               {/* 비활성화 상태일 때 툴팁 표시 */}
               {!canToggle && (
-                <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100 z-50">
+                <div className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100 z-50" style={{ marginBottom: '0.5rem' }}>
                   <div className="whitespace-normal break-words">
                     {!hasPlans || planCount === 0
                       ? "플랜이 생성된 후 활성화할 수 있습니다"

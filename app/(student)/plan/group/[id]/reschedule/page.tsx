@@ -103,11 +103,11 @@ export default async function ReschedulePage({
               </svg>
               플랜 그룹 상세로 돌아가기
             </Link>
-            <div>
+            <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold text-gray-900">
                 플랜 그룹 재조정
               </h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="text-sm text-gray-600">
                 {group.name || "이름 없음"}
               </p>
             </div>

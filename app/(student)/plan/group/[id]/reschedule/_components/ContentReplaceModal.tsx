@@ -227,8 +227,8 @@ export function ContentReplaceModal({
         </div>
 
         {/* 탭 및 검색 */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <div className="mb-4 flex gap-2">
+        <div className="flex flex-col gap-4 border-b border-gray-200 px-6 py-4">
+          <div className="flex gap-2">
             <button
               onClick={() => setActiveTab("books")}
               className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
@@ -294,17 +294,17 @@ export function ContentReplaceModal({
                       : "border-gray-200 hover:border-blue-300 hover:bg-blue-50"
                   }`}
                 >
-                  <div className="flex-1">
+                  <div className="flex flex-1 flex-col gap-1">
                     <div className="font-medium text-gray-900">
                       {content.title}
                     </div>
                     {content.subtitle && (
-                      <div className="mt-1 text-xs text-gray-500">
+                      <div className="text-xs text-gray-500">
                         {content.subtitle}
                       </div>
                     )}
                   </div>
-                  <div className="ml-4 text-sm text-gray-600">
+                  <div className="text-sm text-gray-600">
                     {content.total_page_or_time !== null
                       ? activeTab === "books"
                         ? `${content.total_page_or_time}페이지`
@@ -319,13 +319,13 @@ export function ContentReplaceModal({
 
         {/* 범위 입력 (콘텐츠 선택 시) */}
         {selectedContent && (
-          <div className="border-t border-gray-200 px-6 py-4">
-            <div className="mb-3">
+          <div className="flex flex-col gap-3 border-t border-gray-200 px-6 py-4">
+            <div className="flex flex-col gap-1">
               <h3 className="text-sm font-medium text-gray-900">
                 선택된 콘텐츠: {selectedContent.title}
               </h3>
               {selectedContent.total_page_or_time !== null && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   총량:{" "}
                   {activeTab === "books"
                     ? `${selectedContent.total_page_or_time}페이지`
