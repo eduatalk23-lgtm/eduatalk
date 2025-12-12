@@ -8,6 +8,7 @@ import { getDefaultTenant } from "@/lib/data/tenants";
 import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
 import type { SignupRole, SignupMetadata, UserWithSignupMetadata } from "@/lib/types/auth";
 import { z } from "zod";
+import { getEmailRedirectUrl } from "@/lib/utils/getEmailRedirectUrl";
 
 const signInSchema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다.").min(1, "이메일을 입력해주세요."),
@@ -406,10 +407,12 @@ export async function signUp(
 
   try {
     const supabase = await createSupabaseServerClient();
+    const emailRedirectTo = await getEmailRedirectUrl();
     const { data: authData, error } = await supabase.auth.signUp({
       email: validation.data.email,
       password: validation.data.password,
       options: {
+        emailRedirectTo: emailRedirectTo,
         data: {
           display_name: validation.data.displayName,
           tenant_id: validation.data.tenantId || null, // 기관 ID를 user_metadata에 저장
@@ -464,13 +467,17 @@ export async function resendConfirmationEmail(
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
     const supabase = await createSupabaseServerClient();
+    const emailRedirectTo = await getEmailRedirectUrl();
     
-    console.log("[auth] 이메일 재발송 요청:", email);
+    console.log("[auth] 이메일 재발송 요청:", email, "redirectTo:", emailRedirectTo);
 
     // 이메일 재발송 시도
     const { data, error } = await supabase.auth.resend({
       type: "signup",
       email: email,
+      options: {
+        emailRedirectTo: emailRedirectTo,
+      },
     });
 
     if (error) {

@@ -41,4 +41,5 @@ export { setCache, getCache, clearCache, createCacheKey, type CacheEntry } from 
 
 // BASE_URL 관련
 export { getBaseUrl, getBaseUrlClient } from "./getBaseUrl";
+export { getEmailRedirectUrl } from "./getEmailRedirectUrl";
 
