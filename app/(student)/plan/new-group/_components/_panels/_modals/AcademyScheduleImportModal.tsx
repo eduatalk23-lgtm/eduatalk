@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Clock, AlertCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { Clock, AlertCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import {
   validateAcademyScheduleOverlap,
   getScheduleDescription,
 } from "@/lib/validation/scheduleValidator";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 
 type AcademySchedule = {
   day_of_week: number;
@@ -194,107 +195,100 @@ export function AcademyScheduleImportModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-4xl rounded-lg bg-white shadow-xl">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-700" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              학원 일정 불러오기
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* 내용 */}
-        <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
-          {/* 안내 메시지 */}
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
-              <div className="text-xs text-blue-800">
-                <p className="font-semibold">시간 관리에 등록된 학원 일정 목록입니다.</p>
-                <p className="mt-1">
-                  선택하여 등록하세요. 겹치는 시간대가 있으면 경고가 표시됩니다.
-                </p>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onClose}
+      title="학원 일정 불러오기"
+      maxWidth="4xl"
+    >
+      <DialogContent className="max-h-[60vh] overflow-y-auto">
+          <div className="flex flex-col gap-4">
+            {/* 안내 메시지 */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 text-blue-600" />
+                <div className="flex flex-col gap-1 text-xs text-blue-800">
+                  <p className="font-semibold">시간 관리에 등록된 학원 일정 목록입니다.</p>
+                  <p>
+                    선택하여 등록하세요. 겹치는 시간대가 있으면 경고가 표시됩니다.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 선택 요약 정보 */}
-          {selectedSchedules.size > 0 && (
-            <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-green-600" />
-                  <div className="text-xs text-green-800">
-                    <p className="font-semibold">
-                      {selectedSchedules.size}개 일정 선택됨
-                    </p>
-                    {Object.keys(groupedByAcademy).length > 0 && (
-                      <p className="mt-1">
-                        {Object.entries(groupedByAcademy).filter(([name, schedules]) => 
-                          schedules.some(s => selectedSchedules.has(getScheduleKey(s)) && !existingKeys.has(getScheduleKey(s)))
-                        ).length}개 학원에서 선택
+            {/* 선택 요약 정보 */}
+            {selectedSchedules.size > 0 && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-green-600" />
+                    <div className="flex flex-col gap-1 text-xs text-green-800">
+                      <p className="font-semibold">
+                        {selectedSchedules.size}개 일정 선택됨
                       </p>
-                    )}
+                      {Object.keys(groupedByAcademy).length > 0 && (
+                        <p>
+                          {Object.entries(groupedByAcademy).filter(([name, schedules]) => 
+                            schedules.some(s => selectedSchedules.has(getScheduleKey(s)) && !existingKeys.has(getScheduleKey(s)))
+                          ).length}개 학원에서 선택
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 겹침 경고 */}
-          {conflictInfo.size > 0 && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-                <div className="text-xs text-red-800">
-                  <p className="font-semibold">
-                    선택한 일정 중 {conflictInfo.size}개의 일정이 기존 일정과 겹칩니다.
-                  </p>
-                  <p className="mt-1">
-                    겹치는 일정은 등록할 수 없습니다. 선택을 해제하거나 기존 일정을
-                    수정해주세요.
-                  </p>
+            {/* 겹침 경고 */}
+            {conflictInfo.size > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-600" />
+                  <div className="flex flex-col gap-1 text-xs text-red-800">
+                    <p className="font-semibold">
+                      선택한 일정 중 {conflictInfo.size}개의 일정이 기존 일정과 겹칩니다.
+                    </p>
+                    <p>
+                      겹치는 일정은 등록할 수 없습니다. 선택을 해제하거나 기존 일정을
+                      수정해주세요.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* 학원 일정 목록 */}
-          {availableSchedules.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-              <Clock className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm font-medium text-gray-600">
-                등록된 학원 일정이 없습니다
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                시간 관리 메뉴에서 학원 일정을 먼저 등록해주세요.
-              </p>
-            </div>
-          ) : newSchedules.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm font-medium text-gray-600">
-                불러올 새로운 학원 일정이 없습니다
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                모든 학원 일정이 이미 등록되어 있습니다.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
+            {/* 학원 일정 목록 */}
+            {availableSchedules.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <Clock className="h-12 w-12 text-gray-400" />
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      등록된 학원 일정이 없습니다
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      시간 관리 메뉴에서 학원 일정을 먼저 등록해주세요.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : newSchedules.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <AlertCircle className="h-12 w-12 text-gray-400" />
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      불러올 새로운 학원 일정이 없습니다
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      모든 학원 일정이 이미 등록되어 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
               {/* 전체 선택 및 모두 펼치기/접기 */}
               <div className="flex items-center justify-between rounded-lg border border-gray-300 bg-gray-50 p-3">
                 <div className="flex items-center gap-2">
@@ -403,7 +397,7 @@ export function AcademyScheduleImportModal({
                               </div>
                             )}
                           </div>
-                          <div className="mt-1 flex items-center gap-3 text-xs text-gray-600">
+                          <div className="flex items-center gap-3 text-xs text-gray-600">
                             <span>총 {academySchedules.length}개 일정</span>
                             {selectedCount > 0 && (
                               <span className="font-medium text-blue-700">
@@ -464,7 +458,7 @@ export function AcademyScheduleImportModal({
                                     checked={isSelected}
                                     onChange={() => handleToggle(schedule)}
                                     disabled={isExisting}
-                                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                                   />
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
@@ -482,21 +476,21 @@ export function AcademyScheduleImportModal({
                                         </span>
                                       )}
                                     </div>
-                                    <div className="mt-1 text-xs text-gray-600">
+                                    <div className="flex items-center gap-2 text-xs text-gray-600">
                                       {schedule.subject && (
                                         <span>{schedule.subject}</span>
                                       )}
                                       {schedule.travel_time && (
-                                        <span className="ml-2 text-gray-500">
+                                        <span className="text-gray-500">
                                           이동시간: {schedule.travel_time}분
                                         </span>
                                       )}
                                     </div>
                                     {hasConflict && (
-                                      <div className="mt-2 rounded border border-red-200 bg-white p-2 text-xs text-red-700">
+                                      <div className="flex flex-col gap-1 rounded border border-red-200 bg-white p-2 text-xs text-red-700">
                                         <p className="font-semibold">겹치는 일정:</p>
                                         {conflicts.map((conflictSchedule, idx) => (
-                                          <p key={idx} className="mt-1">
+                                          <p key={idx}>
                                             • {getScheduleDescription(conflictSchedule)}
                                           </p>
                                         ))}
@@ -515,16 +509,16 @@ export function AcademyScheduleImportModal({
                   </div>
                 );
               })}
-            </div>
-          )}
-        </div>
-
-        {/* 푸터 */}
-        <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+              </div>
+            )}
+          </div>
+      </DialogContent>
+      <DialogFooter>
+        <div className="flex w-full items-center justify-between">
           <p className="text-sm text-gray-600">
             선택된 항목: <span className="font-semibold">{selectedSchedules.size}개</span>
             {conflictInfo.size > 0 && (
-              <span className="ml-2 text-red-600">
+              <span className="text-red-600">
                 (겹침: {conflictInfo.size}개)
               </span>
             )}
@@ -547,8 +541,8 @@ export function AcademyScheduleImportModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogFooter>
+    </Dialog>
   );
 }
 

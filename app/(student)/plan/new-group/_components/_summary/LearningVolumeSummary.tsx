@@ -77,14 +77,18 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
 
   if (currentVolume === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-3 text-sm font-medium text-gray-900">
-          학습량을 계산할 수 없습니다
-        </p>
-        <p className="mt-1 text-sm text-gray-500">
-          Step 3에서 콘텐츠를 선택해주세요
-        </p>
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <AlertCircle className="h-12 w-12 text-gray-400" />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-gray-900">
+              학습량을 계산할 수 없습니다
+            </p>
+            <p className="text-sm text-gray-500">
+              Step 3에서 콘텐츠를 선택해주세요
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -134,7 +138,7 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
             <AlertCircle className="h-6 w-6 flex-shrink-0 text-gray-600" />
           )}
           
-          <div className="flex-1">
+          <div className="flex flex-col gap-1 flex-1">
             <h4
               className={`text-sm font-semibold ${
                 status === "optimal"
@@ -150,7 +154,7 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
               {status === "empty" && "ℹ️ 학습량 미설정"}
             </h4>
             <p
-              className={`mt-1 text-sm ${
+              className={`text-sm ${
                 status === "optimal"
                   ? "text-green-700"
                   : status === "empty"
@@ -163,7 +167,7 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
             
             {status !== "empty" && status !== "optimal" && (
               <p
-                className={`mt-2 text-xs ${
+                className={`text-xs ${
                   (status as string) === "optimal"
                     ? "text-green-600"
                     : "text-yellow-600"
@@ -179,8 +183,8 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
 
       {/* 진행률 바 */}
       {currentVolume > 0 && (
-        <div>
-          <div className="mb-2 flex items-center justify-between text-sm">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-gray-700">학습량 비율</span>
             <span className="text-gray-600">
               {Math.round((currentVolume / recommendedMax) * 100)}%
@@ -194,13 +198,10 @@ export const LearningVolumeSummary = React.memo(function LearningVolumeSummary({
                   : status === "low"
                   ? "bg-yellow-500"
                   : "bg-yellow-500"
-              }`}
-              style={{
-                width: `${Math.min((currentVolume / recommendedMax) * 100, 100)}%`,
-              }}
+              } w-[${Math.min((currentVolume / recommendedMax) * 100, 100)}%]`}
             />
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center justify-between text-xs text-gray-500">
             <span>{recommendedMin}</span>
             <span>권장 범위</span>
             <span>{recommendedMax}</span>

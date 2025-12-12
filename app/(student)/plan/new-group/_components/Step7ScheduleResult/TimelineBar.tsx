@@ -67,7 +67,7 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
     .join(", ");
 
   return (
-    <div className="mt-2 w-full" aria-label={`일정 구성: ${ariaLabel}`}>
+    <div className="flex flex-col gap-1.5 w-full" aria-label={`일정 구성: ${ariaLabel}`}>
       <div className="flex h-6 md:h-8 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         {slotData.map((slot, index) => {
           // 비율 계산 (백분율)
@@ -88,8 +88,7 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
           return (
             <div
               key={`${slot.type}-${index}`}
-              className={`flex items-center justify-center ${slotColors[slot.type]} text-white transition-all`}
-              style={{ width: `${displayPercentage}%` }}
+              className={`flex items-center justify-center ${slotColors[slot.type]} text-white transition-all w-[${displayPercentage}%]`}
               title={`${slotLabels[slot.type]}: ${slot.durationHours.toFixed(1)}시간 (${slot.start} - ${slot.end})`}
             >
               {showLabel && (
@@ -104,7 +103,7 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
       
       {/* 범례 (타입별 색상 안내) - 토글 버튼과 겹치지 않도록 제거하거나 최소화 */}
       {slotData.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-gray-600 max-w-full">
+        <div className="flex flex-wrap gap-2 text-[10px] text-gray-600 max-w-full">
           {Array.from(new Set(slotData.map(s => s.type))).map((type) => (
             <div key={type} className="flex items-center gap-1 flex-shrink-0">
               <div className={`w-2 h-2 rounded-sm ${slotColors[type]}`} />

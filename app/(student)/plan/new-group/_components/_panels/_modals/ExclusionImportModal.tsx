@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { X, Calendar, AlertCircle } from "lucide-react";
+import { Calendar, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 
 type Exclusion = {
   exclusion_date: string;
@@ -110,69 +111,62 @@ export function ExclusionImportModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-3xl rounded-lg bg-white shadow-xl">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-gray-700" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              제외일 불러오기
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* 내용 */}
-        <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
-          {/* 안내 메시지 */}
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
-              <div className="text-xs text-blue-800">
-                <p className="font-semibold">
-                  플랜 기간: {format(new Date(periodStart), "yyyy년 M월 d일", { locale: ko })} ~{" "}
-                  {format(new Date(periodEnd), "yyyy년 M월 d일", { locale: ko })}
-                </p>
-                <p className="mt-1">
-                  해당 기간 내 시간 관리에 등록된 제외일 목록입니다. 선택하여 등록하세요.
-                </p>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onClose}
+      title="제외일 불러오기"
+      maxWidth="3xl"
+    >
+      <DialogContent className="max-h-[60vh] overflow-y-auto">
+          <div className="flex flex-col gap-4">
+            {/* 안내 메시지 */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 text-blue-600" />
+                <div className="flex flex-col gap-1 text-xs text-blue-800">
+                  <p className="font-semibold">
+                    플랜 기간: {format(new Date(periodStart), "yyyy년 M월 d일", { locale: ko })} ~{" "}
+                    {format(new Date(periodEnd), "yyyy년 M월 d일", { locale: ko })}
+                  </p>
+                  <p>
+                    해당 기간 내 시간 관리에 등록된 제외일 목록입니다. 선택하여 등록하세요.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 제외일 목록 */}
-          {filteredExclusions.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm font-medium text-gray-600">
-                플랜 기간 내 등록된 제외일이 없습니다
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                시간 관리 메뉴에서 제외일을 먼저 등록해주세요.
-              </p>
-            </div>
-          ) : newExclusions.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm font-medium text-gray-600">
-                불러올 새로운 제외일이 없습니다
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                모든 제외일이 이미 등록되어 있습니다.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
+            {/* 제외일 목록 */}
+            {filteredExclusions.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <Calendar className="h-12 w-12 text-gray-400" />
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      플랜 기간 내 등록된 제외일이 없습니다
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      시간 관리 메뉴에서 제외일을 먼저 등록해주세요.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : newExclusions.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <AlertCircle className="h-12 w-12 text-gray-400" />
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm font-medium text-gray-600">
+                      불러올 새로운 제외일이 없습니다
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      모든 제외일이 이미 등록되어 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
               {/* 전체 선택 */}
               <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 p-3">
                 <input
@@ -208,9 +202,9 @@ export function ExclusionImportModal({
                       checked={isSelected}
                       onChange={() => handleToggle(exclusion.exclusion_date)}
                       disabled={isExisting}
-                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
                     />
-                    <div className="flex-1">
+                    <div className="flex flex-col gap-1 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900">
                           {format(new Date(exclusion.exclusion_date), "yyyy년 M월 d일 (E)", {
@@ -231,7 +225,7 @@ export function ExclusionImportModal({
                         )}
                       </div>
                       {exclusion.reason && (
-                        <p className="mt-1 text-xs text-gray-600">
+                        <p className="text-xs text-gray-600">
                           사유: {exclusion.reason}
                         </p>
                       )}
@@ -239,12 +233,12 @@ export function ExclusionImportModal({
                   </div>
                 );
               })}
-            </div>
-          )}
-        </div>
-
-        {/* 푸터 */}
-        <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+              </div>
+            )}
+          </div>
+      </DialogContent>
+      <DialogFooter>
+        <div className="flex w-full items-center justify-between">
           <p className="text-sm text-gray-600">
             선택된 항목: <span className="font-semibold">{selectedDates.size}개</span>
           </p>
@@ -266,8 +260,8 @@ export function ExclusionImportModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogFooter>
+    </Dialog>
   );
 }
 

@@ -23,14 +23,18 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
             {name || "블록 세트를 선택해주세요"}
           </p>
         </div>
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-          <p className="text-sm font-medium text-gray-800">
-            블록 세트를 선택해주세요
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            선택하면 요일별 학습 시간을 확인할 수 있습니다
-          </p>
+        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Calendar className="h-12 w-12 text-gray-400" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-gray-800">
+                블록 세트를 선택해주세요
+              </p>
+              <p className="text-xs text-gray-500">
+                선택하면 요일별 학습 시간을 확인할 수 있습니다
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -89,7 +93,8 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
 
       {/* 타임라인 시각화 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="flex gap-1">
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-1">
           {/* 시간 축 (왼쪽) - 3시간 간격 */}
           <div className="flex w-14 flex-col justify-between py-2 pr-2 text-right">
             {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((hour) => (
@@ -115,10 +120,10 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
               const hasBlocks = dayBlocks.length > 0;
 
               return (
-                <div key={day} className="flex flex-1 flex-col items-center">
+                <div key={day} className="flex flex-1 flex-col items-center gap-1">
                   {/* 요일 라벨 */}
                   <div
-                    className={`mb-1 text-xs font-semibold ${
+                    className={`text-xs font-semibold ${
                       hasBlocks ? "text-gray-900" : "text-gray-400"
                     }`}
                   >
@@ -137,8 +142,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                             : i % 3 === 0
                             ? "border-t border-gray-300"
                             : "border-t border-dashed border-gray-200"
-                        }`}
-                        style={{ top: `${(i / 24) * 100}%` }}
+                        } top-[${(i / 24) * 100}%]`}
                       />
                     ))}
 
@@ -152,7 +156,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
 
                     {/* 블록 표시 */}
                     {dayBlocks.map((block, idx) => {
-                      const style = getBlockStyle(block);
+                      const blockStyle = getBlockStyle(block);
                       const colorClass = getBlockColor(block.block_index ?? 0);
 
                       return (
@@ -160,8 +164,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                           key={idx}
                           className={`group absolute left-0 right-0 mx-1 rounded ${
                             colorClass || "bg-blue-500"
-                          } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
-                          style={style}
+                          } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between top-[${blockStyle.top}] h-[${blockStyle.height}]`}
                           title={`${block.start_time} ~ ${block.end_time}`}
                         >
                           {/* 시작 시간 - 상단 */}
@@ -188,7 +191,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
         </div>
 
         {/* 범례 */}
-        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-200 pt-3 text-xs text-gray-600">
+        <div className="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-3 text-xs text-gray-600">
           <span className="font-medium">블록 색상:</span>
           {Array.from(new Set(blocks.map((b) => b.block_index)))
             .sort((a, b) => a - b)

@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { searchContentMastersAction, copyMasterToStudentContentAction } from "@/app/(student)/actions/contentMasterActions";
 import { ContentMaster } from "@/lib/types/plan";
+import { Dialog, DialogContent } from "@/components/ui/Dialog";
 
 type ContentMasterSearchProps = {
   contentType: "book" | "lecture";
@@ -186,25 +187,17 @@ export function ContentMasterSearch({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {contentType === "book" ? "📚 교재 검색" : "🎧 강의 검색"}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
-        </div>
-
+    <Dialog
+      open={true}
+      onOpenChange={onClose}
+      title={contentType === "book" ? "📚 교재 검색" : "🎧 강의 검색"}
+      maxWidth="2xl"
+    >
+      <DialogContent>
         {/* 검색 폼 */}
-        <div className="mb-4 space-y-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-800">
               제목 검색
             </label>
             <input
@@ -220,9 +213,9 @@ export function ContentMasterSearch({
               }}
             />
           </div>
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-800">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-800">
                 개정교육과정
               </label>
               <select
@@ -242,8 +235,8 @@ export function ContentMasterSearch({
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-800">
                 교과
               </label>
               <select
@@ -267,8 +260,8 @@ export function ContentMasterSearch({
                 )}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-800">
                 과목
               </label>
               <select
@@ -291,8 +284,8 @@ export function ContentMasterSearch({
             </div>
             {/* 출판사 (교재용) */}
             {contentType === "book" && publishers.length > 0 && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-800">
                   출판사
                 </label>
                 <select
@@ -311,8 +304,8 @@ export function ContentMasterSearch({
             )}
             {/* 플랫폼 (강의용) */}
             {contentType === "lecture" && platforms.length > 0 && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-800">
                   플랫폼
                 </label>
                 <select
@@ -331,8 +324,8 @@ export function ContentMasterSearch({
             )}
             {/* 난이도 */}
             {difficulties.length > 0 && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-800">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-800">
                   난이도
                 </label>
                 <select
@@ -350,8 +343,8 @@ export function ContentMasterSearch({
               </div>
             )}
             {/* 정렬 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-800">
                 정렬
               </label>
               <select
@@ -379,50 +372,51 @@ export function ContentMasterSearch({
           </button>
         </div>
 
-        {/* 검색 결과 */}
-        {results.length > 0 && (
-          <div className="max-h-96 space-y-2 overflow-y-auto">
-            {results.map((master) => (
-              <div
-                key={master.id}
-                className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
-              >
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{master.title}</h4>
-                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-600">
-                    {master.publisher_or_academy && (
-                      <span>{master.publisher_or_academy}</span>
-                    )}
-                    {master.subject && <span>· {master.subject}</span>}
-                    {master.revision && <span>· {master.revision}</span>}
-                    {master.total_pages && (
-                      <span>· {master.total_pages}페이지</span>
-                    )}
-                    {master.total_episodes && (
-                      <span>· {master.total_episodes}회차</span>
-                    )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(master.id)}
-                  disabled={copyingId === master.id}
-                  className="ml-4 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
+          {/* 검색 결과 */}
+          {results.length > 0 && (
+            <div className="max-h-96 space-y-2 overflow-y-auto">
+              {results.map((master) => (
+                <div
+                  key={master.id}
+                  className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
                 >
-                  {copyingId === master.id ? "복사 중..." : "가져오기"}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{master.title}</h4>
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                      {master.publisher_or_academy && (
+                        <span>{master.publisher_or_academy}</span>
+                      )}
+                      {master.subject && <span>· {master.subject}</span>}
+                      {master.revision && <span>· {master.revision}</span>}
+                      {master.total_pages && (
+                        <span>· {master.total_pages}페이지</span>
+                      )}
+                      {master.total_episodes && (
+                        <span>· {master.total_episodes}회차</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(master.id)}
+                    disabled={copyingId === master.id}
+                    className="ml-4 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
+                  >
+                    {copyingId === master.id ? "복사 중..." : "가져오기"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-        {results.length === 0 && !isSearching && searchQuery && (
-          <div className="py-8 text-center text-sm text-gray-500">
-            검색 결과가 없습니다.
-          </div>
-        )}
-      </div>
-    </div>
+          {results.length === 0 && !isSearching && searchQuery && (
+            <div className="py-8 text-center text-sm text-gray-500">
+              검색 결과가 없습니다.
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

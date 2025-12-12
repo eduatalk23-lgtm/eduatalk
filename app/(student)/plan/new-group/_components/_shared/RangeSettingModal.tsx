@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { X } from "lucide-react";
 import { RangeSettingModalProps, ContentDetail } from "@/lib/types/content-selection";
 import { ContentRangeInput } from "./ContentRangeInput";
 import { cn } from "@/lib/cn";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 
 /**
  * RangeSettingModal - 콘텐츠 범위 설정 모달
@@ -413,20 +413,6 @@ export function RangeSettingModal({
     onClose();
   }, [hasChanges, onClose]);
 
-  // ESC 키로 닫기
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) {
-        handleClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [open, handleClose]);
-
-  if (!open) return null;
-
   const hasDetails = details.length > 0;
   const isValid = useMemo(() => {
     if (hasDetails) {
@@ -441,39 +427,18 @@ export function RangeSettingModal({
   const isSaving = externalLoading;
 
   return (
-    <>
-      {/* 백드롭 */}
-      <div
-        className="fixed inset-0 z-50 bg-black/50 transition-opacity"
-        onClick={handleClose}
-      />
-
-      {/* 모달 */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="relative w-full max-w-2xl rounded-xl bg-white shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* 헤더 */}
-          <div className="flex items-center justify-between border-b border-gray-200 p-6">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                범위 설정
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">{content.title}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleClose}
-              className="rounded-lg p-2 transition-colors hover:bg-gray-100"
-              disabled={isSaving}
-            >
-              <X className="h-5 w-5 text-gray-500" />
-            </button>
-          </div>
-
-          {/* 내용 */}
-          <div className="max-h-[60vh] overflow-y-auto p-6">
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        if (!newOpen) {
+          handleClose();
+        }
+      }}
+      title="범위 설정"
+      description={content.title}
+      maxWidth="2xl"
+    >
+      <DialogContent className="max-h-[60vh] overflow-y-auto">
             {externalError ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                 {externalError}
@@ -496,44 +461,40 @@ export function RangeSettingModal({
                 error={error}
               />
             )}
-          </div>
-
-          {/* 푸터 */}
-          <div className="flex items-center justify-end gap-3 border-t border-gray-200 p-6">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isSaving}
-              className={cn(
-                "rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50",
-                isSaving && "cursor-not-allowed opacity-50"
-              )}
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!isValid || isSaving || !!error}
-              className={cn(
-                "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700",
-                (!isValid || isSaving || !!error) &&
-                  "cursor-not-allowed opacity-50"
-              )}
-            >
-              {isSaving ? (
-                <span className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  저장 중...
-                </span>
-              ) : (
-                "저장"
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+      </DialogContent>
+      <DialogFooter>
+        <button
+          type="button"
+          onClick={handleClose}
+          disabled={isSaving}
+          className={cn(
+            "rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-50",
+            isSaving && "cursor-not-allowed opacity-50"
+          )}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!isValid || isSaving || !!error}
+          className={cn(
+            "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700",
+            (!isValid || isSaving || !!error) &&
+              "cursor-not-allowed opacity-50"
+          )}
+        >
+          {isSaving ? (
+            <span className="flex items-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              저장 중...
+            </span>
+          ) : (
+            "저장"
+          )}
+        </button>
+      </DialogFooter>
+    </Dialog>
   );
 }
 
