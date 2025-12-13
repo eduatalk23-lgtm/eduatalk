@@ -2,6 +2,7 @@
 
 import { getRiskColor } from "@/lib/constants/colors";
 import ProgressBar, { type ProgressBarColor } from "@/components/atoms/ProgressBar";
+import { Card, CardContent } from "@/components/molecules/Card";
 
 type WeakSubjectsSectionProps = {
   subjects: Array<{
@@ -33,9 +34,9 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-4">
-        <h3 className="text-lg font-semibold text-gray-900">취약과목 추천</h3>
+    <Card padding="md">
+      <CardContent className="flex flex-col gap-4">
+        <h3 className="text-h2 text-text-primary">취약과목 추천</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {subjects.map((subject) => {
             const riskColor = getRiskColor(subject.riskScore);
@@ -51,13 +52,13 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
               <div key={subject.subject} className={`rounded-lg border p-4 ${riskColor.border} ${riskColor.bg}`}>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-base font-semibold text-gray-900">{subject.subject}</h4>
-                    <span className="text-2xl">{trendIcons[subject.trend]}</span>
+                    <h4 className="text-body-2-bold text-text-primary">{subject.subject}</h4>
+                    <span className="text-h2">{trendIcons[subject.trend]}</span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">위험도</span>
-                      <span className="font-semibold text-gray-900">{subject.riskScore}점</span>
+                    <div className="flex items-center justify-between text-body-2">
+                      <span className="text-text-secondary">위험도</span>
+                      <span className="text-body-2-bold text-text-primary">{subject.riskScore}점</span>
                     </div>
                     <ProgressBar
                       value={subject.riskScore}
@@ -65,12 +66,12 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
                       height="sm"
                     />
                   </div>
-                  <p className="text-xs text-gray-700">{subject.reason}</p>
-                  <div className="flex flex-col gap-1 text-xs text-gray-600">
+                  <p className="text-body-2 text-text-secondary">{subject.reason}</p>
+                  <div className="flex flex-col gap-1 text-body-2 text-text-secondary">
                 <div>이번 주 학습: {subject.studyTimeMinutes}분</div>
                 {subject.studyTimeChange !== 0 && (
                   <div
-                    className={subject.studyTimeChange > 0 ? "text-green-600" : "text-red-600"}
+                    className={subject.studyTimeChange > 0 ? "text-success-600" : "text-error-600"}
                   >
                     {subject.studyTimeChange > 0 ? "▲" : "▼"} {Math.abs(subject.studyTimeChange)}분
                     (지난주 대비)
@@ -78,20 +79,20 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
                 )}
                 {subject.scoreChange !== null && (
                   <div
-                    className={subject.scoreChange < 0 ? "text-green-600" : "text-red-600"}
+                    className={subject.scoreChange < 0 ? "text-success-600" : "text-error-600"}
                   >
                     {subject.scoreChange < 0 ? "▲" : "▼"} 등급 변화
                   </div>
                 )}
-                    <div className="text-gray-500">트렌드: {trendLabels[subject.trend]}</div>
+                    <div className="text-text-tertiary">트렌드: {trendLabels[subject.trend]}</div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

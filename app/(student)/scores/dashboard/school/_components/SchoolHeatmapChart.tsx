@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Card, CardContent } from "@/components/molecules/Card";
 import {
   BarChart,
   Bar,
@@ -99,28 +100,29 @@ export function SchoolHeatmapChart({
   // 등급별 색상은 getGradeColorHex 함수 사용
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
-      <h2 className="text-xl font-semibold text-gray-900">
+    <Card padding="md">
+      <CardContent className="flex flex-col gap-4">
+      <h2 className="text-h2 text-text-primary">
         학기별/과목별 등급 히트맵
       </h2>
-      <div className="flex flex-col gap-2 text-sm text-gray-600">
+      <div className="flex flex-col gap-2 text-body-2 text-text-secondary">
         <p>각 셀의 색상은 해당 학기/과목의 평균 등급을 나타냅니다.</p>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-blue-500"></div>
-            <span className="text-xs">1-2등급</span>
+            <div className="h-4 w-4 rounded bg-info-500"></div>
+            <span className="text-body-2">1-2등급</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-indigo-500"></div>
-            <span className="text-xs">3등급</span>
+            <div className="h-4 w-4 rounded bg-primary-500"></div>
+            <span className="text-body-2">3등급</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-yellow-500"></div>
-            <span className="text-xs">5등급</span>
+            <div className="h-4 w-4 rounded bg-warning-500"></div>
+            <span className="text-body-2">5등급</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-red-500"></div>
-            <span className="text-xs">6-9등급</span>
+            <div className="h-4 w-4 rounded bg-error-500"></div>
+            <span className="text-body-2">6-9등급</span>
           </div>
         </div>
       </div>
@@ -166,7 +168,8 @@ export function SchoolHeatmapChart({
           ))}
         </BarChart>
       </ResponsiveContainer>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

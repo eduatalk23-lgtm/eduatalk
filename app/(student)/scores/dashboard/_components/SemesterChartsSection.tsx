@@ -5,6 +5,7 @@
 "use client";
 
 import React from "react";
+import { Card, CardContent } from "@/components/molecules/Card";
 import {
   LineChart,
   Line,
@@ -85,10 +86,11 @@ export function SemesterChartsSection({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
-      <h2 className="text-xl font-semibold text-gray-900">
-        내신 학기별 변화
-      </h2>
+    <Card padding="md">
+      <CardContent className="flex flex-col gap-4">
+        <h2 className="text-h2 text-text-primary">
+          내신 학기별 변화
+        </h2>
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -120,7 +122,8 @@ export function SemesterChartsSection({
           />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -5,6 +5,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Card, CardContent } from "@/components/molecules/Card";
 import {
   LineChart,
   Line,
@@ -102,17 +103,18 @@ export function SubjectTrendSection({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+    <Card padding="md">
+      <CardContent className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-h2 text-text-primary">
           교과별 성적 변화
         </h2>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
+        <label className="flex items-center gap-2 text-body-2 text-text-secondary">
           <input
             type="checkbox"
             checked={showAll}
             onChange={(e) => setShowAll(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            className="h-4 w-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
           />
           <span>전체 표시</span>
         </label>
@@ -153,7 +155,8 @@ export function SubjectTrendSection({
           ))}
         </LineChart>
       </ResponsiveContainer>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

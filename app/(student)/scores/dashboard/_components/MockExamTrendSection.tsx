@@ -5,6 +5,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Card, CardContent } from "@/components/molecules/Card";
 import {
   LineChart,
   Line,
@@ -131,38 +132,39 @@ export function MockExamTrendSection({
   const yAxisReversed = metric === "grade_score";
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+    <Card padding="md">
+      <CardContent className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-h2 text-text-primary">
           모의고사 성적 트렌드
         </h2>
         <div className="flex gap-2">
           <button
             onClick={() => setMetric("percentile")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`rounded-lg px-3 py-1.5 text-body-2 font-medium transition ${
               metric === "percentile"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-primary-600 text-white"
+                : "bg-secondary-100 text-text-secondary hover:bg-secondary-200"
             }`}
           >
             백분위
           </button>
           <button
             onClick={() => setMetric("grade_score")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`rounded-lg px-3 py-1.5 text-body-2 font-medium transition ${
               metric === "grade_score"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-primary-600 text-white"
+                : "bg-secondary-100 text-text-secondary hover:bg-secondary-200"
             }`}
           >
             등급
           </button>
           <button
             onClick={() => setMetric("raw_score")}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+            className={`rounded-lg px-3 py-1.5 text-body-2 font-medium transition ${
               metric === "raw_score"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-primary-600 text-white"
+                : "bg-secondary-100 text-text-secondary hover:bg-secondary-200"
             }`}
           >
             원점수
@@ -220,7 +222,8 @@ export function MockExamTrendSection({
           />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

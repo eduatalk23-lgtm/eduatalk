@@ -7,6 +7,7 @@
 import React from "react";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
 import { EmptyState } from "@/components/molecules/EmptyState";
+import { Card, CardContent } from "@/components/molecules/Card";
 
 type InsightPanelProps = {
   schoolScores: SchoolScoreRow[];
@@ -163,24 +164,26 @@ export function InsightPanel({
   }
 
   return (
-    <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-6 shadow-sm flex flex-col gap-4">
-      <h2 className="text-xl font-semibold text-indigo-900">
-        학습 인사이트
-      </h2>
-      <div className="flex flex-col gap-3">
-        {insights.map((insight, index) => (
-          <div
-            key={index}
-            className="rounded-lg border border-indigo-200 bg-white p-4"
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-lg">💡</span>
-              <p className="text-sm text-gray-700 flex-1">{insight}</p>
+    <Card className="border-primary-200 bg-primary-50">
+      <CardContent className="flex flex-col gap-4">
+        <h2 className="text-h2 text-primary-900">
+          학습 인사이트
+        </h2>
+        <div className="flex flex-col gap-3">
+          {insights.map((insight, index) => (
+            <div
+              key={index}
+              className="rounded-lg border border-primary-200 bg-white p-4"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-body-1">💡</span>
+                <p className="text-body-2 text-text-secondary flex-1">{insight}</p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

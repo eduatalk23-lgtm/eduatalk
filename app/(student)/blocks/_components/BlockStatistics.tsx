@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { calculateDayDistribution, calculateBlockStatistics } from "@/lib/blocks/statistics";
 import { EmptyState } from "@/components/ui/EmptyState";
 import ProgressBar from "@/components/atoms/ProgressBar";
+import { Card, CardContent } from "@/components/molecules/Card";
 
 type Block = {
   day_of_week: number;
@@ -45,36 +46,43 @@ export default function BlockStatistics({ blocks }: BlockStatisticsProps) {
     <div className="flex flex-col gap-6">
       {/* 통계 요약 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-white border border-gray-200 rounded-lg flex flex-col gap-1">
-          <div className="text-sm text-gray-600">총 블록 수</div>
-          <div className="text-2xl font-semibold text-gray-900">
-            {statistics.totalBlocks}개
-          </div>
-        </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg flex flex-col gap-1">
-          <div className="text-sm text-gray-600">주간 총 학습 시간</div>
-          <div className="text-2xl font-semibold text-gray-900">
-            {statistics.totalHours}시간 {statistics.remainingMinutes}분
-          </div>
-        </div>
-        <div className="p-4 bg-white border border-gray-200 rounded-lg flex flex-col gap-1">
-          <div className="text-sm text-gray-600">평균 블록 길이</div>
-          <div className="text-2xl font-semibold text-gray-900">
-            {Math.floor(statistics.averageBlockDuration / 60)}시간{" "}
-            {statistics.averageBlockDuration % 60}분
-          </div>
-        </div>
+        <Card padding="sm">
+          <CardContent className="flex flex-col gap-1">
+            <div className="text-body-2 text-text-secondary">총 블록 수</div>
+            <div className="text-h2 text-text-primary">
+              {statistics.totalBlocks}개
+            </div>
+          </CardContent>
+        </Card>
+        <Card padding="sm">
+          <CardContent className="flex flex-col gap-1">
+            <div className="text-body-2 text-text-secondary">주간 총 학습 시간</div>
+            <div className="text-h2 text-text-primary">
+              {statistics.totalHours}시간 {statistics.remainingMinutes}분
+            </div>
+          </CardContent>
+        </Card>
+        <Card padding="sm">
+          <CardContent className="flex flex-col gap-1">
+            <div className="text-body-2 text-text-secondary">평균 블록 길이</div>
+            <div className="text-h2 text-text-primary">
+              {Math.floor(statistics.averageBlockDuration / 60)}시간{" "}
+              {statistics.averageBlockDuration % 60}분
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* 요일별 학습 시간 분포 */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col gap-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+      <Card padding="md">
+        <CardContent className="flex flex-col gap-4">
+        <h3 className="text-h2 text-text-primary">
           요일별 학습 시간 분포
         </h3>
         <div className="flex flex-col gap-3">
           {dayDistribution.distribution.map((day) => (
             <div key={day.dayIndex} className="flex items-center gap-4">
-              <div className="w-12 text-sm font-medium text-gray-700">
+              <div className="w-12 text-body-2 text-text-secondary">
                 {day.day}요일
               </div>
               <div className="flex-1">
@@ -86,10 +94,10 @@ export default function BlockStatistics({ blocks }: BlockStatisticsProps) {
                       height="md"
                     />
                   </div>
-                  <div className="w-20 text-sm text-gray-600 text-right">
+                  <div className="w-20 text-body-2 text-text-secondary text-right">
                     {day.hours}시간 {day.remainingMinutes}분
                   </div>
-                  <div className="w-12 text-xs text-gray-500 text-right">
+                  <div className="w-12 text-body-2 text-text-tertiary text-right">
                     ({day.blockCount}개)
                   </div>
                 </div>
@@ -97,7 +105,8 @@ export default function BlockStatistics({ blocks }: BlockStatisticsProps) {
             </div>
           ))}
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
     </div>
   );
