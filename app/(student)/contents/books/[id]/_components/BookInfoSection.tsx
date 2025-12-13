@@ -60,8 +60,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* 교재명 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 교재명 <span className="text-red-500">*</span>
               </label>
               <input
