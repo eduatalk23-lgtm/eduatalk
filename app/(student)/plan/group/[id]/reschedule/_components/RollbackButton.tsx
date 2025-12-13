@@ -105,7 +105,7 @@ export function RollbackButton({
         <RotateCcw className="h-4 w-4" />
         <span>롤백 불가</span>
         {reason && (
-          <span className="ml-2 text-xs text-gray-400" title={reason}>
+          <span className="pl-2 text-xs text-gray-400" title={reason}>
             (?) {reason}
           </span>
         )}
@@ -126,17 +126,17 @@ export function RollbackButton({
       {/* 확인 다이얼로그 */}
       {confirmDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-lg bg-white p-6 shadow-lg max-w-md w-full mx-4">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900">
               재조정 롤백 확인
             </h3>
-            <p className="mb-6 text-sm text-gray-600">
+            <p className="text-sm text-gray-600">
               정말로 이 재조정을 롤백하시겠습니까?
               <br />
               새로 생성된 플랜이 취소되고, 이전 플랜이 복원됩니다.
             </p>
             {reason && (
-              <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
                 <p className="text-xs text-yellow-800">{reason}</p>
               </div>
             )}

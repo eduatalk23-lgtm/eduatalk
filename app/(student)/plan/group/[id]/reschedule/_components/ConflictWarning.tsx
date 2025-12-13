@@ -59,8 +59,8 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
   return (
     <div className="flex flex-col gap-3">
       {conflictsBySeverity.high.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <div className="mb-2 flex items-center justify-between">
+        <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <h4 className="font-semibold text-red-900">
@@ -74,12 +74,12 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
                 key={`${conflict.type}-${conflict.date}-${index}`}
                 className="flex items-start justify-between rounded-lg border border-red-300 bg-white p-3"
               >
-                <div className="flex-1">
+                <div className="flex flex-1 flex-col gap-1">
                   <p className="text-sm font-medium text-red-900">
                     {conflict.message}
                   </p>
                   {conflict.details && (
-                    <div className="mt-1 text-xs text-red-700">
+                    <div className="text-xs text-red-700">
                       {conflict.details.overlappingPlans && (
                         <p>
                           겹치는 플랜:{" "}
@@ -98,7 +98,7 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
                 <button
                   type="button"
                   onClick={() => handleDismiss(conflict)}
-                  className="ml-2 rounded p-1 text-red-600 transition hover:bg-red-100"
+                  className="pl-2 rounded p-1 text-red-600 transition hover:bg-red-100"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -109,8 +109,8 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
       )}
 
       {conflictsBySeverity.medium.length > 0 && (
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-          <div className="mb-2 flex items-center justify-between">
+        <div className="flex flex-col gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-600" />
               <h4 className="font-semibold text-yellow-900">
@@ -132,7 +132,7 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
                 <button
                   type="button"
                   onClick={() => handleDismiss(conflict)}
-                  className="ml-2 rounded p-1 text-yellow-600 transition hover:bg-yellow-100"
+                  className="pl-2 rounded p-1 text-yellow-600 transition hover:bg-yellow-100"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -143,8 +143,8 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
       )}
 
       {conflictsBySeverity.low.length > 0 && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <div className="mb-2 flex items-center justify-between">
+        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-blue-600" />
               <h4 className="font-semibold text-blue-900">
@@ -166,7 +166,7 @@ export function ConflictWarning({ conflicts }: ConflictWarningProps) {
                 <button
                   type="button"
                   onClick={() => handleDismiss(conflict)}
-                  className="ml-2 rounded p-1 text-blue-600 transition hover:bg-blue-100"
+                  className="pl-2 rounded p-1 text-blue-600 transition hover:bg-blue-100"
                 >
                   <X className="h-4 w-4" />
                 </button>

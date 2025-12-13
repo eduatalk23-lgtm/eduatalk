@@ -58,12 +58,12 @@ export function SmartDateRangeSuggestions({
   }
 
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-      <div className="mb-3">
+    <div className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="flex flex-col gap-1">
         <h4 className="text-sm font-semibold text-blue-900">
           💡 추천 날짜 범위
         </h4>
-        <p className="mt-1 text-xs text-blue-700">
+        <p className="text-xs text-blue-700">
           선택한 콘텐츠의 영향받는 날짜를 분석하여 추천합니다.
         </p>
       </div>
@@ -76,7 +76,7 @@ export function SmartDateRangeSuggestions({
             onClick={() => onSelectRange(suggestion.range)}
             className="flex items-center justify-between rounded-lg border border-blue-300 bg-white p-3 text-left transition hover:bg-blue-50 hover:shadow-sm"
           >
-            <div className="flex-1">
+            <div className="flex flex-1 flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-900">
                   {suggestion.range.from === suggestion.range.to
@@ -89,12 +89,12 @@ export function SmartDateRangeSuggestions({
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-gray-600">{suggestion.reason}</p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-xs text-gray-600">{suggestion.reason}</p>
+              <p className="text-xs text-gray-500">
                 영향받는 플랜: {suggestion.affectedPlansCount}개
               </p>
             </div>
-            <div className="ml-3">
+            <div className="pl-3">
               <svg
                 className="h-5 w-5 text-blue-600"
                 fill="none"
@@ -114,7 +114,7 @@ export function SmartDateRangeSuggestions({
       </div>
 
       {suggestions.length > 3 && (
-        <p className="mt-2 text-xs text-blue-600">
+        <p className="text-xs text-blue-600">
           + {suggestions.length - 3}개의 추가 추천이 있습니다
         </p>
       )}
