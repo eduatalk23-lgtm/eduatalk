@@ -43,7 +43,7 @@ export default async function EditLecturePage({
   if (!lecture) notFound();
 
   return (
-    <section className={getContainerClass("FORM", "lg")}>
+    <section className={`${getContainerClass("FORM", "lg")} flex flex-col gap-6`}>
       <Link
         href={`/contents/lectures/${lecture.id}`}
         className="text-sm text-gray-500 transition hover:text-gray-900"
@@ -51,12 +51,14 @@ export default async function EditLecturePage({
         ← 상세로 돌아가기
       </Link>
 
-      <h1 className="mt-4 text-2xl font-semibold">강의 정보 수정</h1>
-      <p className="text-sm text-gray-500">
-        등록된 내용을 수정한 뒤 저장하면 상세 페이지로 이동합니다.
-      </p>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-semibold">강의 정보 수정</h1>
+        <p className="text-sm text-gray-500">
+          등록된 내용을 수정한 뒤 저장하면 상세 페이지로 이동합니다.
+        </p>
+      </div>
 
-      <div className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border bg-white p-6 shadow-sm">
         <LectureEditForm lecture={lecture} />
       </div>
     </section>

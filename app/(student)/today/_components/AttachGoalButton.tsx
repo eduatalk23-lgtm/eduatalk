@@ -66,7 +66,7 @@ export function AttachGoalButton({ goalId, planId }: AttachGoalButtonProps) {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-xl max-w-md w-full mx-4">
+          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-xl max-w-md w-full px-4">
             <h3 className="text-lg font-semibold text-gray-900">목표 선택</h3>
             {loading ? (
               <p className="text-sm text-gray-500">목표 목록을 불러오는 중...</p>

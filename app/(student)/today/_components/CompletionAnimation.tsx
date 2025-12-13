@@ -95,7 +95,7 @@ export function CompletionAnimation({
               stiffness: 200,
               damping: 20,
             }}
-            className="relative mx-4 flex max-w-md flex-col items-center gap-6 rounded-2xl bg-white p-8 shadow-2xl"
+            className="relative flex max-w-md flex-col items-center gap-6 rounded-2xl bg-white p-8 shadow-2xl px-4"
           >
             {/* 체크 아이콘 */}
             <motion.div
