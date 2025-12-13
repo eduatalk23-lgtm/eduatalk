@@ -112,12 +112,12 @@ export function StudentSearchModal({
       maxWidth="lg"
     >
       <DialogContent>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {/* 검색 입력 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="student-search"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               이름으로 검색
             </label>
@@ -130,17 +130,17 @@ export function StudentSearchModal({
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
             {searchQuery.length > 0 && searchQuery.length < 2 && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-xs text-gray-500">
                 최소 2글자 이상 입력해주세요.
               </p>
             )}
           </div>
 
           {/* 관계 선택 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="relation-select"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               관계
             </label>

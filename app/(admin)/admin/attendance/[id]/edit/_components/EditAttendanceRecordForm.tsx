@@ -90,10 +90,10 @@ export function EditAttendanceRecordForm({
     <Card>
       <CardHeader title="출석 기록 수정" />
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* 시간 입력 필드 */}
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
+            <div className="flex flex-col gap-1">
               <Label htmlFor="check_in_time">입실 시간</Label>
               <Input
                 id="check_in_time"
@@ -102,10 +102,9 @@ export function EditAttendanceRecordForm({
                 onChange={(e) =>
                   setFormData({ ...formData, check_in_time: e.target.value })
                 }
-                className="mt-1"
               />
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <Label htmlFor="check_out_time">퇴실 시간</Label>
               <Input
                 id="check_out_time"
@@ -114,14 +113,13 @@ export function EditAttendanceRecordForm({
                 onChange={(e) =>
                   setFormData({ ...formData, check_out_time: e.target.value })
                 }
-                className="mt-1"
               />
             </div>
           </div>
           
           {/* 방법 선택 */}
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
+            <div className="flex flex-col gap-1">
               <Label htmlFor="check_in_method">입실 방법</Label>
               <select
                 id="check_in_method"
@@ -132,7 +130,7 @@ export function EditAttendanceRecordForm({
                     check_in_method: e.target.value || null,
                   } as UpdateAttendanceRecordRequest)
                 }
-                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
               >
                 <option value="">선택 안 함</option>
                 <option value="manual">수동</option>
@@ -164,7 +162,7 @@ export function EditAttendanceRecordForm({
           </div>
           
           {/* 상태 선택 */}
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="status">출석 상태</Label>
             <select
               id="status"
@@ -172,7 +170,7 @@ export function EditAttendanceRecordForm({
               onChange={(e) =>
                 setFormData({ ...formData, status: e.target.value as any })
               }
-              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
             >
               <option value="present">출석</option>
               <option value="absent">결석</option>
@@ -183,7 +181,7 @@ export function EditAttendanceRecordForm({
           </div>
           
           {/* 메모 */}
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="notes">메모</Label>
             <textarea
               id="notes"
@@ -191,13 +189,13 @@ export function EditAttendanceRecordForm({
               onChange={(e) =>
                 setFormData({ ...formData, notes: e.target.value })
               }
-              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
               rows={3}
             />
           </div>
           
           {/* 수정 사유 (필수) */}
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="reason">
               수정 사유 <span className="text-red-500">*</span>
             </Label>
@@ -207,7 +205,7 @@ export function EditAttendanceRecordForm({
               onChange={(e) =>
                 setFormData({ ...formData, reason: e.target.value })
               }
-              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
               rows={3}
               required
               placeholder="수정 사유를 입력해주세요."

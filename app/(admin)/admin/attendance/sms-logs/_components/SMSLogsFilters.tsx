@@ -49,33 +49,33 @@ export function SMSLogsFilters({ currentFilters }: SMSLogsFiltersProps) {
     <Card>
       <CardContent>
         <div className="grid gap-4 md:grid-cols-5">
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="startDate">시작 날짜</Label>
             <input
               type="date"
               id="startDate"
               value={filters.startDate || ""}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="endDate">종료 날짜</Label>
             <input
               type="date"
               id="endDate"
               value={filters.endDate || ""}
               onChange={(e) => handleFilterChange("endDate", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="status">상태</Label>
             <select
               id="status"
               value={filters.status || ""}
               onChange={(e) => handleFilterChange("status", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             >
               <option value="">전체</option>
               <option value="pending">대기</option>
@@ -84,13 +84,13 @@ export function SMSLogsFilters({ currentFilters }: SMSLogsFiltersProps) {
               <option value="failed">실패</option>
             </select>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="smsType">SMS 타입</Label>
             <select
               id="smsType"
               value={filters.smsType || ""}
               onChange={(e) => handleFilterChange("smsType", e.target.value)}
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             >
               <option value="">전체</option>
               <option value="attendance_check_in">입실</option>

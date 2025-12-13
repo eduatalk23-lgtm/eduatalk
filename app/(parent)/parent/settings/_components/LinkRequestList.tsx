@@ -73,17 +73,17 @@ export function LinkRequestList({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-gray-900">
         연결 요청 목록
       </h2>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {requests.map((request) => (
           <div
             key={request.id}
             className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
           >
-            <div className="flex-1">
+            <div className="flex flex-col gap-1 flex-1">
               <div className="flex items-center gap-2">
                 <div className="text-base font-semibold text-gray-900">
                   {request.studentName || "이름 없음"}
@@ -91,11 +91,11 @@ export function LinkRequestList({
                 {getStatusBadge(request.is_approved)}
               </div>
               {request.grade && request.class && (
-                <div className="mt-1 text-sm text-gray-500">
+                <div className="text-sm text-gray-500">
                   {request.grade}학년 {request.class}반
                 </div>
               )}
-              <div className="mt-1 text-xs text-gray-400">
+              <div className="text-xs text-gray-400">
                 관계: {getRelationText(request.relation)} · 요청일:{" "}
                 {new Date(request.created_at).toLocaleDateString("ko-KR")}
               </div>
@@ -104,7 +104,7 @@ export function LinkRequestList({
               <button
                 onClick={() => handleCancel(request.id)}
                 disabled={isPending}
-                className="ml-4 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPending ? "취소 중..." : "요청 취소"}
               </button>

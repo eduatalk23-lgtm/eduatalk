@@ -44,13 +44,13 @@ export default async function AttendanceStatisticsPage({
   ]);
   
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8">
+    <div className="flex flex-col gap-8 p-6 md:p-10">
+      <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">출석 통계</h1>
       </div>
       
       {/* 필터 */}
-      <div className="mb-6">
+      <div>
         <form method="get" className="flex flex-col gap-4 md:flex-row">
           <Input
             type="date"
@@ -79,7 +79,7 @@ export default async function AttendanceStatisticsPage({
       </div>
       
       {/* 차트 그리드 */}
-      <div className="mb-8 grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader title="일별 출석 통계" />
           <CardContent>

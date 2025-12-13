@@ -26,7 +26,7 @@ export function SMSLogsPagination({
   }
 
   return (
-    <div className="mt-6 flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-2">
       <Button
         variant="outline"
         disabled={currentPage <= 1}

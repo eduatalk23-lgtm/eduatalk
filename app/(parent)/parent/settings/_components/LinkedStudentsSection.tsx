@@ -36,8 +36,8 @@ export function LinkedStudentsSection({
   return (
     <>
       {/* 연결된 자녀 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">연결된 자녀</h2>
           <button
             onClick={() => setIsSearchModalOpen(true)}
@@ -53,13 +53,13 @@ export function LinkedStudentsSection({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {linkedStudents.map((student) => (
               <div
                 key={student.id}
                 className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
               >
-                <div>
+                <div className="flex flex-col gap-1">
                   <div className="text-base font-semibold text-gray-900">
                     {student.name || "이름 없음"}
                   </div>
@@ -68,7 +68,7 @@ export function LinkedStudentsSection({
                       {student.grade}학년 {student.class}반
                     </div>
                   )}
-                  <div className="mt-1 text-xs text-gray-400">
+                  <div className="text-xs text-gray-400">
                     관계:{" "}
                     {student.relation === "mother"
                       ? "어머니"

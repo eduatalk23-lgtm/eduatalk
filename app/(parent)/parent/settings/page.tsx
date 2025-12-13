@@ -37,10 +37,10 @@ export default async function ParentSettingsPage() {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold text-gray-900">설정</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             계정 정보 및 연결된 자녀를 관리하세요
           </p>
         </div>
@@ -52,25 +52,25 @@ export default async function ParentSettingsPage() {
         </Link>
       </div>
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* 나의 정보 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
             나의 정보
           </h2>
-          <div className="space-y-3">
-            <div>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">이름</label>
-              <div className="mt-1 text-base text-gray-900">
+              <div className="text-base text-gray-900">
                 {parent?.name || "이름 없음"}
               </div>
             </div>
             {parent?.created_at && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
                   가입일
                 </label>
-                <div className="mt-1 text-base text-gray-900">
+                <div className="text-base text-gray-900">
                   {new Date(parent.created_at).toLocaleDateString("ko-KR")}
                 </div>
               </div>
@@ -87,14 +87,14 @@ export default async function ParentSettingsPage() {
 
         {/* 자녀별 출석 알림 설정 */}
         {linkedStudents.length > 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
               출석 알림 설정
             </h2>
-            <p className="mb-4 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               각 자녀별로 출석 관련 SMS 알림을 받을 항목을 설정할 수 있습니다. 기본값이면 학원 기본 설정을 따릅니다.
             </p>
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {await Promise.all(
                 linkedStudents.map(async (student) => {
                   const settingsResult =

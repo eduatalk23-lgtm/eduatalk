@@ -78,29 +78,29 @@ export function StudentAttendanceNotificationSettings({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
           <h3 className="text-base font-semibold text-gray-900">{studentName}</h3>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             출석 관련 SMS 알림을 받을 항목을 설정합니다. 기본값이면 학원 기본 설정을 따릅니다.
           </p>
         </div>
       </div>
 
       {success && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+        <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
           설정이 저장되었습니다.
         </div>
       )}
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           {error}
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-medium text-gray-900">입실 알림</div>
