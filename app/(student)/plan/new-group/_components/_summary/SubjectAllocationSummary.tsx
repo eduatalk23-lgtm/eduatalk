@@ -89,7 +89,7 @@ export const SubjectAllocationSummary = React.memo(
     }
 
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 요약 */}
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">

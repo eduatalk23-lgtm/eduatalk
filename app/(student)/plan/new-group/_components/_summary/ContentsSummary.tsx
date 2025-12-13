@@ -119,7 +119,7 @@ export const ContentsSummary = React.memo(function ContentsSummary({
   const allRequiredSelected = requiredSubjects.every((s) => s.selected);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 전체 요약 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard
@@ -233,11 +233,11 @@ export const ContentsSummary = React.memo(function ContentsSummary({
 
       {/* 빈 상태 */}
       {totalContents === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <div className="flex flex-col gap-1 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
           <p className="text-sm font-medium text-gray-900">
             선택된 콘텐츠가 없습니다
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             Step 3에서 콘텐츠를 선택해주세요
           </p>
         </div>

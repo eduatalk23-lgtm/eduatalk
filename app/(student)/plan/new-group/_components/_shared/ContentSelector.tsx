@@ -194,7 +194,7 @@ export const ContentSelector = React.memo(function ContentSelector({
       {/* 콘텐츠 목록 */}
       <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
         {availableContents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="flex flex-col gap-1 items-center justify-center py-12 text-center">
             <div className="rounded-full bg-gray-100 p-3">
               {activeTab === "book" ? (
                 <BookOpen className="h-6 w-6 text-gray-400" />
@@ -204,12 +204,12 @@ export const ContentSelector = React.memo(function ContentSelector({
                 <Plus className="h-6 w-6 text-gray-400" />
               )}
             </div>
-            <p className="mt-3 text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               {searchQuery
                 ? "검색 결과가 없습니다"
                 : "선택 가능한 콘텐츠가 없습니다"}
             </p>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               {searchQuery
                 ? "다른 검색어를 시도해보세요"
                 : "모든 콘텐츠가 이미 선택되었습니다"}

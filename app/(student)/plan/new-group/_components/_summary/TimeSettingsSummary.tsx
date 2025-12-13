@@ -132,7 +132,7 @@ export const TimeSettingsSummary = React.memo(function TimeSettingsSummary({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* 요약 카드 */}
       <div className="grid grid-cols-2 gap-4">
         <SummaryCard

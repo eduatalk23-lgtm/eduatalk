@@ -245,7 +245,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
       </div>
 
       {/* 종료 범위 */}
-      <div>
+      <div className="flex flex-col gap-1">
         <label className="block text-sm font-medium text-gray-800">
           종료 {isBook ? "페이지" : "강"}
         </label>
