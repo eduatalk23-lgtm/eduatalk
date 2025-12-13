@@ -378,7 +378,7 @@ export function ContentMasterSearch({
               {results.map((master) => (
                 <div
                   key={master.id}
-                  className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
+                  className="flex items-start justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4"
                 >
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-900">{master.title}</h4>
