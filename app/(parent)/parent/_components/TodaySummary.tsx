@@ -13,11 +13,11 @@ export function TodaySummary({
   const minutes = todayMinutes % 60;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">오늘 학습 요약</h2>
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-gray-900">오늘 학습 요약</h2>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg bg-white p-4">
-          <div className="text-sm font-medium text-gray-500 mb-1">
+        <div className="flex flex-col gap-1 rounded-lg bg-white p-4">
+          <div className="text-sm font-medium text-gray-500">
             오늘 학습시간
           </div>
           <div className="text-2xl font-bold text-indigo-600">
@@ -25,16 +25,16 @@ export function TodaySummary({
             {minutes}분
           </div>
         </div>
-        <div className="rounded-lg bg-white p-4">
-          <div className="text-sm font-medium text-gray-500 mb-1">
+        <div className="flex flex-col gap-1 rounded-lg bg-white p-4">
+          <div className="text-sm font-medium text-gray-500">
             오늘 플랜 개수
           </div>
           <div className="text-2xl font-bold text-indigo-600">
             {todayPlanCount}개
           </div>
         </div>
-        <div className="rounded-lg bg-white p-4">
-          <div className="text-sm font-medium text-gray-500 mb-1">
+        <div className="flex flex-col gap-1 rounded-lg bg-white p-4">
+          <div className="text-sm font-medium text-gray-500">
             실행률
           </div>
           <div className="text-2xl font-bold text-indigo-600">

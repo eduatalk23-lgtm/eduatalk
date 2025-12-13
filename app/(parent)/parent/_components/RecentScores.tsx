@@ -6,11 +6,11 @@ type RecentScoresProps = {
 
 export function RecentScores({ scores }: RecentScoresProps) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-900">
         최근 성적 변화
       </h3>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {scores.map((score, index) => {
           const prevScore = index < scores.length - 1 ? scores[index + 1] : null;
           const gradeChange =

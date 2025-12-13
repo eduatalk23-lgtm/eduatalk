@@ -176,37 +176,37 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
           )}
 
           {/* 목표 달성률 트렌드 */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
               목표 달성률 요약
             </h2>
             <div className="grid gap-4 sm:grid-cols-4">
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <div className="text-sm font-medium text-blue-700 mb-1">
+              <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div className="text-sm font-medium text-blue-700">
                   예정
                 </div>
                 <div className="text-2xl font-bold text-blue-600">
                   {upcomingGoals.length}
                 </div>
               </div>
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-                <div className="text-sm font-medium text-indigo-700 mb-1">
+              <div className="flex flex-col gap-1 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+                <div className="text-sm font-medium text-indigo-700">
                   진행중
                 </div>
                 <div className="text-2xl font-bold text-indigo-600">
                   {inProgressGoals.length}
                 </div>
               </div>
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-                <div className="text-sm font-medium text-green-700 mb-1">
+              <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 p-4">
+                <div className="text-sm font-medium text-green-700">
                   완료
                 </div>
                 <div className="text-2xl font-bold text-green-600">
                   {completedGoals.length}
                 </div>
               </div>
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                <div className="text-sm font-medium text-red-700 mb-1">
+              <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4">
+                <div className="text-sm font-medium text-red-700">
                   실패
                 </div>
                 <div className="text-2xl font-bold text-red-600">
@@ -219,11 +219,11 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
           {/* 취약 과목 목표 */}
           {inProgressGoals.filter((g) => g.goal_type === "weak_subject").length >
             0 && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-orange-900 mb-4">
+            <div className="flex flex-col gap-4 rounded-xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-orange-900">
                 취약 과목 목표
               </h2>
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {inProgressGoals
                   .filter((g) => g.goal_type === "weak_subject")
                   .map((goal) => (
