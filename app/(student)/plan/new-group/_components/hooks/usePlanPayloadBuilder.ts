@@ -1,10 +1,21 @@
 
 import { useMemo } from "react";
 import { WizardData } from "../PlanGroupWizard";
-import { PlanGroupCreationData, ContentType, PlanPurpose } from "@/lib/types/plan";
+import { PlanGroupCreationData, ContentType, PlanPurpose, PlanContentInput } from "@/lib/types/plan";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { validateDataConsistency } from "@/lib/utils/planGroupDataSync";
 import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
+import { validatePeriod } from "../utils/validationUtils";
+
+/**
+ * 확장된 PlanContentInput 타입 (추천 관련 필드 포함)
+ */
+type ExtendedPlanContentInput = PlanContentInput & {
+  is_auto_recommended?: boolean;
+  recommendation_source?: "auto" | "admin" | "template" | null;
+  recommendation_reason?: string | null;
+  recommendation_metadata?: unknown;
+};
 
 type UsePlanPayloadBuilderOptions = {
   validateOnBuild?: boolean;
@@ -32,19 +43,10 @@ export function usePlanPayloadBuilder(
       errors.push("플랜 그룹 이름이 필요합니다.");
     }
     
-    // 기간 검증: 캠프 모드가 아닐 때만 검증
-    // 템플릿 모드에서 학생 입력 허용이 아닐 때만 필수
-    const isStudentInputAllowed = (fieldName: string): boolean => {
-      const lockedFields = wizardData.templateLockedFields?.step1 || {};
-      const allowFieldName = `allow_student_${fieldName}` as keyof typeof lockedFields;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (lockedFields as any)[allowFieldName] === true;
-    };
-    
-    if (!options.isCampMode && !isStudentInputAllowed("period")) {
-      if (!wizardData.period_start || !wizardData.period_end) {
-        errors.push("기간 설정이 필요합니다. Step 1에서 학습 기간을 입력해주세요.");
-      }
+    // 기간 검증: 공통 검증 함수 사용
+    const periodValidation = validatePeriod(wizardData, options.isCampMode ?? false);
+    if (!periodValidation.isValid && periodValidation.error) {
+      errors.push(periodValidation.error);
     }
     if (!wizardData.block_set_id) {
        // Note: block_set_id might be missing in 'Draft' mode or early stages, 
@@ -68,7 +70,7 @@ export function usePlanPayloadBuilder(
     ];
 
     const contentKeys = new Set<string>();
-    const uniqueContents: any[] = [];
+    const uniqueContents: Array<WizardData["student_contents"][number] | WizardData["recommended_contents"][number]> = [];
     const duplicateNames: string[] = [];
 
     allContents.forEach((c, idx) => {
@@ -137,14 +139,14 @@ export function usePlanPayloadBuilder(
     const finalPayload: PlanGroupCreationData = {
       name: wizardData.name || null,
       plan_purpose: (wizardData.plan_purpose as PlanPurpose) || "내신대비",
-      scheduler_type: (wizardData.scheduler_type as any) || "1730_timetable",
+      scheduler_type: (wizardData.scheduler_type as "1730_timetable" | "") || "1730_timetable",
       
       period_start: wizardData.period_start,
       period_end: wizardData.period_end,
       target_date: wizardData.target_date || null,
       block_set_id: wizardData.block_set_id || null, // Allow null for drafts
 
-      contents: uniqueContents.map(c => {
+      contents: uniqueContents.map((c): ExtendedPlanContentInput => {
          // Determine master_content_id precedence
          let masterId = c.master_content_id;
          
@@ -167,18 +169,13 @@ export function usePlanPayloadBuilder(
             // Optional / Metadata fields that PlanGroupCreationData might accept 
             // (Need to cast or ensure type definition supports them)
             // The type definition says PlanContentInput does NOT have these recommendation fields ??
-            // Let's check lib/types/plan.ts -> PlanContentInput
-            // It seems PlanContentInput is strict. 
-            // However, the `syncWizardDataToCreationData` function WAS adding them via `as any`.
-            // We will follow that pattern for now to preserve data, assuming backend handles it.
-            ...({
-                is_auto_recommended: c.is_auto_recommended,
-                recommendation_source: c.recommendation_source,
-                recommendation_reason: c.recommendation_reason,
-                recommendation_metadata: c.recommendation_metadata
-            })
-         } as any; 
-      }),
+            // However, the backend accepts these fields, so we include them with proper typing
+            is_auto_recommended: c.is_auto_recommended,
+            recommendation_source: c.recommendation_source,
+            recommendation_reason: c.recommendation_reason,
+            recommendation_metadata: c.recommendation_metadata
+         };
+      }) as PlanContentInput[], // Backend accepts extended fields but type definition is strict
 
       exclusions: (wizardData.exclusions || []).map(e => ({
           exclusion_date: e.exclusion_date,

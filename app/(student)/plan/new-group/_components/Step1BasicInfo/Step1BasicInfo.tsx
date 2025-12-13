@@ -24,6 +24,8 @@ import { FieldErrors } from "../hooks/useWizardValidation";
 import { FieldError } from "../_shared/FieldError";
 import { getFieldErrorClasses } from "../_shared/fieldErrorUtils";
 import { cn } from "@/lib/cn";
+import { isFieldLocked, canStudentInput, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../utils/fieldLockUtils";
+import type { TemplateLockedFields } from "../PlanGroupWizard";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -93,53 +95,18 @@ export function Step1BasicInfo({
   // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)
   const lockedFields = data.templateLockedFields?.step1 || {};
 
-  // 필드가 고정되어 있는지 확인 (학생 모드에서만 체크)
-  // 고정 = 학생 입력 허용이 false인 경우
-  const isFieldLocked = (fieldName: string) => {
-    if (!isCampMode) return false; // 템플릿 편집 모드에서는 항상 편집 가능
-
-    // allow_student_* 필드명 매핑
-    const allowFieldMap: Record<string, string> = {
-      name: "allow_student_name",
-      plan_purpose: "allow_student_plan_purpose",
-      scheduler_type: "allow_student_scheduler_type",
-      period_start: "allow_student_period",
-      period_end: "allow_student_period",
-      block_set_id: "allow_student_block_set_id",
-      student_level: "allow_student_student_level",
-      subject_allocations: "allow_student_subject_allocations",
-      study_review_cycle: "allow_student_study_review_cycle",
-    };
-
-    const allowFieldName = allowFieldMap[fieldName];
-    if (!allowFieldName) return false;
-
-    // lockedFields에 해당 필드가 없거나 false가 아니면 입력 가능 (고정되지 않음)
-    const fieldValue =
-      lockedFields[allowFieldName as keyof typeof lockedFields];
-    return fieldValue === false; // 명시적으로 false인 경우만 고정
+  // 필드가 고정되어 있는지 확인 (공통 유틸리티 사용)
+  const checkFieldLocked = (fieldName: string) => {
+    return isFieldLocked(fieldName, lockedFields, isCampMode);
   };
 
-  // 템플릿 모드에서 학생 입력 허용 토글 (고정과 통합)
-  const toggleFieldControl = (fieldName: keyof typeof lockedFields) => {
+  // 템플릿 모드에서 학생 입력 허용 토글 (공통 유틸리티 사용)
+  const toggleFieldControl = (fieldName: keyof NonNullable<TemplateLockedFields["step1"]>) => {
     if (!isTemplateMode) return;
 
-    const currentLocked = data.templateLockedFields?.step1 || {};
-    // 현재 값이 undefined이면 true로, true이면 false로, false이면 true로 토글
-    const currentValue = currentLocked[fieldName];
-    const newValue = currentValue === true ? false : true;
-
-    const newLocked = {
-      ...currentLocked,
-      [fieldName]: newValue,
-    };
-
-    onUpdate({
-      templateLockedFields: {
-        ...data.templateLockedFields,
-        step1: newLocked,
-      },
-    });
+    const currentLocked = data.templateLockedFields?.step1;
+    const newLocked = toggleFieldControlUtil(fieldName, currentLocked);
+    onUpdate(updateFieldLock(data, newLocked));
   };
 
   // 체크박스 렌더링 헬퍼 함수
@@ -164,41 +131,33 @@ export function Step1BasicInfo({
     return !editable || additionalCondition;
   };
 
-  // 학생 모드에서 입력 가능 여부 확인 헬퍼 함수
-  const canStudentInput = (fieldName: keyof typeof lockedFields): boolean => {
-    if (!editable) return false; // editable={false}일 때는 모든 필드 입력 불가
-    if (!isCampMode) return true; // 일반 모드에서는 항상 허용
-
-    // templateLockedFields가 없으면 모든 필드 입력 가능 (기본값)
-    if (!data.templateLockedFields?.step1) return true;
-
-    const fieldValue = lockedFields[fieldName];
-    // undefined 또는 true이면 입력 가능, false이면 입력 불가
-    return fieldValue !== false;
+  // 학생 모드에서 입력 가능 여부 확인 (공통 유틸리티 사용)
+  const checkCanStudentInput = (fieldName: keyof NonNullable<TemplateLockedFields["step1"]>): boolean => {
+    return canStudentInput(fieldName, lockedFields, editable, isCampMode);
   };
 
-  // 각 필드별 입력 가능 여부 (헬퍼 함수 사용)
-  const canStudentInputName = canStudentInput("allow_student_name");
-  const canStudentInputPlanPurpose = canStudentInput(
+  // 각 필드별 입력 가능 여부 (공통 유틸리티 사용)
+  const canStudentInputName = checkCanStudentInput("allow_student_name");
+  const canStudentInputPlanPurpose = checkCanStudentInput(
     "allow_student_plan_purpose"
   );
-  const canStudentInputSchedulerType = canStudentInput(
+  const canStudentInputSchedulerType = checkCanStudentInput(
     "allow_student_scheduler_type"
   );
-  const canStudentInputPeriod = canStudentInput("allow_student_period");
-  const canStudentInputBlockSetId = canStudentInput(
+  const canStudentInputPeriod = checkCanStudentInput("allow_student_period");
+  const canStudentInputBlockSetId = checkCanStudentInput(
     "allow_student_block_set_id"
   );
-  const canStudentInputStudentLevel = canStudentInput(
+  const canStudentInputStudentLevel = checkCanStudentInput(
     "allow_student_student_level"
   );
-  const canStudentInputSubjectAllocations = canStudentInput(
+  const canStudentInputSubjectAllocations = checkCanStudentInput(
     "allow_student_subject_allocations"
   );
-  const canStudentInputStudyReviewCycle = canStudentInput(
+  const canStudentInputStudyReviewCycle = checkCanStudentInput(
     "allow_student_study_review_cycle"
   );
-  const canStudentInputAdditionalPeriodReallocation = canStudentInput(
+  const canStudentInputAdditionalPeriodReallocation = checkCanStudentInput(
     "allow_student_additional_period_reallocation"
   );
 
@@ -282,7 +241,7 @@ export function Step1BasicInfo({
                 !!fieldErrors?.get("plan_name")
               ),
               (!editable && !isCampMode) ||
-                isFieldLocked("name") ||
+                checkFieldLocked("name") ||
                 (isCampMode && !canStudentInputName)
                 ? "cursor-not-allowed bg-gray-100 opacity-60"
                 : ""
@@ -294,7 +253,7 @@ export function Step1BasicInfo({
               onUpdate({ name: e.target.value });
             }}
             disabled={isDisabled(
-              isFieldLocked("name") ||
+              checkFieldLocked("name") ||
               (isCampMode && !canStudentInputName)
             )}
             required
@@ -305,7 +264,7 @@ export function Step1BasicInfo({
             error={fieldErrors?.get("plan_name")}
             id="plan_name-error"
           />
-          {isFieldLocked("name") && (
+          {checkFieldLocked("name") && (
             <p className="text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 있습니다.
             </p>

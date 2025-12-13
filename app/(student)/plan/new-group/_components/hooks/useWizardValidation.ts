@@ -1,16 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
-import { PlanValidator } from "@/lib/validation/planValidator";
-
-// 오류 메시지와 필드 ID 매핑
-const VALIDATION_FIELD_MAP: Record<string, string> = {
-  "플랜 이름을 입력해주세요.": "plan_name",
-  "플랜 목적을 선택해주세요.": "plan_purpose",
-  "스케줄러 유형을 선택해주세요.": "scheduler_type",
-  "학습 기간을 설정해주세요.": "period_start",
-  "최소 1개 이상의 콘텐츠를 선택해주세요.": "content_selection",
-};
+import { validateStep as validateStepUtil } from "../utils/validationUtils";
 
 // 필드 ID별 오류 메시지 맵 타입
 export type FieldErrors = Map<string, string>;
@@ -55,6 +46,7 @@ export function getFirstErrorFieldId(
 type UseWizardValidationProps = {
   wizardData: WizardData;
   isTemplateMode: boolean;
+  isCampMode?: boolean;
 };
 
 type UseWizardValidationReturn = {
@@ -70,6 +62,7 @@ type UseWizardValidationReturn = {
 export function useWizardValidation({
   wizardData,
   isTemplateMode,
+  isCampMode = false,
 }: UseWizardValidationProps): UseWizardValidationReturn {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
@@ -83,96 +76,20 @@ export function useWizardValidation({
 
   const validateStep = useCallback(
     (step: WizardStep): boolean => {
-      const errors: string[] = [];
-      const warnings: string[] = [];
-      const fieldErrorsMap = new Map<string, string>();
+      // 공통 검증 함수 사용
+      const result = validateStepUtil(
+        wizardData,
+        step,
+        isTemplateMode,
+        isCampMode
+      );
 
-      // 템플릿 모드에서 학생 입력 허용 필드 확인 헬퍼
-      const isStudentInputAllowed = (fieldName: string): boolean => {
-        if (!isTemplateMode) return false;
-        const lockedFields = wizardData.templateLockedFields?.step1 || {};
-        const allowFieldName = `allow_student_${fieldName}` as keyof typeof lockedFields;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (lockedFields as any)[allowFieldName] === true;
-      };
-
-      if (step === 1) {
-        // 템플릿 모드가 아닐 때만 이름 검증 (템플릿 모드에서는 항상 필요)
-        if (!isTemplateMode) {
-          if (!wizardData.name || wizardData.name.trim() === "") {
-            const errorMsg = "플랜 이름을 입력해주세요.";
-            errors.push(errorMsg);
-            fieldErrorsMap.set("plan_name", errorMsg);
-          }
-        }
-
-        // 플랜 목적: 학생 입력 허용이 아닐 때만 필수
-        if (!isStudentInputAllowed("plan_purpose")) {
-          if (!wizardData.plan_purpose) {
-            const errorMsg = "플랜 목적을 선택해주세요.";
-            errors.push(errorMsg);
-            fieldErrorsMap.set("plan_purpose", errorMsg);
-          }
-        }
-
-        // 스케줄러 유형: 학생 입력 허용이 아닐 때만 필수
-        if (!isStudentInputAllowed("scheduler_type")) {
-          if (!wizardData.scheduler_type) {
-            const errorMsg = "스케줄러 유형을 선택해주세요.";
-            errors.push(errorMsg);
-            fieldErrorsMap.set("scheduler_type", errorMsg);
-          }
-        }
-
-        // 학습 기간: 학생 입력 허용이 아닐 때만 필수
-        if (!isStudentInputAllowed("period")) {
-          if (!wizardData.period_start || !wizardData.period_end) {
-            const errorMsg = "학습 기간을 설정해주세요.";
-            errors.push(errorMsg);
-            fieldErrorsMap.set("period_start", errorMsg);
-          } else {
-            const periodValidation = PlanValidator.validatePeriod(
-              wizardData.period_start,
-              wizardData.period_end
-            );
-            errors.push(...periodValidation.errors);
-            warnings.push(...periodValidation.warnings);
-            // 기간 검증 오류는 필드 ID 없이 추가 (복잡한 검증)
-          }
-        }
-      }
-
-      if (step === 2) {
-        // 제외일과 학원 일정은 선택사항이므로 검증 불필요
-      }
-
-      if (step === 3) {
-        // Step 3: 스케줄 미리보기 단계
-        // 스케줄 미리보기는 확인만 하는 단계이므로 검증 불필요
-      }
-
-      if (step === 4) {
-        // Step 4: 콘텐츠 선택 단계
-        // 템플릿 모드에서는 콘텐츠 선택 검증 건너뛰기 (필수 교과 설정만 진행)
-        if (!isTemplateMode) {
-          // 최소 1개 이상의 콘텐츠 필요
-          const totalContents =
-            wizardData.student_contents.length +
-            (wizardData.recommended_contents?.length || 0); // null safety
-          if (totalContents === 0) {
-            const errorMsg = "최소 1개 이상의 콘텐츠를 선택해주세요.";
-            errors.push(errorMsg);
-            fieldErrorsMap.set("content_selection", errorMsg);
-          }
-        }
-      }
-
-      setValidationErrors(errors);
-      setValidationWarnings(warnings);
-      setFieldErrors(fieldErrorsMap);
-      return errors.length === 0;
+      setValidationErrors(result.errors);
+      setValidationWarnings(result.warnings);
+      setFieldErrors(result.fieldErrors);
+      return result.isValid;
     },
-    [wizardData, isTemplateMode]
+    [wizardData, isTemplateMode, isCampMode]
   );
 
   return {

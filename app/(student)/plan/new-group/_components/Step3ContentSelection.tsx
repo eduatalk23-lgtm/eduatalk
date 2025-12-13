@@ -27,6 +27,7 @@ import type { SubjectGroup } from "@/lib/data/subjects";
 import RequiredSubjectItem from "./Step4RecommendedContents/components/RequiredSubjectItem";
 import { FieldErrors } from "./hooks/useWizardValidation";
 import { FieldError } from "./_shared/FieldError";
+import { createWizardMode, isStudentMode } from "./utils/modeUtils";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -51,6 +52,15 @@ export function Step3ContentSelection({
   isAdminContinueMode?: boolean;
   fieldErrors?: FieldErrors;
 }) {
+  // 모드 통합 관리
+  const mode = useMemo(() => createWizardMode({
+    isCampMode,
+    isTemplateMode,
+    isAdminMode: false,
+    isAdminContinueMode,
+    isEditMode,
+  }), [isCampMode, isTemplateMode, isAdminContinueMode, isEditMode]);
+
   // 탭 상태
   const [activeTab, setActiveTab] = useState<
     "student" | "recommended" | "master"
@@ -91,7 +101,7 @@ export function Step3ContentSelection({
 
   // 교과 그룹 목록 조회
   useEffect(() => {
-    if (isTemplateMode) {
+    if (mode.isTemplateMode) {
       setLoadingSubjectGroups(true);
       getSubjectGroupsAction()
         .then((groups) => {
@@ -108,7 +118,7 @@ export function Step3ContentSelection({
 
   // 개정교육과정 목록 조회 (템플릿 모드일 때만)
   useEffect(() => {
-    if (isTemplateMode) {
+    if (mode.isTemplateMode) {
       setLoadingRevisions(true);
       getCurriculumRevisionsAction()
         .then((revisions) => {
@@ -163,14 +173,14 @@ export function Step3ContentSelection({
     data.student_contents,
     data.recommended_contents,
     data.subject_constraints?.required_subjects,
-    isCampMode,
+    mode.isCampMode,
   ]);
 
   // 필수 과목 모두 선택 여부 (캠프 모드에서만)
   const allRequiredSelected = useMemo(() => {
-    if (!isCampMode) return true; // 일반 모드에서는 항상 true
+    if (!mode.isCampMode) return true; // 일반 모드에서는 항상 true
     return requiredSubjects.every((s) => s.selected);
-  }, [requiredSubjects, isCampMode]);
+  }, [requiredSubjects, mode.isCampMode]);
 
   // 경고 메시지
   const warningMessage = useMemo(() => {
@@ -178,7 +188,7 @@ export function Step3ContentSelection({
       return "최소 1개 이상의 콘텐츠를 선택해주세요.";
     }
     // 캠프 모드에서만 필수 과목 검증
-    if (isCampMode && !allRequiredSelected && currentTotal >= maxContents) {
+    if (mode.isCampMode && !allRequiredSelected && currentTotal >= maxContents) {
       const missing = requiredSubjects
         .filter((s) => !s.selected)
         .map((s) => s.subject);
@@ -774,7 +784,7 @@ export function Step3ContentSelection({
   return (
     <div className="flex flex-col gap-6" data-field-id="content_selection">
       {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
-      {isTemplateMode && (
+      {mode.isTemplateMode && (
         <div className="flex flex-col gap-4 rounded-xl border-2 border-blue-300 bg-blue-50 p-6 shadow-md">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">

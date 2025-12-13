@@ -25,6 +25,8 @@ import { validateDataConsistency } from "@/lib/utils/planGroupDataSync";
 import { useWizardValidation } from "./hooks/useWizardValidation";
 import { usePlanSubmission } from "./hooks/usePlanSubmission";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import type { SchedulerOptions } from "@/lib/types/plan";
+import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack } from "./utils/modeUtils";
 import { Step1BasicInfo } from "./Step1BasicInfo";
 import { Step2TimeSettings } from "./Step2TimeSettings";
 import { Step3SchedulePreview } from "./Step3SchedulePreview";
@@ -246,6 +248,17 @@ export type WizardData = {
   allocation_mode?: "subject" | "content";
 };
 
+type ExtendedInitialData = Partial<WizardData> & {
+  groupId?: string;
+  templateId?: string;
+  templateProgramType?: string;
+  templateStatus?: string;
+  _startStep?: number;
+  _validationErrors?: string[];
+  student_id?: string;
+  contents?: WizardData["student_contents"]; // 기존 구조 호환성
+};
+
 type PlanGroupWizardProps = {
   initialBlockSets?: Array<{ id: string; name: string }>;
   initialContents?: {
@@ -253,7 +266,7 @@ type PlanGroupWizardProps = {
     lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
-  initialData?: Partial<WizardData> & { groupId?: string; templateId?: string; templateProgramType?: string; templateStatus?: string; _startStep?: number };
+  initialData?: ExtendedInitialData;
   isEditMode?: boolean;
   isCampMode?: boolean;
   campInvitationId?: string;
@@ -375,12 +388,22 @@ export function PlanGroupWizard({
 }: PlanGroupWizardProps) {
   const router = useRouter();
   const toast = useToast();
+  
+  // 모드 통합 관리
+  const mode = useMemo(() => createWizardMode({
+    isCampMode,
+    isTemplateMode,
+    isAdminMode,
+    isAdminContinueMode,
+    isEditMode,
+  }), [isCampMode, isTemplateMode, isAdminMode, isAdminContinueMode, isEditMode]);
+  
   // _startStep이 있으면 해당 단계로 초기화 (관리자 남은 단계 진행 모드)
-  const initialStep = (initialData as any)?._startStep 
-    ? ((initialData as any)._startStep as WizardStep)
+  const initialStep = initialData?._startStep 
+    ? (initialData._startStep as WizardStep)
     : 1;
 
-  const getInitialContents = () => {
+  const initialContentsState = useMemo(() => {
     if (initialData?.student_contents || initialData?.recommended_contents) {
       return {
         student_contents: initialData.student_contents || [],
@@ -388,9 +411,9 @@ export function PlanGroupWizard({
       };
     }
     // 기존 구조: contents가 있으면 모두 student_contents로 처리
-    if ((initialData as any)?.contents) {
+    if (initialData?.contents) {
       return {
-        student_contents: (initialData as any).contents,
+        student_contents: initialData.contents,
         recommended_contents: [],
       };
     }
@@ -398,9 +421,7 @@ export function PlanGroupWizard({
       student_contents: [],
       recommended_contents: [],
     };
-  };
-
-  const initialContentsState = useMemo(getInitialContents, [initialData]);
+  }, [initialData]);
 
   const [currentStep, setCurrentStep] = useState<WizardStep>(initialStep);
   const [blockSets, setBlockSets] = useState(initialBlockSets);
@@ -410,7 +431,7 @@ export function PlanGroupWizard({
     name: initialData?.name || "",
     // plan_purpose 정규화 처리
     plan_purpose: denormalizePlanPurpose(initialData?.plan_purpose),
-    scheduler_type: (initialData?.scheduler_type as any) || "1730_timetable",
+    scheduler_type: (initialData?.scheduler_type as "1730_timetable" | "") || "1730_timetable",
     period_start: initialData?.period_start || "",
     period_end: initialData?.period_end || "",
     target_date: initialData?.target_date || undefined,
@@ -419,19 +440,19 @@ export function PlanGroupWizard({
     scheduler_options: {
       ...(initialData?.scheduler_options || {}),
       study_days:
-        (initialData?.scheduler_options as any)?.study_days ||
+        (initialData?.scheduler_options as SchedulerOptions | undefined)?.study_days ||
         initialData?.study_review_cycle?.study_days ||
         6,
       review_days:
-        (initialData?.scheduler_options as any)?.review_days ||
+        (initialData?.scheduler_options as SchedulerOptions | undefined)?.review_days ||
         initialData?.study_review_cycle?.review_days ||
         1,
       student_level:
         initialData?.student_level ||
-        (initialData?.scheduler_options as any)?.student_level,
+        (initialData?.scheduler_options as SchedulerOptions | undefined)?.student_level,
     },
     exclusions:
-      initialData?.exclusions?.map((e: any) => ({
+      initialData?.exclusions?.map((e) => ({
         exclusion_date: e.exclusion_date,
         exclusion_type: e.exclusion_type,
         reason: e.reason,
@@ -439,7 +460,7 @@ export function PlanGroupWizard({
         is_locked: e.is_locked,
       })) || [],
     academy_schedules:
-      initialData?.academy_schedules?.map((s: any) => ({
+      initialData?.academy_schedules?.map((s) => ({
         day_of_week: s.day_of_week,
         start_time: s.start_time,
         end_time: s.end_time,
@@ -454,16 +475,16 @@ export function PlanGroupWizard({
     recommended_contents: initialContentsState.recommended_contents,
     // 1730 Timetable 추가 필드
     study_review_cycle: initialData?.study_review_cycle || {
-      study_days: (initialData?.scheduler_options as any)?.study_days || 6,
-      review_days: (initialData?.scheduler_options as any)?.review_days || 1,
+      study_days: (initialData?.scheduler_options as SchedulerOptions | undefined)?.study_days || 6,
+      review_days: (initialData?.scheduler_options as SchedulerOptions | undefined)?.review_days || 1,
     },
     student_level:
       initialData?.student_level ||
-      (initialData?.scheduler_options as any)?.student_level,
+      (initialData?.scheduler_options as SchedulerOptions | undefined)?.student_level,
     subject_allocations:
       initialData?.subject_allocations ||
-      (initialData?.scheduler_options as any)?.subject_allocations,
-    content_allocations: (initialData?.scheduler_options as any)
+      (initialData?.scheduler_options as SchedulerOptions | undefined)?.subject_allocations,
+    content_allocations: (initialData?.scheduler_options as SchedulerOptions | undefined)
       ?.content_allocations,
     subject_constraints: initialData?.subject_constraints,
     additional_period_reallocation:
@@ -542,8 +563,8 @@ export function PlanGroupWizard({
   
   // 초기 검증 에러 처리 (usePlanSubmission/validation 초기화와 충돌 방지 위해 hook 이후에 처리하거나 hook 내부로 이동 권장되지만, 우선 여기서 상태 동기화)
   useEffect(() => {
-     if ((initialData as any)?._validationErrors) {
-         setValidationErrors((initialData as any)._validationErrors);
+     if (initialData?._validationErrors) {
+         setValidationErrors(initialData._validationErrors);
      }
   }, [initialData, setValidationErrors]);
   
@@ -580,7 +601,7 @@ export function PlanGroupWizard({
     }
   }, [wizardData.block_set_id]);
 
-  const updateWizardData = (
+  const updateWizardData = useCallback((
     updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)
   ) => {
     if (typeof updates === "function") {
@@ -593,7 +614,7 @@ export function PlanGroupWizard({
     }
     setValidationErrors([]);
     setValidationWarnings([]);
-  };
+  }, [setValidationErrors, setValidationWarnings]);
 
   // validateStep Logic replaced by useWizardValidation hook
 
@@ -625,7 +646,7 @@ export function PlanGroupWizard({
     }
   }, [fieldErrors, scrollToFirstError]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
     if (currentStep !== 3) {
       if (!validateStep(currentStep)) {
@@ -637,21 +658,13 @@ export function PlanGroupWizard({
     }
 
     // isAdminContinueMode일 때 Step 3에서 Step 4로 이동 가능하도록 추가
-    if (isAdminContinueMode && currentStep === 3) {
+    if (mode.isAdminContinueMode && currentStep === 3) {
       setCurrentStep(4);
       return;
     }
 
     // 템플릿 모드일 때 Step 4에서 템플릿 저장
-    if (isTemplateMode && currentStep === 4) {
-      handleSubmit();
-      return;
-    }
-
-    // 캠프 모드일 때 Step 4에서 바로 제출 (Step 5 건너뛰기)
-    // 단, 관리자 남은 단계 진행 모드일 때는 Step 4-5를 진행해야 하므로 제출하지 않음
-    // Step 3 (스케줄 미리보기)에서는 Step 4 (콘텐츠 추가)로 이동
-    if (isCampMode && currentStep === 4 && !isAdminContinueMode) {
+    if (shouldSubmitAtStep4(mode) && currentStep === 4) {
       handleSubmit();
       return;
     }
@@ -660,11 +673,7 @@ export function PlanGroupWizard({
     if (currentStep === 5) {
       // 일반 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 6 → Step 7 전환 시)
       // 캠프 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 7에서)
-      if (isAdminContinueMode) {
-        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
-      } else {
-        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장 (플랜은 Step 6 → Step 7 전환 시 생성)
-      }
+      handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : false);
       return;
     }
 
@@ -672,11 +681,7 @@ export function PlanGroupWizard({
     if (currentStep === 6) {
       // 관리자 continue 모드: 데이터만 저장 후 Step 7로 이동
       // 일반 모드: 플랜 생성 후 Step 7로 이동
-      if (isAdminContinueMode) {
-        handleSubmit(false); // 플랜 생성하지 않고 데이터만 저장
-      } else {
-        handleSubmit(true); // 플랜 생성 후 Step 7로 이동
-      }
+      handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : true);
       return;
     }
 
@@ -684,7 +689,7 @@ export function PlanGroupWizard({
       if (currentStep === 4) {
         // 템플릿 모드나 캠프 모드가 아닐 때만 Step 4에서 데이터만 저장하고 Step 5로 이동
         // 템플릿 모드나 캠프 모드일 때는 위에서 이미 handleSubmit()이 호출됨
-        if (!isTemplateMode && (!isCampMode || isAdminContinueMode)) {
+        if (!shouldSubmitAtStep4(mode)) {
           // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
           // handleSubmit 내부에서 setCurrentStep(5)를 호출하므로 여기서는 호출만 함
           handleSubmit(false); // 플랜 생성하지 않음
@@ -694,37 +699,21 @@ export function PlanGroupWizard({
         setCurrentStep((prev) => (prev + 1) as WizardStep);
       }
     }
-  };
+  }, [currentStep, validateStep, mode, handleSubmit]);
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      // isAdminContinueMode일 때는 Step 4부터 시작하므로 Step 4 이상에서만 뒤로가기 가능
-      if (isAdminContinueMode) {
-        if (currentStep > 4) {
-          setCurrentStep((prev) => (prev - 1) as WizardStep);
-        }
-      } else {
-        // 템플릿 모드에서는 Step 1, 2, 3만 있으므로 일반적인 뒤로가기
-        setCurrentStep((prev) => (prev - 1) as WizardStep);
-      }
+  const handleBack = useCallback(() => {
+    if (canGoBack(currentStep, mode)) {
+      setCurrentStep((prev) => (prev - 1) as WizardStep);
     }
-  };
-
-
+  }, [currentStep, mode]);
 
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
 
-  // 마지막 단계 판단
+  // 마지막 단계 판단 (공통 유틸리티 사용)
   const isLastStep = useMemo(() => {
-    if (isTemplateMode) {
-      return currentStep === 4; // 템플릿 모드는 Step 4가 마지막
-    }
-    if (isCampMode && !isAdminContinueMode) {
-      return currentStep === 4; // 캠프 모드 (학생)는 Step 4가 마지막
-    }
-    return currentStep === 7; // 일반 모드와 캠프 모드 (관리자)는 Step 7이 마지막
-  }, [currentStep, isTemplateMode, isCampMode, isAdminContinueMode]);
+    return checkIsLastStep(currentStep, mode);
+  }, [currentStep, mode]);
 
   // handleSaveDraft를 ref로 저장하여 최신 함수를 참조
   const handleSaveDraftRef = useRef(handleSaveDraft);
@@ -746,7 +735,7 @@ export function PlanGroupWizard({
         <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <div className="flex items-center gap-2">
             {/* 캠프 모드일 때는 버튼 숨김 (상위 페이지의 '목록으로 돌아가기' 버튼 사용) */}
-            {!isCampMode && (
+            {!mode.isCampMode && (
               <Link
                 href={
                   isEditMode
@@ -770,8 +759,8 @@ export function PlanGroupWizard({
               onClick={() => {
                 if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
                   // 관리자 모드일 때는 캠프 템플릿 참여자 목록으로 이동
-                  if (isAdminMode || isAdminContinueMode) {
-                    const templateId = (initialData as any)?.templateId;
+                  if (mode.isAdminMode || mode.isAdminContinueMode) {
+                    const templateId = initialData?.templateId;
                     if (templateId) {
                       router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
                       return;
@@ -792,7 +781,7 @@ export function PlanGroupWizard({
               disabled={
                 isSubmitting || 
                 !wizardData.name || 
-                (!isCampMode && (!wizardData.period_start || !wizardData.period_end))
+                (!mode.isCampMode && (!wizardData.period_start || !wizardData.period_end))
               }
               className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -852,7 +841,7 @@ export function PlanGroupWizard({
             isTemplateMode={isTemplateMode}
             templateExclusions={isCampMode ? wizardData.exclusions : undefined}
             editable={!isAdminContinueMode}
-            studentId={(initialData as any)?.student_id}
+            studentId={initialData?.student_id}
             isAdminMode={isAdminMode}
             isAdminContinueMode={isAdminContinueMode}
           />
@@ -890,7 +879,7 @@ export function PlanGroupWizard({
             isCampMode={isCampMode}
             isTemplateMode={isTemplateMode}
             isEditMode={isEditMode}
-            studentId={(initialData as any)?.student_id}
+            studentId={initialData?.student_id}
             editable={isEditMode || isAdminContinueMode || !isCampMode}
             isAdminContinueMode={isAdminContinueMode}
             fieldErrors={fieldErrors}
@@ -903,7 +892,7 @@ export function PlanGroupWizard({
             onUpdate={updateWizardData}
             contents={initialContents}
             isCampMode={isCampMode}
-            studentId={(initialData as any)?.student_id}
+            studentId={initialData?.student_id}
           />
         )}
         {/* Step 6: 최종 확인 */}
@@ -915,7 +904,7 @@ export function PlanGroupWizard({
             isAdminContinueMode={isAdminContinueMode}
             onUpdate={isAdminContinueMode ? updateWizardData : undefined}
             contents={isAdminContinueMode ? initialContents : undefined}
-            studentId={(initialData as any)?.student_id}
+            studentId={initialData?.student_id}
           />
         )}
         {currentStep === 7 && draftGroupId && !isTemplateMode && (

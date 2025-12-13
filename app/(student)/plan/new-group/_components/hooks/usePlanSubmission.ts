@@ -16,6 +16,7 @@ import {
   updatePlanGroupStatus,
 } from "@/app/(student)/actions/planGroupActions";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
+import { validatePeriod } from "../utils/validationUtils";
 
 type UsePlanSubmissionProps = {
   wizardData: WizardData;
@@ -63,11 +64,11 @@ export function usePlanSubmission({
       try {
         setValidationErrors([]);
         
-        // 기간 검증 (이중 안전장치): 캠프 모드가 아닐 때만 검증
-        if (!isCampMode && (!wizardData.period_start || !wizardData.period_end)) {
-          const errorMsg = "기간 설정이 필요합니다. Step 1에서 학습 기간을 입력해주세요.";
-          setValidationErrors([errorMsg]);
-          if (!silent) toast.showError(errorMsg);
+        // 기간 검증: 공통 검증 함수 사용
+        const periodValidation = validatePeriod(wizardData, isCampMode);
+        if (!periodValidation.isValid && periodValidation.error) {
+          setValidationErrors([periodValidation.error]);
+          if (!silent) toast.showError(periodValidation.error);
           return;
         }
         
@@ -143,11 +144,11 @@ export function usePlanSubmission({
       setValidationErrors([]);
 
       try {
-        // 0. 기간 검증 (이중 안전장치): 캠프 모드가 아닐 때만 검증
-        if (!isCampMode && (!wizardData.period_start || !wizardData.period_end)) {
-          const errorMsg = "기간 설정이 필요합니다. Step 1에서 학습 기간을 입력해주세요.";
-          setValidationErrors([errorMsg]);
-          toast.showError(errorMsg);
+        // 0. 기간 검증: 공통 검증 함수 사용
+        const periodValidation = validatePeriod(wizardData, isCampMode);
+        if (!periodValidation.isValid && periodValidation.error) {
+          setValidationErrors([periodValidation.error]);
+          toast.showError(periodValidation.error);
           setIsSubmitting(false);
           return;
         }
