@@ -81,6 +81,17 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
     return colors[safeIndex % colors.length];
   };
 
+  // 시간을 시:분 형식으로 변환 (HH:mm:ss -> HH:mm)
+  const formatTime = (time: string): string => {
+    // HH:mm:ss 형식이면 시:분만 추출
+    if (time.includes(":") && time.split(":").length === 3) {
+      const [hours, minutes] = time.split(":");
+      return `${hours}:${minutes}`;
+    }
+    // 이미 HH:mm 형식이면 그대로 반환
+    return time;
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -150,10 +161,10 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                     ))}
 
                     {/* 오전/오후 라벨 */}
-                    <div className="absolute left-1 top-1 text-[9px] text-gray-400">
+                    <div className="absolute left-1/2 top-1 -translate-x-1/2 text-[9px] text-gray-400">
                       오전
                     </div>
-                    <div className="absolute bottom-1 left-1 text-[9px] text-gray-400">
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-gray-400">
                       오후
                     </div>
 
@@ -172,19 +183,19 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                             ...createPositionStyle(blockStyle.top),
                             ...createHeightStyle(blockStyle.height),
                           }}
-                          title={`${block.start_time} ~ ${block.end_time}`}
+                          title={`${formatTime(block.start_time)} ~ ${formatTime(block.end_time)}`}
                         >
                           {/* 시작 시간 - 상단 */}
                           <div className="px-1 pt-0.5">
                             <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.5)]">
-                              {block.start_time}
+                              {formatTime(block.start_time)}
                             </div>
                           </div>
 
                           {/* 종료 시간 - 하단 */}
                           <div className="px-1 pb-0.5">
                             <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.5)]">
-                              {block.end_time}
+                              {formatTime(block.end_time)}
                             </div>
                           </div>
                         </div>
