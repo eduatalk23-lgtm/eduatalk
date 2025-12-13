@@ -117,44 +117,45 @@ export function BlockSetSection({
         }
         showStudentInputToggle={isTemplateMode}
       >
-        <div className="flex items-center justify-end">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handleLoadBlockSets}
-              disabled={isLoadingBlockSets}
-              className="flex items-center gap-1 rounded p-1.5 text-xs text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-              title="목록 새로고침"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${
-                  isLoadingBlockSets ? "animate-spin" : ""
-                }`}
-              />
-            </button>
-            {blockSetMode === "select" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-end">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => {
-                  if (isCampMode && !canStudentInputBlockSetId) return;
-                  setBlockSetMode("create");
-                }}
-                disabled={isCampMode && !canStudentInputBlockSetId}
-                className={`flex items-center gap-1 rounded p-1.5 text-xs ${
-                  isCampMode && !canStudentInputBlockSetId
-                    ? "cursor-not-allowed text-gray-900 opacity-50"
-                    : "text-gray-800 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-                title="새 블록 세트 만들기"
+                onClick={handleLoadBlockSets}
+                disabled={isLoadingBlockSets}
+                className="flex items-center gap-1 rounded p-1.5 text-xs text-gray-800 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                title="목록 새로고침"
               >
-                <Plus className="h-4 w-4" />
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    isLoadingBlockSets ? "animate-spin" : ""
+                  }`}
+                />
               </button>
-            )}
+              {blockSetMode === "select" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isCampMode && !canStudentInputBlockSetId) return;
+                    setBlockSetMode("create");
+                  }}
+                  disabled={isCampMode && !canStudentInputBlockSetId}
+                  className={`flex items-center gap-1 rounded p-1.5 text-xs ${
+                    isCampMode && !canStudentInputBlockSetId
+                      ? "cursor-not-allowed text-gray-900 opacity-50"
+                      : "text-gray-800 hover:bg-gray-100 hover:text-gray-900"
+                  }`}
+                  title="새 블록 세트 만들기"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
-        <div>
+          {/* 선택된 블록 세트의 시간 블록 정보 표시 (목록 위) - 항상 표시 (읽기 전용) */}
+          <div>
           {(() => {
             const selectedSet =
               data.block_set_id && uniqueBlockSets
@@ -634,6 +635,7 @@ export function BlockSetSection({
             </div>
           </div>
         )}
+        </div>
       </CollapsibleSection>
 
       {/* 블록 세트 설명 다이얼로그 */}

@@ -16,3 +16,6 @@ export { UnifiedContentsView } from "./UnifiedContentsView";
 // Phase 5: 편집/읽기 모드 통합 컴포넌트
 export { EditableField } from "./EditableField";
 export type { ViewMode, EditableFieldProps } from "./EditableField";
+
+// 공통 입력 컴포넌트
+export { DateInput } from "./DateInput";

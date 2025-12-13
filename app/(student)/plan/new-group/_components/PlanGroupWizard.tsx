@@ -710,7 +710,7 @@ export function PlanGroupWizard({
     <div className="mx-auto w-full max-w-4xl">
       {/* 상단 액션 바 - 템플릿 모드일 때는 숨김 (CampTemplateEditForm에서 처리) */}
       {!isTemplateMode && (
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <div className="flex items-center gap-2">
             {/* 캠프 모드일 때는 버튼 숨김 (상위 페이지의 '목록으로 돌아가기' 버튼 사용) */}
             {!isCampMode && (
@@ -772,7 +772,7 @@ export function PlanGroupWizard({
 
       {/* 에러 및 경고 메시지 */}
       {validationErrors.length > 0 && (
-        <div className="rounded-lg bg-red-50 p-4">
+        <div className="mb-6 rounded-xl bg-red-50 p-4">
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold text-red-800">오류</h3>
             <ul className="list-disc space-y-1 pl-5 text-sm text-red-700">
@@ -785,7 +785,7 @@ export function PlanGroupWizard({
       )}
 
       {validationWarnings.length > 0 && (
-        <div className="rounded-lg bg-yellow-50 p-4">
+        <div className="mb-6 rounded-xl bg-yellow-50 p-4">
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold text-yellow-800">경고</h3>
             <ul className="list-disc space-y-1 pl-5 text-sm text-yellow-700">
@@ -1000,7 +1000,7 @@ export function PlanGroupWizard({
       </div>
 
       {/* 네비게이션 버튼 */}
-      <div className="flex justify-between">
+      <div className="mt-6 flex justify-between">
         <div className="flex gap-2">
           <button
             type="button"

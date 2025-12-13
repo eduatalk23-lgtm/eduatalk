@@ -2,6 +2,7 @@ import { CollapsibleSection } from "../_summary/CollapsibleSection";
 import { WizardData } from "../PlanGroupWizard";
 import { usePeriodCalculation } from "./hooks/usePeriodCalculation";
 import { getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
+import { DateInput } from "../_shared/DateInput";
 
 type PeriodSectionProps = {
   data: WizardData;
@@ -67,9 +68,10 @@ export function PeriodSection({
       }
       showStudentInputToggle={isTemplateMode}
     >
-      {/* 기간 입력 유형 선택 */}
-      <div
-        className={`flex flex-wrap gap-2 ${
+      <div className="space-y-6">
+        {/* 기간 입력 유형 선택 */}
+        <div
+          className={`flex flex-wrap gap-2 ${
           isFieldLocked("period_start") ||
           isFieldLocked("period_end") ||
           (isCampMode && !canStudentInputPeriod)
@@ -162,20 +164,11 @@ export function PeriodSection({
       {/* D-day 입력 */}
       {periodInputType === "dday" && (
         <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6">
-          <label className="block text-sm font-medium text-gray-800">
-            시험일 입력
-          </label>
-          <input
-            type="date"
-            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-              isFieldLocked("period_start") ||
-              isFieldLocked("period_end") ||
-              (isCampMode && !canStudentInputPeriod)
-                ? "cursor-not-allowed bg-gray-100 opacity-60"
-                : ""
-            }`}
+          <DateInput
+            id="dday-date-input"
+            label="시험일 입력"
             value={ddayState.date}
-            onChange={(e) => {
+            onChange={(date) => {
               if (!editable) return;
               if (
                 isFieldLocked("period_start") ||
@@ -183,7 +176,6 @@ export function PeriodSection({
                 (isCampMode && !canStudentInputPeriod)
               )
                 return;
-              const date = e.target.value;
               setDdayState({ date, calculated: !!date });
               if (date) {
                 calculatePeriodFromDday(date);
@@ -223,20 +215,11 @@ export function PeriodSection({
       {/* 주 단위 입력 */}
       {periodInputType === "weeks" && (
         <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6">
-          <label className="block text-sm font-medium text-gray-900">
-            시작일 입력
-          </label>
-          <input
-            type="date"
-            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-              isFieldLocked("period_start") ||
-              isFieldLocked("period_end") ||
-              (isCampMode && !canStudentInputPeriod)
-                ? "cursor-not-allowed bg-gray-100 opacity-60"
-                : ""
-            }`}
+          <DateInput
+            id="weeks-start-date-input"
+            label="시작일 입력"
             value={weeksState.startDate}
-            onChange={(e) => {
+            onChange={(startDate) => {
               if (!editable) return;
               if (
                 isFieldLocked("period_start") ||
@@ -244,7 +227,6 @@ export function PeriodSection({
                 (isCampMode && !canStudentInputPeriod)
               )
                 return;
-              const startDate = e.target.value;
               setWeeksState({ ...weeksState, startDate });
               if (startDate) {
                 calculatePeriodFromWeeks(weeksState.weeks, startDate);
@@ -331,75 +313,53 @@ export function PeriodSection({
       {/* 직접 입력 */}
       {periodInputType === "direct" && (
         <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
-          <div className="flex flex-col gap-2">
-            <label className="block text-sm font-medium text-gray-800">
-              시작일
-            </label>
-            <input
-              type="date"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
+          <DateInput
+            id="direct-start-date-input"
+            label="시작일"
+            value={directState.start}
+            onChange={(start) => {
+              if (!editable) return;
+              if (
                 isFieldLocked("period_start") ||
                 (isCampMode && !canStudentInputPeriod)
-                  ? "cursor-not-allowed bg-gray-100 opacity-60"
-                  : ""
-              }`}
-              value={directState.start}
-              onChange={(e) => {
-                if (!editable) return;
-                if (
-                  isFieldLocked("period_start") ||
-                  (isCampMode && !canStudentInputPeriod)
-                )
-                  return;
-                const start = e.target.value;
-                setDirectState({ ...directState, start });
-                onUpdate({ period_start: start });
+              )
+                return;
+              setDirectState({ ...directState, start });
+              onUpdate({ period_start: start });
 
-                // 종료일이 시작일보다 빠르면 초기화
-                if (directState.end && start > directState.end) {
-                  setDirectState((prev) => ({ ...prev, end: "" }));
-                  onUpdate({ period_end: "" });
-                }
-              }}
-              disabled={isDisabled(
-                isFieldLocked("period_start") ||
-                  (isCampMode && !canStudentInputPeriod)
-              )}
-              min={today}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="block text-sm font-medium text-gray-800">
-              종료일
-            </label>
-            <input
-              type="date"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
+              // 종료일이 시작일보다 빠르면 초기화
+              if (directState.end && start > directState.end) {
+                setDirectState((prev) => ({ ...prev, end: "" }));
+                onUpdate({ period_end: "" });
+              }
+            }}
+            disabled={isDisabled(
+              isFieldLocked("period_start") ||
+                (isCampMode && !canStudentInputPeriod)
+            )}
+            min={today}
+          />
+          <DateInput
+            id="direct-end-date-input"
+            label="종료일"
+            value={directState.end}
+            onChange={(end) => {
+              if (!editable) return;
+              if (
                 isFieldLocked("period_end") ||
                 (isCampMode && !canStudentInputPeriod)
-                  ? "cursor-not-allowed bg-gray-100 opacity-60"
-                  : ""
-              }`}
-              value={directState.end}
-              onChange={(e) => {
-                if (!editable) return;
-                if (
-                  isFieldLocked("period_end") ||
-                  (isCampMode && !canStudentInputPeriod)
-                )
-                  return;
-                const end = e.target.value;
-                setDirectState({ ...directState, end });
-                onUpdate({ period_end: end });
-              }}
-              disabled={isDisabled(
-                !directState.start ||
-                  isFieldLocked("period_end") ||
-                  (isCampMode && !canStudentInputPeriod)
-              )}
-              min={directState.start || today}
-            />
-          </div>
+              )
+                return;
+              setDirectState({ ...directState, end });
+              onUpdate({ period_end: end });
+            }}
+            disabled={isDisabled(
+              !directState.start ||
+                isFieldLocked("period_end") ||
+                (isCampMode && !canStudentInputPeriod)
+            )}
+            min={directState.start || today}
+          />
         </div>
       )}
       
@@ -507,124 +467,102 @@ export function PeriodSection({
               {data.additional_period_reallocation && (
                 <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-6">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-900">
-                        추가 기간 시작일
-                      </label>
-                      <input
-                        type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
+                    <DateInput
+                      id="additional-period-start-input"
+                      label="추가 기간 시작일"
+                      labelClassName="text-xs"
+                      value={data.additional_period_reallocation.period_start}
+                      onChange={(newStartDate) => {
+                        if (
                           isCampMode &&
                           !canStudentInputAdditionalPeriodReallocation
-                            ? "cursor-not-allowed bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                        value={
-                          data.additional_period_reallocation.period_start
+                        )
+                          return;
+
+                        const minDate = data.period_end
+                          ? addDaysToDate(data.period_end, 1)
+                          : null;
+
+                        if (minDate && newStartDate < minDate) {
+                          showError(
+                            "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
+                          );
+                          return;
                         }
-                        min={
-                          data.period_end
-                            ? addDaysToDate(data.period_end, 1)
-                            : undefined
+
+                        let newEndDate =
+                          data.additional_period_reallocation?.period_end || "";
+                        if (newEndDate && newEndDate < newStartDate) {
+                          newEndDate = addDaysToDate(newStartDate, 1);
                         }
-                        onChange={(e) => {
-                          if (
-                            isCampMode &&
-                            !canStudentInputAdditionalPeriodReallocation
-                          )
-                            return;
 
-                          const newStartDate = e.target.value;
-                          const minDate = data.period_end
-                            ? addDaysToDate(data.period_end, 1)
-                            : null;
-
-                          if (minDate && newStartDate < minDate) {
-                            showError(
-                              "추가 기간 시작일은 학습 기간 종료일 다음날부터 가능합니다."
-                            );
-                            return;
-                          }
-
-                          let newEndDate =
-                            data.additional_period_reallocation?.period_end || "";
-                          if (newEndDate && newEndDate < newStartDate) {
-                            newEndDate = addDaysToDate(newStartDate, 1);
-                          }
-
-                          onUpdate({
-                            additional_period_reallocation: {
-                              ...data.additional_period_reallocation!,
-                              period_start: newStartDate,
-                              period_end: newEndDate || addDaysToDate(newStartDate, 1),
-                            },
-                          });
-                        }}
-                        disabled={
+                        onUpdate({
+                          additional_period_reallocation: {
+                            ...data.additional_period_reallocation!,
+                            period_start: newStartDate,
+                            period_end: newEndDate || addDaysToDate(newStartDate, 1),
+                          },
+                        });
+                      }}
+                      disabled={
+                        isCampMode &&
+                        !canStudentInputAdditionalPeriodReallocation
+                      }
+                      min={
+                        data.period_end
+                          ? addDaysToDate(data.period_end, 1)
+                          : undefined
+                      }
+                    />
+                    <DateInput
+                      id="additional-period-end-input"
+                      label="추가 기간 종료일"
+                      labelClassName="text-xs"
+                      value={data.additional_period_reallocation.period_end}
+                      onChange={(newEndDate) => {
+                        if (
                           isCampMode &&
                           !canStudentInputAdditionalPeriodReallocation
-                        }
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-900">
-                        추가 기간 종료일
-                      </label>
-                      <input
-                        type="date"
-                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none ${
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
-                            ? "cursor-not-allowed bg-gray-100 opacity-60"
-                            : ""
-                        }`}
-                        value={data.additional_period_reallocation.period_end}
-                        min={
-                          data.additional_period_reallocation.period_start
-                            ? addDaysToDate(
-                                data.additional_period_reallocation
-                                  .period_start,
-                                1
-                              )
-                            : undefined
-                        }
-                        onChange={(e) => {
-                          if (
-                            isCampMode &&
-                            !canStudentInputAdditionalPeriodReallocation
-                          )
-                            return;
+                        )
+                          return;
 
-                          const newEndDate = e.target.value;
-                          const minDate = data.additional_period_reallocation
-                            ?.period_start
-                            ? addDaysToDate(
-                                data.additional_period_reallocation!
-                                  .period_start,
-                                1
-                              )
-                            : null;
+                        const minDate = data.additional_period_reallocation
+                          ?.period_start
+                          ? addDaysToDate(
+                              data.additional_period_reallocation!
+                                .period_start,
+                              1
+                            )
+                          : null;
 
-                          if (minDate && newEndDate < minDate) {
-                            showError(
-                              "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
-                            );
-                            return;
-                          }
-
-                          onUpdate({
-                            additional_period_reallocation: {
-                              ...data.additional_period_reallocation!,
-                              period_end: newEndDate,
-                            },
-                          });
-                        }}
-                        disabled={
-                          isCampMode &&
-                          !canStudentInputAdditionalPeriodReallocation
+                        if (minDate && newEndDate < minDate) {
+                          showError(
+                            "추가 기간 종료일은 추가 기간 시작일 다음날부터 가능합니다."
+                          );
+                          return;
                         }
-                      />
-                    </div>
+
+                        onUpdate({
+                          additional_period_reallocation: {
+                            ...data.additional_period_reallocation!,
+                            period_end: newEndDate,
+                          },
+                        });
+                      }}
+                      disabled={
+                        isCampMode &&
+                        !canStudentInputAdditionalPeriodReallocation
+                      }
+                      min={
+                        data.additional_period_reallocation.period_start
+                          ? addDaysToDate(
+                              data.additional_period_reallocation
+                                .period_start,
+                              1
+                            )
+                          : undefined
+                      }
+                    />
                   </div>
 
                   <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-4">
@@ -662,6 +600,7 @@ export function PeriodSection({
           </CollapsibleSection>
         </div>
       )}
+      </div>
     </CollapsibleSection>
   );
 }
