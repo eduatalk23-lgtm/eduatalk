@@ -70,12 +70,12 @@ export default async function RescheduleLogsPage({
   }
 
   return (
-    <div className="p-6 md:p-8 lg:p-10">
-      <div className="mb-6 md:mb-8">
+    <div className="flex flex-col gap-6 md:gap-8 p-6 md:p-8 lg:p-10">
+      <div className="flex flex-col gap-2">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
           재조정 로그
         </h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           플랜 그룹 재조정 이력을 조회하고 관리할 수 있습니다.
         </p>
       </div>

@@ -125,14 +125,13 @@ export default function SubjectsPage() {
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-8">
-      <div className="mb-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-gray-900">교과/과목 관리</h1>
-            <p className="mt-2 text-sm text-gray-500">
-              개정교육과정, 교과, 과목, 과목구분을 통합 관리합니다.
-            </p>
-          </div>
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-semibold text-gray-900">교과/과목 관리</h1>
+          <p className="text-sm text-gray-500">
+            개정교육과정, 교과, 과목, 과목구분을 통합 관리합니다.
+          </p>
+        </div>
           <div className="flex gap-2">
             <Button
               variant="outline"

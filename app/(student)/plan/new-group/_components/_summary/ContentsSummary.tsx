@@ -178,8 +178,8 @@ export const ContentsSummary = React.memo(function ContentsSummary({
 
       {/* 과목별 상세 */}
       {subjectGroups.length > 0 && (
-        <div>
-          <h4 className="mb-3 text-sm font-semibold text-gray-900">
+        <div className="flex flex-col gap-3">
+          <h4 className="text-sm font-semibold text-gray-900">
             과목별 상세
           </h4>
           <SectionSummary

@@ -14,9 +14,9 @@ export default async function ParentLinksPage() {
 
   return (
     <div className="p-6 md:p-10">
-      <div className="mb-8">
+      <div className="flex flex-col gap-2">
         <h1 className="text-h1 text-gray-900">학부모 연결 관리</h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           학부모가 요청한 학생 연결을 승인하거나 거부할 수 있습니다.
         </p>
       </div>

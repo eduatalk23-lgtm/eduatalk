@@ -139,7 +139,7 @@ export function EditAttendanceRecordForm({
                 <option value="auto">자동</option>
               </select>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <Label htmlFor="check_out_method">퇴실 방법</Label>
               <select
                 id="check_out_method"
@@ -150,7 +150,7 @@ export function EditAttendanceRecordForm({
                     check_out_method: e.target.value || null,
                   } as UpdateAttendanceRecordRequest)
                 }
-                className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
               >
                 <option value="">선택 안 함</option>
                 <option value="manual">수동</option>

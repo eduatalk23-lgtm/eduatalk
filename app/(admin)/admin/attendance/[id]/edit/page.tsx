@@ -38,10 +38,8 @@ export default async function EditAttendanceRecordPage({
   }
   
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">출석 기록 수정</h1>
-      </div>
+    <div className="flex flex-col gap-8 p-6 md:p-10">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">출석 기록 수정</h1>
       
       <EditAttendanceRecordForm recordId={id} initialData={record} />
     </div>
