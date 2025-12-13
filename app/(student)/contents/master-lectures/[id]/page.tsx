@@ -38,7 +38,7 @@ export default async function StudentMasterLectureDetailPage({
   }
 
   return (
-    <section className={getContainerClass("CONTENT_DETAIL", "lg")}>
+    <section className={`${getContainerClass("CONTENT_DETAIL", "lg")} flex flex-col gap-8`}>
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <ContentHeader
           title={lecture.title}
