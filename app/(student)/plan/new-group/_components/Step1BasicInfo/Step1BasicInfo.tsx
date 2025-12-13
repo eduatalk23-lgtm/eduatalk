@@ -20,6 +20,10 @@ import {
   addDaysToDate,
 } from "@/lib/utils/date";
 import { usePeriodCalculation } from "./hooks/usePeriodCalculation";
+import { FieldErrors } from "../hooks/useWizardValidation";
+import { FieldError } from "../_shared/FieldError";
+import { getFieldErrorClasses } from "../_shared/fieldErrorUtils";
+import { cn } from "@/lib/cn";
 
 type Step1BasicInfoProps = {
   data: WizardData;
@@ -56,6 +60,7 @@ type Step1BasicInfoProps = {
   templateId?: string; // 템플릿 ID (템플릿 모드일 때 필요)
   // 템플릿 고정 필드 관련
   isCampMode?: boolean; // 학생 모드에서 고정 필드 수정 방지
+  fieldErrors?: FieldErrors;
 };
 
 
@@ -80,6 +85,7 @@ export function Step1BasicInfo({
   isTemplateMode = false,
   templateId,
   isCampMode = false,
+  fieldErrors,
 }: Step1BasicInfoProps) {
   const { showError } = useToast();
 
@@ -258,7 +264,7 @@ export function Step1BasicInfo({
         }
         showStudentInputToggle={isTemplateMode}
       >
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1" data-field-id="plan_name">
           <label
             htmlFor="plan_name"
             className="block text-sm font-medium text-gray-800"
@@ -269,13 +275,18 @@ export function Step1BasicInfo({
           <input
             type="text"
             id="plan_name"
-              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none ${
+            className={cn(
+              "w-full rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none",
+              getFieldErrorClasses(
+                "border-gray-300 focus:border-gray-900",
+                !!fieldErrors?.get("plan_name")
+              ),
               (!editable && !isCampMode) ||
-              isFieldLocked("name") ||
-              (isCampMode && !canStudentInputName)
+                isFieldLocked("name") ||
+                (isCampMode && !canStudentInputName)
                 ? "cursor-not-allowed bg-gray-100 opacity-60"
                 : ""
-            }`}
+            )}
             placeholder="예: 1학기 중간고사 대비"
             value={data.name || ""}
             onChange={(e) => {
@@ -287,6 +298,12 @@ export function Step1BasicInfo({
               (isCampMode && !canStudentInputName)
             )}
             required
+            aria-invalid={!!fieldErrors?.get("plan_name")}
+            aria-describedby={fieldErrors?.get("plan_name") ? "plan_name-error" : undefined}
+          />
+          <FieldError
+            error={fieldErrors?.get("plan_name")}
+            id="plan_name-error"
           />
           {isFieldLocked("name") && (
             <p className="text-xs text-gray-600">
@@ -315,20 +332,24 @@ export function Step1BasicInfo({
           className={
             !editable || !canStudentInputPlanPurpose ? "opacity-60" : ""
           }
+          data-field-id="plan_purpose"
         >
           <div className="grid gap-3 md:grid-cols-3">
             {planPurposes.map((purpose) => (
               <label
                 key={purpose.value}
-                className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors",
                   !editable || !canStudentInputPlanPurpose
                     ? "cursor-not-allowed bg-gray-100"
-                    : "cursor-pointer hover:border-gray-300"
-                } ${
+                    : "cursor-pointer hover:border-gray-300",
                   data.plan_purpose === purpose.value
                     ? "border-gray-900 bg-gray-900 text-white"
-                    : "border-gray-200 bg-white text-gray-800"
-                }`}
+                    : "border-gray-200 bg-white text-gray-800",
+                  !!fieldErrors?.get("plan_purpose") &&
+                    data.plan_purpose !== purpose.value &&
+                    "border-red-500"
+                )}
               >
                 <input
                   type="radio"
@@ -343,11 +364,17 @@ export function Step1BasicInfo({
                     isCampMode && !canStudentInputPlanPurpose
                   )}
                   className="hidden"
+                  aria-invalid={!!fieldErrors?.get("plan_purpose")}
+                  aria-describedby={fieldErrors?.get("plan_purpose") ? "plan_purpose-error" : undefined}
                 />
                 {purpose.label}
               </label>
             ))}
           </div>
+          <FieldError
+            error={fieldErrors?.get("plan_purpose")}
+            id="plan_purpose-error"
+          />
           {isCampMode && !canStudentInputPlanPurpose && (
             <p className="text-xs text-gray-600">
               이 필드는 템플릿에서 고정되어 수정할 수 없습니다.
@@ -373,6 +400,7 @@ export function Step1BasicInfo({
         canStudentInputAdditionalPeriodReallocation={
           canStudentInputAdditionalPeriodReallocation
         }
+        fieldErrors={fieldErrors}
       />
 
 
@@ -390,22 +418,27 @@ export function Step1BasicInfo({
       >
         {/* 스케줄러 유형 선택 (한 줄) */}
         <div
-          className={`flex gap-2 ${
+          className={cn(
+            "flex gap-2",
             isCampMode && !canStudentInputSchedulerType ? "opacity-60" : ""
-          }`}
+          )}
+          data-field-id="scheduler_type"
         >
           {schedulerTypes.map((type) => (
             <label
               key={type.value}
-              className={`flex-1 rounded-lg border px-4 py-3 text-center text-sm font-medium transition-colors ${
+              className={cn(
+                "flex-1 rounded-lg border px-4 py-3 text-center text-sm font-medium transition-colors",
                 isCampMode && !canStudentInputSchedulerType
                   ? "cursor-not-allowed bg-gray-100"
-                  : "cursor-pointer hover:border-gray-300"
-              } ${
+                  : "cursor-pointer hover:border-gray-300",
                 data.scheduler_type === type.value
                   ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 text-gray-900"
-              }`}
+                  : "border-gray-200 text-gray-900",
+                !!fieldErrors?.get("scheduler_type") &&
+                  data.scheduler_type !== type.value &&
+                  "border-red-500"
+              )}
             >
               <input
                 type="radio"
@@ -424,11 +457,17 @@ export function Step1BasicInfo({
                 }}
                 disabled={isDisabled(isCampMode && !canStudentInputSchedulerType)}
                 className="hidden"
+                aria-invalid={!!fieldErrors?.get("scheduler_type")}
+                aria-describedby={fieldErrors?.get("scheduler_type") ? "scheduler_type-error" : undefined}
               />
               {type.label}
             </label>
           ))}
         </div>
+        <FieldError
+          error={fieldErrors?.get("scheduler_type")}
+          id="scheduler_type-error"
+        />
         {isCampMode && !canStudentInputSchedulerType && (
           <p className="text-xs text-gray-600">
             스케줄러 유형은 템플릿에서 고정되어 수정할 수 없습니다.

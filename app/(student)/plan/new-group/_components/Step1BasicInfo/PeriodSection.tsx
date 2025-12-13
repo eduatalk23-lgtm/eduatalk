@@ -3,6 +3,9 @@ import { WizardData } from "../PlanGroupWizard";
 import { usePeriodCalculation } from "./hooks/usePeriodCalculation";
 import { getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
 import { DateInput } from "../_shared/DateInput";
+import { FieldErrors } from "../hooks/useWizardValidation";
+import { FieldError } from "../_shared/FieldError";
+import { cn } from "@/lib/cn";
 
 type PeriodSectionProps = {
   data: WizardData;
@@ -18,6 +21,7 @@ type PeriodSectionProps = {
   lockedFields: Record<string, boolean | undefined>;
   showError: (message: string) => void;
   canStudentInputAdditionalPeriodReallocation: boolean;
+  fieldErrors?: FieldErrors;
 };
 
 export function PeriodSection({
@@ -34,6 +38,7 @@ export function PeriodSection({
   lockedFields,
   showError,
   canStudentInputAdditionalPeriodReallocation,
+  fieldErrors,
 }: PeriodSectionProps) {
   const {
     periodInputType,
@@ -163,7 +168,7 @@ export function PeriodSection({
 
       {/* D-day 입력 */}
       {periodInputType === "dday" && (
-        <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6" data-field-id="period_start">
           <DateInput
             id="dday-date-input"
             label="시험일 입력"
@@ -193,7 +198,10 @@ export function PeriodSection({
                 (isCampMode && !canStudentInputPeriod)
             )}
             min={today}
+            error={fieldErrors?.get("period_start")}
+            dataFieldId="period_start"
           />
+          <FieldError error={fieldErrors?.get("period_start")} id="period_start-error" />
           {ddayState.calculated && data.period_start && data.period_end && (
             <div className="flex flex-col gap-1 rounded-lg bg-white p-3">
               <div className="flex flex-col gap-1 text-sm text-gray-600">
@@ -214,7 +222,7 @@ export function PeriodSection({
 
       {/* 주 단위 입력 */}
       {periodInputType === "weeks" && (
-        <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6" data-field-id="period_start">
           <DateInput
             id="weeks-start-date-input"
             label="시작일 입력"
@@ -240,7 +248,10 @@ export function PeriodSection({
                 (isCampMode && !canStudentInputPeriod)
             )}
             min={today}
+            error={fieldErrors?.get("period_start")}
+            dataFieldId="period_start"
           />
+          <FieldError error={fieldErrors?.get("period_start")} id="period_start-error" />
 
           {weeksState.startDate && (
             <div className="flex flex-col gap-2">
@@ -312,54 +323,66 @@ export function PeriodSection({
 
       {/* 직접 입력 */}
       {periodInputType === "direct" && (
-        <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
-          <DateInput
-            id="direct-start-date-input"
-            label="시작일"
-            value={directState.start}
-            onChange={(start) => {
-              if (!editable) return;
-              if (
-                isFieldLocked("period_start") ||
-                (isCampMode && !canStudentInputPeriod)
-              )
-                return;
-              setDirectState({ ...directState, start });
-              onUpdate({ period_start: start });
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div data-field-id="period_start">
+              <DateInput
+                id="direct-start-date-input"
+                label="시작일"
+                value={directState.start}
+                onChange={(start) => {
+                  if (!editable) return;
+                  if (
+                    isFieldLocked("period_start") ||
+                    (isCampMode && !canStudentInputPeriod)
+                  )
+                    return;
+                  setDirectState({ ...directState, start });
+                  onUpdate({ period_start: start });
 
-              // 종료일이 시작일보다 빠르면 초기화
-              if (directState.end && start > directState.end) {
-                setDirectState((prev) => ({ ...prev, end: "" }));
-                onUpdate({ period_end: "" });
-              }
-            }}
-            disabled={isDisabled(
-              isFieldLocked("period_start") ||
-                (isCampMode && !canStudentInputPeriod)
-            )}
-            min={today}
-          />
-          <DateInput
-            id="direct-end-date-input"
-            label="종료일"
-            value={directState.end}
-            onChange={(end) => {
-              if (!editable) return;
-              if (
-                isFieldLocked("period_end") ||
-                (isCampMode && !canStudentInputPeriod)
-              )
-                return;
-              setDirectState({ ...directState, end });
-              onUpdate({ period_end: end });
-            }}
-            disabled={isDisabled(
-              !directState.start ||
-                isFieldLocked("period_end") ||
-                (isCampMode && !canStudentInputPeriod)
-            )}
-            min={directState.start || today}
-          />
+                  // 종료일이 시작일보다 빠르면 초기화
+                  if (directState.end && start > directState.end) {
+                    setDirectState((prev) => ({ ...prev, end: "" }));
+                    onUpdate({ period_end: "" });
+                  }
+                }}
+                disabled={isDisabled(
+                  isFieldLocked("period_start") ||
+                    (isCampMode && !canStudentInputPeriod)
+                )}
+                min={today}
+                error={fieldErrors?.get("period_start")}
+                dataFieldId="period_start"
+              />
+              <FieldError error={fieldErrors?.get("period_start")} id="period_start-error" />
+            </div>
+            <div data-field-id="period_end">
+              <DateInput
+                id="direct-end-date-input"
+                label="종료일"
+                value={directState.end}
+                onChange={(end) => {
+                  if (!editable) return;
+                  if (
+                    isFieldLocked("period_end") ||
+                    (isCampMode && !canStudentInputPeriod)
+                  )
+                    return;
+                  setDirectState({ ...directState, end });
+                  onUpdate({ period_end: end });
+                }}
+                disabled={isDisabled(
+                  !directState.start ||
+                    isFieldLocked("period_end") ||
+                    (isCampMode && !canStudentInputPeriod)
+                )}
+                min={directState.start || today}
+                error={fieldErrors?.get("period_end")}
+                dataFieldId="period_end"
+              />
+              <FieldError error={fieldErrors?.get("period_end")} id="period_end-error" />
+            </div>
+          </div>
         </div>
       )}
       

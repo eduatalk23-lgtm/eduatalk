@@ -3,6 +3,18 @@ import { useState, useCallback } from "react";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
 import { PlanValidator } from "@/lib/validation/planValidator";
 
+// 오류 메시지와 필드 ID 매핑
+const VALIDATION_FIELD_MAP: Record<string, string> = {
+  "플랜 이름을 입력해주세요.": "plan_name",
+  "플랜 목적을 선택해주세요.": "plan_purpose",
+  "스케줄러 유형을 선택해주세요.": "scheduler_type",
+  "학습 기간을 설정해주세요.": "period_start",
+  "최소 1개 이상의 콘텐츠를 선택해주세요.": "content_selection",
+};
+
+// 필드 ID별 오류 메시지 맵 타입
+export type FieldErrors = Map<string, string>;
+
 type UseWizardValidationProps = {
   wizardData: WizardData;
   isTemplateMode: boolean;
@@ -11,6 +23,7 @@ type UseWizardValidationProps = {
 type UseWizardValidationReturn = {
   validationErrors: string[];
   validationWarnings: string[];
+  fieldErrors: FieldErrors;
   setValidationErrors: (errors: string[]) => void;
   setValidationWarnings: (warnings: string[]) => void;
   validateStep: (step: WizardStep) => boolean;
@@ -23,16 +36,19 @@ export function useWizardValidation({
 }: UseWizardValidationProps): UseWizardValidationReturn {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(new Map());
 
   const clearValidationState = useCallback(() => {
     setValidationErrors([]);
     setValidationWarnings([]);
+    setFieldErrors(new Map());
   }, []);
 
   const validateStep = useCallback(
     (step: WizardStep): boolean => {
       const errors: string[] = [];
       const warnings: string[] = [];
+      const fieldErrorsMap = new Map<string, string>();
 
       // 템플릿 모드에서 학생 입력 허용 필드 확인 헬퍼
       const isStudentInputAllowed = (fieldName: string): boolean => {
@@ -47,28 +63,36 @@ export function useWizardValidation({
         // 템플릿 모드가 아닐 때만 이름 검증 (템플릿 모드에서는 항상 필요)
         if (!isTemplateMode) {
           if (!wizardData.name || wizardData.name.trim() === "") {
-            errors.push("플랜 이름을 입력해주세요.");
+            const errorMsg = "플랜 이름을 입력해주세요.";
+            errors.push(errorMsg);
+            fieldErrorsMap.set("plan_name", errorMsg);
           }
         }
 
         // 플랜 목적: 학생 입력 허용이 아닐 때만 필수
         if (!isStudentInputAllowed("plan_purpose")) {
           if (!wizardData.plan_purpose) {
-            errors.push("플랜 목적을 선택해주세요.");
+            const errorMsg = "플랜 목적을 선택해주세요.";
+            errors.push(errorMsg);
+            fieldErrorsMap.set("plan_purpose", errorMsg);
           }
         }
 
         // 스케줄러 유형: 학생 입력 허용이 아닐 때만 필수
         if (!isStudentInputAllowed("scheduler_type")) {
           if (!wizardData.scheduler_type) {
-            errors.push("스케줄러 유형을 선택해주세요.");
+            const errorMsg = "스케줄러 유형을 선택해주세요.";
+            errors.push(errorMsg);
+            fieldErrorsMap.set("scheduler_type", errorMsg);
           }
         }
 
         // 학습 기간: 학생 입력 허용이 아닐 때만 필수
         if (!isStudentInputAllowed("period")) {
           if (!wizardData.period_start || !wizardData.period_end) {
-            errors.push("학습 기간을 설정해주세요.");
+            const errorMsg = "학습 기간을 설정해주세요.";
+            errors.push(errorMsg);
+            fieldErrorsMap.set("period_start", errorMsg);
           } else {
             const periodValidation = PlanValidator.validatePeriod(
               wizardData.period_start,
@@ -76,6 +100,7 @@ export function useWizardValidation({
             );
             errors.push(...periodValidation.errors);
             warnings.push(...periodValidation.warnings);
+            // 기간 검증 오류는 필드 ID 없이 추가 (복잡한 검증)
           }
         }
       }
@@ -98,13 +123,16 @@ export function useWizardValidation({
             wizardData.student_contents.length +
             (wizardData.recommended_contents?.length || 0); // null safety
           if (totalContents === 0) {
-            errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
+            const errorMsg = "최소 1개 이상의 콘텐츠를 선택해주세요.";
+            errors.push(errorMsg);
+            fieldErrorsMap.set("content_selection", errorMsg);
           }
         }
       }
 
       setValidationErrors(errors);
       setValidationWarnings(warnings);
+      setFieldErrors(fieldErrorsMap);
       return errors.length === 0;
     },
     [wizardData, isTemplateMode]
@@ -113,6 +141,7 @@ export function useWizardValidation({
   return {
     validationErrors,
     validationWarnings,
+    fieldErrors,
     setValidationErrors,
     setValidationWarnings,
     validateStep,

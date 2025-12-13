@@ -25,6 +25,8 @@ import {
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import RequiredSubjectItem from "./Step4RecommendedContents/components/RequiredSubjectItem";
+import { FieldErrors } from "./hooks/useWizardValidation";
+import { FieldError } from "./_shared/FieldError";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -43,7 +45,12 @@ export function Step3ContentSelection({
   studentId,
   editable = true,
   isAdminContinueMode = false,
-}: Step3ContentSelectionProps & { isTemplateMode?: boolean; isAdminContinueMode?: boolean }) {
+  fieldErrors,
+}: Step3ContentSelectionProps & { 
+  isTemplateMode?: boolean; 
+  isAdminContinueMode?: boolean;
+  fieldErrors?: FieldErrors;
+}) {
   // 탭 상태
   const [activeTab, setActiveTab] = useState<
     "student" | "recommended" | "master"
@@ -765,7 +772,7 @@ export function Step3ContentSelection({
   }, [isEditMode, data.recommended_contents]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" data-field-id="content_selection">
       {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
       {isTemplateMode && (
         <div className="flex flex-col gap-4 rounded-xl border-2 border-blue-300 bg-blue-50 p-6 shadow-md">
@@ -955,6 +962,16 @@ export function Step3ContentSelection({
             <Package className="h-4 w-4" />
             <span>마스터 콘텐츠</span>
           </button>
+        </div>
+      )}
+
+      {/* 오류 메시지 */}
+      {fieldErrors?.get("content_selection") && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3">
+          <FieldError
+            error={fieldErrors.get("content_selection")}
+            id="content_selection-error"
+          />
         </div>
       )}
 

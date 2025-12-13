@@ -16,6 +16,8 @@ type DateInputProps = {
   required?: boolean;
   ariaLabel?: string;
   ariaDescribedBy?: string;
+  error?: string;
+  dataFieldId?: string;
 };
 
 /**
@@ -47,6 +49,8 @@ export function DateInput({
   required = false,
   ariaLabel,
   ariaDescribedBy,
+  error,
+  dataFieldId,
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -98,8 +102,11 @@ export function DateInput({
     }
   };
 
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [ariaDescribedBy, errorId].filter(Boolean).join(" ") || undefined;
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-field-id={dataFieldId}>
       <label
         htmlFor={id}
         className={cn(
@@ -130,11 +137,15 @@ export function DateInput({
           min={min}
           max={max}
           aria-label={ariaLabel || label}
-          aria-describedby={ariaDescribedBy}
+          aria-describedby={describedBy}
           aria-required={required}
+          aria-invalid={error ? "true" : undefined}
           className={cn(
-            "w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900",
-            "focus:border-gray-900 focus:outline-none",
+            "w-full rounded-lg border px-3 py-2.5 text-sm text-gray-900",
+            error
+              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+              : "border-gray-300 focus:border-gray-900",
+            "focus:outline-none",
             "disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60",
             // 전체 영역 클릭 가능하도록 스타일 적용
             !disabled && "cursor-pointer",
@@ -148,6 +159,11 @@ export function DateInput({
           }}
         />
       </div>
+      {error && (
+        <p id={errorId} className="text-xs text-red-600 mt-1" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

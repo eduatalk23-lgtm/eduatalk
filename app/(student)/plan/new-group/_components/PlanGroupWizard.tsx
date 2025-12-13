@@ -6,7 +6,7 @@ import Link from "next/link";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
-import { scrollToTop } from "@/lib/utils/scroll";
+import { scrollToTop, scrollToField } from "@/lib/utils/scroll";
 import {
   createPlanGroupAction,
   savePlanGroupDraftAction,
@@ -510,6 +510,7 @@ export function PlanGroupWizard({
   const {
     validationErrors,
     validationWarnings,
+    fieldErrors,
     setValidationErrors,
     setValidationWarnings,
     validateStep,
@@ -595,10 +596,26 @@ export function PlanGroupWizard({
 
   // validateStep Logic replaced by useWizardValidation hook
 
+  // 첫 번째 오류 필드로 스크롤 이동 함수
+  const scrollToFirstError = useCallback(() => {
+    if (fieldErrors.size === 0) return;
+
+    // Map의 첫 번째 키 가져오기
+    const firstFieldId = Array.from(fieldErrors.keys())[0];
+    if (!firstFieldId) return;
+
+    // DOM 업데이트 후 스크롤 실행
+    setTimeout(() => {
+      scrollToField(firstFieldId);
+    }, 100);
+  }, [fieldErrors]);
+
   const handleNext = () => {
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
     if (currentStep !== 3) {
       if (!validateStep(currentStep)) {
+        // 검증 실패 시 첫 번째 오류 필드로 스크롤
+        scrollToFirstError();
         return;
       }
     }
@@ -770,20 +787,7 @@ export function PlanGroupWizard({
       )}
 
 
-      {/* 에러 및 경고 메시지 */}
-      {validationErrors.length > 0 && (
-        <div className="mb-6 rounded-xl bg-red-50 p-4">
-          <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold text-red-800">오류</h3>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-red-700">
-              {validationErrors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-
+      {/* 경고 메시지 */}
       {validationWarnings.length > 0 && (
         <div className="mb-6 rounded-xl bg-yellow-50 p-4">
           <div className="flex flex-col gap-2">
@@ -817,6 +821,7 @@ export function PlanGroupWizard({
                   }
                 : undefined
             }
+            fieldErrors={fieldErrors}
           />
         )}
         {currentStep === 2 && (
@@ -872,6 +877,7 @@ export function PlanGroupWizard({
             studentId={(initialData as any)?.student_id}
             editable={isEditMode || isAdminContinueMode || !isCampMode}
             isAdminContinueMode={isAdminContinueMode}
+            fieldErrors={fieldErrors}
           />
         )}
         {/* Step 5: 학습범위 점검 (학습 분량 설정) */}
