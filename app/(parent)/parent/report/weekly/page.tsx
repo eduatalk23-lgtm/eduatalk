@@ -128,48 +128,49 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
 
     return (
       <section className={getContainerClass("DASHBOARD", "md")}>
-        {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-semibold text-gray-900">주간 학습 리포트</h1>
-            <p className="text-sm text-gray-500">
-              {formatWeekRangeKorean(weekStart, weekEnd)}
-            </p>
+        <div className="flex flex-col gap-6">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-semibold text-gray-900">주간 학습 리포트</h1>
+              <p className="text-sm text-gray-500">
+                {formatWeekRangeKorean(weekStart, weekEnd)}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/parent/dashboard"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                대시보드로 돌아가기
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/parent/dashboard"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              대시보드로 돌아가기
-            </Link>
+
+          {/* 학생 선택 */}
+          <div>
+            <StudentSelector
+              students={linkedStudents}
+              selectedStudentId={selectedStudentId}
+            />
           </div>
-        </div>
 
-        {/* 학생 선택 */}
-        <div>
-          <StudentSelector
-            students={linkedStudents}
-            selectedStudentId={selectedStudentId}
-          />
-        </div>
+          {hasData && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+              자녀의 주간 학습 리포트입니다. 상담이나 공유용으로 활용해 보세요.
+            </div>
+          )}
 
-        {hasData && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
-            자녀의 주간 학습 리포트입니다. 상담이나 공유용으로 활용해 보세요.
-          </div>
-        )}
-
-        {!hasData ? (
-          <EmptyState
-            title="이번 주 아직 학습 기록이 없습니다"
-            description="학습을 시작하면 주간 리포트가 자동으로 생성됩니다."
-            actionLabel="대시보드로 돌아가기"
-            actionHref="/parent/dashboard"
-            icon="📊"
-          />
-        ) : (
-          <>
+          {!hasData ? (
+            <EmptyState
+              title="이번 주 아직 학습 기록이 없습니다"
+              description="학습을 시작하면 주간 리포트가 자동으로 생성됩니다."
+              actionLabel="대시보드로 돌아가기"
+              actionHref="/parent/dashboard"
+              icon="📊"
+            />
+          ) : (
+            <div className="flex flex-col gap-8">
             {/* 요약 헤더 */}
             <WeeklySummaryHeader
               totalStudyTimeMinutes={studyTimeSummary.totalMinutes}
@@ -186,7 +187,7 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
             )}
 
             {/* 그래프 섹션 */}
-            <div className="mb-8">
+            <div>
               <WeeklyChartsSection
                 studyTimeByDay={studyTimeSummary.byDay}
                 studyTimeBySubject={studyTimeSummary.bySubject}
@@ -196,33 +197,34 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
 
             {/* 목표 진행률 */}
             {goalProgress.goals.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <GoalProgressSection goals={goalProgress.goals} />
               </div>
             )}
 
             {/* 취약과목 */}
             {weakSubjects.subjects.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <WeakSubjectsSection subjects={weakSubjects.subjects} />
               </div>
             )}
 
             {/* 일별 상세 분석 */}
-            <div className="mb-8">
+            <div>
               <DailyBreakdownSection breakdown={dailyBreakdown} />
             </div>
-          </>
-        )}
+            </div>
+          )}
+        </div>
       </section>
     );
   } catch (error) {
     console.error("[parent/report/weekly] 페이지 로드 실패", error);
     return (
       <section className={getContainerClass("DASHBOARD", "md")}>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-          <h2 className="text-lg font-semibold text-red-900 mb-2">오류가 발생했습니다</h2>
-          <p className="text-sm text-red-700 mb-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-red-200 bg-red-50 p-6">
+          <h2 className="text-lg font-semibold text-red-900">오류가 발생했습니다</h2>
+          <p className="text-sm text-red-700">
             데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
           </p>
           <Link

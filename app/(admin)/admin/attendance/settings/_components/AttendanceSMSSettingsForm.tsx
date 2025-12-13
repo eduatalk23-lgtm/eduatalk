@@ -247,7 +247,7 @@ export function AttendanceSMSSettingsForm() {
                   발송합니다.
                 </p>
                 {!formData.attendance_sms_student_checkin_enabled && (
-                  <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 p-2">
                     <p className="text-xs text-amber-800">
                       ⚠️ 이 설정이 꺼져 있으면 학생이 직접 체크인해도 SMS가
                       발송되지 않습니다. "입실 알림"이 켜져 있어도 이 설정이

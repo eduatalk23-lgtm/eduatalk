@@ -383,8 +383,8 @@ export function SubjectGroupManagement({
               >
                 <input type="hidden" name="subject_group_id" value={group.id} />
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex flex-col gap-1 flex-1">
+                    <label className="block text-sm font-medium text-gray-700">
                       과목명 <span className="text-red-500">*</span>
                     </label>
                     <input
