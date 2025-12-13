@@ -52,8 +52,8 @@ export default async function GlobalBlockSetDetailPage({ params }: PageProps) {
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 md:py-10">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
           <Link
             href="/admin/time-management"
             className="text-sm text-gray-500 hover:text-gray-700"
@@ -61,10 +61,12 @@ export default async function GlobalBlockSetDetailPage({ params }: PageProps) {
             ← 시간 관리
           </Link>
         </div>
-        <h1 className="text-2xl font-semibold text-gray-900">블록 세트 상세</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          템플릿에 연결되지 않은 블록 세트
-        </p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold text-gray-900">블록 세트 상세</h1>
+          <p className="text-sm text-gray-500">
+            템플릿에 연결되지 않은 블록 세트
+          </p>
+        </div>
       </div>
       <TemplateBlockSetDetail
         templateId={null}

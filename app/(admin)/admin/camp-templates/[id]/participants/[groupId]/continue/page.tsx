@@ -320,14 +320,14 @@ export default async function CampContinuePage({
 
   return (
     <section className="mx-auto w-full max-w-4xl px-4 py-10">
-      <div className="mb-8">
+      <div className="flex flex-col gap-8">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
+          <div className="flex flex-col gap-2 flex-1">
             <p className="text-sm font-medium text-gray-500">캠프 관리</p>
             <h1 className="text-3xl font-semibold text-gray-900">
               남은 단계 진행하기
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               학생이 등록한 콘텐츠를 확인하고, 추천 콘텐츠를 선택하여 조율하세요.
             </p>
           </div>
@@ -341,17 +341,17 @@ export default async function CampContinuePage({
       </div>
 
       {/* 학생 정보 및 진행 상태 카드 */}
-      <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="flex flex-col gap-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
+          <div className="flex flex-col gap-2 flex-1">
             <h3 className="font-semibold text-blue-900">학생 정보</h3>
-            <p className="mt-1 text-sm text-blue-700">
+            <p className="text-sm text-blue-700">
               {studentInfo?.name || "학생"} 
               {studentInfo?.grade && studentInfo?.class 
                 ? ` (${studentInfo.grade}학년 ${studentInfo.class}반)`
                 : ""}
             </p>
-            <p className="mt-2 text-xs text-blue-600">
+            <p className="text-xs text-blue-600">
               플랜 그룹: {group.name || "이름 없음"}
             </p>
           </div>

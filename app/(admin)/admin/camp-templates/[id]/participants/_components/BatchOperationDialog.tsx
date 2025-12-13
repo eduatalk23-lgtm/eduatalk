@@ -47,11 +47,13 @@ export function BatchOperationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <div className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900">{getTitle()}</h2>
-        <p className="mt-2 text-sm text-gray-700">{getDescription()}</p>
+      <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">{getTitle()}</h2>
+          <p className="text-sm text-gray-700">{getDescription()}</p>
+        </div>
         
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={() => onOpenChange(false)}

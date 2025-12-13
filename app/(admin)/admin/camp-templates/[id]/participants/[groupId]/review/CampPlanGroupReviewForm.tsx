@@ -240,7 +240,7 @@ export function CampPlanGroupReviewForm({
             <h1 className="text-3xl font-semibold text-gray-900">플랜 그룹 검토</h1>
             <p className="text-sm text-gray-500">{group.name || "플랜 그룹"}</p>
             {studentInfo && (
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="text-sm text-gray-600">
                 학생: {studentInfo.name}
                 {studentInfo.grade && studentInfo.class
                   ? ` (${studentInfo.grade}학년 ${studentInfo.class}반)`
@@ -316,19 +316,19 @@ export function CampPlanGroupReviewForm({
         {currentTab === "overview" && (
           <>
             {/* 플랜 그룹 정보 */}
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">플랜 그룹 정보</h2>
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+              <h2 className="text-lg font-semibold text-gray-900">플랜 그룹 정보</h2>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium text-gray-700">학습 기간:</span>
-                  <span className="ml-2 text-gray-900">
+                  <span className="text-gray-900">
                     {new Date(group.period_start).toLocaleDateString("ko-KR")} ~{" "}
                     {new Date(group.period_end).toLocaleDateString("ko-KR")}
                   </span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">스케줄러 유형:</span>
-                  <span className="ml-2 text-gray-900">
+                  <span className="text-gray-900">
                     {group.scheduler_type
                       ? schedulerTypeLabels[group.scheduler_type] || group.scheduler_type
                       : "—"}
@@ -336,7 +336,7 @@ export function CampPlanGroupReviewForm({
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">플랜 목적:</span>
-                  <span className="ml-2 text-gray-900">
+                  <span className="text-gray-900">
                     {group.plan_purpose
                       ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
                       : "—"}
@@ -344,23 +344,23 @@ export function CampPlanGroupReviewForm({
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">콘텐츠 개수:</span>
-                  <span className="ml-2 text-gray-900">{studentContents.length}개</span>
+                  <span className="text-gray-900">{studentContents.length}개</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">제외일 개수:</span>
-                  <span className="ml-2 text-gray-900">{exclusions.length}개</span>
+                  <span className="text-gray-900">{exclusions.length}개</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">학원 일정 개수:</span>
-                  <span className="ml-2 text-gray-900">{academySchedules.length}개</span>
+                  <span className="text-gray-900">{academySchedules.length}개</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">상태:</span>
-                  <span className="ml-2 text-gray-900">{group.status}</span>
+                  <span className="text-gray-900">{group.status}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">제출일:</span>
-                  <span className="ml-2 text-gray-900">
+                  <span className="text-gray-900">
                     {group.created_at
                       ? new Date(group.created_at).toLocaleDateString("ko-KR")
                       : "—"}
@@ -430,10 +430,10 @@ export function CampPlanGroupReviewForm({
 
         {currentTab === "step3" && (
           <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <div className="space-y-6">
-              <div>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-1">
                 <h2 className="text-xl font-semibold text-gray-900">스케줄 확인</h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="text-sm text-gray-500">
                   학생이 확인한 스케줄 미리보기 정보입니다.
                 </p>
               </div>

@@ -74,12 +74,12 @@ export default function TemplateBlockSetDetail({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 블록 세트 정보 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
+      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col gap-2 flex-1">
+            <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-gray-900">{blockSet.name}</h2>
               {isSelected && (
                 <span className="inline-block px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded">
@@ -102,8 +102,8 @@ export default function TemplateBlockSetDetail({
         </div>
 
         {/* 블록 목록 */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">시간 블록</h3>
             <button
               type="button"

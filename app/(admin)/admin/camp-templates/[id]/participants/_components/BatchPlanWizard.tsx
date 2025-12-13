@@ -142,11 +142,11 @@ export function BatchPlanWizard({
     <Dialog open={open} onOpenChange={handleClose} maxWidth="full">
       <div className="flex flex-col h-full max-h-[90vh] max-w-[95vw]">
         {/* 헤더 - 고정 */}
-        <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
+        <div className="flex flex-col gap-2 flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4">
           <h2 className="text-2xl font-semibold text-gray-900">
             일괄 설정 및 플랜 생성
           </h2>
-          <p className="mt-2 text-sm text-gray-700">
+          <p className="text-sm text-gray-700">
             선택한 {participants.length}명의 학생에게 콘텐츠 추천, 범위 조절, 플랜 생성을 단계별로 진행합니다.
           </p>
         </div>

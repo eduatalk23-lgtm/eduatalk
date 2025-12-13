@@ -819,7 +819,7 @@ export function CampParticipantsList({
                 <h3 className="text-sm font-semibold text-blue-900">
                   작업이 필요한 참여자가 있습니다
                 </h3>
-                <p className="mt-1 text-sm text-blue-700">
+                <p className="text-sm text-blue-700">
                   {needsActionParticipants.length}명의 참여자가 제출을
                   완료했지만 플랜이 생성되지 않았습니다. "남은 단계 진행" 버튼을
                   클릭하여 플랜 생성을 완료해주세요.
