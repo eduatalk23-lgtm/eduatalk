@@ -227,7 +227,7 @@ export function StudentAttendanceNotificationSettings({
       </div>
 
       {hasChanges && (
-        <div className="mt-4 flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
           <button
             type="button"
             onClick={() => setSettings(initialSettings)}
