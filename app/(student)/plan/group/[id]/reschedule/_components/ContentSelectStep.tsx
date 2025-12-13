@@ -330,11 +330,11 @@ export function ContentSelectStep({
           {rescheduleMode === "range" && rescheduleDateRange.from && rescheduleDateRange.to && (
             <div className="sticky top-0 z-10 rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex flex-col gap-1">
                   <div className="text-sm font-medium text-blue-900">
                     선택한 날짜 범위
                   </div>
-                  <div className="mt-1 text-sm text-blue-700">
+                  <div className="text-sm text-blue-700">
                     {rescheduleDateRange.from} ~ {rescheduleDateRange.to}
                   </div>
                 </div>
@@ -540,14 +540,14 @@ export function ContentSelectStep({
           {selectedIds.size > 0 && (
             <div className="sticky bottom-0 rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex flex-col gap-1">
                   <div className="font-medium text-blue-900">
                     선택한 콘텐츠 요약
                   </div>
-                  <div className="mt-1 text-sm text-blue-700">
+                  <div className="text-sm text-blue-700">
                     {selectedIds.size}개의 콘텐츠가 선택되었습니다
                   </div>
-                  <div className="mt-1 text-xs text-blue-600">
+                  <div className="text-xs text-blue-600">
                     총 영향받는 날짜:{" "}
                     {(() => {
                       const allDates = new Set<string>();
