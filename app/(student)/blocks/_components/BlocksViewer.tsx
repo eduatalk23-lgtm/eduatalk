@@ -88,10 +88,12 @@ export default function BlocksViewer({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div key={i} className="flex flex-col gap-4 bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="flex flex-col gap-2">
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
           </div>
         ))}
       </div>
@@ -167,7 +169,7 @@ export default function BlocksViewer({
                         alert(error.message || "세트 삭제에 실패했습니다.");
                       }
                     }}
-                    className="ml-2 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="세트 삭제"
                   >
                     <svg
@@ -309,8 +311,8 @@ function BlockSetCreateForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-4 bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">새 블록 세트 추가</h3>
           <button
             type="button"

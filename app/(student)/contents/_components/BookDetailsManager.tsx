@@ -207,7 +207,7 @@ export function BookDetailsManager({
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.majorUnit)}
-                    className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 -mx-3 px-3 py-2 rounded-md transition"
+                    className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 px-3 py-2 rounded-md transition"
                   >
                     <span className="text-gray-500">
                       {isExpanded ? "▼" : "▶"}

@@ -254,11 +254,11 @@ export default function ExclusionManagement({
               );
 
               return (
-                <div key={type} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h4 className="mb-3 text-sm font-semibold text-gray-900">
+                <div key={type} className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900">
                     {typeLabel} ({exclusions.length}개)
                   </h4>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {exclusions.map((exclusion) => (
                       <div
                         key={exclusion.id}

@@ -87,7 +87,7 @@ export function BookDetailsDisplay({ details }: BookDetailsDisplayProps) {
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.majorUnit)}
-                  className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 -mx-4 px-4 py-2 rounded-md transition"
+                  className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 px-4 py-2 rounded-md transition"
                 >
                   <span className="text-gray-500 text-sm">
                     {isExpanded ? "▼" : "▶"}
