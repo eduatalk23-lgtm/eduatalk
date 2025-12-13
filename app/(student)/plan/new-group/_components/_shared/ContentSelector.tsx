@@ -229,12 +229,12 @@ export const ContentSelector = React.memo(function ContentSelector({
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                   <h4 className="font-medium text-gray-900 truncate">
                     {item.title}
                   </h4>
                   {item.subtitle && (
-                    <p className="mt-0.5 text-sm text-gray-600 truncate">
+                    <p className="text-sm text-gray-600 truncate">
                       {item.subtitle}
                     </p>
                   )}
