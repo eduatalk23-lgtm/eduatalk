@@ -318,7 +318,7 @@ export function BulkRecommendContentsModal({
         <h2 className="text-xl font-semibold text-gray-900">
           추천 콘텐츠 일괄 적용
         </h2>
-        <p className="mt-2 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           선택한 {participants.length}명의 학생에게 추천 콘텐츠를 일괄 적용합니다.
           학생당 최대 9개까지 설정할 수 있습니다.
         </p>
@@ -327,31 +327,31 @@ export function BulkRecommendContentsModal({
         {(() => {
           const summary = calculateSummary();
           return (
-            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <Users className="h-4 w-4" />
                   <span>선택된 학생</span>
                 </div>
-                <div className="mt-1 text-2xl font-bold text-gray-900">
+                <div className="text-2xl font-bold text-gray-900">
                   {participants.length}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <BookOpen className="h-4 w-4" />
                   <span>전체 콘텐츠</span>
                 </div>
-                <div className="mt-1 text-2xl font-bold text-gray-900">
+                <div className="text-2xl font-bold text-gray-900">
                   {summary.totalContents}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <CheckCircle2 className="h-4 w-4" />
                   <span>교과별 합계</span>
                 </div>
-                <div className="mt-1 space-y-0.5">
+                <div className="flex flex-col gap-0.5">
                   {AVAILABLE_SUBJECTS.map((subject) => (
                     <div key={subject} className="text-xs font-semibold text-gray-900">
                       <span className="text-gray-600">{subject}:</span>{" "}
@@ -443,8 +443,8 @@ export function BulkRecommendContentsModal({
           </div>
 
           {/* 일괄 증가/감소 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-3">
+          <div className="flex flex-col gap-3">
+            <label className="block text-xs font-medium text-gray-700">
               모든 학생 증가/감소
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -677,14 +677,14 @@ export function BulkRecommendContentsModal({
                                 <button
                                   type="button"
                                   onClick={handleIndividualApply}
-                                  className="mt-3 w-full rounded bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                                  className="w-full rounded bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
                                 >
                                   적용
                                 </button>
                               </div>
                               
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-2">
+                              <div className="flex flex-col gap-2">
+                                <label className="block text-xs font-medium text-gray-700">
                                   선택한 학생 증가/감소
                                 </label>
                                 <div className="flex items-center gap-1">
@@ -719,7 +719,7 @@ export function BulkRecommendContentsModal({
                                   type="button"
                                   onClick={handleIndividualAdjust}
                                   disabled={!individualAdjustSubject || individualAdjustAmount === 0}
-                                  className="mt-2 w-full rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                                  className="w-full rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                                 >
                                   적용
                                 </button>
@@ -747,7 +747,7 @@ export function BulkRecommendContentsModal({
         </div>
 
         {/* 적용 옵션 */}
-        <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -762,7 +762,7 @@ export function BulkRecommendContentsModal({
         </div>
 
         {/* 액션 버튼 */}
-        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() => onOpenChange(false)}

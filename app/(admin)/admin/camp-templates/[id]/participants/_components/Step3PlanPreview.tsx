@@ -148,10 +148,10 @@ export function Step3PlanPreview({
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold text-gray-900">Step 3: 플랜 미리보기</h3>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           각 학생의 플랜을 미리보고, 플랜을 생성할 학생을 선택합니다.
         </p>
       </div>
@@ -165,7 +165,7 @@ export function Step3PlanPreview({
         >
           {loading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
               미리보기 중...
             </>
           ) : (

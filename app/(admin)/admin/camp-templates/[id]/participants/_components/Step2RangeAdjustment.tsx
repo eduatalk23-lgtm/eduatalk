@@ -219,25 +219,25 @@ export function Step2RangeAdjustment({
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold text-gray-900">Step 2: 범위 조절</h3>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           각 콘텐츠의 학습 범위를 조절합니다. 자동 추천된 범위를 사용하거나 수동으로 조절할 수 있습니다.
         </p>
       </div>
 
       {/* 학생별 콘텐츠 범위 테이블 */}
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {Array.from(studentData.values()).map((data) => (
-          <div key={data.groupId} className="rounded-lg border border-gray-200 bg-white p-4">
-            <h4 className="mb-4 text-sm font-semibold text-gray-900">
+          <div key={data.groupId} className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
+            <h4 className="text-sm font-semibold text-gray-900">
               {data.studentName}
             </h4>
             {data.loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                <span className="ml-2 text-sm text-gray-600">로딩 중...</span>
+                <span className="text-sm text-gray-600">로딩 중...</span>
               </div>
             ) : data.error ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4">

@@ -322,10 +322,10 @@ export function Step1ContentRecommendation({
   const summary = calculateSummary();
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold text-gray-900">Step 1: 콘텐츠 추천 설정</h3>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           학생별로 교과와 수량을 설정합니다. 학생당 최대 9개까지 설정할 수 있습니다.
         </p>
       </div>
@@ -375,7 +375,7 @@ export function Step1ContentRecommendation({
             }`} />
             <span>초과 학생</span>
           </div>
-          <div className={`mt-1 text-2xl font-bold ${
+          <div className={`text-2xl font-bold ${
             summary.overLimitCount > 0 ? "text-red-600" : "text-gray-900"
           }`}>
             {summary.overLimitCount}
@@ -384,12 +384,12 @@ export function Step1ContentRecommendation({
       </div>
 
       {/* 전체 조율 컨트롤 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">전체 조율</h3>
+      <div className="flex flex-col gap-5 rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
+        <h3 className="text-sm font-semibold text-gray-900">전체 조율</h3>
         
         {/* 일괄 적용 */}
-        <div className="mb-5">
-          <label className="block text-xs font-medium text-gray-700 mb-3">
+        <div className="flex flex-col gap-3">
+          <label className="block text-xs font-medium text-gray-700">
             모든 학생에게 일괄 적용
           </label>
           <div className="flex flex-row flex-wrap gap-2 items-center">
@@ -627,13 +627,13 @@ export function Step1ContentRecommendation({
                         조율
                       </button>
                       {openPopoverId === p.groupId && (
-                        <div className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
+                        <div className="absolute right-0 top-full z-10 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-2">
+                              <label className="block text-xs font-medium text-gray-700">
                                 선택한 학생에게 일괄 적용
                               </label>
-                              <div className="space-y-2">
+                              <div className="flex flex-col gap-2">
                                 {AVAILABLE_SUBJECTS.map((subject) => {
                                   const current = individualSubjectCounts[subject] || 0;
                                   return (
@@ -679,14 +679,14 @@ export function Step1ContentRecommendation({
                               <button
                                 type="button"
                                 onClick={handleIndividualApply}
-                                className="mt-3 w-full rounded bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                                className="w-full rounded bg-indigo-600 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
                               >
                                 적용
                               </button>
                             </div>
                             
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
+                            <div className="flex flex-col gap-2">
+                              <label className="block text-xs font-medium text-gray-700">
                                 선택한 학생 증가/감소
                               </label>
                               <div className="flex items-center gap-1">
@@ -721,7 +721,7 @@ export function Step1ContentRecommendation({
                                 type="button"
                                 onClick={handleIndividualAdjust}
                                 disabled={!individualAdjustSubject || individualAdjustAmount === 0}
-                                className="mt-2 w-full rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                                className="w-full rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
                               >
                                 적용
                               </button>

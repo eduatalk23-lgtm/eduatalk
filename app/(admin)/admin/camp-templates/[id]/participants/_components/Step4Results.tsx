@@ -132,9 +132,9 @@ export function Step4Results({
 
   if (processing || !results) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
+      <div className="flex flex-col items-center justify-center gap-4 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-        <p className="mt-4 text-sm text-gray-600">작업을 처리하는 중...</p>
+        <p className="text-sm text-gray-600">작업을 처리하는 중...</p>
       </div>
     );
   }
@@ -142,10 +142,10 @@ export function Step4Results({
   const { contentRecommendation, rangeAdjustment, planGeneration } = results.results;
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <h3 className="text-lg font-semibold text-gray-900">Step 4: 결과</h3>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           모든 작업이 완료되었습니다. 결과를 확인해주세요.
         </p>
       </div>

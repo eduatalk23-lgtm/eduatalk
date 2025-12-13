@@ -240,7 +240,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
                     )}
 
                     {/* 구분선 */}
-                    <div className="my-1 border-t border-gray-200" />
+                    <div className="border-t border-gray-200" />
 
                     {/* 삭제 옵션 */}
                     <button
