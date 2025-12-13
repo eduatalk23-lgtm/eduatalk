@@ -6,7 +6,7 @@
 
 import { PlanValidator } from "@/lib/validation/planValidator";
 import type { WizardData } from "../PlanGroupWizard";
-import { isStudentInputAllowed as checkStudentInputAllowed } from "./fieldLockUtils";
+import { canStudentInput as checkStudentInputAllowed } from "./fieldLockUtils";
 
 /**
  * 기간 검증 결과 타입

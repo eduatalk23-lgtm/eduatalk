@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 
     // 교재 데이터 처리
     if (booksDataResult.data) {
-      booksDataResult.data.forEach((book: {
+      (booksDataResult.data as unknown as Array<{
         id: string;
         total_pages: number | null;
         master_content_id: string | null;
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
         revision?: string | null;
         difficulty_level?: string | null;
         publisher?: string | null;
-      }) => {
+      }>).forEach((book) => {
         totalPagesMap.set(book.id, book.total_pages);
         masterContentIdMap.set(book.id, book.master_content_id);
         if (includeMetadata) {
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     // 강의 데이터 처리
     if (lecturesDataResult.data) {
-      lecturesDataResult.data.forEach((lecture: {
+      (lecturesDataResult.data as unknown as Array<{
         id: string;
         total_episodes: number | null;
         master_content_id: string | null;
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
         revision?: string | null;
         difficulty_level?: string | null;
         platform?: string | null;
-      }) => {
+      }>).forEach((lecture) => {
         totalEpisodesMap.set(lecture.id, lecture.total_episodes);
         masterContentIdMap.set(lecture.id, lecture.master_content_id);
         if (includeMetadata) {

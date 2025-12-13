@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         ? "total_pages, master_content_id, subject, semester, revision, difficulty_level, publisher"
         : "total_pages, master_content_id";
 
-      const [details, { data: studentBook }] = await Promise.all([
+      const [details, { data: studentBookRaw }] = await Promise.all([
         getStudentBookDetails(contentId, targetStudentId),
         supabase
           .from("books")
@@ -65,6 +65,17 @@ export async function GET(request: NextRequest) {
           .maybeSingle(),
       ]);
 
+      type StudentBook = {
+        total_pages: number | null;
+        master_content_id: string | null;
+        subject?: string | null;
+        semester?: string | null;
+        revision?: string | null;
+        difficulty_level?: string | null;
+        publisher?: string | null;
+      };
+
+      const studentBook = studentBookRaw as StudentBook | null;
       let totalPages: number | null = studentBook?.total_pages || null;
 
       // master_content_id가 있으면 마스터에서도 조회 (fallback) - 조건부 병렬 처리
@@ -77,7 +88,7 @@ export async function GET(request: NextRequest) {
         : Promise.resolve({ data: null });
 
       const { data: masterBook } = await masterBookPromise;
-      totalPages = totalPages || masterBook?.total_pages || null;
+      totalPages = totalPages || (masterBook as { total_pages: number | null } | null)?.total_pages || null;
 
       return apiSuccess({
         details,
@@ -99,7 +110,7 @@ export async function GET(request: NextRequest) {
         ? "master_content_id, total_episodes, subject, semester, revision, difficulty_level, platform"
         : "master_content_id, total_episodes";
 
-      const [episodes, { data: studentLecture }] = await Promise.all([
+      const [episodes, { data: studentLectureRaw }] = await Promise.all([
         getStudentLectureEpisodes(contentId, targetStudentId),
         supabase
           .from("lectures")
@@ -109,6 +120,17 @@ export async function GET(request: NextRequest) {
           .maybeSingle(),
       ]);
 
+      type StudentLecture = {
+        master_content_id: string | null;
+        total_episodes: number | null;
+        subject?: string | null;
+        semester?: string | null;
+        revision?: string | null;
+        difficulty_level?: string | null;
+        platform?: string | null;
+      };
+
+      const studentLecture = studentLectureRaw as StudentLecture | null;
       let totalEpisodes: number | null = studentLecture?.total_episodes || null;
 
       // master_content_id가 있으면 마스터에서도 조회 (fallback) - 조건부 병렬 처리
@@ -121,7 +143,7 @@ export async function GET(request: NextRequest) {
         : Promise.resolve({ data: null });
 
       const { data: masterLecture } = await masterLecturePromise;
-      totalEpisodes = totalEpisodes || masterLecture?.total_episodes || null;
+      totalEpisodes = totalEpisodes || (masterLecture as { total_episodes: number | null } | null)?.total_episodes || null;
 
       return apiSuccess({
         episodes,

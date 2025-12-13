@@ -352,7 +352,7 @@ export function Step1BasicInfo({
         periodCalculation={periodCalculation}
         toggleFieldControl={toggleFieldControl as (fieldName: string) => void}
         canStudentInputPeriod={canStudentInputPeriod}
-        isFieldLocked={isFieldLocked}
+        isFieldLocked={checkFieldLocked}
         isDisabled={isDisabled}
         lockedFields={lockedFields || {}}
         showError={showError}

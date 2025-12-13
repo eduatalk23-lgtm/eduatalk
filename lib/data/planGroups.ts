@@ -279,6 +279,13 @@ export async function getPlanGroupById(
           .eq("student_id", studentId)
           .is("deleted_at", null);
 
+      const fallbackSelect = () =>
+        supabase
+          .from("plan_groups")
+          .select(
+            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+          );
+
       let fallbackQuery = fallbackSelect();
       if (tenantId) {
         fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);

@@ -141,7 +141,7 @@ export async function fetchBlocksWithFallback(
 
     if (fallbackResult.data) {
       // day_of_week별로 그룹화하여 block_index 재할당
-      data = assignBlockIndex(fallbackResult.data, (block) => block.day_of_week);
+      data = assignBlockIndex(fallbackResult.data as any[], (block) => block.day_of_week);
     }
     error = fallbackResult.error;
   }

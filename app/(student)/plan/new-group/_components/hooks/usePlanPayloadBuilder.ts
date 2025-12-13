@@ -70,17 +70,37 @@ export function usePlanPayloadBuilder(
     ];
 
     const contentKeys = new Set<string>();
-    const uniqueContents: Array<WizardData["student_contents"][number] | WizardData["recommended_contents"][number]> = [];
+    // Relaxed type to allow extended properties during construction
+    const uniqueContents: any[] = [];
     const duplicateNames: string[] = [];
 
     allContents.forEach((c, idx) => {
       // Key by type + id
       const key = `${c.content_type}:${c.content_id}`;
       
-      if (!contentKeys.has(key)) {
+        if (!contentKeys.has(key)) {
         contentKeys.add(key);
         // Use 'as any' temporarily to merge extra properties like is_auto_recommended
-        uniqueContents.push({ ...c, display_order: uniqueContents.length });
+        // student_contents에는 추천 필드가 없고, recommended_contents에만 있으므로 옵셔널 체이닝 사용
+        const contentWithExtras = c as typeof c & {
+          is_auto_recommended?: boolean;
+          recommendation_source?: "auto" | "admin" | "template" | null;
+          recommendation_reason?: string | null;
+          recommendation_metadata?: any;
+          master_content_id?: string | null;
+        };
+        uniqueContents.push({ 
+          ...contentWithExtras, 
+          display_order: uniqueContents.length,
+          title: contentWithExtras.title,
+          subject_category: contentWithExtras.subject_category,
+          subject: contentWithExtras.subject,
+          is_auto_recommended: contentWithExtras.is_auto_recommended,
+          recommendation_source: contentWithExtras.recommendation_source,
+          recommendation_reason: contentWithExtras.recommendation_reason,
+          recommendation_metadata: contentWithExtras.recommendation_metadata,
+          master_content_id: contentWithExtras.master_content_id // Ensure master_content_id is included
+        });
       } else {
         // Find existing to see if we should merge metadata
         // For now, simpler strategy: First come first serve (Student contents usually come first in the array concat)
@@ -148,10 +168,10 @@ export function usePlanPayloadBuilder(
 
       contents: uniqueContents.map((c): ExtendedPlanContentInput => {
          // Determine master_content_id precedence
-         let masterId = c.master_content_id;
+         let masterId = (c as any).master_content_id;
          
          // If implicit from being a pure recommended content
-         if (!masterId && c.is_auto_recommended) {
+         if (!masterId && (c as any).is_auto_recommended) {
              // In auto recommendation, content_id is often the master id if it came from the master list
              masterId = c.content_id;
          }
@@ -164,18 +184,18 @@ export function usePlanPayloadBuilder(
             end_range: c.end_range,
             start_detail_id: c.start_detail_id ?? null,
             end_detail_id: c.end_detail_id ?? null,
-            display_order: c.display_order, // Recalculated index
+            display_order: (c as any).display_order, // Recalculated index
             
             // Optional / Metadata fields that PlanGroupCreationData might accept 
             // (Need to cast or ensure type definition supports them)
             // The type definition says PlanContentInput does NOT have these recommendation fields ??
             // However, the backend accepts these fields, so we include them with proper typing
-            is_auto_recommended: c.is_auto_recommended,
-            recommendation_source: c.recommendation_source,
-            recommendation_reason: c.recommendation_reason,
-            recommendation_metadata: c.recommendation_metadata
+            is_auto_recommended: (c as any).is_auto_recommended,
+            recommendation_source: (c as any).recommendation_source,
+            recommendation_reason: (c as any).recommendation_reason,
+            recommendation_metadata: (c as any).recommendation_metadata
          };
-      }) as PlanContentInput[], // Backend accepts extended fields but type definition is strict
+      }) as unknown as PlanContentInput[], // Backend accepts extended fields but type definition is strict
 
       exclusions: (wizardData.exclusions || []).map(e => ({
           exclusion_date: e.exclusion_date,
