@@ -13,6 +13,7 @@ import { TodayAchievementsSection } from "./_components/TodayAchievementsSection
 import { TodayPageContextProvider } from "./_components/TodayPageContext";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
 import { CompletionToast } from "./_components/CompletionToast";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { getPlanById } from "@/lib/data/studentPlans";
@@ -131,20 +132,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   if (activePlanGroups.length === 0) {
     pageTimer.end();
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
         <div className="flex flex-col gap-6">
           <TodayHeader />
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
-            <div className="mx-auto flex max-w-md flex-col gap-4">
-              <div className="text-6xl">📚</div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                활성화된 플랜 그룹이 없습니다
-              </h3>
-              <p className="text-sm text-gray-500">
-                플랜 그룹을 생성하고 활성화하면 여기서 확인할 수 있습니다.
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon="📚"
+            title="활성화된 플랜 그룹이 없습니다"
+            description="플랜 그룹을 생성하고 활성화하면 여기서 확인할 수 있습니다."
+          />
         </div>
       </div>
     );
@@ -212,7 +207,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       initialProgress={todayProgress}
       initialPlansData={plansDataForContext}
     >
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
         <div className="flex flex-col gap-6">
           <TodayHeader />
           <CurrentLearningSection />

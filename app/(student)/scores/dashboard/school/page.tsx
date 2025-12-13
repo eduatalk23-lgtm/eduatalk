@@ -7,6 +7,7 @@ import { fetchSchoolScores } from "../_utils/scoreQueries";
 import { SemesterChartsSection } from "../_components/SemesterChartsSection";
 import { SubjectTrendSection } from "../_components/SubjectTrendSection";
 import { Card } from "@/components/molecules/Card";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { SchoolSummarySection } from "./_components/SchoolSummarySection";
 import { SchoolWeakSubjectSection } from "./_components/SchoolWeakSubjectSection";
 import { SchoolInsightPanel } from "./_components/SchoolInsightPanel";
@@ -42,25 +43,13 @@ export default async function SchoolScoresDashboardPage() {
       </div>
 
       {schoolScores.length === 0 ? (
-        <Card>
-          <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
-            <div className="text-6xl">📚</div>
-            <div className="flex flex-col gap-2">
-              <h3 className="text-xl font-semibold text-gray-900">
-                등록된 내신 성적이 없습니다
-              </h3>
-              <p className="text-sm text-gray-600">
-                내신 성적을 등록하면 대시보드가 표시됩니다.
-              </p>
-            </div>
-            <Link
-              href="/scores/school/1/1"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
-            >
-              내신 성적 입력
-            </Link>
-          </div>
-        </Card>
+        <EmptyState
+          icon="📚"
+          title="등록된 내신 성적이 없습니다"
+          description="내신 성적을 등록하면 대시보드가 표시됩니다."
+          actionLabel="내신 성적 입력"
+          actionHref="/scores/school/1/1"
+        />
       ) : (
         <div className="flex flex-col gap-8">
           {/* 내신 성적 요약 */}

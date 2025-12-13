@@ -8,6 +8,7 @@ import { ContentsListWrapper } from "./_components/ContentsListWrapper";
 import { ContentsList } from "./_components/ContentsList";
 import { ContentStats } from "./_components/ContentStats";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
+import { Card } from "@/components/molecules/Card";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { getPublishersForFilter, getPlatformsForFilter, getDifficultiesForMasterBooks, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 
@@ -52,7 +53,7 @@ export default async function ContentsPage({
   };
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-10">
+    <section className="mx-auto w-full max-w-4xl px-4 py-8 md:px-6 md:py-10">
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -106,7 +107,7 @@ export default async function ContentsPage({
         />
 
         {/* Filters and Sort */}
-        <Suspense fallback={<div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"><div className="h-10 bg-gray-200 rounded animate-pulse"></div></div>}>
+        <Suspense fallback={<Card padding="sm"><div className="h-10 bg-gray-200 rounded animate-pulse"></div></Card>}>
           <StudentContentFilterWrapper
             activeTab={activeTab}
             params={params}
@@ -181,7 +182,7 @@ async function StudentContentFilterWrapper({
   const basePath = "/contents";
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <Card padding="sm">
       <UnifiedContentFilter
         context="student"
         contentType={activeTab === "books" ? "book" : activeTab === "lectures" ? "lecture" : "custom"}
@@ -201,7 +202,7 @@ async function StudentContentFilterWrapper({
         showSort={true}
         defaultSort="created_at_desc"
       />
-    </div>
+    </Card>
   );
 }
 

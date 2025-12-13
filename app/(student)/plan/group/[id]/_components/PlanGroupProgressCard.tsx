@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { PlanGroup } from "@/lib/types/plan";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { Card } from "@/components/molecules/Card";
 
 type PlanGroupProgressCardProps = {
   group: PlanGroup;
@@ -29,7 +30,7 @@ export function PlanGroupProgressCard({
 
   if (!hasPlans || planCount === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <Card>
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-medium text-gray-800">플랜 진행 상황</h3>
@@ -37,12 +38,12 @@ export function PlanGroupProgressCard({
             <p className="text-sm text-gray-800">플랜이 생성되지 않았습니다.</p>
           </div>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <Card>
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between">
           <div className="flex-1 flex flex-col gap-3">
@@ -89,7 +90,7 @@ export function PlanGroupProgressCard({
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateNotificationSettings } from "../actions/notificationActions";
 import { cn } from "@/lib/cn";
+import { SectionCard } from "@/components/ui/SectionCard";
 
 type NotificationSettings = {
   plan_start_enabled: boolean;
@@ -88,10 +89,8 @@ export function NotificationSettingsView({
       )}
 
       {/* 알림 유형 설정 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <SectionCard title="알림 유형">
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">알림 유형</h2>
-          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
                 <div className="font-medium text-gray-900">학습 시작 알림</div>
@@ -248,15 +247,12 @@ export function NotificationSettingsView({
                 </div>
               </div>
             )}
-          </div>
         </div>
-      </div>
+      </SectionCard>
 
       {/* 알림 시간 설정 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <SectionCard title="알림 시간">
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">알림 시간</h2>
-          <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
             <label className="w-32 text-sm font-medium text-gray-700">
               알림 시작 시간
@@ -286,15 +282,13 @@ export function NotificationSettingsView({
             />
             <span className="text-sm text-gray-500">까지</span>
           </div>
-          </div>
         </div>
-      </div>
+      </SectionCard>
 
       {/* 방해 금지 시간 설정 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">방해 금지 시간</h2>
+      <SectionCard
+        title="방해 금지 시간"
+        headerAction={
           <button
             type="button"
             onClick={() => handleToggle("quiet_hours_enabled")}
@@ -312,10 +306,9 @@ export function NotificationSettingsView({
               )}
             />
           </button>
-        </div>
-        <p className="text-sm text-gray-500">
-          방해 금지 시간 동안에는 알림을 받지 않습니다
-        </p>
+        }
+        description="방해 금지 시간 동안에는 알림을 받지 않습니다"
+      >
 
         {settings.quiet_hours_enabled && (
           <div className="flex flex-col gap-4">
@@ -348,17 +341,14 @@ export function NotificationSettingsView({
             </div>
             </div>
           )}
-        </div>
-      </div>
+      </SectionCard>
 
       {/* 출석 알림 설정 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <SectionCard
+        title="출석 알림 설정"
+        description="출석 관련 SMS 알림을 받을 항목을 선택하세요. 설정하지 않으면 학원 기본 설정을 따릅니다."
+      >
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">출석 알림 설정</h2>
-          <p className="text-sm text-gray-500">
-            출석 관련 SMS 알림을 받을 항목을 선택하세요. 설정하지 않으면 학원 기본 설정을 따릅니다.
-          </p>
-          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
                 <div className="font-medium text-gray-900">입실 알림</div>
@@ -478,9 +468,8 @@ export function NotificationSettingsView({
               />
             </button>
             </div>
-          </div>
         </div>
-      </div>
+      </SectionCard>
 
       {/* 저장 버튼 */}
       <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-6">

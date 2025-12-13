@@ -8,6 +8,7 @@ import { FilterBar } from "./_components/FilterBar";
 import { RescheduleRecommendations } from "./_components/RescheduleRecommendations";
 import { getPlanGroupsWithStats, PlanGroupFilters } from "@/lib/data/planGroups";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type PlanPageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -82,7 +83,7 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   return (
     <>
       <ScrollToTop />
-      <section className="mx-auto w-full max-w-5xl px-4 py-10">
+      <section className="mx-auto w-full max-w-5xl px-4 py-8 md:px-6 md:py-10">
         <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-2">
@@ -142,29 +143,13 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
               planProgressData={planProgressData}
             />
           ) : (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 p-16 text-center">
-              <div className="mx-auto flex max-w-md flex-col gap-6">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 text-4xl">
-                  📋
-                </div>
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    등록된 플랜 그룹이 없습니다
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    새로운 플랜 그룹을 만들어<br />
-                    기간별 학습 계획을 세워보세요.
-                  </p>
-                </div>
-                <Link
-                  href="/plan/new-group"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-indigo-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
-                >
-                  <span>+</span>
-                  <span>플랜 그룹 생성하기</span>
-                </Link>
-              </div>
-            </div>
+            <EmptyState
+              icon="📋"
+              title="등록된 플랜 그룹이 없습니다"
+              description="새로운 플랜 그룹을 만들어 기간별 학습 계획을 세워보세요."
+              actionLabel="플랜 그룹 생성하기"
+              actionHref="/plan/new-group"
+            />
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { Trash2, CheckSquare, Square } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanGroupListItem } from "./PlanGroupListItem";
@@ -71,25 +72,13 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto flex max-w-md flex-col gap-6">
-          <div className="text-6xl">📋</div>
-          <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">
-              등록된 플랜 그룹이 없습니다
-            </h3>
-            <p className="text-sm text-gray-500">
-              새로운 플랜 그룹을 만들어 기간별 학습 계획을 세워보세요.
-            </p>
-          </div>
-          <Link
-            href="/plan/new-group"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
-          >
-            플랜 그룹 생성하기
-          </Link>
-        </div>
-      </div>
+      <EmptyState
+        icon="📋"
+        title="등록된 플랜 그룹이 없습니다"
+        description="새로운 플랜 그룹을 만들어 기간별 학습 계획을 세워보세요."
+        actionLabel="플랜 그룹 생성하기"
+        actionHref="/plan/new-group"
+      />
     );
   }
 

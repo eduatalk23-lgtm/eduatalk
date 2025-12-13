@@ -7,6 +7,7 @@ import {
   revokeAllOtherSessions,
   type UserSession,
 } from "@/lib/auth/sessionManager";
+import { Card } from "@/components/molecules/Card";
 
 export function DeviceManagement() {
   const [sessions, setSessions] = useState<UserSession[]>([]);
@@ -165,7 +166,7 @@ export function DeviceManagement() {
               활성
             </span>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <Card padding="sm">
             <div className="flex items-start justify-between">
               <div className="flex flex-col gap-2 flex-1">
                 <div className="flex items-center gap-2">
@@ -186,7 +187,7 @@ export function DeviceManagement() {
                 </p>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 

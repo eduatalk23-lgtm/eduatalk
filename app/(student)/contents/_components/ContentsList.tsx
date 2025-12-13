@@ -9,6 +9,7 @@ import {
   deleteCustomContent,
 } from "@/app/(student)/actions/contentActions";
 import { ContentsListClient } from "./ContentsListClient";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type TabKey = "books" | "lectures" | "custom";
 export type ContentListItem = {
@@ -97,53 +98,40 @@ async function ContentsListContent({
   }
 
   if (list.length === 0) {
+    const emptyStateConfig = {
+      books: {
+        icon: "📚",
+        title: "등록된 책이 없습니다",
+        description: "새로운 책을 등록하여 학습을 시작해보세요.",
+        actionLabel: "+ 새 교재 등록",
+        actionHref: "/contents/books/new",
+      },
+      lectures: {
+        icon: "🎧",
+        title: "등록된 강의가 없습니다",
+        description: "새로운 강의를 등록하여 학습을 시작해보세요.",
+        actionLabel: "+ 새 강의 등록",
+        actionHref: "/contents/lectures/new",
+      },
+      custom: {
+        icon: "📝",
+        title: "등록된 커스텀 콘텐츠가 없습니다",
+        description: "서비스 마스터 커스텀 콘텐츠에서 가져오거나 직접 등록해보세요.",
+        actionLabel: "서비스 마스터 커스텀 콘텐츠에서 가져오기",
+        actionHref: "/contents/master-custom-contents",
+      },
+    };
+
+    const config = emptyStateConfig[activeTab];
+
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <div className="mx-auto flex max-w-md flex-col gap-6">
-            <div className="text-6xl">
-              {activeTab === "books" && "📚"}
-              {activeTab === "lectures" && "🎧"}
-              {activeTab === "custom" && "📝"}
-            </div>
-            <div className="flex flex-col gap-2">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {activeTab === "books" && "등록된 책이 없습니다"}
-                {activeTab === "lectures" && "등록된 강의가 없습니다"}
-                {activeTab === "custom" && "등록된 커스텀 콘텐츠가 없습니다"}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {activeTab === "books" && "새로운 책을 등록하여 학습을 시작해보세요."}
-                {activeTab === "lectures" && "새로운 강의를 등록하여 학습을 시작해보세요."}
-                {activeTab === "custom" && "서비스 마스터 커스텀 콘텐츠에서 가져오거나 직접 등록해보세요."}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-              {activeTab === "custom" ? (
-                <Link
-                  href="/contents/master-custom-contents"
-                  className="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                >
-                  📝 서비스 마스터 커스텀 콘텐츠에서 가져오기
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href={activeTab === "books" ? "/contents/master-books" : "/contents/master-lectures"}
-                    className="inline-flex items-center justify-center rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                  >
-                    {activeTab === "books" ? "📚 서비스 마스터 교재에서 가져오기" : "🎧 서비스 마스터 강의에서 가져오기"}
-                  </Link>
-                  <Link
-                    href={`/contents/${activeTab}/new`}
-                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
-                  >
-                    {activeTab === "books" ? "+ 새 교재 등록" : "+ 새 강의 등록"}
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-      </div>
+      <EmptyState
+        icon={config.icon}
+        title={config.title}
+        description={config.description}
+        actionLabel={config.actionLabel}
+        actionHref={config.actionHref}
+      />
     );
   }
 

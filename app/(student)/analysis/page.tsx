@@ -75,7 +75,7 @@ export default async function AnalysisPage() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-10">
+    <section className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">취약 과목 분석</h1>

@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { MockScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { MockScoreCard } from "./MockScoreCard";
-import { EmptyScoresState } from "@/app/(student)/scores/_components/EmptyScoresState";
-import { Plus, Filter, ArrowUpDown } from "lucide-react";
+import { EmptyState } from "@/components/molecules/EmptyState";
+import { Plus, Filter, ArrowUpDown, FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type MockScoreCardGridProps = {
@@ -223,7 +223,15 @@ export function MockScoreCardGrid({
   };
 
   if (scores.length === 0) {
-    return <EmptyScoresState onAddClick={onAddClick} />;
+    return (
+      <EmptyState
+        icon={<FileText className="h-8 w-8 text-gray-400" />}
+        title="등록된 성적이 없습니다."
+        description="성적을 추가하여 학습 진행 상황을 관리하세요."
+        actionLabel="성적 추가하기"
+        onAction={onAddClick}
+      />
+    );
   }
 
   return (
