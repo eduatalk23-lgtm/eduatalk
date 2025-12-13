@@ -299,6 +299,7 @@ export function PatternAnalysisView({
         </div>
       </div>
     </div>
+  </div>
   );
 }
 

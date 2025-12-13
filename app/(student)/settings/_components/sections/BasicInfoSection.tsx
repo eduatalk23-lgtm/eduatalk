@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
-import { useSettings } from "../../SettingsContext";
+import { useSettings } from "../SettingsContext";
 import { SectionCard } from "@/components/ui/SectionCard";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
@@ -29,21 +29,15 @@ function BasicInfoSection() {
     [updateFormData, errors, setErrors]
   );
 
+  /* import School type at top of file separately if needed, but here we just use it in callback */
   const handleSchoolSelect = useCallback(
-    async (schoolId: string, schoolName: string) => {
-      updateFormData({ school_id: schoolId });
+    async (school: { id: string; name: string; type?: "중학교" | "고등학교" | "대학교" | null }) => {
+      updateFormData({ school_id: school.id || "" });
       
       // 학교 타입 조회
-      try {
-        const { getSchoolById } = await import("@/app/(student)/actions/schoolActions");
-        const school = await getSchoolById(schoolId);
-        if (school && (school.type === "중학교" || school.type === "고등학교")) {
-          setSchoolType(school.type);
-        } else {
-          setSchoolType(undefined);
-        }
-      } catch (error) {
-        console.error("학교 타입 조회 실패:", error);
+      if (school.type === "중학교" || school.type === "고등학교") {
+        setSchoolType(school.type);
+      } else {
         setSchoolType(undefined);
       }
     },

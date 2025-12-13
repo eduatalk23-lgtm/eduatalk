@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentStudent } from "@/app/(student)/actions/studentActions";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
 import SettingsPageClient from "./_components/SettingsPageClient";
-import type { StudentData } from "./_components/SettingsContext";
+import type { StudentData } from "./types";
 
 /**
  * 학생 설정 페이지 (서버 컴포넌트)

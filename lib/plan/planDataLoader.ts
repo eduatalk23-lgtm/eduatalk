@@ -19,7 +19,7 @@ import type {
   DateMetadataMap,
   WeekDatesMap,
 } from "@/lib/types/plan-generation";
-import type { PlanGroup } from "@/lib/types/plan";
+import type { PlanGroup, NonStudyTimeBlock } from "@/lib/types/plan";
 
 // ============================================
 // 타입 정의
@@ -60,7 +60,7 @@ export type ScheduleCalculationOptions = {
   camp_study_hours?: { start: string; end: string };
   camp_self_study_hours?: { start: string; end: string };
   designated_holiday_hours?: { start: string; end: string };
-  non_study_time_blocks?: unknown;
+  non_study_time_blocks?: NonStudyTimeBlock[] | null;
 };
 
 // ============================================
@@ -231,8 +231,7 @@ export function calculateSchedule(
       camp_study_hours: options.camp_study_hours,
       camp_self_study_hours: options.camp_self_study_hours,
       designated_holiday_hours: options.designated_holiday_hours,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      non_study_time_blocks: options.non_study_time_blocks as any,
+      non_study_time_blocks: options.non_study_time_blocks || undefined,
     }
   );
 
@@ -363,7 +362,6 @@ export function createScheduleCalculationOptions(
     designated_holiday_hours: groupOptions?.designated_holiday_hours as
       | { start: string; end: string }
       | undefined,
-    non_study_time_blocks: (group as unknown as { non_study_time_blocks?: unknown })
-      .non_study_time_blocks,
+    non_study_time_blocks: group.non_study_time_blocks,
   };
 }

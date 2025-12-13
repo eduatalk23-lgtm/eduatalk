@@ -2,6 +2,10 @@
  * 마이페이지 폼 데이터 타입 정의
  */
 
+import type { Student } from "@/lib/data/students";
+import type { StudentProfile } from "@/lib/data/studentProfiles";
+import type { StudentCareerGoal } from "@/lib/data/studentCareerGoals";
+
 export type Gender = "남" | "여";
 export type CurriculumRevision = "2009 개정" | "2015 개정" | "2022 개정";
 export type CareerField =
@@ -15,6 +19,12 @@ export type CareerField =
   | "농업계열"
   | "해양계열"
   | "기타";
+
+export type StudentData = Student &
+  Partial<StudentProfile> &
+  Partial<StudentCareerGoal> & {
+    desired_career_field?: string | null;
+  };
 
 export type StudentFormData = {
   // 기본 정보

@@ -160,6 +160,8 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
           // dayType 기반으로 스타일 결정
           const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
           const isTodayDate = isToday(date);
+          const isStudyDay = dayType === "학습일";
+          const isReviewDay = dayType === "복습일";
           
           // 날짜 타입 색상 가져오기
           const dayTypeColor = getDayTypeColor(
@@ -219,6 +221,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                     </div>
                   </div>
                 )}
+              </div>
 
               <div className="flex flex-col gap-1.5">
                 {/* 타임라인 슬롯 표시 (시간 순서대로 정렬) */}
@@ -404,6 +407,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
           );
         })}
       </div>
+    </div>
 
       {/* 타임라인 모달 */}
       {selectedDate && (() => {

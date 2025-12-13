@@ -61,6 +61,36 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
   // 전체 시간(분)
   const totalMinutes = slotData.reduce((sum, slot) => sum + slot.durationMinutes, 0);
 
+  // 비율 계산 및 최소 너비 적용 후 재정규화
+  const minWidthPercentage = 3; // 최소 3%
+  const rawPercentages = slotData.map((slot) => ({
+    ...slot,
+    rawPercentage: (slot.durationMinutes / totalMinutes) * 100,
+  }));
+
+  // 최소 너비 적용
+  const adjustedPercentages = rawPercentages.map((item) => ({
+    ...item,
+    adjustedPercentage: Math.max(item.rawPercentage, minWidthPercentage),
+  }));
+
+  // 총합 계산
+  const totalAdjusted = adjustedPercentages.reduce(
+    (sum, item) => sum + item.adjustedPercentage,
+    0
+  );
+
+  // 100%로 재정규화 (빈 공간 제거)
+  const normalizedPercentages = adjustedPercentages.map((item) => ({
+    ...item,
+    finalPercentage: (item.adjustedPercentage / totalAdjusted) * 100,
+  }));
+
+  // grid-template-columns 문자열 생성 (fr 단위 사용)
+  const gridTemplateColumns = normalizedPercentages
+    .map((item) => `${item.finalPercentage}fr`)
+    .join(" ");
+
   // aria-label용 설명 생성
   const ariaLabel = slotData
     .map((slot) => `${slotLabels[slot.type]} ${slot.durationHours.toFixed(1)}시간`)
@@ -68,28 +98,24 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
 
   return (
     <div className="flex flex-col gap-1.5 w-full" aria-label={`일정 구성: ${ariaLabel}`}>
-      <div className="flex h-6 md:h-8 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {slotData.map((slot, index) => {
-          // 비율 계산 (백분율)
-          const percentage = (slot.durationMinutes / totalMinutes) * 100;
-          
-          // 최소 너비 확보 (짧은 시간도 시각적으로 보이도록)
-          const minWidthPercentage = 3; // 최소 3%
-          const displayPercentage = Math.max(percentage, minWidthPercentage);
-          
+      <div 
+        className="grid h-6 md:h-8 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+        style={{ gridTemplateColumns }}
+      >
+        {normalizedPercentages.map((item, index) => {
           // 30분 미만은 라벨 생략
-          const showLabel = slot.durationMinutes >= 30;
+          const showLabel = item.durationMinutes >= 30;
           
           // 시간 라벨 포맷 (1시간 미만은 분으로, 이상은 시간으로)
-          const timeLabel = slot.durationHours >= 1
-            ? `${slot.durationHours.toFixed(1)}h`
-            : `${slot.durationMinutes}m`;
+          const timeLabel = item.durationHours >= 1
+            ? `${item.durationHours.toFixed(1)}h`
+            : `${item.durationMinutes}m`;
 
           return (
             <div
-              key={`${slot.type}-${index}`}
-              className={`flex items-center justify-center ${slotColors[slot.type]} text-white transition-all w-[${displayPercentage}%]`}
-              title={`${slotLabels[slot.type]}: ${slot.durationHours.toFixed(1)}시간 (${slot.start} - ${slot.end})`}
+              key={`${item.type}-${index}`}
+              className={`flex items-center justify-center ${slotColors[item.type]} text-white transition-all`}
+              title={`${slotLabels[item.type]}: ${item.durationHours.toFixed(1)}시간 (${item.start} - ${item.end})`}
             >
               {showLabel && (
                 <span className="text-[10px] md:text-xs font-semibold truncate px-1">

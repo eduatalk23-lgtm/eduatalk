@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { useSettings } from "../../SettingsContext";
+import { useSettings } from "../SettingsContext";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { usePhoneValidation } from "../../_hooks/usePhoneValidation";
 import { cn } from "@/lib/cn";

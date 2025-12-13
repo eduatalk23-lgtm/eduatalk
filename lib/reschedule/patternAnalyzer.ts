@@ -12,6 +12,35 @@ import { analyzeDelay } from "./delayDetector";
 import type { Plan } from "@/lib/data/studentPlans";
 
 // ============================================
+// 상수 정의 (Magic Numbers)
+// ============================================
+
+const TREND_THRESHOLDS = {
+  INCREASING: 1.2,
+  DECREASING: 0.8,
+};
+
+const TOP_CONTENT_LIMIT = 5;
+
+const DATE_RANGE_BUCKETS = {
+  WEEK: 7,
+  TWO_WEEKS: 14,
+  MONTH: 30,
+};
+
+const SUGGESTION_THRESHOLDS = {
+  HIGH_FREQUENCY: 2, // 월 2회 이상
+  CONTENT_RESCHEDULE: 3, // 3회 이상 재조정된 콘텐츠
+};
+
+const EFFECTIVENESS_THRESHOLDS = {
+  SUCCESS_HIGH: 90,
+  SUCCESS_MEDIUM: 70,
+  ROLLBACK_LOW: 5,
+  ROLLBACK_MEDIUM: 15,
+};
+
+// ============================================
 // 타입 정의
 // ============================================
 
@@ -145,9 +174,9 @@ function analyzeFrequency(logs: RescheduleLogItem[]): {
   );
 
   let trend: "increasing" | "decreasing" | "stable" = "stable";
-  if (recentLogs.length > olderLogs.length * 1.2) {
+  if (recentLogs.length > olderLogs.length * TREND_THRESHOLDS.INCREASING) {
     trend = "increasing";
-  } else if (recentLogs.length < olderLogs.length * 0.8) {
+  } else if (recentLogs.length < olderLogs.length * TREND_THRESHOLDS.DECREASING) {
     trend = "decreasing";
   }
 
@@ -200,7 +229,7 @@ function identifyFrequentlyRescheduledContents(
       lastRescheduledAt: data.lastDate,
     }))
     .sort((a, b) => b.rescheduleCount - a.rescheduleCount)
-    .slice(0, 5); // 상위 5개만 반환
+    .slice(0, TOP_CONTENT_LIMIT); // 상위 5개만 반환
 }
 
 /**
@@ -249,11 +278,11 @@ function analyzePatterns(logs: RescheduleLogItem[]): {
       );
 
       let range: string;
-      if (daysDiff <= 7) {
+      if (daysDiff <= DATE_RANGE_BUCKETS.WEEK) {
         range = "1-7일";
-      } else if (daysDiff <= 14) {
+      } else if (daysDiff <= DATE_RANGE_BUCKETS.TWO_WEEKS) {
         range = "8-14일";
-      } else if (daysDiff <= 30) {
+      } else if (daysDiff <= DATE_RANGE_BUCKETS.MONTH) {
         range = "15-30일";
       } else {
         range = "30일 이상";
@@ -300,7 +329,7 @@ function generateSuggestions(
   }> = [];
 
   // 재조정 빈도가 높으면 빈도 감소 제안
-  if (analysis.frequency.perMonth > 2) {
+  if (analysis.frequency.perMonth > SUGGESTION_THRESHOLDS.HIGH_FREQUENCY) {
     suggestions.push({
       type: "reduce_frequency",
       priority: 5,
@@ -313,7 +342,7 @@ function generateSuggestions(
   // 자주 재조정되는 콘텐츠가 있으면 최적화 제안
   if (analysis.frequentlyRescheduledContents.length > 0) {
     const topContent = analysis.frequentlyRescheduledContents[0];
-    if (topContent.rescheduleCount >= 3) {
+    if (topContent.rescheduleCount >= SUGGESTION_THRESHOLDS.CONTENT_RESCHEDULE) {
       suggestions.push({
         type: "optimize_content",
         priority: 4,
@@ -397,36 +426,49 @@ export async function detectRescheduleNeeds(
       return [];
     }
 
-    // 2. 각 플랜 그룹에 대해 지연 분석 수행
+    // 2. 일괄 조회: 모든 관련 플랜을 한 번에 가져옵니다 (N+1 문제 해결)
+    const validGroups = planGroups.filter(g => g.period_start && g.period_end);
+    const groupIds = validGroups.map(g => g.id);
+
+    if (groupIds.length === 0) {
+      return [];
+    }
+
+    const { data: allPlans, error: plansError } = await supabase
+      .from("student_plan")
+      .select("*")
+      .in("plan_group_id", groupIds)
+      .eq("student_id", studentId)
+      .order("plan_date", { ascending: true });
+
+    if (plansError) {
+      console.error("[detectRescheduleNeeds] 플랜 일괄 조회 실패:", plansError);
+      return [];
+    }
+
+    // 플랜을 그룹별로 분류
+    const plansByGroupId = new Map<string, typeof allPlans>();
+    
+    (allPlans || []).forEach(plan => {
+      const gId = plan.plan_group_id;
+      if (!plansByGroupId.has(gId)) {
+        plansByGroupId.set(gId, []);
+      }
+      plansByGroupId.get(gId)!.push(plan);
+    });
+
     const recommendations: RescheduleRecommendation[] = [];
 
-    for (const group of planGroups) {
-      if (!group.period_start || !group.period_end) {
-        continue;
-      }
+    // 3. 각 그룹별로 지연 분석 수행 (메모리 상에서 처리)
+    for (const group of validGroups) {
+      const groupPlans = plansByGroupId.get(group.id) || [];
 
-      // 플랜 그룹의 플랜 목록 조회
-      const { data: plans, error: plansError } = await supabase
-        .from("student_plan")
-        .select("*")
-        .eq("plan_group_id", group.id)
-        .eq("student_id", studentId)
-        .order("plan_date", { ascending: true });
-
-      if (plansError) {
-        console.error(
-          `[detectRescheduleNeeds] 플랜 조회 실패 (그룹 ${group.id}):`,
-          plansError
-        );
-        continue;
-      }
-
-      if (!plans || plans.length === 0) {
+      if (groupPlans.length === 0) {
         continue;
       }
 
       // Plan 타입으로 변환 (delayDetector가 기대하는 형식)
-      const planList: Plan[] = plans.map((plan) => ({
+      const planList: Plan[] = groupPlans.map((plan) => ({
         id: plan.id,
         tenant_id: plan.tenant_id,
         student_id: plan.student_id,
@@ -465,19 +507,19 @@ export async function detectRescheduleNeeds(
         status: plan.status as "pending" | "in_progress" | "completed" | "cancelled" | null,
       }));
 
-      // 3. 지연 분석 수행
+      // 4. 지연 분석 수행
       const delayAnalysis = analyzeDelay({
         plans: planList,
         startDate: group.period_start,
         endDate: group.period_end,
       });
 
-      // 4. 지연이 있는 그룹만 필터링 (severity가 "none"이 아닌 경우)
+      // 5. 지연이 있는 그룹만 필터링 (severity가 "none"이 아닌 경우)
       if (delayAnalysis.severity === "none") {
         continue;
       }
 
-      // 5. 우선순위 매핑 (severity → priority)
+      // 6. 우선순위 매핑 (severity → priority)
       let priority: "high" | "medium" | "low";
       if (
         delayAnalysis.severity === "critical" ||
@@ -490,7 +532,7 @@ export async function detectRescheduleNeeds(
         priority = "low";
       }
 
-      // 6. RescheduleRecommendation 생성
+      // 7. RescheduleRecommendation 생성
       recommendations.push({
         groupId: group.id,
         groupName: group.name || undefined,
@@ -502,7 +544,7 @@ export async function detectRescheduleNeeds(
       });
     }
 
-    // 7. 우선순위별 정렬 (high → medium → low)
+    // 8. 우선순위별 정렬 (high → medium → low)
     const priorityOrder: Record<"high" | "medium" | "low", number> = {
       high: 3,
       medium: 2,
@@ -585,10 +627,10 @@ export function analyzeRescheduleEffects(
   let effectiveness: "high" | "medium" | "low" = "medium";
   let effectivenessDescription = "";
 
-  if (successRate >= 90 && rollbackRate <= 5) {
+  if (successRate >= EFFECTIVENESS_THRESHOLDS.SUCCESS_HIGH && rollbackRate <= EFFECTIVENESS_THRESHOLDS.ROLLBACK_LOW) {
     effectiveness = "high";
     effectivenessDescription = "재조정이 효과적으로 이루어지고 있습니다.";
-  } else if (successRate >= 70 && rollbackRate <= 15) {
+  } else if (successRate >= EFFECTIVENESS_THRESHOLDS.SUCCESS_MEDIUM && rollbackRate <= EFFECTIVENESS_THRESHOLDS.ROLLBACK_MEDIUM) {
     effectiveness = "medium";
     effectivenessDescription = "재조정이 대체로 효과적입니다. 일부 개선 여지가 있습니다.";
   } else {

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotificationSettingsView } from "./_components/NotificationSettingsView";
 import PageContainer from "@/components/layout/PageContainer";
-import PageHeader from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function NotificationSettingsPage() {
   const supabase = await createSupabaseServerClient();

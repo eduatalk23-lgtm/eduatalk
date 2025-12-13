@@ -8,6 +8,8 @@ import { FilterBar } from "./_components/FilterBar";
 import { RescheduleRecommendations } from "./_components/RescheduleRecommendations";
 import { getPlanGroupsWithStats, PlanGroupFilters } from "@/lib/data/planGroups";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { PageHeader } from "@/components/layout/PageHeader";
+import PageContainer from "@/components/layout/PageContainer";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";

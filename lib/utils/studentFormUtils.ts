@@ -188,7 +188,7 @@ export function validatePhoneNumber(phone: string): { valid: boolean; error?: st
  */
 export type ValidationErrors = Partial<Record<keyof {
   name: string;
-  school: string;
+  school_id: string;
   grade: string;
   birth_date: string;
   gender: string;
@@ -197,6 +197,7 @@ export type ValidationErrors = Partial<Record<keyof {
   father_phone: string;
   exam_year: string;
   curriculum_revision: string;
+  desired_university_ids: string;
   desired_university_1: string;
   desired_university_2: string;
   desired_university_3: string;

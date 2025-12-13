@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import PageContainer from "@/components/layout/PageContainer";
-import PageHeader from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ContentMetadataTabs } from "./_components/ContentMetadataTabs";
 
 export default function ContentMetadataPage() {

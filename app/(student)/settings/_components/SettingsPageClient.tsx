@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { SettingsContext } from "../SettingsContext";
-import type { SettingsContextType, StudentData } from "../SettingsContext";
+import { SettingsContext } from "./SettingsContext";
+import type { SettingsContextType } from "./SettingsContext";
+import type { StudentData } from "../types";
 import { updateStudentProfile } from "@/app/(student)/actions/studentActions";
 import { transformStudentToFormData } from "../_utils/dataTransform";
 import { useSettingsForm } from "../_hooks/useSettingsForm";
@@ -14,7 +15,7 @@ import { SkeletonForm } from "@/components/ui/SkeletonForm";
 import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useToast } from "@/components/ui/ToastProvider";
 import PageContainer from "@/components/layout/PageContainer";
-import PageHeader from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { InitialSetupBanner } from "./InitialSetupBanner";
 import BasicInfoSection from "./sections/BasicInfoSection";
 import ContactInfoSection from "./sections/ContactInfoSection";
@@ -326,7 +327,9 @@ export default function SettingsPageClient({
     setLoading,
     setSaving,
     setSchoolType,
-    setAutoCalculateFlags,
+    setAutoCalculateFlags: (flags) => {
+      setAutoCalculateFlags((prev) => ({ ...prev, ...flags }));
+    },
     setModalState: (modal, open) => {
       setModalStates((prev) => ({ ...prev, [modal]: open }));
     },

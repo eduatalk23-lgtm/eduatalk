@@ -21,7 +21,7 @@ type PageHeaderProps = {
  *   description="학생 정보를 확인하고 관리할 수 있습니다"
  * />
  */
-export default function PageHeader({
+export function PageHeader({
   title,
   description,
   action,

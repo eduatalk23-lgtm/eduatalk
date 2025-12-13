@@ -193,7 +193,7 @@ function ScoreCardComponent({
     <BaseScoreCard
       score={score}
       subjectGroupName={subjectGroupName}
-      subjectName={subjectName || score.subject_name}
+      subjectName={subjectName || score.subject_name || undefined}
       subjectTypeName={subjectTypeName}
       gradeBadge={gradeBadge}
       periodBadge={periodBadge}

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback } from "react";
-import { useSettings } from "../../SettingsContext";
+import { useSettings } from "../SettingsContext";
 import { SectionCard } from "@/components/ui/SectionCard";
 import SchoolMultiSelect from "@/components/ui/SchoolMultiSelect";
 import { CAREER_FIELD_OPTIONS } from "@/lib/utils/studentProfile";

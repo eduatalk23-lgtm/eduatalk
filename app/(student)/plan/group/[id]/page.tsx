@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
-import { getPlanGroupItems } from "@/lib/data/planGroupItems";
+
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { PlanGroupDetailView } from "./_components/PlanGroupDetailView";
@@ -87,8 +87,7 @@ export default async function PlanGroupDetailPage({
   const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
   const blockSets = await fetchBlockSetsWithBlocks(user.id);
 
-  // 논리 플랜 목록 조회 (재조정 기능으로 통합되어 사용하지 않지만, 데이터는 유지)
-  const logicalPlans = await getPlanGroupItems(id, tenantContext?.tenantId || null);
+
 
   // 플랜 데이터 조회 (자동 재조정 제안을 위해 전체 플랜 정보 필요)
   const { data: plans } = await supabase
@@ -726,7 +725,7 @@ export default async function PlanGroupDetailPage({
             templateBlockSetId={templateBlockSetId}
             blockSets={blockSets}
             campTemplateId={isCampMode ? group.camp_template_id : null}
-            logicalPlans={logicalPlans}
+
           />
         </div>
       </div>

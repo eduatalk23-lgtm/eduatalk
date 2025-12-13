@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
-import { useSettings } from "../../SettingsContext";
+import { useSettings } from "../SettingsContext";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { CalculationInfoModal } from "../CalculationInfoModal";
 import {
@@ -159,14 +159,14 @@ function ExamInfoSection() {
       </SectionCard>
 
       <CalculationInfoModal
-        isOpen={modalStates.examYear}
-        onClose={() => setModalState("examYear", false)}
-        type="examYear"
+        open={modalStates.examYear}
+        onOpenChange={(open) => setModalState("examYear", open)}
+        type="exam_year"
       />
       <CalculationInfoModal
-        isOpen={modalStates.curriculum}
-        onClose={() => setModalState("curriculum", false)}
-        type="curriculum"
+        open={modalStates.curriculum}
+        onOpenChange={(open) => setModalState("curriculum", open)}
+        type="curriculum_revision"
       />
     </>
   );

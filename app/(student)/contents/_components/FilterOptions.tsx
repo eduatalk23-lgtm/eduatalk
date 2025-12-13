@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { FilterBar } from "./FilterBar";
 import { FilterDrawer } from "./FilterDrawer";
 

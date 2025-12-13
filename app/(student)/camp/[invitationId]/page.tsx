@@ -6,6 +6,7 @@ import { fetchAllStudentContents } from "@/lib/data/planContents";
 import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getContainerClass } from "@/lib/constants/layout";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import Link from "next/link";
 

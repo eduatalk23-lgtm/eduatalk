@@ -5,7 +5,7 @@ import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { GeneratePlansButton } from "./GeneratePlansButton";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { ErrorBoundary } from "./ErrorBoundary";
-import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus, PlanGroupItem } from "@/lib/types/plan";
+import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
 import { planGroupToWizardData, contentsToWizardFormat } from "@/lib/utils/planGroupAdapters";
 
@@ -25,9 +25,7 @@ const Step6Simplified = lazy(() =>
 const Step7ScheduleResult = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step7ScheduleResult").then(module => ({ default: module.Step7ScheduleResult }))
 );
-const LogicalPlanList = lazy(() => 
-  import("./LogicalPlanList").then(module => ({ default: module.LogicalPlanList }))
-);
+
 
 type PlanGroupDetailViewProps = {
   group: PlanGroup;
@@ -62,7 +60,7 @@ type PlanGroupDetailViewProps = {
     }>;
   }>;
   campTemplateId?: string | null;
-  logicalPlans?: PlanGroupItem[];
+
 };
 
 export function PlanGroupDetailView({
@@ -80,7 +78,7 @@ export function PlanGroupDetailView({
   templateBlockSetId = null,
   blockSets = [],
   campTemplateId = null,
-  logicalPlans = [],
+
 }: PlanGroupDetailViewProps) {
   const scheduleViewRef = useRef<PlanScheduleViewRef | null>(null);
 
@@ -91,7 +89,6 @@ export function PlanGroupDetailView({
     { id: 4, label: "콘텐츠 선택", completed: contents.length > 0 }, // 학생 + 추천 통합
     { id: 6, label: "최종 검토", completed: true },
     { id: 7, label: "스케줄 결과", completed: hasPlans },
-    // { id: 8, label: "논리 플랜", completed: false }, // 논리 플랜 관리 탭 - 재조정 기능으로 통합되어 숨김 처리
   ], [group.name, group.plan_purpose, group.scheduler_type, group.block_set_id, contents.length, hasPlans]);
 
   // 캠프 제출 모드일 때 탭 필터링 (1, 2, 4만 표시, 추천 콘텐츠 제외)
@@ -329,24 +326,14 @@ export function PlanGroupDetailView({
         );
       case 7:
         return (
-          <Suspense fallback={<TabLoadingSkeleton />}>
+          <Suspense fallback={<LoadingSkeleton variant="tab" />}>
             <Step7ScheduleResult
               groupId={groupId}
               onComplete={() => {}}
             />
           </Suspense>
         );
-      // case 8: 논리 플랜 관리 - 재조정 기능으로 통합되어 숨김 처리
-      // return (
-      //   <Suspense fallback={<TabLoadingSkeleton />}>
-      //     <LogicalPlanList
-      //       planGroupId={groupId}
-      //       tenantId={group.tenant_id || null}
-      //       initialItems={logicalPlans}
-      //       readOnly={!canEdit}
-      //     />
-      //   </Suspense>
-      // );
+
       default:
         return (
           <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>

@@ -16,7 +16,7 @@ import {
 } from "./_components/AttendanceRecordForm";
 import { AttendanceList } from "./_components/AttendanceList";
 import { AttendanceStatistics } from "./_components/AttendanceStatistics";
-import { AttendanceFilters } from "./_components/AttendanceFilters";
+import { AttendanceFilters as AttendanceFiltersComponent } from "./_components/AttendanceFilters";
 import type {
   AttendanceFilters,
   AttendanceRecord,
@@ -226,7 +226,7 @@ async function AttendanceContent({
         </div>
 
         {/* 필터 */}
-        <AttendanceFilters
+        <AttendanceFiltersComponent
           startDateFilter={startDateFilter}
           endDateFilter={endDateFilter}
           statusFilter={statusFilter}

@@ -478,6 +478,7 @@ export default function AcademyScheduleManagement({
               </button>
                 </div>
               </div>
+              </div>
             )}
 
             {/* 학원 목록 */}
@@ -637,6 +638,7 @@ export default function AcademyScheduleManagement({
                       onChange={(e) => setScheduleSubject(e.target.value)}
                     />
                   </div>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -727,11 +729,13 @@ export default function AcademyScheduleManagement({
                     ))}
                   </div>
                 </div>
+                </div>
               ))}
             </div>
           ) : (
             <p className="text-sm text-gray-500">등록된 일정이 없습니다. 위에서 일정을 추가해주세요.</p>
           )}
+        </div>
         </div>
       )}
     </div>

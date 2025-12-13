@@ -2,18 +2,9 @@
  * 학생 데이터 변환 유틸리티
  */
 
-import type { Student } from "@/lib/data/students";
-import type { StudentProfile } from "@/lib/data/studentProfiles";
-import type { StudentCareerGoal } from "@/lib/data/studentCareerGoals";
-import type { StudentFormData } from "../types";
+import type { StudentData, StudentFormData } from "../types";
 import { isGender, isCurriculumRevision, isCareerField, toFormDataValue } from "../types";
 import { parseGradeNumber } from "@/lib/utils/studentFormUtils";
-
-export type StudentData = Student &
-  Partial<StudentProfile> &
-  Partial<StudentCareerGoal> & {
-    desired_career_field?: string | null;
-  };
 
 /**
  * Student 데이터를 FormData로 변환

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { updatePassword } from "@/app/(student)/actions/accountActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import PageContainer from "@/components/layout/PageContainer";
-import PageHeader from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function AccountSettingsPage() {
   const router = useRouter();

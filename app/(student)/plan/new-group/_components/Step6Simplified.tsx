@@ -624,6 +624,7 @@ function SubjectAllocationEditor({
                 );
               })}
             </div>
+            </div>
           </div>
         );
       })}
@@ -643,6 +644,7 @@ function SubjectAllocationEditor({
           </p>
         </div>
       </div>
+    </div>
     </div>
   );
 }

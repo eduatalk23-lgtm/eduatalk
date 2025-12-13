@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, forwardRef } from "react";
+import { memo, forwardRef, isValidElement } from "react";
 import { cn } from "@/lib/cn";
 
 export type ButtonVariant =
@@ -60,7 +60,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     // 아이콘만 있는 버튼의 경우 aria-label 필수
-    const hasOnlyIcon = typeof children === "object" && children !== null && !("props" in children && children.props?.children);
+    const hasOnlyIcon = isValidElement(children) && !Boolean((children.props as any).children);
     const finalAriaLabel = ariaLabel || (hasOnlyIcon && !props.title ? "버튼" : undefined);
 
     return (

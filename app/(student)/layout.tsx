@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic'; // Removed for static optimization
 
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";

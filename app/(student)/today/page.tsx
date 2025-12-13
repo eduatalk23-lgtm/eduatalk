@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+// export const dynamic = "force-dynamic"; // Removed for static optimization
 
 import { redirect } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";
@@ -20,15 +20,7 @@ import { getPlanById } from "@/lib/data/studentPlans";
 import { getContainerClass } from "@/lib/constants/layout";
 
 type TodayPageProps = {
-  searchParams?:
-    | ReadonlyURLSearchParams
-    | URLSearchParams
-    | Record<string, string | string[] | undefined>
-    | Promise<
-        | ReadonlyURLSearchParams
-        | URLSearchParams
-        | Record<string, string | string[] | undefined>
-      >;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export default async function TodayPage({ searchParams }: TodayPageProps) {
@@ -44,17 +36,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const tenantContext = await getTenantContext();
 
   const resolveSearchParams = async () => {
-    if (
-      searchParams &&
-      typeof (searchParams as Promise<unknown>)?.then === "function"
-    ) {
-      return (await searchParams) as
-        | ReadonlyURLSearchParams
-        | URLSearchParams
-        | Record<string, string | string[] | undefined>
-        | undefined;
-    }
-    return searchParams;
+    return await searchParams;
   };
 
   const resolvedSearchParams = await resolveSearchParams();

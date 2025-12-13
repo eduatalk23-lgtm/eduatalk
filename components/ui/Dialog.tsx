@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
 
-export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
+export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 
 export type DialogProps = {
   open: boolean;
@@ -94,6 +94,7 @@ export function Dialog({
           effectiveSize === "lg" && "max-w-lg",
           effectiveSize === "xl" && "max-w-xl",
           effectiveSize === "2xl" && "max-w-2xl",
+          effectiveSize === "3xl" && "max-w-3xl",
           effectiveSize === "4xl" && "max-w-4xl",
           effectiveSize === "full" && "max-w-full"
         )}
@@ -150,7 +151,7 @@ export function Dialog({
   );
 }
 
-type DialogContentProps = {
+export type DialogContentProps = {
   children: React.ReactNode;
   className?: string;
 };
@@ -159,7 +160,7 @@ export function DialogContent({ children, className }: DialogContentProps) {
   return <div className={cn("px-6 py-4", className)}>{children}</div>;
 }
 
-type DialogFooterProps = {
+export type DialogFooterProps = {
   children: React.ReactNode;
   className?: string;
 };

@@ -5,7 +5,8 @@
  * 이 파일은 하위 호환성을 위해 re-export만 제공합니다.
  */
 
-// Re-export from ui/Dialog for backward compatibility
+import { Dialog } from "@/components/ui/Dialog";
+
 export {
   Dialog,
   DialogContent,

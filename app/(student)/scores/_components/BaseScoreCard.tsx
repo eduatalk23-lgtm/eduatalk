@@ -5,7 +5,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { Dialog } from "@/components/ui/Dialog";
 import { cn } from "@/lib/cn";
 
-type BaseScoreCardProps<T extends { id: string; grade_score: number | null }> = {
+type BaseScoreCardProps<T extends { id: string; grade_score?: number | null }> = {
   score: T;
   subjectGroupName?: string;
   subjectName?: string;
@@ -18,9 +18,10 @@ type BaseScoreCardProps<T extends { id: string; grade_score: number | null }> = 
   onDelete: (scoreId: string) => void;
 };
 
-function BaseScoreCardComponent<T extends { id: string; grade_score: number | null }>({
+function BaseScoreCardComponent<T extends { id: string; grade_score?: number | null }>({
   score,
   subjectGroupName,
+  subjectName,
   subjectTypeName,
   gradeBadge,
   periodBadge,
