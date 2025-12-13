@@ -144,8 +144,8 @@ export const ContentsSummary = React.memo(function ContentsSummary({
 
       {/* 필수 과목 체크 (캠프 모드에서만 표시) */}
       {isCampMode && requiredSubjects.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-900">필수 과목</h4>
             {allRequiredSelected && (
               <div className="flex items-center gap-1 text-green-600">
@@ -203,8 +203,8 @@ export const ContentsSummary = React.memo(function ContentsSummary({
       )}
 
       {/* 타입별 분포 */}
-      <div>
-        <h4 className="mb-3 text-sm font-semibold text-gray-900">타입별 분포</h4>
+      <div className="flex flex-col gap-3">
+        <h4 className="text-sm font-semibold text-gray-900">타입별 분포</h4>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-center gap-2">

@@ -73,19 +73,21 @@ export const SummaryCard = React.memo(function SummaryCard({
     <div
       className={cn("rounded-lg border p-4 transition-all", styles.container)}
     >
-      {/* 아이콘 (옵션) */}
-      {icon && <div className={cn("mb-2", styles.icon)}>{icon}</div>}
+      <div className="flex flex-col gap-1">
+        {/* 아이콘 (옵션) */}
+        {icon && <div className={cn(styles.icon)}>{icon}</div>}
 
-      {/* 제목 */}
-      <div className={cn("text-sm font-medium", styles.title)}>{title}</div>
+        {/* 제목 */}
+        <div className={cn("text-sm font-medium", styles.title)}>{title}</div>
 
-      {/* 값 */}
-      <div className={cn("mt-1 text-2xl font-bold", styles.value)}>{value}</div>
+        {/* 값 */}
+        <div className={cn("text-2xl font-bold", styles.value)}>{value}</div>
 
-      {/* 부제목 (옵션) */}
-      {subtitle && (
-        <div className={cn("mt-1 text-xs", styles.title)}>{subtitle}</div>
-      )}
+        {/* 부제목 (옵션) */}
+        {subtitle && (
+          <div className={cn("text-xs", styles.title)}>{subtitle}</div>
+        )}
+      </div>
     </div>
   );
 });

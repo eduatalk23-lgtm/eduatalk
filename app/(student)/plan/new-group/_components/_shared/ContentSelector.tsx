@@ -94,7 +94,7 @@ export const ContentSelector = React.memo(function ContentSelector({
       </div>
 
       {/* 탭 */}
-      <div className="mt-4 flex gap-2">
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setActiveTab("book")}
@@ -175,7 +175,7 @@ export const ContentSelector = React.memo(function ContentSelector({
       </div>
 
       {/* 검색 */}
-      <div className="relative mt-4">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
@@ -192,7 +192,7 @@ export const ContentSelector = React.memo(function ContentSelector({
       </div>
 
       {/* 콘텐츠 목록 */}
-      <div className="mt-4 max-h-96 space-y-2 overflow-y-auto">
+      <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
         {availableContents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="rounded-full bg-gray-100 p-3">

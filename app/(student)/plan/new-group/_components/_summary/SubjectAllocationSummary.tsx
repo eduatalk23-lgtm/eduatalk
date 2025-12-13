@@ -45,7 +45,7 @@ export const SubjectAllocationSummary = React.memo(
           <p className="text-sm text-gray-600">
             전략과목/취약과목이 설정되지 않았습니다
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             모든 과목이 동일하게 배정됩니다
           </p>
         </div>

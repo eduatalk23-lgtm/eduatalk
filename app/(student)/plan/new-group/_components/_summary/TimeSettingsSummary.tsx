@@ -124,7 +124,7 @@ export const TimeSettingsSummary = React.memo(function TimeSettingsSummary({
         <p className="text-sm text-gray-600">
           학원 일정이나 제외일이 설정되지 않았습니다
         </p>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="text-xs text-gray-500">
           모든 날짜에 학습이 배정됩니다
         </p>
       </div>

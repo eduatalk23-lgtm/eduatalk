@@ -44,15 +44,15 @@ export const EditableField = React.memo(function EditableField({
   // 읽기 전용 모드
   if (mode === "readonly") {
     return (
-      <div>
+      <div className="flex flex-col gap-1">
         <dt className="text-sm font-medium text-gray-500">{label}</dt>
-        <dd className="mt-1 text-lg text-gray-900">
+        <dd className="text-lg text-gray-900">
           {type === "select" && options
             ? options.find((opt) => opt.value === value)?.label || displayValue
             : displayValue}
         </dd>
         {description && (
-          <p className="mt-1 text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-gray-600">{description}</p>
         )}
       </div>
     );
@@ -60,7 +60,7 @@ export const EditableField = React.memo(function EditableField({
 
   // 편집 모드
   return (
-    <div>
+    <div className="flex flex-col gap-1">
       <label
         className={cn(
           "block text-sm font-medium text-gray-800",
@@ -70,7 +70,7 @@ export const EditableField = React.memo(function EditableField({
         {label}
       </label>
         {description && (
-          <p className="mt-1 text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-gray-600">{description}</p>
         )}
       {type === "select" && options ? (
         <select
@@ -78,7 +78,7 @@ export const EditableField = React.memo(function EditableField({
           onChange={(e) => onChange?.(e.target.value)}
           disabled={locked}
           className={cn(
-            "mt-1 block w-full rounded-md border-gray-300 text-gray-900 shadow-sm",
+            "block w-full rounded-md border-gray-300 text-gray-900 shadow-sm",
             "focus:border-blue-500 focus:ring-blue-500",
             locked && "cursor-not-allowed bg-gray-100 text-gray-600"
           )}
@@ -98,14 +98,14 @@ export const EditableField = React.memo(function EditableField({
           disabled={locked}
           placeholder={placeholder}
           className={cn(
-            "mt-1 block w-full rounded-md border-gray-300 text-gray-900 placeholder:text-gray-600 shadow-sm",
+            "block w-full rounded-md border-gray-300 text-gray-900 placeholder:text-gray-600 shadow-sm",
             "focus:border-blue-500 focus:ring-blue-500",
             locked && "cursor-not-allowed bg-gray-100 text-gray-600"
           )}
         />
       )}
       {locked && (
-        <p className="mt-1 text-xs text-amber-600">
+        <p className="text-xs text-amber-600">
           이 필드는 템플릿에서 고정되었습니다
         </p>
       )}

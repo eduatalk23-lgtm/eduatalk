@@ -44,9 +44,9 @@ export function Step3SchedulePreview({
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex flex-col gap-2">
           <h2 className="text-2xl font-bold text-gray-900">스케줄 미리보기</h2>
-          <p className="mt-2 text-gray-600">
+          <p className="text-gray-600">
             설정된 블록과 제외일을 기반으로 생성된 스케줄을 확인하세요.
           </p>
         </div>
