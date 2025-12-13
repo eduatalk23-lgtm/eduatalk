@@ -1,4 +1,4 @@
-// export const dynamic = "force-dynamic"; // Removed for static optimization
+export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import type { ReadonlyURLSearchParams } from "next/navigation";

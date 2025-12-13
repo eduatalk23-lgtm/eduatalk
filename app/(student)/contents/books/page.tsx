@@ -1,4 +1,6 @@
 // app/contents/books/page.tsx
+export const dynamic = 'force-dynamic';
+
 import Link from "next/link";
 import { addBook } from "@/app/(student)/actions/contentActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

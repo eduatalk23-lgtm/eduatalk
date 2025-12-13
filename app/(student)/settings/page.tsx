@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { redirect } from "next/navigation";
 import { getCurrentStudent } from "@/app/(student)/actions/studentActions";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
