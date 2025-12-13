@@ -52,9 +52,9 @@ export default async function EditScorePage({ params }: EditScorePageProps) {
 
   return (
     <section className={getContainerClass("FORM", "lg")}>
-      <div className="mb-8">
+      <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold text-gray-900">성적 수정</h1>
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="text-sm text-gray-500">
           성적 정보를 수정하세요.
         </p>
       </div>

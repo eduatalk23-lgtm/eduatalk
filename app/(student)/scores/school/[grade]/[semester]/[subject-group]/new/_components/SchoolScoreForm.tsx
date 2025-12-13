@@ -204,10 +204,10 @@ export default function SchoolScoreForm({
 
         <div className="grid gap-6 sm:grid-cols-2">
           {/* 과목 유형 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_type"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               과목 유형 <span className="text-red-500">*</span>
             </label>
@@ -228,15 +228,15 @@ export default function SchoolScoreForm({
               <option value="진로선택">진로선택</option>
             </select>
             {errors.subject_type && touched.subject_type && (
-              <p className="mt-1 text-xs text-red-600">{errors.subject_type}</p>
+              <p className="text-xs text-red-600">{errors.subject_type}</p>
             )}
           </div>
 
           {/* 세부 과목명 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_name"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               세부 과목명 <span className="text-red-500">*</span>
             </label>
@@ -254,15 +254,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.subject_name && touched.subject_name && (
-              <p className="mt-1 text-xs text-red-600">{errors.subject_name}</p>
+              <p className="text-xs text-red-600">{errors.subject_name}</p>
             )}
           </div>
 
           {/* 학점수 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="credit_hours"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               학점수 <span className="text-red-500">*</span>
             </label>
@@ -282,15 +282,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.credit_hours && touched.credit_hours && (
-              <p className="mt-1 text-xs text-red-600">{errors.credit_hours}</p>
+              <p className="text-xs text-red-600">{errors.credit_hours}</p>
             )}
           </div>
 
           {/* 원점수 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="raw_score"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               원점수 <span className="text-red-500">*</span>
             </label>
@@ -310,15 +310,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.raw_score && touched.raw_score && (
-              <p className="mt-1 text-xs text-red-600">{errors.raw_score}</p>
+              <p className="text-xs text-red-600">{errors.raw_score}</p>
             )}
           </div>
 
           {/* 과목평균 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_average"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               과목평균
             </label>
@@ -337,15 +337,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.subject_average && touched.subject_average && (
-              <p className="mt-1 text-xs text-red-600">{errors.subject_average}</p>
+              <p className="text-xs text-red-600">{errors.subject_average}</p>
             )}
           </div>
 
           {/* 표준편차 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="standard_deviation"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               표준편차
             </label>
@@ -365,15 +365,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.standard_deviation && touched.standard_deviation && (
-              <p className="mt-1 text-xs text-red-600">{errors.standard_deviation}</p>
+              <p className="text-xs text-red-600">{errors.standard_deviation}</p>
             )}
           </div>
 
           {/* 성취도 등급 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="grade_score"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               성취도 등급 <span className="text-red-500">*</span>
             </label>
@@ -393,16 +393,16 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.grade_score && touched.grade_score && (
-              <p className="mt-1 text-xs text-red-600">{errors.grade_score}</p>
+              <p className="text-xs text-red-600">{errors.grade_score}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
+            <p className="text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
           </div>
 
           {/* 수강자수 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="total_students"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               수강자수
             </label>
@@ -421,15 +421,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.total_students && touched.total_students && (
-              <p className="mt-1 text-xs text-red-600">{errors.total_students}</p>
+              <p className="text-xs text-red-600">{errors.total_students}</p>
             )}
           </div>
 
           {/* 석차등급 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="rank_grade"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               석차등급
             </label>
@@ -449,15 +449,15 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.rank_grade && touched.rank_grade && (
-              <p className="mt-1 text-xs text-red-600">{errors.rank_grade}</p>
+              <p className="text-xs text-red-600">{errors.rank_grade}</p>
             )}
           </div>
 
           {/* 반 석차 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="class_rank"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700"
             >
               반 석차
             </label>
@@ -476,7 +476,7 @@ export default function SchoolScoreForm({
               }`}
             />
             {errors.class_rank && touched.class_rank && (
-              <p className="mt-1 text-xs text-red-600">{errors.class_rank}</p>
+              <p className="text-xs text-red-600">{errors.class_rank}</p>
             )}
           </div>
 
