@@ -65,9 +65,9 @@ export function SubjectGradeHistoryChart({
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       {/* 과목 선택 체크박스 */}
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3">
         {data.map((subject, index) => {
           const key = `${subject.course}:${subject.course_detail}`;
           const isSelected = selectedSubjects.includes(key);

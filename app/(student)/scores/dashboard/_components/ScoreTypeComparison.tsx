@@ -18,12 +18,12 @@ export function ScoreTypeComparison({ data }: ScoreTypeComparisonProps) {
       {data.map((item) => (
         <div
           key={item.score_type}
-          className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+          className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900">
             {item.score_type}
           </h3>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <div>
               <p className="text-xs text-gray-500">평균 등급</p>
               <p className="text-2xl font-bold text-indigo-600">

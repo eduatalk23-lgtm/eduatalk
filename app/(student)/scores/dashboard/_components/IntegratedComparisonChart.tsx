@@ -182,8 +182,8 @@ export function IntegratedComparisonChart({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">
           통합 성적 비교 분석
         </h2>
@@ -258,7 +258,7 @@ export function IntegratedComparisonChart({
           </LineChart>
         </ResponsiveContainer>
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={subjectData}
@@ -284,8 +284,8 @@ export function IntegratedComparisonChart({
           </ResponsiveContainer>
           
           {/* 차이 분석 테이블 */}
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h3 className="text-sm font-semibold text-gray-900">
               등급 차이 분석
             </h3>
             <div className="overflow-x-auto">
