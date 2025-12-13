@@ -371,32 +371,30 @@ export function CampPlanGroupReviewForm({
 
             {/* 블록 세트 정보 */}
             {templateBlockSetName && (
-              <div className="mt-6 border-t border-gray-100 pt-4">
+              <div className="flex flex-col gap-3 border-t border-gray-100 pt-4">
                 <label className="text-xs font-medium text-gray-500">블록 세트</label>
-                <div className="mt-2 space-y-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{templateBlockSetName}</p>
-                  </div>
-                  {templateBlocks.length > 0 ? (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {templateBlocks.map((block) => (
-                        <div
-                          key={block.id}
-                          className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
-                        >
-                          <div className="text-sm font-medium text-gray-900">
-                            {["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"][block.day_of_week]}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {block.start_time} ~ {block.end_time}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">등록된 시간 블록이 없습니다.</p>
-                  )}
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{templateBlockSetName}</p>
                 </div>
+                {templateBlocks.length > 0 ? (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {templateBlocks.map((block) => (
+                      <div
+                        key={block.id}
+                        className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                      >
+                        <div className="text-sm font-medium text-gray-900">
+                          {["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"][block.day_of_week]}
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {block.start_time} ~ {block.end_time}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">등록된 시간 블록이 없습니다.</p>
+                )}
               </div>
             )}
           </>

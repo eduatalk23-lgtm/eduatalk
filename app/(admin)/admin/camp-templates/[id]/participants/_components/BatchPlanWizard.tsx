@@ -175,7 +175,7 @@ export function BatchPlanWizard({
                       {isCompleted ? "✓" : step}
                     </div>
                     <div
-                      className={`mt-2 text-xs font-medium ${
+                      className={`text-xs font-medium ${
                         isActive
                           ? "text-indigo-600"
                           : isCompleted
@@ -188,7 +188,7 @@ export function BatchPlanWizard({
                   </div>
                   {step < 4 && (
                     <div
-                      className={`mx-2 h-0.5 flex-1 ${
+                      className={`h-0.5 flex-1 ${
                         isCompleted ? "bg-green-600" : "bg-gray-300"
                       }`}
                     />
