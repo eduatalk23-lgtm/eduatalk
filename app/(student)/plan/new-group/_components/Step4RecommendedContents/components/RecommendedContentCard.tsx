@@ -31,18 +31,18 @@ export default function RecommendedContentCard({
         type="checkbox"
         checked={isSelected}
         onChange={() => onToggleSelection(content.id)}
-        className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
       />
-      <div className="flex-1">
+      <div className="flex flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
+          <div className="flex flex-1 flex-col gap-1">
             {/* 제목 */}
             <div className="text-sm font-medium text-gray-900">
               {content.title}
             </div>
 
             {/* 메타 정보 */}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
               {/* 콘텐츠 타입 */}
               {content.contentType === "book" && (
                 <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
@@ -109,43 +109,41 @@ export default function RecommendedContentCard({
             </div>
 
             {/* 추천 이유 */}
-            <div className="mt-1">
-              <div className="text-xs text-gray-600">
-                <span className="font-medium">추천 이유:</span> {content.reason}
-              </div>
-
-              {/* 성적 데이터 */}
-              {content.scoreDetails && (
-                <div className="mt-1 flex flex-wrap gap-1 text-xs">
-                  {/* 내신 평균 */}
-                  {content.scoreDetails.schoolAverageGrade !== null &&
-                    content.scoreDetails.schoolAverageGrade !== undefined && (
-                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
-                        내신 평균{" "}
-                        {formatNumber(content.scoreDetails.schoolAverageGrade)}
-                        등급
-                      </span>
-                    )}
-
-                  {/* 모의고사 백분위 */}
-                  {content.scoreDetails.mockPercentile !== null &&
-                    content.scoreDetails.mockPercentile !== undefined && (
-                      <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
-                        모의고사{" "}
-                        {formatNumber(content.scoreDetails.mockPercentile)}%
-                      </span>
-                    )}
-
-                  {/* 위험도 */}
-                  {content.scoreDetails.riskScore !== undefined &&
-                    content.scoreDetails.riskScore >= 50 && (
-                      <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-800">
-                        위험도 {formatNumber(content.scoreDetails.riskScore)}점
-                      </span>
-                    )}
-                </div>
-              )}
+            <div className="text-xs text-gray-600">
+              <span className="font-medium">추천 이유:</span> {content.reason}
             </div>
+
+            {/* 성적 데이터 */}
+            {content.scoreDetails && (
+              <div className="flex flex-wrap gap-1 text-xs">
+                {/* 내신 평균 */}
+                {content.scoreDetails.schoolAverageGrade !== null &&
+                  content.scoreDetails.schoolAverageGrade !== undefined && (
+                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
+                      내신 평균{" "}
+                      {formatNumber(content.scoreDetails.schoolAverageGrade)}
+                      등급
+                    </span>
+                  )}
+
+                {/* 모의고사 백분위 */}
+                {content.scoreDetails.mockPercentile !== null &&
+                  content.scoreDetails.mockPercentile !== undefined && (
+                    <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
+                      모의고사{" "}
+                      {formatNumber(content.scoreDetails.mockPercentile)}%
+                    </span>
+                  )}
+
+                {/* 위험도 */}
+                {content.scoreDetails.riskScore !== undefined &&
+                  content.scoreDetails.riskScore >= 50 && (
+                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-800">
+                      위험도 {formatNumber(content.scoreDetails.riskScore)}점
+                    </span>
+                  )}
+              </div>
+            )}
           </div>
         </div>
       </div>

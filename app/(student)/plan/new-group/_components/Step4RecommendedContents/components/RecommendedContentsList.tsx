@@ -67,14 +67,14 @@ export default function RecommendedContentsList({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* 재추천 버튼 */}
       <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold text-gray-900">
             추천 콘텐츠 목록
           </h3>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             추천 결과가 마음에 들지 않으면 다시 추천받을 수 있습니다.
           </p>
         </div>
@@ -90,7 +90,7 @@ export default function RecommendedContentsList({
       </div>
 
       {/* 과목별 그룹화된 추천 목록 */}
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {sortedSubjects.map((subject) => {
           const contents = contentsBySubject.get(subject) || [];
           const isRequired = requiredSubjectCategories.includes(subject);
@@ -99,9 +99,9 @@ export default function RecommendedContentsList({
           return (
             <div
               key={subject}
-              className="rounded-lg border border-gray-200 bg-white p-4"
+              className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4"
             >
-              <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-gray-900">
                     {subject}
@@ -139,7 +139,7 @@ export default function RecommendedContentsList({
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {contents.map((content) => {
                   const isSelected = selectedContentIds.has(content.id);
                   return (
@@ -158,14 +158,14 @@ export default function RecommendedContentsList({
       </div>
 
       {/* 선택 요약 및 추가 버튼 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <div className="mb-3 space-y-2">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium text-gray-800">
               선택된 추천 콘텐츠: {selectedContentIds.size}개
               {totalCount > 0 && (
-                <span className="ml-2 text-gray-500">
-                  (전체 {totalCount}개 중 학생 {studentCount}개, 추천{" "}
+                <span className="text-gray-500">
+                  {" "}(전체 {totalCount}개 중 학생 {studentCount}개, 추천{" "}
                   {recommendedCount}개)
                 </span>
               )}
@@ -180,10 +180,10 @@ export default function RecommendedContentsList({
             )}
           </div>
           {selectedContentIds.size > 0 && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-2">
+            <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 p-2">
               <div className="text-xs text-green-800">
                 <span className="font-medium">선택된 추천 콘텐츠:</span>
-                <div className="mt-1 space-y-1">
+                <div className="flex flex-col gap-1">
                   {Array.from(selectedContentIds).map((id) => {
                     const content = recommendedContents.find(
                       (c) => c.id === id

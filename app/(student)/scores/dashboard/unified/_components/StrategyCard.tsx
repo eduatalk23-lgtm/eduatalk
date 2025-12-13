@@ -1,6 +1,7 @@
-import { Card, CardHeader } from "@/components/molecules/Card";
+import { SectionCard } from "@/components/ui/SectionCard";
 import type { StrategyResult, StrategyType } from "@/lib/types/scoreDashboard";
 import { cn } from "@/lib/cn";
+import { InfoMessage } from "./InfoMessage";
 
 interface StrategyCardProps {
   strategy: StrategyResult;
@@ -39,39 +40,35 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
   const style = strategyStyles[type];
 
   return (
-    <Card>
-      <CardHeader
-        title="수시/정시 전략 분석"
-        description="내신과 모의고사 성적 비교 기반 추천"
-      />
-
+    <SectionCard
+      title="수시/정시 전략 분석"
+      description="내신과 모의고사 성적 비교 기반 추천"
+    >
       {/* 전략 유형 배지 */}
-      <div className="mt-4">
-        <span
-          className={cn(
-            "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
-            style.badgeBg,
-            style.badgeText
-          )}
-        >
-          {style.label}
-        </span>
-      </div>
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold",
+          style.badgeBg,
+          style.badgeText
+        )}
+      >
+        {style.label}
+      </span>
 
       {/* 전략 메시지 */}
-      <div className="mt-4 rounded-lg bg-gray-50 p-4">
+      <div className="rounded-lg bg-gray-50 p-4">
         <p className="text-sm leading-relaxed text-gray-800">{message}</p>
       </div>
 
       {/* 비교 데이터 */}
-      <div className="mt-4">
-        <div className="mb-2 text-sm font-semibold text-gray-700">
+      <div className="flex flex-col gap-2">
+        <div className="text-sm font-semibold text-gray-700">
           성적 비교 지표
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           {/* 내신 백분위 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <div className="mb-1 text-xs font-medium text-gray-500">
+          <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-3">
+            <div className="text-xs font-medium text-gray-500">
               내신 환산 백분위
             </div>
             <div className="text-xl font-bold text-purple-700">
@@ -82,8 +79,8 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
           </div>
 
           {/* 모의고사 백분위 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <div className="mb-1 text-xs font-medium text-gray-500">
+          <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-3">
+            <div className="text-xs font-medium text-gray-500">
               모의고사 평균 백분위
             </div>
             <div className="text-xl font-bold text-blue-700">
@@ -92,8 +89,8 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
           </div>
 
           {/* 차이 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-3">
-            <div className="mb-1 text-xs font-medium text-gray-500">
+          <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-3">
+            <div className="text-xs font-medium text-gray-500">
               백분위 차이
             </div>
             <div
@@ -119,13 +116,11 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
       </div>
 
       {/* 안내 문구 */}
-      <div className="mt-4 rounded-lg border border-gray-200 bg-blue-50 p-3">
-        <p className="text-xs leading-relaxed text-blue-800">
-          💡 이 분석은 현재까지 입력된 성적을 기반으로 합니다. 정확한 전략
-          수립을 위해 최신 성적을 꾸준히 입력해주세요.
-        </p>
-      </div>
-    </Card>
+      <InfoMessage
+        message="💡 이 분석은 현재까지 입력된 성적을 기반으로 합니다. 정확한 전략 수립을 위해 최신 성적을 꾸준히 입력해주세요."
+        variant="info"
+      />
+    </SectionCard>
   );
 }
 

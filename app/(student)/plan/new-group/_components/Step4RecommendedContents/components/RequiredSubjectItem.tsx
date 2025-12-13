@@ -170,11 +170,11 @@ export default function RequiredSubjectItem({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
       <div className="flex items-start gap-3">
         {/* 교과 선택 */}
-        <div className="flex-1">
-          <label className="block text-xs font-medium text-gray-800 mb-1">
+        <div className="flex flex-1 flex-col gap-1">
+          <label className="text-xs font-medium text-gray-800">
             교과
           </label>
           <select
@@ -192,8 +192,8 @@ export default function RequiredSubjectItem({
         </div>
 
         {/* 최소 개수 */}
-        <div className="w-24">
-          <label className="block text-xs font-medium text-gray-800 mb-1">
+        <div className="flex w-24 flex-col gap-1">
+          <label className="text-xs font-medium text-gray-800">
             최소 개수
           </label>
           <input
@@ -212,7 +212,7 @@ export default function RequiredSubjectItem({
         <button
           type="button"
           onClick={onRemove}
-          className="mt-6 text-gray-600 hover:text-red-600 transition-colors"
+          className="text-gray-600 hover:text-red-600 transition-colors"
           aria-label="필수 교과 삭제"
         >
           <X className="h-5 w-5" />
@@ -221,7 +221,7 @@ export default function RequiredSubjectItem({
 
       {/* 개정교육과정별 세부 과목 선택 */}
       {requirement.subject_group_id && (
-        <div className="mt-3">
+        <div className="flex flex-col gap-3">
           <button
             type="button"
             onClick={() => {
@@ -249,7 +249,7 @@ export default function RequiredSubjectItem({
           </button>
 
           {showCurriculumSubjects && (
-            <div className="mt-3 space-y-3">
+            <div className="flex flex-col gap-3">
               {curriculumRevisions.map((revision) => {
                 const key = `${requirement.subject_group_id}-${revision.id}`;
                 const subjects = subjectsByCurriculum.get(key) || [];
@@ -259,9 +259,9 @@ export default function RequiredSubjectItem({
                 return (
                   <div
                     key={revision.id}
-                    className="rounded border border-gray-200 bg-white p-3"
+                    className="flex flex-col gap-2 rounded border border-gray-200 bg-white p-3"
                   >
-                    <label className="block text-xs font-medium text-gray-800 mb-2">
+                    <label className="text-xs font-medium text-gray-800">
                       {revision.name}{" "}
                       {revision.year ? `(${revision.year})` : ""}
                     </label>

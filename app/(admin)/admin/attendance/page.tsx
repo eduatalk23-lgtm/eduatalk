@@ -9,11 +9,13 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AttendanceRecordFormWithStudentSelect,
 } from "./_components/AttendanceRecordForm";
 import { AttendanceList } from "./_components/AttendanceList";
 import { AttendanceStatistics } from "./_components/AttendanceStatistics";
+import { AttendanceFilters } from "./_components/AttendanceFilters";
 import type {
   AttendanceFilters,
   AttendanceRecord,
@@ -113,22 +115,22 @@ async function AttendanceContent({
     ) {
       return (
         <div className="p-6 md:p-10">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">출석 관리</h1>
-          </div>
-          <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
-            <p className="text-sm font-medium text-yellow-800">
-              출석 기록 테이블이 아직 생성되지 않았습니다.
-            </p>
-            <p className="mt-2 text-xs text-yellow-700">
-              데이터베이스 마이그레이션을 실행해주세요.
-            </p>
-            <p className="mt-1 text-xs text-yellow-600">
-              마이그레이션 파일: supabase/migrations/20250203000000_create_attendance_tables.sql
-            </p>
-            <p className="mt-1 text-xs text-yellow-600">
-              Supabase CLI: <code className="bg-yellow-100 px-1 rounded">supabase migration up</code>
-            </p>
+          <div className="flex flex-col gap-6 md:gap-8">
+            <PageHeader title="출석 관리" />
+            <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+              <p className="text-sm font-medium text-yellow-800">
+                출석 기록 테이블이 아직 생성되지 않았습니다.
+              </p>
+              <p className="text-xs text-yellow-700">
+                데이터베이스 마이그레이션을 실행해주세요.
+              </p>
+              <p className="text-xs text-yellow-600">
+                마이그레이션 파일: supabase/migrations/20250203000000_create_attendance_tables.sql
+              </p>
+              <p className="text-xs text-yellow-600">
+                Supabase CLI: <code className="bg-yellow-100 px-1 rounded">supabase migration up</code>
+              </p>
+            </div>
           </div>
         </div>
       );
@@ -195,89 +197,50 @@ async function AttendanceContent({
 
   return (
     <div className="p-6 md:p-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">출석 관리</h1>
-      </div>
+      <div className="flex flex-col gap-6 md:gap-8">
+        <PageHeader title="출석 관리" />
 
-      <div className="mb-8 grid gap-6 md:grid-cols-2">
-        {/* 출석 기록 입력 폼 */}
-        <Card>
-          <CardHeader title="출석 기록 입력" />
-          <CardContent>
-            {allStudents && allStudents.length > 0 ? (
-              <AttendanceRecordFormWithStudentSelect
-                students={allStudents}
-              />
-            ) : (
-              <p className="text-sm text-gray-500">등록된 학생이 없습니다.</p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* 출석 기록 입력 폼 */}
+          <Card>
+            <CardHeader title="출석 기록 입력" />
+            <CardContent>
+              {allStudents && allStudents.length > 0 ? (
+                <AttendanceRecordFormWithStudentSelect
+                  students={allStudents}
+                />
+              ) : (
+                <p className="text-sm text-gray-500">등록된 학생이 없습니다.</p>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* 출석 통계 */}
-        <Card>
-          <CardHeader title="전체 통계" />
-          <CardContent>
-            <AttendanceStatistics statistics={overallStats} />
-          </CardContent>
-        </Card>
-      </div>
+          {/* 출석 통계 */}
+          <Card>
+            <CardHeader title="전체 통계" />
+            <CardContent>
+              <AttendanceStatistics statistics={overallStats} />
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* 필터 */}
-      <div className="mb-6">
-        <form method="get" className="flex flex-col gap-4 md:flex-row">
-          <input
-            type="date"
-            name="start_date"
-            placeholder="시작 날짜"
-            defaultValue={startDateFilter}
-            className="rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-          />
-          <input
-            type="date"
-            name="end_date"
-            placeholder="종료 날짜"
-            defaultValue={endDateFilter}
-            className="rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-          />
-          <select
-            name="status"
-            defaultValue={statusFilter}
-            className="rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-          >
-            <option value="">전체 상태</option>
-            <option value="present">출석</option>
-            <option value="absent">결석</option>
-            <option value="late">지각</option>
-            <option value="early_leave">조퇴</option>
-            <option value="excused">공결</option>
-          </select>
-          <button
-            type="submit"
-            className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            검색
-          </button>
-          {(startDateFilter || endDateFilter || statusFilter) && (
-            <a
-              href="/admin/attendance"
-              className="rounded-lg border border-gray-300 bg-white px-6 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              초기화
-            </a>
-          )}
-        </form>
-      </div>
-
-      {/* 출석 기록 목록 */}
-      {records.length === 0 ? (
-        <EmptyState
-          title="출석 기록이 없습니다"
-          description="아직 등록된 출석 기록이 없습니다."
+        {/* 필터 */}
+        <AttendanceFilters
+          startDateFilter={startDateFilter}
+          endDateFilter={endDateFilter}
+          statusFilter={statusFilter}
         />
-      ) : (
-        <AttendanceList records={records} studentMap={studentMap} />
-      )}
+
+        {/* 출석 기록 목록 */}
+        {records.length === 0 ? (
+          <EmptyState
+            title="출석 기록이 없습니다"
+            description="아직 등록된 출석 기록이 없습니다."
+          />
+        ) : (
+          <AttendanceList records={records} studentMap={studentMap} />
+        )}
+      </div>
     </div>
   );
 }
@@ -297,10 +260,10 @@ export default async function AdminAttendancePage({
     <Suspense
       fallback={
         <div className="p-6 md:p-10">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">출석 관리</h1>
+          <div className="flex flex-col gap-6 md:gap-8">
+            <PageHeader title="출석 관리" />
+            <div className="text-sm text-gray-500">로딩 중...</div>
           </div>
-          <div className="text-sm text-gray-500">로딩 중...</div>
         </div>
       }
     >

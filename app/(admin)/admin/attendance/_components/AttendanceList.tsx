@@ -44,15 +44,15 @@ export function AttendanceList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {records.map((record) => {
         const studentName = studentMap.get(record.student_id) ?? "이름 없음";
         return (
           <div
             key={record.id}
-            className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+            className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
           >
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Link
                   href={`/admin/students/${record.student_id}`}
@@ -86,7 +86,7 @@ export function AttendanceList({
                 )}
               </div>
             </div>
-            <div className="space-y-1 text-sm text-gray-600">
+            <div className="flex flex-col gap-1 text-sm text-gray-600">
               {record.check_in_time && (
                 <div>
                   입실: {new Date(record.check_in_time).toLocaleTimeString("ko-KR")}
@@ -102,7 +102,7 @@ export function AttendanceList({
                 </div>
               )}
               {record.notes && (
-                <div className="mt-2 text-gray-700">{record.notes}</div>
+                <div className="text-gray-700">{record.notes}</div>
               )}
             </div>
           </div>

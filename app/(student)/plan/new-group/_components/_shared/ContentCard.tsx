@@ -28,7 +28,7 @@ export const ContentCard = React.memo(function ContentCard({
   return (
     <div
       className={cn(
-        "rounded-lg border p-4 transition-all",
+        "flex flex-col gap-3 rounded-lg border p-4 transition-all",
         selected
           ? "border-blue-500 bg-blue-50"
           : "border-gray-200 bg-white hover:border-gray-300",
@@ -53,7 +53,7 @@ export const ContentCard = React.memo(function ContentCard({
           </div>
 
           {/* 콘텐츠 정보 */}
-          <div className="flex-1 min-w-0">
+          <div className="flex flex-1 flex-col gap-2 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-medium text-gray-900 truncate">
                 {content.title}
@@ -69,7 +69,7 @@ export const ContentCard = React.memo(function ContentCard({
             </div>
 
             {/* 메타데이터 */}
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
               {content.subject && (
                 <span className="rounded bg-gray-100 px-2 py-0.5">
                   {content.subject}
@@ -95,7 +95,7 @@ export const ContentCard = React.memo(function ContentCard({
 
             {/* 범위 정보 */}
             {range && (
-              <div className="mt-2 flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-gray-800">범위:</span>
                 <span className="text-gray-600">
                   {range.start} ~ {range.end}
@@ -105,15 +105,15 @@ export const ContentCard = React.memo(function ContentCard({
 
             {/* 추천 사유 */}
             {recommended && recommended.reason && (
-              <div className="mt-2 rounded-lg bg-yellow-50 p-2 text-sm text-gray-600">
+              <div className="flex flex-col gap-0.5 rounded-lg bg-yellow-50 p-2 text-sm text-gray-600">
                 <p className="font-medium text-yellow-800">추천 이유:</p>
-                <p className="mt-0.5 text-gray-600">{recommended.reason}</p>
+                <p className="text-gray-600">{recommended.reason}</p>
               </div>
             )}
 
             {/* 성적 상세 (추천 콘텐츠) */}
             {recommended && recommended.scoreDetails && (
-              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <div className="flex flex-wrap gap-2 text-xs">
                 {recommended.scoreDetails.schoolGrade !== null && (
                   <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">
                     내신: {recommended.scoreDetails.schoolGrade}등급
@@ -198,7 +198,7 @@ export const ContentCard = React.memo(function ContentCard({
 
       {/* 읽기 전용 표시 */}
       {readOnly && selected && (
-        <div className="mt-3 rounded bg-gray-100 px-3 py-2 text-xs text-gray-600">
+        <div className="rounded bg-gray-100 px-3 py-2 text-xs text-gray-600">
           선택된 콘텐츠 (읽기 전용)
         </div>
       )}

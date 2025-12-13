@@ -120,9 +120,9 @@ export default function RequiredSubjectsSection({
   }, [isCampMode, studentCurriculumRevision, curriculumRevisions, data.subject_constraints]);
 
   return (
-    <div className="rounded-lg border-2 border-blue-300 bg-blue-50 p-6 mb-6 shadow-md">
-      <div className="mb-4">
-        <div className="flex items-center gap-2 mb-2">
+    <div className="flex flex-col gap-4 rounded-lg border-2 border-blue-300 bg-blue-50 p-6 shadow-md">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold text-gray-900">
             필수 교과 설정
           </h2>
@@ -130,23 +130,23 @@ export default function RequiredSubjectsSection({
             필수
           </span>
         </div>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           플랜 생성 시 반드시 포함되어야 하는 교과를 설정합니다. (예: 국어, 수학,
           영어)
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 학생 개정교육과정 불일치 경고 (캠프 모드일 때만) */}
         {isCampMode && curriculumMismatch && (
-          <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+          <div className="flex flex-col gap-1 rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
             <div className="flex items-start gap-2">
               <span className="text-amber-600">⚠️</span>
-              <div className="flex-1">
+              <div className="flex flex-1 flex-col gap-1">
                 <p className="text-sm font-medium text-amber-800">
                   개정교육과정 불일치
                 </p>
-                <p className="mt-1 text-xs text-amber-700">
+                <p className="text-xs text-amber-700">
                   템플릿에 설정된 개정교육과정과 학생의 개정교육과정이 다릅니다.{" "}
                   {studentCurriculumRevision && (
                     <>학생: {studentCurriculumRevision}</>
@@ -164,7 +164,7 @@ export default function RequiredSubjectsSection({
 
         {/* 필수 교과 목록 */}
         {(data.subject_constraints?.required_subjects || []).length > 0 && (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {(data.subject_constraints?.required_subjects || []).map(
               (req, index) => (
                 <RequiredSubjectItem
@@ -194,8 +194,8 @@ export default function RequiredSubjectsSection({
         </button>
 
         {/* 제약 조건 처리 방식 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-800 mb-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-800">
             제약 조건 처리 방식
           </label>
           <select
@@ -217,7 +217,7 @@ export default function RequiredSubjectsSection({
               자동 보정 - 시스템이 자동으로 보정
             </option>
           </select>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             {data.subject_constraints?.constraint_handling === "warning" &&
               "조건 미충족 시 경고를 표시하지만 다음 단계로 진행할 수 있습니다."}
             {data.subject_constraints?.constraint_handling === "strict" &&

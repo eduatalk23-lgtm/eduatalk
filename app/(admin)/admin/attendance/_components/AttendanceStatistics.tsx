@@ -43,7 +43,7 @@ export function AttendanceStatistics({
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
           <div className="text-center">
             <div className="text-sm text-gray-600">출석</div>
             <div className="text-lg font-semibold text-green-600">

@@ -36,12 +36,12 @@ export default function RecommendationRequestForm({
   const maxAvailable = 9 - totalCount;
 
   return (
-    <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6">
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-900">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-gray-900">
           추천 받을 교과 선택
         </h3>
-        <p className="mb-3 text-xs text-gray-500">
+        <p className="text-xs text-gray-500">
           추천 받고 싶은 교과를 선택하세요. 여러 교과를 동시에 선택할 수
           있습니다.
         </p>
@@ -69,14 +69,14 @@ export default function RecommendationRequestForm({
 
       {/* 교과별 추천 개수 설정 */}
       {selectedSubjects.size > 0 && (
-        <div>
-          <h3 className="mb-2 text-sm font-semibold text-gray-900">
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-gray-900">
             교과별 추천 개수 설정
           </h3>
-          <p className="mb-3 text-xs text-gray-600">
+          <p className="text-xs text-gray-600">
             각 교과별로 몇 개의 콘텐츠를 추천 받을지 설정하세요.
           </p>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {Array.from(selectedSubjects).map((subject) => {
               const currentCount = recommendationCounts.get(subject) || 1;
               // 다른 교과의 총합
@@ -123,7 +123,7 @@ export default function RecommendationRequestForm({
                     >
                       +
                     </button>
-                    <span className="ml-2 text-xs text-gray-500">
+                    <span className="text-xs text-gray-500">
                       (최대 {maxForThis}개)
                     </span>
                   </div>

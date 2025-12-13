@@ -81,7 +81,9 @@ export type CardContentProps = {
 };
 
 export function CardContent({ children, className }: CardContentProps) {
-  return <div className={cn("", className)}>{children}</div>;
+  return (
+    <div className={cn("flex flex-col gap-4", className)}>{children}</div>
+  );
 }
 
 // ============================================

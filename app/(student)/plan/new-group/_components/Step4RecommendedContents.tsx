@@ -457,12 +457,12 @@ export default function Step4RecommendedContents({
         />
       )}
 
-      <div>
+      <div className="flex flex-col gap-6">
         {/* 학생 콘텐츠 섹션 (관리자 모드에서만 표시) */}
         {isCampMode && data.student_contents && data.student_contents.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <h2 className="text-xl font-semibold text-gray-900">
                 학생이 등록한 콘텐츠
               </h2>
               <p className="text-sm text-gray-500">
@@ -490,8 +490,8 @@ export default function Step4RecommendedContents({
           </div>
         )}
 
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-semibold text-gray-900">
             서비스 추천 콘텐츠
           </h2>
           <p className="text-sm text-gray-500">
@@ -501,24 +501,22 @@ export default function Step4RecommendedContents({
         </div>
 
         {/* 콘텐츠 선택 진행률 */}
-        <div className="mb-6">
-          <ContentSelectionProgress
-            current={totalCount}
-            max={9}
-            requiredSubjects={progressRequiredSubjects}
-            showWarning={missingRequiredSubjects.length > 0}
-            warningMessage={
-              missingRequiredSubjects.length > 0
-                ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects
-                    .map(
-                      (m: any) =>
-                        `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`
-                    )
-                    .join(", ")}`
-                : undefined
-            }
-          />
-        </div>
+        <ContentSelectionProgress
+          current={totalCount}
+          max={9}
+          requiredSubjects={progressRequiredSubjects}
+          showWarning={missingRequiredSubjects.length > 0}
+          warningMessage={
+            missingRequiredSubjects.length > 0
+              ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects
+                  .map(
+                    (m: any) =>
+                      `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`
+                  )
+                  .join(", ")}`
+              : undefined
+          }
+        />
 
         {/* 이미 추가된 추천 콘텐츠 목록 */}
         <AddedContentsList
@@ -569,11 +567,11 @@ export default function Step4RecommendedContents({
           !loading &&
           recommendedContents.length === 0 &&
           !shouldShowRecommendationForm && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
+            <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
               <p className="text-sm font-medium text-amber-800">
                 추천할 콘텐츠가 없습니다.
               </p>
-              <p className="mt-2 text-xs text-amber-600">
+              <p className="text-xs text-amber-600">
                 성적 데이터를 입력하시면 맞춤형 추천을 받을 수 있습니다.
               </p>
             </div>

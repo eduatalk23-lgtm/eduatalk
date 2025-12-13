@@ -1,5 +1,7 @@
-import { Card, CardHeader } from "@/components/molecules/Card";
+import { SectionCard } from "@/components/ui/SectionCard";
 import type { InternalAnalysis } from "@/lib/types/scoreDashboard";
+import { MetricCard } from "./MetricCard";
+import { InfoMessage } from "./InfoMessage";
 
 interface InternalAnalysisCardProps {
   analysis: InternalAnalysis;
@@ -14,32 +16,27 @@ export function InternalAnalysisCard({ analysis }: InternalAnalysisCardProps) {
   );
 
   return (
-    <Card>
-      <CardHeader
-        title="내신 분석"
-        description="전체 GPA 및 교과군별 성적"
-      />
-
+    <SectionCard
+      title="내신 분석"
+      description="전체 GPA 및 교과군별 성적"
+    >
       {/* 전체 지표 */}
-      <div className="mt-4 grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 p-4">
-          <div className="text-xs font-medium text-indigo-700">전체 GPA</div>
-          <div className="text-2xl font-bold text-indigo-900">
-            {totalGpa !== null ? totalGpa.toFixed(2) : "N/A"}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1 rounded-lg bg-purple-50 p-4">
-          <div className="text-xs font-medium text-purple-700">Z-Index</div>
-          <div className="text-2xl font-bold text-purple-900">
-            {zIndex !== null ? zIndex.toFixed(2) : "N/A"}
-          </div>
-        </div>
+      <div className="grid grid-cols-2 gap-4">
+        <MetricCard
+          label="전체 GPA"
+          value={totalGpa !== null ? totalGpa.toFixed(2) : "N/A"}
+          color="indigo"
+        />
+        <MetricCard
+          label="Z-Index"
+          value={zIndex !== null ? zIndex.toFixed(2) : "N/A"}
+          color="purple"
+        />
       </div>
 
       {/* 교과군별 GPA */}
-      <div className="mt-4">
-        <div className="mb-2 text-sm font-semibold text-gray-700">
+      <div className="flex flex-col gap-2">
+        <div className="text-sm font-semibold text-gray-700">
           교과군별 평점
         </div>
         {subjectEntries.length > 0 ? (
@@ -67,13 +64,12 @@ export function InternalAnalysisCard({ analysis }: InternalAnalysisCardProps) {
 
       {/* 안내 메시지 */}
       {totalGpa === null && zIndex === null && (
-        <div className="mt-4 rounded-lg bg-yellow-50 p-3">
-          <p className="text-xs text-yellow-800">
-            내신 성적 데이터가 없습니다. 성적을 입력해주세요.
-          </p>
-        </div>
+        <InfoMessage
+          message="내신 성적 데이터가 없습니다. 성적을 입력해주세요."
+          variant="warning"
+        />
       )}
-    </Card>
+    </SectionCard>
   );
 }
 

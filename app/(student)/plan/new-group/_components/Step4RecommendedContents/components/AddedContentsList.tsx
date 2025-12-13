@@ -58,7 +58,7 @@ export default function AddedContentsList({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between text-sm font-medium text-gray-800">
         <span>
           {allRecommendedContents.length > 0
@@ -117,7 +117,7 @@ export default function AddedContentsList({
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                     {content.content_type === "book" && (
                       <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                         📚 교재
@@ -173,7 +173,7 @@ export default function AddedContentsList({
               </div>
 
               {/* 범위 정보 또는 범위 편집 UI */}
-              <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span>·</span>
                 {isEditing ? (
                   <div className="flex-1 space-y-3">
@@ -185,8 +185,8 @@ export default function AddedContentsList({
                     ) : contentInfo && contentInfo.details.length > 0 ? (
                       <div className="space-y-3">
                         {/* 시작 범위 선택 */}
-                        <div>
-                          <div className="mb-2 text-xs font-medium text-gray-800">
+                        <div className="flex flex-col gap-2">
+                          <div className="text-xs font-medium text-gray-800">
                             시작 범위 선택
                           </div>
                           <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -271,8 +271,8 @@ export default function AddedContentsList({
                         </div>
 
                         {/* 끝 범위 선택 */}
-                        <div>
-                          <div className="mb-2 text-xs font-medium text-gray-800">
+                        <div className="flex flex-col gap-2">
+                          <div className="text-xs font-medium text-gray-800">
                             끝 범위 선택
                           </div>
                           <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
@@ -429,9 +429,9 @@ export default function AddedContentsList({
                         })()}
 
                         {/* 범위 직접 입력 */}
-                        <div className="space-y-2">
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-800">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-gray-800">
                               시작 범위
                             </label>
                             <input
@@ -450,8 +450,8 @@ export default function AddedContentsList({
                               placeholder="1"
                             />
                           </div>
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-800">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-gray-800">
                               끝 범위
                             </label>
                             <input
@@ -515,7 +515,7 @@ export default function AddedContentsList({
             </div>
 
             {/* 액션 버튼 */}
-            <div className="flex gap-2 ml-2">
+            <div className="flex gap-2">
               {!isEditing && (
                 <button
                   type="button"
