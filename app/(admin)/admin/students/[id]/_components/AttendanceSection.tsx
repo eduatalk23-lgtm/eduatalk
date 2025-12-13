@@ -64,11 +64,11 @@ export async function AttendanceSection({
         <CardHeader title="출석 기록" />
         <CardContent>
           {records.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
               <p className="text-sm font-medium text-gray-700">
                 출석 기록이 없습니다.
               </p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-xs text-gray-500">
                 위 폼에서 출석 기록을 입력하면 여기에 표시됩니다.
               </p>
             </div>

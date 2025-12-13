@@ -134,9 +134,9 @@ export function SMSResultsClient({
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {/* 통계 */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">전체</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -160,7 +160,7 @@ export function SMSResultsClient({
       </div>
 
       {/* 필터 및 검색 */}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
         <form onSubmit={handleSearch} className="flex flex-1 gap-2">
           <input
             type="text"
@@ -232,7 +232,7 @@ export function SMSResultsClient({
                       setExpandedLogId(isExpanded ? null : log.id)
                     }
                   >
-                    <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         {log.recipient_id && (
                           <Link
@@ -279,51 +279,51 @@ export function SMSResultsClient({
                           <span className="text-xs font-medium text-gray-600">
                             메시지 내용:
                           </span>
-                          <p className="mt-1 text-sm text-gray-900">
+                          <p className="text-sm text-gray-900">
                             {log.message_content ?? "-"}
                           </p>
                         </div>
                         {log.sent_at && (
-                          <div>
+                          <div className="flex flex-col gap-1">
                             <span className="text-xs font-medium text-gray-600">
                               발송 시간:
                             </span>
-                            <p className="mt-1 text-sm text-gray-900">
+                            <p className="text-sm text-gray-900">
                               {new Date(log.sent_at).toLocaleString("ko-KR")}
                             </p>
                           </div>
                         )}
                         {log.delivered_at && (
-                          <div>
+                          <div className="flex flex-col gap-1">
                             <span className="text-xs font-medium text-gray-600">
                               전달 시간:
                             </span>
-                            <p className="mt-1 text-sm text-gray-900">
+                            <p className="text-sm text-gray-900">
                               {new Date(log.delivered_at).toLocaleString("ko-KR")}
                             </p>
                           </div>
                         )}
                         {log.error_message && (
-                          <div>
+                          <div className="flex flex-col gap-1">
                             <span className="text-xs font-medium text-red-600">
                               오류 메시지:
                             </span>
-                            <p className="mt-1 text-sm text-red-700">
+                            <p className="text-sm text-red-700">
                               {log.error_message}
                             </p>
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-4 text-xs">
-                          <div>
+                          <div className="flex flex-col gap-1">
                             <span className="font-medium text-gray-600">로그 ID:</span>
-                            <p className="mt-1 text-gray-900 font-mono">{log.id}</p>
+                            <p className="text-gray-900 font-mono">{log.id}</p>
                           </div>
                           {log.template_id && (
-                            <div>
+                            <div className="flex flex-col gap-1">
                               <span className="font-medium text-gray-600">
                                 템플릿 ID:
                               </span>
-                              <p className="mt-1 text-gray-900 font-mono">
+                              <p className="text-gray-900 font-mono">
                                 {log.template_id}
                               </p>
                             </div>
@@ -339,7 +339,7 @@ export function SMSResultsClient({
 
           {/* 페이지네이션 */}
           {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 pt-6">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}

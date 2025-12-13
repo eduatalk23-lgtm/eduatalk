@@ -137,7 +137,7 @@ export function BasicInfoSection({
             )}
           </div>
           {editingClass ? (
-            <div className="mt-1 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 ref={inputRef}
                 type="text"

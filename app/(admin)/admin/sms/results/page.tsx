@@ -92,15 +92,15 @@ export default async function SMSResultsPage({
       errorMessage.includes("테이블"))
   ) {
     return (
-      <div className="p-6 md:p-10">
-        <div className="mb-8">
+      <div className="flex flex-col gap-8 p-6 md:p-10">
+        <div>
           <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
         </div>
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+        <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
           <p className="text-sm font-medium text-yellow-800">
             SMS 로그 테이블이 아직 생성되지 않았습니다.
           </p>
-          <p className="mt-2 text-xs text-yellow-700">
+          <p className="text-xs text-yellow-700">
             데이터베이스 마이그레이션을 실행해주세요.
           </p>
         </div>
@@ -178,8 +178,8 @@ export default async function SMSResultsPage({
   };
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="flex flex-col gap-8 p-6 md:p-10">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
         <Link
           href="/admin/sms/send"

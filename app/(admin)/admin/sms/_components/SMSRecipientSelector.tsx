@@ -150,10 +150,10 @@ export function SMSRecipientSelector({
   const selectableCount = selectableStudents.length;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* 필터 섹션 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">발송 대상자 필터</h3>
           {onRecipientTypeChange && (
             <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export function SMSRecipientSelector({
           <span className="font-medium text-gray-900">
             {selectedCount}명 선택됨
           </span>
-          <span className="ml-2 text-gray-500">
+          <span className="pl-2 text-gray-500">
             (선택 가능: {selectableCount}명)
           </span>
         </div>
@@ -301,9 +301,9 @@ export function SMSRecipientSelector({
                         recipientType === "student" ? "학생" :
                         recipientType === "mother" ? "어머니" : "아버지";
                       return phone ? (
-                        <span className="ml-2">({recipientTypeLabel}) {phone}</span>
+                        <span className="pl-2">({recipientTypeLabel}) {phone}</span>
                       ) : (
-                        <span className="ml-2 text-red-500">({recipientTypeLabel} 연락처 없음)</span>
+                        <span className="pl-2 text-red-500">({recipientTypeLabel} 연락처 없음)</span>
                       );
                     })()}
                   </div>

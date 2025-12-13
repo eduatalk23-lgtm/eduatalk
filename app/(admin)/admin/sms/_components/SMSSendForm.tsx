@@ -486,14 +486,14 @@ export function SMSSendForm({
                       </div>
                     ))}
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   * 학원명과 학생명은 자동으로 채워집니다.
                 </p>
               </div>
             )}
 
           {/* 메시지 내용 */}
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="message">메시지 내용 *</Label>
             <textarea
               id="message"
@@ -504,7 +504,7 @@ export function SMSSendForm({
               rows={4}
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               {message.length}자 / SMS는 90자, LMS는 2000자까지 가능합니다.
             </p>
           </div>

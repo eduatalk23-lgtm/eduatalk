@@ -55,10 +55,10 @@ export function StudentDetailTabs({
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       {/* 탭 네비게이션 */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto">
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -69,7 +69,7 @@ export function StudentDetailTabs({
                   : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <span className="pr-2">{tab.icon}</span>
               {tab.label}
             </button>
           ))}

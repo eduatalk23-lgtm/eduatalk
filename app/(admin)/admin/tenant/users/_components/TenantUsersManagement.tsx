@@ -95,21 +95,21 @@ export function TenantUsersManagement({
     <div className="flex flex-col gap-6">
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-300 bg-white p-6">
           <div className="text-body-2 text-gray-600">전체 사용자</div>
-          <div className="mt-2 text-h2 text-gray-900">{stats.total}</div>
+          <div className="text-h2 text-gray-900">{stats.total}</div>
         </div>
-        <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-300 bg-white p-6">
           <div className="text-body-2 text-gray-600">학생</div>
-          <div className="mt-2 text-h2 text-gray-900">{stats.students}</div>
+          <div className="text-h2 text-gray-900">{stats.students}</div>
         </div>
-        <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-300 bg-white p-6">
           <div className="text-body-2 text-gray-600">학부모</div>
-          <div className="mt-2 text-h2 text-gray-900">{stats.parents}</div>
+          <div className="text-h2 text-gray-900">{stats.parents}</div>
         </div>
-        <div className="rounded-xl border border-gray-300 bg-white p-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-300 bg-white p-6">
           <div className="text-body-2 text-gray-600">미할당</div>
-          <div className="mt-2 text-h2 text-gray-900">{stats.unassigned}</div>
+          <div className="text-h2 text-gray-900">{stats.unassigned}</div>
         </div>
       </div>
 

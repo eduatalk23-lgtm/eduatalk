@@ -78,13 +78,13 @@ export function SMSPreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">
+      <div className="flex flex-col gap-4 w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+        <h2 className="text-xl font-semibold text-gray-900">
           SMS 발송 미리보기
         </h2>
 
         {/* 발송 요약 */}
-        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-sm text-gray-600">발송 대상자</div>
@@ -102,12 +102,12 @@ export function SMSPreviewModal({
         </div>
 
         {/* 발송 대상자 목록 및 메시지 미리보기 */}
-        <div className="mb-4 max-h-96 overflow-y-auto rounded-lg border border-gray-200">
+        <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
           <div className="divide-y divide-gray-200">
             {studentMessages.map(({ student, message: studentMessage }) => (
-              <div key={student.id} className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
+              <div key={student.id} className="flex flex-col gap-2 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1">
                     <div className="text-sm font-medium text-gray-900">
                       {student.name || "이름 없음"}
                     </div>
@@ -116,8 +116,8 @@ export function SMSPreviewModal({
                     </div>
                   </div>
                 </div>
-                <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <div className="text-xs text-gray-600 mb-1">발송 메시지:</div>
+                <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div className="text-xs text-gray-600">발송 메시지:</div>
                   <div className="text-sm text-gray-900 whitespace-pre-wrap">
                     {studentMessage}
                   </div>
