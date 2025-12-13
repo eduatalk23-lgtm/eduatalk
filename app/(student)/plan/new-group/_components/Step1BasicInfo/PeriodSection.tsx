@@ -161,7 +161,7 @@ export function PeriodSection({
 
       {/* D-day 입력 */}
       {periodInputType === "dday" && (
-        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6">
           <label className="block text-sm font-medium text-gray-800">
             시험일 입력
           </label>
@@ -222,7 +222,7 @@ export function PeriodSection({
 
       {/* 주 단위 입력 */}
       {periodInputType === "weeks" && (
-        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-6">
           <label className="block text-sm font-medium text-gray-900">
             시작일 입력
           </label>
@@ -330,7 +330,7 @@ export function PeriodSection({
 
       {/* 직접 입력 */}
       {periodInputType === "direct" && (
-        <div className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
           <div className="flex flex-col gap-2">
             <label className="block text-sm font-medium text-gray-800">
               시작일
@@ -505,7 +505,7 @@ export function PeriodSection({
               </p>
 
               {data.additional_period_reallocation && (
-                <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-6">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1">
                       <label className="block text-xs font-medium text-gray-900">
@@ -627,7 +627,7 @@ export function PeriodSection({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-4">
                     <p className="text-xs text-blue-800">
                       <strong>재배치 범위:</strong>{" "}
                       {

@@ -307,7 +307,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
 
       {/* 학원 일정 추가 폼 */}
       {editable && (!campMode || canStudentInputAcademySchedules) && (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
           {/* 요일 선택 */}
           <div className="flex flex-col gap-2">
             <label className="block text-xs font-medium text-gray-800">

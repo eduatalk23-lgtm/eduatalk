@@ -422,7 +422,7 @@ export function MasterContentsPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* 검색 폼 */}
-      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-gray-800" />
           <h3 className="text-lg font-semibold text-gray-900">
@@ -608,7 +608,7 @@ export function MasterContentsPanel({
 
       {/* 검색 결과 */}
       {hasSearched && (
-        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-6">
           <h3 className="text-sm font-semibold text-gray-900">
             검색 결과 ({filteredSearchResults.length}개)
           </h3>

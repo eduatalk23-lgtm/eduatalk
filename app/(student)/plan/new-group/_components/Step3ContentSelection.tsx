@@ -768,7 +768,7 @@ export function Step3ContentSelection({
     <div className="flex flex-col gap-6">
       {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
       {isTemplateMode && (
-        <div className="flex flex-col gap-4 rounded-lg border-2 border-blue-300 bg-blue-50 p-6 shadow-md">
+        <div className="flex flex-col gap-4 rounded-xl border-2 border-blue-300 bg-blue-50 p-6 shadow-md">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-gray-900">

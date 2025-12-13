@@ -162,7 +162,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
 
           {/* 새 제외 항목 추가 폼 */}
           {(!campMode || canStudentInputNonStudyTimeBlocks) && (
-            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-6">
               <h4 className="text-sm font-semibold text-gray-900">새 제외 항목 추가</h4>
               
               <div className="flex flex-col gap-1">

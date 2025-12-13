@@ -65,7 +65,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
           {/* 점심시간 */}
           {(!campMode || canStudentInputTimeSettings) && (
             <TimeRangeInput

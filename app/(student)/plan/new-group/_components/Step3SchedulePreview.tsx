@@ -63,7 +63,7 @@ export function Step3SchedulePreview({
       </div>
 
       {/* 안내 메시지 */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
         <p className="text-sm text-blue-800">
           <strong>안내:</strong> 이 단계에서는 스케줄이 어떻게 배정되는지 미리 확인할 수
           있습니다. 설정을 변경하려면 "설정 수정" 버튼을 클릭하세요.

@@ -327,7 +327,7 @@ export function BlockSetSection({
         {/* 블록 세트 생성 폼 */}
         {blockSetMode === "create" &&
           (!isCampMode || canStudentInputBlockSetId) && (
-            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
               {/* 블록 세트 이름 */}
               <div className="flex flex-col gap-2">
                 <label className="block text-sm font-medium text-gray-900">
@@ -343,7 +343,7 @@ export function BlockSetSection({
               </div>
 
               {/* 시간 블록 추가 */}
-              <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-6">
                 <h3 className="text-sm font-semibold text-gray-900">
                   시간 블록 추가
                 </h3>
@@ -399,7 +399,7 @@ export function BlockSetSection({
 
               {/* 추가된 블록 목록 */}
               {addedBlocks.length > 0 && (
-                <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="rounded-xl border border-gray-200 bg-white p-6">
                   <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold text-gray-900">
                       추가된 블록 ({addedBlocks.length}개)
@@ -469,7 +469,7 @@ export function BlockSetSection({
 
         {/* 블록 세트 수정 폼 */}
         {blockSetMode === "edit" && editingBlockSetId && (
-          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
             {/* 블록 세트 이름 수정 */}
             <div className="flex flex-col gap-2">
               <label className="block text-sm font-medium text-gray-900">
@@ -508,7 +508,7 @@ export function BlockSetSection({
 
               if (blocks.length === 0) {
                 return (
-                  <div className="rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="rounded-xl border border-gray-200 bg-white p-6">
                     <p className="text-xs text-gray-600">
                       이 블록 세트에는 등록된 시간 블록이 없습니다. 아래에서
                       추가해주세요.
@@ -526,7 +526,7 @@ export function BlockSetSection({
               }, {} as Record<number, typeof blocks>);
 
               return (
-                <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
+                <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-6">
                   <h3 className="text-sm font-semibold text-gray-900">
                     등록된 시간 블록 ({blocks.length}개)
                   </h3>
@@ -564,7 +564,7 @@ export function BlockSetSection({
             })()}
 
             {/* 시간 블록 추가 */}
-            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-6">
               <h3 className="text-sm font-semibold text-gray-900">
                 시간 블록 추가
               </h3>

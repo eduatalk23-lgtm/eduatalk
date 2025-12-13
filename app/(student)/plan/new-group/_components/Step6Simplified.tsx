@@ -381,7 +381,7 @@ function SubjectAllocationEditor({
         return (
           <div
             key={subject}
-            className="rounded-lg border border-gray-200 bg-white p-4"
+            className="rounded-xl border border-gray-200 bg-white p-6"
           >
             <div className="flex flex-col gap-4">
               {/* 교과 헤더 */}

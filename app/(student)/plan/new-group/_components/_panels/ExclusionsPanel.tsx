@@ -351,7 +351,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
       {/* 제외일 추가 폼 */}
       {editable && (!campMode || canStudentInputExclusions) && (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
           {/* 입력 유형 선택 */}
           <div className="flex gap-2">
             <button
