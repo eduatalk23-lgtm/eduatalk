@@ -65,7 +65,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
   };
 
   return (
-    <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           {/* 점심시간 */}
           {(!campMode || canStudentInputTimeSettings) && (
             <TimeRangeInput
@@ -81,7 +81,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
 
           {/* 자율학습 시간 배정 토글 */}
           {(!campMode || canStudentInputTimeSettings) && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {/* 지정휴일 자율학습 시간 배정하기 토글 */}
               <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
                 <input
@@ -106,10 +106,10 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                 />
                 <label
                   htmlFor="enable_self_study_for_holidays"
-                  className="flex-1 cursor-pointer text-sm text-gray-800"
+                  className="flex flex-col gap-1 flex-1 cursor-pointer text-sm text-gray-800"
                 >
                   <div className="font-medium">지정휴일 자율학습 시간 배정하기</div>
-                  <div className="mt-1 text-xs text-gray-600">
+                  <div className="text-xs text-gray-600">
                     지정휴일에 자율학습 시간을 배정합니다.
                   </div>
                 </label>
@@ -117,7 +117,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
 
               {/* 지정휴일 시간 설정 */}
               {data.time_settings?.enable_self_study_for_holidays && (
-                <div className="ml-7">
+                <div className="pl-7">
                   <TimeRangeInput
                     label="지정휴일 자율학습 시간"
                     description="지정휴일의 자율학습 시간대"
@@ -155,10 +155,10 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
                 />
                 <label
                   htmlFor="enable_self_study_for_study_days"
-                  className="flex-1 cursor-pointer text-sm text-gray-800"
+                  className="flex flex-col gap-1 flex-1 cursor-pointer text-sm text-gray-800"
                 >
                   <div className="font-medium">학습일/복습일 자율학습 시간 배정하기</div>
-                  <div className="mt-1 text-xs text-gray-600">
+                  <div className="text-xs text-gray-600">
                     학습일과 복습일에 자율학습 시간을 배정합니다. 시간블록이 있어도 자율학습 시간을 함께 사용할 수 있습니다.
                   </div>
                 </label>
@@ -166,7 +166,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
 
               {/* 학습일/복습일 시간 설정 */}
               {data.time_settings?.enable_self_study_for_study_days && (
-                <div className="ml-7">
+                <div className="pl-7">
                   <TimeRangeInput
                     label="학습일/복습일 자율학습 시간"
                     description="학습일과 복습일의 자율학습 시간대"

@@ -111,19 +111,19 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
   return (
     <>
       {/* 헤더 */}
-      <div className="mb-3 flex items-center gap-2">
+      <div className="flex items-center gap-2">
         <h3 className="text-sm font-semibold text-gray-900">학습 시간 제외 항목</h3>
         <Info className="h-4 w-4 text-gray-600" />
       </div>
 
-      <div>
-          <p className="mb-4 text-xs text-gray-600">
+      <div className="flex flex-col gap-4">
+          <p className="text-xs text-gray-600">
             학습 시간 내에서 플랜 배정을 제외할 시간대를 설정합니다. (식사 시간, 수면 시간 등)
           </p>
 
           {/* 기존 제외 항목 목록 */}
           {data.non_study_time_blocks && data.non_study_time_blocks.length > 0 && (
-            <div className="mb-4 space-y-2">
+            <div className="flex flex-col gap-2">
               {data.non_study_time_blocks.map((block, index) => (
                 <div
                   key={index}
@@ -162,11 +162,11 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
 
           {/* 새 제외 항목 추가 폼 */}
           {(!campMode || canStudentInputNonStudyTimeBlocks) && (
-            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
               <h4 className="text-sm font-semibold text-gray-900">새 제외 항목 추가</h4>
               
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-800">제외 항목 유형</label>
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-800">제외 항목 유형</label>
                 <select
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
                   value={newNonStudyTimeBlock.type}
@@ -187,8 +187,8 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-800">시작 시간</label>
+                <div className="flex flex-col gap-1">
+                  <label className="block text-xs font-medium text-gray-800">시작 시간</label>
                   <input
                     type="time"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
@@ -203,8 +203,8 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                     disabled={!editable}
                   />
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-800">종료 시간</label>
+                <div className="flex flex-col gap-1">
+                  <label className="block text-xs font-medium text-gray-800">종료 시간</label>
                   <input
                     type="time"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
@@ -221,8 +221,8 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-800">적용 요일 (선택사항, 없으면 매일)</label>
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-800">적용 요일 (선택사항, 없으면 매일)</label>
                 <div className="flex flex-wrap gap-2">
                   {weekdayLabels.map((label, day) => (
                     <button
@@ -241,8 +241,8 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                 </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-800">설명 (선택사항)</label>
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-800">설명 (선택사항)</label>
                 <input
                   type="text"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"

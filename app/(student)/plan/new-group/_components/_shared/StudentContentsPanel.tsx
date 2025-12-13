@@ -308,7 +308,7 @@ export function StudentContentsPanel({
           <p className="text-sm font-medium text-gray-900">
             선택된 콘텐츠가 없습니다
           </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             위에서 콘텐츠를 선택해주세요
           </p>
         </div>

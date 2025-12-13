@@ -192,8 +192,8 @@ export function UnifiedContentsView({
         <>
           {/* 학생 콘텐츠 섹션 */}
           {hasStudentContents && (
-            <div>
-              <div className="mb-3 flex items-center justify-between">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">
                   학생 콘텐츠
                 </h3>

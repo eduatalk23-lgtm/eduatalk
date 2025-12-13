@@ -608,8 +608,8 @@ export function MasterContentsPanel({
 
       {/* 검색 결과 */}
       {hasSearched && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-900">
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-gray-900">
             검색 결과 ({filteredSearchResults.length}개)
           </h3>
 

@@ -54,17 +54,19 @@ export const TimeSettingsPanel = React.memo(function TimeSettingsPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900">블록 및 제외일 설정</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          학습 제외일과 학원 일정을 설정해주세요. 설정한 내용은 우측에서 실시간으로 확인할 수 있습니다.
-        </p>
-        <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-semibold text-gray-900">블록 및 제외일 설정</h2>
+          <p className="text-sm text-gray-600">
+            학습 제외일과 학원 일정을 설정해주세요. 설정한 내용은 우측에서 실시간으로 확인할 수 있습니다.
+          </p>
+        </div>
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
           <div className="flex items-start gap-2">
-            <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
-            <div className="text-xs text-blue-800">
+            <Info className="h-4 w-4 flex-shrink-0 text-blue-600" />
+            <div className="flex flex-col gap-1 text-xs text-blue-800">
               <p className="font-semibold">학원 일정과 제외일은 학생별로 전역 관리됩니다.</p>
-              <p className="mt-1">
+              <p>
                 입력한 학원 일정과 제외일은 모든 플랜 그룹에서 공유되며, 중복 입력 시 자동으로 제외됩니다.
               </p>
             </div>
