@@ -10,6 +10,7 @@ import { getPlanGroupsWithStats, PlanGroupFilters } from "@/lib/data/planGroups"
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PlanPageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -84,18 +85,12 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   return (
     <>
       <ScrollToTop />
-      <section className="mx-auto w-full max-w-5xl px-4 py-8 md:px-6 md:py-10">
+      <section className={getContainerClass("CAMP_PLAN", "md")}>
         <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-gray-500">학습 플랜</p>
-            <h1 className="text-h1 text-gray-900">학생별 플랜 목록</h1>
-            <p className="text-sm text-gray-500">
-              기간별로 생성된 학습 계획을 확인하고 관리하세요.
-            </p>
-          </div>
-
-          <div className="flex gap-2">
+        <PageHeader
+          title="학생별 플랜 목록"
+          description="기간별로 생성된 학습 계획을 확인하고 관리하세요."
+          action={
             <Link
               href="/plan/new-group"
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
@@ -103,8 +98,8 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
             >
               + 플랜 생성
             </Link>
-          </div>
-        </div>
+          }
+        />
 
         {createdCount && (
           <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">

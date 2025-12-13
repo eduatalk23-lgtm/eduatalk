@@ -6,6 +6,8 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents, canAccessStudent } from "../../_utils";
 import { StudentSelector } from "../_components/StudentSelector";
 import { ParentDashboardContent } from "../_components/ParentDashboardContent";
+import { getContainerClass } from "@/lib/constants/layout";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -25,7 +27,7 @@ export default async function ParentDashboardPage({ searchParams }: PageProps) {
 
   if (linkedStudents.length === 0) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
           <div className="flex flex-col gap-2">
             <h2 className="text-xl font-semibold text-yellow-900">
@@ -57,7 +59,7 @@ export default async function ParentDashboardPage({ searchParams }: PageProps) {
 
   if (!hasAccess) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
           <div className="flex flex-col gap-2">
             <h2 className="text-xl font-semibold text-red-900">
@@ -73,16 +75,12 @@ export default async function ParentDashboardPage({ searchParams }: PageProps) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
+    <section className={getContainerClass("DASHBOARD", "md")}>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold text-gray-900">
-            학부모 대시보드
-          </h1>
-          <p className="text-sm text-gray-500">
-            자녀의 학습 현황을 실시간으로 확인하세요
-          </p>
-        </div>
+        <PageHeader
+          title="학부모 대시보드"
+          description="자녀의 학습 현황을 실시간으로 확인하세요"
+        />
 
         {/* 학생 선택 드롭다운 */}
         <StudentSelector

@@ -14,6 +14,8 @@ import { SchoolInsightPanel } from "./_components/SchoolInsightPanel";
 import { SchoolDetailedMetrics } from "./_components/SchoolDetailedMetrics";
 import { SchoolHeatmapChart } from "./_components/SchoolHeatmapChart";
 import { SchoolGradeDistributionChart } from "./_components/SchoolGradeDistributionChart";
+import { getContainerClass } from "@/lib/constants/layout";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function SchoolScoresDashboardPage() {
   const supabase = await createSupabaseServerClient();
@@ -27,14 +29,12 @@ export default async function SchoolScoresDashboardPage() {
   const schoolScores = await fetchSchoolScores(user.id);
 
   return (
-    <section className="mx-auto max-w-6xl p-6 md:p-8">
+    <section className={getContainerClass("DASHBOARD", "md")}>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-h1 text-gray-900">내신 성적 대시보드</h1>
-          <p className="text-sm text-gray-600">
-            내신 성적을 학년·학기별로 분석하고 시각화합니다.
-          </p>
-        </div>
+        <PageHeader
+          title="내신 성적 대시보드"
+          description="내신 성적을 학년·학기별로 분석하고 시각화합니다."
+        />
 
         {/* 탭 네비게이션 */}
         <div className="flex flex-col gap-4">

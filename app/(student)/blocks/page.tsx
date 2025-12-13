@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import BlockManagementContainer from "./_components/BlockManagementContainer";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function BlocksPage() {
   const supabase = await createSupabaseServerClient();
@@ -104,7 +105,7 @@ export default async function BlocksPage() {
   });
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 md:py-10">
+    <section className={getContainerClass("DASHBOARD", "md")}>
       <BlockManagementContainer
         studentId={user.id}
         initialBlockSets={blockSets}

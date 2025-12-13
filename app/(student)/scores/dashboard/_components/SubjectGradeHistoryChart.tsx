@@ -12,21 +12,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { SubjectGradeHistory } from "../_utils";
+import { getSubjectColor } from "@/lib/constants/chartColors";
 
 type SubjectGradeHistoryChartProps = {
   data: SubjectGradeHistory[];
 };
-
-const COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#f59e0b",
-  "#10b981",
-  "#3b82f6",
-  "#ef4444",
-  "#14b8a6",
-];
 
 export function SubjectGradeHistoryChart({
   data,
@@ -95,7 +85,7 @@ export function SubjectGradeHistoryChart({
               <span
                 className="text-sm"
                 style={{
-                  color: isSelected ? COLORS[index % COLORS.length] : "#6b7280",
+                  color: isSelected ? getSubjectColor(index) : "#6b7280",
                 }}
               >
                 {subject.course_detail}
@@ -135,7 +125,7 @@ export function SubjectGradeHistoryChart({
                 key={key}
                 type="monotone"
                 dataKey={key}
-                stroke={COLORS[index % COLORS.length]}
+                stroke={getSubjectColor(index)}
                 strokeWidth={2}
                 name={subject.course_detail}
                 connectNulls={false}

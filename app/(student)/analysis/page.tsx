@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { calculateAllRiskIndices, saveRiskAnalysis } from "./_utils";
 import { RiskIndexList } from "./_components/RiskIndexList";
 import { RecalculateButton } from "./_components/RecalculateButton";
+import { getContainerClass } from "@/lib/constants/layout";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 type AnalysisRow = {
   id: string;
@@ -75,24 +77,23 @@ export default async function AnalysisPage() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 md:px-6 md:py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-900">취약 과목 분석</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            성적 데이터를 기반으로 취약 과목의 Risk Index를 분석합니다.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <RecalculateButton />
-          <Link
-            href="/scores"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            성적 관리
-          </Link>
-        </div>
-      </div>
+    <section className={getContainerClass("DASHBOARD", "md")}>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="취약 과목 분석"
+          description="성적 데이터를 기반으로 취약 과목의 Risk Index를 분석합니다."
+          action={
+            <div className="flex gap-2">
+              <RecalculateButton />
+              <Link
+                href="/scores"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                성적 관리
+              </Link>
+            </div>
+          }
+        />
 
       {riskAnalyses.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center shadow-sm">

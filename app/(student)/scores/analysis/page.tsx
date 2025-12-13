@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getInternalScoresByTerm, getMockScoresByPeriod } from "@/lib/data/scoreDetails";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import AnalysisLayout from "./_components/AnalysisLayout";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function ScoreAnalysisPage() {
   // 사용자 인증 확인
@@ -33,7 +34,7 @@ export default async function ScoreAnalysisPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8 md:px-6 md:py-10">
+      <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           {/* 헤더 */}
           <SectionHeader

@@ -11,6 +11,7 @@ import {
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { perfTime } from "@/lib/utils/perfLog";
 import { studentCategories } from "@/components/navigation/student/studentCategories";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type StudentRow = {
   id: string;
@@ -59,14 +60,14 @@ export default async function DashboardPage() {
   const renderTimer = perfTime("[dashboard] render - DashboardContent");
   const page = (
     <>
-      <section className="mx-auto w-full max-w-6xl px-4 py-8 md:py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6 md:gap-8">
           {/* 상단: 학생 인사 + 요약 */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 shadow-md">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  <h1 className="text-h1 text-gray-900">
                   안녕하세요, {studentName}님
                 </h1>
                   <p className="text-sm md:text-base text-gray-600">
@@ -91,7 +92,7 @@ export default async function DashboardPage() {
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900">주요 기능</h2>
+            <h2 className="text-h2 text-gray-900">주요 기능</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
               {studentCategories
                 .filter((category) => category.href !== "/dashboard")

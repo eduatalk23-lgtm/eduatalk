@@ -9,6 +9,7 @@ import { StrategyCard } from "./_components/StrategyCard";
 import { Card } from "@/components/molecules/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
 import Link from "next/link";
+import { getContainerClass } from "@/lib/constants/layout";
 
 /**
  * 통합 성적 대시보드 페이지
@@ -33,7 +34,7 @@ export default async function UnifiedScoreDashboardPage() {
   const tenantContext = await getTenantContext();
   if (!tenantContext) {
     return (
-      <section className="mx-auto max-w-6xl p-6 md:p-8">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <Card>
           <div className="flex flex-col items-center gap-4 p-8 text-center">
             <div className="text-lg font-semibold text-red-600">
@@ -53,7 +54,7 @@ export default async function UnifiedScoreDashboardPage() {
   // tenantId가 없으면 에러 반환
   if (!tenantId) {
     return (
-      <section className="mx-auto max-w-6xl p-6 md:p-8">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <Card>
           <div className="flex flex-col items-center gap-4 p-8 text-center">
             <div className="text-lg font-semibold text-red-600">
@@ -77,7 +78,7 @@ export default async function UnifiedScoreDashboardPage() {
 
   if (!student) {
     return (
-      <section className="mx-auto max-w-6xl p-6 md:p-8">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <Card>
           <div className="flex flex-col items-center gap-4 p-8 text-center">
             <div className="text-lg font-semibold text-red-600">
@@ -117,7 +118,7 @@ export default async function UnifiedScoreDashboardPage() {
   // 에러 처리
   if (error || !dashboardData) {
     return (
-      <section className="mx-auto max-w-6xl p-6 md:p-8">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <PageHeader
             title="성적 대시보드"

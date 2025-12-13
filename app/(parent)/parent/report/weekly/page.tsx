@@ -22,6 +22,7 @@ import { getWeeklyCoaching } from "@/app/(student)/report/weekly/coachingAction"
 import { StudentSelector } from "../../_components/StudentSelector";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -41,7 +42,7 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
 
   if (linkedStudents.length === 0) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
           <h2 className="text-xl font-semibold text-yellow-900 mb-2">
             연결된 자녀가 없습니다
@@ -71,7 +72,7 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
 
   if (!hasAccess) {
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
           <h2 className="text-xl font-semibold text-red-900 mb-2">
             접근 권한이 없습니다
@@ -126,7 +127,7 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
       goalProgress.totalGoals > 0;
 
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         {/* 헤더 */}
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -218,7 +219,7 @@ export default async function ParentWeeklyReportPage({ searchParams }: PageProps
   } catch (error) {
     console.error("[parent/report/weekly] 페이지 로드 실패", error);
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="rounded-lg border border-red-200 bg-red-50 p-6">
           <h2 className="text-lg font-semibold text-red-900 mb-2">오류가 발생했습니다</h2>
           <p className="text-sm text-red-700 mb-4">

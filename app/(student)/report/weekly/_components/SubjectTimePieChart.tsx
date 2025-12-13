@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { getSubjectColor, getSubjectColorClass } from "@/lib/constants/chartColors";
 
 type SubjectTimePieChartProps = {
   data: Array<{
@@ -10,18 +11,6 @@ type SubjectTimePieChartProps = {
     percentage: number;
   }>;
 };
-
-// 과목별 색상 팔레트
-const SUBJECT_COLORS = [
-  "#6366f1", // indigo
-  "#8b5cf6", // purple
-  "#ec4899", // pink
-  "#f59e0b", // amber
-  "#10b981", // emerald
-  "#3b82f6", // blue
-  "#ef4444", // red
-  "#14b8a6", // teal
-];
 
 export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
   const chartData = data.map((d) => ({
@@ -49,7 +38,7 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
             dataKey="value"
           >
             {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={SUBJECT_COLORS[index % SUBJECT_COLORS.length]} />
+              <Cell key={`cell-${index}`} fill={getSubjectColor(index)} />
             ))}
           </Pie>
           <Tooltip
@@ -62,10 +51,7 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
         {chartData.map((item, index) => (
           <div key={item.name} className="flex items-center gap-2 text-sm">
             <div
-              className="h-4 w-4 rounded"
-              style={{
-                backgroundColor: SUBJECT_COLORS[index % SUBJECT_COLORS.length],
-              }}
+              className={`h-4 w-4 rounded ${getSubjectColorClass(index)}`}
             />
             <span className="text-gray-700">{item.name}</span>
             <span className="text-gray-500">({item.value}분)</span>

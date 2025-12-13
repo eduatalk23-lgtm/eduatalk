@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/molecules/EmptyState";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { getPlanById } from "@/lib/data/studentPlans";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type TodayPageProps = {
   searchParams?:
@@ -132,7 +133,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   if (activePlanGroups.length === 0) {
     pageTimer.end();
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
+      <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <TodayHeader />
           <EmptyState
@@ -207,7 +208,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       initialProgress={todayProgress}
       initialPlansData={plansDataForContext}
     >
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
+      <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <TodayHeader />
           <CurrentLearningSection />

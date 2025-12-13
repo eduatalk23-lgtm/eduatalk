@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PatternAnalysisView } from "./_components/PatternAnalysisView";
+import { getContainerClass } from "@/lib/constants/layout";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function PatternAnalysisPage() {
   const supabase = await createSupabaseServerClient();
@@ -144,25 +146,25 @@ export default async function PatternAnalysisPage() {
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-gray-900">학습 패턴 분석</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          최근 4주간의 학습 패턴을 분석하고 개선점을 찾아보세요
-        </p>
-      </div>
+    <section className={getContainerClass("DASHBOARD", "md")}>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="학습 패턴 분석"
+          description="최근 4주간의 학습 패턴을 분석하고 개선점을 찾아보세요"
+        />
 
-      <PatternAnalysisView
-        byDayOfWeek={byDayOfWeek}
-        byHour={byHour}
-        byDate={byDate}
-        mostActiveDay={mostActiveDay}
-        mostActiveHour={mostActiveHour}
-        averageWeeklySeconds={averageWeeklySeconds}
-        weeklyTrend={weeklyTrend}
-        delayPercentage={delayPercentage}
-        weekdays={weekdays}
-      />
+        <PatternAnalysisView
+          byDayOfWeek={byDayOfWeek}
+          byHour={byHour}
+          byDate={byDate}
+          mostActiveDay={mostActiveDay}
+          mostActiveHour={mostActiveHour}
+          averageWeeklySeconds={averageWeeklySeconds}
+          weeklyTrend={weeklyTrend}
+          delayPercentage={delayPercentage}
+          weekdays={weekdays}
+        />
+      </div>
     </section>
   );
 }

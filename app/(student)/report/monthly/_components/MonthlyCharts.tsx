@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import type { MonthlyReport } from "@/lib/reports/monthly";
+import { createWidthStyle } from "@/lib/utils/cssVariables";
 
 type MonthlyChartsProps = {
   reportData: MonthlyReport;
@@ -25,43 +26,47 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
       {/* 주차별 학습시간 */}
       {studyTimeData.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">주차별 학습시간</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={studyTimeData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
-              <YAxis label={{ value: "시간", angle: -90, position: "insideLeft" }} />
-              <Tooltip />
-              <Bar dataKey="hours" fill="#6366f1" /> {/* indigo-500 */}
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-gray-900">주차별 학습시간</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={studyTimeData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
+                <YAxis label={{ value: "시간", angle: -90, position: "insideLeft" }} />
+                <Tooltip />
+                <Bar dataKey="hours" fill="#6366f1" /> {/* indigo-500 */}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 
       {/* 과목별 학습시간 */}
       {reportData.studyTimeBySubject.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">과목별 학습시간</h3>
-          <div className="space-y-3">
-            {reportData.studyTimeBySubject.slice(0, 5).map((item) => {
-              const maxMinutes = Math.max(...reportData.studyTimeBySubject.map((s) => s.minutes), 1);
-              return (
-                <div key={item.subject} className="flex items-center gap-3">
-                  <div className="w-20 text-sm text-gray-600">{item.subject}</div>
-                  <div className="flex-1">
-                    <div className="h-6 rounded-full bg-gray-200">
-                      <div
-                        className="h-full rounded-full bg-indigo-600"
-                        style={{ width: `${(item.minutes / maxMinutes) * 100}%` }}
-                      />
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-gray-900">과목별 학습시간</h3>
+            <div className="space-y-3">
+              {reportData.studyTimeBySubject.slice(0, 5).map((item) => {
+                const maxMinutes = Math.max(...reportData.studyTimeBySubject.map((s) => s.minutes), 1);
+                return (
+                  <div key={item.subject} className="flex items-center gap-3">
+                    <div className="w-20 text-sm text-gray-600">{item.subject}</div>
+                    <div className="flex-1">
+                      <div className="h-6 rounded-full bg-gray-200">
+                        <div
+                          className="h-full rounded-full bg-indigo-600"
+                          style={createWidthStyle((item.minutes / maxMinutes) * 100)}
+                        />
+                      </div>
+                    </div>
+                    <div className="w-16 text-right text-sm font-medium text-gray-900">
+                      {item.minutes}분
                     </div>
                   </div>
-                  <div className="w-16 text-right text-sm font-medium text-gray-900">
-                    {item.minutes}분
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -69,16 +74,18 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
       {/* 주차별 플랜 실행률 */}
       {planCompletionData.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">주차별 플랜 실행률</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={planCompletionData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
-              <YAxis label={{ value: "실행률 (%)", angle: -90, position: "insideLeft" }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="completionRate" stroke="#8b5cf6" strokeWidth={2} /> {/* purple-500 */}
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-gray-900">주차별 플랜 실행률</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={planCompletionData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
+                <YAxis label={{ value: "실행률 (%)", angle: -90, position: "insideLeft" }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="completionRate" stroke="#8b5cf6" strokeWidth={2} /> {/* purple-500 */}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
     </div>

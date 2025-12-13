@@ -1,6 +1,7 @@
 "use client";
 
 import { Calendar } from "lucide-react";
+import { createPositionStyle, createHeightStyle } from "@/lib/utils/cssVariables";
 
 interface Block {
   day_of_week: number;
@@ -63,7 +64,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
     const endHour = timeToNumber(block.end_time);
     const top = (startHour / 24) * 100;
     const height = ((endHour - startHour) / 24) * 100;
-    return { top: `${top}%`, height: `${height}%` };
+    return { top, height }; // 숫자 반환
   };
 
   // 블록 색상 (block_index에 따라)
@@ -143,7 +144,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                             ? "border-t border-gray-300"
                             : "border-t border-dashed border-gray-200"
                         }`}
-                        style={{ top: `${(i / 24) * 100}%` }}
+                        style={createPositionStyle((i / 24) * 100)}
                       />
                     ))}
 
@@ -167,8 +168,8 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                             colorClass || "bg-blue-500"
                           } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
                           style={{
-                            top: blockStyle.top,
-                            height: blockStyle.height,
+                            ...createPositionStyle(blockStyle.top),
+                            ...createHeightStyle(blockStyle.height),
                           }}
                           title={`${block.start_time} ~ ${block.end_time}`}
                         >

@@ -1,6 +1,7 @@
 "use client";
 
 import ProgressBar from "@/components/atoms/ProgressBar";
+import { createHeightStyle } from "@/lib/utils/cssVariables";
 
 type DayStats = {
   totalSeconds: number;
@@ -134,16 +135,18 @@ export function PatternAnalysisView({
                 <div key={index} className="flex items-center gap-4">
                   <div className="w-12 text-sm font-medium text-gray-700">{day}</div>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                      <span>{formatTime(stats.totalSeconds)}</span>
-                      <span>{stats.planCount}개 플랜</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>{formatTime(stats.totalSeconds)}</span>
+                        <span>{stats.planCount}개 플랜</span>
+                      </div>
+                      <ProgressBar
+                        value={percentage}
+                        max={100}
+                        color="indigo"
+                        height="sm"
+                      />
                     </div>
-                    <ProgressBar
-                      value={percentage}
-                      max={100}
-                      color="indigo"
-                      height="sm"
-                    />
                   </div>
                 </div>
               );
@@ -168,7 +171,7 @@ export function PatternAnalysisView({
                   <div className="relative w-full">
                     <div
                       className="w-full rounded-t bg-indigo-600 transition-all"
-                      style={{ height: `${height}%`, minHeight: "20px" }}
+                      style={createHeightStyle(height, "20px")}
                       title={`${formatHour(hour)}: ${formatTime(seconds)}`}
                     />
                   </div>
@@ -196,15 +199,17 @@ export function PatternAnalysisView({
                     {week.week}주 전
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                      <span>{formatTime(week.totalSeconds)}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>{formatTime(week.totalSeconds)}</span>
+                      </div>
+                      <ProgressBar
+                        value={percentage}
+                        max={100}
+                        color="violet"
+                        height="sm"
+                      />
                     </div>
-                    <ProgressBar
-                      value={percentage}
-                      max={100}
-                      color="violet"
-                      height="sm"
-                    />
                   </div>
                 </div>
               );

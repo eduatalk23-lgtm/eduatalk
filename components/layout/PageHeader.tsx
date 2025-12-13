@@ -22,7 +22,7 @@ function PageHeaderComponent({
         <h1 className="text-h1 text-gray-900">{title}</h1>
         {action && <div className="flex-shrink-0">{action}</div>}
       </div>
-      {description && <p className="text-sm text-gray-600">{description}</p>}
+      {description && <p className="text-body-2 text-[var(--text-secondary)]">{description}</p>}
     </div>
   );
 }

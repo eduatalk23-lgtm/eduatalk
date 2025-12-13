@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { TimeAnalysisView } from "./_components/TimeAnalysisView";
+import { getContainerClass } from "@/lib/constants/layout";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function TimeAnalysisPage() {
   const supabase = await createSupabaseServerClient();
@@ -119,19 +121,19 @@ export default async function TimeAnalysisPage() {
   };
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-8 md:px-6 md:py-10">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-gray-900">시간 분석</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          학습 시간을 분석하고 패턴을 파악하세요
-        </p>
-      </div>
+    <section className={getContainerClass("DASHBOARD", "md")}>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="시간 분석"
+          description="학습 시간을 분석하고 패턴을 파악하세요"
+        />
 
-      <TimeAnalysisView
-        todayStats={todayStats}
-        weekStats={weekStats}
-        monthStats={monthStats}
-      />
+        <TimeAnalysisView
+          todayStats={todayStats}
+          weekStats={weekStats}
+          monthStats={monthStats}
+        />
+      </div>
     </section>
   );
 }
