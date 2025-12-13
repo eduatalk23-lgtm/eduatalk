@@ -80,9 +80,9 @@ export function SchoolGradeDistributionChart({
   if (schoolScores.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">📊</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+        <div className="mx-auto flex flex-col gap-2 max-w-md">
+          <div className="text-6xl">📊</div>
+          <h3 className="text-lg font-semibold text-gray-900">
             분포 데이터가 없습니다
           </h3>
           <p className="text-sm text-gray-500">
@@ -96,8 +96,8 @@ export function SchoolGradeDistributionChart({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {/* 전체 등급 분포 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900">
           전체 등급 분포
         </h3>
         <ResponsiveContainer width="100%" height={300}>
@@ -121,8 +121,8 @@ export function SchoolGradeDistributionChart({
 
       {/* 학년별 등급 분포 */}
       {gradeDistribution.grades.length > 0 && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900">
             학년별 등급 분포
           </h3>
           <ResponsiveContainer width="100%" height={300}>

@@ -39,9 +39,9 @@ export default function MockDetailAnalysis({
   if (scores.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12">
-        <div className="text-center">
+        <div className="flex flex-col gap-2 text-center">
           <p className="text-gray-600">모의고사 성적 데이터가 없습니다.</p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500">
             성적 입력 페이지에서 성적을 입력하세요.
           </p>
         </div>
@@ -53,22 +53,22 @@ export default function MockDetailAnalysis({
     <div className="flex flex-col gap-6">
       {/* 추이 요약 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">전체 시험 수</p>
+        <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-600">전체 시험 수</p>
           <p className="text-2xl font-bold text-gray-900">
             {scores.length}
           </p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">최근 평균 백분위</p>
+        <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-600">최근 평균 백분위</p>
           <p className="text-2xl font-bold text-indigo-600">
             {trendAnalysis.recent_average_percentile !== null
               ? `${trendAnalysis.recent_average_percentile}%`
               : "N/A"}
           </p>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-600 mb-1">추이</p>
+        <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">
+          <p className="text-sm text-gray-600">추이</p>
           <p
             className={`text-2xl font-bold ${
               trendAnalysis.trend === "상승"
@@ -86,8 +86,8 @@ export default function MockDetailAnalysis({
       </div>
 
       {/* 백분위 추이 차트 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+        <h2 className="text-lg font-semibold text-gray-900">
           백분위 추이
         </h2>
         <MockTrendChart scores={sortedScores} />
@@ -95,8 +95,8 @@ export default function MockDetailAnalysis({
 
       {/* 최근 2회 비교 테이블 */}
       {recentComparison.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+          <h2 className="text-lg font-semibold text-gray-900">
             최근 2회 성적 비교
           </h2>
           <MockComparisonTable data={recentComparison} />
@@ -104,8 +104,8 @@ export default function MockDetailAnalysis({
       )}
 
       {/* 과목별 상세 성적 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+        <h2 className="text-lg font-semibold text-gray-900">
           시험별 상세 성적
         </h2>
         <div className="overflow-x-auto">

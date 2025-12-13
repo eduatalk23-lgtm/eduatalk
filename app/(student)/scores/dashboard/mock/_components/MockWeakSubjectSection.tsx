@@ -161,9 +161,9 @@ export function MockWeakSubjectSection({
   if (weakSubjects.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">✅</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+        <div className="mx-auto flex flex-col gap-2 max-w-md">
+          <div className="text-6xl">✅</div>
+          <h3 className="text-lg font-semibold text-gray-900">
             취약 과목이 없습니다
           </h3>
           <p className="text-sm text-gray-500">
@@ -188,8 +188,8 @@ export function MockWeakSubjectSection({
           className={`rounded-lg border p-6 ${getRiskColor(item.riskScore)}`}
         >
           <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+            <div className="flex flex-col gap-2 flex-1">
+              <div className="flex items-center gap-3">
                 <h3 className="text-lg font-semibold">{item.subject}</h3>
                 <span className="text-xs font-medium px-2 py-1 rounded bg-white/50">
                   모의고사
@@ -205,7 +205,7 @@ export function MockWeakSubjectSection({
                   </p>
                 ))}
               </div>
-              <div className="mt-2 flex flex-wrap gap-4 text-xs opacity-75">
+              <div className="flex flex-wrap gap-4 text-xs opacity-75">
                 {item.recentPercentiles.length > 0 && (
                   <p>
                     최근 백분위: {item.recentPercentiles.map(p => p.toFixed(1)).join(", ")}% (평균: {item.averagePercentile.toFixed(1)}%)

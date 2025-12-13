@@ -194,9 +194,9 @@ export function MockInsightPanel({
   if (insights.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">💡</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+        <div className="mx-auto flex flex-col gap-2 max-w-md">
+          <div className="text-6xl">💡</div>
+          <h3 className="text-lg font-semibold text-gray-900">
             인사이트 데이터가 부족합니다
           </h3>
           <p className="text-sm text-gray-500">
@@ -208,11 +208,11 @@ export function MockInsightPanel({
   }
 
   return (
-    <div className="rounded-lg border border-purple-200 bg-purple-50 p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-purple-900 mb-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-purple-200 bg-purple-50 p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-purple-900">
         모의고사 학습 인사이트
       </h2>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {insights.map((insight, index) => (
           <div
             key={index}
