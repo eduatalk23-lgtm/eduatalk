@@ -148,10 +148,10 @@ export function SchoolScoreEditForm({
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <label
             htmlFor="class_rank"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-700"
           >
             반 석차
           </label>

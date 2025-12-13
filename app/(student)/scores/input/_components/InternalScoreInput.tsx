@@ -162,8 +162,8 @@ export default function InternalScoreInput({
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-gray-900">기본 정보</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-medium text-gray-700">
                 학년 <span className="text-red-500">*</span>
               </label>
               <select
@@ -176,8 +176,8 @@ export default function InternalScoreInput({
                 <option value={3}>3학년</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-medium text-gray-700">
                 학기 <span className="text-red-500">*</span>
               </label>
               <select
