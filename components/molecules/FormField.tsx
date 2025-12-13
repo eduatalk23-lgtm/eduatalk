@@ -33,6 +33,9 @@ const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
     ref
   ) => {
     const inputId = id || props.name;
+    const errorId = error ? `${inputId}-error` : undefined;
+    const hintId = hint && !error ? `${inputId}-hint` : undefined;
+    const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined;
 
     return (
       <div className={cn("flex flex-col gap-1.5", className)}>
@@ -44,13 +47,20 @@ const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
           id={inputId}
           inputSize={inputSize}
           hasError={!!error}
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={describedBy}
+          aria-required={required}
           {...props}
         />
         {error && (
-          <p className="text-xs text-red-600">{error}</p>
+          <p id={errorId} className="text-xs text-red-600" role="alert">
+            {error}
+          </p>
         )}
         {hint && !error && (
-          <p className="text-xs text-gray-800">{hint}</p>
+          <p id={hintId} className="text-xs text-gray-800">
+            {hint}
+          </p>
         )}
       </div>
     );

@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import type { MethodStatistics } from "@/lib/domains/attendance/statistics";
+import { getChartColor } from "@/lib/constants/colors";
 
 type MethodStatisticsChartProps = {
   data: MethodStatistics[];
@@ -13,8 +14,6 @@ const METHOD_LABELS: Record<string, string> = {
   location: "위치",
   auto: "자동",
 };
-
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 
 export function MethodStatisticsChart({ data }: MethodStatisticsChartProps) {
   if (data.length === 0) {
@@ -41,11 +40,11 @@ export function MethodStatisticsChart({ data }: MethodStatisticsChartProps) {
           labelLine={false}
           label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(1)}%`}
           outerRadius={80}
-          fill="#8884d8"
+          fill={getChartColor(0)}
           dataKey="value"
         >
           {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            <Cell key={`cell-${index}`} fill={getChartColor(index)} />
           ))}
         </Pie>
         <Tooltip />

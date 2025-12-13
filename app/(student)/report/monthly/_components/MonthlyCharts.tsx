@@ -3,6 +3,7 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import type { MonthlyReport } from "@/lib/reports/monthly";
 import { createWidthStyle } from "@/lib/utils/cssVariables";
+import { getChartColor } from "@/lib/constants/colors";
 
 type MonthlyChartsProps = {
   reportData: MonthlyReport;
@@ -28,15 +29,35 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4">
             <h3 className="text-lg font-semibold text-gray-900">주차별 학습시간</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={studyTimeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
-                <YAxis label={{ value: "시간", angle: -90, position: "insideLeft" }} />
-                <Tooltip />
-                <Bar dataKey="hours" fill="#6366f1" /> {/* indigo-500 */}
-              </BarChart>
-            </ResponsiveContainer>
+            <div role="img" aria-label={`주차별 학습시간 차트. ${studyTimeData.map(d => `${d.weekNumber}주차: ${d.hours}시간`).join(", ")}`}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={studyTimeData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
+                  <YAxis label={{ value: "시간", angle: -90, position: "insideLeft" }} />
+                  <Tooltip />
+                  <Bar dataKey="hours" fill={getChartColor(0)} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            {/* 스크린 리더용 데이터 테이블 */}
+            <table className="sr-only">
+              <caption>주차별 학습시간 데이터</caption>
+              <thead>
+                <tr>
+                  <th>주차</th>
+                  <th>학습시간 (시간)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studyTimeData.map((item) => (
+                  <tr key={item.weekNumber}>
+                    <td>{item.weekNumber}주차</td>
+                    <td>{item.hours}시간</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -76,15 +97,35 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           <div className="flex flex-col gap-4">
             <h3 className="text-lg font-semibold text-gray-900">주차별 플랜 실행률</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={planCompletionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
-                <YAxis label={{ value: "실행률 (%)", angle: -90, position: "insideLeft" }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="completionRate" stroke="#8b5cf6" strokeWidth={2} /> {/* purple-500 */}
-              </LineChart>
-            </ResponsiveContainer>
+            <div role="img" aria-label={`주차별 플랜 실행률 차트. ${planCompletionData.map(d => `${d.weekNumber}주차: ${d.completionRate}%`).join(", ")}`}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={planCompletionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="weekNumber" label={{ value: "주차", position: "insideBottom", offset: -5 }} />
+                  <YAxis label={{ value: "실행률 (%)", angle: -90, position: "insideLeft" }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="completionRate" stroke={getChartColor(1)} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {/* 스크린 리더용 데이터 테이블 */}
+            <table className="sr-only">
+              <caption>주차별 플랜 실행률 데이터</caption>
+              <thead>
+                <tr>
+                  <th>주차</th>
+                  <th>실행률 (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {planCompletionData.map((item) => (
+                  <tr key={item.weekNumber}>
+                    <td>{item.weekNumber}주차</td>
+                    <td>{item.completionRate}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

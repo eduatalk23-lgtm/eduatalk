@@ -34,7 +34,7 @@ function StudentCategoryNavContent() {
   };
 
   return (
-    <nav className="flex items-center gap-4 overflow-x-auto border-b bg-white p-3">
+    <nav className="flex items-center gap-4 overflow-x-auto border-b bg-white p-3" aria-label="주요 메뉴">
       {studentCategories.map((category) => {
         const active = isActive(category.href);
         const Icon = category.icon;
@@ -48,8 +48,9 @@ function StudentCategoryNavContent() {
                 ? "bg-gray-100 font-semibold text-indigo-600"
                 : "text-gray-600 hover:text-gray-900"
             }`}
+            aria-current={active ? "page" : undefined}
           >
-            <Icon size={18} />
+            <Icon size={18} aria-hidden="true" />
             <span>{category.label}</span>
           </Link>
         );

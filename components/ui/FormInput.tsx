@@ -15,6 +15,8 @@ const FormInput = memo(function FormInput({
   ...props
 }: FormInputProps) {
   const inputId = id || props.name;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const describedBy = errorId || undefined;
 
   return (
     <label htmlFor={inputId} className="flex flex-col gap-1 text-sm">
@@ -27,9 +29,15 @@ const FormInput = memo(function FormInput({
           error && "border-red-500",
           className
         )}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={describedBy}
         {...props}
       />
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && (
+        <span id={errorId} className="text-xs text-red-600" role="alert">
+          {error}
+        </span>
+      )}
     </label>
   );
 });

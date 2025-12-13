@@ -2,6 +2,7 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { AttendanceChartData } from "@/lib/domains/attendance/statistics";
+import { getChartColor } from "@/lib/constants/colors";
 
 type DailyAttendanceChartProps = {
   data: AttendanceChartData[];
@@ -30,11 +31,11 @@ export function DailyAttendanceChart({ data }: DailyAttendanceChartProps) {
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip />
         <Legend />
-        <Line type="monotone" dataKey="present" stroke="#10b981" name="출석" strokeWidth={2} />
-        <Line type="monotone" dataKey="absent" stroke="#ef4444" name="결석" strokeWidth={2} />
-        <Line type="monotone" dataKey="late" stroke="#f59e0b" name="지각" strokeWidth={2} />
-        <Line type="monotone" dataKey="early_leave" stroke="#f97316" name="조퇴" strokeWidth={2} />
-        <Line type="monotone" dataKey="excused" stroke="#3b82f6" name="공결" strokeWidth={2} />
+        <Line type="monotone" dataKey="present" stroke={getChartColor(4)} name="출석" strokeWidth={2} />
+        <Line type="monotone" dataKey="absent" stroke={getChartColor(6)} name="결석" strokeWidth={2} />
+        <Line type="monotone" dataKey="late" stroke={getChartColor(3)} name="지각" strokeWidth={2} />
+        <Line type="monotone" dataKey="early_leave" stroke={getChartColor(3)} name="조퇴" strokeWidth={2} />
+        <Line type="monotone" dataKey="excused" stroke={getChartColor(5)} name="공결" strokeWidth={2} />
       </LineChart>
     </ResponsiveContainer>
   );

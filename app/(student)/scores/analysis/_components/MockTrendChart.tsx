@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { getChartColor } from "@/lib/constants/colors";
 
 type MockTrendChartProps = {
   scores: any[];
@@ -58,11 +59,11 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgb(229 231 235)" />
         <XAxis
           dataKey="label"
           tick={{ fontSize: 11 }}
-          stroke="#6b7280"
+          stroke="rgb(107 114 128)"
           angle={-15}
           textAnchor="end"
           height={60}
@@ -70,13 +71,13 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
         <YAxis
           domain={[0, 100]}
           tick={{ fontSize: 12 }}
-          stroke="#6b7280"
+          stroke="rgb(107 114 128)"
           label={{ value: "백분위 (%)", angle: -90, position: "insideLeft" }}
         />
         <Tooltip
           contentStyle={{
             backgroundColor: "#fff",
-            border: "1px solid #e5e7eb",
+            border: "1px solid rgb(229 231 235)",
             borderRadius: "8px",
             fontSize: "12px",
           }}
@@ -86,9 +87,9 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
         <Line
           type="monotone"
           dataKey="average_percentile"
-          stroke="#6366f1"
+          stroke={getChartColor(0)}
           strokeWidth={2}
-          dot={{ fill: "#6366f1", r: 4 }}
+          dot={{ fill: getChartColor(0), r: 4 }}
           activeDot={{ r: 6 }}
           name="평균 백분위"
         />

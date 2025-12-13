@@ -17,7 +17,7 @@ const sizeClasses: Record<InputSize, string> = {
 };
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ inputSize = "md", hasError = false, className, ...props }, ref) => {
+  ({ inputSize = "md", hasError = false, className, "aria-describedby": ariaDescribedBy, ...props }, ref) => {
     return (
       <input
         ref={ref}
@@ -32,6 +32,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           sizeClasses[inputSize],
           className
         )}
+        aria-invalid={hasError ? "true" : undefined}
+        aria-describedby={ariaDescribedBy}
         {...props}
       />
     );

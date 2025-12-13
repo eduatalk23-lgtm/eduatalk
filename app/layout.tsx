@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import InstallPrompt from "@/components/ui/InstallPrompt";
+import { SkipLink } from "@/components/layout/SkipLink";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -122,6 +123,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100`}
       >
         <Providers>
+          <SkipLink />
           {children}
           <InstallPrompt />
         </Providers>

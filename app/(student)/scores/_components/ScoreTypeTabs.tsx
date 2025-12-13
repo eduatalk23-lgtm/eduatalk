@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, type KeyboardEvent } from "react";
 
 const scoreTypes = [
   { value: "dashboard", label: "대시보드", href: "/scores/dashboard/unified" },
@@ -33,15 +33,43 @@ export function ScoreTypeTabs() {
     }, 150);
   }, [pathname, router]);
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const prevIndex = index > 0 ? index - 1 : scoreTypes.length - 1;
+      handleTabClick(scoreTypes[prevIndex].href);
+      (e.currentTarget.parentElement?.children[prevIndex] as HTMLElement)?.focus();
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const nextIndex = index < scoreTypes.length - 1 ? index + 1 : 0;
+      handleTabClick(scoreTypes[nextIndex].href);
+      (e.currentTarget.parentElement?.children[nextIndex] as HTMLElement)?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      handleTabClick(scoreTypes[0].href);
+      (e.currentTarget.parentElement?.children[0] as HTMLElement)?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const lastIndex = scoreTypes.length - 1;
+      handleTabClick(scoreTypes[lastIndex].href);
+      (e.currentTarget.parentElement?.children[lastIndex] as HTMLElement)?.focus();
+    }
+  };
+
   return (
-    <div className="flex gap-2 border-b border-gray-200">
-      {scoreTypes.map((type) => {
+    <div className="flex gap-2 border-b border-gray-200" role="tablist" aria-label="성적 타입 선택">
+      {scoreTypes.map((type, index) => {
         const active = isActive(type.href);
         return (
           <button
             key={type.value}
             onClick={() => handleTabClick(type.href)}
-            className={`px-4 py-2 text-sm font-medium transition ${
+            onKeyDown={(e) => handleKeyDown(e, index)}
+            role="tab"
+            aria-selected={active}
+            aria-controls={`tabpanel-${type.value}`}
+            tabIndex={active ? 0 : -1}
+            className={`px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${
               active
                 ? "border-b-2 border-indigo-600 text-indigo-600"
                 : "text-gray-500 hover:text-gray-900"

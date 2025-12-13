@@ -25,6 +25,8 @@ export function Dialog({
 }: DialogProps) {
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = title ? `dialog-title-${Math.random().toString(36).substr(2, 9)}` : undefined;
+  const descriptionId = description ? `dialog-description-${Math.random().toString(36).substr(2, 9)}` : undefined;
 
   useEffect(() => {
     setMounted(true);
@@ -42,6 +44,12 @@ export function Dialog({
 
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
+
+    // 포커스 트랩: 첫 번째 포커스 가능한 요소로 포커스 이동
+    const firstFocusable = dialogRef.current?.querySelector(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    ) as HTMLElement;
+    firstFocusable?.focus();
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
@@ -61,12 +69,17 @@ export function Dialog({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
     >
       <div
         ref={dialogRef}
         className={cn(
           "relative w-full rounded-lg border bg-white shadow-lg",
           "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
+          "focus:outline-none",
           maxWidth === "sm" && "max-w-sm",
           maxWidth === "md" && "max-w-md",
           maxWidth === "lg" && "max-w-lg",
@@ -76,11 +89,13 @@ export function Dialog({
           maxWidth === "full" && "max-w-full"
         )}
         onClick={(e) => e.stopPropagation()}
+        tabIndex={-1}
       >
         {(title || description) && (
           <div className="flex flex-col gap-1.5 border-b border-gray-200 px-6 py-4">
             {title && (
               <h2
+                id={titleId}
                 className={cn(
                   "text-lg font-semibold",
                   variant === "destructive" ? "text-red-900" : "text-gray-900"
@@ -90,7 +105,9 @@ export function Dialog({
               </h2>
             )}
             {description && (
-              <div className="text-sm text-gray-700">{description}</div>
+              <div id={descriptionId} className="text-sm text-gray-700">
+                {description}
+              </div>
             )}
           </div>
         )}

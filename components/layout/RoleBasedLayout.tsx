@@ -250,7 +250,7 @@ export function RoleBasedLayout({
       )}
 
       {/* 메인 콘텐츠 */}
-      <main className="flex-1 flex flex-col">
+      <main id="main-content" className="flex-1 flex flex-col">
         {/* 상단 네비게이션 (모바일용) */}
         {showSidebar && (
           <nav className="md:hidden sticky top-0 z-50 border-b border-gray-200 bg-white">

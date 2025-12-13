@@ -9,6 +9,7 @@ import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, timeToMinutes } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { DayTimelineModal } from "./DayTimelineModal";
+import { getDayTypeColor } from "@/lib/constants/colors";
 
 type MonthViewProps = {
   plans: PlanWithContent[];
@@ -127,40 +128,17 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     
     // dayType 기반으로 스타일 결정
     const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-    const isStudyDay = dayType === "학습일";
-    const isReviewDay = dayType === "복습일";
     const isTodayDate = isToday(date);
+    
+    // 날짜 타입 색상 가져오기
+    const dayTypeColor = getDayTypeColor(
+      isHoliday ? "지정휴일" : dayType,
+      isTodayDate
+    );
 
-    // 배경색 결정 (우선순위: 휴일 > 오늘 > 학습일 > 복습일 > 일반)
-    const bgColorClass = isHoliday
-      ? "border-red-200 bg-red-50"
-      : isTodayDate
-      ? "border-indigo-200 bg-indigo-50"
-      : isStudyDay
-      ? "border-blue-200 bg-blue-50"
-      : isReviewDay
-      ? "border-amber-200 bg-amber-50"
-      : "border-gray-200 bg-white";
-
-    // 텍스트 색상 결정
-    const textColorClass = isHoliday
-      ? "text-red-600"
-      : isTodayDate
-      ? "text-indigo-600"
-      : isStudyDay
-      ? "text-blue-600"
-      : isReviewDay
-      ? "text-amber-600"
-      : "text-gray-900";
-
-    // 날짜 타입 배지 스타일
-    const dayTypeBadgeClass = isHoliday
-      ? "bg-red-100 text-red-800"
-      : isStudyDay
-      ? "bg-blue-100 text-blue-800"
-      : isReviewDay
-      ? "bg-amber-100 text-amber-800"
-      : "bg-gray-100 text-gray-800";
+    const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
+    const textColorClass = dayTypeColor.text;
+    const dayTypeBadgeClass = dayTypeColor.badge;
 
     const handleDateClick = () => {
       setSelectedDate(date);

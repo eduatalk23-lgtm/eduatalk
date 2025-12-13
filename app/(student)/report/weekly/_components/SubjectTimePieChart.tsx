@@ -1,7 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { getSubjectColor, getSubjectColorClass } from "@/lib/constants/chartColors";
+import { getChartColor, getChartColorClass } from "@/lib/constants/colors";
 
 type SubjectTimePieChartProps = {
   data: Array<{
@@ -34,16 +34,16 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
               return `${name} ${percentage.toFixed(1)}%`;
             }}
             outerRadius={100}
-            fill="#8884d8"
+            fill={getChartColor(0)}
             dataKey="value"
           >
             {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={getSubjectColor(index)} />
+              <Cell key={`cell-${index}`} fill={getChartColor(index)} />
             ))}
           </Pie>
           <Tooltip
             formatter={(value: number) => [`${value}분`, "학습시간"]}
-            labelStyle={{ color: "#374151" }}
+            labelStyle={{ color: "rgb(55 65 81)" }}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -51,7 +51,7 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
         {chartData.map((item, index) => (
           <div key={item.name} className="flex items-center gap-2 text-sm">
             <div
-              className={`h-4 w-4 rounded ${getSubjectColorClass(index)}`}
+              className={`h-4 w-4 rounded ${getChartColorClass(index)}`}
             />
             <span className="text-gray-700">{item.name}</span>
             <span className="text-gray-500">({item.value}분)</span>

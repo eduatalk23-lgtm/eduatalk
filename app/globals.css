@@ -15,6 +15,113 @@
   --text-tertiary: #4b5563;
   --text-placeholder: #4b5563;
   --text-disabled: #d1d5db;
+
+  /* Semantic Color Palette - Light Mode (RGB channels for opacity support) */
+  /* Primary (Indigo) */
+  --color-primary-50: 238 242 255;
+  --color-primary-100: 224 231 255;
+  --color-primary-200: 199 210 254;
+  --color-primary-300: 165 180 252;
+  --color-primary-400: 129 140 248;
+  --color-primary-500: 99 102 241;
+  --color-primary-600: 79 70 229;
+  --color-primary-700: 67 56 202;
+  --color-primary-800: 55 48 163;
+  --color-primary-900: 49 46 129;
+
+  /* Secondary (Gray) */
+  --color-secondary-50: 249 250 251;
+  --color-secondary-100: 243 244 246;
+  --color-secondary-200: 229 231 235;
+  --color-secondary-300: 209 213 219;
+  --color-secondary-400: 156 163 175;
+  --color-secondary-500: 107 114 128;
+  --color-secondary-600: 75 85 99;
+  --color-secondary-700: 55 65 81;
+  --color-secondary-800: 31 41 55;
+  --color-secondary-900: 17 24 39;
+
+  /* Success (Green/Emerald) */
+  --color-success-50: 236 253 245;
+  --color-success-100: 209 250 229;
+  --color-success-200: 167 243 208;
+  --color-success-300: 110 231 183;
+  --color-success-400: 52 211 153;
+  --color-success-500: 16 185 129;
+  --color-success-600: 5 150 105;
+  --color-success-700: 4 120 87;
+  --color-success-800: 6 95 70;
+  --color-success-900: 6 78 59;
+
+  /* Warning (Amber/Yellow) */
+  --color-warning-50: 255 251 235;
+  --color-warning-100: 254 243 199;
+  --color-warning-200: 253 230 138;
+  --color-warning-300: 252 211 77;
+  --color-warning-400: 251 191 36;
+  --color-warning-500: 245 158 11;
+  --color-warning-600: 217 119 6;
+  --color-warning-700: 180 83 9;
+  --color-warning-800: 146 64 14;
+  --color-warning-900: 120 53 15;
+
+  /* Error (Red) */
+  --color-error-50: 254 242 242;
+  --color-error-100: 254 226 226;
+  --color-error-200: 254 202 202;
+  --color-error-300: 252 165 165;
+  --color-error-400: 248 113 113;
+  --color-error-500: 239 68 68;
+  --color-error-600: 220 38 38;
+  --color-error-700: 185 28 28;
+  --color-error-800: 153 27 27;
+  --color-error-900: 127 29 29;
+
+  /* Info (Blue) */
+  --color-info-50: 239 246 255;
+  --color-info-100: 219 234 254;
+  --color-info-200: 191 219 254;
+  --color-info-300: 147 197 253;
+  --color-info-400: 96 165 250;
+  --color-info-500: 59 130 246;
+  --color-info-600: 37 99 235;
+  --color-info-700: 29 78 216;
+  --color-info-800: 30 64 175;
+  --color-info-900: 30 58 138;
+
+  /* Grade Colors (1-9 등급) */
+  --color-grade-1: 37 99 235; /* blue-600 */
+  --color-grade-2: 59 130 246; /* blue-500 */
+  --color-grade-3: 99 102 241; /* indigo-500 */
+  --color-grade-4: 156 163 175; /* gray-400 */
+  --color-grade-5: 234 179 8; /* yellow-500 */
+  --color-grade-6: 249 115 22; /* orange-500 */
+  --color-grade-7: 239 68 68; /* red-500 */
+  --color-grade-8: 220 38 38; /* red-600 */
+  --color-grade-9: 185 28 28; /* red-700 */
+
+  /* Chart Colors (8색 팔레트) */
+  --color-chart-0: 99 102 241; /* indigo-500 */
+  --color-chart-1: 139 92 246; /* purple-500 */
+  --color-chart-2: 236 72 153; /* pink-500 */
+  --color-chart-3: 245 158 11; /* amber-500 */
+  --color-chart-4: 16 185 129; /* emerald-500 */
+  --color-chart-5: 59 130 246; /* blue-500 */
+  --color-chart-6: 239 68 68; /* red-500 */
+  --color-chart-7: 20 184 166; /* teal-500 */
+
+  /* Day Type Colors (날짜 타입별 색상) */
+  --color-day-study: 59 130 246; /* blue-500 - 학습일 */
+  --color-day-review: 245 158 11; /* amber-500 - 복습일 */
+  --color-day-holiday: 239 68 68; /* red-500 - 휴일 */
+  --color-day-today: 99 102 241; /* indigo-500 - 오늘 */
+  --color-day-normal: 156 163 175; /* gray-400 - 일반 */
+
+  /* Risk Colors (위험도 색상) */
+  --color-risk-low: 16 185 129; /* emerald-500 - 양호 */
+  --color-risk-medium: 234 179 8; /* yellow-500 - 주의 */
+  --color-risk-high: 245 158 11; /* amber-500 - 위험 */
+  --color-risk-critical: 239 68 68; /* red-500 - 매우 위험 */
 }
 
 /* Dark Mode Configuration 
@@ -31,6 +138,34 @@
     --text-tertiary: #9ca3af;
     --text-placeholder: #9ca3af;
     --text-disabled: #6b7280;
+
+    /* Semantic Colors - Dark Mode (same RGB values, different usage context) */
+    /* Primary (Indigo) - 더 밝은 톤 사용 */
+    --color-primary-50: 49 46 129;
+    --color-primary-100: 55 48 163;
+    --color-primary-200: 67 56 202;
+    --color-primary-300: 79 70 229;
+    --color-primary-400: 99 102 241;
+    --color-primary-500: 129 140 248;
+    --color-primary-600: 165 180 252;
+    --color-primary-700: 199 210 254;
+    --color-primary-800: 224 231 255;
+    --color-primary-900: 238 242 255;
+
+    /* Secondary (Gray) - 다크모드용 */
+    --color-secondary-50: 17 24 39;
+    --color-secondary-100: 31 41 55;
+    --color-secondary-200: 55 65 81;
+    --color-secondary-300: 75 85 99;
+    --color-secondary-400: 107 114 128;
+    --color-secondary-500: 156 163 175;
+    --color-secondary-600: 209 213 219;
+    --color-secondary-700: 229 231 235;
+    --color-secondary-800: 243 244 246;
+    --color-secondary-900: 249 250 251;
+
+    /* Success, Warning, Error, Info - 다크모드에서도 동일한 RGB 값 사용 */
+    /* (다크모드에서는 배경과의 대비를 위해 더 밝은 톤이 자동으로 적용됨) */
   }
 }
 
@@ -42,6 +177,29 @@
   --text-tertiary: #9ca3af;
   --text-placeholder: #9ca3af;
   --text-disabled: #6b7280;
+
+  /* Semantic Colors - Dark Mode (same as @media prefers-color-scheme) */
+  --color-primary-50: 49 46 129;
+  --color-primary-100: 55 48 163;
+  --color-primary-200: 67 56 202;
+  --color-primary-300: 79 70 229;
+  --color-primary-400: 99 102 241;
+  --color-primary-500: 129 140 248;
+  --color-primary-600: 165 180 252;
+  --color-primary-700: 199 210 254;
+  --color-primary-800: 224 231 255;
+  --color-primary-900: 238 242 255;
+
+  --color-secondary-50: 17 24 39;
+  --color-secondary-100: 31 41 55;
+  --color-secondary-200: 55 65 81;
+  --color-secondary-300: 75 85 99;
+  --color-secondary-400: 107 114 128;
+  --color-secondary-500: 156 163 175;
+  --color-secondary-600: 209 213 219;
+  --color-secondary-700: 229 231 235;
+  --color-secondary-800: 243 244 246;
+  --color-secondary-900: 249 250 251;
 }
 
 /* Tailwind Theme Configuration */
@@ -57,6 +215,107 @@
   --color-text-tertiary: var(--text-tertiary);
   --color-text-placeholder: var(--text-placeholder);
   --color-text-disabled: var(--text-disabled);
+
+  /* Semantic Color Palette */
+  --color-primary-50: rgb(var(--color-primary-50));
+  --color-primary-100: rgb(var(--color-primary-100));
+  --color-primary-200: rgb(var(--color-primary-200));
+  --color-primary-300: rgb(var(--color-primary-300));
+  --color-primary-400: rgb(var(--color-primary-400));
+  --color-primary-500: rgb(var(--color-primary-500));
+  --color-primary-600: rgb(var(--color-primary-600));
+  --color-primary-700: rgb(var(--color-primary-700));
+  --color-primary-800: rgb(var(--color-primary-800));
+  --color-primary-900: rgb(var(--color-primary-900));
+
+  --color-secondary-50: rgb(var(--color-secondary-50));
+  --color-secondary-100: rgb(var(--color-secondary-100));
+  --color-secondary-200: rgb(var(--color-secondary-200));
+  --color-secondary-300: rgb(var(--color-secondary-300));
+  --color-secondary-400: rgb(var(--color-secondary-400));
+  --color-secondary-500: rgb(var(--color-secondary-500));
+  --color-secondary-600: rgb(var(--color-secondary-600));
+  --color-secondary-700: rgb(var(--color-secondary-700));
+  --color-secondary-800: rgb(var(--color-secondary-800));
+  --color-secondary-900: rgb(var(--color-secondary-900));
+
+  --color-success-50: rgb(var(--color-success-50));
+  --color-success-100: rgb(var(--color-success-100));
+  --color-success-200: rgb(var(--color-success-200));
+  --color-success-300: rgb(var(--color-success-300));
+  --color-success-400: rgb(var(--color-success-400));
+  --color-success-500: rgb(var(--color-success-500));
+  --color-success-600: rgb(var(--color-success-600));
+  --color-success-700: rgb(var(--color-success-700));
+  --color-success-800: rgb(var(--color-success-800));
+  --color-success-900: rgb(var(--color-success-900));
+
+  --color-warning-50: rgb(var(--color-warning-50));
+  --color-warning-100: rgb(var(--color-warning-100));
+  --color-warning-200: rgb(var(--color-warning-200));
+  --color-warning-300: rgb(var(--color-warning-300));
+  --color-warning-400: rgb(var(--color-warning-400));
+  --color-warning-500: rgb(var(--color-warning-500));
+  --color-warning-600: rgb(var(--color-warning-600));
+  --color-warning-700: rgb(var(--color-warning-700));
+  --color-warning-800: rgb(var(--color-warning-800));
+  --color-warning-900: rgb(var(--color-warning-900));
+
+  --color-error-50: rgb(var(--color-error-50));
+  --color-error-100: rgb(var(--color-error-100));
+  --color-error-200: rgb(var(--color-error-200));
+  --color-error-300: rgb(var(--color-error-300));
+  --color-error-400: rgb(var(--color-error-400));
+  --color-error-500: rgb(var(--color-error-500));
+  --color-error-600: rgb(var(--color-error-600));
+  --color-error-700: rgb(var(--color-error-700));
+  --color-error-800: rgb(var(--color-error-800));
+  --color-error-900: rgb(var(--color-error-900));
+
+  --color-info-50: rgb(var(--color-info-50));
+  --color-info-100: rgb(var(--color-info-100));
+  --color-info-200: rgb(var(--color-info-200));
+  --color-info-300: rgb(var(--color-info-300));
+  --color-info-400: rgb(var(--color-info-400));
+  --color-info-500: rgb(var(--color-info-500));
+  --color-info-600: rgb(var(--color-info-600));
+  --color-info-700: rgb(var(--color-info-700));
+  --color-info-800: rgb(var(--color-info-800));
+  --color-info-900: rgb(var(--color-info-900));
+
+  /* Grade Colors */
+  --color-grade-1: rgb(var(--color-grade-1));
+  --color-grade-2: rgb(var(--color-grade-2));
+  --color-grade-3: rgb(var(--color-grade-3));
+  --color-grade-4: rgb(var(--color-grade-4));
+  --color-grade-5: rgb(var(--color-grade-5));
+  --color-grade-6: rgb(var(--color-grade-6));
+  --color-grade-7: rgb(var(--color-grade-7));
+  --color-grade-8: rgb(var(--color-grade-8));
+  --color-grade-9: rgb(var(--color-grade-9));
+
+  /* Chart Colors */
+  --color-chart-0: rgb(var(--color-chart-0));
+  --color-chart-1: rgb(var(--color-chart-1));
+  --color-chart-2: rgb(var(--color-chart-2));
+  --color-chart-3: rgb(var(--color-chart-3));
+  --color-chart-4: rgb(var(--color-chart-4));
+  --color-chart-5: rgb(var(--color-chart-5));
+  --color-chart-6: rgb(var(--color-chart-6));
+  --color-chart-7: rgb(var(--color-chart-7));
+
+  /* Day Type Colors */
+  --color-day-study: rgb(var(--color-day-study));
+  --color-day-review: rgb(var(--color-day-review));
+  --color-day-holiday: rgb(var(--color-day-holiday));
+  --color-day-today: rgb(var(--color-day-today));
+  --color-day-normal: rgb(var(--color-day-normal));
+
+  /* Risk Colors */
+  --color-risk-low: rgb(var(--color-risk-low));
+  --color-risk-medium: rgb(var(--color-risk-medium));
+  --color-risk-high: rgb(var(--color-risk-high));
+  --color-risk-critical: rgb(var(--color-risk-critical));
 }
 
 /* Global Reset & Base Styles */
@@ -125,4 +384,17 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* Accessibility Utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

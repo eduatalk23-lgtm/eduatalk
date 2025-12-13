@@ -49,6 +49,9 @@ function ToastComponent({
 
   return (
     <div
+      role="status"
+      aria-live={variant === "error" ? "assertive" : "polite"}
+      aria-atomic="true"
       className={cn(
         "flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg transition-all duration-300",
         variantClasses[variant],
@@ -57,14 +60,14 @@ function ToastComponent({
           : "translate-y-2 opacity-0"
       )}
     >
-      <span className="flex-shrink-0">{iconMap[variant]}</span>
+      <span className="flex-shrink-0" aria-hidden="true">{iconMap[variant]}</span>
       <p className="text-sm font-medium">{message}</p>
       <button
         onClick={() => {
           setIsVisible(false);
           setTimeout(() => onClose(id), 300);
         }}
-        className="ml-auto flex-shrink-0 text-white/80 hover:text-white"
+        className="ml-auto flex-shrink-0 text-white/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-current rounded"
         aria-label="닫기"
       >
         ✕

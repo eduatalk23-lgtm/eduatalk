@@ -18,6 +18,8 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: ButtonSize;
   isLoading?: boolean;
   fullWidth?: boolean;
+  "aria-label"?: string;
+  "aria-describedby"?: string;
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -51,10 +53,16 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       fullWidth = false,
       className,
       disabled,
+      "aria-label": ariaLabel,
+      "aria-describedby": ariaDescribedBy,
       ...props
     },
     ref
   ) => {
+    // 아이콘만 있는 버튼의 경우 aria-label 필수
+    const hasOnlyIcon = typeof children === "object" && children !== null && !("props" in children && children.props?.children);
+    const finalAriaLabel = ariaLabel || (hasOnlyIcon && !props.title ? "버튼" : undefined);
+
     return (
       <button
         ref={ref}
@@ -66,6 +74,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
         disabled={disabled || isLoading}
+        aria-label={finalAriaLabel}
+        aria-describedby={ariaDescribedBy}
         {...props}
       >
         {isLoading && (

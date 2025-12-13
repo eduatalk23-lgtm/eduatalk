@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { getRiskColorHex } from "@/lib/constants/colors";
 
 export type SubjectRiskAnalysis = {
   subject: string;
@@ -17,13 +18,6 @@ export type SubjectRiskAnalysis = {
 
 type RiskIndexListProps = {
   analyses: SubjectRiskAnalysis[];
-};
-
-const getRiskColor = (risk: number): string => {
-  if (risk >= 70) return "#ef4444"; // 빨강 (매우 위험)
-  if (risk >= 50) return "#f59e0b"; // 주황 (위험)
-  if (risk >= 30) return "#eab308"; // 노랑 (주의)
-  return "#10b981"; // 초록 (양호)
 };
 
 const getTrendIcon = (trend: number): string => {
@@ -70,7 +64,7 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={getRiskColor(entry["Risk Index"])}
+                  fill={getRiskColorHex(entry["Risk Index"])}
                 />
               ))}
             </Bar>
@@ -121,7 +115,7 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
                       <div
                         className="h-3 w-16 rounded-full"
                         style={{
-                          backgroundColor: getRiskColor(analysis.risk_score),
+                          backgroundColor: getRiskColorHex(analysis.risk_score),
                         }}
                       />
                       <span className="font-semibold">

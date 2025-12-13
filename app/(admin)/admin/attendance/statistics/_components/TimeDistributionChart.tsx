@@ -2,6 +2,7 @@
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { TimeDistribution } from "@/lib/domains/attendance/statistics";
+import { getChartColor } from "@/lib/constants/colors";
 
 type TimeDistributionChartProps = {
   data: TimeDistribution[];
@@ -31,8 +32,8 @@ export function TimeDistributionChart({ data }: TimeDistributionChartProps) {
         <Area 
           type="monotone" 
           dataKey="count" 
-          stroke="#3b82f6" 
-          fill="#3b82f6" 
+          stroke={getChartColor(5)} 
+          fill={getChartColor(5)} 
           fillOpacity={0.6} 
         />
       </AreaChart>

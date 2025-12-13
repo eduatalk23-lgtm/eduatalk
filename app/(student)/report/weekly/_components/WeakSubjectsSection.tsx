@@ -1,5 +1,7 @@
 "use client";
 
+import { getRiskColor } from "@/lib/constants/colors";
+
 type WeakSubjectsSectionProps = {
   subjects: Array<{
     subject: string;
@@ -35,15 +37,10 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
         <h3 className="text-lg font-semibold text-gray-900">취약과목 추천</h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {subjects.map((subject) => {
-            const riskColor =
-              subject.riskScore >= 70
-                ? "border-red-300 bg-red-50"
-                : subject.riskScore >= 50
-                ? "border-orange-300 bg-orange-50"
-                : "border-yellow-300 bg-yellow-50";
+            const riskColor = getRiskColor(subject.riskScore);
 
             return (
-              <div key={subject.subject} className={`rounded-lg border p-4 ${riskColor}`}>
+              <div key={subject.subject} className={`rounded-lg border p-4 ${riskColor.border} ${riskColor.bg}`}>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-base font-semibold text-gray-900">{subject.subject}</h4>
@@ -56,13 +53,7 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
                       <div
-                        className={`h-full ${
-                          subject.riskScore >= 70
-                            ? "bg-red-600"
-                            : subject.riskScore >= 50
-                            ? "bg-orange-600"
-                            : "bg-yellow-600"
-                        }`}
+                        className={`h-full ${riskColor.badge.split(" ")[0]}`}
                         style={{ width: `${subject.riskScore}%` }}
                       />
                     </div>

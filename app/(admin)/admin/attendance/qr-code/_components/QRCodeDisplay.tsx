@@ -91,7 +91,7 @@ export function QRCodeDisplay() {
               .instructions {
                 margin-top: 20px;
                 font-size: 14px;
-                color: #666;
+                color: rgb(107 114 128);
               }
             </style>
           </head>

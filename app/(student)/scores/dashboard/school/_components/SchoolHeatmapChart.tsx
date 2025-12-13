@@ -13,7 +13,7 @@ import {
   Cell,
 } from "recharts";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
-import { getGradeColor } from "@/lib/scores/gradeColors";
+import { getGradeColorHex, getChartColor } from "@/lib/constants/colors";
 
 type SchoolHeatmapChartProps = {
   schoolScores: SchoolScoreRow[];
@@ -101,22 +101,7 @@ export function SchoolHeatmapChart({
     );
   }
 
-  // 등급별 색상 매핑 (차트 라이브러리용 hex 컬러)
-  const getColorForGrade = (grade: number): string => {
-    if (grade <= 1) return "#3b82f6"; // blue-500
-    if (grade <= 2) return "#60a5fa"; // blue-400
-    if (grade <= 3) return "#6366f1"; // indigo-500
-    if (grade <= 4) return "#9ca3af"; // gray-400
-    if (grade <= 5) return "#eab308"; // yellow-500
-    if (grade <= 6) return "#f97316"; // orange-500
-    if (grade <= 7) return "#ef4444"; // red-500
-    return "#dc2626"; // red-600
-  };
-
-  const COLORS = [
-    "#3b82f6", "#60a5fa", "#6366f1", "#9ca3af",
-    "#eab308", "#f97316", "#ef4444", "#dc2626"
-  ];
+  // 등급별 색상은 getGradeColorHex 함수 사용
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -175,12 +160,12 @@ export function SchoolHeatmapChart({
               dataKey={subject}
               stackId="a"
               name={subject}
-              fill={COLORS[index % COLORS.length]}
+              fill={getChartColor(index)}
             >
               {heatmapData.data.map((entry, idx) => {
                 const grade = entry[subject] as number;
-                if (grade === 0) return <Cell key={idx} fill="#f3f4f6" />;
-                return <Cell key={idx} fill={getColorForGrade(grade)} />;
+                if (grade === 0) return <Cell key={idx} fill="rgb(243 244 246)" />;
+                return <Cell key={idx} fill={getGradeColorHex(grade)} />;
               })}
             </Bar>
           ))}
