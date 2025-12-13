@@ -274,11 +274,11 @@ export function RecommendedContentsPanel({
 
           {/* 성적 데이터 안내 */}
           {!hasScoreData && (
-            <div className="mt-4 flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
+            <div className="flex items-start gap-2 rounded-lg bg-yellow-50 p-3">
               <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
-              <div className="text-sm text-yellow-800">
+              <div className="flex flex-col gap-0.5 text-sm text-yellow-800">
                 <p className="font-medium">성적 데이터가 없습니다</p>
-                <p className="mt-0.5">
+                <p>
                   성적을 입력하면 더 정확한 추천을 받을 수 있습니다.
                 </p>
               </div>
@@ -286,11 +286,11 @@ export function RecommendedContentsPanel({
           )}
 
           {/* 과목 선택 */}
-          <div className="mt-4">
+          <div className="flex flex-col gap-2">
             <label className="block text-sm font-medium text-gray-800">
               추천받을 과목 선택
             </label>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {["국어", "수학", "영어", "과학", "사회"].map((subject) => (
                 <button
                   key={subject}
@@ -311,7 +311,7 @@ export function RecommendedContentsPanel({
 
           {/* 과목별 추천 개수 */}
           {settings.selectedSubjects.size > 0 && (
-            <div className="mt-4 space-y-3">
+            <div className="flex flex-col gap-3">
               <label className="block text-sm font-medium text-gray-800">
                 과목별 추천 개수
               </label>
@@ -337,7 +337,7 @@ export function RecommendedContentsPanel({
           )}
 
           {/* 자동 배정 옵션 */}
-          <div className="mt-4">
+          <div className="flex flex-col gap-1">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -354,7 +354,7 @@ export function RecommendedContentsPanel({
                 추천 콘텐츠 자동 배정 (전체 범위)
               </span>
             </label>
-            <p className="ml-6 mt-1 text-xs text-gray-600">
+            <p className="pl-6 text-xs text-gray-600">
               체크하면 추천받은 콘텐츠가 자동으로 추가됩니다 (범위: 전체)
             </p>
           </div>
@@ -368,7 +368,7 @@ export function RecommendedContentsPanel({
             }}
             disabled={!editable || !canRequestRecommendations || loading || maxReached}
             className={cn(
-              "mt-4 w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700",
+              "w-full rounded-lg bg-blue-600 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700",
               (!editable || !canRequestRecommendations || loading || maxReached) &&
                 "cursor-not-allowed opacity-50"
             )}
@@ -403,7 +403,7 @@ export function RecommendedContentsPanel({
             </span>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="flex flex-col gap-3">
             {recommendedContents.map((content) => (
               <ContentCard
                 key={content.id}
@@ -432,12 +432,12 @@ export function RecommendedContentsPanel({
 
       {/* 추천 콘텐츠 없음 */}
       {hasRequestedRecommendations && recommendedContents.length === 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
+        <div className="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-12 text-center">
           <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-          <p className="mt-3 text-sm font-medium text-gray-900">
+          <p className="text-sm font-medium text-gray-900">
             추천할 콘텐츠가 없습니다
           </p>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="text-sm text-gray-600">
             이미 모든 추천 콘텐츠를 선택하셨거나,
             <br />
             현재 조건에 맞는 추천이 없습니다.

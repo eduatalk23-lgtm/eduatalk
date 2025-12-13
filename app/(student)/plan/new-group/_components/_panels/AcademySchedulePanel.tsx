@@ -289,7 +289,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       />
 
       {/* 헤더 */}
-      <div className="mb-4 flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={syncFromTimeManagement}
@@ -330,16 +330,16 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               ))}
             </div>
             {newAcademyDays.length > 0 && (
-              <p className="mt-2 text-xs text-gray-600">
+              <p className="text-xs text-gray-600">
                 {newAcademyDays.length}개 요일 선택됨
               </p>
             )}
           </div>
 
           {/* 시간 설정 */}
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-800">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="block text-xs font-medium text-gray-800">
                 시작 시간 <span className="text-red-500">*</span>
               </label>
               <input
@@ -353,8 +353,8 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
                 disabled={!editable}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="block text-xs font-medium text-gray-800">
                 종료 시간 <span className="text-red-500">*</span>
               </label>
               <input
@@ -371,9 +371,9 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
           </div>
 
           {/* 학원 정보 */}
-          <div className="mb-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-800">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="block text-xs font-medium text-gray-800">
                 학원 이름 <span className="text-red-500">*</span>
               </label>
               <input
@@ -388,8 +388,8 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
                 disabled={!editable}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="block text-xs font-medium text-gray-800">
                 과목 <span className="text-red-500">*</span>
               </label>
               <input
@@ -407,8 +407,8 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
           </div>
 
           {/* 이동시간 */}
-          <div className="mb-4">
-            <label className="mb-1 block text-xs font-medium text-gray-800">
+          <div className="flex flex-col gap-1">
+            <label className="block text-xs font-medium text-gray-800">
               이동시간 (분) <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-2">
@@ -430,7 +430,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
               />
               <span className="text-xs text-gray-600">분</span>
             </div>
-            <p className="mt-1 text-xs text-gray-600">
+            <p className="text-xs text-gray-600">
               블록 시간 내 학원 일정이 있는 경우, 학원 전후로 이동시간을 자동으로 제외합니다. (기본값: 60분)
             </p>
           </div>
@@ -457,17 +457,17 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
 
       {/* 학원 일정 목록 */}
       {data.academy_schedules.length > 0 ? (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {data.academy_schedules.map((schedule, index) => (
             <div
               key={index}
               className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
             >
-              <div className="flex-1">
+              <div className="flex flex-col gap-1 flex-1">
                 <div className="text-sm font-medium text-gray-900">
                   {weekdayLabels[schedule.day_of_week]} {schedule.start_time} ~ {schedule.end_time}
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-2 text-xs text-gray-600">
                   {schedule.academy_name && <span>{schedule.academy_name}</span>}
                   {schedule.subject && <span>· {schedule.subject}</span>}
                   <span>· 이동시간: {schedule.travel_time || 60}분</span>

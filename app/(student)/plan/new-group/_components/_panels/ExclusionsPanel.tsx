@@ -330,7 +330,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       />
 
       {/* 헤더 */}
-      <div className="mb-4 flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={syncFromTimeManagement}
@@ -403,8 +403,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
           {/* 날짜 입력 */}
           {exclusionInputType === "single" && (
-            <div className="mb-4">
-              <label className="mb-1 block text-xs font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="block text-xs font-medium text-gray-800">
                 날짜
               </label>
               <input
@@ -423,9 +423,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           )}
 
           {exclusionInputType === "range" && (
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-800">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-800">
                   시작일
                 </label>
                 <input
@@ -441,8 +441,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                   max={periodEnd}
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-800">
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-800">
                   종료일
                 </label>
                 <input
@@ -462,11 +462,11 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           )}
 
           {exclusionInputType === "multiple" && (
-            <div className="mb-4">
-              <label className="mb-2 block text-xs font-medium text-gray-800">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-800">
                 날짜 선택 (다중 선택 가능)
               </label>
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
+              <div className="max-h-48 flex flex-col gap-1 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
                 {(() => {
                   const dates: string[] = [];
                   // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
@@ -515,7 +515,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 })()}
               </div>
               {newExclusionDates.length > 0 && (
-                <p className="mt-2 text-xs text-gray-600">
+                <p className="text-xs text-gray-600">
                   {newExclusionDates.length}개 날짜 선택됨
                 </p>
               )}
@@ -523,9 +523,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
           )}
 
           {/* 유형 및 사유 */}
-          <div className="mb-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <div className="mb-1 flex items-center gap-1">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
                 <label className="block text-xs font-medium text-gray-800">
                   유형
                 </label>

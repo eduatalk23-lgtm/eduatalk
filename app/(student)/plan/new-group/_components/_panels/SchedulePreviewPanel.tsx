@@ -400,9 +400,9 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
   if (loading) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center gap-3 py-12">
           <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-          <span className="ml-3 text-sm text-gray-600">스케줄 계산 중...</span>
+          <span className="text-sm text-gray-600">스케줄 계산 중...</span>
         </div>
       </div>
     );
@@ -413,9 +413,9 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       <div className="rounded-xl border border-red-200 bg-red-50 p-6">
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600" />
-          <div>
+          <div className="flex flex-col gap-1">
             <h3 className="font-semibold text-red-900">스케줄 계산 오류</h3>
-            <p className="mt-1 text-sm text-red-700">{error}</p>
+            <p className="text-sm text-red-700">{error}</p>
           </div>
         </div>
       </div>
@@ -425,12 +425,12 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
   if (!result) {
     return (
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
-        <div className="text-center py-8">
+        <div className="flex flex-col gap-1 text-center py-8">
           <Calendar className="mx-auto h-12 w-12 text-gray-600" />
-          <p className="mt-3 text-sm font-medium text-gray-600">
+          <p className="text-sm font-medium text-gray-600">
             스케줄 미리보기
           </p>
-          <p className="mt-1 text-xs text-gray-600">
+          <p className="text-xs text-gray-600">
             기본 정보와 시간 설정을 완료하면 스케줄이 표시됩니다.
           </p>
         </div>
@@ -441,9 +441,9 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold text-gray-900">스케줄 미리보기</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           설정한 내용을 바탕으로 계산된 스케줄 정보입니다.
         </p>
       </div>
@@ -453,11 +453,11 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
           <div className="flex items-start gap-3">
             <RotateCcw className="h-5 w-5 flex-shrink-0 text-purple-600" />
-            <div className="flex-1">
+            <div className="flex flex-col gap-1 flex-1">
               <h3 className="text-sm font-semibold text-purple-900">
                 추가 기간 학습 범위 재배치 포함
               </h3>
-              <p className="mt-1 text-xs text-purple-700">
+              <p className="text-xs text-purple-700">
                 <strong>학습 기간:</strong> {data.period_start} ~{" "}
                 {data.period_end}
               </p>
@@ -535,11 +535,11 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       </div>
 
       {/* 주차별 스케줄 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="text-sm font-semibold text-gray-900">
           주차별 스케줄
         </h3>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {weeklySchedules.map((week, weekIndex) => {
             const isExpanded = expandedWeeks.has(weekIndex);
             const isVisible = visibleWeeks.has(weekIndex);

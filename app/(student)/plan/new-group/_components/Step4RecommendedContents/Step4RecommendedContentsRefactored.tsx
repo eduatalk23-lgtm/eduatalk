@@ -386,9 +386,9 @@ export default function Step4RecommendedContents({
         studentId={studentId}
       />
 
-      <div>
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-xl font-semibold text-gray-900">
             서비스 추천 콘텐츠
           </h2>
           <p className="text-sm text-gray-500">
@@ -398,7 +398,7 @@ export default function Step4RecommendedContents({
         </div>
 
         {/* 콘텐츠 선택 진행률 */}
-        <div className="mb-6">
+        <div>
           <ContentSelectionProgress
             current={totalCount}
             max={9}
@@ -470,7 +470,7 @@ export default function Step4RecommendedContents({
               <p className="text-sm font-medium text-amber-800">
                 추천할 콘텐츠가 없습니다.
               </p>
-              <p className="mt-2 text-xs text-amber-600">
+              <p className="text-xs text-amber-600">
                 성적 데이터를 입력하시면 맞춤형 추천을 받을 수 있습니다.
               </p>
             </div>
