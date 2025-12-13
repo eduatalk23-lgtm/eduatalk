@@ -105,9 +105,9 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="divide-y divide-gray-200">
             {blocksByDay.map(({ day, dayIndex, blocks: dayBlocks }) => (
-            <div key={dayIndex} className="p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">{day}요일</h3>
-              <div className="space-y-2">
+            <div key={dayIndex} className="flex flex-col gap-3 p-4">
+              <h3 className="text-sm font-semibold text-gray-900">{day}요일</h3>
+              <div className="flex flex-col gap-2">
                 {dayBlocks.map((block) => {
                   const isEditing = editingId === block.id;
                   const isDeleting = deletingId === block.id;
