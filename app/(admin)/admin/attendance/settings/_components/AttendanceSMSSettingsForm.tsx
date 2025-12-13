@@ -269,11 +269,11 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
-              <div>
+              <div className="flex flex-col gap-1">
                 <Label htmlFor="show_failure_to_user">
                   SMS 발송 실패 시 사용자에게 알림
                 </Label>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   SMS 발송에 실패한 경우 사용자에게 경고 메시지를 표시합니다.
                   <br />
                   <span className="text-gray-400">

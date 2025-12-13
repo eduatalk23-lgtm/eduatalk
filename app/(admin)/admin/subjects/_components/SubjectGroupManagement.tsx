@@ -531,8 +531,8 @@ export function SubjectGroupManagement({
                             <td className="px-4 py-2 text-sm text-gray-900">
                               {subject.name}
                               {subject.subject_type && (
-                                <span className="ml-2 text-xs text-gray-500">
-                                  ({subject.subject_type})
+                                <span className="text-xs text-gray-500">
+                                  {" "}({subject.subject_type})
                                 </span>
                               )}
                             </td>
