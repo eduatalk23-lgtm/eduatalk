@@ -47,7 +47,7 @@ export default async function StudentMasterBookDetailPage({
         {details.length > 0 && <BookDetailsDisplay details={details} />}
 
         {/* 액션 버튼 */}
-        <div className="mt-8 flex flex-col gap-4 border-t pt-8">
+        <div className="flex flex-col gap-4 border-t pt-8">
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/contents/master-books"

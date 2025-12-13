@@ -96,8 +96,8 @@ export function LectureLinkedBookSection({
 
   if (isCreating) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">교재 등록 및 연결</h3>
           <button
             type="button"
@@ -107,10 +107,10 @@ export function LectureLinkedBookSection({
             취소
           </button>
         </div>
-        <form onSubmit={handleCreateAndLink} className="space-y-4">
+        <form onSubmit={handleCreateAndLink} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 교재명 <span className="text-red-500">*</span>
               </label>
               <input
@@ -120,8 +120,8 @@ export function LectureLinkedBookSection({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 개정교육과정
               </label>
               <input
@@ -130,8 +130,8 @@ export function LectureLinkedBookSection({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 학년/학기
               </label>
               <input
@@ -140,8 +140,8 @@ export function LectureLinkedBookSection({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 교과
               </label>
               <select
@@ -156,8 +156,8 @@ export function LectureLinkedBookSection({
                 <option value="과학">과학</option>
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 과목
               </label>
               <input
@@ -166,8 +166,8 @@ export function LectureLinkedBookSection({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 출판사
               </label>
               <input
@@ -176,8 +176,8 @@ export function LectureLinkedBookSection({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 총 페이지
               </label>
               <input
@@ -188,8 +188,8 @@ export function LectureLinkedBookSection({
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 난이도
               </label>
               <select
@@ -204,8 +204,8 @@ export function LectureLinkedBookSection({
                 <option value="최상">최상</option>
               </select>
             </div>
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 메모
               </label>
               <textarea
@@ -218,8 +218,8 @@ export function LectureLinkedBookSection({
           </div>
 
           {/* 교재 상세 정보 (목차) */}
-          <div className="mt-4 border-t pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">교재 목차 (선택사항)</h4>
+          <div className="flex flex-col gap-3 border-t pt-4">
+            <h4 className="text-sm font-semibold text-gray-900">교재 목차 (선택사항)</h4>
             <BookDetailsManager
               initialDetails={[]}
               onChange={(details) => {
@@ -251,8 +251,8 @@ export function LectureLinkedBookSection({
 
   if (isSearching) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">교재 검색 및 연결</h3>
           <button
             type="button"
@@ -265,7 +265,7 @@ export function LectureLinkedBookSection({
             취소
           </button>
         </div>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div>
             <input
               type="text"
@@ -276,7 +276,7 @@ export function LectureLinkedBookSection({
             />
           </div>
           {filteredBooks.length > 0 ? (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {filteredBooks.map((book) => (
                 <div
                   key={book.id}
@@ -308,8 +308,8 @@ export function LectureLinkedBookSection({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">연결된 교재</h3>
         <div className="flex gap-2">
           {studentBooks.length > 0 && (
@@ -338,7 +338,7 @@ export function LectureLinkedBookSection({
               <p className="text-lg font-semibold text-gray-900">{linkedBook.title}</p>
               <Link
                 href={`/contents/books/${linkedBook.id}`}
-                className="mt-1 text-sm text-indigo-600 hover:underline"
+                className="text-sm text-indigo-600 hover:underline"
               >
                 교재 상세보기 →
               </Link>
@@ -353,8 +353,8 @@ export function LectureLinkedBookSection({
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <p className="mb-4 text-sm text-gray-500">
+        <div className="flex flex-col gap-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <p className="text-sm text-gray-500">
             연결된 교재가 없습니다.
           </p>
           <div className="flex justify-center gap-2">

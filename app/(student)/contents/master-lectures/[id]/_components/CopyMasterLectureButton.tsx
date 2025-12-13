@@ -57,17 +57,19 @@ export function CopyMasterLectureButton({
         {isLoading ? "가져오는 중..." : "내 강의로 가져오기"}
       </button>
       
-      {success && (
-        <div className="mt-2 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
-          ✅ {success}
-        </div>
-      )}
-      
-      {error && (
-        <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          ❌ {error}
-        </div>
-      )}
+      <div className="flex flex-col gap-2">
+        {success && (
+          <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+            ✅ {success}
+          </div>
+        )}
+        
+        {error && (
+          <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            ❌ {error}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

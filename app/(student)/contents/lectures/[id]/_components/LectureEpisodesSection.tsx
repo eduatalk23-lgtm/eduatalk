@@ -61,8 +61,8 @@ export function LectureEpisodesSection({
 
   if (isEditing && !isFromMaster) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">강의 회차 정보 관리</h3>
           <div className="flex gap-2">
             <button
@@ -80,7 +80,7 @@ export function LectureEpisodesSection({
             setCurrentEpisodes(newEpisodes);
           }}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={() => setIsEditing(false)}
@@ -104,8 +104,8 @@ export function LectureEpisodesSection({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">강의 회차 정보</h3>
         {!isFromMaster && (
           <button

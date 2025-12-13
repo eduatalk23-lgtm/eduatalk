@@ -56,16 +56,16 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
 
   if (isEditing) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">강의 정보 수정</h2>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* 강의명 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 강의명 <span className="text-red-500">*</span>
               </label>
               <input
@@ -79,8 +79,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 개정교육과정 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 개정교육과정
               </label>
               <input
@@ -93,8 +93,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 학년/학기 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 학년/학기
               </label>
               <input
@@ -107,8 +107,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 교과 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 교과
               </label>
               <select
@@ -127,8 +127,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 과목 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 과목
               </label>
               <input
@@ -141,8 +141,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 플랫폼 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 플랫폼
               </label>
               <input
@@ -155,8 +155,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 총 강의시간 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 총 강의시간 (분)
               </label>
               <input
@@ -171,8 +171,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 난이도 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 난이도
               </label>
               <select
@@ -191,8 +191,8 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
             </div>
 
             {/* 메모 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 메모
               </label>
               <textarea
@@ -242,10 +242,10 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       {/* 정보 수정 버튼 */}
       {!isFromMaster && (
-        <div className="mb-6 flex items-center justify-end">
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() => setIsEditing(true)}
@@ -256,7 +256,7 @@ export function LectureInfoSection({ lecture, deleteAction, linkedBook, studentB
         </div>
       )}
       {isFromMaster && (
-        <div className="mb-6 flex items-center justify-end">
+        <div className="flex items-center justify-end">
           <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700">
             <span>📦</span>
             <span>마스터에서 가져온 강의는 정보 수정이 불가능합니다</span>
