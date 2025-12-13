@@ -226,6 +226,7 @@ function QuickActionCard({
             <p className="text-xs md:text-sm opacity-80 line-clamp-2">{description}</p>
           </div>
         </div>
+        {/* mt-auto는 flexbox 내부에서 하단 정렬을 위해 사용 (Spacing-First 정책 예외 허용) */}
         <div className="flex justify-end mt-auto">
           <span className="text-lg md:text-xl">→</span>
         </div>

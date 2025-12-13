@@ -10,6 +10,9 @@ import { getWeeklyStudyTimeSummary } from "@/lib/reports/weekly";
 import { getWeeklyPlanSummary } from "@/lib/reports/weekly";
 import { getStudentsStatsBatch } from "@/lib/data/studentStats";
 import { StudentActions } from "./_components/StudentActions";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { getWeekRange } from "@/lib/date/weekRange";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -24,20 +27,6 @@ type StudentRow = {
   is_active?: boolean | null;
 };
 
-// 이번 주 날짜 범위 계산
-function getWeekRange() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayOfWeek = today.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() + mondayOffset);
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
-  weekEnd.setHours(23, 59, 59, 999);
-  return { weekStart, weekEnd };
-}
 
 // 학생별 이번주 학습시간 조회
 async function getStudentWeeklyStudyTime(
@@ -290,57 +279,56 @@ export default async function AdminStudentsPage({
 
   return (
     <div className="p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-h1 text-gray-900">학생 관리</h1>
-      </div>
+      <div className="flex flex-col gap-6">
+        <PageHeader title="학생 관리" />
 
-      {/* 검색 및 필터 바 */}
-      <div className="mb-6 space-y-4">
-        <form
-          method="get"
-          className="flex flex-col gap-4 md:flex-row md:items-end"
-        >
-          {/* 검색 */}
-          <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              이름 검색
-            </label>
-            <input
-              type="text"
-              name="search"
-              placeholder="이름으로 검색..."
-              defaultValue={searchQuery}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            />
-          </div>
+        {/* 검색 및 필터 바 */}
+        <div className="flex flex-col gap-4">
+          <form
+            method="get"
+            className="flex flex-col gap-4 md:flex-row md:items-end"
+          >
+            {/* 검색 */}
+            <div className="flex flex-col gap-1 flex-1">
+              <label className="text-sm font-medium text-gray-700">
+                이름 검색
+              </label>
+              <input
+                type="text"
+                name="search"
+                placeholder="이름으로 검색..."
+                defaultValue={searchQuery}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
 
-          {/* 학년 필터 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              학년
-            </label>
-            <input
-              type="text"
-              name="grade"
-              placeholder="전체"
-              defaultValue={gradeFilter}
-              className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            />
-          </div>
+            {/* 학년 필터 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">
+                학년
+              </label>
+              <input
+                type="text"
+                name="grade"
+                placeholder="전체"
+                defaultValue={gradeFilter}
+                className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
 
-          {/* 반 필터 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              반
-            </label>
-            <input
-              type="text"
-              name="class"
-              placeholder="전체"
-              defaultValue={classFilter}
-              className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            />
-          </div>
+            {/* 반 필터 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">
+                반
+              </label>
+              <input
+                type="text"
+                name="class"
+                placeholder="전체"
+                defaultValue={classFilter}
+                className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
 
           {/* 성적 입력 여부 필터 */}
           <div className="flex items-end">
@@ -371,8 +359,8 @@ export default async function AdminStudentsPage({
           </div>
 
           {/* 정렬 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
               정렬
             </label>
             <select
@@ -410,14 +398,14 @@ export default async function AdminStudentsPage({
         </form>
       </div>
 
-      {/* 학생 리스트 */}
-      {studentsWithStats.length === 0 ? (
-        <EmptyState
-          title="등록된 학생이 없습니다"
-          description="아직 등록된 학생이 없습니다."
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+        {/* 학생 리스트 */}
+        {studentsWithStats.length === 0 ? (
+          <EmptyState
+            title="등록된 학생이 없습니다"
+            description="아직 등록된 학생이 없습니다."
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -467,12 +455,13 @@ export default async function AdminStudentsPage({
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 rounded-full bg-gray-200">
-                        <div
-                          className="h-2 rounded-full bg-indigo-600"
-                          style={{ width: `${student.planCompletionRate}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={student.planCompletionRate}
+                        max={100}
+                        color="indigo"
+                        height="sm"
+                        className="w-24"
+                      />
                       <span>{student.planCompletionRate}%</span>
                     </div>
                   </td>
@@ -528,36 +517,37 @@ export default async function AdminStudentsPage({
         </div>
       )}
 
-      {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-2">
-          {page > 1 && (
-            <Link
-              href={`/admin/students?${new URLSearchParams({
-                ...params,
-                page: String(page - 1),
-              }).toString()}`}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              이전
-            </Link>
-          )}
-          <span className="text-sm text-gray-600">
-            {page} / {totalPages}
-          </span>
-          {page < totalPages && (
-            <Link
-              href={`/admin/students?${new URLSearchParams({
-                ...params,
-                page: String(page + 1),
-              }).toString()}`}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              다음
-            </Link>
-          )}
-        </div>
-      )}
+        {/* 페이지네이션 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2">
+            {page > 1 && (
+              <Link
+                href={`/admin/students?${new URLSearchParams({
+                  ...params,
+                  page: String(page - 1),
+                }).toString()}`}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                이전
+              </Link>
+            )}
+            <span className="text-sm text-gray-600">
+              {page} / {totalPages}
+            </span>
+            {page < totalPages && (
+              <Link
+                href={`/admin/students?${new URLSearchParams({
+                  ...params,
+                  page: String(page + 1),
+                }).toString()}`}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                다음
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -248,3 +248,4 @@ WHERE table_name = 'parent_users'
 **작성 일자**: 2025-01-XX  
 **최종 수정**: 2025-01-XX
 
+

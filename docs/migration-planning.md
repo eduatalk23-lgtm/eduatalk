@@ -374,3 +374,4 @@ COMMENT ON COLUMN students.tenant_id IS
 **작성 일자**: 2025-01-XX  
 **최종 수정**: 2025-01-XX
 
+
