@@ -32,6 +32,7 @@ Dynamic server usage: Route /admin/parent-links couldn't be rendered statically 
 - `app/(student)/layout.tsx`
 
 ### 페이지 파일
+- `app/page.tsx` (루트 페이지)
 - `app/(admin)/admin/parent-links/page.tsx`
 - `app/(admin)/admin/settings/scheduler/page.tsx`
 - `app/(student)/scores/dashboard/mock/page.tsx`
@@ -43,6 +44,10 @@ Dynamic server usage: Route /admin/parent-links couldn't be rendered statically 
 - `app/(student)/contents/lectures/page.tsx`
 - `app/(student)/contents/books/page.tsx`
 - `app/(student)/contents/master-books/page.tsx`
+
+### API 라우트
+- `app/api/student-content-details/route.ts`
+- `app/api/student-content-details/batch/route.ts`
 
 ## 참고사항
 
