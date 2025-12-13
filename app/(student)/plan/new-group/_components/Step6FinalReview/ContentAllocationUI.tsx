@@ -199,9 +199,9 @@ export function ContentAllocationUI({
       })}
 
       {/* 설정 요약 */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-        <h4 className="mb-2 text-xs font-semibold text-blue-800">설정 요약</h4>
-        <div className="space-y-1 text-xs text-blue-800">
+      <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+        <h4 className="text-xs font-semibold text-blue-800">설정 요약</h4>
+        <div className="flex flex-col gap-1 text-xs text-blue-800">
           <p>• 콘텐츠별 설정: {(data.content_allocations || []).length}개</p>
           <p>
             • 교과별 설정 (폴백): {(data.subject_allocations || []).length}개
