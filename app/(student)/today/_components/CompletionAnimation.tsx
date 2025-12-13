@@ -127,7 +127,7 @@ export function CompletionAnimation({
               </h2>
               <p className="text-sm text-gray-600 line-clamp-2">{planTitle}</p>
               {studyDuration && (
-                <div className="mt-2 flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2">
+                <div className="flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-2">
                   <Sparkles className="h-4 w-4 text-indigo-600" />
                   <span className="text-sm font-semibold text-indigo-700">
                     {studyDuration} 동안 학습하셨어요!

@@ -16,7 +16,7 @@ export function PlanDetailInfo({ group }: PlanDetailInfoProps) {
     : `${plan.sequence || 1}회차`;
 
   return (
-    <div className="mt-4 flex items-center justify-center gap-6 text-sm">
+    <div className="flex items-center justify-center gap-6 text-sm">
       <div className="flex items-center gap-2">
         <BookOpen className="h-4 w-4 text-gray-400" />
         <span className="text-gray-600">범위</span>

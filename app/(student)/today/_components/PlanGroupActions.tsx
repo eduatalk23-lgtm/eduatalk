@@ -44,7 +44,7 @@ export function PlanGroupActions({
         )}
         {/* 툴팁 */}
         {memoPreview && (
-          <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100">
+          <div className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100" style={{ marginBottom: '0.5rem' }}>
             <div className="whitespace-pre-wrap break-words">{memoPreview}</div>
             <div className="absolute bottom-0 right-4 translate-y-full">
               <div className="border-4 border-transparent border-t-gray-900"></div>
@@ -66,7 +66,7 @@ export function PlanGroupActions({
       {viewMode === "daily" && onViewDetail && (
         <button
           onClick={onViewDetail}
-          className="ml-2 flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-200"
+          className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-200"
         >
           <FileText className="h-4 w-4" />
           상세보기

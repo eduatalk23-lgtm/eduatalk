@@ -220,7 +220,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
             >
               <div
                 className={cn(
-                  "mt-1 text-gray-400 transition",
+                  "text-gray-400 transition",
                   isDragging ? "cursor-grabbing" : "cursor-grab"
                 )}
               >
@@ -241,7 +241,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
         })}
       </div>
       {isPending && (
-        <div className="mt-2 text-center text-sm text-gray-500">
+        <div className="text-center text-sm text-gray-500">
           순서를 저장하는 중...
         </div>
       )}

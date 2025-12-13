@@ -66,16 +66,16 @@ export function AttachGoalButton({ goalId, planId }: AttachGoalButtonProps) {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="rounded-lg bg-white p-6 shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">목표 선택</h3>
+          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900">목표 선택</h3>
             {loading ? (
               <p className="text-sm text-gray-500">목표 목록을 불러오는 중...</p>
             ) : error ? (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 mb-4">{error}</div>
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</div>
             ) : goals.length === 0 ? (
-              <p className="text-sm text-gray-500 mb-4">등록된 목표가 없습니다.</p>
+              <p className="text-sm text-gray-500">등록된 목표가 없습니다.</p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
                 {goals.map((goal) => (
                   <button
                     key={goal.id}
