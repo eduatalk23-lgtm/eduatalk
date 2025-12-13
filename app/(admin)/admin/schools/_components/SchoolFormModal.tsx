@@ -127,8 +127,8 @@ export default function SchoolFormModal({
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="grid gap-4 md:grid-cols-2">
             {/* 학교명 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 학교명 <span className="text-red-500">*</span>
               </label>
               <input
@@ -144,8 +144,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 학교 타입 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 학교 타입 <span className="text-red-500">*</span>
               </label>
               <select
@@ -190,8 +190,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 기본주소 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 기본주소
               </label>
               <input
@@ -205,8 +205,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 우편번호 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 우편번호
               </label>
               <input
@@ -221,8 +221,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 시/군/구 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 시/군/구
               </label>
               <input
@@ -236,8 +236,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 상세주소 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 상세주소
               </label>
               <input
@@ -251,8 +251,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 읍/면/동 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 읍/면/동
               </label>
               <input
@@ -266,8 +266,8 @@ export default function SchoolFormModal({
             </div>
 
             {/* 전화번호 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 전화번호
               </label>
               <input
@@ -282,8 +282,8 @@ export default function SchoolFormModal({
 
             {/* 고등학교 유형 */}
             {schoolType === "고등학교" && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+              <div className="flex flex-col gap-1">
+                <label className="block text-sm font-medium text-gray-700">
                   고등학교 유형
                 </label>
                 <select
@@ -313,8 +313,8 @@ export default function SchoolFormModal({
             {/* 대학교 유형 */}
             {schoolType === "대학교" && (
               <>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                <div className="flex flex-col gap-1">
+                  <label className="block text-sm font-medium text-gray-700">
                     대학교 유형
                   </label>
                   <select
@@ -330,8 +330,8 @@ export default function SchoolFormModal({
                     <option value="2년제">2년제</option>
                   </select>
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                <div className="flex flex-col gap-1">
+                  <label className="block text-sm font-medium text-gray-700">
                     설립 유형
                   </label>
                   <select
@@ -349,8 +349,8 @@ export default function SchoolFormModal({
                     <option value="사립">사립</option>
                   </select>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                <div className="flex flex-col gap-1 md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">
                     캠퍼스명
                   </label>
                   <input

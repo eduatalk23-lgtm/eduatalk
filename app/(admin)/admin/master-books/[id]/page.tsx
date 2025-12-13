@@ -58,7 +58,7 @@ export default async function MasterBookDetailPage({
 
         {/* 액션 버튼 (관리자/컨설턴트만 표시) */}
         {(role === "admin" || role === "consultant") && (
-          <div className="mt-8 flex flex-col gap-4 border-t pt-8">
+          <div className="flex flex-col gap-4 border-t pt-8">
             <ContentActionButtons
               editHref={`/admin/master-books/${book.id}/edit`}
               deleteAction={deleteAction}

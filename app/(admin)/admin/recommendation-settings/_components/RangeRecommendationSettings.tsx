@@ -96,20 +96,22 @@ export function RangeRecommendationSettings() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
-        <h2 className="mb-4 text-h2 text-gray-900 dark:text-gray-100">
-          범위 추천 설정
-        </h2>
-        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
-          학습 범위 추천 알고리즘의 파라미터를 조정합니다. 이 설정은 학습 범위
-          추천 계산에 사용됩니다.
-        </p>
+      <div className="flex flex-col gap-6 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-h2 text-gray-900 dark:text-gray-100">
+            범위 추천 설정
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            학습 범위 추천 알고리즘의 파라미터를 조정합니다. 이 설정은 학습 범위
+            추천 계산에 사용됩니다.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-6">
-          <div>
+          <div className="flex flex-col gap-1">
             <Label
               htmlFor="pagesPerHour"
-              className="block text-body-2-bold text-gray-800 dark:text-gray-200 mb-2"
+              className="block text-body-2-bold text-gray-800 dark:text-gray-200"
             >
               교재: 시간당 페이지 수
             </Label>
@@ -128,16 +130,16 @@ export function RangeRecommendationSettings() {
               }
               className="w-full max-w-xs"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               1시간에 몇 페이지를 학습할 것으로 예상하는지 설정합니다. 현재
               값: {config.pagesPerHour}페이지/시간
             </p>
           </div>
 
-          <div>
+          <div className="flex flex-col gap-1">
             <Label
               htmlFor="episodesPerHour"
-              className="block text-body-2-bold text-gray-800 dark:text-gray-200 mb-2"
+              className="block text-body-2-bold text-gray-800 dark:text-gray-200"
             >
               강의: 시간당 회차 수
             </Label>
@@ -156,7 +158,7 @@ export function RangeRecommendationSettings() {
               }
               className="w-full max-w-xs"
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               1시간에 몇 회차를 학습할 것으로 예상하는지 설정합니다. 현재 값:{" "}
               {config.episodesPerHour}회차/시간
             </p>

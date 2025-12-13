@@ -74,11 +74,11 @@ export default async function AdminReportsPage({
   }
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
+    <div className="flex flex-col gap-6 p-6 md:p-10">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2">
           <h1 className="text-h1 text-gray-900">리포트 관리</h1>
-          <p className="mt-2 text-body-2 text-gray-600">
+          <p className="text-body-2 text-gray-600">
             학생별 주간/월간 리포트를 생성하고 조회할 수 있습니다.
           </p>
         </div>
@@ -107,7 +107,7 @@ export default async function AdminReportsPage({
       </div>
 
       {/* 검색 바 */}
-      <div className="mb-6">
+      <div>
         <form method="get" className="flex gap-2">
           <input type="hidden" name="period" value={period} />
           <input

@@ -196,8 +196,8 @@ export default function UnifiedSubjectForm({
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* 개정교육과정 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정 <span className="text-red-500">*</span>
           </label>
           <select
@@ -224,8 +224,8 @@ export default function UnifiedSubjectForm({
         </div>
 
         {/* 교과 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과 <span className="text-red-500">*</span>
           </label>
           <select
@@ -263,8 +263,8 @@ export default function UnifiedSubjectForm({
 
         {/* 과목 선택 (수정 모드만) */}
         {isEditMode && (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               과목 <span className="text-red-500">*</span>
             </label>
             <select
@@ -304,8 +304,8 @@ export default function UnifiedSubjectForm({
         )}
 
         {/* 과목구분 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목구분
           </label>
           <select
@@ -332,8 +332,8 @@ export default function UnifiedSubjectForm({
         </div>
 
         {/* 과목명 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목명 <span className="text-red-500">*</span>
           </label>
           <input
@@ -348,8 +348,8 @@ export default function UnifiedSubjectForm({
         </div>
 
         {/* 표시 순서 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             표시 순서
           </label>
           <input

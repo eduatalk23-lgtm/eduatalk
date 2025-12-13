@@ -27,26 +27,26 @@ export default async function AdminSettingsPage() {
   }
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8">
+    <div className="flex flex-col gap-8 p-6 md:p-10">
+      <div className="flex flex-col gap-2">
         <h1 className="text-h1 text-gray-900">설정</h1>
-        <p className="mt-2 text-body-2 text-gray-600">기관 및 계정 관리 설정</p>
+        <p className="text-body-2 text-gray-600">기관 및 계정 관리 설정</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* 현재 계정 정보 */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-          <h2 className="mb-4 text-h2 text-gray-900 dark:text-gray-100">현재 계정 정보</h2>
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <h2 className="text-h2 text-gray-900 dark:text-gray-100">현재 계정 정보</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
+            <div className="flex flex-col gap-1">
               <div className="text-sm text-gray-500 dark:text-gray-400">역할</div>
-              <div className="mt-1 text-lg font-medium text-gray-900 dark:text-gray-100">
+              <div className="text-lg font-medium text-gray-900 dark:text-gray-100">
                 {currentAdmin?.role === "admin" ? "관리자" : "상담사"}
               </div>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <div className="text-sm text-gray-500 dark:text-gray-400">계정 ID</div>
-              <div className="mt-1 text-lg font-medium text-gray-900 dark:text-gray-100">{userId}</div>
+              <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{userId}</div>
             </div>
           </div>
         </div>
@@ -54,8 +54,8 @@ export default async function AdminSettingsPage() {
         {/* 기관 설정 */}
         {role === "admin" && (
           <>
-            <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+              <div className="flex items-center justify-between">
                 <h2 className="text-h2 text-gray-900 dark:text-gray-100">기관 설정</h2>
                 <Link
                   href="/admin/tenant/settings"
@@ -68,8 +68,8 @@ export default async function AdminSettingsPage() {
             </div>
 
             {/* 스케줄러 설정 */}
-            <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+              <div className="flex items-center justify-between">
                 <h2 className="text-h2 text-gray-900 dark:text-gray-100">스케줄러 설정</h2>
                 <Link
                   href="/admin/settings/scheduler"
@@ -84,8 +84,8 @@ export default async function AdminSettingsPage() {
             </div>
 
             {/* 추천 시스템 설정 */}
-            <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+              <div className="flex items-center justify-between">
                 <h2 className="text-h2 text-gray-900 dark:text-gray-100">추천 시스템 설정</h2>
                 <Link
                   href="/admin/recommendation-settings"
@@ -103,8 +103,8 @@ export default async function AdminSettingsPage() {
 
         {/* 코치 계정 관리 */}
         {role === "admin" && (
-          <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-            <h2 className="mb-4 text-h2 text-gray-900 dark:text-gray-100">코치 계정 관리</h2>
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+            <h2 className="text-h2 text-gray-900 dark:text-gray-100">코치 계정 관리</h2>
             {allAdmins.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400">등록된 코치 계정이 없습니다.</p>
             ) : (
@@ -128,9 +128,9 @@ export default async function AdminSettingsPage() {
         )}
 
         {/* 기타 설정 */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-          <h2 className="mb-4 text-h2 text-gray-900 dark:text-gray-100">기타 설정</h2>
-          <div className="space-y-3">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <h2 className="text-h2 text-gray-900 dark:text-gray-100">기타 설정</h2>
+          <div className="flex flex-col gap-3">
             <Link
               href="/admin/tools"
               className="block rounded-lg border border-gray-200 dark:border-gray-700 p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700"
