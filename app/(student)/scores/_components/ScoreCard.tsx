@@ -156,39 +156,39 @@ function ScoreCardComponent({
       <div className="flex flex-col gap-6">
         {/* 기본 정보 */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
+          <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500">과목명</span>
-            <p className="mt-1 text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               {subjectName || score.subject_name || "-"}
             </p>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500">교과</span>
-            <p className="mt-1 text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               {subjectGroupName || score.subject_group || "-"}
             </p>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500">과목 유형</span>
-            <p className="mt-1 text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               {subjectTypeName || score.subject_type || "-"}
             </p>
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500">학년/학기</span>
-            <p className="mt-1 text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900">
               {score.grade}학년 {score.semester}학기
             </p>
           </div>
         </div>
 
         {/* 성적 정보 */}
-        <div className="border-t border-gray-200 pt-4">
-          <h3 className="mb-4 text-sm font-semibold text-gray-900">성적 정보</h3>
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4">
+          <h3 className="text-sm font-semibold text-gray-900">성적 정보</h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
+            <div className="flex flex-col gap-1">
               <span className="text-xs text-gray-500">등급</span>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 {score.grade_score !== null && (
                   <div
                     className={cn(
@@ -204,54 +204,54 @@ function ScoreCardComponent({
                 )}
               </div>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <span className="text-xs text-gray-500">원점수</span>
-              <p className="mt-1 text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-gray-900">
                 {score.raw_score != null ? score.raw_score : "-"}
               </p>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <span className="text-xs text-gray-500">학점수</span>
-              <p className="mt-1 text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-gray-900">
                 {score.credit_hours !== null ? score.credit_hours : "-"}
               </p>
             </div>
             {score.subject_average !== null && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500">과목평균</span>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900">
                   {score.subject_average}
                 </p>
               </div>
             )}
             {score.standard_deviation !== null && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500">표준편차</span>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900">
                   {score.standard_deviation}
                 </p>
               </div>
             )}
             {score.total_students !== null && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500">수강자수</span>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900">
                   {score.total_students}명
                 </p>
               </div>
             )}
             {score.rank_grade !== null && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500">석차등급</span>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900">
                   {score.rank_grade}등급
                 </p>
               </div>
             )}
             {score.class_rank !== null && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500">반 석차</span>
-                <p className="mt-1 text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900">
                   {score.class_rank}등
                 </p>
               </div>

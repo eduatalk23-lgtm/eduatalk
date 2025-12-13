@@ -359,7 +359,7 @@ export default async function CampParticipationPage({
   };
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-10">
+    <section className={getContainerClass("CAMP_PLAN", "lg")}>
       <div className="flex flex-col gap-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">

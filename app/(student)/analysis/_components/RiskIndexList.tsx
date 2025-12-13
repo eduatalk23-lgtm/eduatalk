@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
-import { getRiskColorHex } from "@/lib/constants/colors";
+import { getRiskColorHex, getRiskColor } from "@/lib/constants/colors";
+import { cn } from "@/lib/cn";
 
 export type SubjectRiskAnalysis = {
   subject: string;
@@ -113,7 +114,7 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
                       <div
-                        className="h-3 w-16 rounded-full"
+                        className={cn("h-3 w-16 rounded-full")}
                         style={{
                           backgroundColor: getRiskColorHex(analysis.risk_score),
                         }}

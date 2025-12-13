@@ -3,15 +3,20 @@
 import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import Button from "@/components/atoms/Button";
 
-type DialogProps = {
+export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
+
+export type DialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
   description?: string;
   children: React.ReactNode;
   variant?: "default" | "destructive";
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
+  maxWidth?: DialogSize;
+  size?: DialogSize; // maxWidth와 동일하지만 organisms/Dialog와의 호환성을 위해 추가
+  showCloseButton?: boolean;
 };
 
 export function Dialog({
@@ -21,8 +26,12 @@ export function Dialog({
   description,
   children,
   variant = "default",
-  maxWidth = "md",
+  maxWidth,
+  size,
+  showCloseButton = false,
 }: DialogProps) {
+  // size와 maxWidth 중 하나만 사용 (size 우선)
+  const effectiveSize = size || maxWidth || "md";
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = title ? `dialog-title-${Math.random().toString(36).substr(2, 9)}` : undefined;
@@ -80,17 +89,40 @@ export function Dialog({
           "relative w-full rounded-lg border bg-white shadow-lg",
           "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
           "focus:outline-none",
-          maxWidth === "sm" && "max-w-sm",
-          maxWidth === "md" && "max-w-md",
-          maxWidth === "lg" && "max-w-lg",
-          maxWidth === "xl" && "max-w-xl",
-          maxWidth === "2xl" && "max-w-2xl",
-          maxWidth === "4xl" && "max-w-4xl",
-          maxWidth === "full" && "max-w-full"
+          effectiveSize === "sm" && "max-w-sm",
+          effectiveSize === "md" && "max-w-md",
+          effectiveSize === "lg" && "max-w-lg",
+          effectiveSize === "xl" && "max-w-xl",
+          effectiveSize === "2xl" && "max-w-2xl",
+          effectiveSize === "4xl" && "max-w-4xl",
+          effectiveSize === "full" && "max-w-full"
         )}
         onClick={(e) => e.stopPropagation()}
         tabIndex={-1}
       >
+        {/* Close Button */}
+        {showCloseButton && (
+          <button
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+            aria-label="닫기"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        )}
+
         {(title || description) && (
           <div className="flex flex-col gap-1.5 border-b border-gray-200 px-6 py-4">
             {title && (
@@ -142,6 +174,62 @@ export function DialogFooter({ children, className }: DialogFooterProps) {
     >
       {children}
     </div>
+  );
+}
+
+// ============================================
+// ConfirmDialog 컴포넌트
+// ============================================
+
+export type ConfirmDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  variant?: "default" | "destructive";
+  isLoading?: boolean;
+};
+
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel = "확인",
+  cancelLabel = "취소",
+  onConfirm,
+  variant = "default",
+  isLoading = false,
+}: ConfirmDialogProps) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+      variant={variant}
+      size="sm"
+    >
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={isLoading}
+        >
+          {cancelLabel}
+        </Button>
+        <Button
+          variant={variant === "destructive" ? "destructive" : "primary"}
+          onClick={onConfirm}
+          isLoading={isLoading}
+        >
+          {confirmLabel}
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }
 

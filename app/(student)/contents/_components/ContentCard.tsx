@@ -54,7 +54,7 @@ function ContentCardComponent({
           </div>
         )}
         <div className="flex-1">
-          <div>
+          <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-lg font-semibold text-gray-900">{item.title}</p>
               {item.master_content_id && (
@@ -73,40 +73,40 @@ function ContentCardComponent({
               )}
             </div>
             <p className="text-sm text-gray-500">{subText}</p>
-          </div>
 
-          {/* 주요 정보 (항상 표시) */}
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-            {primaryInfo.map((row) => (
-              <span key={row.label} className="flex items-center gap-1">
-                <span className="font-medium text-gray-500">{row.label}:</span>
-                <span className="text-gray-900">{row.value ?? "—"}</span>
-              </span>
-            ))}
-          </div>
-
-          {/* 상세 정보 (토글) */}
-          {secondaryInfo.length > 0 && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-xs text-indigo-600 hover:text-indigo-700 transition"
-              >
-                {isExpanded ? "▲ 상세 정보 접기" : "▼ 상세 정보 보기"}
-              </button>
-              {isExpanded && (
-                <dl className="mt-2 grid gap-y-1 text-xs text-gray-600 sm:grid-cols-2">
-                  {secondaryInfo.map((row) => (
-                    <Fragment key={row.label}>
-                      <dt className="font-medium text-gray-500">{row.label}</dt>
-                      <dd className="text-gray-900">{row.value ?? "—"}</dd>
-                    </Fragment>
-                  ))}
-                </dl>
-              )}
+            {/* 주요 정보 (항상 표시) */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+              {primaryInfo.map((row) => (
+                <span key={row.label} className="flex items-center gap-1">
+                  <span className="font-medium text-gray-500">{row.label}:</span>
+                  <span className="text-gray-900">{row.value ?? "—"}</span>
+                </span>
+              ))}
             </div>
-          )}
+
+            {/* 상세 정보 (토글) */}
+            {secondaryInfo.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-xs text-indigo-600 hover:text-indigo-700 transition"
+                >
+                  {isExpanded ? "▲ 상세 정보 접기" : "▼ 상세 정보 보기"}
+                </button>
+                {isExpanded && (
+                  <dl className="grid gap-y-1 text-xs text-gray-600 sm:grid-cols-2">
+                    {secondaryInfo.map((row) => (
+                      <Fragment key={row.label}>
+                        <dt className="font-medium text-gray-500">{row.label}</dt>
+                        <dd className="text-gray-900">{row.value ?? "—"}</dd>
+                      </Fragment>
+                    ))}
+                  </dl>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2">

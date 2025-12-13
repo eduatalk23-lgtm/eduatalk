@@ -13,6 +13,7 @@ import { calculateExamYear, calculateCurriculumRevision } from "@/lib/utils/stud
 import { SkeletonForm } from "@/components/ui/SkeletonForm";
 import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useToast } from "@/components/ui/ToastProvider";
+import { getContainerClass } from "@/lib/constants/layout";
 import { InitialSetupBanner } from "./InitialSetupBanner";
 import BasicInfoSection from "./sections/BasicInfoSection";
 import ContactInfoSection from "./sections/ContactInfoSection";
@@ -335,12 +336,10 @@ export default function SettingsPageClient({
 
   if (isLoadingInitialData || !resolvedInitialFormData) {
     return (
-      <div className="p-6 md:p-8">
-        <div className="mx-auto max-w-2xl">
-          <div className="flex flex-col gap-6">
-            <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-            <SkeletonForm />
-          </div>
+      <div className={getContainerClass("FORM", "md")}>
+        <div className="flex flex-col gap-6">
+          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+          <SkeletonForm />
         </div>
       </div>
     );
@@ -348,22 +347,20 @@ export default function SettingsPageClient({
 
   return (
     <SettingsContext.Provider value={contextValue}>
-      <div className="p-6 md:p-8 pb-24">
-        <div className="mx-auto max-w-2xl">
-          <div className="flex flex-col gap-6">
-            <h1 className="text-h1">프로필</h1>
+      <div className={getContainerClass("FORM", "md")}>
+        <div className="flex flex-col gap-6 pb-24">
+          <h1 className="text-h1">프로필</h1>
 
-            {isInitialSetup && (
-              <InitialSetupBanner formData={formData} />
-            )}
+          {isInitialSetup && (
+            <InitialSetupBanner formData={formData} />
+          )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-              <BasicInfoSection />
-              <ContactInfoSection />
-              <ExamInfoSection />
-              <CareerInfoSection />
-            </form>
-          </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <BasicInfoSection />
+            <ContactInfoSection />
+            <ExamInfoSection />
+            <CareerInfoSection />
+          </form>
         </div>
       </div>
 
