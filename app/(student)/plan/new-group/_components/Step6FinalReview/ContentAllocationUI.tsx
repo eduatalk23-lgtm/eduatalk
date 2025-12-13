@@ -97,7 +97,7 @@ export function ContentAllocationUI({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {subjects.map((subject) => {
         const contents = contentsBySubject.get(subject) || [];
 
