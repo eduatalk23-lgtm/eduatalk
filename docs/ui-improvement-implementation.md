@@ -5,7 +5,7 @@
 UI 개선 필요 페이지 분석 결과를 바탕으로 Spacing-First 정책 적용, 컨테이너 너비 표준화, 인라인 스타일 제거, 중복 코드 최적화를 수행했습니다.
 
 **작업 기간**: 2024년 12월  
-**작업 범위**: Phase 1 (즉시 개선) 완료
+**작업 범위**: Phase 1 (즉시 개선) 완료, Phase 2 (컨테이너 너비 표준화) 완료
 
 ---
 
@@ -196,7 +196,7 @@ export {
 
 ## 변경된 파일 목록
 
-### 수정된 파일 (9개)
+### Phase 1 수정된 파일 (9개)
 
 1. `app/(student)/contents/_components/ContentCard.tsx`
 2. `app/(student)/settings/_components/SettingsPageClient.tsx`
@@ -207,6 +207,51 @@ export {
 7. `app/(student)/loading.tsx`
 8. `app/(student)/scores/_components/ScoreCard.tsx`
 9. `docs/ui-improvement-implementation.md` (이 문서)
+
+### Phase 2 수정된 파일 (33개)
+
+#### 콘텐츠 상세 페이지 (5개)
+1. `app/(student)/contents/books/[id]/page.tsx`
+2. `app/(student)/contents/lectures/[id]/page.tsx`
+3. `app/(student)/contents/master-books/[id]/page.tsx`
+4. `app/(student)/contents/master-lectures/[id]/page.tsx`
+5. `app/(student)/contents/master-custom-contents/[id]/page.tsx`
+
+#### 리스트 페이지 (8개)
+6. `app/(student)/contents/master-books/page.tsx`
+7. `app/(student)/contents/master-lectures/page.tsx`
+8. `app/(student)/contents/master-custom-contents/page.tsx`
+9. `app/(student)/plan/calendar/page.tsx`
+10. `app/(student)/camp/calendar/page.tsx`
+11. `app/(student)/camp/page.tsx`
+12. `app/(student)/plan/new-group/page.tsx`
+13. `app/(student)/plan/group/[id]/edit/page.tsx`
+
+#### 대시보드 페이지 (9개)
+14. `app/(student)/scores/dashboard/unified/page.tsx`
+15. `app/(student)/scores/school/[grade]/[semester]/page.tsx`
+16. `app/(student)/scores/mock/[grade]/[month]/[exam-type]/page.tsx`
+17. `app/(student)/reports/page.tsx`
+18. `app/(student)/report/weekly/page.tsx`
+19. `app/(student)/report/monthly/page.tsx`
+20. `app/(student)/blocks/[setId]/page.tsx`
+21. `app/(student)/camp/today/page.tsx`
+22. `app/(student)/error.tsx`
+
+#### 캠프/플랜 그룹 페이지 (2개)
+23. `app/(student)/plan/group/[id]/page.tsx`
+24. `app/(student)/plan/group/[id]/reschedule/page.tsx`
+
+#### 폼 페이지 (9개)
+25. `app/(student)/settings/notifications/page.tsx`
+26. `app/(student)/settings/devices/page.tsx`
+27. `app/(student)/settings/account/page.tsx`
+28. `app/(student)/scores/[id]/edit/page.tsx`
+29. `app/(student)/contents/lectures/page.tsx`
+30. `app/(student)/contents/books/page.tsx`
+31. `app/(student)/contents/lectures/[id]/edit/page.tsx`
+32. `app/(student)/contents/books/[id]/edit/page.tsx`
+33. `app/(student)/today/plan/[planId]/page.tsx`
 
 ---
 
@@ -223,22 +268,97 @@ export {
 
 ---
 
-## 다음 단계 (Phase 2)
+## Phase 2: 컨테이너 너비 표준화 작업 완료
+
+### 개요
+
+Phase 2에서는 `app/(student)` 디렉토리 내 모든 하드코딩된 `max-w-*` 클래스를 `getContainerClass()` 유틸리티로 표준화했습니다.
+
+**작업 범위**: 33개 파일 수정
+
+### 페이지 타입별 매핑
+
+#### ✅ 콘텐츠 상세 페이지 (CONTENT_DETAIL: max-w-3xl)
+- `app/(student)/contents/books/[id]/page.tsx`
+- `app/(student)/contents/lectures/[id]/page.tsx`
+- `app/(student)/contents/master-books/[id]/page.tsx`
+- `app/(student)/contents/master-lectures/[id]/page.tsx`
+- `app/(student)/contents/master-custom-contents/[id]/page.tsx`
+
+#### ✅ 리스트 페이지 (LIST: max-w-4xl)
+- `app/(student)/contents/master-books/page.tsx`
+- `app/(student)/contents/master-lectures/page.tsx`
+- `app/(student)/contents/master-custom-contents/page.tsx`
+- `app/(student)/plan/calendar/page.tsx`
+- `app/(student)/camp/calendar/page.tsx`
+- `app/(student)/camp/page.tsx`
+- `app/(student)/plan/new-group/page.tsx`
+- `app/(student)/plan/group/[id]/edit/page.tsx`
+
+#### ✅ 대시보드 페이지 (DASHBOARD: max-w-7xl)
+- `app/(student)/scores/dashboard/unified/page.tsx`
+- `app/(student)/scores/school/[grade]/[semester]/page.tsx`
+- `app/(student)/scores/mock/[grade]/[month]/[exam-type]/page.tsx`
+- `app/(student)/reports/page.tsx`
+- `app/(student)/report/weekly/page.tsx`
+- `app/(student)/report/monthly/page.tsx`
+- `app/(student)/blocks/[setId]/page.tsx`
+- `app/(student)/camp/today/page.tsx`
+- `app/(student)/error.tsx`
+
+#### ✅ 캠프/플랜 그룹 페이지 (CAMP_PLAN: max-w-5xl)
+- `app/(student)/plan/group/[id]/page.tsx`
+- `app/(student)/plan/group/[id]/reschedule/page.tsx`
+
+#### ✅ 폼 페이지 (FORM: max-w-2xl)
+- `app/(student)/settings/notifications/page.tsx`
+- `app/(student)/settings/devices/page.tsx`
+- `app/(student)/settings/account/page.tsx`
+- `app/(student)/scores/[id]/edit/page.tsx`
+- `app/(student)/contents/lectures/page.tsx`
+- `app/(student)/contents/books/page.tsx`
+- `app/(student)/contents/lectures/[id]/edit/page.tsx`
+- `app/(student)/contents/books/[id]/edit/page.tsx`
+- `app/(student)/today/plan/[planId]/page.tsx`
+
+### 변경 패턴
+
+**Before**:
+```tsx
+<section className="mx-auto w-full max-w-3xl px-4 py-10">
+  {/* 내용 */}
+</section>
+```
+
+**After**:
+```tsx
+import { getContainerClass } from "@/lib/constants/layout";
+
+<section className={getContainerClass("CONTENT_DETAIL", "lg")}>
+  {/* 내용 */}
+</section>
+```
+
+### 주요 개선 사항
+
+1. **일관된 레이아웃**: 모든 페이지가 표준화된 컨테이너 너비 사용
+2. **유지보수성 향상**: 레이아웃 변경 시 한 곳에서만 수정 가능
+3. **타입 안전성**: TypeScript로 페이지 타입 검증
+4. **반응형 지원**: `getContainerClass`가 자동으로 반응형 padding 적용
+
+---
+
+## 다음 단계 (Phase 3)
 
 ### 계획된 작업
 
 1. **주요 컴포넌트 Spacing-First 적용**
-   - `app/(student)/today/_components/PlanCard.tsx`
+   - `app/(student)/today/_components/PlanCard.tsx` (margin 사용 확인 필요)
    - 기타 주요 컴포넌트들
 
-2. **컨테이너 너비 표준화 (93개 파일)**
-   - 하드코딩된 `max-w-*` 패턴 찾기
-   - 페이지 타입 자동 감지
-   - `getContainerClass`로 자동 변환
-
-3. **나머지 인라인 스타일 개선**
-   - `app/(student)/blocks/_components/BlockTimeline.tsx`
-   - `app/(student)/plan/new-group/_components/_shared/BlockSetTimeline.tsx`
+2. **나머지 인라인 스타일 개선**
+   - `app/(student)/blocks/_components/BlockTimeline.tsx` (동적 위치 계산 필요)
+   - `app/(student)/plan/new-group/_components/_shared/BlockSetTimeline.tsx` (이미 적절한 패턴 사용 중)
 
 ---
 
@@ -274,12 +394,22 @@ import { getContainerClass } from "@/lib/constants/layout";
 
 ## 결론
 
-Phase 1 작업을 성공적으로 완료했습니다. 주요 개선 사항:
+Phase 1과 Phase 2 작업을 성공적으로 완료했습니다. 주요 개선 사항:
 
+### Phase 1 완료
 - ✅ Spacing-First 정책 적용으로 일관된 레이아웃 달성
-- ✅ 컨테이너 너비 표준화로 유지보수성 향상
 - ✅ Dialog 컴포넌트 통합으로 코드 중복 제거
 - ✅ 하위 호환성 유지로 기존 코드 영향 최소화
 
-Phase 2 작업은 점진적으로 진행할 예정입니다.
+### Phase 2 완료
+- ✅ 컨테이너 너비 표준화로 유지보수성 향상 (33개 파일)
+- ✅ 페이지 타입별 일관된 레이아웃 적용
+- ✅ 반응형 디자인 자동 지원
+
+### 통계
+- **총 수정 파일**: 42개 (Phase 1: 9개, Phase 2: 33개)
+- **표준화된 컨테이너**: 33개 페이지
+- **코드 중복 제거**: Dialog 컴포넌트 통합
+
+Phase 3 작업은 점진적으로 진행할 예정입니다.
 
