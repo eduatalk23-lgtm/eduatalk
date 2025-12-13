@@ -53,8 +53,8 @@ export function TimerDisplay({
         className
       )}
     >
-      <div className="flex flex-col gap-4">
-        <div className="rounded-lg bg-gray-50 p-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 rounded-lg bg-gray-50 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-gray-500" />

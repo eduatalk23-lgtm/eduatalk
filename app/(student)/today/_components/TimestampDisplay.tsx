@@ -46,10 +46,10 @@ export function TimestampDisplay({
             {isCompleted ? "총 학습 시간" : "학습 시간"}
           </span>
         </div>
-        <div className="text-lg font-bold text-indigo-600">
+        <div className="flex items-center gap-2 text-lg font-bold text-indigo-600">
           {formatTime(displaySeconds)}
           {isPaused && (
-            <span className="ml-2 text-xs text-gray-500">(일시정지 중)</span>
+            <span className="text-xs text-gray-500">(일시정지 중)</span>
           )}
         </div>
 
