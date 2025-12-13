@@ -102,19 +102,19 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
     const currentEnd = endRange ?? "";
 
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 안내 메시지 */}
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+        <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
           <p className="text-sm font-medium text-blue-800">
             상세 정보가 없습니다
           </p>
-          <p className="mt-1 text-xs text-blue-800">
+          <p className="text-xs text-blue-800">
             {isBook
               ? "페이지 범위를 직접 입력해주세요."
               : "회차 범위를 직접 입력해주세요."}
           </p>
           {maxValue && (
-            <p className="mt-1 text-xs text-blue-800">
+            <p className="text-xs text-blue-800">
               {isBook
                 ? `총 페이지수: ${maxValue}페이지`
                 : `총 회차: ${maxValue}회차`}
@@ -123,7 +123,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         </div>
 
         {/* 시작 범위 입력 */}
-        <div>
+        <div className="flex flex-col gap-1">
           <label className="block text-sm font-medium text-gray-800">
             시작 {isBook ? "페이지" : "회차"}
           </label>
@@ -138,13 +138,13 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
                 onStartRangeChange(e.target.value);
               }
             }}
-            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="예: 1"
           />
         </div>
 
         {/* 종료 범위 입력 */}
-        <div>
+        <div className="flex flex-col gap-1">
           <label className="block text-sm font-medium text-gray-800">
             종료 {isBook ? "페이지" : "회차"}
           </label>
@@ -159,7 +159,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
                 onEndRangeChange(e.target.value);
               }
             }}
-            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder={maxValue ? `예: ${maxValue}` : "예: 100"}
           />
         </div>
@@ -203,7 +203,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* 타입 표시 */}
       <div className="flex items-center gap-2 text-sm text-gray-800">
         {isBook ? (
