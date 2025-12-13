@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -94,12 +95,12 @@ export async function ContentProgressSection({ studentId }: { studentId: string 
                     {progress.progress ?? 0}%
                   </div>
                 </div>
-                <div className="h-2 w-full rounded-full bg-gray-200">
-                  <div
-                    className="h-2 rounded-full bg-indigo-600"
-                    style={{ width: `${progress.progress ?? 0}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={progress.progress ?? 0}
+                  max={100}
+                  color="indigo"
+                  size="sm"
+                />
               </div>
             );
           })}

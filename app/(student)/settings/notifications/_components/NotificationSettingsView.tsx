@@ -74,7 +74,7 @@ export function NotificationSettingsView({
     JSON.stringify(settings) !== JSON.stringify(initialSettings);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 저장 성공/에러 메시지 */}
       {success && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
@@ -313,12 +313,12 @@ export function NotificationSettingsView({
             />
           </button>
         </div>
-        <p className="mb-4 text-sm text-gray-500">
+        <p className="text-sm text-gray-500">
           방해 금지 시간 동안에는 알림을 받지 않습니다
         </p>
 
         {settings.quiet_hours_enabled && (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
               <label className="w-32 text-sm font-medium text-gray-700">
                 시작 시간

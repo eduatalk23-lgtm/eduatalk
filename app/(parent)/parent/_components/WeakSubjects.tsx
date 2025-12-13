@@ -1,4 +1,5 @@
 import type { SubjectRiskAnalysis } from "@/app/(student)/analysis/_utils";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type WeakSubjectsProps = {
   subjects: SubjectRiskAnalysis[];
@@ -26,12 +27,12 @@ export function WeakSubjects({ subjects }: WeakSubjectsProps) {
                     위험도 {Math.round(subject.risk_score)}%
                   </span>
                 </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-orange-500 transition-all"
-                    style={{ width: `${subject.risk_score}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={subject.risk_score}
+                  max={100}
+                  color="orange"
+                  size="sm"
+                />
                 <div className="text-xs text-gray-600">
                   최근 평균 등급: {subject.recent3AvgGrade.toFixed(1)}등급 | 일관성:{" "}
                   {subject.consistency_score.toFixed(1)}%

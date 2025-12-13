@@ -41,12 +41,16 @@ export default async function NotificationSettingsPage() {
   return (
     <div className="p-6 md:p-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-6 text-3xl font-semibold">알림 설정</h1>
-        <p className="mb-6 text-sm text-gray-600">
-          학습 관련 알림을 받을 항목과 시간을 설정하세요
-        </p>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-semibold">알림 설정</h1>
+            <p className="text-sm text-gray-600">
+              학습 관련 알림을 받을 항목과 시간을 설정하세요
+            </p>
+          </div>
 
-        <NotificationSettingsView initialSettings={settings} />
+          <NotificationSettingsView initialSettings={settings} />
+        </div>
       </div>
     </div>
   );

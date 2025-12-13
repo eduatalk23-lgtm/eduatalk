@@ -1,5 +1,6 @@
 import { getStudentRiskScore } from "@/lib/risk/engine";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type RiskCardProps = {
   studentId: string;
@@ -47,18 +48,18 @@ export async function RiskCard({ studentId }: RiskCardProps) {
           <span className="text-sm font-medium text-gray-700">위험 점수</span>
           <span className="text-2xl font-bold text-gray-900">{risk.riskScore}</span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-          <div
-            className={`h-full transition-all ${
-              risk.level === "high"
-                ? "bg-red-500"
-                : risk.level === "medium"
-                ? "bg-yellow-500"
-                : "bg-green-500"
-            }`}
-            style={{ width: `${risk.riskScore}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={risk.riskScore}
+          max={100}
+          variant={
+            risk.level === "high"
+              ? "error"
+              : risk.level === "medium"
+              ? "warning"
+              : "success"
+          }
+          size="sm"
+        />
       </div>
 
       {risk.reasons.length > 0 && (

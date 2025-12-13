@@ -1,5 +1,6 @@
 import { getStudentPlansForAdmin } from "@/lib/data/admin/studentData";
 import Link from "next/link";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type Plan = {
   id: string;
@@ -95,10 +96,12 @@ export async function PlanListSection({
                   </div>
                 )}
                 {plan.progress !== null && plan.progress !== undefined && (
-                  <div className="mt-2 h-2 w-full rounded-full bg-gray-200">
-                    <div
-                      className="h-2 rounded-full bg-indigo-600 transition-all"
-                      style={{ width: `${Math.min(100, plan.progress)}%` }}
+                  <div className="mt-2">
+                    <ProgressBar
+                      value={Math.min(100, plan.progress)}
+                      max={100}
+                      color="indigo"
+                      size="sm"
                     />
                   </div>
                 )}

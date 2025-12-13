@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { PlanGroup } from "@/lib/types/plan";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type PlanGroupProgressCardProps = {
   group: PlanGroup;
@@ -59,12 +60,12 @@ export function PlanGroupProgressCard({
         </div>
         
         {/* 진행률 바 */}
-        <div className="h-2 overflow-hidden rounded-full bg-gray-200">
-          <div
-            className="h-full rounded-full bg-blue-600 transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={progressPercentage}
+          max={100}
+          color="blue"
+          size="sm"
+        />
 
         {/* 상세 정보 */}
         <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">

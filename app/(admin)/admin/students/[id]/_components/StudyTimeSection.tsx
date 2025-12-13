@@ -1,4 +1,5 @@
 import { getStudentStudyTimeForAdmin } from "@/lib/data/admin/studentData";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 // 이번 주 날짜 범위 계산
 function getWeekRange() {
@@ -69,12 +70,13 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
                 <div key={index} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{subject.subject}</span>
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-24 rounded-full bg-gray-200">
-                      <div
-                        className="h-2 rounded-full bg-purple-600"
-                        style={{ width: `${subject.percentage}%` }}
-                      />
-                    </div>
+                    <ProgressBar
+                      value={subject.percentage}
+                      max={100}
+                      color="purple"
+                      size="sm"
+                      className="w-24"
+                    />
                     <span className="text-sm font-semibold text-gray-900">
                       {subject.minutes}분 ({subject.percentage}%)
                     </span>
@@ -102,12 +104,13 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
                       {typeLabels[contentType.contentType] ?? contentType.contentType}
                     </span>
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 rounded-full bg-gray-200">
-                        <div
-                          className="h-2 rounded-full bg-emerald-600"
-                          style={{ width: `${contentType.percentage}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={contentType.percentage}
+                        max={100}
+                        color="green"
+                        size="sm"
+                        className="w-24"
+                      />
                       <span className="text-sm font-semibold text-gray-900">
                         {contentType.minutes}분 ({contentType.percentage}%)
                       </span>

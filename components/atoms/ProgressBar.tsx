@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 
 export type ProgressBarVariant = "default" | "success" | "warning" | "error";
 export type ProgressBarSize = "xs" | "sm" | "md" | "lg";
-export type ProgressBarColor = "blue" | "green" | "indigo" | "orange" | "red";
+export type ProgressBarColor = "blue" | "green" | "indigo" | "orange" | "red" | "purple";
 export type ProgressBarHeight = "sm" | "md" | "lg"; // ui/ProgressBar 호환성
 
 export type ProgressBarProps = {
@@ -35,6 +35,7 @@ const colorClasses: Record<ProgressBarColor, string> = {
   indigo: "bg-indigo-600",
   orange: "bg-orange-600",
   red: "bg-red-600",
+  purple: "bg-purple-600",
 };
 
 const sizeClasses: Record<ProgressBarSize, string> = {

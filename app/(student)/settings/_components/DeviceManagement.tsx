@@ -121,7 +121,7 @@ export function DeviceManagement() {
     return (
       <div className="flex flex-col gap-4">
         <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {[1, 2, 3].map((i) => (
             <div
               key={i}

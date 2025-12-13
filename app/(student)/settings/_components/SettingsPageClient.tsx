@@ -189,18 +189,18 @@ export default function SettingsPageClient({
     for (const field of requiredFields) {
       const error = validateFormField(field, formData[field] as string);
       if (error) {
-        (newErrors as any)[field] = error;
+        newErrors[field] = error;
       }
     }
 
     // 선택 필드 검증
-    ["phone", "mother_phone", "father_phone"].forEach((field) => {
+    (["phone", "mother_phone", "father_phone"] as const).forEach((field) => {
       const error = validateFormField(
         field,
-        formData[field as keyof StudentFormData] as string
+        formData[field] as string
       );
       if (error) {
-        (newErrors as any)[field] = error;
+        newErrors[field] = error;
       }
     });
 
@@ -280,8 +280,9 @@ export default function SettingsPageClient({
         showError(result.error || "저장에 실패했습니다.");
         isSavingRef.current = false;
       }
-    } catch (err: any) {
-      showError(err.message || "저장 중 오류가 발생했습니다.");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "저장 중 오류가 발생했습니다.";
+      showError(errorMessage);
       isSavingRef.current = false;
     } finally {
       setSaving(false);

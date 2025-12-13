@@ -4,6 +4,7 @@ import type {
   WeeklyGoalProgress,
 } from "@/lib/reports/weekly";
 import type { MonthlyReport } from "@/lib/reports/monthly";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type WeeklyMonthlySummaryProps = {
   weeklyPlanSummary: WeeklyPlanSummary;
@@ -45,12 +46,12 @@ export function WeeklyMonthlySummary({
                 {weeklyPlanSummary.completionRate.toFixed(1)}%
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-indigo-600 transition-all"
-                style={{ width: `${weeklyPlanSummary.completionRate}%` }}
-              />
-            </div>
+            <ProgressBar
+              value={weeklyPlanSummary.completionRate}
+              max={100}
+              color="indigo"
+              size="sm"
+            />
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -59,12 +60,12 @@ export function WeeklyMonthlySummary({
                 {weeklyGoalProgress.averageProgress.toFixed(1)}%
               </span>
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-600 transition-all"
-                style={{ width: `${weeklyGoalProgress.averageProgress}%` }}
-              />
-            </div>
+            <ProgressBar
+              value={weeklyGoalProgress.averageProgress}
+              max={100}
+              color="green"
+              size="sm"
+            />
           </div>
         </div>
       </div>
@@ -92,12 +93,12 @@ export function WeeklyMonthlySummary({
                   {monthlyReport.totals.completionRate.toFixed(1)}%
                 </span>
               </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-600 transition-all"
-                  style={{ width: `${monthlyReport.totals.completionRate}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={monthlyReport.totals.completionRate}
+                max={100}
+                color="indigo"
+                size="sm"
+              />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -106,12 +107,12 @@ export function WeeklyMonthlySummary({
                   {monthlyReport.totals.goalRate.toFixed(1)}%
                 </span>
               </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-600 transition-all"
-                  style={{ width: `${monthlyReport.totals.goalRate}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={monthlyReport.totals.goalRate}
+                max={100}
+                color="green"
+                size="sm"
+              />
             </div>
           </div>
         </div>

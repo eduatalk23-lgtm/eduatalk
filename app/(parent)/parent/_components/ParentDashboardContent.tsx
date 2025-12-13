@@ -22,6 +22,7 @@ import {
   getWeakSubjects,
   getRiskSignals,
 } from "./_utils/calculations";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type ParentDashboardContentProps = {
   studentId: string;
@@ -173,12 +174,12 @@ export async function ParentDashboardContent({
                     {goal.progressPercentage}%
                   </span>
                 </div>
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-600 transition-all"
-                    style={{ width: `${goal.progressPercentage}%` }}
-                  />
-                </div>
+                <ProgressBar
+                  value={goal.progressPercentage}
+                  max={100}
+                  color="indigo"
+                  size="sm"
+                />
                 {goal.daysRemaining !== null && (
                   <p className="text-xs text-gray-500 mt-1">
                     D-{goal.daysRemaining}

@@ -27,11 +27,11 @@ export function InitialSetupBanner({ formData }: InitialSetupBannerProps) {
   return (
     <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 md:p-8">
       <div className="flex flex-col gap-4">
-        <div>
+        <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold text-indigo-900">
             환영합니다! 👋
           </h2>
-          <p className="mt-1 text-sm text-indigo-700">
+          <p className="text-sm text-indigo-700">
             학습 계획을 시작하기 위해 기본 정보를 입력해주세요.
           </p>
         </div>

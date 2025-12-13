@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAllGoals } from "@/lib/goals/queries";
 import { calculateGoalProgress } from "@/lib/goals/calc";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -42,12 +43,12 @@ export async function GoalsSummarySection({ studentId }: { studentId: string }) 
                   {progress.progressPercentage}%
                 </div>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
-                <div
-                  className="h-2 rounded-full bg-indigo-600"
-                  style={{ width: `${progress.progressPercentage}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={progress.progressPercentage}
+                max={100}
+                color="indigo"
+                size="sm"
+              />
               {progress.daysRemaining !== null && (
                 <div className="mt-2 text-xs text-gray-500">
                   {progress.daysRemaining}일 남음
