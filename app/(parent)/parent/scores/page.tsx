@@ -213,9 +213,9 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
 
           {/* 입시 전략 */}
           {dashboardData.strategyResult && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
-              <h3 className="text-base font-semibold text-blue-900 mb-2">입시 전략</h3>
-              <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50 p-6">
+              <h3 className="text-base font-semibold text-blue-900">입시 전략</h3>
+              <div className="flex items-center gap-2">
                 <span className={`rounded-full px-3 py-1 text-sm font-medium ${
                   dashboardData.strategyResult.type === "BALANCED" ? "bg-blue-100 text-blue-800" :
                   dashboardData.strategyResult.type === "MOCK_ADVANTAGE" ? "bg-purple-100 text-purple-800" :
