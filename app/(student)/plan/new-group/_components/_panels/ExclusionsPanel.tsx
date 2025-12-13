@@ -573,10 +573,10 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
               </select>
               {newExclusionType === "휴일지정" &&
                 data.scheduler_type === "1730_timetable" && (
-                  <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                     <div className="flex items-start gap-2">
-                      <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
-                      <div className="space-y-1 text-xs text-blue-800">
+                      <Info className="h-4 w-4 flex-shrink-0 text-blue-600" />
+                      <div className="flex flex-col gap-1 text-xs text-blue-800">
                         <div className="font-semibold">지정휴일 안내</div>
                         <div className="text-blue-800">
                           • 학습 분량은 배정되지 않습니다
