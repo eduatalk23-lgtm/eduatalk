@@ -120,21 +120,19 @@ export default async function AdminSMSPage({
       errorMessage.includes("테이블"))
   ) {
     return (
-      <div className="p-6 md:p-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
-        </div>
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+      <div className="flex flex-col gap-8 p-6 md:p-10">
+        <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
+        <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
           <p className="text-sm font-medium text-yellow-800">
             SMS 로그 테이블이 아직 생성되지 않았습니다.
           </p>
-          <p className="mt-2 text-xs text-yellow-700">
+          <p className="text-xs text-yellow-700">
             데이터베이스 마이그레이션을 실행해주세요.
           </p>
-          <p className="mt-1 text-xs text-yellow-600">
+          <p className="text-xs text-yellow-600">
             sms_logs 테이블은 ERD 스키마에 정의되어 있습니다.
           </p>
-          <p className="mt-1 text-xs text-yellow-600">
+          <p className="text-xs text-yellow-600">
             Supabase CLI:{" "}
             <code className="bg-yellow-100 px-1 rounded">
               supabase migration up
@@ -348,25 +346,25 @@ export default async function AdminSMSPage({
   };
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="flex flex-col gap-6 p-6 md:p-10">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">SMS 발송 이력</h1>
       </div>
 
       {/* 학생 목록 조회 에러 안내 */}
       {studentsError && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-800">
             학생 목록을 불러오는 중 오류가 발생했습니다.
           </p>
-          <p className="mt-1 text-xs text-red-700">
+          <p className="text-xs text-red-700">
             에러 코드: {studentsError?.code ?? "알 수 없음"}
           </p>
-          <p className="mt-1 text-xs text-red-600">
+          <p className="text-xs text-red-600">
             {studentsError?.message ?? "알 수 없는 오류"}
           </p>
           {studentsError?.hint && (
-            <p className="mt-1 text-xs text-red-600">
+            <p className="text-xs text-red-600">
               힌트: {studentsError?.hint}
             </p>
           )}
@@ -375,11 +373,11 @@ export default async function AdminSMSPage({
 
       {/* 학생이 없는 경우 안내 */}
       {!studentsError && (!studentsForSMS?.length) && (
-        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
           <p className="text-sm font-medium text-yellow-800">
             등록된 학생이 없습니다.
           </p>
-          <p className="mt-1 text-xs text-yellow-700">
+          <p className="text-xs text-yellow-700">
             학생 관리 페이지에서 학생을 등록한 후 SMS 발송을 이용할 수 있습니다.
           </p>
         </div>
@@ -401,7 +399,7 @@ export default async function AdminSMSPage({
       />
 
       {/* 통계 */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">전체</div>
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
@@ -429,7 +427,7 @@ export default async function AdminSMSPage({
       </div>
 
       {/* 필터 및 검색 */}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row">
+      <div className="flex flex-col gap-4 md:flex-row">
         <form method="get" className="flex flex-1 gap-2">
           <input
             type="text"

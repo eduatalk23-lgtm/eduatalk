@@ -1,7 +1,7 @@
 export function PendingLinkRequestsSkeleton() {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
         <div className="h-7 w-48 animate-pulse rounded bg-gray-200" />
       </div>
       <div className="space-y-3">

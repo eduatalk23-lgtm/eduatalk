@@ -65,11 +65,11 @@ export async function ConsultingNotesSection({
     });
 
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">상담노트</h2>
+      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">상담노트</h2>
 
         {/* 상담노트 작성 폼 */}
-        <div className="mb-6">
+        <div>
           <ConsultingNotesForm
             studentId={studentId}
             consultantId={consultantId}
@@ -78,15 +78,15 @@ export async function ConsultingNotesSection({
 
         {/* 에러 메시지 */}
         {error && (
-          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4">
+          <div className="flex flex-col gap-1 rounded-lg border border-red-300 bg-red-50 p-4">
             <p className="text-sm font-medium text-red-700">
               상담노트를 불러오는 중 오류가 발생했습니다.
             </p>
-            <p className="mt-1 text-xs text-red-600">
+            <p className="text-xs text-red-600">
               {error.message || `에러 코드: ${error.code || "알 수 없음"}`}
             </p>
             {error.code === "42P01" && (
-              <p className="mt-2 text-xs text-red-600">
+              <p className="text-xs text-red-600">
                 테이블이 존재하지 않습니다. 데이터베이스 마이그레이션이 필요할
                 수 있습니다.
               </p>
@@ -96,22 +96,22 @@ export async function ConsultingNotesSection({
 
         {/* 상담노트 목록 */}
         {!error && noteRows.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
             <p className="text-sm font-medium text-gray-700">
               상담노트가 없습니다.
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               위 폼에서 상담 내용을 작성하면 여기에 표시됩니다.
             </p>
           </div>
         ) : !error ? (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {noteRows.map((note) => (
               <div
                 key={note.id}
-                className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:bg-gray-100"
+                className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:bg-gray-100"
               >
-                <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-500">
                     {note.created_at
                       ? new Date(note.created_at).toLocaleString("ko-KR")
@@ -138,19 +138,19 @@ export async function ConsultingNotesSection({
         ? error.message
         : "알 수 없는 오류가 발생했습니다.";
     return (
-      <div className="rounded-lg border border-red-300 bg-red-50 p-6">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">상담노트</h2>
-        <div className="mb-6">
+      <div className="flex flex-col gap-6 rounded-lg border border-red-300 bg-red-50 p-6">
+        <h2 className="text-xl font-semibold text-gray-900">상담노트</h2>
+        <div>
           <ConsultingNotesForm
             studentId={studentId}
             consultantId={consultantId}
           />
         </div>
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-red-300 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-700">
             상담노트를 불러오는 중 예상치 못한 오류가 발생했습니다.
           </p>
-          <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+          <p className="text-xs text-red-600">{errorMessage}</p>
         </div>
       </div>
     );

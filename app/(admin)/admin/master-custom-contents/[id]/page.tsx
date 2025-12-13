@@ -59,7 +59,7 @@ export default async function MasterCustomContentDetailPage({
 
         {/* 액션 버튼 (관리자/컨설턴트만 표시) */}
         {(role === "admin" || role === "consultant") && (
-          <div className="mt-8 flex flex-col gap-4 border-t pt-8">
+          <div className="flex flex-col gap-4 border-t pt-8">
             <ContentActionButtons
               editHref={`/admin/master-custom-contents/${content.id}/edit`}
               deleteAction={deleteAction}

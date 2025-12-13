@@ -108,8 +108,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
       <div className="grid gap-4 md:grid-cols-2">
         {/* 제목 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             제목 <span className="text-red-500">*</span>
           </label>
           <input
@@ -121,8 +121,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 콘텐츠 유형 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             콘텐츠 유형
           </label>
           <select
@@ -138,8 +138,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 총 페이지/시간 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 페이지/시간
           </label>
           <input
@@ -152,8 +152,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 개정교육과정 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
           <select
@@ -174,8 +174,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 교과 그룹 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과 그룹
           </label>
           <select
@@ -200,8 +200,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 과목 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목
           </label>
           <select
@@ -222,8 +222,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 난이도 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             난이도
           </label>
           <select
@@ -238,8 +238,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 콘텐츠 카테고리 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             콘텐츠 카테고리
           </label>
           <input
@@ -250,8 +250,8 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         </div>
 
         {/* 메모 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
           <textarea

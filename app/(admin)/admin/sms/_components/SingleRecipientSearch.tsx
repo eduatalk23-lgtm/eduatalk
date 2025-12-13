@@ -223,12 +223,12 @@ export function SingleRecipientSearch({
                             ? `${student.grade}학년`
                             : ""}
                           {phone && (
-                            <span className="ml-2">
+                            <span>
                               ({recipientTypeLabel}) {phone}
                             </span>
                           )}
                           {!phone && (
-                            <span className="ml-2 text-red-500">
+                            <span className="text-red-500">
                               ({recipientTypeLabel} 연락처 없음)
                             </span>
                           )}

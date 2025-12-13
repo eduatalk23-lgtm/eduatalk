@@ -33,7 +33,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
               일부 콘텐츠 정보를 불러오는 중 오류가 발생했습니다.
             </p>
             {booksResult.status === "rejected" && (
-              <p className="mt-1 text-xs text-yellow-600">
+              <p className="text-xs text-yellow-600">
                 책 정보:{" "}
                 {booksResult.reason instanceof Error
                   ? booksResult.reason.message
@@ -41,7 +41,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
               </p>
             )}
             {lecturesResult.status === "rejected" && (
-              <p className="mt-1 text-xs text-yellow-600">
+              <p className="text-xs text-yellow-600">
                 강의 정보:{" "}
                 {lecturesResult.reason instanceof Error
                   ? lecturesResult.reason.message
@@ -49,7 +49,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
               </p>
             )}
             {customResult.status === "rejected" && (
-              <p className="mt-1 text-xs text-yellow-600">
+              <p className="text-xs text-yellow-600">
                 커스텀 콘텐츠 정보:{" "}
                 {customResult.reason instanceof Error
                   ? customResult.reason.message
@@ -60,19 +60,19 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
         )}
 
         {totalCount === 0 && !hasErrors ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
             <p className="text-sm font-medium text-gray-700">
               등록된 콘텐츠가 없습니다.
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               학생이 콘텐츠를 등록하면 여기에 표시됩니다.
             </p>
           </div>
         ) : (
           <>
             {/* 책 */}
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900">
                 📚 책 ({books.length}개)
               </h3>
               {books.length === 0 ? (
@@ -87,7 +87,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                       <div className="font-medium text-gray-900">
                         {book.title}
                       </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
                         {book.subject && <span>과목: {book.subject}</span>}
                         {book.total_pages && (
                           <>
@@ -103,8 +103,8 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
             </div>
 
             {/* 강의 */}
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900">
                 🎧 강의 ({lectures.length}개)
               </h3>
               {lectures.length === 0 ? (
@@ -119,7 +119,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                       <div className="font-medium text-gray-900">
                         {lecture.title}
                       </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
                         {lecture.subject && (
                           <span>과목: {lecture.subject}</span>
                         )}
@@ -139,8 +139,8 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
             </div>
 
             {/* 커스텀 콘텐츠 */}
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">
+            <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900">
                 📝 커스텀 콘텐츠 ({customContents.length}개)
               </h3>
               {customContents.length === 0 ? (
@@ -188,7 +188,7 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
         <p className="text-sm font-medium text-red-700">
           콘텐츠 정보를 불러오는 중 오류가 발생했습니다.
         </p>
-        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+        <p className="text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

@@ -9,21 +9,21 @@ export async function AnalysisReportSection({
     const analysis = await getStudentAnalysisForAdmin(studentId);
 
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">
+      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">
           분석 리포트
         </h2>
 
         {/* 주간 요약 */}
         {analysis.weeklyPlanSummary && (
-          <div className="mb-6 rounded-lg bg-indigo-50 p-4">
-            <h3 className="mb-2 text-sm font-medium text-indigo-700">
+          <div className="flex flex-col gap-2 rounded-lg bg-indigo-50 p-4">
+            <h3 className="text-sm font-medium text-indigo-700">
               이번 주 플랜 실행률
             </h3>
             <div className="text-3xl font-bold text-indigo-700">
               {analysis.weeklyPlanSummary.completionRate}%
             </div>
-            <div className="mt-2 text-xs text-indigo-600">
+            <div className="text-xs text-indigo-600">
               완료: {analysis.weeklyPlanSummary.completedPlans} /{" "}
               {analysis.weeklyPlanSummary.totalPlans}
             </div>
@@ -32,8 +32,8 @@ export async function AnalysisReportSection({
 
         {/* 주간 학습시간 */}
         {analysis.weeklyStudyTime && (
-          <div className="mb-6 rounded-lg bg-purple-50 p-4">
-            <h3 className="mb-2 text-sm font-medium text-purple-700">
+          <div className="flex flex-col gap-2 rounded-lg bg-purple-50 p-4">
+            <h3 className="text-sm font-medium text-purple-700">
               이번 주 학습시간
             </h3>
             <div className="text-3xl font-bold text-purple-700">
@@ -45,27 +45,27 @@ export async function AnalysisReportSection({
 
         {/* 월간 리포트 */}
         {analysis.monthlyReport && (
-          <div className="mb-6 rounded-lg bg-emerald-50 p-4">
-            <h3 className="mb-2 text-sm font-medium text-emerald-700">
+          <div className="flex flex-col gap-2 rounded-lg bg-emerald-50 p-4">
+            <h3 className="text-sm font-medium text-emerald-700">
               이번 달 요약
             </h3>
             <div className="grid grid-cols-3 gap-4">
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="text-xs text-emerald-600">총 학습시간</div>
-                <div className="mt-1 text-lg font-bold text-emerald-700">
+                <div className="text-lg font-bold text-emerald-700">
                   {Math.floor(analysis.monthlyReport.totals.studyMinutes / 60)}
                   시간
                 </div>
               </div>
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="text-xs text-emerald-600">플랜 실행률</div>
-                <div className="mt-1 text-lg font-bold text-emerald-700">
+                <div className="text-lg font-bold text-emerald-700">
                   {analysis.monthlyReport.totals.completionRate}%
                 </div>
               </div>
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="text-xs text-emerald-600">목표 달성률</div>
-                <div className="mt-1 text-lg font-bold text-emerald-700">
+                <div className="text-lg font-bold text-emerald-700">
                   {analysis.monthlyReport.totals.goalRate}%
                 </div>
               </div>
@@ -75,8 +75,8 @@ export async function AnalysisReportSection({
 
         {/* 위험 분석 */}
         {analysis.riskAnalysis.length > 0 && (
-          <div>
-            <h3 className="mb-3 text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-gray-700">
               과목별 위험 분석
             </h3>
             <div className="space-y-2">
@@ -103,9 +103,9 @@ export async function AnalysisReportSection({
                   return (
                     <div
                       key={index}
-                      className={`rounded-lg border p-3 ${riskColors[riskLevel]}`}
+                      className={`flex flex-col gap-2 rounded-lg border p-3 ${riskColors[riskLevel]}`}
                     >
-                      <div className="mb-1 flex items-center justify-between">
+                      <div className="flex items-center justify-between">
                         <span className="font-medium">
                           {risk.subject ?? "미분류"}
                         </span>
@@ -113,7 +113,7 @@ export async function AnalysisReportSection({
                           {riskLabels[riskLevel]} ({risk.risk_score}점)
                         </span>
                       </div>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                      <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
                           <div className="text-gray-600">최근 성적 추이</div>
                           <div className="font-semibold">
@@ -144,11 +144,11 @@ export async function AnalysisReportSection({
           !analysis.weeklyStudyTime &&
           !analysis.monthlyReport &&
           analysis.riskAnalysis.length === 0 && (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+            <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
               <p className="text-sm font-medium text-gray-700">
                 분석 데이터가 없습니다.
               </p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-xs text-gray-500">
                 학습 활동 데이터가 쌓이면 분석 리포트가 생성됩니다.
               </p>
             </div>
@@ -166,7 +166,7 @@ export async function AnalysisReportSection({
         <p className="text-sm font-medium text-red-700">
           분석 리포트를 불러오는 중 오류가 발생했습니다.
         </p>
-        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+        <p className="text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

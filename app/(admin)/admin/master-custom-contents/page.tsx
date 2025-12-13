@@ -155,7 +155,7 @@ export default async function MasterCustomContentsPage({
 
                     <Link
                       href={`/admin/master-custom-contents/${content.id}`}
-                      className="mt-2 inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                      className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
                     >
                       상세보기
                     </Link>
