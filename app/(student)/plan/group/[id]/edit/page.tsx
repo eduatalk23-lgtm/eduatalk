@@ -58,18 +58,18 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   return (
     <>
       <ScrollToTop />
-      <section className={getContainerClass("LIST", "lg")}>
-        <div className="mb-8">
+      <section className={`${getContainerClass("LIST", "lg")} flex flex-col gap-8`}>
         <div>
-          <p className="text-sm font-medium text-gray-800">학습 플랜</p>
-          <h1 className="text-h1 text-gray-900">
-            플랜 그룹 수정
-          </h1>
-          <p className="mt-2 text-sm text-gray-800">
-            플랜 그룹의 설정을 수정할 수 있습니다.
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-gray-800">학습 플랜</p>
+            <h1 className="text-h1 text-gray-900">
+              플랜 그룹 수정
+            </h1>
+            <p className="text-sm text-gray-800">
+              플랜 그룹의 설정을 수정할 수 있습니다.
+            </p>
+          </div>
         </div>
-      </div>
 
       <PlanGroupWizard
         initialBlockSets={blockSets || []}

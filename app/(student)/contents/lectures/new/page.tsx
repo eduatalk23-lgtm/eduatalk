@@ -131,17 +131,17 @@ export default function NewLecturePage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
-      <div className="mb-6">
+    <section className="mx-auto flex flex-col gap-6 w-full max-w-3xl px-4 py-10">
+      <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold text-gray-900">🎧 강의 등록하기</h1>
-        <p className="mt-2 text-sm text-gray-500">새로운 강의를 등록하세요.</p>
+        <p className="text-sm text-gray-500">새로운 강의를 등록하세요.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           {/* 강의명 */}
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">
               강의명 <span className="text-red-500">*</span>
             </label>
             <input
@@ -153,8 +153,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 개정교육과정 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               개정교육과정
             </label>
             <select
@@ -176,8 +176,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 교과 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">교과</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">교과</label>
             <select
               value={selectedSubjectGroupId}
               onChange={(e) => {
@@ -199,8 +199,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 과목 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">과목</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">과목</label>
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
@@ -219,8 +219,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 플랫폼 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">플랫폼</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">플랫폼</label>
             <select
               value={selectedPlatformId}
               onChange={(e) => setSelectedPlatformId(e.target.value)}
@@ -236,8 +236,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 총 회차 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               총 회차 <span className="text-red-500">*</span>
             </label>
             <input
@@ -251,8 +251,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 총 강의시간 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               총 강의시간 (분)
             </label>
             <input
@@ -265,8 +265,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 난이도 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               난이도
             </label>
             <select
@@ -281,8 +281,8 @@ export default function NewLecturePage() {
           </div>
 
           {/* 메모 */}
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">
               메모
             </label>
             <textarea
