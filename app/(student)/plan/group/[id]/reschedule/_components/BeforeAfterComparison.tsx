@@ -131,31 +131,31 @@ export function BeforeAfterComparison({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <h3 className="mb-4 font-semibold text-gray-900">변경 전/후 비교</h3>
+    <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h3 className="font-semibold text-gray-900">변경 전/후 비교</h3>
 
       {/* 요약 카드 */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <p className="text-xs text-gray-600">기존 플랜</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
+          <p className="text-2xl font-bold text-gray-900">
             {preview.plans_before_count}개
           </p>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="text-sm text-gray-600">
             {preview.estimated_hours}시간
           </p>
         </div>
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <p className="text-xs text-blue-700">새 플랜</p>
-          <p className="mt-1 text-2xl font-bold text-blue-600">
+          <p className="text-2xl font-bold text-blue-600">
             {preview.plans_after_count}개
           </p>
-          <p className="mt-1 text-sm text-blue-700">
+          <p className="text-sm text-blue-700">
             {preview.estimated_hours}시간
           </p>
         </div>
         <div
-          className={`rounded-lg border p-4 ${
+          className={`flex flex-col gap-1 rounded-lg border p-4 ${
             preview.plans_after_count - preview.plans_before_count >= 0
               ? "border-green-200 bg-green-50"
               : "border-red-200 bg-red-50"
@@ -163,7 +163,7 @@ export function BeforeAfterComparison({
         >
           <p className="text-xs text-gray-600">변화</p>
           <p
-            className={`mt-1 text-2xl font-bold ${
+            className={`text-2xl font-bold ${
               preview.plans_after_count - preview.plans_before_count >= 0
                 ? "text-green-600"
                 : "text-red-600"
@@ -174,7 +174,7 @@ export function BeforeAfterComparison({
               : ""}
             {preview.plans_after_count - preview.plans_before_count}개
           </p>
-          <p className="mt-1 text-sm text-gray-600">변화 없음</p>
+          <p className="text-sm text-gray-600">변화 없음</p>
         </div>
       </div>
 

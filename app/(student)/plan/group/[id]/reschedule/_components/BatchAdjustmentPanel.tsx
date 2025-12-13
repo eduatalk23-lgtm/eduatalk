@@ -81,16 +81,16 @@ export function BatchAdjustmentPanel({
   }
 
   return (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-      <div className="mb-4">
+    <div className="flex flex-col gap-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="flex flex-col gap-1">
         <h3 className="font-semibold text-blue-900">일괄 조정</h3>
-        <p className="mt-1 text-xs text-blue-700">
+        <p className="text-xs text-blue-700">
           선택한 {selectedContents.length}개의 콘텐츠를 한 번에 조정합니다.
         </p>
       </div>
 
       {/* 조정 타입 선택 */}
-      <div className="mb-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <label className="flex cursor-pointer items-center gap-2">
             <input
@@ -161,8 +161,8 @@ export function BatchAdjustmentPanel({
 
       {/* 미리보기 */}
       {preview && (
-        <div className="mb-4 rounded-lg border border-blue-300 bg-white p-3">
-          <h4 className="mb-2 text-sm font-semibold text-gray-900">미리보기</h4>
+        <div className="flex flex-col gap-2 rounded-lg border border-blue-300 bg-white p-3">
+          <h4 className="text-sm font-semibold text-gray-900">미리보기</h4>
           <div className="flex flex-col gap-1 text-xs text-gray-600">
             <div className="flex justify-between">
               <span>영향받는 콘텐츠:</span>
@@ -197,8 +197,8 @@ export function BatchAdjustmentPanel({
 
           {/* 샘플 조정 내역 */}
           {preview.sampleAdjustments.length > 0 && (
-            <div className="mt-3 border-t border-gray-200 pt-3">
-              <p className="mb-2 text-xs font-medium text-gray-700">샘플 조정 내역:</p>
+            <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
+              <p className="text-xs font-medium text-gray-700">샘플 조정 내역:</p>
               <div className="flex flex-col gap-1 text-xs text-gray-600">
                 {preview.sampleAdjustments.map((sample, index) => (
                   <div key={index} className="flex justify-between">

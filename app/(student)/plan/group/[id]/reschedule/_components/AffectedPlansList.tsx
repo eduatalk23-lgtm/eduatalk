@@ -161,8 +161,8 @@ export function AffectedPlansList({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+      <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-900">영향받는 플랜 목록</h3>
         <div className="flex items-center gap-3">
           {/* 필터 */}
@@ -214,11 +214,11 @@ export function AffectedPlansList({
                     ) : (
                       <ChevronDown className="h-4 w-4 text-gray-400" />
                     )}
-                    <div>
+                    <div className="flex flex-col gap-1">
                       <div className="font-medium text-gray-900">
                         {format(new Date(item.date), "yyyy년 M월 d일")} ({weekday})
                       </div>
-                      <div className="mt-1 flex items-center gap-4 text-xs text-gray-600">
+                      <div className="flex items-center gap-4 text-xs text-gray-600">
                         <span>
                           기존: {item.beforeCount}개
                         </span>
@@ -297,7 +297,7 @@ export function AffectedPlansList({
                               </div>
                               {plan.planned_start_page_or_time !== null &&
                                 plan.planned_end_page_or_time !== null && (
-                                  <div className="mt-1 text-gray-600">
+                                  <div className="text-gray-600">
                                     {plan.planned_start_page_or_time} ~{" "}
                                     {plan.planned_end_page_or_time}
                                     {plan.content_type === "book"
@@ -315,8 +315,8 @@ export function AffectedPlansList({
 
                     {/* 새 플랜 목록 */}
                     {item.afterPlans.length > 0 && (
-                      <div className="border-t border-gray-200 pt-3">
-                        <h4 className="mb-2 text-sm font-semibold text-blue-900">
+                      <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
+                        <h4 className="text-sm font-semibold text-blue-900">
                           변경 후 플랜 ({item.afterPlans.length}개)
                         </h4>
                         <div className="flex flex-col gap-2">
@@ -339,7 +339,7 @@ export function AffectedPlansList({
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-1 text-blue-700">
+                              <div className="text-blue-700">
                                 {plan.planned_start_page_or_time} ~{" "}
                                 {plan.planned_end_page_or_time}
                                 {plan.content_type === "book"
@@ -362,7 +362,7 @@ export function AffectedPlansList({
       </div>
 
       {/* 요약 */}
-      <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-600">총 영향받는 날짜:</span>
           <span className="font-medium text-gray-900">

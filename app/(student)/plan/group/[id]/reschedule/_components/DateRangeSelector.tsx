@@ -191,9 +191,9 @@ export function DateRangeSelector({
     }
 
     return (
-      <div className="w-full">
+      <div className="flex w-full flex-col gap-2">
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
+        <div className="grid grid-cols-7 gap-1">
           {weekdays.map((day) => (
             <div
               key={day}
@@ -290,9 +290,9 @@ export function DateRangeSelector({
       )}
 
       {/* 캘린더 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
         {/* 월 네비게이션 */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={goToPreviousMonth}
