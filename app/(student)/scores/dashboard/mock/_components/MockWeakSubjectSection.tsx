@@ -181,7 +181,7 @@ export function MockWeakSubjectSection({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {weakSubjects.map((item, index) => (
         <div
           key={`${item.subject}-${index}`}
