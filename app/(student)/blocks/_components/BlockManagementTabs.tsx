@@ -43,9 +43,9 @@ export default function BlockManagementTabs({
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {/* 탭 메뉴 */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="border-b border-gray-200">
         <nav className="-mb-px flex gap-4">
           <button
             type="button"
@@ -110,7 +110,7 @@ export default function BlockManagementTabs({
           />
         )}
       </div>
-    </>
+    </div>
   );
 }
 

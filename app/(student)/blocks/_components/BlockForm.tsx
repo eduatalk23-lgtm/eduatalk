@@ -85,8 +85,8 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-4 bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">
             새 시간 블록 추가
           </h2>
@@ -103,13 +103,13 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
         </div>
 
         {state.error && !state.success && (
-          <div className="mb-4 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">
+          <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">
             {state.error}
           </div>
         )}
 
         {state.success && (
-          <div className="mb-4 p-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded">
+          <div className="p-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded">
             {state.error && (state.error.includes("요일에 블록이 추가되었습니다") || state.error.includes("요일에 총"))
               ? state.error // 부분 성공 정보 메시지 표시
               : "주중 패턴이 성공적으로 추가되었습니다."}

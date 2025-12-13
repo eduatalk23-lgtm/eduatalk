@@ -124,21 +124,21 @@ export default function BlocksViewer({
 
       {/* 블록 세트 목록 */}
       {blockSetsWithStats.length > 0 ? (
-        <div className="mb-8">
+        <div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {blockSetsWithStats.map((set) => (
               <div
                 key={set.id}
-                className={`bg-white border-2 rounded-lg p-6 transition-all hover:shadow-md flex flex-col ${
+                className={`bg-white border-2 rounded-lg p-6 transition-all hover:shadow-md flex flex-col gap-4 ${
                   activeSetId === set.id
                     ? "border-indigo-500 bg-indigo-50"
                     : "border-gray-200 hover:border-gray-300"
                 }`}
               >
                 {/* 헤더 */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{set.name}</h3>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-1 flex-col gap-1">
+                    <h3 className="text-lg font-semibold text-gray-900">{set.name}</h3>
                     {activeSetId === set.id && (
                       <span className="inline-block px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded">
                         활성
@@ -189,11 +189,11 @@ export default function BlocksViewer({
 
                 {/* 설명 */}
                 {set.description && (
-                  <p className="text-sm text-gray-600 mb-4">{set.description}</p>
+                  <p className="text-sm text-gray-600">{set.description}</p>
                 )}
 
                 {/* 통계 정보 */}
-                <div className="space-y-2 mb-4 flex-1">
+                <div className="flex flex-col gap-2 flex-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">블록 개수</span>
                     <span className="font-medium text-gray-900">{set.blockCount}개</span>
@@ -205,8 +205,8 @@ export default function BlocksViewer({
                     </span>
                   </div>
                   {set.blockCount > 0 && (
-                    <div className="pt-2 border-t border-gray-200">
-                      <div className="text-xs text-gray-500 mb-1">요일별 블록</div>
+                    <div className="flex flex-col gap-1 pt-2 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">요일별 블록</div>
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(set.dayDistribution).map(([day, count]) => (
                           <span

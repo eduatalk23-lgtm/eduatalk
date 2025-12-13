@@ -23,18 +23,18 @@ export default function InvalidBlockWarning({ blocks }: InvalidBlockWarningProps
   }
 
   return (
-    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+    <div className="flex flex-col gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
       <div className="flex items-start gap-3">
         <div className="text-2xl">⚠️</div>
-        <div className="flex-1">
-          <h3 className="text-sm font-semibold text-amber-900 mb-1">
+        <div className="flex flex-1 flex-col gap-3">
+          <h3 className="text-sm font-semibold text-amber-900">
             잘못된 시간 블록이 발견되었습니다
           </h3>
-          <p className="text-sm text-amber-800 mb-3">
+          <p className="text-sm text-amber-800">
             종료 시간이 시작 시간보다 작거나 같은 블록이 {invalidBlocks.length}개 있습니다.
             이러한 블록은 통계 계산에서 제외됩니다.
           </p>
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             {invalidBlocks.map((block) => (
               <div
                 key={block.id}
@@ -45,7 +45,7 @@ export default function InvalidBlockWarning({ blocks }: InvalidBlockWarningProps
               </div>
             ))}
           </div>
-          <p className="text-xs text-amber-700 mt-3">
+          <p className="text-xs text-amber-700">
             타임테이블에서 해당 블록을 클릭하여 수정하거나 삭제해주세요.
           </p>
         </div>

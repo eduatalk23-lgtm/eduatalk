@@ -83,9 +83,9 @@ export default function BlockSetTabs({
   };
 
   return (
-    <div className="mb-6">
+    <div className="flex flex-col gap-4">
       {/* 탭 헤더 */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">블록 세트</h2>
         <button
           type="button"
@@ -132,10 +132,12 @@ export default function BlockSetTabs({
                   onClick={() => handleSetActive(set.id)}
                   className="flex-1 text-left"
                 >
-                  <div className="font-medium text-gray-900">{set.name}</div>
-                  {activeSetId === set.id && (
-                    <div className="text-xs text-indigo-600 mt-0.5">활성</div>
-                  )}
+                  <div className="flex flex-col gap-0.5">
+                    <div className="font-medium text-gray-900">{set.name}</div>
+                    {activeSetId === set.id && (
+                      <div className="text-xs text-indigo-600">활성</div>
+                    )}
+                  </div>
                 </button>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
@@ -225,7 +227,7 @@ function BlockSetCreateForm({
 
   if (existingCount >= MAX_SETS) {
     return (
-      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
         <p className="text-sm text-amber-800">
           블록 세트는 최대 {MAX_SETS}개까지 생성할 수 있습니다.
         </p>
@@ -234,7 +236,7 @@ function BlockSetCreateForm({
   }
 
   return (
-    <div className="mb-4 p-4 bg-white border border-gray-200 rounded-lg">
+    <div className="p-4 bg-white border border-gray-200 rounded-lg">
       <form action={formAction} className="flex flex-col gap-3">
         {state.error && (
           <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{state.error}</p>
@@ -383,7 +385,7 @@ function BlockSetDuplicateForm({
 
   if (existingCount >= MAX_SETS) {
     return (
-      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
         <p className="text-sm text-amber-800">
           블록 세트는 최대 {MAX_SETS}개까지 생성할 수 있습니다.
         </p>
@@ -392,7 +394,7 @@ function BlockSetDuplicateForm({
   }
 
   return (
-    <div className="mb-4 p-4 bg-white border border-blue-200 rounded-lg">
+    <div className="p-4 bg-white border border-blue-200 rounded-lg">
       <form action={formAction} className="flex flex-col gap-3">
         {state.error && (
           <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{state.error}</p>

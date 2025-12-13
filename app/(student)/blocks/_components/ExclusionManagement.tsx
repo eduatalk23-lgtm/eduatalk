@@ -151,25 +151,25 @@ export default function ExclusionManagement({
     .filter((type) => exclusionsByType[type] && exclusionsByType[type].length > 0);
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
         <p className="font-medium">📌 학습 제외 일정은 학생별 전역으로 관리됩니다.</p>
-        <p className="mt-1 text-xs text-blue-700">
+        <p className="text-xs text-blue-700">
           등록한 제외일은 모든 플랜 그룹에서 공통으로 적용됩니다.
         </p>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">학습 제외 일정</h3>
         </div>
 
         {/* 제외일 추가 폼 */}
         {isAdding && (
-          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="mb-3 grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-700">
                   날짜 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -179,8 +179,8 @@ export default function ExclusionManagement({
                   onChange={(e) => setNewExclusionDate(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-700">
                   유형 <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -197,8 +197,8 @@ export default function ExclusionManagement({
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-700">
                   사유 (선택사항)
                 </label>
                 <input
@@ -246,7 +246,7 @@ export default function ExclusionManagement({
 
         {/* 제외일 목록 (유형별 그룹화) */}
         {planExclusions.length > 0 && (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             {typeKeys.map((type) => {
               const typeLabel = exclusionTypes.find((t) => t.value === type)?.label || type;
               const exclusions = exclusionsByType[type].sort(
