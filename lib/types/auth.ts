@@ -29,3 +29,39 @@ export interface UserWithSignupMetadata {
  */
 export type ExtractMetadata<T extends keyof SignupMetadata> = SignupMetadata[T];
 
+/**
+ * 약관 동의 유형
+ */
+export type ConsentType = "terms" | "privacy" | "marketing";
+
+/**
+ * 약관 동의 정보
+ */
+export interface UserConsent {
+  id: string;
+  user_id: string;
+  consent_type: ConsentType;
+  consented: boolean;
+  consented_at: string;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  created_at: string;
+}
+
+/**
+ * 약관 동의 저장을 위한 데이터 타입
+ */
+export interface ConsentData {
+  terms: boolean;
+  privacy: boolean;
+  marketing: boolean;
+}
+
+/**
+ * 약관 동의 저장 시 메타데이터
+ */
+export interface ConsentMetadata {
+  ip_address?: string;
+  user_agent?: string;
+}
+

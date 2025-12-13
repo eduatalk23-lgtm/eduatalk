@@ -10,6 +10,7 @@ import type { TenantOption } from "@/app/actions/tenants";
 import FormInput from "@/components/ui/FormInput";
 import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
+import FormCheckbox from "@/components/ui/FormCheckbox";
 
 type SignupState = {
   error?: string;
@@ -186,6 +187,60 @@ export default function SignupPage() {
           <p className="text-xs text-gray-500">
             학생: 학습 계획 및 성적 관리를 사용합니다. 학부모: 자녀의 학습 현황을 확인합니다.
           </p>
+        </div>
+
+        {/* 약관 동의 */}
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
+          <h3 className="text-sm font-medium text-gray-900">약관 동의</h3>
+          <div className="flex flex-col gap-3">
+            {/* 이용약관 (필수) */}
+            <FormCheckbox
+              name="consent_terms"
+              required
+              label={
+                <>
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800 underline"
+                  >
+                    이용약관
+                  </a>
+                  에 동의합니다 <span className="text-red-500">(필수)</span>
+                </>
+              }
+            />
+
+            {/* 개인정보취급방침 (필수) */}
+            <FormCheckbox
+              name="consent_privacy"
+              required
+              label={
+                <>
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:text-indigo-800 underline"
+                  >
+                    개인정보취급방침
+                  </a>
+                  에 동의합니다 <span className="text-red-500">(필수)</span>
+                </>
+              }
+            />
+
+            {/* 마케팅 활용 동의 (선택) */}
+            <FormCheckbox
+              name="consent_marketing"
+              label={
+                <>
+                  마케팅 정보 수신에 동의합니다 <span className="text-gray-500">(선택)</span>
+                </>
+              }
+            />
+          </div>
         </div>
 
         {state?.error && <FormMessage type="error" message={state.error} />}

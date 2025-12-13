@@ -9,6 +9,7 @@ import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
 import type { SignupRole, SignupMetadata, UserWithSignupMetadata } from "@/lib/types/auth";
 import { z } from "zod";
 import { getEmailRedirectUrl } from "@/lib/utils/getEmailRedirectUrl";
+import { saveUserConsents } from "@/lib/data/userConsents";
 
 const signInSchema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다.").min(1, "이메일을 입력해주세요."),
@@ -398,6 +399,16 @@ export async function signUp(
   const tenantId = String(formData.get("tenant_id") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim() as "student" | "parent" | "";
 
+  // 약관 동의 정보 추출
+  const consentTerms = formData.get("consent_terms") === "on";
+  const consentPrivacy = formData.get("consent_privacy") === "on";
+  const consentMarketing = formData.get("consent_marketing") === "on";
+
+  // 필수 약관 체크
+  if (!consentTerms || !consentPrivacy) {
+    return { error: "필수 약관에 동의해주세요." };
+  }
+
   // 입력 검증
   const validation = signUpSchema.safeParse({ email, password, displayName, tenantId, role: role || undefined });
   if (!validation.success) {
@@ -443,6 +454,21 @@ export async function signUp(
           // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
           console.error("[auth] 학부모 레코드 생성 실패:", result.error);
         }
+      }
+
+      // 약관 동의 정보 저장
+      const consentResult = await saveUserConsents(
+        authData.user.id,
+        {
+          terms: consentTerms,
+          privacy: consentPrivacy,
+          marketing: consentMarketing,
+        }
+      );
+
+      if (!consentResult.success) {
+        // 약관 동의 저장 실패는 로깅만 하고 회원가입은 성공으로 처리
+        console.error("[auth] 약관 동의 저장 실패:", consentResult.error);
       }
     }
 
