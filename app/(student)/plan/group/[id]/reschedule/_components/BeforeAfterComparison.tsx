@@ -255,8 +255,8 @@ export function BeforeAfterComparison({
 
       {/* 조정 내역 요약 */}
       {adjustments.length > 0 && (
-        <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <h4 className="mb-2 text-sm font-semibold text-gray-900">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <h4 className="text-sm font-semibold text-gray-900">
             조정 내역
           </h4>
           <div className="flex flex-col gap-1 text-xs text-gray-600">
