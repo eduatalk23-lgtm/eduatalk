@@ -1,6 +1,7 @@
 import { getStudentPlansForAdmin } from "@/lib/data/admin/studentData";
 import Link from "next/link";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { SectionCard } from "@/components/ui/SectionCard";
 
 type Plan = {
   id: string;
@@ -36,33 +37,34 @@ export async function PlanListSection({
     const recentPlans = plans.slice(0, 10);
 
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">학습 플랜</h2>
+      <SectionCard
+        title="학습 플랜"
+        headerAction={
           <Link
             href={`/plan?student=${studentId}`}
             className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
           >
             전체 보기 →
           </Link>
-        </div>
+        }
+      >
         {recentPlans.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
             <p className="text-sm font-medium text-gray-700">
               등록된 학습 플랜이 없습니다.
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               학생에게 학습 플랜을 생성하면 여기에 표시됩니다.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {recentPlans.map((plan: Plan) => (
               <div
                 key={plan.id}
-                className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
               >
-                <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                       {contentTypeLabels[plan.content_type] ??
@@ -84,7 +86,7 @@ export async function PlanListSection({
                   )}
                 </div>
                 {plan.chapter && (
-                  <div className="mb-1 text-sm text-gray-600">
+                  <div className="text-sm text-gray-600">
                     챕터: {plan.chapter}
                   </div>
                 )}
@@ -96,20 +98,18 @@ export async function PlanListSection({
                   </div>
                 )}
                 {plan.progress !== null && plan.progress !== undefined && (
-                  <div className="mt-2">
-                    <ProgressBar
-                      value={Math.min(100, plan.progress)}
-                      max={100}
-                      color="indigo"
-                      size="sm"
-                    />
-                  </div>
+                  <ProgressBar
+                    value={Math.min(100, plan.progress)}
+                    max={100}
+                    color="indigo"
+                    size="sm"
+                  />
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
     );
   } catch (error) {
     console.error("[PlanListSection] 플랜 조회 실패", error);
@@ -118,11 +118,11 @@ export async function PlanListSection({
         ? error.message
         : "알 수 없는 오류가 발생했습니다.";
     return (
-      <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
+      <div className="flex flex-col gap-1 rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
         <p className="text-sm font-medium text-red-700">
           플랜 정보를 불러오는 중 오류가 발생했습니다.
         </p>
-        <p className="mt-1 text-xs text-red-600">{errorMessage}</p>
+        <p className="text-xs text-red-600">{errorMessage}</p>
       </div>
     );
   }

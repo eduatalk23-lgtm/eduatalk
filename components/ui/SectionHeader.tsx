@@ -8,6 +8,7 @@ type SectionHeaderProps = {
   actionHref?: string;
   action?: ReactNode;
   className?: string;
+  level?: "h1" | "h2";
 };
 
 export function SectionHeader({
@@ -17,11 +18,18 @@ export function SectionHeader({
   actionHref,
   action,
   className = "",
+  level = "h2",
 }: SectionHeaderProps) {
+  const HeadingTag = level === "h1" ? "h1" : "h2";
+  const headingClassName =
+    level === "h1"
+      ? "text-h1 text-gray-900"
+      : "text-2xl font-semibold text-gray-900";
+
   return (
     <div className={`flex items-center justify-between ${className}`}>
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
+        <HeadingTag className={headingClassName}>{title}</HeadingTag>
         {description && (
           <p className="text-sm text-gray-500">{description}</p>
         )}

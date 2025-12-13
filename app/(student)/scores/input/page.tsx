@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getActiveCurriculumRevision, getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import ScoreInputLayout from "./_components/ScoreInputLayout";
 
 export default async function ScoreInputPage() {
@@ -32,17 +33,14 @@ export default async function ScoreInputPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
+      <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8">
         <div className="flex flex-col gap-6">
           {/* 헤더 */}
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
-              성적 입력
-            </h1>
-            <p className="text-sm text-gray-600 md:text-base">
-              내신 성적과 모의고사 성적을 입력하세요.
-            </p>
-          </div>
+          <SectionHeader
+            level="h1"
+            title="성적 입력"
+            description="내신 성적과 모의고사 성적을 입력하세요."
+          />
 
           {/* 성적 입력 레이아웃 */}
           <ScoreInputLayout

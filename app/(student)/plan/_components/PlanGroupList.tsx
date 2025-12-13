@@ -84,7 +84,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
           </div>
           <Link
             href="/plan/new-group"
-            className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
           >
             플랜 그룹 생성하기
           </Link>

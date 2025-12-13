@@ -88,7 +88,7 @@ export default async function UnifiedScoreDashboardPage() {
             </p>
             <Link
               href="/settings"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
             >
               학생 설정하기
             </Link>
@@ -132,7 +132,7 @@ export default async function UnifiedScoreDashboardPage() {
               <p className="text-sm text-gray-600">{error}</p>
               <Link
                 href="/scores"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
               >
                 성적 관리로 이동
               </Link>
@@ -177,7 +177,7 @@ export default async function UnifiedScoreDashboardPage() {
         <div className="flex flex-wrap gap-4">
           <Link
             href="/scores/input"
-            className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
           >
             성적 입력하기
           </Link>

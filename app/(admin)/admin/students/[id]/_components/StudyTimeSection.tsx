@@ -26,21 +26,21 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
     const weekdayLabels = ["일", "월", "화", "수", "목", "금", "토"];
 
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">학습시간</h2>
+      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">학습시간</h2>
 
         {/* 총 학습시간 */}
-        <div className="mb-6 rounded-lg bg-indigo-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 p-4">
           <div className="text-sm text-gray-600">이번 주 총 학습시간</div>
-          <div className="mt-1 text-3xl font-bold text-indigo-700">
+          <div className="text-3xl font-bold text-indigo-700">
             {studyTime.totalHours}시간 {studyTime.totalMinutes % 60}분
           </div>
         </div>
 
         {/* 요일별 학습시간 */}
-        <div className="mb-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-700">요일별 학습시간</h3>
-          <div className="space-y-2">
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-medium text-gray-700">요일별 학습시간</h3>
+          <div className="flex flex-col gap-2">
             {studyTime.byDay.map((day, index) => {
               const date = new Date(day.date);
               const dayOfWeek = weekdayLabels[date.getDay()];
@@ -63,9 +63,9 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
 
         {/* 과목별 학습시간 */}
         {studyTime.bySubject.length > 0 && (
-          <div className="mb-6">
-            <h3 className="mb-3 text-sm font-medium text-gray-700">과목별 학습시간</h3>
-            <div className="space-y-2">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-gray-700">과목별 학습시간</h3>
+            <div className="flex flex-col gap-2">
               {studyTime.bySubject.slice(0, 5).map((subject, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">{subject.subject}</span>
@@ -89,9 +89,9 @@ export async function StudyTimeSection({ studentId }: { studentId: string }) {
 
         {/* 콘텐츠 타입별 학습시간 */}
         {studyTime.byContentType.length > 0 && (
-          <div>
-            <h3 className="mb-3 text-sm font-medium text-gray-700">콘텐츠 타입별 학습시간</h3>
-            <div className="space-y-2">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-gray-700">콘텐츠 타입별 학습시간</h3>
+            <div className="flex flex-col gap-2">
               {studyTime.byContentType.map((contentType, index) => {
                 const typeLabels: Record<string, string> = {
                   book: "책",

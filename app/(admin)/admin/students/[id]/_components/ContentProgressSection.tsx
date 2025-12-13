@@ -70,20 +70,20 @@ export async function ContentProgressSection({ studentId }: { studentId: string 
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-semibold text-gray-900">콘텐츠 진행 요약</h2>
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-gray-900">콘텐츠 진행 요약</h2>
       {progressRows.length === 0 ? (
         <p className="text-sm text-gray-500">진행 중인 콘텐츠가 없습니다.</p>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {progressRows.map((progress, index) => {
             if (!progress.content_type || !progress.content_id) return null;
             const key = `${progress.content_type}:${progress.content_id}`;
             const contentInfo = contentMap.get(key) ?? { title: "제목 없음", subject: null };
 
             return (
-              <div key={index} className="rounded-lg border border-gray-200 p-4">
-                <div className="mb-2 flex items-center justify-between">
+              <div key={index} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium text-gray-900">{contentInfo.title}</div>
                     <div className="text-xs text-gray-500">

@@ -113,7 +113,7 @@ function ContentCardComponent({
           {activeTab !== "custom" && (
             <Link
               href={`/contents/${activeTab}/${item.id}`}
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
             >
               상세보기
             </Link>

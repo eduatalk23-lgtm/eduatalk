@@ -159,14 +159,14 @@ export async function ParentDashboardContent({
 
       {/* 목표 진행률 */}
       {goalsWithProgress.length > 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900">
             현재 목표 진행률
           </h3>
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             {goalsWithProgress.map((goal) => (
-              <div key={goal.id}>
-                <div className="flex items-center justify-between mb-2">
+              <div key={goal.id} className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
                     {goal.title}
                   </span>
@@ -181,7 +181,7 @@ export async function ParentDashboardContent({
                   size="sm"
                 />
                 {goal.daysRemaining !== null && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     D-{goal.daysRemaining}
                   </p>
                 )}

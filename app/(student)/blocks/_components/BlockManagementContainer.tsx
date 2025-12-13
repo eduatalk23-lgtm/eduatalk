@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import BlockManagementTabs, { type ManagementTab } from "./BlockManagementTabs";
 import type { PlanGroup } from "@/lib/types/plan";
 
@@ -107,14 +108,13 @@ export default function BlockManagementContainer({
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">시간 블록 관리</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            블록 세트, 학습 제외 일정, 학원 일정을 관리할 수 있습니다.
-          </p>
-        </div>
-        <div>{getActionButton()}</div>
+      <div className="mb-6">
+        <SectionHeader
+          level="h1"
+          title="시간 블록 관리"
+          description="블록 세트, 학습 제외 일정, 학원 일정을 관리할 수 있습니다."
+          action={getActionButton()}
+        />
       </div>
 
       <BlockManagementTabs

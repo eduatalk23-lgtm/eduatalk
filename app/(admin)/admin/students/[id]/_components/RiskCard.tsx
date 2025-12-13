@@ -33,8 +33,8 @@ export async function RiskCard({ studentId }: RiskCardProps) {
   const studyTimeChangePercent = changePercent > 0 ? `+${changePercent}` : `${changePercent}`;
 
   return (
-    <div className={`rounded-lg border-2 p-6 shadow-sm ${levelColors[risk.level]}`}>
-      <div className="mb-4 flex items-center justify-between">
+    <div className={`flex flex-col gap-4 rounded-lg border-2 p-6 shadow-sm ${levelColors[risk.level]}`}>
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">위험도 평가</h2>
         <span
           className={`rounded-full px-3 py-1 text-sm font-semibold ${levelBadgeColors[risk.level]}`}
@@ -43,8 +43,8 @@ export async function RiskCard({ studentId }: RiskCardProps) {
         </span>
       </div>
 
-      <div className="mb-4">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">위험 점수</span>
           <span className="text-2xl font-bold text-gray-900">{risk.riskScore}</span>
         </div>
@@ -63,12 +63,12 @@ export async function RiskCard({ studentId }: RiskCardProps) {
       </div>
 
       {risk.reasons.length > 0 && (
-        <div className="mb-4">
-          <h3 className="mb-2 text-sm font-semibold text-gray-700">위험 요인</h3>
-          <ul className="space-y-1">
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-gray-700">위험 요인</h3>
+          <ul className="flex flex-col gap-1">
             {risk.reasons.map((reason, index) => (
               <li key={index} className="flex items-start gap-2 text-sm text-gray-600">
-                <span className="mt-1 text-red-500">•</span>
+                <span className="text-red-500">•</span>
                 <span>{reason}</span>
               </li>
             ))}
@@ -76,8 +76,8 @@ export async function RiskCard({ studentId }: RiskCardProps) {
         </div>
       )}
 
-      <div className="rounded-lg bg-white p-3">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">지난주 대비 학습 변화</h3>
+      <div className="flex flex-col gap-2 rounded-lg bg-white p-3">
+        <h3 className="text-sm font-semibold text-gray-700">지난주 대비 학습 변화</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-500">이번주</span>
