@@ -707,6 +707,105 @@ export function PlanGroupWizard({
     }
   }, [currentStep, mode]);
 
+  // Step 7 완료 핸들러
+  const handleStep7Complete = useCallback(async () => {
+    if (!draftGroupId) return;
+
+    // 관리자 continue 모드에서는 플랜 생성 및 페이지 이동 처리
+    if (isAdminContinueMode) {
+      try {
+        const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
+        
+        // Step 7에서 플랜 생성 및 저장
+        const result = await continueCampStepsForAdmin(
+          draftGroupId || (initialData?.groupId as string),
+          wizardData,
+          currentStep
+        );
+
+        if (result.success) {
+          toast.showSuccess("플랜이 생성되었습니다.");
+          // 참여자 목록 페이지로 이동
+          const templateId = initialData?.templateId;
+          if (templateId) {
+            window.location.href = `/admin/camp-templates/${templateId}/participants`;
+          } else {
+            window.location.href = `/admin/camp-templates`;
+          }
+        } else {
+          const errorMessage = result.error || "플랜 생성에 실패했습니다.";
+          setValidationErrors([errorMessage]);
+          toast.showError(errorMessage);
+        }
+      } catch (error) {
+        console.error("[PlanGroupWizard] 관리자 캠프 플랜 생성 실패:", error);
+        const errorMessage = error instanceof Error ? error.message : "플랜 생성에 실패했습니다.";
+        setValidationErrors([errorMessage]);
+        toast.showError(errorMessage);
+      }
+      return;
+    }
+
+    // 일반 모드(학생 모드)에서는 플랜이 생성되었는지 확인만 수행
+    // 플랜 생성은 Step 7 진입 시 자동으로 완료되므로 여기서는 확인만
+    try {
+      const checkResult = await checkPlansExistAction(draftGroupId);
+      if (!checkResult.hasPlans) {
+        // 플랜이 없으면 경고만 표시 (Step 7에서 이미 생성되어야 함)
+        alert("플랜이 생성되지 않았습니다. 플랜 재생성 버튼을 클릭하여 다시 시도해주세요.");
+        return;
+      }
+    } catch (error) {
+      // 플랜 확인 실패는 경고만 표시하고 계속 진행
+      console.warn("[PlanGroupWizard] 플랜 확인 실패:", error);
+    }
+
+    // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
+    // (자동 활성화는 하지 않음 - 사용자가 완료 버튼을 눌렀을 때만 활성화)
+    try {
+      const activeGroups = await getActivePlanGroups(draftGroupId);
+      if (activeGroups.length > 0) {
+        // 다른 활성 플랜 그룹이 있으면 이름 저장 (완료 버튼 클릭 시 다이얼로그 표시)
+        setActiveGroupNames(activeGroups.map(g => g.name || "플랜 그룹"));
+      }
+      // 다른 활성 플랜 그룹이 없어도 자동 활성화하지 않음
+      // 사용자가 완료 버튼을 눌렀을 때만 활성화됨
+    } catch (error) {
+      // 활성 그룹 확인 실패는 경고만 (필수가 아니므로)
+      const planGroupError = toPlanGroupError(
+        error,
+        PlanGroupErrorCodes.UNKNOWN_ERROR
+      );
+      console.warn("[PlanGroupWizard] 플랜 그룹 활성 그룹 확인 실패:", planGroupError);
+    }
+
+    // 완료 버튼을 눌렀을 때만 활성화 및 리다이렉트
+    // 다른 활성 플랜 그룹이 있으면 활성화 다이얼로그 표시
+    if (activeGroupNames.length > 0) {
+      setActivationDialogOpen(true);
+    } else {
+      // 다른 활성 플랜 그룹이 없으면 활성화 후 리다이렉트
+      try {
+        // saved 상태로 먼저 변경 시도 (이미 saved 상태면 에러 없이 성공)
+        try {
+          await updatePlanGroupStatus(draftGroupId, "saved");
+        } catch (savedError) {
+          // saved 상태 변경 실패는 무시 (이미 saved 상태일 수 있음)
+          console.warn("플랜 그룹 saved 상태 변경 실패 (무시):", savedError);
+        }
+        // saved 상태에서 active로 전이
+        await updatePlanGroupStatus(draftGroupId, "active");
+        router.refresh(); // 캐시 갱신
+        router.push(`/plan/group/${draftGroupId}`, { scroll: true });
+      } catch (statusError) {
+        // 활성화 실패 시에도 리다이렉트 (경고만)
+        console.warn("플랜 그룹 활성화 실패:", statusError);
+        router.refresh(); // 캐시 갱신
+        router.push(`/plan/group/${draftGroupId}`, { scroll: true });
+      }
+    }
+  }, [draftGroupId, isAdminContinueMode, wizardData, currentStep, initialData, toast, setValidationErrors, router]);
+
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
 
@@ -911,101 +1010,7 @@ export function PlanGroupWizard({
           <Step7ScheduleResult
             groupId={draftGroupId}
             isAdminContinueMode={isAdminContinueMode}
-            onComplete={async () => {
-              // 관리자 continue 모드에서는 플랜 생성 및 페이지 이동 처리
-              if (isAdminContinueMode) {
-                try {
-                  const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
-                  
-                  // Step 7에서 플랜 생성 및 저장
-                  const result = await continueCampStepsForAdmin(
-                    draftGroupId || (initialData?.groupId as string),
-                    wizardData,
-                    currentStep
-                  );
-
-                  if (result.success) {
-                    toast.showSuccess("플랜이 생성되었습니다.");
-                    // 참여자 목록 페이지로 이동
-                    const templateId = initialData?.templateId;
-                    if (templateId) {
-                      window.location.href = `/admin/camp-templates/${templateId}/participants`;
-                    } else {
-                      window.location.href = `/admin/camp-templates`;
-                    }
-                  } else {
-                    const errorMessage = result.error || "플랜 생성에 실패했습니다.";
-                    setValidationErrors([errorMessage]);
-                    toast.showError(errorMessage);
-                  }
-                } catch (error) {
-                  console.error("[PlanGroupWizard] 관리자 캠프 플랜 생성 실패:", error);
-                  const errorMessage = error instanceof Error ? error.message : "플랜 생성에 실패했습니다.";
-                  setValidationErrors([errorMessage]);
-                  toast.showError(errorMessage);
-                }
-                return;
-              }
-
-              // 일반 모드(학생 모드)에서는 플랜이 생성되었는지 확인만 수행
-              // 플랜 생성은 Step 7 진입 시 자동으로 완료되므로 여기서는 확인만
-              try {
-                const checkResult = await checkPlansExistAction(draftGroupId);
-                if (!checkResult.hasPlans) {
-                  // 플랜이 없으면 경고만 표시 (Step 7에서 이미 생성되어야 함)
-                  alert("플랜이 생성되지 않았습니다. 플랜 재생성 버튼을 클릭하여 다시 시도해주세요.");
-                  return;
-                }
-              } catch (error) {
-                // 플랜 확인 실패는 경고만 표시하고 계속 진행
-                console.warn("[PlanGroupWizard] 플랜 확인 실패:", error);
-              }
-
-              // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
-              // (자동 활성화는 하지 않음 - 사용자가 완료 버튼을 눌렀을 때만 활성화)
-              try {
-                const activeGroups = await getActivePlanGroups(draftGroupId);
-                if (activeGroups.length > 0) {
-                  // 다른 활성 플랜 그룹이 있으면 이름 저장 (완료 버튼 클릭 시 다이얼로그 표시)
-                  setActiveGroupNames(activeGroups.map(g => g.name || "플랜 그룹"));
-                }
-                // 다른 활성 플랜 그룹이 없어도 자동 활성화하지 않음
-                // 사용자가 완료 버튼을 눌렀을 때만 활성화됨
-              } catch (error) {
-                // 활성 그룹 확인 실패는 경고만 (필수가 아니므로)
-                const planGroupError = toPlanGroupError(
-                  error,
-                  PlanGroupErrorCodes.UNKNOWN_ERROR
-                );
-                console.warn("[PlanGroupWizard] 플랜 그룹 활성 그룹 확인 실패:", planGroupError);
-              }
-
-              // 완료 버튼을 눌렀을 때만 활성화 및 리다이렉트
-              // 다른 활성 플랜 그룹이 있으면 활성화 다이얼로그 표시
-              if (activeGroupNames.length > 0) {
-                setActivationDialogOpen(true);
-              } else {
-                // 다른 활성 플랜 그룹이 없으면 활성화 후 리다이렉트
-                try {
-                  // saved 상태로 먼저 변경 시도 (이미 saved 상태면 에러 없이 성공)
-                  try {
-                    await updatePlanGroupStatus(draftGroupId, "saved");
-                  } catch (savedError) {
-                    // saved 상태 변경 실패는 무시 (이미 saved 상태일 수 있음)
-                    console.warn("플랜 그룹 saved 상태 변경 실패 (무시):", savedError);
-                  }
-                  // saved 상태에서 active로 전이
-                  await updatePlanGroupStatus(draftGroupId, "active");
-                  router.refresh(); // 캐시 갱신
-                  router.push(`/plan/group/${draftGroupId}`, { scroll: true });
-                } catch (statusError) {
-                  // 활성화 실패 시에도 리다이렉트 (경고만)
-                  console.warn("플랜 그룹 활성화 실패:", statusError);
-                  router.refresh(); // 캐시 갱신
-                  router.push(`/plan/group/${draftGroupId}`, { scroll: true });
-                }
-              }
-            }}
+            onComplete={handleStep7Complete}
           />
         )}
       </div>
@@ -1022,20 +1027,29 @@ export function PlanGroupWizard({
             이전
           </button>
         </div>
-        <button
-          type="button"
-          onClick={handleNext}
-          disabled={isSubmitting || currentStep === 7}
-          className={`items-center justify-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400 ${
-            currentStep === 7 ? "hidden" : "inline-flex"
-          }`}
-        >
-          {isSubmitting
-            ? "저장 중..."
-            : isLastStep
-            ? "완료"
-            : "다음"}
-        </button>
+        {currentStep === 7 && draftGroupId && !isTemplateMode ? (
+          <button
+            type="button"
+            onClick={handleStep7Complete}
+            disabled={isSubmitting}
+            className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+          >
+            완료
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={isSubmitting}
+            className="inline-flex items-center justify-center rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+          >
+            {isSubmitting
+              ? "저장 중..."
+              : isLastStep
+              ? "완료"
+              : "다음"}
+          </button>
+        )}
       </div>
 
       {/* 플랜 그룹 활성화 다이얼로그 */}
