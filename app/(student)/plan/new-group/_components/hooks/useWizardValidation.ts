@@ -15,6 +15,43 @@ const VALIDATION_FIELD_MAP: Record<string, string> = {
 // 필드 ID별 오류 메시지 맵 타입
 export type FieldErrors = Map<string, string>;
 
+// Step별 필드 순서 정의 (화면에 표시되는 순서)
+const FIELD_ORDER_BY_STEP: Record<WizardStep, string[]> = {
+  1: ["plan_name", "plan_purpose", "period_start", "scheduler_type"],
+  2: [],
+  3: [],
+  4: ["content_selection"],
+  5: [],
+  6: [],
+  7: [],
+};
+
+/**
+ * 첫 번째 오류 필드 ID를 반환 (화면 순서 기준)
+ */
+export function getFirstErrorFieldId(
+  fieldErrors: FieldErrors,
+  step: WizardStep
+): string | undefined {
+  if (fieldErrors.size === 0) return undefined;
+
+  const fieldOrder = FIELD_ORDER_BY_STEP[step];
+  if (!fieldOrder || fieldOrder.length === 0) {
+    // 필드 순서가 정의되지 않은 경우 Map의 첫 번째 키 반환
+    return Array.from(fieldErrors.keys())[0];
+  }
+
+  // 화면 순서에 따라 첫 번째 오류 필드 찾기
+  for (const fieldId of fieldOrder) {
+    if (fieldErrors.has(fieldId)) {
+      return fieldId;
+    }
+  }
+
+  // 순서에 없는 필드인 경우 Map의 첫 번째 키 반환
+  return Array.from(fieldErrors.keys())[0];
+}
+
 type UseWizardValidationProps = {
   wizardData: WizardData;
   isTemplateMode: boolean;

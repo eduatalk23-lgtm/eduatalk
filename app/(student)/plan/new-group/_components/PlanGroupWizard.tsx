@@ -7,6 +7,7 @@ import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { scrollToTop, scrollToField } from "@/lib/utils/scroll";
+import { getFirstErrorFieldId } from "./hooks/useWizardValidation";
 import {
   createPlanGroupAction,
   savePlanGroupDraftAction,
@@ -600,15 +601,15 @@ export function PlanGroupWizard({
   const scrollToFirstError = useCallback(() => {
     if (fieldErrors.size === 0) return;
 
-    // Map의 첫 번째 키 가져오기
-    const firstFieldId = Array.from(fieldErrors.keys())[0];
+    // 화면 순서에 따라 첫 번째 오류 필드 찾기
+    const firstFieldId = getFirstErrorFieldId(fieldErrors, currentStep);
     if (!firstFieldId) return;
 
     // DOM 업데이트 후 스크롤 실행
     setTimeout(() => {
       scrollToField(firstFieldId);
     }, 100);
-  }, [fieldErrors]);
+  }, [fieldErrors, currentStep]);
 
   const handleNext = () => {
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
