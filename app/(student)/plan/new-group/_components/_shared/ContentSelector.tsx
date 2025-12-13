@@ -81,20 +81,21 @@ export const ContentSelector = React.memo(function ContentSelector({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">
-          콘텐츠 추가
-        </h3>
-        {maxReached && (
-          <span className="text-sm font-medium text-red-600">
-            최대 개수 도달
-          </span>
-        )}
-      </div>
+      <div className="flex flex-col gap-4">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">
+            콘텐츠 추가
+          </h3>
+          {maxReached && (
+            <span className="text-sm font-medium text-red-600">
+              최대 개수 도달
+            </span>
+          )}
+        </div>
 
-      {/* 탭 */}
-      <div className="flex gap-2">
+        {/* 탭 */}
+        <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setActiveTab("book")}
@@ -192,7 +193,7 @@ export const ContentSelector = React.memo(function ContentSelector({
       </div>
 
       {/* 콘텐츠 목록 */}
-      <div className="flex flex-col gap-2 max-h-96 overflow-y-auto">
+      <div className="flex flex-col gap-4 max-h-96 overflow-y-auto">
         {availableContents.length === 0 ? (
           <div className="flex flex-col gap-1 items-center justify-center py-12 text-center">
             <div className="rounded-full bg-gray-100 p-3">
@@ -261,6 +262,7 @@ export const ContentSelector = React.memo(function ContentSelector({
             </button>
           ))
         )}
+      </div>
       </div>
     </div>
   );
