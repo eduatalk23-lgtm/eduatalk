@@ -129,8 +129,8 @@ export function LocationSettingsForm() {
     <Card>
       <CardHeader title="위치 설정" />
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="latitude">위도 (Latitude) *</Label>
             <Input
               id="latitude"
@@ -143,10 +143,10 @@ export function LocationSettingsForm() {
               placeholder="37.5665"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">위도 범위: -90 ~ 90</p>
+            <p className="text-xs text-gray-500">위도 범위: -90 ~ 90</p>
           </div>
 
-          <div>
+          <div className="flex flex-col gap-1">
             <Label htmlFor="longitude">경도 (Longitude) *</Label>
             <Input
               id="longitude"
@@ -159,7 +159,7 @@ export function LocationSettingsForm() {
               placeholder="126.9780"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">경도 범위: -180 ~ 180</p>
+            <p className="text-xs text-gray-500">경도 범위: -180 ~ 180</p>
           </div>
 
           <div>

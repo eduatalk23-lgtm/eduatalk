@@ -248,28 +248,28 @@ export function CampTemplateDetail({
         </div>
 
         {/* 템플릿 정보 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
             템플릿 정보
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">
                 템플릿 이름
               </label>
-              <p className="mt-1 text-sm text-gray-700">{template.name}</p>
+              <p className="text-sm text-gray-700">{template.name}</p>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">
                 프로그램 유형
               </label>
-              <p className="mt-1 text-sm text-gray-700">{template.program_type}</p>
+              <p className="text-sm text-gray-700">{template.program_type}</p>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">
                 상태
               </label>
-              <p className="mt-1">
+              <p>
                 {currentStatus === "draft" && (
                   <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800">
                     비활성
@@ -342,8 +342,8 @@ export function CampTemplateDetail({
 
         {/* 템플릿 데이터 상세 정보 */}
         {templateData && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900">
               템플릿 설정 정보
             </h2>
             <div className="grid gap-4 md:grid-cols-2">

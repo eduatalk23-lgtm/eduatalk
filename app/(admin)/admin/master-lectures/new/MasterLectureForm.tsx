@@ -59,8 +59,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
     >
       <div className="grid gap-4 md:grid-cols-2">
         {/* 강의명 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             강의명 <span className="text-red-500">*</span>
           </label>
           <input
@@ -72,8 +72,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 개정교육과정 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
           <select
@@ -92,8 +92,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 교과 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과
           </label>
           <select
@@ -112,8 +112,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 과목 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목
           </label>
           <input
@@ -126,8 +126,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 플랫폼 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             플랫폼
           </label>
           <input
@@ -138,8 +138,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 총 회차 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 회차 <span className="text-red-500">*</span>
           </label>
           <input
@@ -153,8 +153,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 총 강의시간 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 강의시간 (분)
           </label>
           <input
@@ -167,8 +167,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 난이도 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             난이도
           </label>
           <select
@@ -183,7 +183,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         </div>
 
         {/* 연결된 교재 등록 여부 */}
-        <div className="md:col-span-2">
+        <div className="flex flex-col gap-1 md:col-span-2">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -195,15 +195,15 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
               연결된 교재 함께 등록하기
             </span>
           </label>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="text-xs text-gray-700">
             이 강의가 특정 교재를 기반으로 하는 경우, 교재를 함께 등록할 수
             있습니다.
           </p>
         </div>
 
         {/* 메모 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
           <textarea
@@ -220,17 +220,19 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
 
       {/* 연결된 교재 등록 섹션 */}
       {linkBook && (
-        <div className="mt-6 rounded-lg border-2 border-indigo-200 bg-indigo-50 p-6">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">
-            연결된 교재 등록
-          </h3>
-          <p className="mb-4 text-sm text-gray-600">
-            공통 정보(개정교육과정, 교과, 과목)는 강의 입력값을 참고합니다.
-          </p>
+        <div className="flex flex-col gap-4 rounded-lg border-2 border-indigo-200 bg-indigo-50 p-6">
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-gray-900">
+              연결된 교재 등록
+            </h3>
+            <p className="text-sm text-gray-600">
+              공통 정보(개정교육과정, 교과, 과목)는 강의 입력값을 참고합니다.
+            </p>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
             {/* 교재명 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 교재명 <span className="text-red-500">*</span>
               </label>
               <input
@@ -242,8 +244,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             </div>
 
             {/* 개정교육과정 - 강의 입력값 참고 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 개정교육과정
               </label>
               <input
@@ -254,14 +256,14 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-700">
+              <p className="text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>
 
             {/* 교과 - 강의 입력값 참고 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 교과
               </label>
               <input
@@ -272,14 +274,14 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-700">
+              <p className="text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>
 
             {/* 과목 - 강의 입력값 참고 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 과목
               </label>
               <input
@@ -290,14 +292,14 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
                 readOnly
                 className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm text-gray-600"
               />
-              <p className="mt-1 text-xs text-gray-700">
+              <p className="text-xs text-gray-700">
                 강의 입력값을 참고합니다
               </p>
             </div>
 
             {/* 출판사 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 출판사
               </label>
               <input
@@ -308,8 +310,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             </div>
 
             {/* 총 페이지 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 총 페이지 <span className="text-red-500">*</span>
               </label>
               <input
@@ -323,8 +325,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             </div>
 
             {/* 난이도 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 난이도
               </label>
               <select
@@ -339,8 +341,8 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             </div>
 
             {/* 교재 메모 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 교재 메모
               </label>
               <textarea
@@ -353,7 +355,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
           </div>
 
           {/* 교재 상세 정보 */}
-          <div className="mt-4">
+          <div className="pt-4">
             <BookDetailsManager />
           </div>
         </div>
