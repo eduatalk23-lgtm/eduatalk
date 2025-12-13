@@ -34,6 +34,7 @@ export function Dialog({
   const effectiveSize = size || maxWidth || "md";
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const titleId = title ? `dialog-title-${Math.random().toString(36).substr(2, 9)}` : undefined;
   const descriptionId = description ? `dialog-description-${Math.random().toString(36).substr(2, 9)}` : undefined;
 
@@ -43,7 +44,22 @@ export function Dialog({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // 모달이 닫힐 때 이전 포커스 복원
+      if (previousFocusRef.current) {
+        // 짧은 지연 후 포커스 복원 (모달 애니메이션 완료 대기)
+        setTimeout(() => {
+          if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+            previousFocusRef.current.focus();
+          }
+          previousFocusRef.current = null;
+        }, 100);
+      }
+      return;
+    }
+
+    // 현재 포커스 저장
+    previousFocusRef.current = document.activeElement as HTMLElement;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -54,11 +70,21 @@ export function Dialog({
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
 
-    // 포커스 트랩: 첫 번째 포커스 가능한 요소로 포커스 이동
-    const firstFocusable = dialogRef.current?.querySelector(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    ) as HTMLElement;
-    firstFocusable?.focus();
+    // 포커스 트랩: 모달 내부에 포커스가 없을 때만 첫 번째 포커스 가능한 요소로 이동
+    const dialogElement = dialogRef.current;
+    if (dialogElement) {
+      const activeElement = document.activeElement;
+      // 현재 포커스가 모달 내부에 있지 않을 때만 포커스 이동
+      if (!dialogElement.contains(activeElement)) {
+        const firstFocusable = dialogElement.querySelector(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) as HTMLElement;
+        // 짧은 지연 후 포커스 이동 (모달 렌더링 완료 대기)
+        setTimeout(() => {
+          firstFocusable?.focus();
+        }, 0);
+      }
+    }
 
     return () => {
       document.removeEventListener("keydown", handleEscape);

@@ -5,6 +5,7 @@ import { RangeSettingModalProps, ContentDetail } from "@/lib/types/content-selec
 import { ContentRangeInput } from "./ContentRangeInput";
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
+import { validateRangeInput } from "@/lib/utils/rangeValidation";
 
 /**
  * RangeSettingModal - 콘텐츠 범위 설정 모달
@@ -52,19 +53,36 @@ export function RangeSettingModal({
   }>>(new Map());
   // 중복 로그 방지를 위한 ref
   const hasLoggedNoDetails = useRef(false);
+  // 포커스 상태 추적
+  const focusStateRef = useRef<{
+    lastFocusedElement: HTMLElement | null;
+    isInputFocused: boolean;
+  }>({
+    lastFocusedElement: null,
+    isInputFocused: false,
+  });
+
+  // 상태 초기화 함수 (통합)
+  const resetState = useCallback(() => {
+    setStartDetailId(null);
+    setEndDetailId(null);
+    setStartRange(null);
+    setEndRange(null);
+    setTotalPages(null);
+    setTotalEpisodes(null);
+    setError(null);
+    setHasChanges(false);
+    hasLoggedNoDetails.current = false;
+    focusStateRef.current = {
+      lastFocusedElement: null,
+      isInputFocused: false,
+    };
+  }, []);
 
   // 모달이 닫혔을 때 상태 초기화
   useEffect(() => {
     if (!open) {
-      setStartDetailId(null);
-      setEndDetailId(null);
-      setStartRange(null);
-      setEndRange(null);
-      setTotalPages(null);
-      setTotalEpisodes(null);
-      setError(null);
-      setHasChanges(false);
-      hasLoggedNoDetails.current = false; // 로그 플래그 리셋
+      resetState();
       return;
     }
 
@@ -345,37 +363,22 @@ export function RangeSettingModal({
       });
     } else {
       // 상세 정보가 없을 때 (직접 입력)
-      // 빈 문자열 체크 (null, undefined, 빈 문자열 모두 체크)
-      if (!startRange || startRange.trim() === "" || !endRange || endRange.trim() === "") {
-        setError("시작과 종료 범위를 모두 입력해주세요.");
-        return;
-      }
-
-      const startNum = Number(startRange);
-      const endNum = Number(endRange);
-
-      if (isNaN(startNum) || isNaN(endNum) || startNum <= 0 || endNum <= 0) {
-        setError("1 이상의 올바른 숫자를 입력해주세요.");
-        return;
-      }
-
-      if (startNum > endNum) {
-        setError("시작 범위가 종료 범위보다 클 수 없습니다.");
-        return;
-      }
-
-      // 최대값 검증
       const maxValue = content.type === "book" ? totalPages : totalEpisodes;
-      if (maxValue && (startNum > maxValue || endNum > maxValue)) {
-        setError(
-          `범위는 최대 ${maxValue}${content.type === "book" ? "페이지" : "회차"}까지 입력할 수 있습니다.`
-        );
+      const validation = validateRangeInput(
+        startRange,
+        endRange,
+        maxValue,
+        content.type
+      );
+
+      if (!validation.valid) {
+        setError(validation.error || "유효하지 않은 범위입니다.");
         return;
       }
 
       // 범위 문자열 생성
-      const startStr = content.type === "book" ? `p.${startNum}` : `${startNum}강`;
-      const endStr = content.type === "book" ? `p.${endNum}` : `${endNum}강`;
+      const startStr = content.type === "book" ? `p.${validation.startNum!}` : `${validation.startNum!}강`;
+      const endStr = content.type === "book" ? `p.${validation.endNum!}` : `${validation.endNum!}강`;
 
       onSave({
         start: startStr,
@@ -400,18 +403,11 @@ export function RangeSettingModal({
       }
     }
     
-    // 상태 초기화
-    setStartDetailId(null);
-    setEndDetailId(null);
-    setStartRange(null);
-    setEndRange(null);
-    setTotalPages(null);
-    setTotalEpisodes(null);
-    setError(null);
-    setHasChanges(false);
+    // 상태 초기화 (통합 함수 사용)
+    resetState();
     
     onClose();
-  }, [hasChanges, onClose]);
+  }, [hasChanges, onClose, resetState]);
 
   const hasDetails = details.length > 0;
   const isValid = useMemo(() => {

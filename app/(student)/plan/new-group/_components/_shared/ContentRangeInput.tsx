@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useCallback } from "react";
 import { AlertCircle, BookOpen, Video } from "lucide-react";
 import {
   ContentRangeInputProps,
@@ -36,6 +36,11 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
   const hasDetails = details.length > 0;
   const maxValue = isBook ? totalPages : totalEpisodes;
 
+  // 포커스 관리 ref
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
+  const isFocusingRef = useRef(false);
+
   // 시작/끝 인덱스
   const startIndex = useMemo(() => {
     return details.findIndex((d) => d.id === startDetailId);
@@ -55,8 +60,8 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
     return details.slice(startIndex);
   }, [details, startIndex]);
 
-  // 옵션 레이블 생성
-  const getOptionLabel = (detail: BookDetail | LectureEpisode) => {
+  // 옵션 레이블 생성 (메모이제이션)
+  const getOptionLabel = useCallback((detail: BookDetail | LectureEpisode) => {
     if (isBook) {
       const bookDetail = detail as BookDetail;
       return `p.${bookDetail.page_number}${
@@ -68,7 +73,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
         lectureDetail.episode_title ? ` - ${lectureDetail.episode_title}` : ""
       }`;
     }
-  };
+  }, [isBook]);
 
   if (loading) {
     return (
@@ -128,6 +133,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             시작 {isBook ? "페이지" : "회차"}
           </label>
           <input
+            ref={startInputRef}
             type="number"
             min="1"
             max={maxValue || undefined}
@@ -137,6 +143,16 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
                 // 빈 값도 허용
                 onStartRangeChange(e.target.value);
               }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                // 종료 범위 입력 필드로 포커스 이동
+                endInputRef.current?.focus();
+              }
+            }}
+            onFocus={() => {
+              isFocusingRef.current = true;
             }}
             className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="예: 1"
@@ -149,6 +165,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             종료 {isBook ? "페이지" : "회차"}
           </label>
           <input
+            ref={endInputRef}
             type="number"
             min="1"
             max={maxValue || undefined}
@@ -158,6 +175,39 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
                 // 빈 값도 허용
                 onEndRangeChange(e.target.value);
               }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                // 저장 버튼으로 포커스 이동
+                const dialog = e.currentTarget.closest('[role="dialog"]');
+                const saveButton = dialog?.querySelector('button[type="button"]:last-child') as HTMLButtonElement;
+                if (saveButton && !saveButton.disabled) {
+                  saveButton.focus();
+                } else {
+                  // 저장 버튼이 없거나 비활성화된 경우 포커스 유지
+                  e.currentTarget.focus();
+                }
+              }
+            }}
+            onFocus={() => {
+              isFocusingRef.current = true;
+            }}
+            onBlur={(e) => {
+              // 의도하지 않은 포커스 이동 방지
+              // 짧은 지연 후 포커스 상태 확인
+              setTimeout(() => {
+                const dialog = e.currentTarget.closest('[role="dialog"]');
+                const activeElement = document.activeElement;
+                // 포커스가 모달 밖으로 나갔거나 시작 입력 필드로 이동한 경우에만 처리
+                if (dialog && !dialog.contains(activeElement)) {
+                  // 모달 밖으로 포커스가 나간 경우 - 모달이 닫히는 것이므로 처리 불필요
+                } else if (activeElement === startInputRef.current) {
+                  // 시작 입력 필드로 포커스가 이동한 경우 - 의도하지 않은 이동일 수 있음
+                  // 하지만 사용자가 Tab 키를 누른 경우일 수도 있으므로 처리하지 않음
+                }
+              }, 0);
+              isFocusingRef.current = false;
             }}
             className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder={maxValue ? `예: ${maxValue}` : "예: 100"}
