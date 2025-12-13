@@ -238,10 +238,10 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
   }
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       {/* 정보 수정 버튼 */}
       {!isFromMaster && (
-        <div className="mb-6 flex items-center justify-end">
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() => setIsEditing(true)}
@@ -252,7 +252,7 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
         </div>
       )}
       {isFromMaster && (
-        <div className="mb-6 flex items-center justify-end">
+        <div className="flex items-center justify-end">
           <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700">
             <span>📦</span>
             <span>마스터에서 가져온 교재는 정보 수정이 불가능합니다</span>
