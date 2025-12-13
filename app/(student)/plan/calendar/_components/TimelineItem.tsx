@@ -31,20 +31,20 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
   return (
     <div className="relative flex gap-4">
       {/* 시간대 라인 */}
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center gap-2">
         <div className="rounded-lg bg-white px-4 py-2 text-base font-bold text-gray-900 shadow-md border-2 border-gray-300">
           {startHour}시
         </div>
         {!isLast && (
-          <div className="mt-2 h-full min-h-[60px] w-1 bg-gradient-to-b from-gray-300 to-gray-200"></div>
+          <div className="h-full min-h-[60px] w-1 bg-gradient-to-b from-gray-300 to-gray-200"></div>
         )}
       </div>
 
       {/* 콘텐츠 영역 */}
       <div className="flex-1 pb-4">
-        <div className={`rounded-lg border-2 p-5 transition-all duration-200 hover:scale-[1.01] hover:shadow-lg ${colorClass}`}>
+        <div className={`flex flex-col gap-4 rounded-lg border-2 p-5 transition-all duration-200 hover:scale-[1.01] hover:shadow-lg ${colorClass}`}>
           {/* 타입 헤더 */}
-          <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{icon}</span>
               {(slot.type === "학습시간" || slot.type === "학원일정") && (
@@ -68,12 +68,12 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
 
           {/* 학원일정 표시 */}
           {slot.type === "학원일정" && slot.academy && (
-            <div className="rounded-lg bg-white/60 p-3">
+            <div className="flex flex-col gap-1 rounded-lg bg-white/60 p-3">
               <div className="font-medium text-gray-900">
                 {slot.academy.academy_name || "학원"}
               </div>
               {slot.academy.subject && (
-                <div className="mt-1 text-sm text-gray-600">
+                <div className="text-sm text-gray-600">
                   {slot.academy.subject}
                 </div>
               )}

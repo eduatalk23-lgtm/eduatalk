@@ -113,7 +113,7 @@ export function DayTimelineModal({
       <div className="w-full max-h-[90vh] overflow-hidden px-6 py-4">
           {/* 통계 */}
           {(totalPlans > 0 || dayAcademySchedules.length > 0) && (
-            <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {totalPlans > 0 && (
                 <>
                   <StatCard label="총 플랜" value={totalPlans} color="gray" />
@@ -137,8 +137,8 @@ export function DayTimelineModal({
             <div className="flex flex-col gap-3">
               {sortedSlots.length === 0 ? (
                 plans.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400">
-                    <div className="text-4xl mb-2">📅</div>
+                  <div className="flex flex-col gap-2 py-12 text-center text-gray-400">
+                    <div className="text-4xl">📅</div>
                     <div className="text-lg font-medium">이 날짜에는 플랜이 없습니다</div>
                   </div>
                 ) : (
@@ -169,15 +169,15 @@ export function DayTimelineModal({
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{icon}</span>
-                          <div className="flex-1">
+                          <div className="flex flex-1 flex-col gap-1">
                             <div className="font-semibold text-gray-900">
                               {slot.academy.academy_name || "학원"}
                             </div>
-                            <div className="mt-1 text-sm text-gray-600">
+                            <div className="text-sm text-gray-600">
                               {slot.start} ~ {slot.end}
                             </div>
                             {slot.academy.subject && (
-                              <div className="mt-1 text-sm text-gray-500">
+                              <div className="text-sm text-gray-500">
                                 {slot.academy.subject}
                               </div>
                             )}
@@ -193,9 +193,9 @@ export function DayTimelineModal({
                       return (
                         <div
                           key={`slot-${index}-study`}
-                          className="rounded-lg border border-gray-200 bg-white p-4"
+                          className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4"
                         >
-                          <div className="mb-3 flex items-center justify-between">
+                          <div className="flex items-center justify-between">
                             <div className="font-semibold text-gray-900">
                               {slot.start} ~ {slot.end}
                             </div>
@@ -248,9 +248,9 @@ export function DayTimelineModal({
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{icon}</span>
-                          <div className="flex-1">
+                          <div className="flex flex-1 flex-col gap-1">
                             <div className="font-semibold">{slot.label || slot.type}</div>
-                            <div className="mt-1 text-sm opacity-75">
+                            <div className="text-sm opacity-75">
                               {slot.start} ~ {slot.end}
                             </div>
                           </div>

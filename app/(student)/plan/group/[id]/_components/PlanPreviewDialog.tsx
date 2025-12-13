@@ -235,9 +235,9 @@ export function PlanPreviewDialog({
       <div className="relative w-full max-w-6xl max-h-[90vh] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-6 py-4">
-          <div>
+          <div className="flex flex-col gap-1">
             <h2 className="text-xl font-semibold text-gray-900">플랜 미리보기</h2>
-            <p className="mt-1 text-sm text-gray-800">
+            <p className="text-sm text-gray-800">
               생성될 플랜 정보를 확인하세요. 총 {plans.length}개의 플랜이 생성됩니다.
             </p>
           </div>
