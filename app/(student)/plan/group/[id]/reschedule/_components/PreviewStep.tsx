@@ -266,9 +266,9 @@ export function PreviewStep({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
+        <div className="flex flex-col gap-4 text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="text-sm text-gray-600">
             미리보기를 불러오는 중...
           </p>
         </div>
@@ -286,11 +286,11 @@ export function PreviewStep({
     );
     if (adjustments.length === 0 && !hasRescheduleRange && !hasPlacementRange) {
       return (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
           <p className="text-sm text-gray-600">
             조정 사항이 없거나 날짜 범위가 선택되지 않았습니다.
           </p>
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             이전 단계로 돌아가서 콘텐츠를 선택하고 날짜 범위를 지정해주세요.
           </p>
         </div>
@@ -299,13 +299,13 @@ export function PreviewStep({
 
     // 그 외의 경우 다시 시도 버튼 표시
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
         <p className="text-sm text-gray-600">
           미리보기 데이터를 불러올 수 없습니다.
         </p>
         <button
           onClick={loadPreview}
-          className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           다시 시도
         </button>
@@ -315,16 +315,16 @@ export function PreviewStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-bold text-gray-900">미리보기 & 확인</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           재조정 결과를 확인하고 실행하세요.
         </p>
       </div>
 
       {/* 변경 요약 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 font-semibold text-gray-900">변경 요약</h3>
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="font-semibold text-gray-900">변경 요약</h3>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div>
             <p className="text-sm text-gray-600">기존 플랜 수</p>
@@ -354,33 +354,35 @@ export function PreviewStep({
       </div>
 
       {/* 날짜 범위 정보 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 font-semibold text-gray-900">날짜 범위 정보</h3>
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="font-semibold text-gray-900">날짜 범위 정보</h3>
         <div className="flex flex-col gap-4">
-          <div>
+          <div className="flex flex-col gap-1">
             <p className="text-sm font-medium text-gray-700">
               선택한 재조정 범위
             </p>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="text-sm text-gray-600">
               {rescheduleDateRange?.from && rescheduleDateRange?.to
                 ? `${rescheduleDateRange.from} ~ ${rescheduleDateRange.to}`
                 : "전체 기간"}
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               어떤 날짜의 기존 플랜을 재조정할지 선택한 범위입니다
             </p>
           </div>
-          <div>
-            <p className="text-sm font-medium text-gray-700">실제 적용 범위</p>
-            <p className="mt-1 text-sm text-gray-600">
-              {placementDateRange?.from && placementDateRange?.to
-                ? `${placementDateRange.from} ~ ${placementDateRange.to}`
-                : "자동 계산됨 (오늘 이후 ~ 플랜 그룹 종료일)"}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              실제로 재조정이 적용되는 날짜 범위입니다. 기존 플랜 필터링과 새
-              플랜 생성이 이 범위를 사용합니다.
-            </p>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-gray-700">실제 적용 범위</p>
+              <p className="text-sm text-gray-600">
+                {placementDateRange?.from && placementDateRange?.to
+                  ? `${placementDateRange.from} ~ ${placementDateRange.to}`
+                  : "자동 계산됨 (오늘 이후 ~ 플랜 그룹 종료일)"}
+              </p>
+              <p className="text-xs text-gray-500">
+                실제로 재조정이 적용되는 날짜 범위입니다. 기존 플랜 필터링과 새
+                플랜 생성이 이 범위를 사용합니다.
+              </p>
+            </div>
             {/* 자동 조정 안내 */}
             {rescheduleDateRange?.from &&
               rescheduleDateRange?.to &&
@@ -388,7 +390,7 @@ export function PreviewStep({
               placementDateRange?.to &&
               (rescheduleDateRange.from !== placementDateRange.from ||
                 rescheduleDateRange.to !== placementDateRange.to) && (
-                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs text-blue-800">
                     💡 선택한 범위가 자동으로 조정되었습니다. 과거 날짜는
                     제외되고 오늘 이후 범위만 적용됩니다.
@@ -400,7 +402,7 @@ export function PreviewStep({
               rescheduleDateRange?.to &&
               !placementDateRange?.from &&
               !placementDateRange?.to && (
-                <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs text-blue-800">
                     💡 선택한 범위에 과거 날짜가 포함되어 있어 자동으로 오늘
                     이후 범위로 조정됩니다.
@@ -408,12 +410,12 @@ export function PreviewStep({
                 </div>
               )}
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <p className="text-sm font-medium text-gray-700">오늘 날짜 포함</p>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="text-sm text-gray-600">
               {includeToday ? "포함됨" : "제외됨"}
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               {includeToday
                 ? "오늘 날짜의 플랜도 재조정 대상에 포함됩니다"
                 : "오늘 날짜의 플랜은 재조정 대상에서 제외됩니다"}
@@ -479,38 +481,38 @@ export function PreviewStep({
       {/* 확인 다이얼로그 */}
       {confirmDialogOpen && preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="rounded-lg bg-white p-6 shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900">
               재조정 실행 확인
             </h3>
 
             {/* 변경 요약 */}
-            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <h4 className="mb-3 text-sm font-semibold text-gray-900">
+            <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h4 className="text-sm font-semibold text-gray-900">
                 변경 요약
               </h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-gray-600">기존 플랜:</span>
-                  <span className="ml-2 font-medium text-gray-900">
+                  <span className="pl-2 font-medium text-gray-900">
                     {preview.plans_before_count}개
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600">새 플랜:</span>
-                  <span className="ml-2 font-medium text-blue-600">
+                  <span className="pl-2 font-medium text-blue-600">
                     {preview.plans_after_count}개
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600">영향받는 날짜:</span>
-                  <span className="ml-2 font-medium text-gray-900">
+                  <span className="pl-2 font-medium text-gray-900">
                     {preview.affected_dates.length}일
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600">예상 시간:</span>
-                  <span className="ml-2 font-medium text-gray-900">
+                  <span className="pl-2 font-medium text-gray-900">
                     {preview.estimated_hours}시간
                   </span>
                 </div>
@@ -519,8 +521,8 @@ export function PreviewStep({
 
             {/* 영향받는 날짜 목록 (최대 10개만 표시) */}
             {preview.affected_dates.length > 0 && (
-              <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
-                <h4 className="mb-2 text-sm font-semibold text-gray-900">
+              <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
+                <h4 className="text-sm font-semibold text-gray-900">
                   영향받는 날짜
                 </h4>
                 <div className="max-h-32 overflow-y-auto">
@@ -544,8 +546,8 @@ export function PreviewStep({
             )}
 
             {/* 조정 내역 */}
-            <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
-              <h4 className="mb-2 text-sm font-semibold text-gray-900">
+            <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
+              <h4 className="text-sm font-semibold text-gray-900">
                 조정 내역
               </h4>
               <div className="flex flex-col gap-1 text-xs text-gray-600">
@@ -571,7 +573,7 @@ export function PreviewStep({
             </div>
 
             {/* 경고 메시지 */}
-            <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
               <p className="text-sm text-yellow-800">
                 ⚠️ 총 {preview.plans_before_count}개의 기존 플랜이 비활성화되고,{" "}
                 {preview.plans_after_count}개의 새 플랜이 생성됩니다.

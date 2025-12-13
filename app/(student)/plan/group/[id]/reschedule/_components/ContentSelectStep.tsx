@@ -195,9 +195,9 @@ export function ContentSelectStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-bold text-gray-900">콘텐츠 선택</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           재조정할 콘텐츠를 선택해주세요. 완료된 플랜은 자동으로 제외됩니다.
         </p>
       </div>
@@ -265,7 +265,7 @@ export function ContentSelectStep({
                       </span>
                     </div>
                     {status && (
-                      <div className="mt-1 flex flex-col gap-1">
+                      <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <span
                             className={`rounded px-2 py-0.5 ${
@@ -294,23 +294,23 @@ export function ContentSelectStep({
                             </div>
                           )}
                         {isSelected && status.affectedDaysCount > 0 && (
-                          <div className="mt-1 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs">
+                          <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs">
                             <div className="font-medium text-blue-900">
                               💡 영향 범위 미리보기
                             </div>
-                            <div className="mt-1 text-blue-700">
+                            <div className="text-blue-700">
                               이 콘텐츠는 {status.affectedDaysCount}일간의
                               플랜에 영향을 줍니다
                             </div>
                             {status.affectedDates.length > 0 &&
                               status.affectedDates.length <= 5 && (
-                                <div className="mt-1 text-blue-600">
+                                <div className="text-blue-600">
                                   영향받는 날짜:{" "}
                                   {status.affectedDates.join(", ")}
                                 </div>
                               )}
                             {status.affectedDates.length > 5 && (
-                              <div className="mt-1 text-blue-600">
+                              <div className="text-blue-600">
                                 영향받는 날짜:{" "}
                                 {status.affectedDates.slice(0, 3).join(", ")} 외{" "}
                                 {status.affectedDates.length - 3}일
@@ -352,8 +352,8 @@ export function ContentSelectStep({
           )}
 
           {/* 재조정할 플랜 범위 선택 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+            <h3 className="text-sm font-semibold text-gray-900">
               재조정할 플랜 범위 선택
             </h3>
             <div className="flex flex-col gap-3">
@@ -409,7 +409,7 @@ export function ContentSelectStep({
 
             {/* 날짜 범위 선택 UI (접이식 패널) */}
             {rescheduleMode === "range" && (
-              <div className="mt-4">
+              <div>
                 <button
                   type="button"
                   onClick={() => setDateRangeExpanded(!dateRangeExpanded)}
@@ -436,7 +436,7 @@ export function ContentSelectStep({
                 {dateRangeExpanded && (
                   <div
                     id="date-range-panel"
-                    className="mt-4 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4"
+                    className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4"
                     role="region"
                     aria-label="날짜 범위 선택 패널"
                   >
@@ -468,14 +468,14 @@ export function ContentSelectStep({
 
             {/* 자동 조정 안내 */}
             {rescheduleMode === "range" && rescheduleDateRange.from && rescheduleDateRange.to && (
-              <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <div className="flex items-start gap-2">
                   <span className="text-blue-600">💡</span>
-                  <div className="flex-1">
+                  <div className="flex flex-1 flex-col gap-1">
                     <div className="text-sm font-medium text-blue-900">
                       자동 조정 안내
                     </div>
-                    <div className="mt-1 text-xs text-blue-700">
+                    <div className="text-xs text-blue-700">
                       {(() => {
                         const today = getTodayDateString();
                         const tomorrow = getNextDayString(today);
@@ -494,9 +494,9 @@ export function ContentSelectStep({
 
             {/* 실제 조정된 범위 미리보기 */}
             {rescheduleMode === "range" && rescheduleDateRange.from && rescheduleDateRange.to && (
-              <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3">
+              <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-3">
                 <div className="text-xs text-gray-600">
-                  <div className="font-medium text-gray-700 mb-1">실제 재조정 범위</div>
+                  <div className="font-medium text-gray-700">실제 재조정 범위</div>
                   <div className="text-gray-600">
                     {(() => {
                       const today = getTodayDateString();
@@ -517,18 +517,18 @@ export function ContentSelectStep({
             )}
 
             {/* 오늘 날짜 포함 옵션 */}
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
                   checked={includeToday}
                   onChange={(e) => setIncludeToday(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   aria-label="오늘 날짜 포함"
                 />
-                <div className="flex-1">
+                <div className="flex flex-1 flex-col gap-1">
                   <div className="font-medium text-gray-900">오늘 날짜 포함</div>
-                  <div className="mt-1 text-xs text-gray-600">
+                  <div className="text-xs text-gray-600">
                     오늘 날짜의 플랜도 재조정 대상에 포함됩니다. 이미 진행 중이거나 완료된 플랜은 제외됩니다.
                   </div>
                 </div>
