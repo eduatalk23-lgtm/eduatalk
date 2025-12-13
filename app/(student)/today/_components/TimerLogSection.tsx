@@ -65,12 +65,13 @@ export function TimerLogSection({ events }: TimerLogSectionProps) {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
-        <span>📋</span>
-        타이머 활동 기록
-      </h3>
-      
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      <div className="flex flex-col gap-4">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+          <span>📋</span>
+          타이머 활동 기록
+        </h3>
+        
+        <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
         {sortedEvents.map((event, index) => {
           const timeStr = formatTimestamp(event.timestamp);
           const timeOnly = timeStr.split(" ")[1] || timeStr; // 시간 부분만 추출
@@ -97,6 +98,7 @@ export function TimerLogSection({ events }: TimerLogSectionProps) {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

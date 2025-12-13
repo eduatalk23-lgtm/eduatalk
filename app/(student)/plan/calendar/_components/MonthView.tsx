@@ -152,21 +152,22 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
         onClick={handleDateClick}
       >
         {/* 날짜 헤더 */}
-        <div className="mb-1.5 flex items-center justify-between">
-          <div className={`text-lg font-bold ${textColorClass}`}>
-            {day}
-          </div>
-          {/* 날짜 타입 배지 - 아이콘만 표시 */}
-          {dayTypeInfo && dayType !== "normal" && (
-            <span 
-              className={`rounded-full p-1 text-sm border shadow-sm ${dayTypeBadgeClass}`}
-              title={dayTypeInfo.label}
-            >
-              {dayTypeInfo.icon}
-            </span>
-          )}
-        </div>
         <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <div className={`text-lg font-bold ${textColorClass}`}>
+              {day}
+            </div>
+            {/* 날짜 타입 배지 - 아이콘만 표시 */}
+            {dayTypeInfo && dayType !== "normal" && (
+              <span 
+                className={`rounded-full p-1 text-sm border shadow-sm ${dayTypeBadgeClass}`}
+                title={dayTypeInfo.label}
+              >
+                {dayTypeInfo.icon}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
           {/* 타임라인 슬롯 기반으로 플랜 및 기타 슬롯 표시 */}
           {(() => {
             const dailySchedule = dailyScheduleMap.get(dateStr);
@@ -321,17 +322,17 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             }, 0) + unmatchedPlans.length;
             
             return (
-              <>
+              <div className="flex flex-col gap-1">
                 {items}
                 {totalItems > maxDisplay && (
                   <div 
-                    className="mt-1 flex items-center justify-center rounded-md bg-gray-100 px-1.5 py-1 text-gray-600"
+                    className="flex items-center justify-center rounded-md bg-gray-100 px-1.5 py-1 text-gray-600"
                     title={`${totalItems - maxDisplay}개 더 있음`}
                   >
                     <span className="text-xs">⋯</span>
                   </div>
                 )}
-              </>
+              </div>
             );
           })()}
         </div>

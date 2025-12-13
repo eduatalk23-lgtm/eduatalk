@@ -158,15 +158,17 @@ export async function TodayPlanList() {
     // 3. 여전히 플랜이 없으면 빈 상태 표시
     if (plans.length === 0) {
       return (
-        <div className="mb-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-          <div className="mx-auto max-w-md">
-            <div className="mb-4 text-6xl">📚</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">
-              오늘 배울 내용이 없습니다
-            </h3>
-            <p className="text-sm text-gray-500">
-              학습 플랜을 생성해보세요.
-            </p>
+        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <div className="mx-auto flex max-w-md flex-col gap-4">
+            <div className="text-6xl">📚</div>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-gray-900">
+                오늘 배울 내용이 없습니다
+              </h3>
+              <p className="text-sm text-gray-500">
+                학습 플랜을 생성해보세요.
+              </p>
+            </div>
           </div>
         </div>
       );

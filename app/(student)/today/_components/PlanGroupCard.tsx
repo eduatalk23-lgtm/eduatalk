@@ -337,7 +337,7 @@ function PlanGroupCardComponent({
   if (viewMode === "single") {
     // 단일 뷰: 전체 화면으로 크게 표시
     return (
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         {/* 헤더 */}
         <div className="relative text-center">
           <div className="absolute right-0 top-0">

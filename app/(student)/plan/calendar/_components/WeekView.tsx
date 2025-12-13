@@ -135,9 +135,9 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
 
   return (
     <>
-      <div className="w-full">
+      <div className="w-full flex flex-col gap-2">
         {/* 요일 헤더 (카드 영역 밖 상단) */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
+        <div className="grid grid-cols-7 gap-2">
           {weekdays.map((day, index) => (
             <div key={index} className="text-center">
               <div className="text-sm font-semibold text-gray-700">
@@ -191,24 +191,25 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
               onClick={handleDateClick}
             >
               {/* 날짜 헤더 */}
-              <div className="mb-1.5 flex items-center justify-between">
-                <div className={`text-lg font-bold ${boldTextColorClass}`}>
-                  {formatDate(date)}
-                </div>
-                {/* 학습일/복습일일 때 아이콘 + 텍스트 표시 */}
-                {(isStudyDay || isReviewDay) && dayTypeInfo && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs">{dayTypeInfo.icon}</span>
-                    <span className={`text-xs font-medium ${textColorClass}`}>
-                      {dayTypeInfo.label}
-                    </span>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <div className={`text-lg font-bold ${boldTextColorClass}`}>
+                    {formatDate(date)}
                   </div>
-                )}
-              </div>
+                  {/* 학습일/복습일일 때 아이콘 + 텍스트 표시 */}
+                  {(isStudyDay || isReviewDay) && dayTypeInfo && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs">{dayTypeInfo.icon}</span>
+                      <span className={`text-xs font-medium ${textColorClass}`}>
+                        {dayTypeInfo.label}
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-              {/* 플랜 및 학원일정 통계 */}
-              {(dayPlans.length > 0 || dayAcademySchedules.length > 0) && (
-                <div className="mb-2 rounded-lg bg-white/60 p-2">
+                {/* 플랜 및 학원일정 통계 */}
+                {(dayPlans.length > 0 || dayAcademySchedules.length > 0) && (
+                  <div className="rounded-lg bg-white/60 p-2">
                   <div className="grid grid-cols-2 gap-1 text-xs">
                     <div className="text-center">
                       <div className="font-bold text-gray-900">{dayPlans.length}</div>
@@ -221,6 +222,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                       <div className="text-gray-500">완료</div>
                     </div>
                   </div>
+                </div>
                 </div>
               )}
 
@@ -317,14 +319,15 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                                 key={`${dateStr}-plan-${plan.id}`}
                                 className={`rounded border p-2 text-xs relative ${cardBorderClass}`}
                               >
-                                {/* 1행: 플랜 시작시간 */}
-                                {plan.start_time && (
-                                  <div className="mb-1 font-semibold text-gray-900">
-                                    {plan.start_time}
-                                  </div>
-                                )}
-                                {/* 2행: 아이콘 + 교과 + 회차 */}
-                                <div className="mb-1 flex items-center gap-1">
+                                <div className="flex flex-col gap-1">
+                                  {/* 1행: 플랜 시작시간 */}
+                                  {plan.start_time && (
+                                    <div className="font-semibold text-gray-900">
+                                      {plan.start_time}
+                                    </div>
+                                  )}
+                                  {/* 2행: 아이콘 + 교과 + 회차 */}
+                                  <div className="flex items-center gap-1">
                                   <span className="text-sm">{contentTypeIcon}</span>
                                   {plan.contentSubjectCategory && (
                                     <span className="font-medium text-gray-700">
@@ -336,6 +339,7 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                                       {plan.contentEpisode}
                                     </span>
                                   )}
+                                  </div>
                                 </div>
                                 {/* 3행: 과목 */}
                                 {plan.contentSubject && (
