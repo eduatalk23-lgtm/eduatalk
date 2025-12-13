@@ -47,8 +47,8 @@ export default async function TenantlessUsersPage({
             </Link>
           </div>
 
-          <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
-            <h3 className="mb-2 text-lg font-semibold text-red-900">오류 발생</h3>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm flex flex-col gap-2">
+            <h3 className="text-lg font-semibold text-red-900">오류 발생</h3>
             <p className="text-sm text-red-800">{result.error || "사용자 목록을 조회할 수 없습니다."}</p>
           </div>
         </div>
@@ -105,27 +105,27 @@ export default async function TenantlessUsersPage({
 
         {/* 통계 */}
         <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
             <div className="text-sm font-medium text-gray-500">전체 사용자</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
             <div className="text-sm font-medium text-gray-500">학생</div>
-            <div className="mt-2 text-3xl font-bold text-blue-600">{stats.students}</div>
+            <div className="text-3xl font-bold text-blue-600">{stats.students}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
             <div className="text-sm font-medium text-gray-500">학부모</div>
-            <div className="mt-2 text-3xl font-bold text-purple-600">{stats.parents}</div>
+            <div className="text-3xl font-bold text-purple-600">{stats.parents}</div>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
             <div className="text-sm font-medium text-gray-500">관리자</div>
-            <div className="mt-2 text-3xl font-bold text-indigo-600">{stats.admins}</div>
+            <div className="text-3xl font-bold text-indigo-600">{stats.admins}</div>
           </div>
         </div>
 
         {/* 사용자 목록 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">테넌트 미할당 사용자 목록</h2>
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">테넌트 미할당 사용자 목록</h2>
           <TenantlessUsersList
             users={paginatedUsers}
             searchQuery={searchQuery}

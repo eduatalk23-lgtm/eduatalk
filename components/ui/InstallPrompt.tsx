@@ -94,7 +94,7 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
               <Share2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex flex-col gap-1">
                 <p className="font-medium">설치 방법:</p>
-                <ol className="list-decimal list-inside space-y-1 ml-2">
+                <ol className="list-decimal list-inside flex flex-col gap-1 ml-2">
                   <li>하단 공유 버튼 <Share2 className="w-3 h-3 inline" /> 클릭</li>
                   <li>&quot;홈 화면에 추가&quot; 선택</li>
                 </ol>

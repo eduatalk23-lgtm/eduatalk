@@ -79,7 +79,7 @@ export function CurriculumSettingsForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       {error && (
         <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-red-800 dark:text-red-200">
           {error}
@@ -92,15 +92,15 @@ export function CurriculumSettingsForm() {
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm flex flex-col gap-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           2022개정 교육과정
         </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
+          <div className="flex flex-col gap-1">
             <label
               htmlFor="middle_2022"
-              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               중학교 시작년도
             </label>
@@ -121,10 +121,10 @@ export function CurriculumSettingsForm() {
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <label
               htmlFor="high_2022"
-              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               고등학교 시작년도
             </label>
@@ -148,15 +148,15 @@ export function CurriculumSettingsForm() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 p-6 shadow-sm flex flex-col gap-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           2015개정 교육과정
         </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
+          <div className="flex flex-col gap-1">
             <label
               htmlFor="middle_2015"
-              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               중학교 시작년도
             </label>
@@ -177,10 +177,10 @@ export function CurriculumSettingsForm() {
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400"
             />
           </div>
-          <div>
+          <div className="flex flex-col gap-1">
             <label
               htmlFor="high_2015"
-              className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               고등학교 시작년도
             </label>

@@ -461,7 +461,7 @@ export function CurriculumHierarchyManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 개정교육과정 선택 및 관리 */}
       <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between">
@@ -561,7 +561,7 @@ export function CurriculumHierarchyManager() {
         )}
 
         {/* 개정교육과정 목록 */}
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {revisions.map((revision) =>
             editingRevisionId === revision.id ? (
               <div
@@ -640,7 +640,7 @@ export function CurriculumHierarchyManager() {
 
       {/* 선택된 개정교육과정의 계층 구조 */}
       {selectedRevisionId && (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           {/* 교과 및 과목 */}
           <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between">
@@ -712,7 +712,7 @@ export function CurriculumHierarchyManager() {
             )}
 
             {/* 교과 목록 */}
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {subjectGroups.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-700">
                   교과가 없습니다. 교과를 추가해주세요.
@@ -1074,7 +1074,7 @@ export function CurriculumHierarchyManager() {
             )}
 
             {/* 과목구분 목록 */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {subjectTypes.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-700">
                   과목구분이 없습니다. 과목구분을 추가해주세요.

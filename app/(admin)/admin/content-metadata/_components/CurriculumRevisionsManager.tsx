@@ -8,6 +8,7 @@ import {
   deleteCurriculumRevisionAction,
 } from "@/app/(admin)/actions/contentMetadataActions";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
+import { Badge } from "@/components/atoms";
 
 export function CurriculumRevisionsManager() {
   const [items, setItems] = useState<CurriculumRevision[]>([]);
@@ -99,7 +100,7 @@ export function CurriculumRevisionsManager() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">개정교육과정 관리</h2>
         <button
@@ -118,8 +119,8 @@ export function CurriculumRevisionsManager() {
       {isCreating && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">이름</label>
               <input
                 type="text"
                 value={formData.name}
@@ -128,8 +129,8 @@ export function CurriculumRevisionsManager() {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">정렬 순서</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">정렬 순서</label>
               <input
                 type="number"
                 value={formData.display_order}
@@ -244,15 +245,12 @@ export function CurriculumRevisionsManager() {
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{item.display_order}</td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                          item.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                      <Badge
+                        variant={item.is_active ? "success" : "gray"}
+                        size="xs"
                       >
                         {item.is_active ? "활성" : "비활성"}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">

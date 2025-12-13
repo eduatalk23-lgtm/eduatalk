@@ -125,7 +125,7 @@ export function AssignTenantDialog({
       }
       maxWidth="md"
     >
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {loadingTenants ? (
           <div className="py-4 text-center text-sm text-gray-500">테넌트 목록을 불러오는 중...</div>
         ) : error && !tenants.length ? (
@@ -138,12 +138,12 @@ export function AssignTenantDialog({
           </div>
         ) : (
           <>
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700">테넌트 선택</label>
               <select
                 value={selectedTenantId}
                 onChange={(e) => setSelectedTenantId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 disabled={isPending}
               >
                 {tenants.map((tenant) => (

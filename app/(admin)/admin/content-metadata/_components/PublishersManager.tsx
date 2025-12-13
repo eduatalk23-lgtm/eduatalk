@@ -99,7 +99,7 @@ export function PublishersManager() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">출판사 관리</h2>
         <button
@@ -117,8 +117,8 @@ export function PublishersManager() {
       {isCreating && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">이름</label>
               <input
                 type="text"
                 value={formData.name}
@@ -127,8 +127,8 @@ export function PublishersManager() {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">정렬 순서</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">정렬 순서</label>
               <input
                 type="number"
                 value={formData.display_order}

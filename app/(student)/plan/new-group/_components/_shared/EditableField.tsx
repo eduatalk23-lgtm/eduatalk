@@ -64,6 +64,7 @@ export const EditableField = React.memo(function EditableField({
       <label
         className={cn(
           "block text-sm font-medium text-gray-800",
+          // 예외: CSS pseudo-element의 margin은 gap으로 변환 불가 (after:ml-0.5)
           required && "after:ml-0.5 after:text-red-500 after:content-['*']"
         )}
       >

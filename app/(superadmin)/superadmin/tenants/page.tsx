@@ -64,8 +64,8 @@ export default async function SuperAdminTenantsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="mx-auto max-w-6xl px-4 py-10 flex flex-col gap-8">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold">기관 관리</h1>
       </div>
 

@@ -112,15 +112,17 @@ export default async function UnverifiedUsersPage({
 
         {/* Service Role Key 설정 안내 */}
         {serviceRoleKeyError && (
-          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 shadow-sm">
-            <h3 className="mb-2 text-lg font-semibold text-yellow-900">
-              ⚠️ Service Role Key 설정 필요
-            </h3>
-            <p className="mb-4 text-sm text-yellow-800">
-              미인증 가입 관리를 사용하려면 <code className="rounded bg-yellow-100 px-2 py-1 text-xs">SUPABASE_SERVICE_ROLE_KEY</code> 환경 변수를 설정해야 합니다.
-            </p>
-            <div className="rounded-lg bg-yellow-100 p-4">
-              <p className="mb-2 text-sm font-medium text-yellow-900">설정 방법:</p>
+          <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-6 shadow-sm flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-yellow-900">
+                ⚠️ Service Role Key 설정 필요
+              </h3>
+              <p className="text-sm text-yellow-800">
+                미인증 가입 관리를 사용하려면 <code className="rounded bg-yellow-100 px-2 py-1 text-xs">SUPABASE_SERVICE_ROLE_KEY</code> 환경 변수를 설정해야 합니다.
+              </p>
+            </div>
+            <div className="rounded-lg bg-yellow-100 p-4 flex flex-col gap-2">
+              <p className="text-sm font-medium text-yellow-900">설정 방법:</p>
               <ol className="list-inside list-decimal space-y-1 text-sm text-yellow-800">
                 <li>Supabase 대시보드 → Settings → API</li>
                 <li>Service Role Key 복사</li>
@@ -134,17 +136,17 @@ export default async function UnverifiedUsersPage({
         {/* 통계 */}
         {!serviceRoleKeyError && (
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-2">
               <div className="text-sm font-medium text-gray-500">미인증 사용자 수</div>
-              <div className="mt-2 text-3xl font-bold text-gray-900">{totalCount}</div>
+              <div className="text-3xl font-bold text-gray-900">{totalCount}</div>
             </div>
           </div>
         )}
 
         {/* 미인증 사용자 목록 */}
         {!serviceRoleKeyError && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+            <h2 className="text-lg font-semibold text-gray-900">
               미인증 사용자 목록
             </h2>
             <UnverifiedUsersList

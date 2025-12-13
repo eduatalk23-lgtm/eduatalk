@@ -8,7 +8,7 @@
 import React from "react";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
 import { Card } from "@/components/molecules/Card";
-import { getGradeColor, getTrendColor } from "@/lib/scores/gradeColors";
+import { getGradeColor, getTrendColor } from "@/lib/constants/colors";
 
 type SummarySectionProps = {
   schoolScores: SchoolScoreRow[];

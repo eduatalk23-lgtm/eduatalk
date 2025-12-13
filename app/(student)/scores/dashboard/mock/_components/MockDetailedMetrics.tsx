@@ -3,7 +3,7 @@
 import React from "react";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
 import { Card } from "@/components/molecules/Card";
-import { getGradeColor } from "@/lib/scores/gradeColors";
+import { getGradeColor } from "@/lib/constants/colors";
 
 type MockDetailedMetricsProps = {
   mockScores: MockScoreRow[];

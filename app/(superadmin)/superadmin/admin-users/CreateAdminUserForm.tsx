@@ -35,8 +35,8 @@ export function CreateAdminUserForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid gap-4 md:grid-cols-2">
         {/* 이메일 입력 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             사용자 이메일 <span className="text-red-500">*</span>
           </label>
           <input
@@ -48,14 +48,14 @@ export function CreateAdminUserForm() {
             placeholder="user@example.com"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             관리자로 승격할 사용자의 이메일을 입력하세요.
           </p>
         </div>
 
         {/* 역할 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             역할 <span className="text-red-500">*</span>
           </label>
           <select
@@ -70,7 +70,7 @@ export function CreateAdminUserForm() {
             <option value="admin">관리자 (Admin)</option>
             <option value="consultant">컨설턴트 (Consultant)</option>
           </select>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             관리자: 모든 권한, 컨설턴트: 상담 및 조회 권한
           </p>
         </div>

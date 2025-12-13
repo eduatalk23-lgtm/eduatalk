@@ -87,13 +87,13 @@ export default async function AdminConsultingPage({
   }
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="p-6 md:p-10 flex flex-col gap-8">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">상담 노트</h1>
       </div>
 
       {/* 검색 바 */}
-      <div className="mb-6">
+      <div>
         <form method="get" className="flex flex-col gap-4 md:flex-row">
           <input
             type="text"
@@ -126,16 +126,16 @@ export default async function AdminConsultingPage({
           description="아직 작성된 상담노트가 없습니다."
         />
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {filteredNotes.map((note) => {
             const studentName = studentMap.get(note.student_id ?? "") ?? "이름 없음";
             return (
               <Link
                 key={note.id}
                 href={`/admin/students/${note.student_id}`}
-                className="block rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md"
+                className="block rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md flex flex-col gap-3"
               >
-                <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="font-semibold text-gray-900">{studentName}</span>
                     <span className="text-xs text-gray-500">

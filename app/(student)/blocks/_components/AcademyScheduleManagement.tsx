@@ -479,9 +479,8 @@ export default function AcademyScheduleManagement({
                 </div>
               </div>
             )}
-          </div>
 
-          {/* 학원 목록 */}
+            {/* 학원 목록 */}
           {academies.length > 0 ? (
             <div className="flex flex-col gap-2">
             {academies.map((academy) => (
@@ -542,6 +541,7 @@ export default function AcademyScheduleManagement({
               <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
             </div>
           )}
+          </div>
         </div>
       )}
 

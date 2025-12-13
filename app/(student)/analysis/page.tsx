@@ -95,21 +95,22 @@ export default async function AnalysisPage() {
           }
         />
 
-      {riskAnalyses.length === 0 ? (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-12 text-center shadow-sm">
-          <p className="text-lg text-gray-500">
-            분석할 성적 데이터가 없습니다.
-          </p>
-          <Link
-            href="/scores/dashboard"
-            className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            성적 관리로 이동
-          </Link>
-        </div>
-      ) : (
-        <RiskIndexList analyses={riskAnalyses} />
-      )}
+        {riskAnalyses.length === 0 ? (
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-12 text-center shadow-sm">
+            <p className="text-lg text-gray-500">
+              분석할 성적 데이터가 없습니다.
+            </p>
+            <Link
+              href="/scores/dashboard"
+              className="inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              성적 관리로 이동
+            </Link>
+          </div>
+        ) : (
+          <RiskIndexList analyses={riskAnalyses} />
+        )}
+      </div>
     </section>
   );
 }

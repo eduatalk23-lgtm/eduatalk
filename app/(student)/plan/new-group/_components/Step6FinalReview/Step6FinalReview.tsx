@@ -382,23 +382,24 @@ export function Step6FinalReview({
                       현재 지정 범위
                     </div>
                     <div className="text-lg font-bold text-blue-800">
-                  {learningVolumeSummary.currentTotalPages > 0 && (
-                    <span className="block">
-                      📄 {learningVolumeSummary.currentTotalPages}페이지
-                    </span>
-                  )}
-                  {learningVolumeSummary.currentTotalEpisodes > 0 && (
-                    <span className="block">
-                      📺 {learningVolumeSummary.currentTotalEpisodes}회차
-                    </span>
-                  )}
-                  {learningVolumeSummary.currentTotalPages === 0 &&
-                    learningVolumeSummary.currentTotalEpisodes === 0 && (
-                      <span className="text-sm text-gray-600">없음</span>
-                    )}
-                  </div>
-                  <div className="text-xs text-blue-600">
-                    예상 소요: 약 {learningVolumeSummary.currentEstimatedDays}일
+                      {learningVolumeSummary.currentTotalPages > 0 && (
+                        <span className="block">
+                          📄 {learningVolumeSummary.currentTotalPages}페이지
+                        </span>
+                      )}
+                      {learningVolumeSummary.currentTotalEpisodes > 0 && (
+                        <span className="block">
+                          📺 {learningVolumeSummary.currentTotalEpisodes}회차
+                        </span>
+                      )}
+                      {learningVolumeSummary.currentTotalPages === 0 &&
+                        learningVolumeSummary.currentTotalEpisodes === 0 && (
+                          <span className="text-sm text-gray-600">없음</span>
+                        )}
+                    </div>
+                    <div className="text-xs text-blue-600">
+                      예상 소요: 약 {learningVolumeSummary.currentEstimatedDays}일
+                    </div>
                   </div>
                 </div>
               </div>
@@ -410,20 +411,20 @@ export function Step6FinalReview({
                     추천 범위
                   </div>
                   <div className="text-lg font-bold text-green-900">
-                  {learningVolumeSummary.recommendedTotalPages > 0 && (
-                    <span className="block">
-                      📄 {learningVolumeSummary.recommendedTotalPages}페이지
-                    </span>
-                  )}
-                  {learningVolumeSummary.recommendedTotalEpisodes > 0 && (
-                    <span className="block">
-                      📺 {learningVolumeSummary.recommendedTotalEpisodes}회차
-                    </span>
-                  )}
-                  {learningVolumeSummary.recommendedTotalPages === 0 &&
-                    learningVolumeSummary.recommendedTotalEpisodes === 0 && (
-                      <span className="text-sm text-gray-600">없음</span>
+                    {learningVolumeSummary.recommendedTotalPages > 0 && (
+                      <span className="block">
+                        📄 {learningVolumeSummary.recommendedTotalPages}페이지
+                      </span>
                     )}
+                    {learningVolumeSummary.recommendedTotalEpisodes > 0 && (
+                      <span className="block">
+                        📺 {learningVolumeSummary.recommendedTotalEpisodes}회차
+                      </span>
+                    )}
+                    {learningVolumeSummary.recommendedTotalPages === 0 &&
+                      learningVolumeSummary.recommendedTotalEpisodes === 0 && (
+                        <span className="text-sm text-gray-600">없음</span>
+                      )}
                   </div>
                   <div className="text-xs text-green-600">
                     예상 소요: 약 {learningVolumeSummary.recommendedEstimatedDays}
@@ -437,42 +438,43 @@ export function Step6FinalReview({
                 <div className="flex flex-col gap-1">
                   <div className="text-xs font-medium text-amber-700">차이</div>
                   <div className="text-lg font-bold text-amber-900">
-                  {learningVolumeSummary.hasDifference ? (
-                    <>
-                      {learningVolumeSummary.currentTotalPages -
-                        learningVolumeSummary.recommendedTotalPages !==
-                        0 && (
-                        <span className="block">
-                          📄{" "}
-                          {learningVolumeSummary.currentTotalPages -
-                            learningVolumeSummary.recommendedTotalPages >
-                          0
-                            ? "+"
-                            : ""}
-                          {learningVolumeSummary.currentTotalPages -
-                            learningVolumeSummary.recommendedTotalPages}
-                          페이지
-                        </span>
-                      )}
-                      {learningVolumeSummary.currentTotalEpisodes -
-                        learningVolumeSummary.recommendedTotalEpisodes !==
-                        0 && (
-                        <span className="block">
-                          📺{" "}
-                          {learningVolumeSummary.currentTotalEpisodes -
-                            learningVolumeSummary.recommendedTotalEpisodes >
-                          0
-                            ? "+"
-                            : ""}
-                          {learningVolumeSummary.currentTotalEpisodes -
-                            learningVolumeSummary.recommendedTotalEpisodes}
-                          회차
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sm text-green-600">일치</span>
-                  )}
+                    {learningVolumeSummary.hasDifference ? (
+                      <>
+                        {learningVolumeSummary.currentTotalPages -
+                          learningVolumeSummary.recommendedTotalPages !==
+                          0 && (
+                          <span className="block">
+                            📄{" "}
+                            {learningVolumeSummary.currentTotalPages -
+                              learningVolumeSummary.recommendedTotalPages >
+                            0
+                              ? "+"
+                              : ""}
+                            {learningVolumeSummary.currentTotalPages -
+                              learningVolumeSummary.recommendedTotalPages}
+                            페이지
+                          </span>
+                        )}
+                        {learningVolumeSummary.currentTotalEpisodes -
+                          learningVolumeSummary.recommendedTotalEpisodes !==
+                          0 && (
+                          <span className="block">
+                            📺{" "}
+                            {learningVolumeSummary.currentTotalEpisodes -
+                              learningVolumeSummary.recommendedTotalEpisodes >
+                            0
+                              ? "+"
+                              : ""}
+                            {learningVolumeSummary.currentTotalEpisodes -
+                              learningVolumeSummary.recommendedTotalEpisodes}
+                            회차
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-sm text-green-600">일치</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -506,50 +508,52 @@ export function Step6FinalReview({
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-gray-900">
-                      {subject}
-                    </h4>
-                    {isRequired && (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                        필수
-                      </span>
-                    )}
-                    {isRequired && !hasRequired && (
-                      <span className="text-xs text-red-600">(미선택)</span>
-                    )}
+                      <h4 className="text-sm font-semibold text-gray-900">
+                        {subject}
+                      </h4>
+                      {isRequired && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                          필수
+                        </span>
+                      )}
+                      {isRequired && !hasRequired && (
+                        <span className="text-xs text-red-600">(미선택)</span>
+                      )}
                       <span className="ml-auto text-xs text-gray-600">
                         {contents.length}개
                       </span>
                     </div>
                     <div className="flex flex-col gap-2">
-                    {contents.map((content, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
-                      >
-                        <div className="flex-1">
-                          <div className="flex flex-col gap-1">
-                            <div className="text-xs font-medium text-gray-900">
-                              {content.title}
+                      {contents.map((content, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+                        >
+                          <div className="flex-1">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-xs font-medium text-gray-900">
+                                {content.title}
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-gray-600">
+                                {content.content_type === "book" && "📚"}
+                                {content.content_type === "lecture" && "🎧"}
+                                <span>
+                                  {content.start_range} ~ {content.end_range}
+                                  {content.content_type === "book"
+                                    ? " 페이지"
+                                    : " 회차"}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 text-xs text-gray-600">
-                            {content.content_type === "book" && "📚"}
-                            {content.content_type === "lecture" && "🎧"}
-                            <span>
-                              {content.start_range} ~ {content.end_range}
-                              {content.content_type === "book"
-                                ? " 페이지"
-                                : " 회차"}
-                            </span>
                           </div>
+                          {content.isRecommended && (
+                            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                              추천
+                            </span>
+                          )}
                         </div>
-                        {content.isRecommended && (
-                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                            추천
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               );

@@ -62,9 +62,9 @@ export function TenantCard({ tenant, onUpdate, onDelete }: TenantCardProps) {
   const statusColor = tenant.status === "active" ? "bg-green-100 text-green-800" : tenant.status === "inactive" ? "bg-gray-100 text-gray-800" : tenant.status === "suspended" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800";
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4">
-        <div className="mb-2 flex items-center justify-between">
+    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold">{tenant.name}</h3>
           <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusColor}`}>
             {statusLabel}
@@ -75,7 +75,7 @@ export function TenantCard({ tenant, onUpdate, onDelete }: TenantCardProps) {
         </p>
       </div>
 
-      <div className="mb-4 text-xs text-gray-400">
+      <div className="text-xs text-gray-400">
         <p>생성일: {new Date(tenant.created_at).toLocaleDateString("ko-KR")}</p>
         <p>수정일: {new Date(tenant.updated_at).toLocaleDateString("ko-KR")}</p>
       </div>

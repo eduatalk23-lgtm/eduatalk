@@ -22,7 +22,7 @@ export function ContentMetadataTabs() {
     <div>
       {/* 탭 네비게이션 */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto">
+        <nav className="-mb-px flex gap-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}

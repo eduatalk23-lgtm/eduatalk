@@ -53,7 +53,7 @@ export function TimeRangeInput({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div>
         <label className="text-xs font-medium text-gray-800">
           {label} {required && <span className="text-red-500">*</span>}

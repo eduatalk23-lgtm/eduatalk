@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { getGradeColor } from "@/lib/scores/gradeColors";
+import { getGradeColor } from "@/lib/constants/colors";
 import { Card } from "@/components/molecules/Card";
+import { Badge } from "@/components/atoms";
 
 type SchoolScoreRow = {
   id: string;
@@ -227,11 +228,12 @@ export function ScoreListTable({
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {score.grade_score !== null ? (
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${gradeColor.badge}`}
+                        <Badge
+                          className={gradeColor.badge}
+                          size="xs"
                         >
                           {score.grade_score}등급
-                        </span>
+                        </Badge>
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
@@ -279,11 +281,12 @@ export function ScoreListTable({
                     </div>
                   </div>
                   {score.grade_score !== null && (
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${gradeColor.badge}`}
+                    <Badge
+                      className={gradeColor.badge}
+                      size="sm"
                     >
                       {score.grade_score}등급
-                    </span>
+                    </Badge>
                   )}
                 </div>
 

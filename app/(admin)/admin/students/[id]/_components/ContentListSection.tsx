@@ -162,12 +162,13 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                           {content.subject && (
                             <span>과목: {content.subject}</span>
                           )}
-                        {content.total_page_or_time && (
-                          <>
-                            <span>·</span>
-                            <span>총 {content.total_page_or_time}</span>
-                          </>
-                        )}
+                          {content.total_page_or_time && (
+                            <>
+                              <span>·</span>
+                              <span>총 {content.total_page_or_time}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

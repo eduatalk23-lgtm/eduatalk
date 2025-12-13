@@ -171,11 +171,6 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
           const textColorClass = dayTypeColor.text;
           const boldTextColorClass = dayTypeColor.boldText;
           const dayTypeBadgeClass = dayTypeColor.badge;
-            : isStudyDay
-            ? "bg-blue-100 text-blue-800"
-            : isReviewDay
-            ? "bg-amber-100 text-amber-800"
-            : "bg-gray-100 text-gray-800";
 
           const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length;
 
@@ -222,7 +217,6 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                       <div className="text-gray-500">완료</div>
                     </div>
                   </div>
-                </div>
                 </div>
               )}
 

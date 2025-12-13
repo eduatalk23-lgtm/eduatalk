@@ -130,7 +130,7 @@ export function SearchModal<T extends { id: string }>({
       maxWidth="lg"
     >
       <DialogContent>
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {/* 검색 입력 */}
           <div className="flex flex-col gap-2">
             <label
@@ -193,11 +193,11 @@ export function SearchModal<T extends { id: string }>({
           )}
 
           {!isSearching && searchResults.length > 0 && (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <div className="text-sm font-medium text-gray-700">
                 검색 결과 ({searchResults.length}개)
               </div>
-              <div className="max-h-64 space-y-2 overflow-y-auto">
+              <div className="max-h-64 flex flex-col gap-2 overflow-y-auto">
                 {searchResults.map((item) => renderResult(item, handleSelect, isPending))}
               </div>
             </div>

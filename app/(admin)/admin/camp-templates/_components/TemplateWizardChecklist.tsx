@@ -3,6 +3,7 @@
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { CheckCircle2, Circle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ProgressBar } from "@/components/atoms";
 
 type TemplateWizardChecklistProps = {
   wizardData: Partial<WizardData>;
@@ -106,19 +107,13 @@ export function TemplateWizardChecklist({
             <span className="text-sm font-medium text-gray-600">
               {completedRequired}/{totalRequired}
             </span>
-            <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className={cn(
-                  "h-full transition-all duration-300",
-                  percentage === 100
-                    ? "bg-green-500"
-                    : percentage >= 50
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-                )}
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
+            <ProgressBar
+              value={percentage}
+              max={100}
+              autoColor={true}
+              size="sm"
+              className="w-24"
+            />
           </div>
         </div>
       </div>
@@ -127,35 +122,30 @@ export function TemplateWizardChecklist({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">필수요소 점검</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">
-            완료: <span className="font-semibold">{completedRequired}/{totalRequired}</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className={cn(
-                  "h-full transition-all duration-300",
-                  percentage === 100
-                    ? "bg-green-500"
-                    : percentage >= 50
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-                )}
-                style={{ width: `${percentage}%` }}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">필수요소 점검</h2>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">
+              완료: <span className="font-semibold">{completedRequired}/{totalRequired}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <ProgressBar
+                value={percentage}
+                max={100}
+                autoColor={true}
+                size="sm"
+                className="w-32"
               />
+              <span className="text-sm font-medium text-gray-900">{percentage}%</span>
             </div>
-            <span className="text-sm font-medium text-gray-900">{percentage}%</span>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-6">
-        {/* 템플릿 설정 */}
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-gray-700">템플릿 설정</h3>
+        <div className="flex flex-col gap-6">
+          {/* 템플릿 설정 */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-gray-700">템플릿 설정</h3>
           <ul className="flex flex-col gap-2">
             {items.map((item) => (
               <li key={item.id} className="flex items-start gap-3">
@@ -168,7 +158,7 @@ export function TemplateWizardChecklist({
                     <Circle className="h-5 w-5 text-gray-300" />
                   )}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <span
                       className={cn(
@@ -187,35 +177,36 @@ export function TemplateWizardChecklist({
                     </span>
                   </div>
                   {item.description && !item.checked && !item.isOptional && (
-                    <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+                    <p className="text-xs text-gray-500">{item.description}</p>
                   )}
                   {item.isOptional && (
-                    <p className="mt-1 text-xs text-gray-400 italic">{item.description}</p>
+                    <p className="text-xs text-gray-400 italic">{item.description}</p>
                   )}
                 </div>
               </li>
             ))}
           </ul>
+          </div>
         </div>
+
+        {percentage === 100 && (
+          <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <p className="text-sm font-medium text-green-800">
+              모든 필수 항목이 완료되었습니다.
+            </p>
+          </div>
+        )}
+
+        {percentage < 100 && (
+          <div className="flex items-center gap-2 rounded-lg bg-yellow-50 p-3">
+            <AlertCircle className="h-5 w-5 text-yellow-600" />
+            <p className="text-sm font-medium text-yellow-800">
+              {totalRequired - completedRequired}개의 필수 항목이 아직 완료되지 않았습니다.
+            </p>
+          </div>
+        )}
       </div>
-
-      {percentage === 100 && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg bg-green-50 p-3">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-          <p className="text-sm font-medium text-green-800">
-            모든 필수 항목이 완료되었습니다.
-          </p>
-        </div>
-      )}
-
-      {percentage < 100 && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg bg-yellow-50 p-3">
-          <AlertCircle className="h-5 w-5 text-yellow-600" />
-          <p className="text-sm font-medium text-yellow-800">
-            {totalRequired - completedRequired}개의 필수 항목이 아직 완료되지 않았습니다.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import React from "react";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
 import { Card } from "@/components/molecules/Card";
-import { getGradeColor, getTrendColor } from "@/lib/scores/gradeColors";
+import { getGradeColor, getTrendColor } from "@/lib/constants/colors";
 
 type SchoolSummarySectionProps = {
   schoolScores: SchoolScoreRow[];

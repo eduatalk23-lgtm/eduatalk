@@ -247,9 +247,10 @@ export function LogicalPlanList({
               onClick={() => setIsAddModalOpen(true)}
               className="mx-auto inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
             >
-            <Plus className="h-4 w-4" />
-            첫 논리 플랜 추가
-          </button>
+              <Plus className="h-4 w-4" />
+              첫 논리 플랜 추가
+            </button>
+          </div>
         </div>
       )}
 

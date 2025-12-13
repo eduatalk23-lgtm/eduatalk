@@ -2,6 +2,7 @@
 
 import { CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { ProgressBar } from "@/components/atoms";
 
 type TemplateFormChecklistProps = {
   name?: string;
@@ -42,19 +43,13 @@ export function TemplateFormChecklist({
             <span className="text-sm font-medium text-gray-700">
               {completed}/{total}
             </span>
-            <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className={cn(
-                  "h-full transition-all duration-300",
-                  percentage === 100
-                    ? "bg-green-500"
-                    : percentage >= 50
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-                )}
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
+            <ProgressBar
+              value={percentage}
+              max={100}
+              autoColor={true}
+              size="sm"
+              className="w-24"
+            />
           </div>
         </div>
       </div>
@@ -63,32 +58,27 @@ export function TemplateFormChecklist({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">기본 정보 체크리스트</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-700">
-            완료: <span className="font-semibold">{completed}/{total}</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200">
-              <div
-                className={cn(
-                  "h-full transition-all duration-300",
-                  percentage === 100
-                    ? "bg-green-500"
-                    : percentage >= 50
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-                )}
-                style={{ width: `${percentage}%` }}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">기본 정보 체크리스트</h2>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-700">
+              완료: <span className="font-semibold">{completed}/{total}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <ProgressBar
+                value={percentage}
+                max={100}
+                autoColor={true}
+                size="sm"
+                className="w-32"
               />
+              <span className="text-sm font-medium text-gray-900">{percentage}%</span>
             </div>
-            <span className="text-sm font-medium text-gray-900">{percentage}%</span>
           </div>
         </div>
-      </div>
 
-      <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-3">
         {items.map((item) => (
           <li key={item.id} className="flex items-start gap-3">
             <div className="mt-0.5 flex-shrink-0">
@@ -98,7 +88,7 @@ export function TemplateFormChecklist({
                 <Circle className="h-5 w-5 text-gray-300" />
               )}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span
                 className={cn(
@@ -110,12 +100,13 @@ export function TemplateFormChecklist({
                 </span>
               </div>
               {item.description && !item.checked && (
-                <p className="mt-1 text-xs text-gray-700">{item.description}</p>
+                <p className="text-xs text-gray-700">{item.description}</p>
               )}
             </div>
           </li>
         ))}
-      </ul>
+        </ul>
+      </div>
     </div>
   );
 }

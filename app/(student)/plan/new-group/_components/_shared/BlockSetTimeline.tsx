@@ -134,6 +134,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                   {/* 타임라인 컨테이너 */}
                   <div className="relative h-64 w-full rounded border border-gray-200 bg-gray-50">
                     {/* 시간 그리드 라인 - 1시간 간격 */}
+                    {/* 예외: 동적 시간 기반 위치 계산은 인라인 스타일 필요 (Tailwind 클래스로 변환 불가) */}
                     {Array.from({ length: 25 }, (_, i) => (
                       <div
                         key={`grid-${i}`}

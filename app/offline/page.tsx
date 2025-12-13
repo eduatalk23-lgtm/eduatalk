@@ -35,22 +35,24 @@ export default function OfflinePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <div className="max-w-md w-full text-center">
-        <div className="mb-8 flex justify-center">
+      <div className="max-w-md w-full text-center flex flex-col gap-8">
+        <div className="flex justify-center">
           <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
             <WifiOff className="w-12 h-12 text-gray-400 dark:text-gray-500" />
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          오프라인 상태입니다
-        </h1>
+        <div className="flex flex-col gap-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            오프라인 상태입니다
+          </h1>
 
-        <p className="text-gray-600 dark:text-gray-400 mb-8">
-          인터넷 연결을 확인하고 다시 시도해주세요.
-          <br />
-          일부 기능은 오프라인에서도 사용할 수 있습니다.
-        </p>
+          <p className="text-gray-600 dark:text-gray-400">
+            인터넷 연결을 확인하고 다시 시도해주세요.
+            <br />
+            일부 기능은 오프라인에서도 사용할 수 있습니다.
+          </p>
+        </div>
 
         <div className="flex flex-col gap-3">
           <Button
@@ -77,7 +79,7 @@ export default function OfflinePage() {
         </div>
 
         {isOnline && (
-          <p className="mt-4 text-sm text-green-600 dark:text-green-400">
+          <p className="text-sm text-green-600 dark:text-green-400">
             인터넷 연결이 복구되었습니다!
           </p>
         )}

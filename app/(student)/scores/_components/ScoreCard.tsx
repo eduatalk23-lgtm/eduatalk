@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { SchoolScore } from "@/lib/data/studentScores";
-import { getGradeColor } from "@/lib/scores/gradeColors";
+import { getGradeColor } from "@/lib/constants/colors";
 import { BaseScoreCard } from "./BaseScoreCard";
 import { cn } from "@/lib/cn";
 

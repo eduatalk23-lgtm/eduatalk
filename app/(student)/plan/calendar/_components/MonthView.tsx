@@ -335,6 +335,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               </div>
             );
           })()}
+          </div>
         </div>
       </div>
     );

@@ -158,6 +158,7 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
                         {goal.progress.progressPercentage.toFixed(1)}%
                       </span>
                     </div>
+                    {/* TODO: ProgressBar 컴포넌트로 교체 검토 필요 (서버 컴포넌트에서 클라이언트 컴포넌트 분리 필요) */}
                     <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-600 transition-all"
@@ -239,6 +240,7 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
                           {goal.progress.progressPercentage.toFixed(1)}%
                         </span>
                       </div>
+                      {/* TODO: ProgressBar 컴포넌트로 교체 검토 필요 (서버 컴포넌트에서 클라이언트 컴포넌트 분리 필요) */}
                       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-orange-500 transition-all"

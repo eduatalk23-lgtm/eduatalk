@@ -112,10 +112,10 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
         )}
 
         {error && (
-          <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700 flex flex-col gap-2">
             <p>{error}</p>
             {needsEmailVerification && verificationEmail && (
-              <div className="mt-2">
+              <div>
                 <ResendEmailButton email={verificationEmail} />
               </div>
             )}

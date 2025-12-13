@@ -84,14 +84,14 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6">
-        <h2 className="mb-4 text-xl font-semibold">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 flex flex-col gap-4">
+        <h2 className="text-xl font-semibold">
           {tenant ? "기관 수정" : "새 기관 추가"}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">기관명</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">기관명</label>
             <input
               type="text"
               value={name}
@@ -102,8 +102,8 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">유형</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">유형</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
@@ -116,8 +116,8 @@ export function TenantForm({ tenant, onClose, onSuccess }: TenantFormProps) {
             </select>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">상태</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">상태</label>
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}

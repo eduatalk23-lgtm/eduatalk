@@ -131,7 +131,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
         const singleItemActive = singleItem ? isItemActive(category.items[0]) : false;
 
         return (
-          <div key={category.id} className="space-y-1">
+          <div key={category.id} className="flex flex-col gap-1">
             {/* 하위 메뉴가 1개인 경우: 카테고리 자체를 링크로 */}
             {singleItem ? (
               <Link

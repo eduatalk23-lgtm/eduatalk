@@ -149,16 +149,16 @@ export default async function SuperAdminUsersPage() {
         </div>
 
         {/* 관리자 계정 생성 폼 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">
             관리자 계정 생성
           </h2>
           <CreateAdminUserForm />
         </div>
 
         {/* 관리자 목록 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">
             관리자 목록
           </h2>
           <AdminUsersList adminUsers={adminUsersWithEmail} />
