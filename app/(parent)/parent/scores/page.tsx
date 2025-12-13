@@ -32,8 +32,8 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
   if (linkedStudents.length === 0) {
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-yellow-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-yellow-900">
             연결된 자녀가 없습니다
           </h2>
         </div>
@@ -59,8 +59,8 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
   if (!hasAccess) {
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900">
             접근 권한이 없습니다
           </h2>
         </div>
@@ -78,8 +78,8 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
   if (!student) {
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900">
             학생 정보를 찾을 수 없습니다
           </h2>
         </div>
@@ -102,10 +102,10 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold text-gray-900">성적 현황</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             자녀의 내신 및 모의고사 성적을 확인하세요
           </p>
         </div>
@@ -118,7 +118,7 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
       </div>
 
       {/* 학생 선택 */}
-      <div className="mb-6">
+      <div>
         <StudentSelector
           students={linkedStudents}
           selectedStudentId={selectedStudentId}
@@ -130,38 +130,38 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
           <p className="text-sm text-gray-500">등록된 성적이 없습니다.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           {/* 내신 분석 */}
           {dashboardData.internalAnalysis.totalGpa !== null && (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">내신 분석</h2>
+            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900">내신 분석</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-lg bg-indigo-50 p-4">
+                <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 p-4">
                   <div className="text-sm text-indigo-600">전체 GPA</div>
-                  <div className="mt-1 text-2xl font-bold text-indigo-700">
+                  <div className="text-2xl font-bold text-indigo-700">
                     {dashboardData.internalAnalysis.totalGpa.toFixed(2)}
                   </div>
                 </div>
                 {dashboardData.internalAnalysis.zIndex !== null && (
-                  <div className="rounded-lg bg-blue-50 p-4">
+                  <div className="flex flex-col gap-1 rounded-lg bg-blue-50 p-4">
                     <div className="text-sm text-blue-600">Z-Index</div>
-                    <div className="mt-1 text-2xl font-bold text-blue-700">
+                    <div className="text-2xl font-bold text-blue-700">
                       {dashboardData.internalAnalysis.zIndex.toFixed(2)}
                     </div>
                   </div>
                 )}
                 {Object.keys(dashboardData.internalAnalysis.subjectStrength).length > 0 && (
-                  <div className="rounded-lg bg-purple-50 p-4">
+                  <div className="flex flex-col gap-1 rounded-lg bg-purple-50 p-4">
                     <div className="text-sm text-purple-600">교과군 수</div>
-                    <div className="mt-1 text-2xl font-bold text-purple-700">
+                    <div className="text-2xl font-bold text-purple-700">
                       {Object.keys(dashboardData.internalAnalysis.subjectStrength).length}개
                     </div>
                   </div>
                 )}
               </div>
               {Object.keys(dashboardData.internalAnalysis.subjectStrength).length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">교과군별 평점</h3>
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-sm font-medium text-gray-700">교과군별 평점</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(dashboardData.internalAnalysis.subjectStrength).map(([subject, gpa]) => (
                       <div key={subject} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-2">

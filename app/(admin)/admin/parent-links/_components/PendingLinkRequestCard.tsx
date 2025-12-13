@@ -83,7 +83,7 @@ export function PendingLinkRequestCard({
       }`}
     >
       {isSelectMode && (
-        <div className="mr-4">
+        <div>
           <input
             type="checkbox"
             checked={isSelected}
@@ -92,8 +92,8 @@ export function PendingLinkRequestCard({
           />
         </div>
       )}
-      <div className="flex-1">
-        <div className="mb-2 flex items-center gap-3">
+      <div className="flex flex-col gap-1 flex-1">
+        <div className="flex items-center gap-3">
           <div className="text-base font-semibold text-gray-900">
             {request.studentName || "이름 없음"}
           </div>
@@ -103,10 +103,10 @@ export function PendingLinkRequestCard({
             </div>
           )}
         </div>
-        <div className="mb-1 text-sm text-gray-600">
+        <div className="text-sm text-gray-600">
           <span className="font-medium">학부모:</span> {request.parentName || "이름 없음"}
           {request.parentEmail && (
-            <span className="ml-2 text-gray-500">({request.parentEmail})</span>
+            <span className="text-gray-500">{" "}({request.parentEmail})</span>
           )}
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-500">

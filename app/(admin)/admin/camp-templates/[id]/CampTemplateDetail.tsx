@@ -176,7 +176,7 @@ export function CampTemplateDetail({
             <h1 className="text-3xl font-semibold text-gray-900">
               캠프 템플릿 관리
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               캠프 템플릿을 확인하고 관리하세요.
             </p>
           </div>
@@ -513,8 +513,8 @@ export function CampTemplateDetail({
         )}
 
         {/* 발송된 초대 목록 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">발송된 초대</h2>
             <Link
               href={`/admin/camp-templates/${template.id}/participants`}
@@ -532,8 +532,8 @@ export function CampTemplateDetail({
         </div>
 
         {/* 학생 초대 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
             학생 초대
           </h2>
           <StudentInvitationForm

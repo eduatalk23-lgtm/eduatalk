@@ -167,8 +167,8 @@ export function PendingLinkRequestsList({
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
           <div className="h-7 w-48 animate-pulse rounded bg-gray-200" />
         </div>
         <div className="text-center text-sm text-gray-500">로딩 중...</div>
@@ -178,8 +178,8 @@ export function PendingLinkRequestsList({
 
   if (requests.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold text-gray-900">
           승인 대기 중인 연결 요청
         </h2>
         <div className="py-8 text-center text-sm text-gray-500">
