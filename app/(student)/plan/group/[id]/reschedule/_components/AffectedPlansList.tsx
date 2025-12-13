@@ -271,8 +271,8 @@ export function AffectedPlansList({
 
                     {/* 기존 플랜 목록 */}
                     {item.beforePlans.length > 0 && (
-                      <div className="border-t border-gray-200 pt-3">
-                        <h4 className="mb-2 text-sm font-semibold text-gray-900">
+                      <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
+                        <h4 className="text-sm font-semibold text-gray-900">
                           기존 플랜 ({item.beforePlans.length}개)
                         </h4>
                         <div className="flex flex-col gap-2">

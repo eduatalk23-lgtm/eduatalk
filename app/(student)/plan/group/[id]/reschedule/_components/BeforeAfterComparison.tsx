@@ -179,7 +179,7 @@ export function BeforeAfterComparison({
       </div>
 
       {/* 날짜별 상세 비교 */}
-      <div className="overflow-x-auto -mx-6 px-6">
+      <div className="overflow-x-auto px-6">
         <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-gray-200">

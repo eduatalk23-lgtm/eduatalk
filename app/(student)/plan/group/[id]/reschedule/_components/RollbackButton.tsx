@@ -126,7 +126,7 @@ export function RollbackButton({
       {/* 확인 다이얼로그 */}
       {confirmDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-lg max-w-md w-full mx-4">
+          <div className="flex flex-col gap-4 rounded-lg bg-white p-6 shadow-lg max-w-md w-full px-4">
             <h3 className="text-lg font-semibold text-gray-900">
               재조정 롤백 확인
             </h3>

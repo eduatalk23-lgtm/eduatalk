@@ -439,8 +439,8 @@ export function PreviewStep({
       />
 
       {/* 조정 요약 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 font-semibold text-gray-900">조정 내역</h3>
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="font-semibold text-gray-900">조정 내역</h3>
         <div className="flex flex-col gap-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">범위 수정:</span>

@@ -202,7 +202,7 @@ export function ContentReplaceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="mx-4 w-full max-w-2xl rounded-lg border border-gray-200 bg-white shadow-lg">
+      <div className="w-full max-w-2xl rounded-lg border border-gray-200 bg-white shadow-lg px-4">
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <h2 className="text-xl font-bold text-gray-900">콘텐츠 교체</h2>
