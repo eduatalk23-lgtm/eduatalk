@@ -119,16 +119,16 @@ export function ContentAllocationUI({
                 return (
                   <div
                     key={`${content.content_type}-${content.content_id}`}
-                    className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                    className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
                   >
-                    <div className="mb-2 flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col gap-1 flex-1">
                         <div className="text-sm font-medium text-gray-900">
                           {content.content_type === "book" ? "📚" : "🎧"}{" "}
                           {content.title}
                         </div>
                         {source !== "content" && (
-                          <div className="mt-1 text-xs text-gray-600">
+                          <div className="text-xs text-gray-600">
                             {source === "subject" && "교과별 설정 적용 중"}
                             {source === "default" && "기본값 (취약과목)"}
                           </div>
@@ -136,7 +136,7 @@ export function ContentAllocationUI({
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
                         <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border p-2 text-xs transition-colors hover:bg-gray-100">
                           <input

@@ -63,18 +63,18 @@ export function SubjectAllocationUI({
         return (
           <div
             key={subject}
-            className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+            className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4"
           >
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900">{subject}</h3>
               <span className="text-xs text-gray-600">
                 {subjectContentCount}개 콘텐츠
               </span>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="mb-2 block text-xs font-medium text-gray-600">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <label className="block text-xs font-medium text-gray-600">
                   과목 유형
                 </label>
                 <div className="flex gap-3">
@@ -135,8 +135,8 @@ export function SubjectAllocationUI({
               </div>
 
               {subjectType === "strategy" && (
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-600">
+                <div className="flex flex-col gap-2">
+                  <label className="block text-xs font-medium text-gray-600">
                     주당 배정 일수
                   </label>
                   <select
@@ -155,7 +155,7 @@ export function SubjectAllocationUI({
                     <option value="3">주 3일</option>
                     <option value="4">주 4일</option>
                   </select>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="text-xs text-gray-600">
                     선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
                   </p>
                 </div>

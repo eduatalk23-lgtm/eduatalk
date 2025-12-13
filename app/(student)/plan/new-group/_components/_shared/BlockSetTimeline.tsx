@@ -164,7 +164,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                       return (
                         <div
                           key={idx}
-                          className={`group absolute left-0 right-0 mx-1 rounded ${
+                          className={`group absolute left-1 right-1 rounded ${
                             colorClass || "bg-blue-500"
                           } cursor-pointer opacity-80 transition-opacity hover:opacity-100 flex flex-col justify-between`}
                           style={{

@@ -21,8 +21,8 @@ export function ComparisonTable({
   if (recommendedRanges.size === 0) return null;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">학습 범위 비교</h3>
         <div className="flex gap-2">
           <button
@@ -245,7 +245,7 @@ export function ComparisonTable({
                   <tr key={uniqueKey} className="border-b border-gray-100">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <div>
+                        <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <div className="font-medium text-gray-900">
                               {info.title}
@@ -276,11 +276,11 @@ export function ComparisonTable({
                           </div>
                           {info.is_auto_recommended &&
                             info.recommendation_reason && (
-                              <div className="mt-1 text-xs text-purple-600">
+                              <div className="text-xs text-purple-600">
                                 💡 {info.recommendation_reason}
                               </div>
                             )}
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                             {info.content_type === "book" && (
                               <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                                 📚 교재

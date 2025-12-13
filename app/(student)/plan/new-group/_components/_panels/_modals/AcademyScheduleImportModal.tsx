@@ -359,7 +359,7 @@ export function AcademyScheduleImportModal({
                 return (
                   <div key={academyName} className="rounded-lg border border-gray-200 bg-white">
                     {/* 학원 헤더 */}
-                    <div className="flex w-full items-center justify-between rounded-t-lg border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3">
+                    <div className="flex w-full items-center justify-between gap-2 rounded-t-lg border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3">
                       {/* 클릭 가능한 영역 */}
                       <button
                         type="button"
@@ -412,7 +412,7 @@ export function AcademyScheduleImportModal({
                       <button
                         type="button"
                         onClick={() => handleSelectAcademy(academyName)}
-                        className={`ml-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                           allSelected
                             ? "bg-gray-900 text-white hover:bg-gray-800"
                             : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"

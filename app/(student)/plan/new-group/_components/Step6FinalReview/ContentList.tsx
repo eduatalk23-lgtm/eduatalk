@@ -104,7 +104,7 @@ export function ContentList({
                     {type === "student" ? "학생 콘텐츠" : "추천 콘텐츠"}
                   </span>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                   {content.content_type === "book" && (
                     <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
                       📚 교재
@@ -166,7 +166,7 @@ export function ContentList({
                                       ? " 페이지"
                                       : " 회차"}
                                   </div>
-                                  <div className="mt-1 text-xs text-blue-800">
+                                  <div className="text-xs text-blue-800">
                                     {recommendedRange.reason}
                                   </div>
                                 </div>
@@ -178,7 +178,7 @@ export function ContentList({
                                       end: String(recommendedRange.end),
                                     });
                                   }}
-                                  className="ml-2 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                                  className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
                                 >
                                   적용
                                 </button>
@@ -193,12 +193,12 @@ export function ContentList({
                           ) : contentInfo && contentInfo.details.length > 0 ? (
                             <div className="space-y-3">
                               {/* 시작 범위 선택 */}
-                              <div>
-                                <div className="mb-2 text-xs font-medium text-gray-600">
+                              <div className="flex flex-col gap-2">
+                                <div className="text-xs font-medium text-gray-600">
                                   시작 범위 선택
                                 </div>
                                 <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                                  <div className="space-y-1">
+                                  <div className="flex flex-col gap-1">
                                     {contentInfo.type === "book"
                                       ? (
                                           contentInfo.details as BookDetail[]
@@ -278,12 +278,12 @@ export function ContentList({
                                 </div>
                               </div>
                               {/* 끝 범위 선택 */}
-                              <div>
-                                <div className="mb-2 text-xs font-medium text-gray-600">
+                              <div className="flex flex-col gap-2">
+                                <div className="text-xs font-medium text-gray-600">
                                   끝 범위 선택
                                 </div>
                                 <div className="max-h-32 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
-                                  <div className="space-y-1">
+                                  <div className="flex flex-col gap-1">
                                     {contentInfo.type === "book"
                                       ? (
                                           contentInfo.details as BookDetail[]
@@ -497,7 +497,7 @@ export function ContentList({
                     recRange !== null ? range - recRange : null;
 
                   return (
-                    <div className="ml-4 flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end gap-2">
                        {recommendedRange ? (
                         <div className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs">
                           <div className="font-medium text-blue-800">
@@ -509,7 +509,7 @@ export function ContentList({
                           </div>
                           {difference !== null && difference !== 0 && (
                             <div
-                              className={`mt-0.5 text-xs ${
+                              className={`text-xs ${
                                 difference > 0
                                   ? "text-red-600"
                                   : "text-green-600"
@@ -525,9 +525,9 @@ export function ContentList({
                           )}
                         </div>
                       ) : unavailableReason ? (
-                        <div className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs">
+                        <div className="flex flex-col gap-0.5 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs">
                           <div className="text-gray-600">추천 범위 없음</div>
-                          <div className="mt-0.5 text-gray-600">
+                          <div className="text-gray-600">
                             ({unavailableReason})
                           </div>
                         </div>
