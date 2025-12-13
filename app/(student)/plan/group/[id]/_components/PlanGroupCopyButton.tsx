@@ -37,7 +37,7 @@ export function PlanGroupCopyButton({ groupId }: PlanGroupCopyButtonProps) {
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       <button
         type="button"
         onClick={handleCopy}
@@ -48,7 +48,7 @@ export function PlanGroupCopyButton({ groupId }: PlanGroupCopyButtonProps) {
         {isPending ? "복사 중..." : "복사하기"}
       </button>
       {error && (
-        <p className="mt-2 text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600">{error}</p>
       )}
     </div>
   );
