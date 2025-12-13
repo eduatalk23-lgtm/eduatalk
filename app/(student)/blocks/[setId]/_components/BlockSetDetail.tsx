@@ -136,7 +136,7 @@ export default function BlockSetDetail({
       </div>
 
       {/* 탭 내용 */}
-      <div>
+      <div className="flex flex-col gap-8">
         {activeTab === "list" && (
           <BlockList 
             blocks={blocks} 
@@ -145,19 +145,19 @@ export default function BlockSetDetail({
           />
         )}
         {activeTab === "statistics" && (
-          <div className="mb-8">
+          <div>
             <BlockStatistics blocks={blocks} />
           </div>
         )}
         {activeTab === "timeline" && (
-          <div className="mb-8">
+          <div>
             <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6 overflow-x-auto">
               <BlockTimeline blocks={blocks} />
             </div>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
