@@ -278,14 +278,14 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
 
       {/* 범위 요약 */}
       {isValidRange && startDetailId && endDetailId && (
-        <div className="rounded-lg bg-blue-50 p-3">
+        <div className="flex flex-col gap-1 rounded-lg bg-blue-50 p-3">
           <p className="text-sm font-medium text-blue-900">선택된 범위</p>
-          <p className="mt-1 text-sm text-blue-700">
+          <p className="text-sm text-blue-700">
             {getOptionLabel(details[startIndex])} ~{" "}
             {getOptionLabel(details[endIndex])}
           </p>
           {isBook && (
-            <p className="mt-1 text-xs text-blue-800">
+            <p className="text-xs text-blue-800">
               총{" "}
               {(details[endIndex] as BookDetail).page_number -
                 (details[startIndex] as BookDetail).page_number +
@@ -294,7 +294,7 @@ export const ContentRangeInput = React.memo(function ContentRangeInput({
             </p>
           )}
           {!isBook && (
-            <p className="mt-1 text-xs text-blue-800">
+            <p className="text-xs text-blue-800">
               총{" "}
               {(details[endIndex] as LectureEpisode).episode_number -
                 (details[startIndex] as LectureEpisode).episode_number +
