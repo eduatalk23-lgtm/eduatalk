@@ -78,10 +78,12 @@ export default function TemplateBlocksViewer({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div key={i} className="flex flex-col gap-4 bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="flex flex-col gap-2">
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
           </div>
         ))}
       </div>
@@ -111,8 +113,8 @@ export default function TemplateBlocksViewer({
 
       {/* 블록 세트 목록 */}
       {blockSetsWithStats.length > 0 ? (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-8">
+          <div className="flex items-center justify-between">
             <h2 className="text-xl font-medium text-gray-900">등록된 블록 세트</h2>
             <button
               type="button"
@@ -277,13 +279,13 @@ export default function TemplateBlocksViewer({
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+        <div className="flex flex-col gap-6 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
           <div className="mx-auto max-w-md">
-            <div className="mb-4 text-6xl">⏰</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">
+            <div className="text-6xl">⏰</div>
+            <h3 className="text-lg font-semibold text-gray-900">
               등록된 블록 세트가 없습니다
             </h3>
-            <p className="mb-6 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               위의 버튼을 사용하여 블록 세트를 추가하세요.
             </p>
             <button
@@ -408,10 +410,10 @@ function TemplateBlockSetCreateForm({
             />
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">시간 블록 추가 (선택)</h4>
+          <div className="flex flex-col gap-3 border-t border-gray-200 pt-4">
+            <h4 className="text-sm font-medium text-gray-700">시간 블록 추가 (선택)</h4>
             
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-700">추가할 요일 선택</label>
               <div className="flex flex-wrap gap-2">
                 {[

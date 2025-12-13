@@ -45,8 +45,8 @@ export default async function ParentHistoryPage({ searchParams }: PageProps) {
   if (linkedStudents.length === 0) {
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-yellow-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-yellow-900">
             연결된 자녀가 없습니다
           </h2>
         </div>
@@ -72,8 +72,8 @@ export default async function ParentHistoryPage({ searchParams }: PageProps) {
   if (!hasAccess) {
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900">
             접근 권한이 없습니다
           </h2>
         </div>
@@ -104,10 +104,10 @@ export default async function ParentHistoryPage({ searchParams }: PageProps) {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold text-gray-900">학습 활동 이력</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             자녀의 최근 학습 활동을 확인하세요
           </p>
         </div>
@@ -120,7 +120,7 @@ export default async function ParentHistoryPage({ searchParams }: PageProps) {
       </div>
 
       {/* 학생 선택 */}
-      <div className="mb-6">
+      <div>
         <StudentSelector
           students={linkedStudents}
           selectedStudentId={selectedStudentId}
@@ -132,18 +132,18 @@ export default async function ParentHistoryPage({ searchParams }: PageProps) {
           <p className="text-sm text-gray-500">기록된 활동이 없습니다.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
             최근 활동 요약
           </h2>
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {historyEvents.map((event) => (
               <div
                 key={event.id}
                 className="flex items-start gap-4 rounded-lg border border-gray-100 bg-gray-50 p-4"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-col gap-1 flex-1">
+                  <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-900">
                       {eventTypeLabels[event.event_type] || event.event_type}
                     </span>
