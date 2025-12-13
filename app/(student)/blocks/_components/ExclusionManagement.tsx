@@ -262,14 +262,14 @@ export default function ExclusionManagement({
                     {exclusions.map((exclusion) => (
                       <div
                         key={exclusion.id}
-                        className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
+                        className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3"
                       >
-                        <div className="flex-1">
+                        <div className="flex flex-col gap-1 flex-1">
                           <div className="text-sm font-medium text-gray-900">
                             {exclusion.exclusion_date}
                           </div>
                           {exclusion.reason && (
-                            <div className="mt-1 text-xs text-gray-500">
+                            <div className="text-xs text-gray-500">
                               {exclusion.reason}
                             </div>
                           )}
@@ -278,7 +278,7 @@ export default function ExclusionManagement({
                           type="button"
                           onClick={() => handleDeleteExclusion(exclusion.id)}
                           disabled={isPending}
-                          className="ml-4 rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                           title="삭제"
                         >
                           <Trash2 className="h-4 w-4" />
