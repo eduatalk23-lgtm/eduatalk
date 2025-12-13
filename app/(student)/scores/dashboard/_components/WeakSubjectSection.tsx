@@ -6,6 +6,7 @@
 
 import React from "react";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type WeakSubjectSectionProps = {
   schoolScores: SchoolScoreRow[];
@@ -202,17 +203,11 @@ export function WeakSubjectSection({
 
   if (weakSubjects.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">✅</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            취약 과목이 없습니다
-          </h3>
-          <p className="text-sm text-gray-500">
-            현재 성적이 안정적입니다. 계속 유지하세요!
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon="✅"
+        title="취약 과목이 없습니다"
+        description="현재 성적이 안정적입니다. 계속 유지하세요!"
+      />
     );
   }
 

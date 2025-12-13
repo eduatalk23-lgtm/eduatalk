@@ -6,6 +6,7 @@
 
 import React from "react";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type InsightPanelProps = {
   schoolScores: SchoolScoreRow[];
@@ -153,26 +154,20 @@ export function InsightPanel({
 
   if (insights.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">💡</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            인사이트 데이터가 부족합니다
-          </h3>
-          <p className="text-sm text-gray-500">
-            더 많은 성적 데이터를 등록하면 학습 인사이트가 제공됩니다.
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon="💡"
+        title="인사이트 데이터가 부족합니다"
+        description="더 많은 성적 데이터를 등록하면 학습 인사이트가 제공됩니다."
+      />
     );
   }
 
   return (
-    <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-indigo-900 mb-4">
+    <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-6 shadow-sm flex flex-col gap-4">
+      <h2 className="text-xl font-semibold text-indigo-900">
         학습 인사이트
       </h2>
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {insights.map((insight, index) => (
           <div
             key={index}

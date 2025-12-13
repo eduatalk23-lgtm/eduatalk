@@ -2,7 +2,19 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { cn } from "@/lib/cn";
+
+const CONFETTI_COLORS = [
+  "bg-pink-400",
+  "bg-purple-400",
+  "bg-blue-400",
+  "bg-cyan-400",
+  "bg-green-400",
+  "bg-yellow-400",
+  "bg-orange-400",
+  "bg-red-400",
+] as const;
 
 type CompletionAnimationProps = {
   show: boolean;
@@ -17,7 +29,9 @@ export function CompletionAnimation({
   studyDuration,
   onAnimationComplete,
 }: CompletionAnimationProps) {
-  const [confetti, setConfetti] = useState<Array<{ id: number; x: number; delay: number }>>([]);
+  const [confetti, setConfetti] = useState<
+    Array<{ id: number; x: number; delay: number; colorIndex: number }>
+  >([]);
 
   useEffect(() => {
     if (show) {
@@ -26,6 +40,7 @@ export function CompletionAnimation({
         id: i,
         x: Math.random() * 100,
         delay: Math.random() * 0.3,
+        colorIndex: i % CONFETTI_COLORS.length,
       }));
       setConfetti(items);
 
@@ -63,10 +78,10 @@ export function CompletionAnimation({
                 delay: item.delay,
                 ease: "easeIn",
               }}
-              className="absolute h-3 w-3 rounded-full"
-              style={{
-                background: `hsl(${Math.random() * 360}, 70%, 60%)`,
-              }}
+              className={cn(
+                "absolute h-3 w-3 rounded-full",
+                CONFETTI_COLORS[item.colorIndex]
+              )}
             />
           ))}
 

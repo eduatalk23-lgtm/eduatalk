@@ -1,5 +1,7 @@
 "use client";
 
+import ProgressBar from "@/components/atoms/ProgressBar";
+
 type TimeStats = {
   totalSeconds: number;
   pausedSeconds: number;
@@ -39,25 +41,25 @@ export function TimeAnalysisView({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 오늘의 시간 통계 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">오늘의 시간</h2>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-gray-900">오늘의 시간</h2>
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">총 학습 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">총 학습 시간</div>
             <div className="text-2xl font-bold text-indigo-600">
               {formatTime(todayStats.totalSeconds)}
             </div>
           </div>
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">순수 학습 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">순수 학습 시간</div>
             <div className="text-2xl font-bold text-blue-600">
               {formatTime(pureStudySeconds(todayStats))}
             </div>
           </div>
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">일시정지 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">일시정지 시간</div>
             <div className="text-2xl font-bold text-yellow-600">
               {formatTime(todayStats.pausedSeconds)}
             </div>
@@ -66,23 +68,23 @@ export function TimeAnalysisView({
       </div>
 
       {/* 이번 주 시간 통계 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">이번 주 시간</h2>
-        <div className="mb-4 grid gap-4 sm:grid-cols-3">
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">총 학습 시간</div>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-gray-900">이번 주 시간</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">총 학습 시간</div>
             <div className="text-2xl font-bold text-indigo-600">
               {formatTime(weekStats.totalSeconds)}
             </div>
           </div>
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">순수 학습 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">순수 학습 시간</div>
             <div className="text-2xl font-bold text-blue-600">
               {formatTime(pureStudySeconds(weekStats))}
             </div>
           </div>
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">일시정지 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">일시정지 시간</div>
             <div className="text-2xl font-bold text-yellow-600">
               {formatTime(weekStats.pausedSeconds)}
             </div>
@@ -91,9 +93,9 @@ export function TimeAnalysisView({
 
         {/* 콘텐츠별 분포 */}
         {Object.keys(weekStats.byContentType).length > 0 && (
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">콘텐츠별 학습 시간</h3>
-            <div className="space-y-2">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-gray-700">콘텐츠별 학습 시간</h3>
+            <div className="flex flex-col gap-2">
               {Object.entries(weekStats.byContentType)
                 .sort(([, a], [, b]) => b - a)
                 .map(([type, seconds]) => (
@@ -112,23 +114,23 @@ export function TimeAnalysisView({
       </div>
 
       {/* 이번 달 시간 통계 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">이번 달 시간</h2>
-        <div className="mb-4 grid gap-4 sm:grid-cols-3">
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">총 학습 시간</div>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-gray-900">이번 달 시간</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">총 학습 시간</div>
             <div className="text-2xl font-bold text-indigo-600">
               {formatTime(monthStats.totalSeconds)}
             </div>
           </div>
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">순수 학습 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">순수 학습 시간</div>
             <div className="text-2xl font-bold text-blue-600">
               {formatTime(pureStudySeconds(monthStats))}
             </div>
           </div>
-          <div className="text-center">
-            <div className="mb-1 text-sm font-medium text-gray-600">일시정지 시간</div>
+          <div className="text-center flex flex-col gap-1">
+            <div className="text-sm font-medium text-gray-600">일시정지 시간</div>
             <div className="text-2xl font-bold text-yellow-600">
               {formatTime(monthStats.pausedSeconds)}
             </div>
@@ -137,9 +139,9 @@ export function TimeAnalysisView({
 
         {/* 요일별 분포 */}
         {Object.keys(monthStats.byDayOfWeek).length > 0 && (
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-gray-700">요일별 학습 시간</h3>
-            <div className="space-y-2">
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-gray-700">요일별 학습 시간</h3>
+            <div className="flex flex-col gap-2">
               {weekdays.map((day, index) => {
                 const seconds = monthStats.byDayOfWeek[index] || 0;
                 const maxSeconds = Math.max(...Object.values(monthStats.byDayOfWeek), 1);
@@ -149,12 +151,11 @@ export function TimeAnalysisView({
                   <div key={index} className="flex items-center gap-3">
                     <div className="w-12 text-sm font-medium text-gray-700">{day}</div>
                     <div className="flex-1">
-                      <div className="h-6 overflow-hidden rounded-full bg-gray-200">
-                        <div
-                          className="h-full bg-indigo-600 transition-all"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={percentage}
+                        color="indigo"
+                        height="md"
+                      />
                     </div>
                     <div className="w-20 text-right text-sm font-semibold text-gray-900">
                       {formatTime(seconds)}

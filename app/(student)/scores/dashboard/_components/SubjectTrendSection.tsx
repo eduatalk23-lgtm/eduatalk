@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { SchoolScoreRow } from "../_utils/scoreQueries";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type SubjectTrendSectionProps = {
   schoolScores: SchoolScoreRow[];
@@ -92,23 +93,17 @@ export function SubjectTrendSection({
 
   if (schoolScores.length === 0 || availableSubjects.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">📈</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            교과별 성적 트렌드 데이터가 없습니다
-          </h3>
-          <p className="text-sm text-gray-500">
-            내신 성적을 등록하면 교과별 변화 그래프가 표시됩니다.
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon="📈"
+        title="교과별 성적 트렌드 데이터가 없습니다"
+        description="내신 성적을 등록하면 교과별 변화 그래프가 표시됩니다."
+      />
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">
           교과별 성적 변화
         </h2>

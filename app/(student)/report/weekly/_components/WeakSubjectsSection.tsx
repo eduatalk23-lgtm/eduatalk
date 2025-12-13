@@ -1,6 +1,7 @@
 "use client";
 
 import { getRiskColor } from "@/lib/constants/colors";
+import ProgressBar, { type ProgressBarColor } from "@/components/atoms/ProgressBar";
 
 type WeakSubjectsSectionProps = {
   subjects: Array<{
@@ -38,6 +39,13 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
         <div className="grid gap-4 sm:grid-cols-3">
           {subjects.map((subject) => {
             const riskColor = getRiskColor(subject.riskScore);
+            
+            // ProgressBar color 매핑
+            const getProgressBarColor = (riskScore: number): ProgressBarColor => {
+              if (riskScore >= 70) return "red";
+              if (riskScore >= 50) return "orange";
+              return "orange"; // 낮은 위험도도 orange 사용 (yellow가 없음)
+            };
 
             return (
               <div key={subject.subject} className={`rounded-lg border p-4 ${riskColor.border} ${riskColor.bg}`}>
@@ -51,15 +59,14 @@ export function WeakSubjectsSection({ subjects }: WeakSubjectsSectionProps) {
                       <span className="text-gray-600">위험도</span>
                       <span className="font-semibold text-gray-900">{subject.riskScore}점</span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className={`h-full ${riskColor.badge.split(" ")[0]}`}
-                        style={{ width: `${subject.riskScore}%` }}
-                      />
-                    </div>
+                    <ProgressBar
+                      value={subject.riskScore}
+                      color={getProgressBarColor(subject.riskScore)}
+                      height="sm"
+                    />
                   </div>
                   <p className="text-xs text-gray-700">{subject.reason}</p>
-                  <div className="space-y-1 text-xs text-gray-600">
+                  <div className="flex flex-col gap-1 text-xs text-gray-600">
                 <div>이번 주 학습: {subject.studyTimeMinutes}분</div>
                 {subject.studyTimeChange !== 0 && (
                   <div

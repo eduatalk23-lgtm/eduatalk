@@ -12,9 +12,9 @@ type CircularProgressProps = {
 };
 
 const sizeMap = {
-  sm: { dimension: 48, fontSize: "text-xs" },
-  md: { dimension: 80, fontSize: "text-sm" },
-  lg: { dimension: 120, fontSize: "text-lg" },
+  sm: { dimension: 48, fontSize: "text-xs", sizeClass: "w-12 h-12" },
+  md: { dimension: 80, fontSize: "text-sm", sizeClass: "w-20 h-20" },
+  lg: { dimension: 120, fontSize: "text-lg", sizeClass: "w-[120px] h-[120px]" },
 };
 
 export function CircularProgress({
@@ -25,15 +25,14 @@ export function CircularProgress({
   showPercentage = false,
   children,
 }: CircularProgressProps) {
-  const { dimension, fontSize } = sizeMap[size];
+  const { dimension, fontSize, sizeClass } = sizeMap[size];
   const radius = (dimension - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
     <div
-      className={cn("relative inline-flex items-center justify-center", className)}
-      style={{ width: dimension, height: dimension }}
+      className={cn("relative inline-flex items-center justify-center", sizeClass, className)}
       role="progressbar"
       aria-valuenow={percentage}
       aria-valuemin={0}

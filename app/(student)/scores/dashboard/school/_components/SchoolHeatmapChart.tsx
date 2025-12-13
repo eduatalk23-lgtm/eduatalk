@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
 import { getGradeColorHex, getChartColor } from "@/lib/constants/colors";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type SchoolHeatmapChartProps = {
   schoolScores: SchoolScoreRow[];
@@ -87,30 +88,24 @@ export function SchoolHeatmapChart({
 
   if (schoolScores.length === 0 || heatmapData.subjects.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-        <div className="mx-auto max-w-md">
-          <div className="mb-4 text-6xl">📊</div>
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">
-            히트맵 데이터가 없습니다
-          </h3>
-          <p className="text-sm text-gray-500">
-            내신 성적을 등록하면 히트맵이 표시됩니다.
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon="📊"
+        title="히트맵 데이터가 없습니다"
+        description="내신 성적을 등록하면 히트맵이 표시됩니다."
+      />
     );
   }
 
   // 등급별 색상은 getGradeColorHex 함수 사용
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-4">
+      <h2 className="text-xl font-semibold text-gray-900">
         학기별/과목별 등급 히트맵
       </h2>
-      <div className="mb-4 text-sm text-gray-600">
+      <div className="flex flex-col gap-2 text-sm text-gray-600">
         <p>각 셀의 색상은 해당 학기/과목의 평균 등급을 나타냅니다.</p>
-        <div className="mt-2 flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div className="h-4 w-4 rounded bg-blue-500"></div>
             <span className="text-xs">1-2등급</span>
