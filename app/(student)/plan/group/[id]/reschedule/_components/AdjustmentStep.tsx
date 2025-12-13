@@ -397,29 +397,29 @@ export function AdjustmentStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-bold text-gray-900">상세 조정</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           선택한 콘텐츠의 범위를 수정하거나 콘텐츠를 교체할 수 있습니다.
         </p>
       </div>
 
       {/* 일괄 조정 모드 안내 배너 */}
       {selectedContents.length > 1 && !batchMode && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-start gap-3">
-            <div className="flex-1">
+            <div className="flex flex-1 flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span className="text-lg">💡</span>
                 <h3 className="font-medium text-blue-900">
                   일괄 조정 모드를 사용하시겠습니까?
                 </h3>
               </div>
-              <p className="mt-1 text-sm text-blue-700">
+              <p className="text-sm text-blue-700">
                 {selectedContents.length}개의 콘텐츠를 선택하셨습니다. 일괄 조정 모드를 사용하면
                 모든 콘텐츠를 한 번에 조정할 수 있습니다.
               </p>
-              <div className="mt-2 text-xs text-blue-600">
+              <div className="text-xs text-blue-600">
                 예시: 모든 콘텐츠의 범위를 10% 증가시키거나, 모든 콘텐츠에 +5페이지 추가
               </div>
             </div>
@@ -436,9 +436,9 @@ export function AdjustmentStep({
       {/* 일괄 조정 모드 토글 */}
       {selectedContents.length > 1 && (
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
-          <div>
+          <div className="flex flex-col gap-1">
             <h3 className="font-medium text-gray-900">일괄 조정 모드</h3>
-            <p className="mt-1 text-xs text-gray-600">
+            <p className="text-xs text-gray-600">
               여러 콘텐츠를 한 번에 조정할 수 있습니다.
             </p>
           </div>
@@ -499,7 +499,7 @@ export function AdjustmentStep({
                   : "border-gray-200 bg-white"
               }`}
             >
-              <div className="mb-3">
+              <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium text-gray-900">
                     {content.content_type === "book"
@@ -515,10 +515,10 @@ export function AdjustmentStep({
                   )}
                 </div>
                 {isReplaced && replacedContent ? (
-                  <div className="mt-1 flex flex-col gap-2 text-sm">
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
+                  <div className="flex flex-col gap-2 text-sm">
+                    <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-2">
                       <div className="text-xs text-gray-500">교체 전</div>
-                      <div className="mt-1 text-gray-700">
+                      <div className="text-gray-700">
                         {content.content_type === "book"
                           ? "📚 교재"
                           : content.content_type === "lecture"
@@ -527,22 +527,22 @@ export function AdjustmentStep({
                         {content.start_range} ~ {content.end_range}
                       </div>
                     </div>
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-2">
+                    <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-2">
                       <div className="text-xs text-blue-700">교체 후</div>
-                      <div className="mt-1 font-medium text-blue-900">
+                      <div className="font-medium text-blue-900">
                         {replacedContent.content_type === "book"
                           ? "📚 교재"
                           : replacedContent.content_type === "lecture"
                           ? "🎥 강의"
                           : "📝 커스텀"}
                         {replacedContent.info?.title && (
-                          <span className="ml-2">{replacedContent.info.title}</span>
+                          <span className="pl-2">{replacedContent.info.title}</span>
                         )}
                       </div>
-                      <div className="mt-1 text-blue-700">
+                      <div className="text-blue-700">
                         범위: {currentRange.start} ~ {currentRange.end}
                         {replacedContent.info?.total_page_or_time !== null && replacedContent.info?.total_page_or_time !== undefined && (
-                          <span className="ml-2 text-xs text-blue-600">
+                          <span className="pl-2 text-xs text-blue-600">
                             (총{" "}
                             {replacedContent.content_type === "book"
                               ? `${replacedContent.info.total_page_or_time}페이지`
@@ -556,7 +556,7 @@ export function AdjustmentStep({
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="text-sm text-gray-600">
                     {content.start_range} ~ {content.end_range}
                   </p>
                 )}
@@ -720,13 +720,15 @@ export function AdjustmentStep({
       </div>
 
       {/* 재조정 플랜 배치 범위 선택 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-gray-900">
-          재조정 플랜 배치 범위 선택
-        </h3>
-        <p className="mb-3 text-xs text-gray-600">
-          새로 생성된 플랜을 어떤 날짜 범위에 배치할지 선택합니다 (오늘 이후만 가능)
-        </p>
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold text-gray-900">
+            재조정 플랜 배치 범위 선택
+          </h3>
+          <p className="text-xs text-gray-600">
+            새로 생성된 플랜을 어떤 날짜 범위에 배치할지 선택합니다 (오늘 이후만 가능)
+          </p>
+        </div>
         <div className="flex flex-col gap-3">
           <label
             className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition hover:bg-gray-50"
@@ -778,7 +780,7 @@ export function AdjustmentStep({
 
         {/* 배치 범위 선택 UI (접이식 패널) */}
         {placementMode === "manual" && (
-          <div className="mt-4">
+          <div>
             <button
               type="button"
               onClick={() => setPlacementRangeExpanded(!placementRangeExpanded)}
@@ -805,7 +807,7 @@ export function AdjustmentStep({
             {placementRangeExpanded && (
               <div
                 id="placement-range-panel"
-                className="mt-4 flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4"
+                className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4"
                 role="region"
                 aria-label="배치 범위 선택 패널"
               >
@@ -825,22 +827,22 @@ export function AdjustmentStep({
 
         {/* 선택한 배치 범위 요약 */}
         {placementMode === "auto" ? (
-          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
             <div className="text-sm font-medium text-blue-900">
               자동 배치 범위
             </div>
-            <div className="mt-1 text-sm text-blue-700">
+            <div className="text-sm text-blue-700">
               {tomorrowStr} ~ {groupPeriodEnd}
             </div>
           </div>
         ) : (
           placementDateRange.from &&
           placementDateRange.to && (
-            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
               <div className="text-sm font-medium text-blue-900">
                 선택한 배치 범위
               </div>
-              <div className="mt-1 text-sm text-blue-700">
+              <div className="text-sm text-blue-700">
                 {placementDateRange.from} ~ {placementDateRange.to}
               </div>
             </div>
@@ -849,8 +851,8 @@ export function AdjustmentStep({
       </div>
 
       {/* 변경 사항 요약 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="mb-3 text-sm font-semibold text-gray-900">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+        <h3 className="text-sm font-semibold text-gray-900">
           변경 사항 요약
         </h3>
         {localAdjustments.size === 0 ? (
@@ -860,9 +862,9 @@ export function AdjustmentStep({
         ) : (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <div className="text-xs text-gray-600">범위 수정</div>
-                <div className="mt-1 text-lg font-bold text-gray-900">
+                <div className="text-lg font-bold text-gray-900">
                   {
                     Array.from(localAdjustments.values()).filter(
                       (adj) => adj.change_type === "range"
@@ -871,9 +873,9 @@ export function AdjustmentStep({
                   개
                 </div>
               </div>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <div className="text-xs text-blue-700">콘텐츠 교체</div>
-                <div className="mt-1 text-lg font-bold text-blue-600">
+                <div className="text-lg font-bold text-blue-600">
                   {
                     Array.from(localAdjustments.values()).filter(
                       (adj) => adj.change_type === "replace"
@@ -882,9 +884,9 @@ export function AdjustmentStep({
                   개
                 </div>
               </div>
-              <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+              <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 p-3">
                 <div className="text-xs text-green-700">전체 재생성</div>
-                <div className="mt-1 text-lg font-bold text-green-600">
+                <div className="text-lg font-bold text-green-600">
                   {
                     Array.from(localAdjustments.values()).filter(
                       (adj) => adj.change_type === "full"
