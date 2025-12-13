@@ -159,11 +159,7 @@ export function DateInput({
           }}
         />
       </div>
-      {error && (
-        <p id={errorId} className="text-xs text-red-600 mt-1" role="alert">
-          {error}
-        </p>
-      )}
+      {/* 오류 메시지는 부모 컴포넌트에서 표시하므로 여기서는 표시하지 않음 */}
     </div>
   );
 }

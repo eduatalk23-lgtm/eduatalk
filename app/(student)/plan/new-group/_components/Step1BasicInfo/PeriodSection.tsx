@@ -194,14 +194,14 @@ export function PeriodSection({
             }}
             disabled={isDisabled(
               isFieldLocked("period_start") ||
-                isFieldLocked("period_end") ||
-                (isCampMode && !canStudentInputPeriod)
+              isFieldLocked("period_end") ||
+              (isCampMode && !canStudentInputPeriod)
             )}
             min={today}
             error={fieldErrors?.get("period_start")}
             dataFieldId="period_start"
           />
-          <FieldError error={fieldErrors?.get("period_start")} id="period_start-error" />
+          <FieldError error={fieldErrors?.get("period_start")} id="dday-date-input-error" />
           {ddayState.calculated && data.period_start && data.period_end && (
             <div className="flex flex-col gap-1 rounded-lg bg-white p-3">
               <div className="flex flex-col gap-1 text-sm text-gray-600">
@@ -244,14 +244,14 @@ export function PeriodSection({
             }}
             disabled={isDisabled(
               isFieldLocked("period_start") ||
-                isFieldLocked("period_end") ||
-                (isCampMode && !canStudentInputPeriod)
+              isFieldLocked("period_end") ||
+              (isCampMode && !canStudentInputPeriod)
             )}
             min={today}
             error={fieldErrors?.get("period_start")}
             dataFieldId="period_start"
           />
-          <FieldError error={fieldErrors?.get("period_start")} id="period_start-error" />
+          <FieldError error={fieldErrors?.get("period_start")} id="weeks-start-date-input-error" />
 
           {weeksState.startDate && (
             <div className="flex flex-col gap-2">
@@ -354,7 +354,7 @@ export function PeriodSection({
                 error={fieldErrors?.get("period_start")}
                 dataFieldId="period_start"
               />
-              <FieldError error={fieldErrors?.get("period_start")} id="period_start-error" />
+              <FieldError error={fieldErrors?.get("period_start")} id="direct-start-date-input-error" />
             </div>
             <div data-field-id="period_end">
               <DateInput
@@ -380,7 +380,7 @@ export function PeriodSection({
                 error={fieldErrors?.get("period_end")}
                 dataFieldId="period_end"
               />
-              <FieldError error={fieldErrors?.get("period_end")} id="period_end-error" />
+              <FieldError error={fieldErrors?.get("period_end")} id="direct-end-date-input-error" />
             </div>
           </div>
         </div>
