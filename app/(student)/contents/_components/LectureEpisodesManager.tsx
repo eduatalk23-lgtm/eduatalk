@@ -92,8 +92,8 @@ export function LectureEpisodesManager({
   }, [episodes]);
 
   return (
-    <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-gray-900">강의 회차 정보</h4>
         <button
           type="button"
@@ -109,14 +109,14 @@ export function LectureEpisodesManager({
           회차 정보가 없습니다. "+ 회차 추가" 버튼을 클릭하여 추가하세요.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {sortedEpisodes.map((episode, index) => (
             <div
               key={episode.tempId || index}
               className="flex flex-wrap gap-3 rounded-md border border-gray-200 bg-white p-3"
             >
-              <div className="w-24">
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+              <div className="flex w-24 flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-700">
                   회차
                 </label>
                 <input
@@ -134,8 +134,8 @@ export function LectureEpisodesManager({
                 />
               </div>
 
-              <div className="flex-1 min-w-[200px]">
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+              <div className="flex min-w-[200px] flex-1 flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-700">
                   회차 제목
                 </label>
                 <input
@@ -149,8 +149,8 @@ export function LectureEpisodesManager({
                 />
               </div>
 
-              <div className="w-24">
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+              <div className="flex w-24 flex-col gap-1">
+                <label className="block text-xs font-medium text-gray-700">
                   시간(분)
                 </label>
                 <input

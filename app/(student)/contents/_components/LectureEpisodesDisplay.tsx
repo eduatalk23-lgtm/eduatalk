@@ -24,8 +24,8 @@ export function LectureEpisodesDisplay({ episodes }: LectureEpisodesDisplayProps
   }
 
   return (
-    <div className="mt-8 border-t pt-8">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">강의 회차 정보</h3>
+    <div className="flex flex-col gap-4 border-t pt-8">
+      <h3 className="text-lg font-semibold text-gray-900">강의 회차 정보</h3>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>

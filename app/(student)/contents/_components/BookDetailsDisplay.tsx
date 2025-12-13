@@ -70,9 +70,9 @@ export function BookDetailsDisplay({ details }: BookDetailsDisplayProps) {
   }
 
   return (
-    <div className="mt-8 border-t pt-8">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">교재 목차</h3>
-      <div className="space-y-2">
+    <div className="flex flex-col gap-4 border-t pt-8">
+      <h3 className="text-lg font-semibold text-gray-900">교재 목차</h3>
+      <div className="flex flex-col gap-2">
         {groupedDetails.map((group) => {
           const isExpanded = expandedGroups.has(group.majorUnit);
           const hasMinorUnits = group.items.some((item) => item.minor_unit);

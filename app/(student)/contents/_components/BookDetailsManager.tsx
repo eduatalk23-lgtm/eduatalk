@@ -175,8 +175,8 @@ export function BookDetailsManager({
   };
 
   return (
-    <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-gray-900">교재 목차</h4>
         <button
           type="button"
@@ -192,7 +192,7 @@ export function BookDetailsManager({
           목차가 없습니다. "+ 대단원 추가" 버튼을 클릭하여 추가하세요.
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {groupedDetails.map((group) => {
             const isExpanded = expandedGroups.has(group.majorUnit);
             const hasMinorUnits = group.items.some((item) => item.minor_unit);

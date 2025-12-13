@@ -14,7 +14,7 @@ export function SelectionToolbar({
   isPending,
 }: SelectionToolbarProps) {
   return (
-    <div className="mb-4 flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+    <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold text-indigo-900">
           {count}개 선택됨

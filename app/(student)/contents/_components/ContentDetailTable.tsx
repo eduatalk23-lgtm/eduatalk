@@ -12,7 +12,7 @@ type ContentDetailTableProps = {
 
 export function ContentDetailTable({ rows }: ContentDetailTableProps) {
   return (
-    <div className="mt-8 grid gap-6 sm:grid-cols-2">
+    <div className="grid gap-6 sm:grid-cols-2">
       {rows.map((row) => (
         <DetailRow key={row.label} label={row.label} value={row.value} isUrl={row.isUrl} />
       ))}
@@ -39,19 +39,19 @@ function DetailRow({
   const isUrlValue = isUrl || (typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://")));
   
   return (
-    <div>
+    <div className="flex flex-col gap-1">
       <p className="text-sm font-medium text-gray-500">{label}</p>
       {isUrlValue ? (
         <a
           href={String(value)}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 text-base text-indigo-600 hover:text-indigo-800 hover:underline break-all"
+          className="text-base text-indigo-600 hover:text-indigo-800 hover:underline break-all"
         >
           {String(value)}
         </a>
       ) : (
-        <p className="mt-1 text-base text-gray-900">{String(value)}</p>
+        <p className="text-base text-gray-900">{String(value)}</p>
       )}
     </div>
   );

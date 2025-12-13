@@ -17,9 +17,9 @@ export function ContentHeader({
   coverImageUrl,
 }: ContentHeaderProps) {
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {coverImageUrl && (
-        <div className="mb-6 flex justify-center">
+        <div className="flex justify-center">
           <div className="relative h-48 w-32 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 sm:h-64 sm:w-40">
             <Image
               src={coverImageUrl}
@@ -31,18 +31,20 @@ export function ContentHeader({
           </div>
         </div>
       )}
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-        {icon}
-      </p>
-      <h1 className="mt-2 text-3xl font-semibold text-gray-900">{title}</h1>
-      {(subtitle || createdAt) && (
-        <p className="mt-1 text-sm text-gray-500">
-          {subtitle && `${subtitle}`}
-          {subtitle && createdAt && " • "}
-          {createdAt && `등록일 ${formatDate(createdAt)}`}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          {icon}
         </p>
-      )}
-    </>
+        <h1 className="text-3xl font-semibold text-gray-900">{title}</h1>
+        {(subtitle || createdAt) && (
+          <p className="text-sm text-gray-500">
+            {subtitle && `${subtitle}`}
+            {subtitle && createdAt && " • "}
+            {createdAt && `등록일 ${formatDate(createdAt)}`}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
