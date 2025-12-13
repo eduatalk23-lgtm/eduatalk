@@ -76,10 +76,10 @@ export default async function WeeklyReportPage() {
     return (
       <section className={getContainerClass("DASHBOARD", "lg")}>
         {/* 헤더 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
             <h1 className="text-3xl font-semibold text-gray-900">주간 학습 리포트</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               {formatWeekRangeKorean(weekStart, weekEnd)}
             </p>
           </div>
@@ -119,7 +119,7 @@ export default async function WeeklyReportPage() {
             )}
 
             {/* 그래프 섹션 */}
-            <div className="mb-8">
+            <div>
               <WeeklyChartsSection
                 studyTimeByDay={studyTimeSummary.byDay}
                 studyTimeBySubject={studyTimeSummary.bySubject}
@@ -129,20 +129,20 @@ export default async function WeeklyReportPage() {
 
             {/* 목표 진행률 */}
             {goalProgress.goals.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <GoalProgressSection goals={goalProgress.goals} />
               </div>
             )}
 
             {/* 취약과목 */}
             {weakSubjects.subjects.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <WeakSubjectsSection subjects={weakSubjects.subjects} />
               </div>
             )}
 
             {/* 일별 상세 분석 */}
-            <div className="mb-8">
+            <div>
               <DailyBreakdownSection breakdown={dailyBreakdown} />
             </div>
           </>
@@ -153,9 +153,9 @@ export default async function WeeklyReportPage() {
     console.error("[report/weekly] 페이지 로드 실패", error);
     return (
       <section className={getContainerClass("DASHBOARD", "lg")}>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-          <h2 className="text-lg font-semibold text-red-900 mb-2">오류가 발생했습니다</h2>
-          <p className="text-sm text-red-700 mb-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-red-200 bg-red-50 p-6">
+          <h2 className="text-lg font-semibold text-red-900">오류가 발생했습니다</h2>
+          <p className="text-sm text-red-700">
             데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
           </p>
           <Link

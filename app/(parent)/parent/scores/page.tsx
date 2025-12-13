@@ -177,33 +177,33 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
 
           {/* 모의고사 분석 */}
           {dashboardData.mockAnalysis.recentExam !== null && (
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">모의고사 분석</h2>
+            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900">모의고사 분석</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {dashboardData.mockAnalysis.recentExam && (
-                  <div className="rounded-lg bg-purple-50 p-4">
+                  <div className="flex flex-col gap-1 rounded-lg bg-purple-50 p-4">
                     <div className="text-sm text-purple-600">최근 시험</div>
-                    <div className="mt-1 text-lg font-bold text-purple-700">
+                    <div className="text-lg font-bold text-purple-700">
                       {dashboardData.mockAnalysis.recentExam.examTitle}
                     </div>
-                    <div className="mt-1 text-xs text-purple-500">
+                    <div className="text-xs text-purple-500">
                       {new Date(dashboardData.mockAnalysis.recentExam.examDate).toLocaleDateString("ko-KR")}
                     </div>
                   </div>
                 )}
                 {dashboardData.mockAnalysis.avgPercentile !== null && (
-                  <div className="rounded-lg bg-indigo-50 p-4">
+                  <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 p-4">
                     <div className="text-sm text-indigo-600">평균 백분위</div>
-                    <div className="mt-1 text-2xl font-bold text-indigo-700">
+                    <div className="text-2xl font-bold text-indigo-700">
                       {dashboardData.mockAnalysis.avgPercentile.toFixed(1)}%
                     </div>
                   </div>
                 )}
               </div>
               {dashboardData.mockAnalysis.best3GradeSum !== null && (
-                <div className="mt-4 rounded-lg bg-gray-50 p-3">
+                <div className="flex flex-col gap-1 rounded-lg bg-gray-50 p-3">
                   <div className="text-sm text-gray-600">상위 3개 등급 합</div>
-                  <div className="mt-1 text-xl font-bold text-gray-900">
+                  <div className="text-xl font-bold text-gray-900">
                     {dashboardData.mockAnalysis.best3GradeSum}
                   </div>
                 </div>

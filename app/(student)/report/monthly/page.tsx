@@ -59,10 +59,10 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
     return (
       <section className={getContainerClass("DASHBOARD", "lg")}>
         {/* 헤더 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
             <h1 className="text-3xl font-semibold text-gray-900">월간 학습 리포트</h1>
-            <p className="mt-1 text-sm text-gray-500">{reportData.period.monthLabel}</p>
+            <p className="text-sm text-gray-500">{reportData.period.monthLabel}</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -75,7 +75,7 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
         </div>
 
         {/* 월 네비게이션 */}
-        <div className="mb-6">
+        <div>
           <MonthNavigation currentMonth={monthDate} />
         </div>
 
@@ -101,13 +101,13 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
             />
 
             {/* 그래프 섹션 */}
-            <div className="mb-8">
+            <div>
               <MonthlyCharts reportData={reportData} />
             </div>
 
             {/* 과목 분석 */}
             {(reportData.subjects.strong.length > 0 || reportData.subjects.weak.length > 0) && (
-              <div className="mb-8">
+              <div>
                 <SubjectAnalysisSection
                   strongSubjects={reportData.subjects.strong}
                   weakSubjects={reportData.subjects.weak}
@@ -117,21 +117,21 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
 
             {/* 목표 진행률 */}
             {reportData.goals.goals.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <GoalProgressSection goals={reportData.goals.goals} />
               </div>
             )}
 
             {/* 콘텐츠 진행률 */}
             {reportData.content.progressList.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <ContentProgressSection progressList={reportData.content.progressList} />
               </div>
             )}
 
             {/* 히스토리 */}
             {reportData.history.events.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <MonthlyHistorySection events={reportData.history.events} />
               </div>
             )}
@@ -143,9 +143,9 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
     console.error("[report/monthly] 페이지 로드 실패", error);
     return (
       <section className={getContainerClass("DASHBOARD", "lg")}>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-          <h2 className="text-lg font-semibold text-red-900 mb-2">오류가 발생했습니다</h2>
-          <p className="text-sm text-red-700 mb-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-red-200 bg-red-50 p-6">
+          <h2 className="text-lg font-semibold text-red-900">오류가 발생했습니다</h2>
+          <p className="text-sm text-red-700">
             데이터를 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
           </p>
           <Link

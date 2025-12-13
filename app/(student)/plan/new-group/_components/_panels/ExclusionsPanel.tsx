@@ -351,9 +351,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
       {/* 제외일 추가 폼 */}
       {editable && (!campMode || canStudentInputExclusions) && (
-        <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
           {/* 입력 유형 선택 */}
-          <div className="mb-4 flex gap-2">
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={() => {
@@ -655,7 +655,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         </span>
                       )}
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
                     <span>{exclusion.exclusion_type}</span>
                     {exclusion.reason && <span>· {exclusion.reason}</span>}
                     {exclusion.source === "template" && (
@@ -679,9 +679,9 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                   </div>
                   {exclusion.exclusion_type === "휴일지정" &&
                     data.scheduler_type === "1730_timetable" && (
-                      <div className="mt-2 rounded border border-yellow-200 bg-white p-2 text-xs text-yellow-800">
+                      <div className="flex flex-col gap-1 rounded border border-yellow-200 bg-white p-2 text-xs text-yellow-800">
                         <div className="font-medium">지정휴일 안내</div>
-                        <div className="mt-1 text-yellow-700">
+                        <div className="text-yellow-700">
                           학습 분량은 배정되지 않지만, 자율 학습은 가능합니다.
                         </div>
                       </div>
@@ -695,7 +695,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                     (campMode &&
                       (exclusion.is_locked || exclusion.source === "template"))
                   }
-                  className={`ml-4 text-sm ${
+                  className={`text-sm ${
                     !editable ||
                     (campMode &&
                       (exclusion.is_locked || exclusion.source === "template"))
