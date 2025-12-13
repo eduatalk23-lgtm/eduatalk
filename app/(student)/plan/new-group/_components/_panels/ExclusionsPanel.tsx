@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementExclusionsAction } from "@/app/(student)/actions/planGroupActions";
 import { ExclusionImportModal } from "./_modals/ExclusionImportModal";
 import { formatDateFromDate, parseDateString } from "@/lib/utils/date";
+import { DateInput } from "../_shared/DateInput";
 
 type ExclusionsPanelProps = {
   data: WizardData;
@@ -403,61 +404,49 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
           {/* 날짜 입력 */}
           {exclusionInputType === "single" && (
-            <div className="flex flex-col gap-1">
-              <label className="block text-xs font-medium text-gray-800">
-                날짜
-              </label>
-              <input
-                type="date"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
-                value={newExclusionDate}
-                onChange={(e) => {
+            <DateInput
+              id="exclusion-single-date-input"
+              label="날짜"
+              labelClassName="text-xs"
+              value={newExclusionDate}
+              onChange={(value) => {
+                if (!editable) return;
+                setNewExclusionDate(value);
+              }}
+              disabled={!editable}
+              min={periodStart}
+              max={periodEnd}
+            />
+          )}
+
+          {exclusionInputType === "range" && (
+            <div className="grid grid-cols-2 gap-3">
+              <DateInput
+                id="exclusion-range-start-date-input"
+                label="시작일"
+                labelClassName="text-xs"
+                value={newExclusionStartDate}
+                onChange={(value) => {
                   if (!editable) return;
-                  setNewExclusionDate(e.target.value);
+                  setNewExclusionStartDate(value);
                 }}
                 disabled={!editable}
                 min={periodStart}
                 max={periodEnd}
               />
-            </div>
-          )}
-
-          {exclusionInputType === "range" && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="block text-xs font-medium text-gray-800">
-                  시작일
-                </label>
-                <input
-                  type="date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
-                  value={newExclusionStartDate}
-                  onChange={(e) => {
-                    if (!editable) return;
-                    setNewExclusionStartDate(e.target.value);
-                  }}
-                  disabled={!editable}
-                  min={periodStart}
-                  max={periodEnd}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="block text-xs font-medium text-gray-800">
-                  종료일
-                </label>
-                <input
-                  type="date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:opacity-60"
-                  value={newExclusionEndDate}
-                  onChange={(e) => {
-                    if (!editable) return;
-                    setNewExclusionEndDate(e.target.value);
-                  }}
-                  disabled={!editable}
-                  min={periodStart}
-                  max={periodEnd}
-                />
-              </div>
+              <DateInput
+                id="exclusion-range-end-date-input"
+                label="종료일"
+                labelClassName="text-xs"
+                value={newExclusionEndDate}
+                onChange={(value) => {
+                  if (!editable) return;
+                  setNewExclusionEndDate(value);
+                }}
+                disabled={!editable}
+                min={periodStart}
+                max={periodEnd}
+              />
             </div>
           )}
 

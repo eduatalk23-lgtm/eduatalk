@@ -14,8 +14,21 @@ type DateInputProps = {
   className?: string;
   labelClassName?: string;
   required?: boolean;
-  placeholder?: string;
+  ariaLabel?: string;
+  ariaDescribedBy?: string;
 };
+
+/**
+ * showPicker 메서드가 있는지 확인하는 타입 가드 함수
+ */
+function hasShowPicker(
+  input: HTMLInputElement
+): input is HTMLInputElement & { showPicker: () => void } {
+  return (
+    input.type === "date" &&
+    typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === "function"
+  );
+}
 
 /**
  * 날짜 입력 필드 컴포넌트
@@ -32,42 +45,56 @@ export function DateInput({
   className,
   labelClassName,
   required = false,
-  placeholder,
+  ariaLabel,
+  ariaDescribedBy,
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleWrapperClick = () => {
+  /**
+   * 달력 열기 함수 (공통 로직)
+   * setTimeout을 사용하여 포커스 후 showPicker 호출 타이밍 문제 해결
+   */
+  const openDatePicker = () => {
     if (disabled || !inputRef.current) return;
-    
+
+    const input = inputRef.current;
+
     // input을 포커스
-    inputRef.current.focus();
-    
-    // 최신 브라우저에서 showPicker() 메서드 지원 (Chrome 99+, Edge 99+)
-    if (
-      typeof inputRef.current.showPicker === "function" &&
-      document.activeElement === inputRef.current
-    ) {
-      try {
-        inputRef.current.showPicker();
-      } catch (error) {
-        // showPicker가 실패하면 기본 동작(포커스)만 수행
-        console.debug("[DateInput] showPicker not supported or failed:", error);
+    input.focus();
+
+    // showPicker() 호출 (타이밍 문제 해결을 위해 setTimeout 사용)
+    setTimeout(() => {
+      if (input === document.activeElement && hasShowPicker(input)) {
+        try {
+          input.showPicker();
+        } catch (error) {
+          // showPicker가 실패하면 기본 동작(포커스)만 수행
+          if (process.env.NODE_ENV === "development") {
+            console.debug("[DateInput] showPicker not supported or failed:", error);
+          }
+        }
       }
-    }
+    }, 0);
+  };
+
+  const handleWrapperClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    e.stopPropagation();
+    openDatePicker();
   };
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     if (disabled) return;
-    
-    // input 자체를 클릭한 경우에도 showPicker 호출
-    const target = e.currentTarget;
-    if (typeof target.showPicker === "function") {
-      try {
-        target.showPicker();
-      } catch (error) {
-        // showPicker가 실패하면 기본 동작 수행
-        console.debug("[DateInput] showPicker not supported or failed:", error);
-      }
+    e.stopPropagation();
+    openDatePicker();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+    // Enter 키로 달력 열기
+    if (e.key === "Enter" && e.currentTarget === document.activeElement) {
+      e.preventDefault();
+      openDatePicker();
     }
   };
 
@@ -98,10 +125,13 @@ export function DateInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onClick={handleInputClick}
+          onKeyDown={handleKeyDown}
           disabled={disabled}
           min={min}
           max={max}
-          placeholder={placeholder}
+          aria-label={ariaLabel || label}
+          aria-describedby={ariaDescribedBy}
+          aria-required={required}
           className={cn(
             "w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900",
             "focus:border-gray-900 focus:outline-none",
