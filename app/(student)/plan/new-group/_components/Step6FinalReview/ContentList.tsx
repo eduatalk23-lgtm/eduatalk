@@ -154,7 +154,7 @@ export function ContentList({
                         recommendedRanges.get(contentKey);
 
                       return (
-                        <div className="space-y-3">
+                        <div className="flex flex-col gap-3">
                           {recommendedRange && (
                             <div className="rounded-lg border border-blue-200 bg-blue-50 p-2">
                               <div className="flex items-center justify-between">
