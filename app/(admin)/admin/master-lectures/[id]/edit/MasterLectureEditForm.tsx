@@ -46,8 +46,8 @@ export function MasterLectureEditForm({
     >
       <div className="grid gap-4 md:grid-cols-2">
         {/* 강의명 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             강의명 <span className="text-red-500">*</span>
           </label>
           <input
@@ -59,8 +59,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 개정교육과정 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
           <select
@@ -78,8 +78,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 교과 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과
           </label>
           <select
@@ -97,8 +97,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 과목 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목
           </label>
           <input
@@ -109,8 +109,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 플랫폼 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             플랫폼
           </label>
           <input
@@ -121,8 +121,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 총 회차 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 회차 <span className="text-red-500">*</span>
           </label>
           <input
@@ -136,8 +136,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 총 강의시간 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 강의시간 (분)
           </label>
           <input
@@ -150,8 +150,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 난이도 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             난이도
           </label>
           <select
@@ -167,8 +167,8 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 연결된 교재 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             연결된 교재 (선택사항)
           </label>
           <select
@@ -183,15 +183,15 @@ export function MasterLectureEditForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-gray-700">
+          <p className="text-xs text-gray-700">
             이 강의가 특정 교재를 기반으로 하는 경우 교재를 연결할 수
             있습니다.
           </p>
         </div>
 
         {/* 메모 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
           <textarea

@@ -111,8 +111,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
       <div className="grid gap-4 md:grid-cols-2">
         {/* 교재명 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             교재명 <span className="text-red-500">*</span>
           </label>
           <input
@@ -124,8 +124,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 개정교육과정 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
           <select
@@ -146,8 +146,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 교과 그룹 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과 그룹
           </label>
           <select
@@ -170,15 +170,15 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
             ))}
           </select>
           {!selectedRevisionId && (
-            <p className="mt-1 text-xs text-gray-700">
+            <p className="text-xs text-gray-700">
               개정교육과정을 먼저 선택하세요
             </p>
           )}
         </div>
 
         {/* 과목 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목
           </label>
           <select
@@ -196,7 +196,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           </select>
           {/* subject_id를 hidden input으로 전송 */}
           <input type="hidden" name="subject_id" value={selectedSubjectId} />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             {!selectedRevisionId
               ? "개정교육과정과 교과 그룹을 먼저 선택하세요"
               : !selectedGroupId
@@ -206,8 +206,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 출판사 선택 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             출판사
           </label>
           <select
@@ -235,8 +235,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         <input type="hidden" name="publisher_name" />
 
         {/* 저자 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             저자
           </label>
           <input
@@ -247,8 +247,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 학교 유형 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             학교 유형
           </label>
           <select
@@ -263,8 +263,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 최소 학년 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             최소 학년
           </label>
           <select
@@ -279,8 +279,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 최대 학년 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             최대 학년
           </label>
           <select
@@ -295,8 +295,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 총 페이지 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 페이지
           </label>
           <input
@@ -309,8 +309,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 난이도 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             난이도
           </label>
           <select
@@ -325,8 +325,8 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </div>
 
         {/* 대상 시험 유형 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             대상 시험 유형
           </label>
           <div className="flex flex-wrap gap-3">
@@ -367,14 +367,14 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
               <span className="text-sm">특목고입시</span>
             </label>
           </div>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             해당하는 시험 유형을 모두 선택하세요
           </p>
         </div>
 
         {/* 태그 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             태그
           </label>
           <input
@@ -382,14 +382,14 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
             placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="text-xs text-gray-500">
             쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다
           </p>
         </div>
 
         {/* 메모 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
           <textarea
