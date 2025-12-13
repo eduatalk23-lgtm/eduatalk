@@ -220,7 +220,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
             >
               <div
                 className={cn(
-                  "text-gray-400 transition",
+                  "text-gray-400 transition self-start",
                   isDragging ? "cursor-grabbing" : "cursor-grab"
                 )}
               >
