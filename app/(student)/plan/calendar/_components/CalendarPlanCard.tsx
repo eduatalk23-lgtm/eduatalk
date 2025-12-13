@@ -179,7 +179,7 @@ export function CalendarPlanCard({
               ) : (
                 <>🎧 {plan.planned_start_page_or_time}강</>
               )}
-              {plan.chapter && <span className="ml-1">({plan.chapter})</span>}
+              {plan.chapter && <span className="pl-1">({plan.chapter})</span>}
             </div>
           )}
         </div>

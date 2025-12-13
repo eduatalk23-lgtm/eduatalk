@@ -160,7 +160,7 @@ export function PlanCalendarView({
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <CalendarIcon className="mr-1.5 inline h-4 w-4" />
+                <CalendarIcon className="inline h-4 w-4" />
                 월별
               </button>
               <button

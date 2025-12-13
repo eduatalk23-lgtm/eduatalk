@@ -50,26 +50,26 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+        <div className="flex flex-col gap-4 rounded-lg border border-red-200 bg-red-50 p-6">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+            <div className="flex flex-1 flex-col gap-1">
               <h3 className="text-sm font-semibold text-red-800">오류가 발생했습니다</h3>
-              <p className="mt-1 text-sm text-red-700">
+              <p className="text-sm text-red-700">
                 페이지를 불러오는 중 문제가 발생했습니다. 페이지를 새로고침하거나 다시 시도해주세요.
               </p>
               {process.env.NODE_ENV === "development" && this.state.error && (
-                <details className="mt-3">
+                <details className="flex flex-col gap-2">
                   <summary className="cursor-pointer text-xs text-red-600 hover:text-red-800">
                     개발자 정보 (개발 모드에서만 표시)
                   </summary>
-                  <pre className="mt-2 overflow-auto rounded bg-red-100 p-2 text-xs text-red-900">
+                  <pre className="overflow-auto rounded bg-red-100 p-2 text-xs text-red-900">
                     {this.state.error.toString()}
                     {this.state.error.stack && `\n\n${this.state.error.stack}`}
                   </pre>
                 </details>
               )}
-              <div className="mt-4 flex gap-2">
+              <div className="flex gap-2">
                 <button
                   onClick={this.handleReset}
                   className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
