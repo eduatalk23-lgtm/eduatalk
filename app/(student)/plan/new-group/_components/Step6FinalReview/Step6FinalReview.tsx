@@ -291,7 +291,7 @@ export function Step6FinalReview({
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
           <p className="text-sm text-gray-600">콘텐츠 정보를 불러오는 중...</p>
         </div>
@@ -300,12 +300,12 @@ export function Step6FinalReview({
   }
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold text-gray-900">
           최종 확인 및 조정
         </h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           선택한 콘텐츠와 학습 범위를 확인하고 필요시 조정해주세요.
         </p>
       </div>
@@ -314,23 +314,29 @@ export function Step6FinalReview({
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="text-sm font-medium text-gray-800">전체 콘텐츠</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">
-              {totalCount}개
+            <div className="flex flex-col gap-1">
+              <div className="text-sm font-medium text-gray-800">전체 콘텐츠</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {totalCount}개
+              </div>
             </div>
           </div>
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <div className="text-sm font-medium text-blue-800">학생 콘텐츠</div>
-            <div className="mt-1 text-2xl font-bold text-blue-800">
-              {studentCount}개
+            <div className="flex flex-col gap-1">
+              <div className="text-sm font-medium text-blue-800">학생 콘텐츠</div>
+              <div className="text-2xl font-bold text-blue-800">
+                {studentCount}개
+              </div>
             </div>
           </div>
           <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <div className="text-sm font-medium text-green-700">
-              추천 콘텐츠
-            </div>
-            <div className="mt-1 text-2xl font-bold text-green-900">
-              {recommendedCount}개
+            <div className="flex flex-col gap-1">
+              <div className="text-sm font-medium text-green-700">
+                추천 콘텐츠
+              </div>
+              <div className="text-2xl font-bold text-green-900">
+                {recommendedCount}개
+              </div>
             </div>
           </div>
         </div>
@@ -339,19 +345,21 @@ export function Step6FinalReview({
       {/* 학습량 비교 요약 */}
       {scheduleSummaryState && scheduleSummaryState.type === "loading" && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-semibold text-gray-900">
-            📊 전체 학습량 비교
-          </h3>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-800">
-                  {scheduleSummaryState.loadingContentTotals
-                    ? "콘텐츠 정보를 불러오는 중..."
-                    : "추천 범위를 계산하는 중..."}
-                </p>
-                <p className="text-xs text-gray-600">잠시만 기다려주세요</p>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              📊 전체 학습량 비교
+            </h3>
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+              <div className="flex flex-col items-center justify-center gap-3">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium text-gray-800">
+                    {scheduleSummaryState.loadingContentTotals
+                      ? "콘텐츠 정보를 불러오는 중..."
+                      : "추천 범위를 계산하는 중..."}
+                  </p>
+                  <p className="text-xs text-gray-600">잠시만 기다려주세요</p>
+                </div>
               </div>
             </div>
           </div>
@@ -362,16 +370,18 @@ export function Step6FinalReview({
         scheduleSummaryState.type === "ready" &&
         learningVolumeSummary && (
           <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">
-              📊 전체 학습량 비교
-            </h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {/* 현재 범위 */}
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <div className="text-xs font-medium text-blue-800">
-                  현재 지정 범위
-                </div>
-                <div className="mt-1 text-lg font-bold text-blue-800">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                📊 전체 학습량 비교
+              </h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {/* 현재 범위 */}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="flex flex-col gap-1">
+                    <div className="text-xs font-medium text-blue-800">
+                      현재 지정 범위
+                    </div>
+                    <div className="text-lg font-bold text-blue-800">
                   {learningVolumeSummary.currentTotalPages > 0 && (
                     <span className="block">
                       📄 {learningVolumeSummary.currentTotalPages}페이지
@@ -386,18 +396,20 @@ export function Step6FinalReview({
                     learningVolumeSummary.currentTotalEpisodes === 0 && (
                       <span className="text-sm text-gray-600">없음</span>
                     )}
-                </div>
-                <div className="mt-1 text-xs text-blue-600">
-                  예상 소요: 약 {learningVolumeSummary.currentEstimatedDays}일
+                  </div>
+                  <div className="text-xs text-blue-600">
+                    예상 소요: 약 {learningVolumeSummary.currentEstimatedDays}일
+                  </div>
                 </div>
               </div>
 
               {/* 추천 범위 */}
               <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                <div className="text-xs font-medium text-green-700">
-                  추천 범위
-                </div>
-                <div className="mt-1 text-lg font-bold text-green-900">
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs font-medium text-green-700">
+                    추천 범위
+                  </div>
+                  <div className="text-lg font-bold text-green-900">
                   {learningVolumeSummary.recommendedTotalPages > 0 && (
                     <span className="block">
                       📄 {learningVolumeSummary.recommendedTotalPages}페이지
@@ -412,17 +424,19 @@ export function Step6FinalReview({
                     learningVolumeSummary.recommendedTotalEpisodes === 0 && (
                       <span className="text-sm text-gray-600">없음</span>
                     )}
-                </div>
-                <div className="mt-1 text-xs text-green-600">
-                  예상 소요: 약 {learningVolumeSummary.recommendedEstimatedDays}
-                  일 (스케줄에 맞춤)
+                  </div>
+                  <div className="text-xs text-green-600">
+                    예상 소요: 약 {learningVolumeSummary.recommendedEstimatedDays}
+                    일 (스케줄에 맞춤)
+                  </div>
                 </div>
               </div>
 
               {/* 차이 */}
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <div className="text-xs font-medium text-amber-700">차이</div>
-                <div className="mt-1 text-lg font-bold text-amber-900">
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs font-medium text-amber-700">차이</div>
+                  <div className="text-lg font-bold text-amber-900">
                   {learningVolumeSummary.hasDifference ? (
                     <>
                       {learningVolumeSummary.currentTotalPages -
@@ -475,11 +489,11 @@ export function Step6FinalReview({
 
       {/* 과목별 그룹화된 학습 범위 요약 */}
       {sortedSubjects.length > 0 && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <h3 className="text-lg font-semibold text-gray-900">
             과목별 학습 범위
           </h3>
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {sortedSubjects.map((subject) => {
               const contents = contentsBySubject.get(subject) || [];
               const isRequired = requiredSubjects.includes(subject);
@@ -490,7 +504,8 @@ export function Step6FinalReview({
                   key={subject}
                   className="rounded-lg border border-gray-200 bg-white p-4"
                 >
-                  <div className="mb-3 flex items-center gap-2">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
                     <h4 className="text-sm font-semibold text-gray-900">
                       {subject}
                     </h4>
@@ -502,21 +517,22 @@ export function Step6FinalReview({
                     {isRequired && !hasRequired && (
                       <span className="text-xs text-red-600">(미선택)</span>
                     )}
-                    <span className="ml-auto text-xs text-gray-600">
-                      {contents.length}개
-                    </span>
-                  </div>
-                  <div className="space-y-2">
+                      <span className="ml-auto text-xs text-gray-600">
+                        {contents.length}개
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
                     {contents.map((content, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
                       >
                         <div className="flex-1">
-                          <div className="text-xs font-medium text-gray-900">
-                            {content.title}
-                          </div>
-                          <div className="mt-1 text-xs text-gray-600">
+                          <div className="flex flex-col gap-1">
+                            <div className="text-xs font-medium text-gray-900">
+                              {content.title}
+                            </div>
+                            <div className="text-xs text-gray-600">
                             {content.content_type === "book" && "📚"}
                             {content.content_type === "lecture" && "🎧"}
                             <span className="ml-1">

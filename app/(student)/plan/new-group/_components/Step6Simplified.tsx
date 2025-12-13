@@ -365,7 +365,7 @@ function SubjectAllocationEditor({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {subjects.map((subject) => {
         const contents = contentsBySubject.get(subject) || [];
         const allocationMode = getSubjectAllocationMode(subject);
@@ -383,8 +383,9 @@ function SubjectAllocationEditor({
             key={subject}
             className="rounded-lg border border-gray-200 bg-white p-4"
           >
-            {/* 교과 헤더 */}
-            <div className="mb-4 flex items-center justify-between">
+            <div className="flex flex-col gap-4">
+              {/* 교과 헤더 */}
+              <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h3 className="text-sm font-semibold text-gray-900">{subject}</h3>
                 <span className="text-xs text-gray-600">
@@ -423,11 +424,12 @@ function SubjectAllocationEditor({
 
             {/* 교과 단위 설정 UI */}
             {isSubjectMode && (
-              <div className="mb-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-600">
-                    과목 유형
-                  </label>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-xs font-medium text-gray-600">
+                      과목 유형
+                    </label>
                   <div className="flex gap-3">
                     <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-gray-100">
                       <input
@@ -488,8 +490,8 @@ function SubjectAllocationEditor({
                 </div>
 
                 {subjectType === "strategy" && (
-                  <div>
-                    <label className="mb-2 block text-xs font-medium text-gray-600">
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-xs font-medium text-gray-600">
                       주당 배정 일수
                     </label>
                     <select
@@ -509,16 +511,17 @@ function SubjectAllocationEditor({
                       <option value="3">주 3일</option>
                       <option value="4">주 4일</option>
                     </select>
-                    <p className="mt-1 text-xs text-gray-600">
+                    <p className="text-xs text-gray-600">
                       선택한 주당 일수에 따라 학습일에 균등하게 배정됩니다.
                     </p>
                   </div>
                 )}
+                </div>
               </div>
             )}
 
             {/* 콘텐츠 목록 */}
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {contents.map((content) => {
                 const effectiveAlloc = getEffectiveAllocation(content);
                 const contentSubjectType = effectiveAlloc.subject_type;
@@ -533,29 +536,32 @@ function SubjectAllocationEditor({
                       isSubjectMode ? "bg-gray-50 opacity-75" : "bg-gray-50"
                     }`}
                   >
-                    <div className="mb-2 flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-900">
-                          {content.content_type === "book" ? "📚" : "🎧"}{" "}
-                          {content.title}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex flex-col gap-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {content.content_type === "book" ? "📚" : "🎧"}{" "}
+                              {content.title}
+                            </div>
+                            {isSubjectMode && (
+                              <div className="text-xs text-gray-600">
+                                교과 단위 설정 적용 중
+                              </div>
+                            )}
+                            {!isSubjectMode && source !== "content" && (
+                              <div className="text-xs text-gray-600">
+                                {source === "subject" && "교과별 설정 적용 중"}
+                                {source === "default" && "기본값 (취약과목)"}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {isSubjectMode && (
-                          <div className="mt-1 text-xs text-gray-600">
-                            교과 단위 설정 적용 중
-                          </div>
-                        )}
-                        {!isSubjectMode && source !== "content" && (
-                          <div className="mt-1 text-xs text-gray-600">
-                            {source === "subject" && "교과별 설정 적용 중"}
-                            {source === "default" && "기본값 (취약과목)"}
-                          </div>
-                        )}
                       </div>
-                    </div>
 
-                    {/* 콘텐츠별 설정 UI (교과 단위 모드일 때는 비활성화) */}
-                    {!isSubjectMode && (
-                      <div className="space-y-2">
+                      {/* 콘텐츠별 설정 UI (교과 단위 모드일 때는 비활성화) */}
+                      {!isSubjectMode && (
+                        <div className="flex flex-col gap-2">
                         <div className="flex gap-2">
                           <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border p-2 text-xs transition-colors hover:bg-gray-100">
                             <input
@@ -611,11 +617,13 @@ function SubjectAllocationEditor({
                             </select>
                           </div>
                         )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
         );
@@ -623,8 +631,9 @@ function SubjectAllocationEditor({
 
       {/* 설정 요약 */}
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-        <h4 className="mb-2 text-xs font-semibold text-blue-800">설정 요약</h4>
-        <div className="space-y-1 text-xs text-blue-800">
+        <div className="flex flex-col gap-2">
+          <h4 className="text-xs font-semibold text-blue-800">설정 요약</h4>
+          <div className="flex flex-col gap-1 text-xs text-blue-800">
           <p>• 콘텐츠별 설정: {(data.content_allocations || []).length}개</p>
           <p>
             • 교과별 설정 (폴백): {(data.subject_allocations || []).length}개
@@ -651,18 +660,18 @@ export function Step6Simplified({
   isTemplateMode = false,
 }: Step6SimplifiedProps) {
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 헤더 */}
-      <div>
+      <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold text-gray-900">최종 확인</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           플랜을 생성하기 전 마지막으로 확인해주세요. 수정이 필요하면 해당
           단계로 돌아갈 수 있습니다.
         </p>
       </div>
 
       {/* 섹션들 */}
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 1. 기본 정보 */}
         <CollapsibleSection
           title="기본 정보"
@@ -738,17 +747,19 @@ export function Step6Simplified({
             </svg>
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-semibold text-blue-800">
-              플랜 생성 전 확인사항
-            </h4>
-            <ul className="mt-2 space-y-1 text-sm text-blue-800">
+            <div className="flex flex-col gap-2">
+              <h4 className="text-sm font-semibold text-blue-800">
+                플랜 생성 전 확인사항
+              </h4>
+              <ul className="flex flex-col gap-1 text-sm text-blue-800">
               <li>• 모든 정보가 정확한지 확인해주세요</li>
               <li>
                 • 수정이 필요하면 각 섹션의 &quot;돌아가기&quot; 버튼을
                 클릭하세요
               </li>
               <li>• 플랜 생성 후에도 수정할 수 있습니다</li>
-            </ul>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

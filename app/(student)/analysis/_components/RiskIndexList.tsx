@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { getRiskColorHex, getRiskColor } from "@/lib/constants/colors";
 import { cn } from "@/lib/cn";
+import ProgressBar from "@/components/atoms/ProgressBar";
 
 export type SubjectRiskAnalysis = {
   subject: string;
@@ -40,37 +41,39 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* Risk Index 차트 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          과목별 Risk Index
-        </h2>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="name"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              interval={0}
-            />
-            <YAxis domain={[0, 100]} label={{ value: "Risk Index", angle: -90, position: "insideLeft" }} />
-            <Tooltip
-              formatter={(value: number) => [`${value}점`, "Risk Index"]}
-            />
-            <Legend />
-            <Bar dataKey="Risk Index" name="Risk Index">
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={getRiskColorHex(entry["Risk Index"])}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            과목별 Risk Index
+          </h2>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+              />
+              <YAxis domain={[0, 100]} label={{ value: "Risk Index", angle: -90, position: "insideLeft" }} />
+              <Tooltip
+                formatter={(value: number) => [`${value}점`, "Risk Index"]}
+              />
+              <Legend />
+              <Bar dataKey="Risk Index" name="Risk Index">
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={getRiskColorHex(entry["Risk Index"])}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* 취약 과목 리스트 */}
@@ -113,12 +116,12 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
-                      <div
-                        className={cn("h-3 w-16 rounded-full")}
-                        style={{
-                          backgroundColor: getRiskColorHex(analysis.risk_score),
-                        }}
-                      />
+                      {(() => {
+                        const riskColor = getRiskColor(analysis.risk_score);
+                        return (
+                          <div className={cn("h-3 w-16 rounded-full", riskColor.bg)} />
+                        );
+                      })()}
                       <span className="font-semibold">
                         {Math.round(analysis.risk_score)}점
                       </span>
@@ -143,12 +146,11 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-600"
-                          style={{
-                            width: `${analysis.consistency_score}%`,
-                          }}
+                      <div className="w-16">
+                        <ProgressBar
+                          value={analysis.consistency_score}
+                          color="blue"
+                          height="sm"
                         />
                       </div>
                       <span>{Math.round(analysis.consistency_score)}%</span>
@@ -156,12 +158,11 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-green-600"
-                          style={{
-                            width: `${analysis.mastery_estimate}%`,
-                          }}
+                      <div className="w-16">
+                        <ProgressBar
+                          value={analysis.mastery_estimate}
+                          color="green"
+                          height="sm"
                         />
                       </div>
                       <span>{Math.round(analysis.mastery_estimate)}%</span>
@@ -184,10 +185,11 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
 
       {/* Risk Index 설명 */}
       <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-        <h3 className="text-sm font-semibold text-blue-900 mb-2">
-          Risk Index 계산 기준
-        </h3>
-        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-blue-900">
+            Risk Index 계산 기준
+          </h3>
+          <ul className="text-sm text-blue-800 flex flex-col gap-1 list-disc list-inside">
           <li>
             <strong>최근 3회 등급 평균 (40%)</strong>: 최근 3번의 시험 등급 평균
           </li>
@@ -212,7 +214,8 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
           <li>
             <strong>Risk Index 0-29점</strong>: 양호 (현재 수준 유지)
           </li>
-        </ul>
+          </ul>
+        </div>
       </div>
     </div>
   );

@@ -391,12 +391,14 @@ export default function AcademyScheduleManagement({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-        <p className="font-medium">📌 학원 단위로 관리합니다.</p>
-        <p className="mt-1 text-xs text-blue-700">
-          학원을 등록하고, 각 학원에 대해 요일별 일정을 설정할 수 있습니다.
-        </p>
+        <div className="flex flex-col gap-1">
+          <p className="font-medium">📌 학원 단위로 관리합니다.</p>
+          <p className="text-xs text-blue-700">
+            학원을 등록하고, 각 학원에 대해 요일별 일정을 설정할 수 있습니다.
+          </p>
+        </div>
       </div>
 
       {/* 빈 상태 */}
@@ -411,23 +413,25 @@ export default function AcademyScheduleManagement({
       {/* 학원 목록 및 관리 */}
       {(academies.length > 0 || isAddingAcademy || editingAcademyId) && (
         <div className="rounded-lg border border-gray-200 bg-white p-6">
-          {academies.length > 0 && (
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">학원 목록</h3>
-            </div>
-          )}
-
-        {/* 학원 추가/수정 폼 */}
-        {(isAddingAcademy || editingAcademyId) && (
-          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">
-              {editingAcademyId ? "학원 수정" : "학원 추가"}
-            </h4>
-            <div className="mb-3 grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            {academies.length > 0 && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
-                  학원 이름 <span className="text-red-500">*</span>
-                </label>
+                <h3 className="text-lg font-semibold text-gray-900">학원 목록</h3>
+              </div>
+            )}
+
+            {/* 학원 추가/수정 폼 */}
+            {(isAddingAcademy || editingAcademyId) && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    {editingAcademyId ? "학원 수정" : "학원 추가"}
+                  </h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-700">
+                        학원 이름 <span className="text-red-500">*</span>
+                      </label>
                 <input
                   type="text"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
@@ -435,11 +439,11 @@ export default function AcademyScheduleManagement({
                   value={newAcademyName}
                   onChange={(e) => setNewAcademyName(e.target.value)}
                 />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
-                  이동시간 (분) <span className="text-red-500">*</span>
-                </label>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-700">
+                        이동시간 (분) <span className="text-red-500">*</span>
+                      </label>
                 <input
                   type="number"
                   min="0"
@@ -448,9 +452,9 @@ export default function AcademyScheduleManagement({
                   value={newAcademyTravelTime}
                   onChange={(e) => setNewAcademyTravelTime(e.target.value)}
                 />
-              </div>
-            </div>
-            <div className="flex gap-2">
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
               <button
                 type="button"
                 onClick={editingAcademyId ? handleUpdateAcademy : handleAddAcademy}
@@ -472,13 +476,14 @@ export default function AcademyScheduleManagement({
               >
                 취소
               </button>
-            </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* 학원 목록 */}
-        {academies.length > 0 ? (
-          <div className="space-y-2">
+          {/* 학원 목록 */}
+          {academies.length > 0 ? (
+            <div className="flex flex-col gap-2">
             {academies.map((academy) => (
               <div
                 key={academy.id}
@@ -501,7 +506,7 @@ export default function AcademyScheduleManagement({
                       <span className="text-xs text-gray-500">(선택됨)</span>
                     )}
                   </div>
-                  <div className="mt-1 text-xs text-gray-500">
+                  <div className="text-xs text-gray-500">
                     이동시간: {academy.travel_time}분 | 일정: {academy.schedules.length}개
                   </div>
                 </div>
@@ -527,27 +532,28 @@ export default function AcademyScheduleManagement({
                 </div>
               </div>
             ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">등록된 학원이 없습니다. 위에서 학원을 추가해주세요.</p>
-        )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">등록된 학원이 없습니다. 위에서 학원을 추가해주세요.</p>
+          )}
 
-        {!selectedAcademy && academies.length > 0 && (
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 text-center">
-            <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
-          </div>
-        )}
+          {!selectedAcademy && academies.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
+              <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* 선택된 학원의 일정 관리 */}
       {selectedAcademy && (
         <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{selectedAcademy.name}</h3>
-              <p className="mt-1 text-xs text-gray-500">이동시간: {selectedAcademy.travel_time}분</p>
-            </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-lg font-semibold text-gray-900">{selectedAcademy.name}</h3>
+                <p className="text-xs text-gray-500">이동시간: {selectedAcademy.travel_time}분</p>
+              </div>
             {!isAddingSchedule && !editingScheduleId && (
               <button
                 type="button"
@@ -565,19 +571,20 @@ export default function AcademyScheduleManagement({
                 일정 추가
               </button>
             )}
-          </div>
+            </div>
 
-          {/* 일정 추가/수정 폼 */}
-          {(isAddingSchedule || editingScheduleId) && (
-            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <h4 className="mb-3 text-sm font-semibold text-gray-900">
-                {editingScheduleId ? "일정 수정" : "일정 추가"}
-              </h4>
-              <div className="mb-3 space-y-4">
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700">
-                    요일 (다중 선택 가능) <span className="text-red-500">*</span>
-                  </label>
+            {/* 일정 추가/수정 폼 */}
+            {(isAddingSchedule || editingScheduleId) && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    {editingScheduleId ? "일정 수정" : "일정 추가"}
+                  </h4>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="block text-xs font-medium text-gray-700">
+                        요일 (다중 선택 가능) <span className="text-red-500">*</span>
+                      </label>
                   <div className="flex flex-wrap gap-2">
                     {weekdayLabels.map((label, index) => (
                       <button
@@ -593,35 +600,35 @@ export default function AcademyScheduleManagement({
                         {label}
                       </button>
                     ))}
+                    </div>
                   </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">
-                      시작 시간 <span className="text-red-500">*</span>
-                    </label>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-700">
+                        시작 시간 <span className="text-red-500">*</span>
+                      </label>
                     <input
                       type="time"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
                       value={scheduleStartTime}
                       onChange={(e) => setScheduleStartTime(e.target.value)}
                     />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">
-                      종료 시간 <span className="text-red-500">*</span>
-                    </label>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-700">
+                        종료 시간 <span className="text-red-500">*</span>
+                      </label>
                     <input
                       type="time"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
                       value={scheduleEndTime}
                       onChange={(e) => setScheduleEndTime(e.target.value)}
                     />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">
-                      과목 <span className="text-red-500">*</span>
-                    </label>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="block text-xs font-medium text-gray-700">
+                        과목 <span className="text-red-500">*</span>
+                      </label>
                     <input
                       type="text"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
@@ -629,10 +636,10 @@ export default function AcademyScheduleManagement({
                       value={scheduleSubject}
                       onChange={(e) => setScheduleSubject(e.target.value)}
                     />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
+                <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={editingScheduleId ? handleUpdateSchedule : handleAddSchedule}
@@ -673,24 +680,27 @@ export default function AcademyScheduleManagement({
 
           {/* 일정 목록 (요일별 그룹화) */}
           {selectedAcademySchedules.length > 0 ? (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {Object.entries(schedulesByDay).map(([day, daySchedules]) => (
                 <div key={day} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h4 className="mb-2 text-sm font-semibold text-gray-900">
-                    {weekdayLabels[Number(day)]}
-                  </h4>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
+                    <h4 className="text-sm font-semibold text-gray-900">
+                      {weekdayLabels[Number(day)]}
+                    </h4>
+                    <div className="flex flex-col gap-2">
                     {daySchedules.map((schedule) => (
                       <div
                         key={schedule.id}
                         className="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2"
                       >
                         <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {schedule.start_time} ~ {schedule.end_time}
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            {schedule.subject}
+                          <div className="flex flex-col gap-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {schedule.start_time} ~ {schedule.end_time}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {schedule.subject}
+                            </div>
                           </div>
                         </div>
                         <div className="ml-4 flex gap-1">

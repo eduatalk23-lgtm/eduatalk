@@ -537,17 +537,17 @@ const ScheduleItem = memo(
         {/* 확장된 상세 정보 */}
         {isExpanded && (hasDetails || hasExclusion || hasTimeSlots) && (
           <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {/* 시간 타임라인 */}
               {hasTimeSlots && schedule.time_slots && (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-gray-600" />
                     <div className="text-xs font-medium text-gray-600">
                       시간 구성
                     </div>
                   </div>
-                  <div className="ml-6 space-y-1.5">
+                  <div className="ml-6 flex flex-col gap-1.5">
                     <TimeSlotsWithPlans
                       timeSlots={schedule.time_slots}
                       date={schedule.date}
@@ -567,34 +567,36 @@ const ScheduleItem = memo(
                 <div className="flex items-start gap-2">
                   <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-600" />
                   <div className="flex-1">
-                    <div className="text-xs font-medium text-gray-600">
-                      {schedule.exclusion.exclusion_type === "휴가"
-                        ? "휴가"
-                        : schedule.exclusion.exclusion_type === "개인사정"
-                        ? "개인사정"
-                        : schedule.exclusion.exclusion_type === "휴일지정"
-                        ? "지정휴일"
-                        : "제외일"}
-                    </div>
-                    {schedule.exclusion.reason && (
-                      <div className="mt-1 text-xs text-gray-600">
-                        {schedule.exclusion.reason}
+                    <div className="flex flex-col gap-1">
+                      <div className="text-xs font-medium text-gray-600">
+                        {schedule.exclusion.exclusion_type === "휴가"
+                          ? "휴가"
+                          : schedule.exclusion.exclusion_type === "개인사정"
+                          ? "개인사정"
+                          : schedule.exclusion.exclusion_type === "휴일지정"
+                          ? "지정휴일"
+                          : "제외일"}
                       </div>
-                    )}
+                      {schedule.exclusion.reason && (
+                        <div className="text-xs text-gray-600">
+                          {schedule.exclusion.reason}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* 학원일정 정보 */}
               {hasDetails && schedule.academy_schedules && (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-gray-600" />
                     <div className="text-xs font-medium text-gray-600">
                       학원일정 ({schedule.academy_schedules.length}개)
                     </div>
                   </div>
-                  <div className="ml-6 space-y-1.5">
+                  <div className="ml-6 flex flex-col gap-1.5">
                     {schedule.academy_schedules.map((academy, idx) => (
                       <div
                         key={idx}
@@ -1074,7 +1076,7 @@ const TimeSlotsWithPlans = memo(
           );
 
           return (
-            <div key={idx} className="space-y-1.5">
+            <div key={idx} className="flex flex-col gap-1.5">
               <div
                 className={`rounded border px-3 py-2 text-xs ${getSlotColor()}`}
               >
@@ -1118,7 +1120,7 @@ const TimeSlotsWithPlans = memo(
 
                     // 플랜이 일부만 배치되어 남은 영역이 있을 때만 표시
                     return remainingRanges.length > 0 ? (
-                      <div className="ml-4 space-y-1.5">
+                      <div className="ml-4 flex flex-col gap-1.5">
                         {remainingRanges.map((range, rangeIdx) => (
                           <div
                             key={rangeIdx}

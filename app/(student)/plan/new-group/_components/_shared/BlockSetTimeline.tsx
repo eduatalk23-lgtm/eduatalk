@@ -18,7 +18,7 @@ interface BlockSetTimelineProps {
 export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
   if (blocks.length === 0) {
     return (
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-gray-900">
             {name || "블록 세트를 선택해주세요"}
@@ -82,7 +82,7 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900">
           {name || "선택된 블록 세트"}
