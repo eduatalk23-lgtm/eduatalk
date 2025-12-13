@@ -197,21 +197,6 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
           </div>
           </div>
         </div>
-
-        {/* 범례 */}
-        <div className="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-3 text-xs text-gray-600">
-          <span className="font-medium">블록 색상:</span>
-          {Array.from(new Set(blocks.map((b) => b.block_index)))
-            .sort((a, b) => a - b)
-            .map((index) => (
-              <div key={`legend-${index}`} className="flex items-center gap-1">
-                <div
-                  className={`h-3 w-3 rounded ${getBlockColor(index)}`}
-                ></div>
-                <span>블록 {index}</span>
-              </div>
-            ))}
-        </div>
       </div>
     </div>
   );
