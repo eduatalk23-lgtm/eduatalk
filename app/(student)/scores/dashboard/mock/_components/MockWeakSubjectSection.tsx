@@ -198,7 +198,7 @@ export function MockWeakSubjectSection({
                   Risk Score: {item.riskScore}
                 </span>
               </div>
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 {item.reasons.map((reason, idx) => (
                   <p key={idx} className="text-sm">
                     • {reason}
