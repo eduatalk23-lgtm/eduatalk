@@ -332,30 +332,30 @@ export function Step1ContentRecommendation({
 
       {/* 요약 섹션 */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <Users className="h-4 w-4" />
             <span>선택된 학생</span>
           </div>
-          <div className="mt-1 text-2xl font-bold text-gray-900">
+          <div className="text-2xl font-bold text-gray-900">
             {participants.length}
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <BookOpen className="h-4 w-4" />
             <span>전체 콘텐츠</span>
           </div>
-          <div className="mt-1 text-2xl font-bold text-gray-900">
+          <div className="text-2xl font-bold text-gray-900">
             {summary.totalContents}
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-xs text-gray-600">
             <CheckCircle2 className="h-4 w-4" />
             <span>교과별 합계</span>
           </div>
-          <div className="mt-1 space-y-0.5">
+          <div className="flex flex-col gap-0.5">
             {AVAILABLE_SUBJECTS.map((subject) => (
               <div key={subject} className="text-xs font-semibold text-gray-900">
                 <span className="text-gray-600">{subject}:</span>{" "}
@@ -445,8 +445,8 @@ export function Step1ContentRecommendation({
         </div>
 
         {/* 일괄 증가/감소 */}
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-3">
+        <div className="flex flex-col gap-3">
+          <label className="block text-xs font-medium text-gray-700">
             모든 학생 증가/감소
           </label>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

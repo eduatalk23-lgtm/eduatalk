@@ -152,9 +152,9 @@ export function Step4Results({
 
       {/* 통계 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">콘텐츠 추천</div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {contentRecommendation.success ? (
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             ) : (
@@ -165,9 +165,9 @@ export function Step4Results({
             </span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">범위 조절</div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {rangeAdjustment.success ? (
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             ) : (
@@ -178,9 +178,9 @@ export function Step4Results({
             </span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-600">플랜 생성</div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {planGeneration.success ? (
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             ) : (

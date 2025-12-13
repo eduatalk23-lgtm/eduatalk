@@ -360,7 +360,7 @@ export function BulkRecommendContentsModal({
                   ))}
                 </div>
               </div>
-              <div className={`rounded-lg border p-4 ${
+              <div className={`flex flex-col gap-1 rounded-lg border p-4 ${
                 summary.overLimitCount > 0
                   ? "border-red-200 bg-red-50"
                   : "border-gray-200 bg-white"
@@ -371,7 +371,7 @@ export function BulkRecommendContentsModal({
                   }`} />
                   <span>초과 학생</span>
                 </div>
-                <div className={`mt-1 text-2xl font-bold ${
+                <div className={`text-2xl font-bold ${
                   summary.overLimitCount > 0 ? "text-red-600" : "text-gray-900"
                 }`}>
                   {summary.overLimitCount}
@@ -382,12 +382,12 @@ export function BulkRecommendContentsModal({
         })()}
 
         {/* 전체 조율 컨트롤 */}
-        <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">전체 조율</h3>
+        <div className="flex flex-col gap-5 rounded-lg border border-gray-200 bg-gray-50 p-5 md:p-6">
+          <h3 className="text-sm font-semibold text-gray-900">전체 조율</h3>
           
           {/* 일괄 적용 */}
-          <div className="mb-5">
-            <label className="block text-xs font-medium text-gray-700 mb-3">
+          <div className="flex flex-col gap-3">
+            <label className="block text-xs font-medium text-gray-700">
               모든 학생에게 일괄 적용
             </label>
             <div className="flex flex-row flex-wrap gap-2 items-center">
@@ -625,13 +625,13 @@ export function BulkRecommendContentsModal({
                           조율
                         </button>
                         {openPopoverId === p.groupId && (
-                          <div className="absolute right-0 top-full z-10 mt-2 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
-                            <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-2">
+                          <div className="absolute right-0 top-full z-10 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex flex-col gap-2">
+                                <label className="block text-xs font-medium text-gray-700">
                                   선택한 학생에게 일괄 적용
                                 </label>
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-2">
                                   {AVAILABLE_SUBJECTS.map((subject) => {
                                     const current = individualSubjectCounts[subject] || 0;
                                     return (

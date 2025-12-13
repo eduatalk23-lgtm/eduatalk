@@ -207,7 +207,7 @@ export function Step3PlanPreview({
                       {participant.studentName}
                     </div>
                     {result && (
-                      <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
                         {hasError ? (
                           <>
                             <AlertTriangle className="h-4 w-4 text-red-600" />
