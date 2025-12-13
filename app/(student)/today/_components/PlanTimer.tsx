@@ -132,9 +132,9 @@ export function PlanTimer({
         )}
 
         {showCompletionMeta && (
-          <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+          <div className="flex flex-col gap-3 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
             <h4 className="text-sm font-semibold text-indigo-900">학습 완료 기록</h4>
-            <div className="mt-3 grid gap-3 text-sm text-indigo-950 md:grid-cols-3">
+            <div className="grid gap-3 text-sm text-indigo-950 md:grid-cols-3">
               <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
                 <span className="text-xs text-indigo-600">시작 시간</span>
                 <span className="text-sm font-semibold">{formattedStartTime}</span>

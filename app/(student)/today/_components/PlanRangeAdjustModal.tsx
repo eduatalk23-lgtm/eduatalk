@@ -210,7 +210,7 @@ export function PlanRangeAdjustModal({
                     value="bulk"
                     checked={adjustMode === "bulk"}
                     onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
-                    className="mt-1"
+                    className="shrink-0"
                     aria-label="전체 범위 일괄 조정"
                   />
                   <div className="flex flex-col gap-1">
@@ -227,7 +227,7 @@ export function PlanRangeAdjustModal({
                     value="individual"
                     checked={adjustMode === "individual"}
                     onChange={(e) => setAdjustMode(e.target.value as AdjustMode)}
-                    className="mt-1 shrink-0"
+                    className="shrink-0"
                     aria-label="개별 블록 조정"
                   />
                   <div className="flex flex-col gap-1">

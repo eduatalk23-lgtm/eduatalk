@@ -67,7 +67,7 @@ export function TimerDisplay({
             </div>
           </div>
           {showStatusBadge && (
-            <div className="mt-3 flex items-center justify-center">
+            <div className="flex items-center justify-center">
               <StatusBadge status={status} size="md" />
             </div>
           )}
