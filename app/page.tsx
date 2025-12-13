@@ -1,8 +1,8 @@
+export const dynamic = 'force-dynamic';
+
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-// export const dynamic = 'force-dynamic'; // Removed for static optimization
 
 export default async function Home() {
   const { userId, role } = await getCurrentUserRole();
