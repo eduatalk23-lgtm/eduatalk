@@ -201,7 +201,7 @@ export function UnifiedContentsView({
                   {studentContents.length}개
                 </span>
               </div>
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {studentContents.map(renderStudentContentCard)}
               </div>
             </div>

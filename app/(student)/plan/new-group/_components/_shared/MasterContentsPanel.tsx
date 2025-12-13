@@ -420,7 +420,7 @@ export function MasterContentsPanel({
   }, [selectedContents]);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 검색 폼 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="mb-4 flex items-center gap-2">
@@ -684,7 +684,7 @@ export function MasterContentsPanel({
 
       {/* 추가된 마스터 콘텐츠 목록 */}
       {masterContentsAdded.length > 0 && (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
               추가된 마스터 콘텐츠
