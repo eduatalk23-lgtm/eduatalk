@@ -624,7 +624,6 @@ function SubjectAllocationEditor({
                 );
               })}
             </div>
-            </div>
           </div>
         );
       })}

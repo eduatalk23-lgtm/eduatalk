@@ -205,20 +205,20 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
                 {/* 플랜 및 학원일정 통계 */}
                 {(dayPlans.length > 0 || dayAcademySchedules.length > 0) && (
                   <div className="rounded-lg bg-white/60 p-2">
-                  <div className="grid grid-cols-2 gap-1 text-xs">
-                    <div className="text-center">
-                      <div className="font-bold text-gray-900">{dayPlans.length}</div>
-                      <div className="text-gray-500">플랜</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-bold text-green-600">
-                        {dayPlans.filter((p) => p.progress != null && p.progress >= 100).length}
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      <div className="text-center">
+                        <div className="font-bold text-gray-900">{dayPlans.length}</div>
+                        <div className="text-gray-500">플랜</div>
                       </div>
-                      <div className="text-gray-500">완료</div>
+                      <div className="text-center">
+                        <div className="font-bold text-green-600">
+                          {dayPlans.filter((p) => p.progress != null && p.progress >= 100).length}
+                        </div>
+                        <div className="text-gray-500">완료</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <div className="flex flex-col gap-1.5">
                 {/* 타임라인 슬롯 표시 (시간 순서대로 정렬) */}
@@ -403,7 +403,6 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
             </div>
           );
         })}
-      </div>
       </div>
 
       {/* 타임라인 모달 */}

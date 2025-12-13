@@ -636,47 +636,47 @@ export default function AcademyScheduleManagement({
                       value={scheduleSubject}
                       onChange={(e) => setScheduleSubject(e.target.value)}
                     />
-                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={editingScheduleId ? handleUpdateSchedule : handleAddSchedule}
-                  disabled={
-                    isPending ||
-                    selectedDays.length === 0 ||
-                    !scheduleSubject.trim() ||
-                    scheduleStartTime >= scheduleEndTime
-                  }
-                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
-                >
-                  {isPending
-                    ? editingScheduleId
-                      ? "수정 중..."
-                      : "추가 중..."
-                    : editingScheduleId
-                      ? "수정"
-                      : "추가"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddingSchedule(false);
-                    setEditingScheduleId(null);
-                    setSelectedDays([]);
-                    setScheduleStartTime("09:00");
-                    setScheduleEndTime("10:00");
-                    setScheduleSubject("");
-                  }}
-                  disabled={isPending}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  취소
-                </button>
+                  <button
+                    type="button"
+                    onClick={editingScheduleId ? handleUpdateSchedule : handleAddSchedule}
+                    disabled={
+                      isPending ||
+                      selectedDays.length === 0 ||
+                      !scheduleSubject.trim() ||
+                      scheduleStartTime >= scheduleEndTime
+                    }
+                    className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                  >
+                    {isPending
+                      ? editingScheduleId
+                        ? "수정 중..."
+                        : "추가 중..."
+                      : editingScheduleId
+                        ? "수정"
+                        : "추가"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingSchedule(false);
+                      setEditingScheduleId(null);
+                      setSelectedDays([]);
+                      setScheduleStartTime("09:00");
+                      setScheduleEndTime("10:00");
+                      setScheduleSubject("");
+                    }}
+                    disabled={isPending}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+            )}
 
           {/* 일정 목록 (요일별 그룹화) */}
           {selectedAcademySchedules.length > 0 ? (

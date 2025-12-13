@@ -158,7 +158,6 @@ export default function SubjectsPage() {
             </Button>
           </div>
         </div>
-      </div>
 
       {loading ? (
         <div className="py-8 text-center text-sm text-gray-500">

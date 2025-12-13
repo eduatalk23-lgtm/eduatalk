@@ -414,7 +414,6 @@ export function ContentMasterSearch({
               검색 결과가 없습니다.
             </div>
           )}
-        </div>
       </DialogContent>
     </Dialog>
   );

@@ -361,7 +361,7 @@ export function SMSResultsClient({
           )}
         </>
       )}
-    </>
+    </div>
   );
 }
 

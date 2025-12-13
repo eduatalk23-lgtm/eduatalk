@@ -405,7 +405,6 @@ export function MockScoreCardGrid({
             </div>
           </div>
         )}
-      </div>
 
       {/* 필터 적용 중일 때 결과가 없을 경우 */}
       {(filterGrade !== "all" || filterExamType !== "all" || filterMonth !== "all" || filterSubjectGroup !== "all" || filterSubject !== "all" || filterSubjectType !== "all") &&

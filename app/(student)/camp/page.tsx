@@ -67,7 +67,7 @@ export default async function CampPage() {
             초대받은 캠프 프로그램에 참여하세요.
           </p>
         </div>
-      {!result.success || invitationsWithPlanStatus.length === 0 ? (
+        {!result.success || invitationsWithPlanStatus.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
           <p className="text-gray-500">초대받은 캠프 프로그램이 없습니다.</p>
         </div>
@@ -126,6 +126,7 @@ export default async function CampPage() {
             );
           })}
         </div>
+        )}
       </div>
     </section>
   );
