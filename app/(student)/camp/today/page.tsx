@@ -152,9 +152,9 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
       <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold text-gray-900">캠프 학습관리</h1>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600">
                 캠프 플랜을 확인하고 학습을 진행하세요
               </p>
             </div>
@@ -239,9 +239,9 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
       <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold text-gray-900">캠프 학습관리</h1>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600">
                 캠프 플랜을 확인하고 학습을 진행하세요
               </p>
             </div>

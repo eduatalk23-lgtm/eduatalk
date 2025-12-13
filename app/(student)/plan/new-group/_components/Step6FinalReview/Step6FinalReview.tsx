@@ -532,10 +532,10 @@ export function Step6FinalReview({
                             <div className="text-xs font-medium text-gray-900">
                               {content.title}
                             </div>
-                            <div className="text-xs text-gray-600">
+                            <div className="flex items-center gap-1 text-xs text-gray-600">
                             {content.content_type === "book" && "📚"}
                             {content.content_type === "lecture" && "🎧"}
-                            <span className="ml-1">
+                            <span>
                               {content.start_range} ~ {content.end_range}
                               {content.content_type === "book"
                                 ? " 페이지"
@@ -544,7 +544,7 @@ export function Step6FinalReview({
                           </div>
                         </div>
                         {content.isRecommended && (
-                          <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
                             추천
                           </span>
                         )}
@@ -560,9 +560,9 @@ export function Step6FinalReview({
 
       {/* 콘텐츠가 없는 경우 */}
       {totalCount === 0 && (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+        <div className="flex flex-col gap-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
           <p className="text-sm text-gray-600">선택된 콘텐츠가 없습니다.</p>
-          <p className="mt-1 text-xs text-gray-600">
+          <p className="text-xs text-gray-600">
             이전 단계에서 콘텐츠를 선택해주세요.
           </p>
         </div>
@@ -612,8 +612,8 @@ export function Step6FinalReview({
       {data.scheduler_type === "1730_timetable" &&
         (data.student_contents.length > 0 ||
           data.recommended_contents.length > 0) && (
-          <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
                 전략과목/취약과목 정보
               </h2>
@@ -644,7 +644,7 @@ export function Step6FinalReview({
               </div>
             </div>
 
-            <p className="mb-6 text-sm text-gray-600">
+            <p className="text-sm text-gray-600">
               {(data.allocation_mode || "subject") === "subject"
                 ? "교과 단위로 전략/취약과목을 설정합니다. 같은 교과의 모든 콘텐츠에 동일하게 적용됩니다."
                 : "개별 콘텐츠마다 전략/취약과목을 설정합니다. 더 세밀한 조절이 가능합니다."}

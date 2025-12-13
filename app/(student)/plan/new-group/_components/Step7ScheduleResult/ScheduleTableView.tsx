@@ -416,20 +416,21 @@ const ScheduleItem = memo(
         >
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0 pr-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-900">
-                  {formatDate(schedule.date)}
-                </span>
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                    dayTypeColors[schedule.day_type] || dayTypeColors["학습일"]
-                  }`}
-                >
-                  {dayTypeLabels[schedule.day_type] || schedule.day_type}
-                </span>
-              </div>
-              {/* 시간 슬롯에서 각 타입별 시간 계산 (시간 단위) */}
-              {(() => {
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900">
+                    {formatDate(schedule.date)}
+                  </span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                      dayTypeColors[schedule.day_type] || dayTypeColors["학습일"]
+                    }`}
+                  >
+                    {dayTypeLabels[schedule.day_type] || schedule.day_type}
+                  </span>
+                </div>
+                {/* 시간 슬롯에서 각 타입별 시간 계산 (시간 단위) */}
+                {(() => {
                 const calculateTimeFromSlots = (
                   type: "학습시간" | "자율학습" | "이동시간" | "학원일정"
                 ): number => {
@@ -460,7 +461,7 @@ const ScheduleItem = memo(
                 const academyHours = calculateTimeFromSlots("학원일정");
 
                 return (
-                  <div className="mt-2 flex flex-col gap-1 text-xs text-gray-600">
+                  <div className="flex flex-col gap-1 text-xs text-gray-600">
                     {isDesignatedHoliday ? (
                       // 지정휴일인 경우 자율학습 시간만 표기
                       <div className="flex items-center gap-4">
@@ -517,10 +518,11 @@ const ScheduleItem = memo(
                 );
               })()}
               {schedule.note && (
-                <div className="mt-1 text-xs text-gray-600">
+                <div className="text-xs text-gray-600">
                   {schedule.note}
                 </div>
               )}
+              </div>
             </div>
             {(hasDetails || hasExclusion || hasTimeSlots) && (
               <div className="flex-shrink-0 relative z-10">
@@ -547,7 +549,7 @@ const ScheduleItem = memo(
                       시간 구성
                     </div>
                   </div>
-                  <div className="ml-6 flex flex-col gap-1.5">
+                  <div className="pl-6 flex flex-col gap-1.5">
                     <TimeSlotsWithPlans
                       timeSlots={schedule.time_slots}
                       date={schedule.date}
@@ -565,7 +567,7 @@ const ScheduleItem = memo(
               {/* 제외일 정보 */}
               {hasExclusion && schedule.exclusion && (
                 <div className="flex items-start gap-2">
-                  <XCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-600" />
+                  <XCircle className="h-4 w-4 flex-shrink-0 text-gray-600 self-start" />
                   <div className="flex-1">
                     <div className="flex flex-col gap-1">
                       <div className="text-xs font-medium text-gray-600">
@@ -596,17 +598,17 @@ const ScheduleItem = memo(
                       학원일정 ({schedule.academy_schedules.length}개)
                     </div>
                   </div>
-                  <div className="ml-6 flex flex-col gap-1.5">
+                  <div className="pl-6 flex flex-col gap-1.5">
                     {schedule.academy_schedules.map((academy, idx) => (
                       <div
                         key={idx}
                         className="rounded border border-gray-200 bg-white px-2 py-1.5 text-xs"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="font-medium text-gray-900">
-                            {academy.academy_name || "학원"}
+                          <div className="flex items-center gap-1 font-medium text-gray-900">
+                            <span>{academy.academy_name || "학원"}</span>
                             {academy.subject && (
-                              <span className="ml-1 text-gray-600">
+                              <span className="text-gray-600">
                                 ({academy.subject})
                               </span>
                             )}
@@ -1096,7 +1098,7 @@ const TimeSlotsWithPlans = memo(
               {(slot.type === "학습시간" || slot.type === "자율학습") && (
                 <>
                   {plansInStudySlot.length > 0 && (
-                    <div className="ml-4 overflow-x-auto">
+                    <div className="pl-4 overflow-x-auto">
                       <PlanTable
                         plans={plansInStudySlot}
                         contents={contents}
@@ -1120,7 +1122,7 @@ const TimeSlotsWithPlans = memo(
 
                     // 플랜이 일부만 배치되어 남은 영역이 있을 때만 표시
                     return remainingRanges.length > 0 ? (
-                      <div className="ml-4 flex flex-col gap-1.5">
+                      <div className="pl-4 flex flex-col gap-1.5">
                         {remainingRanges.map((range, rangeIdx) => (
                           <div
                             key={rangeIdx}
@@ -1163,7 +1165,7 @@ const TimeSlotsWithPlans = memo(
               {(slot.type === "이동시간" || slot.type === "학원일정") && (
                 <>
                   {plansInTravelAndAcademySlot.length > 0 ? (
-                    <div className="ml-4 overflow-x-auto">
+                    <div className="pl-4 overflow-x-auto">
                       <PlanTable
                         plans={plansInTravelAndAcademySlot}
                         contents={contents}
@@ -1172,7 +1174,7 @@ const TimeSlotsWithPlans = memo(
                       />
                     </div>
                   ) : unplacedCustomPlans.length > 0 ? (
-                    <div className="ml-4 text-xs text-gray-600 italic">
+                    <div className="pl-4 text-xs text-gray-600 italic">
                       (커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보
                       없음)
                     </div>
@@ -1355,12 +1357,14 @@ const PlanTable = memo(
                   {formatLearningAmount(planTime.plan)}
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800">
-                  {formatTime(duration)}
-                  {showOriginalTime && (
-                    <div className="text-orange-600 text-[10px] mt-0.5">
-                      (예상: {formatTime(planTime.originalEstimatedTime!)})
-                    </div>
-                  )}
+                  <div className="flex flex-col gap-0.5">
+                    <span>{formatTime(duration)}</span>
+                    {showOriginalTime && (
+                      <div className="text-orange-600 text-[10px]">
+                        (예상: {formatTime(planTime.originalEstimatedTime!)})
+                      </div>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
@@ -1607,11 +1611,11 @@ function WeekSection({
             ) : (
               <ChevronDown className="h-5 w-5 text-gray-600" />
             )}
-            <div>
+            <div className="flex flex-col gap-1">
               <div className="text-sm font-semibold text-gray-900">
                 {weekNum}주차 {formatDateRange()}
               </div>
-              <div className="mt-1 flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-3 text-xs text-gray-600">
                   <span>
                     학습일 {weekStudyDays}일

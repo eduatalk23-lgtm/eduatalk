@@ -13,6 +13,10 @@ import { PlanGroupCard } from "../_shared/PlanCard";
 import { StatusBadge } from "../_shared/StatusBadge";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
+import {
+  planPurposeLabels,
+  schedulerTypeLabels,
+} from "@/lib/constants/planLabels";
 
 type PlanGroupListItemProps = {
   group: PlanGroup;
@@ -22,20 +26,6 @@ type PlanGroupListItemProps = {
   totalCount?: number;
   isSelected?: boolean;
   onToggleSelect?: () => void;
-};
-
-const planPurposeLabels: Record<string, string> = {
-  내신대비: "내신대비",
-  모의고사: "모의고사",
-  수능: "수능",
-  기타: "기타",
-};
-
-const schedulerTypeLabels: Record<string, string> = {
-  성적기반: "성적 기반",
-  "1730_timetable": "1730 Timetable",
-  전략취약과목: "전략/취약과목",
-  커스텀: "커스텀",
 };
 
 export function PlanGroupListItem({ 

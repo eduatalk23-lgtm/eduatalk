@@ -66,16 +66,18 @@ export default async function MockScoresPage({
 
   return (
     <section className={getContainerClass("DASHBOARD", "md")}>
-      <div className="mb-6 flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-gray-900">모의고사 성적</h1>
-        <p className="text-sm text-gray-600">
-          모의고사 성적을 입력하고 관리하세요.
-        </p>
-      </div>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold text-gray-900">모의고사 성적</h1>
+          <p className="text-sm text-gray-600">
+            모의고사 성적을 입력하고 관리하세요.
+          </p>
+        </div>
 
-      {/* 탭 네비게이션 */}
-      <div className="mb-6">
-        <ScoreTypeTabs />
+        {/* 탭 네비게이션 */}
+        <div>
+          <ScoreTypeTabs />
+        </div>
       </div>
 
       {/* 성적 카드 그리드 */}

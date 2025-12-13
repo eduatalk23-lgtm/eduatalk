@@ -21,18 +21,19 @@ export default async function BooksPage() {
 
   return (
     <section className={getContainerClass("FORM", "lg")}>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">교재 등록</h1>
-        <Link
-          href="/contents?tab=books"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-        >
-          목록으로
-        </Link>
-      </div>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">교재 등록</h1>
+          <Link
+            href="/contents?tab=books"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          >
+            목록으로
+          </Link>
+        </div>
 
-      {/* 등록 폼 */}
-      <form action={addBook} className="space-y-4 border p-4 rounded mb-10">
+        {/* 등록 폼 */}
+        <form action={addBook} className="space-y-4 border p-4 rounded">
         <input
           name="title"
           placeholder="교재명"
@@ -65,18 +66,21 @@ export default async function BooksPage() {
         <button className="w-full bg-black text-white py-2 rounded">
           등록하기
         </button>
-      </form>
+        </form>
 
-      {/* 리스트 */}
-      <h2 className="text-lg font-medium">등록된 교재</h2>
+        {/* 리스트 */}
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-medium">등록된 교재</h2>
 
-      <ul className="mt-4 space-y-3">
-        {books?.map((book) => (
-          <li key={book.id} className="border p-3 rounded">
-            <strong>{book.title}</strong> ({book.subject})
-          </li>
-        ))}
-      </ul>
+          <ul className="flex flex-col gap-3">
+            {books?.map((book) => (
+              <li key={book.id} className="border p-3 rounded">
+                <strong>{book.title}</strong> ({book.subject})
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   );
 }

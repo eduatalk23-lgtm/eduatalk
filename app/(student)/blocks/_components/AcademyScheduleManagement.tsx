@@ -510,7 +510,7 @@ export default function AcademyScheduleManagement({
                     이동시간: {academy.travel_time}분 | 일정: {academy.schedules.length}개
                   </div>
                 </div>
-                <div className="ml-4 flex gap-1">
+                <div className="pl-4 flex gap-1">
                   <button
                     type="button"
                     onClick={() => handleStartEditAcademy(academy)}
@@ -703,7 +703,7 @@ export default function AcademyScheduleManagement({
                             </div>
                           </div>
                         </div>
-                        <div className="ml-4 flex gap-1">
+                        <div className="pl-4 flex gap-1">
                           <button
                             type="button"
                             onClick={() => handleStartEditSchedule(schedule)}
