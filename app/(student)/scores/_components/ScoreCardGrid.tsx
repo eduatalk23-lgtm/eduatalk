@@ -239,8 +239,8 @@ export function ScoreCardGrid({
         {showFilters && (
           <div className="grid gap-4 border-t border-gray-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {/* 학년 필터 */}
-            <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-700">
                 학년
               </label>
               <select
@@ -258,8 +258,8 @@ export function ScoreCardGrid({
             </div>
 
             {/* 학기 필터 */}
-            <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-700">
                 학기
               </label>
               <select
@@ -277,8 +277,8 @@ export function ScoreCardGrid({
             </div>
 
             {/* 교과 필터 */}
-            <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-700">
                 교과
               </label>
               <select
@@ -299,8 +299,8 @@ export function ScoreCardGrid({
             </div>
 
             {/* 과목 필터 */}
-            <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-700">
                 과목
               </label>
               <select
@@ -318,8 +318,8 @@ export function ScoreCardGrid({
             </div>
 
             {/* 과목 유형 필터 */}
-            <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-700">
                 과목 유형
               </label>
               <select
@@ -337,8 +337,8 @@ export function ScoreCardGrid({
             </div>
 
             {/* 정렬 순서 */}
-            <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-medium text-gray-700">
                 정렬 순서
               </label>
               <button
@@ -356,7 +356,7 @@ export function ScoreCardGrid({
       {/* 필터 적용 중일 때 결과가 없을 경우 */}
       {(filterGrade !== "all" || filterSemester !== "all" || filterSubjectGroup !== "all" || filterSubject !== "all" || filterSubjectType !== "all") &&
         filteredAndSortedScores.length === 0 && (
-          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
+          <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-8 text-center">
             <p className="text-sm text-gray-500">
               선택한 필터 조건에 맞는 성적이 없습니다.
             </p>
@@ -368,7 +368,7 @@ export function ScoreCardGrid({
                 setFilterSubject("all");
                 setFilterSubjectType("all");
               }}
-              className="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
             >
               필터 초기화
             </button>

@@ -107,15 +107,13 @@ export default function BlockManagementContainer({
   };
 
   return (
-    <>
-      <div className="mb-6">
-        <SectionHeader
-          level="h1"
-          title="시간 블록 관리"
-          description="블록 세트, 학습 제외 일정, 학원 일정을 관리할 수 있습니다."
-          action={getActionButton()}
-        />
-      </div>
+    <div className="flex flex-col gap-6">
+      <SectionHeader
+        level="h1"
+        title="시간 블록 관리"
+        description="블록 세트, 학습 제외 일정, 학원 일정을 관리할 수 있습니다."
+        action={getActionButton()}
+      />
 
       <BlockManagementTabs
         studentId={studentId}
@@ -132,7 +130,7 @@ export default function BlockManagementContainer({
         isAddingExclusion={isAddingExclusion}
         isAddingAcademy={isAddingAcademy}
       />
-    </>
+    </div>
   );
 }
 
