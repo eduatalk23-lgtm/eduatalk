@@ -422,18 +422,18 @@ export function MasterContentsPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* 검색 폼 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="mb-4 flex items-center gap-2">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-gray-800" />
           <h3 className="text-lg font-semibold text-gray-900">
             마스터 콘텐츠 검색
           </h3>
         </div>
 
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {/* 콘텐츠 타입 선택 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-800">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-800">
               콘텐츠 타입
             </label>
             <div className="flex gap-2">
