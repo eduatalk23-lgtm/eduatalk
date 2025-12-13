@@ -593,8 +593,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                   </div>
                 )}
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-800">
+            <div className="flex flex-col gap-1">
+              <label className="block text-xs font-medium text-gray-800">
                 사유 (선택사항)
               </label>
               <input

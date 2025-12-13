@@ -498,7 +498,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
                   !editable ||
                   (campMode && (schedule.is_locked || schedule.source === "template"))
                 }
-                className={`ml-4 text-sm ${
+                className={`text-sm ${
                   !editable || (campMode && (schedule.is_locked || schedule.source === "template"))
                     ? "cursor-not-allowed text-gray-600"
                     : "text-red-600 hover:text-red-800"
