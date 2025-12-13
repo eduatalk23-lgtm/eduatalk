@@ -115,16 +115,16 @@ export default function TemplateBlockSetManagement({
     <div>
       {/* 에러 메시지 */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               <span className="text-2xl">⚠️</span>
             </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-red-800 mb-1">
+            <div className="flex flex-col gap-3 flex-1">
+              <h3 className="text-sm font-semibold text-red-800">
                 데이터 로드 실패
               </h3>
-              <p className="text-sm text-red-700 mb-3">{error}</p>
+              <p className="text-sm text-red-700">{error}</p>
               <button
                 type="button"
                 onClick={() => loadData()}

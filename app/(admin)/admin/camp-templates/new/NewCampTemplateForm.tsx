@@ -86,14 +86,14 @@ export function NewCampTemplateForm() {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">템플릿 기본 정보</h2>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <h2 className="text-lg font-semibold text-gray-900">템플릿 기본 정보</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {/* 템플릿 이름 */}
-          <div className="md:col-span-2">
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label
               htmlFor="template_name"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               템플릿 이름 <span className="text-red-500">*</span>
             </label>
@@ -110,10 +110,10 @@ export function NewCampTemplateForm() {
           </div>
 
           {/* 프로그램 유형 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="program_type"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               프로그램 유형 <span className="text-red-500">*</span>
             </label>
@@ -134,10 +134,10 @@ export function NewCampTemplateForm() {
           </div>
 
           {/* 설명 */}
-          <div className="md:col-span-2">
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label
               htmlFor="description"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               설명
             </label>
@@ -153,10 +153,10 @@ export function NewCampTemplateForm() {
           </div>
 
           {/* 캠프 기간 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="camp_start_date"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               캠프 시작일
             </label>
@@ -170,10 +170,10 @@ export function NewCampTemplateForm() {
             />
           </div>
 
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="camp_end_date"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               캠프 종료일
             </label>
@@ -189,10 +189,10 @@ export function NewCampTemplateForm() {
           </div>
 
           {/* 캠프 장소 */}
-          <div className="md:col-span-2">
+          <div className="flex flex-col gap-2 md:col-span-2">
             <label
               htmlFor="camp_location"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               캠프 장소
             </label>

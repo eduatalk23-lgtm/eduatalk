@@ -39,9 +39,9 @@ export default async function TimeManagementPage() {
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-8 md:py-10">
-      <div className="mb-6">
+      <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold text-gray-900">시간 블록 관리</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="text-sm text-gray-500">
           블록 세트를 생성하고 관리할 수 있습니다. 템플릿을 생성하지 않아도 시간 블록을 생성할 수 있습니다.
         </p>
       </div>

@@ -183,8 +183,8 @@ export function TemplateCard({ template }: TemplateCardProps) {
 
               {/* 드롭다운 메뉴 */}
               {showDropdown && (
-                <div className="absolute right-0 top-full z-10 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
-                  <div className="py-1">
+                <div className="absolute right-0 top-full z-10 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <div className="flex flex-col gap-1 py-1">
                     {/* 상태 변경 옵션 */}
                     {currentStatus === "draft" && (
                       <button
