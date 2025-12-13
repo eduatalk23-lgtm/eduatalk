@@ -9,6 +9,7 @@ import { MasterBookFilters } from "@/lib/data/contentMasters";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterBookFilters) {
@@ -109,20 +110,6 @@ async function getCachedSearchResults(filters: MasterBookFilters) {
   return getCached(filters);
 }
 
-function FilterOptionsSkeleton() {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-end gap-4">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function FilterFormWrapper({
   params,
@@ -232,7 +219,7 @@ export default async function StudentMasterBooksPage({
         </div>
 
         {/* 검색 필터 */}
-        <Suspense fallback={<FilterOptionsSkeleton />}>
+        <Suspense fallback={<SuspenseFallback />}>
           <FilterFormWrapper params={params} filterOptions={filterOptions} />
         </Suspense>
 

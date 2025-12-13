@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Lecture } from "@/app/types/content";
 import { LectureDetailTabs } from "./_components/LectureDetailTabs";
 import { getMasterLectureById } from "@/lib/data/contentMasters";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 export default async function LectureDetailPage({
   params,
@@ -179,7 +180,7 @@ export default async function LectureDetailPage({
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
-        <Suspense fallback={<div className="py-8 text-center text-gray-500">로딩 중...</div>}>
+        <Suspense fallback={<SuspenseFallback />}>
           <LectureDetailTabs
             lecture={lecture}
             deleteAction={deleteAction}

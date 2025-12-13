@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Book } from "@/app/types/content";
 import { BookDetailTabs } from "./_components/BookDetailTabs";
 import { getMasterBookById } from "@/lib/data/contentMasters";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 export default async function BookDetailPage({
   params,
@@ -84,7 +85,7 @@ export default async function BookDetailPage({
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
-        <Suspense fallback={<div className="py-8 text-center text-gray-500">로딩 중...</div>}>
+        <Suspense fallback={<SuspenseFallback />}>
           <BookDetailTabs
             book={book}
             deleteAction={deleteAction}

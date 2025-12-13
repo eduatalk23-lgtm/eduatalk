@@ -14,6 +14,7 @@ import type { AcademySchedule, Academy } from "@/lib/types/plan";
 import { Trash2, Pencil, X, Plus } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type AcademyScheduleManagementProps = {
   studentId: string;
@@ -384,7 +385,7 @@ export default function AcademyScheduleManagement({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <p className="text-sm text-gray-500">로딩 중...</p>
+        <SuspenseFallback />
       </div>
     );
   }

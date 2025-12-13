@@ -10,6 +10,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import {
   AttendanceRecordFormWithStudentSelect,
 } from "./_components/AttendanceRecordForm";
@@ -262,7 +263,7 @@ export default async function AdminAttendancePage({
         <div className="p-6 md:p-10">
           <div className="flex flex-col gap-6 md:gap-8">
             <PageHeader title="출석 관리" />
-            <div className="text-sm text-gray-500">로딩 중...</div>
+            <SuspenseFallback />
           </div>
         </div>
       }

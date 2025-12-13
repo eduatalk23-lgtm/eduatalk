@@ -85,24 +85,9 @@ async function FilterOptionsContent({
   );
 }
 
-function FilterOptionsSkeleton() {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-end gap-4">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function FilterOptions(props: FilterOptionsProps) {
   return (
-    <Suspense fallback={<FilterOptionsSkeleton />}>
+    <Suspense fallback={<SuspenseFallback />}>
       <FilterOptionsContent {...props} />
     </Suspense>
   );

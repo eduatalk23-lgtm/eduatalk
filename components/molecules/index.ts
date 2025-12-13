@@ -17,10 +17,6 @@ export type { FormFieldProps, FormSelectProps } from "./FormField";
 export { EmptyState, default as EmptyStateDefault } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 
-// ErrorState
-export { ErrorState, default as ErrorStateDefault } from "./ErrorState";
-export type { ErrorStateProps } from "./ErrorState";
-
 // Toast
 export { Toast, default as ToastDefault } from "./Toast";
 export type { ToastProps, ToastVariant } from "./Toast";

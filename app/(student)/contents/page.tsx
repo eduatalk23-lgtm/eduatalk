@@ -11,6 +11,7 @@ import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter"
 import { Card } from "@/components/molecules/Card";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { getPublishersForFilter, getPlatformsForFilter, getDifficultiesForMasterBooks, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type TabKey = "books" | "lectures" | "custom";
 
@@ -107,7 +108,7 @@ export default async function ContentsPage({
         />
 
         {/* Filters and Sort */}
-        <Suspense fallback={<Card padding="sm"><div className="h-10 bg-gray-200 rounded animate-pulse"></div></Card>}>
+        <Suspense fallback={<Card padding="sm"><SuspenseFallback /></Card>}>
           <StudentContentFilterWrapper
             activeTab={activeTab}
             params={params}

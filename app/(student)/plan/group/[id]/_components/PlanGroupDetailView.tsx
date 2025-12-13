@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { GeneratePlansButton } from "./GeneratePlansButton";
-import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { ErrorBoundary } from "./ErrorBoundary";
 import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus, PlanGroupItem } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
@@ -267,7 +267,7 @@ export function PlanGroupDetailView({
       case 1:
         return (
           <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
-            <Suspense fallback={<TabLoadingSkeleton />}>
+            <Suspense fallback={<LoadingSkeleton variant="tab" />}>
               <Step1BasicInfo 
                 data={wizardData}
                 onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
@@ -281,7 +281,7 @@ export function PlanGroupDetailView({
       case 2:
         return (
           <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
-            <Suspense fallback={<TabLoadingSkeleton />}>
+            <Suspense fallback={<LoadingSkeleton variant="tab" />}>
               <Step2TimeSettings 
                 data={wizardData}
                 onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
@@ -299,7 +299,7 @@ export function PlanGroupDetailView({
         // 콘텐츠 선택 (학생 + 추천 통합)
         return (
           <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
-            <Suspense fallback={<TabLoadingSkeleton />}>
+            <Suspense fallback={<LoadingSkeleton variant="tab" />}>
               <Step3ContentSelection 
                 data={wizardData}
                 onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가
@@ -315,7 +315,7 @@ export function PlanGroupDetailView({
       case 6:
         return (
           <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
-            <Suspense fallback={<TabLoadingSkeleton />}>
+            <Suspense fallback={<LoadingSkeleton variant="tab" />}>
               <Step6Simplified 
                 data={wizardData}
                 onEditStep={() => {}} // 읽기 전용 모드에서는 사용하지 않음
@@ -350,7 +350,7 @@ export function PlanGroupDetailView({
       default:
         return (
           <div className={!canEdit ? "pointer-events-none opacity-75" : ""}>
-            <Suspense fallback={<TabLoadingSkeleton />}>
+            <Suspense fallback={<LoadingSkeleton variant="tab" />}>
               <Step1BasicInfo 
                 data={wizardData}
                 onUpdate={readOnlyUpdate} // 읽기 전용 - 변경 불가

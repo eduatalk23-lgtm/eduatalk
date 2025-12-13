@@ -11,6 +11,7 @@ import {
   PlanGroup,
   PlanWithContent,
 } from "../_utils/planGroupUtils";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import {
   formatKoreanDateWithDay,
   getRelativeDateLabel,
@@ -309,7 +310,7 @@ export function PlanViewContainer({
   if (loading && groups.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-gray-500">로딩 중...</div>
+        <SuspenseFallback />
       </div>
     );
   }

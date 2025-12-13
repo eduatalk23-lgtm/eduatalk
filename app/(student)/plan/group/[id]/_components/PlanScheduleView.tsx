@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { getScheduleResultDataAction } from "@/app/(student)/actions/planGroupActions";
 import { ScheduleTableView } from "@/app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView";
-import { ScheduleLoadingSkeleton } from "./ScheduleLoadingSkeleton";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import type {
   ContentData,
   BlockData,
@@ -65,7 +65,7 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
   }));
 
   if (isLoading) {
-    return <ScheduleLoadingSkeleton />;
+    return <LoadingSkeleton variant="schedule" />;
   }
 
   if (error) {

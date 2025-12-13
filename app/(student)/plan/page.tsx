@@ -9,6 +9,7 @@ import { RescheduleRecommendations } from "./_components/RescheduleRecommendatio
 import { getPlanGroupsWithStats, PlanGroupFilters } from "@/lib/data/planGroups";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { EmptyState } from "@/components/molecules/EmptyState";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type PlanPageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -113,7 +114,7 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
 
         {/* 필터 바 */}
         {planGroups.length > 0 && (
-          <Suspense fallback={<div className="h-14 animate-pulse rounded-xl bg-gray-100" />}>
+          <Suspense fallback={<SuspenseFallback />}>
             <FilterBar
               currentPlanPurpose={planPurpose}
               currentSortOrder={sortOrder}
