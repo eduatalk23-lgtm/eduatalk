@@ -186,14 +186,14 @@ export function BlockSetTimeline({ blocks, name }: BlockSetTimelineProps) {
                           title={`${formatTime(block.start_time)} ~ ${formatTime(block.end_time)}`}
                         >
                           {/* 시작 시간 - 상단 */}
-                          <div className="px-1 pt-0.5">
+                          <div className="flex items-center justify-center px-1 pt-0.5">
                             <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.5)]">
                               {formatTime(block.start_time)}
                             </div>
                           </div>
 
                           {/* 종료 시간 - 하단 */}
-                          <div className="px-1 pb-0.5">
+                          <div className="flex items-center justify-center px-1 pb-0.5">
                             <div className="text-[9px] font-semibold text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.5)]">
                               {formatTime(block.end_time)}
                             </div>
