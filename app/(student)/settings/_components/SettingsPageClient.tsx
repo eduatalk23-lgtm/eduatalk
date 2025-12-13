@@ -13,7 +13,8 @@ import { calculateExamYear, calculateCurriculumRevision } from "@/lib/utils/stud
 import { SkeletonForm } from "@/components/ui/SkeletonForm";
 import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getContainerClass } from "@/lib/constants/layout";
+import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 import { InitialSetupBanner } from "./InitialSetupBanner";
 import BasicInfoSection from "./sections/BasicInfoSection";
 import ContactInfoSection from "./sections/ContactInfoSection";
@@ -336,20 +337,20 @@ export default function SettingsPageClient({
 
   if (isLoadingInitialData || !resolvedInitialFormData) {
     return (
-      <div className={getContainerClass("FORM", "md")}>
+      <PageContainer widthType="FORM">
         <div className="flex flex-col gap-6">
           <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
           <SkeletonForm />
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
     <SettingsContext.Provider value={contextValue}>
-      <div className={getContainerClass("FORM", "md")}>
+      <PageContainer widthType="FORM">
         <div className="flex flex-col gap-6 pb-24">
-          <h1 className="text-h1">프로필</h1>
+          <PageHeader title="프로필" />
 
           {isInitialSetup && (
             <InitialSetupBanner formData={formData} />
@@ -362,7 +363,7 @@ export default function SettingsPageClient({
             <CareerInfoSection />
           </form>
         </div>
-      </div>
+      </PageContainer>
 
       <StickySaveButton
         hasChanges={hasChanges}

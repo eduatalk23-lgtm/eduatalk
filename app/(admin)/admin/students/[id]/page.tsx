@@ -61,21 +61,18 @@ export default async function AdminStudentDetailPage({
 
   return (
     <StudentDetailWrapper studentId={studentId} studentName={student.name}>
-      <div className="p-6 md:p-10">
-        <div className="mb-8">
-          <h1 className="text-h1 text-gray-900">
-            {student.name ?? "이름 없음"} 학생 상세
-          </h1>
-        </div>
+      <PageContainer widthType="LIST">
+        <div className="flex flex-col gap-6 md:gap-8">
+          <PageHeader title={`${student.name ?? "이름 없음"} 학생 상세`} />
 
-        {/* 위험 분석 및 추천 (항상 표시) */}
-        <div className="mb-6 grid gap-6 md:grid-cols-2">
-          <RiskCard studentId={studentId} />
-          <RecommendationPanel studentId={studentId} />
-        </div>
+          {/* 위험 분석 및 추천 (항상 표시) */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <RiskCard studentId={studentId} />
+            <RecommendationPanel studentId={studentId} />
+          </div>
 
-        {/* 탭 구조 */}
-        <StudentDetailTabs defaultTab={defaultTab}>
+          {/* 탭 구조 */}
+          <StudentDetailTabs defaultTab={defaultTab}>
           {/* 기본정보 탭 */}
           <TabContent tab="basic">
             <div className="space-y-6">
@@ -147,7 +144,8 @@ export default async function AdminStudentDetailPage({
             </Suspense>
           </TabContent>
         </StudentDetailTabs>
-      </div>
+        </div>
+      </PageContainer>
     </StudentDetailWrapper>
   );
 }

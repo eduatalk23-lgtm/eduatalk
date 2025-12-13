@@ -116,9 +116,9 @@ export function StudentAttendanceSettingsForm({
           
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="font-medium text-gray-900 dark:text-gray-100">입실 알림</div>
-                <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   입실 시 SMS 알림을 받습니다
                 </div>
               </div>
@@ -140,9 +140,9 @@ export function StudentAttendanceSettingsForm({
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="font-medium text-gray-900 dark:text-gray-100">퇴실 알림</div>
-                <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   퇴실 시 SMS 알림을 받습니다
                 </div>
               </div>
@@ -164,9 +164,9 @@ export function StudentAttendanceSettingsForm({
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="font-medium text-gray-900 dark:text-gray-100">결석 알림</div>
-                <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   결석 시 SMS 알림을 받습니다
                 </div>
               </div>
@@ -188,9 +188,9 @@ export function StudentAttendanceSettingsForm({
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <div className="font-medium text-gray-900 dark:text-gray-100">지각 알림</div>
-                <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   지각 시 SMS 알림을 받습니다
                 </div>
               </div>
@@ -213,14 +213,16 @@ export function StudentAttendanceSettingsForm({
           </div>
           
           <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>설정 상태:</strong>
-            </p>
-            <ul className="mt-2 space-y-1 text-sm text-blue-700 dark:text-blue-300">
-              <li>• 켜짐 (파란색): 항상 알림을 받습니다</li>
-              <li>• 꺼짐 (회색): 알림을 받지 않습니다</li>
-              <li>• 기본값 (연한 회색): 학원 기본 설정을 따릅니다</li>
-            </ul>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                <strong>설정 상태:</strong>
+              </p>
+              <ul className="flex flex-col gap-1 text-sm text-blue-700 dark:text-blue-300">
+                <li>• 켜짐 (파란색): 항상 알림을 받습니다</li>
+                <li>• 꺼짐 (회색): 알림을 받지 않습니다</li>
+                <li>• 기본값 (연한 회색): 학원 기본 설정을 따릅니다</li>
+              </ul>
+            </div>
           </div>
           
           {/* 저장 버튼 */}

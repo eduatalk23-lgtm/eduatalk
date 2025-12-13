@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { calculateAutoTimeRange } from "@/lib/blocks/timeRange";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { createHeightPxStyle, createBlockStyle } from "@/lib/utils/cssVariables";
 
 type Block = {
   id: string;
@@ -102,7 +103,7 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
                   <div
                     key={hour}
                     className="border-t border-gray-100 flex items-start justify-end pr-2 pt-1"
-                    style={{ height: `${hourHeight}px` }}
+                    style={createHeightPxStyle(hourHeight)}
                   >
                     <span className="text-xs text-gray-400">{hour}시</span>
                   </div>
@@ -118,13 +119,13 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
                   {/* 시간 슬롯 */}
                   <div
                     className="relative"
-                    style={{ height: `${HOURS.length * hourHeight}px` }}
+                    style={createHeightPxStyle(HOURS.length * hourHeight)}
                   >
                     {HOURS.map((hour) => (
                       <div
                         key={hour}
                         className="border-t border-gray-100"
-                        style={{ height: `${hourHeight}px` }}
+                        style={createHeightPxStyle(hourHeight)}
                         aria-hidden="true"
                       />
                     ))}
@@ -151,11 +152,7 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
                         <div
                           key={block.id}
                           className="absolute left-1 right-1 rounded-lg bg-indigo-100 border border-indigo-300 p-2"
-                          style={{
-                            top: `${top}px`,
-                            height: `${height}px`,
-                            minHeight: "40px",
-                          }}
+                          style={createBlockStyle(top, height, "40px")}
                         >
                           <div className="flex flex-col gap-1 h-full">
                             <span className="text-xs font-medium text-indigo-900">

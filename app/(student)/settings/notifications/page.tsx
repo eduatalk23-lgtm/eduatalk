@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotificationSettingsView } from "./_components/NotificationSettingsView";
-import { getContainerClass } from "@/lib/constants/layout";
+import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 
 export default async function NotificationSettingsPage() {
   const supabase = await createSupabaseServerClient();
@@ -40,20 +41,16 @@ export default async function NotificationSettingsPage() {
   const settings = notificationSettings || defaultSettings;
 
   return (
-    <div className="p-6 md:p-8">
-      <div className={getContainerClass("FORM", "md")}>
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-semibold">알림 설정</h1>
-            <p className="text-sm text-gray-600">
-              학습 관련 알림을 받을 항목과 시간을 설정하세요
-            </p>
-          </div>
+    <PageContainer widthType="FORM">
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="알림 설정"
+          description="학습 관련 알림을 받을 항목과 시간을 설정하세요"
+        />
 
-          <NotificationSettingsView initialSettings={settings} />
-        </div>
+        <NotificationSettingsView initialSettings={settings} />
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

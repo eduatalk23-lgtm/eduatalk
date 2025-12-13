@@ -6,6 +6,8 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { StudentAttendanceSettingsForm } from "./_components/StudentAttendanceSettingsForm";
+import PageContainer from "@/components/layout/PageContainer";
+import PageHeader from "@/components/layout/PageHeader";
 
 export default async function StudentAttendanceSettingsPage({
   params,
@@ -46,21 +48,19 @@ export default async function StudentAttendanceSettingsPage({
     .single();
   
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-          {student.name} 출석 알림 설정
-        </h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          학생별 출석 SMS 알림을 개별적으로 설정할 수 있습니다.
-        </p>
+    <PageContainer widthType="FORM">
+      <div className="flex flex-col gap-6 md:gap-8">
+        <PageHeader
+          title={`${student.name} 출석 알림 설정`}
+          description="학생별 출석 SMS 알림을 개별적으로 설정할 수 있습니다."
+        />
+        
+        <StudentAttendanceSettingsForm
+          studentId={id}
+          initialSettings={settings || undefined}
+        />
       </div>
-      
-      <StudentAttendanceSettingsForm
-        studentId={id}
-        initialSettings={settings || undefined}
-      />
-    </div>
+    </PageContainer>
   );
 }
 
