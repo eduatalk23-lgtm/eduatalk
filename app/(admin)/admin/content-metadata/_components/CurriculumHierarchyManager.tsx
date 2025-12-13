@@ -677,8 +677,8 @@ export function CurriculumHierarchyManager() {
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-sm font-medium text-gray-700">
                       정렬 순서
                     </label>
                     <input
@@ -1026,8 +1026,8 @@ export function CurriculumHierarchyManager() {
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-sm font-medium text-gray-700">
                       정렬 순서
                     </label>
                     <input
