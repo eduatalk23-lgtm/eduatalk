@@ -158,8 +158,8 @@ export function SchedulerSettingsForm() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-body-2-bold text-gray-800 dark:text-gray-200 mb-2">
+          <div className="flex flex-col gap-1">
+            <label className="block text-body-2-bold text-gray-800 dark:text-gray-200">
               복습 범위
             </label>
             <select

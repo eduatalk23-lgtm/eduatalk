@@ -186,7 +186,7 @@ export function LocationSettingsForm() {
               placeholder="100"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-xs text-gray-500">
               학생이 이 반경 내에 있어야 출석이 인정됩니다. (기본값: 100m)
             </p>
           </div>

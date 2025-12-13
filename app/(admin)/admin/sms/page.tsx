@@ -477,9 +477,9 @@ export default async function AdminSMSPage({
             return (
               <div
                 key={log.id}
-                className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
+                className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm"
               >
-                <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {log.recipient_id && (
                       <Link
@@ -509,7 +509,7 @@ export default async function AdminSMSPage({
                       : "-"}
                   </span>
                 </div>
-                <p className="mb-2 text-sm text-gray-700">
+                <p className="text-sm text-gray-700">
                   {log.message_content ?? "-"}
                 </p>
                 {log.sent_at && (
@@ -524,7 +524,7 @@ export default async function AdminSMSPage({
                   </div>
                 )}
                 {log.error_message && (
-                  <div className="mt-2 text-xs text-red-600">
+                  <div className="text-xs text-red-600">
                     오류: {log.error_message}
                   </div>
                 )}

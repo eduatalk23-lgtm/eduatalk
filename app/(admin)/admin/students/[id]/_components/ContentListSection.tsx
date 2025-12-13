@@ -154,13 +154,14 @@ export async function ContentListSection({ studentId }: { studentId: string }) {
                       key={content.id}
                       className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
                     >
-                      <div className="font-medium text-gray-900">
-                        {content.title}
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                        {content.subject && (
-                          <span>과목: {content.subject}</span>
-                        )}
+                      <div className="flex flex-col gap-1">
+                        <div className="font-medium text-gray-900">
+                          {content.title}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {content.subject && (
+                            <span>과목: {content.subject}</span>
+                          )}
                         {content.total_page_or_time && (
                           <>
                             <span>·</span>
