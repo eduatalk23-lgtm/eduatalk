@@ -51,9 +51,9 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center">
+        <div className="flex flex-col gap-4 text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="mt-4 text-sm text-gray-600">히스토리를 불러오는 중...</p>
+          <p className="text-sm text-gray-600">히스토리를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -62,8 +62,10 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
   if (!history || history.logs.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
-        <History className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-4 text-sm text-gray-600">재조정 이력이 없습니다.</p>
+        <div className="mx-auto flex flex-col gap-4">
+          <History className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="text-sm text-gray-600">재조정 이력이 없습니다.</p>
+        </div>
       </div>
     );
   }
@@ -98,27 +100,27 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
     <div className="flex flex-col gap-6">
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-white p-4">
           <p className="text-xs text-gray-600">총 재조정</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
+          <p className="text-2xl font-bold text-gray-900">
             {history.statistics.totalReschedules}
           </p>
         </div>
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-green-200 bg-green-50 p-4">
           <p className="text-xs text-green-700">성공</p>
-          <p className="mt-1 text-2xl font-bold text-green-600">
+          <p className="text-2xl font-bold text-green-600">
             {history.statistics.successfulReschedules}
           </p>
         </div>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-xs text-red-700">실패</p>
-          <p className="mt-1 text-2xl font-bold text-red-600">
+          <p className="text-2xl font-bold text-red-600">
             {history.statistics.failedReschedules}
           </p>
         </div>
-        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-orange-200 bg-orange-50 p-4">
           <p className="text-xs text-orange-700">롤백</p>
-          <p className="mt-1 text-2xl font-bold text-orange-600">
+          <p className="text-2xl font-bold text-orange-600">
             {history.statistics.rolledBackReschedules}
           </p>
         </div>
@@ -126,32 +128,32 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
 
       {/* 효과 분석 */}
       {effectAnalysis && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
-          <h3 className="mb-4 flex items-center gap-2 font-semibold text-gray-900">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+          <h3 className="flex items-center gap-2 font-semibold text-gray-900">
             <TrendingUp className="h-5 w-5" />
             재조정 효과 분석
           </h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div>
+            <div className="flex flex-col gap-1">
               <p className="text-xs text-gray-600">성공률</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 {effectAnalysis.successRate}%
               </p>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <p className="text-xs text-gray-600">롤백률</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 {effectAnalysis.rollbackRate}%
               </p>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <p className="text-xs text-gray-600">평균 간격</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 {effectAnalysis.averageIntervalDays}일
               </p>
             </div>
           </div>
-          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
             <p className="text-sm text-gray-700">
               {effectAnalysis.effectivenessDescription}
             </p>
@@ -161,8 +163,8 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
 
       {/* 패턴 분석 */}
       {patternAnalysis && patternAnalysis.suggestions.length > 0 && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
-          <h3 className="mb-4 font-semibold text-blue-900">개선 제안</h3>
+        <div className="flex flex-col gap-4 rounded-lg border border-blue-200 bg-blue-50 p-6">
+          <h3 className="font-semibold text-blue-900">개선 제안</h3>
           <div className="flex flex-col gap-3">
             {patternAnalysis.suggestions.map((suggestion, index) => (
               <div
@@ -170,14 +172,14 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
                 className="rounded-lg border border-blue-300 bg-white p-4"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
+                  <div className="flex flex-1 flex-col gap-1">
                     <h4 className="font-medium text-gray-900">
                       {suggestion.title}
                     </h4>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="text-sm text-gray-600">
                       {suggestion.description}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="text-xs text-gray-500">
                       {suggestion.reason}
                     </p>
                   </div>
@@ -189,13 +191,13 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
       )}
 
       {/* 이력 목록 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h3 className="mb-4 font-semibold text-gray-900">재조정 이력</h3>
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <h3 className="font-semibold text-gray-900">재조정 이력</h3>
         <div className="flex flex-col gap-3">
           {history.logs.map((log) => (
             <div
               key={log.id}
-              className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+              className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -208,7 +210,7 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
                       {format(new Date(log.created_at), "yyyy년 M월 d일 HH:mm")}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-600 md:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 md:grid-cols-4">
                     <div>
                       <span className="text-xs">기존 플랜:</span>{" "}
                       <span className="font-medium">{log.plans_before_count}개</span>
@@ -244,7 +246,7 @@ export function RescheduleHistory({ groupId }: RescheduleHistoryProps) {
                     )}
                   </div>
                   {log.error_message && (
-                    <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2">
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-2">
                       <p className="text-xs text-red-800">{log.error_message}</p>
                     </div>
                   )}

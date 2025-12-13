@@ -73,13 +73,13 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-6">
         <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
+          <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600" />
+          <div className="flex flex-1 flex-col gap-1">
             <h3 className="text-sm font-semibold text-red-800">오류 발생</h3>
-            <p className="mt-1 text-sm text-red-700">{errorMessage}</p>
+            <p className="text-sm text-red-700">{errorMessage}</p>
             <button
               onClick={() => refetch()}
-              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               다시 시도
             </button>
@@ -96,7 +96,7 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
   const { dailySchedule, plans, contents, blocks } = data;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-800">
           총 {plans.length}개의 플랜이 생성되었습니다.

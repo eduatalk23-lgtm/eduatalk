@@ -103,19 +103,21 @@ export function LogicalPlanList({
   if (items.length === 0 && readOnly) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <FileText className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">
-          논리 플랜이 없습니다
-        </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          이 플랜 그룹에는 논리 플랜이 정의되지 않았습니다.
-        </p>
+        <div className="mx-auto flex flex-col gap-2">
+          <FileText className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="text-sm font-medium text-gray-900">
+            논리 플랜이 없습니다
+          </h3>
+          <p className="text-sm text-gray-500">
+            이 플랜 그룹에는 논리 플랜이 정의되지 않았습니다.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
@@ -182,7 +184,7 @@ export function LogicalPlanList({
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 truncate text-sm font-medium text-gray-900">
+                  <p className="truncate text-sm font-medium text-gray-900">
                     콘텐츠 ID: {item.content_id.slice(0, 8)}...
                   </p>
                   {(item.target_start_page_or_time !== null ||
@@ -231,17 +233,20 @@ export function LogicalPlanList({
       {/* 빈 상태 (추가 가능) */}
       {items.length === 0 && !readOnly && (
         <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-          <FileText className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            논리 플랜 추가
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            학습할 콘텐츠와 범위를 정의하세요.
-          </p>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
+          <div className="mx-auto flex flex-col gap-4">
+            <div className="mx-auto flex flex-col gap-2">
+              <FileText className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="text-sm font-medium text-gray-900">
+                논리 플랜 추가
+              </h3>
+              <p className="text-sm text-gray-500">
+                학습할 콘텐츠와 범위를 정의하세요.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="mx-auto inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
             <Plus className="h-4 w-4" />
             첫 논리 플랜 추가
           </button>
@@ -322,9 +327,9 @@ function LogicalPlanFormModal({
           {item ? "논리 플랜 수정" : "논리 플랜 추가"}
         </h2>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* 콘텐츠 타입 */}
-          <div>
+          <div className="flex flex-col gap-1">
             <label className="block text-sm font-medium text-gray-700">
               콘텐츠 유형
             </label>
@@ -333,7 +338,7 @@ function LogicalPlanFormModal({
               onChange={(e) =>
                 setContentType(e.target.value as "book" | "lecture" | "custom")
               }
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="book">교재</option>
               <option value="lecture">강의</option>
@@ -342,7 +347,7 @@ function LogicalPlanFormModal({
           </div>
 
           {/* 콘텐츠 ID */}
-          <div>
+          <div className="flex flex-col gap-1">
             <label className="block text-sm font-medium text-gray-700">
               콘텐츠 ID
             </label>
@@ -351,13 +356,13 @@ function LogicalPlanFormModal({
               value={contentId}
               onChange={(e) => setContentId(e.target.value)}
               placeholder="UUID 형식의 콘텐츠 ID"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           {/* 범위 */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700">
                 시작 (페이지/분)
               </label>
@@ -369,10 +374,10 @@ function LogicalPlanFormModal({
                 }
                 placeholder="0"
                 min={0}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700">
                 종료 (페이지/분)
               </label>
@@ -384,13 +389,13 @@ function LogicalPlanFormModal({
                 }
                 placeholder="100"
                 min={0}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
 
           {/* 반복 횟수 */}
-          <div>
+          <div className="flex flex-col gap-1">
             <label className="block text-sm font-medium text-gray-700">
               반복 횟수
             </label>
@@ -400,7 +405,7 @@ function LogicalPlanFormModal({
               onChange={(e) => setRepeatCount(Number(e.target.value))}
               min={1}
               max={10}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
@@ -418,7 +423,7 @@ function LogicalPlanFormModal({
                 복습 플랜
               </label>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700">
                 우선순위
               </label>
@@ -428,7 +433,7 @@ function LogicalPlanFormModal({
                 onChange={(e) => setPriority(Number(e.target.value))}
                 min={0}
                 max={100}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
