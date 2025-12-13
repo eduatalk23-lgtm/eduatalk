@@ -99,27 +99,27 @@ export function ProgressInput({
               입력 방식
             </label>
             <div className="flex gap-4">
-              <label className="flex items-center">
+              <label className="flex items-center gap-2">
                 <input
                   type="radio"
                   name="input_mode"
                   value="range"
                   checked={inputMode === "range"}
                   onChange={() => setInputMode("range")}
-                  className="mr-2 h-3 w-3"
+                  className="h-3 w-3"
                 />
                 <span className="text-xs text-gray-700">
                   시작/종료 {unitLabel}
                 </span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center gap-2">
                 <input
                   type="radio"
                   name="input_mode"
                   value="percentage"
                   checked={inputMode === "percentage"}
                   onChange={() => setInputMode("percentage")}
-                  className="mr-2 h-3 w-3"
+                  className="h-3 w-3"
                 />
                 <span className="text-xs text-gray-700">진행률 (%)</span>
               </label>

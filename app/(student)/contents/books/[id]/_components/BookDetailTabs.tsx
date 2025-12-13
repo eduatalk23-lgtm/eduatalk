@@ -29,9 +29,9 @@ export function BookDetailTabs({
   ];
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       {/* 상단 액션 버튼 */}
-      <div className="mb-6 flex items-center justify-between border-b pb-4">
+      <div className="flex items-center justify-between border-b pb-4">
         <a
           href="/contents?tab=books"
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -55,7 +55,7 @@ export function BookDetailTabs({
         </div>
       </div>
 
-      <ContentTabs tabs={tabs} defaultTab="info" className="mb-6" />
+      <ContentTabs tabs={tabs} defaultTab="info" />
 
       {activeTab === "info" && (
         <BookInfoSection book={book} deleteAction={deleteAction} isFromMaster={isFromMaster} />

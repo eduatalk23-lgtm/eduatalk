@@ -30,8 +30,8 @@ export function BookEditForm({ book }: { book: Book }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
       <div className="grid gap-4 md:grid-cols-2">
         {/* 교재명 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             교재명 <span className="text-red-500">*</span>
           </label>
           <input
@@ -44,8 +44,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 개정교육과정 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
           <input
@@ -57,8 +57,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 학년/학기 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             학년/학기
           </label>
           <input
@@ -70,8 +70,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 교과 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과
           </label>
           <select
@@ -89,8 +89,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 과목 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목
           </label>
           <input
@@ -102,8 +102,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 출판사 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             출판사
           </label>
           <input
@@ -115,8 +115,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 총 페이지 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 페이지
           </label>
           <input
@@ -130,8 +130,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 난이도 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             난이도
           </label>
           <select
@@ -149,8 +149,8 @@ export function BookEditForm({ book }: { book: Book }) {
         </div>
 
         {/* 메모 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
           <textarea

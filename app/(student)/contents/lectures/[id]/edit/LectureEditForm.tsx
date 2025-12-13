@@ -30,8 +30,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
       <div className="grid gap-4 md:grid-cols-2">
         {/* 강의명 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             강의명 <span className="text-red-500">*</span>
           </label>
           <input
@@ -44,8 +44,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 개정교육과정 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정
           </label>
           <input
@@ -57,8 +57,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 학년/학기 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             학년/학기
           </label>
           <input
@@ -70,8 +70,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 교과 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             교과
           </label>
           <select
@@ -89,8 +89,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 과목 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             과목
           </label>
           <input
@@ -102,8 +102,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 플랫폼 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             플랫폼
           </label>
           <input
@@ -115,8 +115,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 총 강의시간 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             총 강의시간 (분)
           </label>
           <input
@@ -130,8 +130,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 난이도 */}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1">
+          <label className="block text-sm font-medium text-gray-700">
             난이도
           </label>
           <select
@@ -149,8 +149,8 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
         </div>
 
         {/* 메모 */}
-        <div className="md:col-span-2">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
           <textarea

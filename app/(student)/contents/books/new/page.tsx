@@ -132,16 +132,16 @@ export default function NewBookPage() {
 
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-10">
-      <div className="mb-6">
+      <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold text-gray-900">📚 책 등록하기</h1>
-        <p className="mt-2 text-sm text-gray-500">새로운 교재를 등록하세요.</p>
+        <p className="text-sm text-gray-500">새로운 교재를 등록하세요.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           {/* 교재명 */}
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">
               교재명 <span className="text-red-500">*</span>
             </label>
             <input
@@ -153,8 +153,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 개정교육과정 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               개정교육과정
             </label>
             <select
@@ -176,8 +176,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 교과 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">교과</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">교과</label>
             <select
               value={selectedSubjectGroupId}
               onChange={(e) => {
@@ -199,8 +199,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 과목 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">과목</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">과목</label>
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
@@ -219,8 +219,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 출판사 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">출판사</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">출판사</label>
             <select
               value={selectedPublisherId}
               onChange={(e) => setSelectedPublisherId(e.target.value)}
@@ -236,8 +236,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 총 페이지 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               총 페이지 <span className="text-red-500">*</span>
             </label>
             <input
@@ -251,8 +251,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 난이도 */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               난이도
             </label>
             <select
@@ -267,8 +267,8 @@ export default function NewBookPage() {
           </div>
 
           {/* 메모 */}
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">
               메모
             </label>
             <textarea

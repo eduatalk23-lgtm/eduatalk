@@ -52,12 +52,12 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
 
   if (isEditing) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">교재 정보 수정</h2>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* 교재명 */}
             <div className="md:col-span-2">
@@ -75,8 +75,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 개정교육과정 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 개정교육과정
               </label>
               <input
@@ -89,8 +89,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 학년/학기 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 학년/학기
               </label>
               <input
@@ -103,8 +103,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 교과 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 교과
               </label>
               <select
@@ -123,8 +123,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 과목 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 과목
               </label>
               <input
@@ -137,8 +137,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 출판사 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 출판사
               </label>
               <input
@@ -151,8 +151,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 총 페이지 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 총 페이지
               </label>
               <input
@@ -167,8 +167,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 난이도 */}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 난이도
               </label>
               <select
@@ -187,8 +187,8 @@ export function BookInfoSection({ book, deleteAction, isFromMaster = false }: Bo
             </div>
 
             {/* 메모 */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
                 메모
               </label>
               <textarea

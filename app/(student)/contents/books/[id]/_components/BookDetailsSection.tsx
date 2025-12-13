@@ -62,8 +62,8 @@ export function BookDetailsSection({
 
   if (isEditing && !isFromMaster) {
     return (
-      <div>
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">교재 목차 관리</h3>
           <div className="flex gap-2">
             <button
@@ -81,7 +81,7 @@ export function BookDetailsSection({
             setCurrentDetails(newDetails);
           }}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={() => setIsEditing(false)}
@@ -105,8 +105,8 @@ export function BookDetailsSection({
   }
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">교재 목차</h3>
         <div className="flex gap-2">
           {details.length > 0 && (
