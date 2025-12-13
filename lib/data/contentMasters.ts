@@ -1952,7 +1952,29 @@ export async function getStudentBookDetailsBatch(
     return new Map();
   }
 
-  // 성능 로깅 (개발 환경에서만)
+  // 결과를 bookId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
+  const resultMap = new Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>();
+  
+  (data || []).forEach((detail: { id: string; book_id: string; page_number: number; major_unit: string | null; minor_unit: string | null }) => {
+    if (!resultMap.has(detail.book_id)) {
+      resultMap.set(detail.book_id, []);
+    }
+    resultMap.get(detail.book_id)!.push({
+      id: detail.id,
+      page_number: detail.page_number,
+      major_unit: detail.major_unit,
+      minor_unit: detail.minor_unit,
+    });
+  });
+
+  // 조회 결과가 없는 bookId들도 빈 배열로 초기화
+  bookIds.forEach((bookId) => {
+    if (!resultMap.has(bookId)) {
+      resultMap.set(bookId, []);
+    }
+  });
+
+  // 성능 로깅 (개발 환경에서만) - resultMap 생성 후 실행
   if (process.env.NODE_ENV === "development") {
     const resultCount = data?.length || 0;
     const emptyBookIds = bookIds.filter((bookId) => !resultMap.has(bookId) || resultMap.get(bookId)!.length === 0);
@@ -1975,28 +1997,6 @@ export async function getStudentBookDetailsBatch(
       });
     }
   }
-
-  // 결과를 bookId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
-  const resultMap = new Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>();
-  
-  (data || []).forEach((detail: { id: string; book_id: string; page_number: number; major_unit: string | null; minor_unit: string | null }) => {
-    if (!resultMap.has(detail.book_id)) {
-      resultMap.set(detail.book_id, []);
-    }
-    resultMap.get(detail.book_id)!.push({
-      id: detail.id,
-      page_number: detail.page_number,
-      major_unit: detail.major_unit,
-      minor_unit: detail.minor_unit,
-    });
-  });
-
-  // 조회 결과가 없는 bookId들도 빈 배열로 초기화
-  bookIds.forEach((bookId) => {
-    if (!resultMap.has(bookId)) {
-      resultMap.set(bookId, []);
-    }
-  });
 
   return resultMap;
 }
@@ -2034,7 +2034,29 @@ export async function getStudentLectureEpisodesBatch(
     return new Map();
   }
 
-  // 성능 로깅 (개발 환경에서만)
+  // 결과를 lectureId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
+  const resultMap = new Map<string, Array<{ id: string; episode_number: number; title: string | null; duration: number | null }>>();
+  
+  (data || []).forEach((episode: { id: string; lecture_id: string; episode_number: number; title: string | null; duration: number | null }) => {
+    if (!resultMap.has(episode.lecture_id)) {
+      resultMap.set(episode.lecture_id, []);
+    }
+    resultMap.get(episode.lecture_id)!.push({
+      id: episode.id,
+      episode_number: episode.episode_number,
+      title: episode.title,
+      duration: episode.duration,
+    });
+  });
+
+  // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
+  lectureIds.forEach((lectureId) => {
+    if (!resultMap.has(lectureId)) {
+      resultMap.set(lectureId, []);
+    }
+  });
+
+  // 성능 로깅 (개발 환경에서만) - resultMap 생성 후 실행
   if (process.env.NODE_ENV === "development") {
     const resultCount = data?.length || 0;
     const emptyLectureIds = lectureIds.filter((lectureId) => !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0);
@@ -2057,28 +2079,6 @@ export async function getStudentLectureEpisodesBatch(
       });
     }
   }
-
-  // 결과를 lectureId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
-  const resultMap = new Map<string, Array<{ id: string; episode_number: number; title: string | null; duration: number | null }>>();
-  
-  (data || []).forEach((episode: { id: string; lecture_id: string; episode_number: number; title: string | null; duration: number | null }) => {
-    if (!resultMap.has(episode.lecture_id)) {
-      resultMap.set(episode.lecture_id, []);
-    }
-    resultMap.get(episode.lecture_id)!.push({
-      id: episode.id,
-      episode_number: episode.episode_number,
-      title: episode.title,
-      duration: episode.duration,
-    });
-  });
-
-  // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
-  lectureIds.forEach((lectureId) => {
-    if (!resultMap.has(lectureId)) {
-      resultMap.set(lectureId, []);
-    }
-  });
 
   return resultMap;
 }

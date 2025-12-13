@@ -12,6 +12,7 @@ import { timeToMinutes } from "./utils";
 import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
+import { fetchBlocksWithFallback } from "@/lib/utils/databaseFallback";
 
 /**
  * 플랜 그룹의 플랜 목록 조회
@@ -356,12 +357,12 @@ async function _getScheduleResultData(groupId: string): Promise<{
     .order("block_index", { ascending: true });
 
   // 블록 데이터 조회 준비 (block_set_id가 있는 경우에만)
+  // block_index 컬럼이 없을 수 있으므로 fallback 처리 포함
   const blocksQuery = group.block_set_id
-    ? queryClient
-        .from("student_block_schedule")
-        .select("id, day_of_week, start_time, end_time, block_index")
-        .eq("block_set_id", group.block_set_id)
-        .eq("student_id", targetStudentId)
+    ? fetchBlocksWithFallback(queryClient, {
+        block_set_id: group.block_set_id,
+        student_id: targetStudentId,
+      })
     : Promise.resolve({ data: null, error: null });
 
   // 플랜과 블록을 병렬로 조회

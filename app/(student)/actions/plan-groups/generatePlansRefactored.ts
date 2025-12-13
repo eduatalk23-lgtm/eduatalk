@@ -215,12 +215,13 @@ async function _generatePlansFromGroupRefactored(
 
   // 7. 콘텐츠 ID 해석 및 복사 (새 모듈 사용)
   // 마스터 콘텐츠를 학생 콘텐츠로 복사 (generate에서는 실제 복사 수행)
+  // 성능 최적화: 병렬 처리
   const contentIdMap = new Map<string, string>();
 
-  for (const content of contents) {
+  // 먼저 모든 콘텐츠에 대해 존재 여부 확인 쿼리를 병렬로 실행
+  const contentCheckPromises = contents.map(async (content) => {
     if (isDummyContent(content.content_id)) {
-      contentIdMap.set(content.content_id, content.content_id);
-      continue;
+      return { contentId: content.content_id, resolvedId: content.content_id };
     }
 
     if (content.content_type === "book") {
@@ -233,31 +234,30 @@ async function _generatePlansFromGroupRefactored(
         .maybeSingle();
 
       if (existingBook) {
-        contentIdMap.set(content.content_id, existingBook.id);
-      } else {
-        // 마스터 교재인지 확인
-        const { data: masterBook } = await masterQueryClient
-          .from("master_books")
-          .select("id")
-          .eq("id", content.content_id)
-          .maybeSingle();
-
-        if (masterBook) {
-          // 마스터 교재 복사
-          const copiedBook = await copyMasterBookToStudent(
-            content.content_id,
-            studentId,
-            group.tenant_id
-          );
-          if (copiedBook) {
-            contentIdMap.set(content.content_id, copiedBook.bookId);
-          } else {
-            contentIdMap.set(content.content_id, content.content_id);
-          }
-        } else {
-          contentIdMap.set(content.content_id, content.content_id);
-        }
+        return { contentId: content.content_id, resolvedId: existingBook.id };
       }
+
+      // 마스터 교재인지 확인
+      const { data: masterBook } = await masterQueryClient
+        .from("master_books")
+        .select("id")
+        .eq("id", content.content_id)
+        .maybeSingle();
+
+      if (masterBook) {
+        // 마스터 교재 복사 (순차 처리 필요)
+        const copiedBook = await copyMasterBookToStudent(
+          content.content_id,
+          studentId,
+          group.tenant_id
+        );
+        return {
+          contentId: content.content_id,
+          resolvedId: copiedBook?.bookId || content.content_id,
+        };
+      }
+
+      return { contentId: content.content_id, resolvedId: content.content_id };
     } else if (content.content_type === "lecture") {
       // 학생 강의 존재 여부 확인
       const { data: existingLecture } = await queryClient
@@ -268,36 +268,41 @@ async function _generatePlansFromGroupRefactored(
         .maybeSingle();
 
       if (existingLecture) {
-        contentIdMap.set(content.content_id, existingLecture.id);
-      } else {
-        // 마스터 강의인지 확인
-        const { data: masterLecture } = await masterQueryClient
-          .from("master_lectures")
-          .select("id")
-          .eq("id", content.content_id)
-          .maybeSingle();
-
-        if (masterLecture) {
-          // 마스터 강의 복사
-          const copiedLecture = await copyMasterLectureToStudent(
-            content.content_id,
-            studentId,
-            group.tenant_id
-          );
-          if (copiedLecture) {
-            contentIdMap.set(content.content_id, copiedLecture.lectureId);
-          } else {
-            contentIdMap.set(content.content_id, content.content_id);
-          }
-        } else {
-          contentIdMap.set(content.content_id, content.content_id);
-        }
+        return { contentId: content.content_id, resolvedId: existingLecture.id };
       }
+
+      // 마스터 강의인지 확인
+      const { data: masterLecture } = await masterQueryClient
+        .from("master_lectures")
+        .select("id")
+        .eq("id", content.content_id)
+        .maybeSingle();
+
+      if (masterLecture) {
+        // 마스터 강의 복사 (순차 처리 필요)
+        const copiedLecture = await copyMasterLectureToStudent(
+          content.content_id,
+          studentId,
+          group.tenant_id
+        );
+        return {
+          contentId: content.content_id,
+          resolvedId: copiedLecture?.lectureId || content.content_id,
+        };
+      }
+
+      return { contentId: content.content_id, resolvedId: content.content_id };
     } else {
       // custom 콘텐츠
-      contentIdMap.set(content.content_id, content.content_id);
+      return { contentId: content.content_id, resolvedId: content.content_id };
     }
-  }
+  });
+
+  // 모든 콘텐츠 확인을 병렬로 실행
+  const contentCheckResults = await Promise.all(contentCheckPromises);
+  contentCheckResults.forEach(({ contentId, resolvedId }) => {
+    contentIdMap.set(contentId, resolvedId);
+  });
 
   // 8. 콘텐츠 소요시간 조회 (새 모듈 사용)
   const contentDurationMap = await loadContentDurations(
@@ -345,24 +350,61 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 11. 기존 플랜 삭제
-  const { error: deleteError } = await supabase
-    .from("plans")
+  // 삭제 전 기존 플랜 확인 (디버깅용)
+  const { data: existingPlans, error: checkError } = await supabase
+    .from("student_plan")
+    .select("id")
+    .eq("plan_group_id", groupId)
+    .limit(1);
+
+  if (checkError) {
+    console.error("[_generatePlansFromGroupRefactored] 기존 플랜 확인 실패:", checkError);
+  }
+
+  console.log("[_generatePlansFromGroupRefactored] 삭제 대상 플랜 수:", existingPlans?.length || 0);
+
+  const { error: deleteError, data: deletedData } = await supabase
+    .from("student_plan")
     .delete()
-    .eq("plan_group_id", groupId);
+    .eq("plan_group_id", groupId)
+    .select(); // 삭제된 레코드 반환
 
   if (deleteError) {
+    console.error("[_generatePlansFromGroupRefactored] 플랜 삭제 에러 상세:", {
+      message: deleteError.message,
+      code: deleteError.code,
+      details: deleteError.details,
+      hint: deleteError.hint,
+      groupId,
+      existingPlansCount: existingPlans?.length || 0,
+    });
+
     throw new AppError(
-      "기존 플랜 삭제에 실패했습니다.",
+      `기존 플랜 삭제에 실패했습니다: ${deleteError.message || deleteError.code || "알 수 없는 오류"}`,
       ErrorCode.INTERNAL_ERROR,
       500,
       true
     );
   }
 
-  // 12. 플랜 저장 준비 (날짜별로 그룹화하여 시간 배정)
+  console.log("[_generatePlansFromGroupRefactored] 삭제된 플랜 수:", deletedData?.length || 0);
+
+  // 12. tenant_id 검증 (플랜 저장 전에 미리 검증)
+  const tenantId = group.tenant_id || tenantContext.tenantId;
+  if (!tenantId) {
+    throw new AppError(
+      "테넌트 ID를 찾을 수 없습니다. 플랜 그룹 또는 사용자 정보를 확인해주세요.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  // 13. 플랜 저장 준비 (날짜별로 그룹화하여 시간 배정)
   const planPayloads: Array<{
     plan_group_id: string;
     student_id: string;
+    tenant_id: string;
     plan_date: string;
     block_index: number;
     status: string;
@@ -466,6 +508,7 @@ async function _generatePlansFromGroupRefactored(
       planPayloads.push({
         plan_group_id: groupId,
         student_id: studentId,
+        tenant_id: tenantId,
         plan_date: date,
         block_index: blockIndex,
         status: "pending",
@@ -493,8 +536,8 @@ async function _generatePlansFromGroupRefactored(
     }
   }
 
-  // 13. 플랜 일괄 저장
-  const { error: insertError } = await supabase.from("plans").insert(planPayloads);
+  // 14. 플랜 일괄 저장
+  const { error: insertError } = await supabase.from("student_plan").insert(planPayloads);
 
   if (insertError) {
     console.error("[_generatePlansFromGroupRefactored] 플랜 저장 실패:", insertError);
@@ -506,7 +549,7 @@ async function _generatePlansFromGroupRefactored(
     );
   }
 
-  // 14. 플랜 그룹 상태 업데이트
+  // 15. 플랜 그룹 상태 업데이트
   if ((group.status as PlanStatus) === "draft") {
     try {
       await updatePlanGroupStatus(groupId, "saved");

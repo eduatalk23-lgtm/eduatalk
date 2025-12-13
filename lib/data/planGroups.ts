@@ -149,9 +149,7 @@ export async function getPlanGroupsForStudent(
     if (!hasSchedulerOptions) {
       // fallback: 컬럼이 없는 경우 (scheduler_options 제외)
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("scheduler_options 컬럼이 없어 fallback 쿼리 사용"), {
-          function: "getPlanGroupsForStudent",
-          level: "warn",
+        console.warn("[getPlanGroupsForStudent] scheduler_options 컬럼이 없어 fallback 쿼리 사용", {
           studentId: filters.studentId,
           tenantId: filters.tenantId,
         });
@@ -266,16 +264,12 @@ export async function getPlanGroupById(
     if (!hasSchedulerOptions) {
       // scheduler_options 컬럼이 없으면 fallback 쿼리 사용
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("scheduler_options 컬럼이 없어 fallback 쿼리 사용"), {
-          function: "getPlanGroupById",
-          level: "warn",
+        console.warn("[getPlanGroupById] scheduler_options 컬럼이 없어 fallback 쿼리 사용", {
           groupId,
           studentId,
           tenantId,
         });
       }
-
-      const fallbackSelect = () =>
         supabase
           .from("plan_groups")
           .select(
@@ -300,9 +294,7 @@ export async function getPlanGroupById(
       // scheduler_options 컬럼은 있지만 다른 컬럼이 없는 경우
       // 원래 쿼리를 다시 시도하거나 에러 처리
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("컬럼 에러 발생 (scheduler_options는 존재)"), {
-          function: "getPlanGroupById",
-          level: "warn",
+        console.warn("[getPlanGroupById] 컬럼 에러 발생 (scheduler_options는 존재)", {
           groupId,
           studentId,
           tenantId,
@@ -461,9 +453,7 @@ export async function createPlanGroup(
     // scheduler_options가 포함된 경우 제외하고 재시도
     if (payload.scheduler_options !== undefined) {
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("scheduler_options 컬럼이 없어 fallback 생성 사용"), {
-          function: "createPlanGroup",
-          level: "warn",
+        console.warn("[createPlanGroup] scheduler_options 컬럼이 없어 fallback 생성 사용", {
           studentId: group.student_id,
           tenantId: group.tenant_id,
         });
@@ -478,10 +468,7 @@ export async function createPlanGroup(
       
       // fallback 성공 시 경고만 출력
       if (!error && process.env.NODE_ENV === "development") {
-        logError(new Error("scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요."), {
-          function: "createPlanGroup",
-          level: "warn",
-        });
+        console.warn("[createPlanGroup] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요.");
       }
     } else {
       // 다른 컬럼 문제인 경우 일반 fallback
@@ -559,9 +546,7 @@ export async function updatePlanGroup(
     // scheduler_options가 포함된 경우 제외하고 재시도
     if (payload.scheduler_options !== undefined) {
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("scheduler_options 컬럼이 없어 fallback 업데이트 사용"), {
-          function: "updatePlanGroup",
-          level: "warn",
+        console.warn("[updatePlanGroup] scheduler_options 컬럼이 없어 fallback 업데이트 사용", {
           groupId,
           studentId,
         });
@@ -578,10 +563,7 @@ export async function updatePlanGroup(
       // scheduler_options가 없어도 다른 필드는 업데이트 성공
       if (!error) {
         if (process.env.NODE_ENV === "development") {
-          logError(new Error("scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요."), {
-            function: "updatePlanGroup",
-            level: "warn",
-          });
+          console.warn("[updatePlanGroup] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요.");
         }
         return { success: true };
       }
@@ -857,12 +839,7 @@ export async function getPlanContents(
   const supabase = await createSupabaseServerClient();
 
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("플랜 콘텐츠 조회 시작"), {
-      function: "getPlanContents",
-      level: "info",
-      groupId,
-      tenantId,
-    });
+    console.log("[getPlanContents] 플랜 콘텐츠 조회 시작", { groupId, tenantId });
   }
 
   const selectContents = () =>
@@ -882,9 +859,7 @@ export async function getPlanContents(
   let { data, error } = await query;
 
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("플랜 콘텐츠 조회 결과"), {
-      function: "getPlanContents",
-      level: "info",
+    console.log("[getPlanContents] 플랜 콘텐츠 조회 결과", {
       groupId,
       tenantId,
       dataCount: data?.length || 0,
@@ -987,9 +962,7 @@ export async function createPlanContents(
 
   if (error && error.code === "42703") {
     if (process.env.NODE_ENV === "development") {
-      logError(new Error("컬럼이 없어 fallback 쿼리 사용"), {
-        function: "createPlanContents",
-        level: "warn",
+      console.warn("[createPlanContents] 컬럼이 없어 fallback 쿼리 사용", {
         groupId,
         tenantId,
       });
@@ -1190,11 +1163,7 @@ export async function createPlanExclusions(
     // 현재 플랜 그룹에 이미 있으면 스킵
     if (existingKeys.has(key)) {
       if (process.env.NODE_ENV === "development") {
-        logError(new Error(`이미 존재하는 제외일 스킵: ${key}`), {
-          function: "createPlanExclusions",
-          level: "info",
-          key,
-        });
+        console.log("[createPlanExclusions] 이미 존재하는 제외일 스킵", { key });
       }
       continue;
     }
@@ -1213,9 +1182,7 @@ export async function createPlanExclusions(
   }
 
   if (process.env.NODE_ENV === "development") {
-    logError(new Error(`처리 요약: 업데이트 ${toUpdate.length}개, 생성 ${toInsert.length}개, 스킵 ${exclusions.length - toUpdate.length - toInsert.length}개`), {
-      function: "createPlanExclusions",
-      level: "info",
+    console.log("[createPlanExclusions] 처리 요약", {
       updateCount: toUpdate.length,
       insertCount: toInsert.length,
       skipCount: exclusions.length - toUpdate.length - toInsert.length,
@@ -1243,9 +1210,7 @@ export async function createPlanExclusions(
         // 업데이트 실패 시 새로 생성 목록에 추가
         toInsert.push(exclusion);
       } else if (process.env.NODE_ENV === "development") {
-        logError(new Error(`제외일 재활용 성공: ${exclusion.exclusion_date} (${exclusion.exclusion_type})`), {
-          function: "createPlanExclusions",
-          level: "info",
+        console.log("[createPlanExclusions] 제외일 재활용 성공", {
           exclusionDate: exclusion.exclusion_date,
           exclusionType: exclusion.exclusion_type,
         });
@@ -1289,11 +1254,7 @@ export async function createPlanExclusions(
     }
 
     if (process.env.NODE_ENV === "development") {
-      logError(new Error(`제외일 생성 완료: ${toInsert.length}개`), {
-        function: "createPlanExclusions",
-        level: "info",
-        insertCount: toInsert.length,
-      });
+      console.log("[createPlanExclusions] 제외일 생성 완료", { insertCount: toInsert.length });
     }
   }
 
@@ -1388,12 +1349,7 @@ export async function getAcademySchedules(
   // tenant_id 컬럼 없는 경우 재시도
   if (error && error.code === "42703") {
     if (process.env.NODE_ENV === "development") {
-      logError(new Error("tenant_id 컬럼 없음, 재시도"), {
-        function: "getAcademySchedules",
-        level: "warn",
-        groupId,
-        tenantId,
-      });
+      console.warn("[getAcademySchedules] tenant_id 컬럼 없음, 재시도", { groupId, tenantId });
     }
     const retryQuery = supabase
       .from("academy_schedules")
@@ -1587,10 +1543,7 @@ export async function createPlanAcademySchedules(
     const adminClient = createSupabaseAdminClient();
     if (!adminClient) {
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용"), {
-          function: "createPlanAcademySchedules",
-          level: "warn",
-        });
+        console.warn("[createPlanAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
       }
       supabase = await createSupabaseServerClient();
     } else {
@@ -1602,10 +1555,7 @@ export async function createPlanAcademySchedules(
 
   if (schedules.length === 0) {
     if (process.env.NODE_ENV === "development") {
-      logError(new Error("학원 일정이 없습니다."), {
-        function: "createPlanAcademySchedules",
-        level: "info",
-      });
+      console.log("[createPlanAcademySchedules] 학원 일정이 없습니다.");
     }
     return { success: true };
   }
@@ -1623,9 +1573,7 @@ export async function createPlanAcademySchedules(
 
   // 디버깅: 입력된 학원 일정 확인
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("입력된 학원 일정"), {
-      function: "createPlanAcademySchedules",
-      level: "info",
+    console.log("[createPlanAcademySchedules] 입력된 학원 일정", {
       groupId,
       studentId: group.student_id,
       tenantId,
@@ -1644,9 +1592,7 @@ export async function createPlanAcademySchedules(
   );
 
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("기존 학원 일정 (현재 플랜 그룹)"), {
-      function: "createPlanAcademySchedules",
-      level: "info",
+    console.log("[createPlanAcademySchedules] 기존 학원 일정 (현재 플랜 그룹)", {
       existingSchedulesCount: existingSchedules.length,
     });
   }
@@ -1684,11 +1630,7 @@ export async function createPlanAcademySchedules(
     // 현재 플랜 그룹에 이미 있으면 스킵
     if (existingKeys.has(key)) {
       if (process.env.NODE_ENV === "development") {
-        logError(new Error(`이미 존재하는 학원 일정 스킵: ${key}`), {
-          function: "createPlanAcademySchedules",
-          level: "info",
-          key,
-        });
+        console.log("[createPlanAcademySchedules] 이미 존재하는 학원 일정 스킵", { key });
       }
       continue;
     }
@@ -1707,9 +1649,7 @@ export async function createPlanAcademySchedules(
   }
 
   if (process.env.NODE_ENV === "development") {
-    logError(new Error(`처리 요약: 업데이트 ${toUpdate.length}개, 생성 ${toInsert.length}개, 스킵 ${schedules.length - toUpdate.length - toInsert.length}개`), {
-      function: "createPlanAcademySchedules",
-      level: "info",
+    console.log("[createPlanAcademySchedules] 처리 요약", {
       updateCount: toUpdate.length,
       insertCount: toInsert.length,
       skipCount: schedules.length - toUpdate.length - toInsert.length,
@@ -1762,9 +1702,7 @@ export async function createPlanAcademySchedules(
       const academyId = await getOrCreateAcademy(academyName);
       
       if (!academyId) {
-        logError(new Error(`학원 ID 확보 실패: ${academyName}, 새로 생성으로 폴백`), {
-          function: "createPlanAcademySchedules",
-          level: "warn",
+        console.warn("[createPlanAcademySchedules] 학원 ID 확보 실패, 새로 생성으로 폴백", {
           academyName,
           scheduleId: id,
         });
@@ -1790,9 +1728,7 @@ export async function createPlanAcademySchedules(
         });
         toInsert.push(schedule);
       } else if (process.env.NODE_ENV === "development") {
-        logError(new Error(`학원 일정 재활용 성공: ${schedule.day_of_week}요일 ${schedule.start_time}-${schedule.end_time}`), {
-          function: "createPlanAcademySchedules",
-          level: "info",
+        console.log("[createPlanAcademySchedules] 학원 일정 재활용 성공", {
           dayOfWeek: schedule.day_of_week,
           startTime: schedule.start_time,
           endTime: schedule.end_time,
@@ -1857,11 +1793,7 @@ export async function createPlanAcademySchedules(
     }
 
     if (process.env.NODE_ENV === "development") {
-      logError(new Error(`학원 일정 생성 완료: ${toInsert.length}개`), {
-        function: "createPlanAcademySchedules",
-        level: "info",
-        insertCount: toInsert.length,
-      });
+      console.log("[createPlanAcademySchedules] 학원 일정 생성 완료", { insertCount: toInsert.length });
     }
   }
 
@@ -1892,10 +1824,7 @@ export async function createStudentAcademySchedules(
     const adminClient = createSupabaseAdminClient();
     if (!adminClient) {
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용"), {
-          function: "createStudentAcademySchedules",
-          level: "warn",
-        });
+        console.warn("[createStudentAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
       }
       supabase = await createSupabaseServerClient();
     } else {
@@ -1907,19 +1836,14 @@ export async function createStudentAcademySchedules(
 
   if (schedules.length === 0) {
     if (process.env.NODE_ENV === "development") {
-      logError(new Error("학원 일정이 없습니다."), {
-        function: "createStudentAcademySchedules",
-        level: "info",
-      });
+      console.log("[createStudentAcademySchedules] 학원 일정이 없습니다.");
     }
     return { success: true };
   }
 
   // 디버깅: 입력된 학원 일정 확인
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("입력된 학원 일정"), {
-      function: "createStudentAcademySchedules",
-      level: "info",
+    console.log("[createStudentAcademySchedules] 입력된 학원 일정", {
       studentId,
       tenantId,
       schedulesCount: schedules.length,
@@ -1934,9 +1858,7 @@ export async function createStudentAcademySchedules(
 
   // 디버깅: 기존 학원 일정 확인
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("기존 학원 일정"), {
-      function: "createStudentAcademySchedules",
-      level: "info",
+    console.log("[createStudentAcademySchedules] 기존 학원 일정", {
       existingSchedulesCount: existingSchedules.length,
     });
   }
@@ -1947,9 +1869,7 @@ export async function createStudentAcademySchedules(
 
   // 디버깅: 필터링된 새 학원 일정 확인
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("필터링된 새 학원 일정"), {
-      function: "createStudentAcademySchedules",
-      level: "info",
+    console.log("[createStudentAcademySchedules] 필터링된 새 학원 일정", {
       newSchedulesCount: newSchedules.length,
       skippedCount: schedules.length - newSchedules.length,
     });
@@ -1957,10 +1877,7 @@ export async function createStudentAcademySchedules(
 
   if (newSchedules.length === 0) {
     if (process.env.NODE_ENV === "development") {
-      logError(new Error("모든 학원 일정이 이미 존재합니다."), {
-        function: "createStudentAcademySchedules",
-        level: "info",
-      });
+      console.log("[createStudentAcademySchedules] 모든 학원 일정이 이미 존재합니다.");
     }
     return { success: true }; // 모든 학원 일정이 이미 존재
   }
@@ -2056,11 +1973,7 @@ export async function createStudentAcademySchedules(
   }
 
   if (process.env.NODE_ENV === "development") {
-    logError(new Error("학원 일정 저장 완료"), {
-      function: "createStudentAcademySchedules",
-      level: "info",
-      savedCount: payload.length,
-    });
+    console.log("[createStudentAcademySchedules] 학원 일정 저장 완료", { savedCount: payload.length });
   }
 
   return { success: true };
@@ -2214,10 +2127,7 @@ export async function getPlanGroupWithDetailsForAdmin(
     if (!adminClient) {
       // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
       if (process.env.NODE_ENV === "development") {
-        logError(new Error("Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용"), {
-          function: "getPlanGroupWithDetailsForAdmin",
-          level: "warn",
-        });
+        console.warn("[getPlanGroupWithDetailsForAdmin] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
       }
       return getStudentAcademySchedules(group.student_id, tenantId);
     }
@@ -2288,9 +2198,7 @@ export async function getPlanGroupWithDetailsForAdmin(
     })) as AcademySchedule[];
 
     if (process.env.NODE_ENV === "development") {
-      logError(new Error("관리자용 학원 일정 조회 성공"), {
-        function: "getPlanGroupWithDetailsForAdmin",
-        level: "info",
+      console.log("[getPlanGroupWithDetailsForAdmin] 관리자용 학원 일정 조회 성공", {
         groupId,
         studentId: group.student_id,
         tenantId,
