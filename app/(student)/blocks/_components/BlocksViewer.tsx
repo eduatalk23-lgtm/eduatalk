@@ -352,10 +352,10 @@ function BlockSetCreateForm({
             />
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-3">시간 블록 추가 (선택)</h4>
+          <div className="flex flex-col gap-3 border-t border-gray-200 pt-4">
+            <h4 className="text-sm font-medium text-gray-700">시간 블록 추가 (선택)</h4>
             
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-700">추가할 요일 선택</label>
               <div className="flex flex-wrap gap-2">
                 {[
