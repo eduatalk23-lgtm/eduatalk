@@ -166,7 +166,7 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
                         }}
                       />
                     </div>
-                    <div className="mt-1 text-xs text-gray-500">
+                    <div className="text-xs text-gray-500">
                       {goal.start_date} ~ {goal.end_date}
                     </div>
                   </div>

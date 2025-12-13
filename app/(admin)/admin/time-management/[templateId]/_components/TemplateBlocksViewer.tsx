@@ -136,9 +136,9 @@ export default function TemplateBlocksViewer({
                 }`}
               >
                 {/* 헤더 */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{set.name}</h3>
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-1 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">{set.name}</h3>
                     {selectedBlockSetId === set.id && (
                       <span className="inline-block px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded">
                         선택됨
@@ -165,7 +165,7 @@ export default function TemplateBlocksViewer({
                         toast.showError(error.message || "세트 삭제에 실패했습니다.");
                       }
                     }}
-                    className="ml-2 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="세트 삭제"
                   >
                     <svg
@@ -187,11 +187,11 @@ export default function TemplateBlocksViewer({
 
                 {/* 설명 */}
                 {set.description && (
-                  <p className="text-sm text-gray-600 mb-4">{set.description}</p>
+                  <p className="text-sm text-gray-600">{set.description}</p>
                 )}
 
                 {/* 통계 정보 */}
-                <div className="space-y-2 mb-4 flex-1">
+                <div className="flex flex-col gap-2 flex-1">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">블록 개수</span>
                     <span className="font-medium text-gray-900">{set.blockCount}개</span>
@@ -203,8 +203,8 @@ export default function TemplateBlocksViewer({
                     </span>
                   </div>
                   {set.blockCount > 0 && (
-                    <div className="pt-2 border-t border-gray-200">
-                      <div className="text-xs text-gray-500 mb-1">요일별 블록</div>
+                    <div className="flex flex-col gap-1 pt-2 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">요일별 블록</div>
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(set.dayDistribution).map(([day, count]) => (
                           <span
@@ -378,8 +378,8 @@ function TemplateBlockSetCreateForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-4 bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">새 블록 세트 추가</h3>
           <button
             type="button"
