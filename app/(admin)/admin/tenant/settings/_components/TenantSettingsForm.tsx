@@ -169,12 +169,12 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
       </div>
 
       {/* 기관 정보 수정 폼 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-xl font-semibold">기관 정보</h2>
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="text-xl font-semibold">기관 정보</h2>
 
         {message && (
           <div
-            className={`mb-4 rounded-lg p-3 ${
+            className={`rounded-lg p-3 ${
               message.type === "success"
                 ? "bg-green-50 text-green-700"
                 : "bg-red-50 text-red-700"
@@ -184,9 +184,9 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">기관명</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">기관명</label>
             <input
               type="text"
               value={name}
@@ -197,8 +197,8 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium">유형</label>
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium">유형</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
@@ -224,15 +224,17 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
       </div>
 
       {/* 자동 승인 설정 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h2 className="mb-4 text-xl font-semibold">학부모 연결 자동 승인</h2>
-        <p className="mb-4 text-sm text-gray-600">
-          조건을 만족하는 연결 요청을 자동으로 승인할 수 있습니다.
-        </p>
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-xl font-semibold">학부모 연결 자동 승인</h2>
+          <p className="text-sm text-gray-600">
+            조건을 만족하는 연결 요청을 자동으로 승인할 수 있습니다.
+          </p>
+        </div>
 
         {autoApproveMessage && (
           <div
-            className={`mb-4 rounded-lg p-3 ${
+            className={`rounded-lg p-3 ${
               autoApproveMessage.type === "success"
                 ? "bg-green-50 text-green-700"
                 : "bg-red-50 text-red-700"
@@ -299,8 +301,8 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
                 </div>
 
                 {/* 관계 선택 다중 선택 */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-900">
+                <div className="flex flex-col gap-2">
+                  <label className="block text-sm font-medium text-gray-900">
                     자동 승인할 관계 선택
                   </label>
                   <div className="flex flex-wrap gap-3">
@@ -327,7 +329,7 @@ export function TenantSettingsForm({ tenant, stats }: TenantSettingsFormProps) {
                   </div>
                   {autoApproveSettings.conditions.allowedRelations.length ===
                     0 && (
-                    <p className="mt-2 text-xs text-red-600">
+                    <p className="text-xs text-red-600">
                       최소 하나 이상의 관계를 선택해야 합니다.
                     </p>
                   )}

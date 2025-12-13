@@ -74,12 +74,14 @@ export function QRCodeManageContent() {
     return (
       <Card>
         <CardContent>
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
-            {error}
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
+              {error}
+            </div>
+            <Button onClick={loadHistory}>
+              다시 시도
+            </Button>
           </div>
-          <Button onClick={loadHistory} className="mt-4">
-            다시 시도
-          </Button>
         </CardContent>
       </Card>
     );

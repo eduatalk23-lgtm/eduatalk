@@ -131,23 +131,23 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                 >
                   <div className="flex-1">
                     <div className="text-sm font-medium text-gray-900">{block.type}</div>
-                    <div className="text-xs text-gray-600">
-                      {block.start_time} ~ {block.end_time}
+                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                      <span>{block.start_time} ~ {block.end_time}</span>
                       {block.day_of_week && block.day_of_week.length > 0 && (
-                        <span className="ml-2">
+                        <span>
                           ({block.day_of_week.map((d) => weekdayLabels[d]).join(", ")})
                         </span>
                       )}
                     </div>
                     {block.description && (
-                      <div className="mt-1 text-xs text-gray-600">{block.description}</div>
+                      <div className="text-xs text-gray-600">{block.description}</div>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => removeNonStudyTimeBlock(index)}
                     disabled={!editable}
-                    className={`ml-2 text-xs ${
+                    className={`text-xs ${
                       !editable
                         ? "cursor-not-allowed text-gray-600"
                         : "text-red-600 hover:text-red-800"

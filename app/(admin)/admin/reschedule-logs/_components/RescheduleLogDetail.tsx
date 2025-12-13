@@ -59,9 +59,9 @@ export function RescheduleLogDetail({ logId }: RescheduleLogDetailProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-2">
           <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-blue-600 border-r-transparent"></div>
-          <p className="mt-2 text-sm text-gray-600">로딩 중...</p>
+          <p className="text-sm text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
@@ -77,10 +77,10 @@ export function RescheduleLogDetail({ logId }: RescheduleLogDetailProps) {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 조정된 콘텐츠 */}
-        <div>
-          <h4 className="mb-2 text-sm font-semibold text-gray-900">
+        <div className="flex flex-col gap-2">
+          <h4 className="text-sm font-semibold text-gray-900">
             조정된 콘텐츠
           </h4>
           <div className="rounded-lg border border-gray-200 bg-white p-3">
@@ -91,8 +91,8 @@ export function RescheduleLogDetail({ logId }: RescheduleLogDetailProps) {
         </div>
 
         {/* 관련 히스토리 */}
-        <div>
-          <h4 className="mb-2 text-sm font-semibold text-gray-900">
+        <div className="flex flex-col gap-2">
+          <h4 className="text-sm font-semibold text-gray-900">
             관련 플랜 히스토리 ({histories.length}개)
           </h4>
           {histories.length === 0 ? (
@@ -104,16 +104,16 @@ export function RescheduleLogDetail({ logId }: RescheduleLogDetailProps) {
                   key={history.id}
                   className="rounded-lg border border-gray-200 bg-white p-3"
                 >
-                  <div className="text-xs text-gray-600">
-                    플랜 ID: {history.plan_id}
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <span>플랜 ID: {history.plan_id}</span>
                     {history.adjustment_type && (
-                      <span className="ml-2">
-                        • 조정 유형: {history.adjustment_type}
-                      </span>
+                      <>
+                        <span>•</span>
+                        <span>조정 유형: {history.adjustment_type}</span>
+                      </>
                     )}
-                    <span className="ml-2">
-                      • {new Date(history.created_at).toLocaleString("ko-KR")}
-                    </span>
+                    <span>•</span>
+                    <span>{new Date(history.created_at).toLocaleString("ko-KR")}</span>
                   </div>
                 </div>
               ))}

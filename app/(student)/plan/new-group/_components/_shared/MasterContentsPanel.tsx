@@ -640,7 +640,7 @@ export function MasterContentsPanel({
                         {result.content_type === "book" ? "📚 교재" : "🎧 강의"}
                       </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-800">
+                    <div className="flex flex-wrap gap-2 text-xs text-gray-800">
                       {result.publisher_or_academy && (
                         <span>{result.publisher_or_academy}</span>
                       )}
@@ -663,7 +663,7 @@ export function MasterContentsPanel({
                       selectedMasterIds.has(result.id)
                     }
                     className={cn(
-                      "ml-4 rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-colors",
+                      "rounded-lg px-3 py-1.5 text-sm font-medium text-white transition-colors",
                       maxReached || selectedMasterIds.has(result.id)
                         ? "cursor-not-allowed bg-gray-400"
                         : "bg-indigo-600 hover:bg-indigo-700"

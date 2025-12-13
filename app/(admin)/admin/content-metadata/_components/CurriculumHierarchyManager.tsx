@@ -463,8 +463,8 @@ export function CurriculumHierarchyManager() {
   return (
     <div className="space-y-6">
       {/* 개정교육과정 선택 및 관리 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">개정교육과정</h2>
           <button
             onClick={() => {
@@ -482,8 +482,8 @@ export function CurriculumHierarchyManager() {
         </div>
 
         {/* 개정교육과정 선택 */}
-        <div className="mb-4">
-          <label className="mb-2 block text-sm font-medium text-gray-700">
+        <div className="flex flex-col gap-2">
+          <label className="block text-sm font-medium text-gray-700">
             개정교육과정 선택
           </label>
           {loading && revisions.length === 0 ? (
@@ -506,7 +506,7 @@ export function CurriculumHierarchyManager() {
             </select>
           )}
           {!loading && revisions.length === 0 && (
-            <p className="mt-2 text-sm text-gray-700">
+            <p className="text-sm text-gray-700">
               개정교육과정이 없습니다. 위의 "+ 추가" 버튼을 클릭하여 생성해주세요.
             </p>
           )}
@@ -514,10 +514,10 @@ export function CurriculumHierarchyManager() {
 
         {/* 개정교육과정 생성 폼 */}
         {isCreatingRevision && (
-          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+              <div className="flex flex-col gap-1">
+                <label className="block text-sm font-medium text-gray-700">이름</label>
                 <input
                   type="text"
                   value={revisionFormData.name}
@@ -528,8 +528,8 @@ export function CurriculumHierarchyManager() {
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">정렬 순서</label>
+              <div className="flex flex-col gap-1">
+                <label className="block text-sm font-medium text-gray-700">정렬 순서</label>
                 <input
                   type="number"
                   value={revisionFormData.display_order}
@@ -642,8 +642,8 @@ export function CurriculumHierarchyManager() {
       {selectedRevisionId && (
         <div className="space-y-6">
           {/* 교과 및 과목 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">교과 및 과목</h2>
               <button
                 onClick={() => {
@@ -663,10 +663,10 @@ export function CurriculumHierarchyManager() {
 
             {/* 교과 생성 폼 */}
             {isCreatingGroup && (
-              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-sm font-medium text-gray-700">이름</label>
                     <input
                       type="text"
                       value={groupFormData.name}
@@ -723,10 +723,10 @@ export function CurriculumHierarchyManager() {
                   return (
                     <div
                       key={group.id}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                      className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4"
                     >
                       {/* 교과 헤더 */}
-                      <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center justify-between">
                         {editingGroupId === group.id ? (
                           <div className="flex flex-1 items-center gap-2">
                             <input
@@ -803,13 +803,13 @@ export function CurriculumHierarchyManager() {
                       </div>
 
                       {/* 과목 목록 */}
-                      <div className="ml-4 space-y-2">
+                      <div className="flex flex-col gap-2 pl-4">
                         {/* 과목 생성 폼 */}
                         {isCreatingSubject === group.id && (
-                          <div className="rounded-lg border border-gray-200 bg-white p-3">
+                          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-3">
                             <div className="grid gap-3 md:grid-cols-4">
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <div className="flex flex-col gap-1">
+                                <label className="block text-xs font-medium text-gray-700">
                                   과목명
                                 </label>
                                 <input
@@ -825,8 +825,8 @@ export function CurriculumHierarchyManager() {
                                   className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
                                 />
                               </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <div className="flex flex-col gap-1">
+                                <label className="block text-xs font-medium text-gray-700">
                                   과목구분
                                 </label>
                                 <select
@@ -847,8 +847,8 @@ export function CurriculumHierarchyManager() {
                                   ))}
                                 </select>
                               </div>
-                              <div>
-                                <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <div className="flex flex-col gap-1">
+                                <label className="block text-xs font-medium text-gray-700">
                                   정렬 순서
                                 </label>
                                 <input
@@ -991,8 +991,8 @@ export function CurriculumHierarchyManager() {
           </div>
 
           {/* 과목구분 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">과목구분</h2>
               <button
                 onClick={() => {
@@ -1012,10 +1012,10 @@ export function CurriculumHierarchyManager() {
 
             {/* 과목구분 생성 폼 */}
             {isCreatingType && (
-              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <div className="grid gap-4 md:grid-cols-4">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-sm font-medium text-gray-700">이름</label>
                     <input
                       type="text"
                       value={typeFormData.name}

@@ -159,8 +159,8 @@ export function SubjectTypesManager() {
       </div>
 
       {/* 개정교육과정 필터 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <label className="mb-2 block text-sm font-medium text-gray-700">
+      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
+        <label className="block text-sm font-medium text-gray-700">
           개정교육과정 필터
         </label>
         <select
@@ -181,8 +181,8 @@ export function SubjectTypesManager() {
       {isCreating && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="grid gap-4 md:grid-cols-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 개정교육과정 <span className="text-red-500">*</span>
               </label>
               <select
@@ -198,8 +198,8 @@ export function SubjectTypesManager() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">이름</label>
               <input
                 type="text"
                 value={formData.name}
@@ -208,8 +208,8 @@ export function SubjectTypesManager() {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">정렬 순서</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">정렬 순서</label>
               <input
                 type="number"
                 value={formData.display_order}

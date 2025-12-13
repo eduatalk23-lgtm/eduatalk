@@ -101,8 +101,8 @@ export function RescheduleLogsList({
       {/* 필터 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               플랜 그룹 ID
             </label>
             <input
@@ -113,8 +113,8 @@ export function RescheduleLogsList({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               학생 ID
             </label>
             <input
@@ -125,8 +125,8 @@ export function RescheduleLogsList({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               시작 날짜
             </label>
             <input
@@ -136,8 +136,8 @@ export function RescheduleLogsList({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label className="block text-sm font-medium text-gray-700">
               종료 날짜
             </label>
             <input
@@ -169,7 +169,7 @@ export function RescheduleLogsList({
                 className="px-6 py-4 hover:bg-gray-50 transition"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                  <div className="flex flex-1 flex-col gap-2">
                     <div className="flex items-center gap-3">
                       <span
                         className={`rounded px-2 py-1 text-xs font-medium ${getStatusColor(
@@ -185,19 +185,19 @@ export function RescheduleLogsList({
                         {log.plan_groups?.name || "이름 없음"}
                       </Link>
                     </div>
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
                       <span>학생: {log.students?.name || "이름 없음"}</span>
-                      <span className="mx-2">•</span>
+                      <span>•</span>
                       <span>
                         플랜: {log.plans_before_count}개 → {log.plans_after_count}개
                       </span>
-                      <span className="mx-2">•</span>
+                      <span>•</span>
                       <span>
                         {new Date(log.created_at).toLocaleString("ko-KR")}
                       </span>
                     </div>
                     {log.reason && (
-                      <div className="mt-1 text-xs text-gray-500">
+                      <div className="text-xs text-gray-500">
                         사유: {log.reason}
                       </div>
                     )}
@@ -206,13 +206,13 @@ export function RescheduleLogsList({
                     onClick={() =>
                       setSelectedLogId(selectedLogId === log.id ? null : log.id)
                     }
-                    className="ml-4 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
                   >
                     {selectedLogId === log.id ? "접기" : "상세 보기"}
                   </button>
                 </div>
                 {selectedLogId === log.id && (
-                  <div className="mt-4">
+                  <div className="flex flex-col gap-4">
                     <RescheduleLogDetail logId={log.id} />
                   </div>
                 )}

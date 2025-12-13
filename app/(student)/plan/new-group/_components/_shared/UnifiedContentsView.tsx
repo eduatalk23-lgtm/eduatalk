@@ -209,8 +209,8 @@ export function UnifiedContentsView({
 
           {/* 추천 콘텐츠 섹션 */}
           {hasRecommendedContents && (
-            <div>
-              <div className="mb-3 flex items-center justify-between">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900">
                   추천 콘텐츠
                 </h3>

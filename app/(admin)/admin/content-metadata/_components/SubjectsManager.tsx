@@ -162,9 +162,9 @@ export function SubjectsManager() {
       <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
         <div className="flex items-start gap-3">
           <div className="text-yellow-600">⚠️</div>
-          <div className="flex-1">
+          <div className="flex flex-1 flex-col gap-1">
             <h3 className="text-sm font-semibold text-yellow-800">주의</h3>
-            <p className="mt-1 text-sm text-yellow-700">
+            <p className="text-sm text-yellow-700">
               이 페이지는 deprecated된 테이블을 사용합니다. 과목 관리는{" "}
               <a
                 href="/admin/subjects"
@@ -195,8 +195,8 @@ export function SubjectsManager() {
       {/* 필터 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
               개정교육과정 필터
             </label>
             <select
@@ -215,8 +215,8 @@ export function SubjectsManager() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">교과 필터</label>
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">교과 필터</label>
             <select
               value={selectedCategoryId}
               onChange={(e) => setSelectedCategoryId(e.target.value)}
@@ -238,8 +238,8 @@ export function SubjectsManager() {
       {isCreating && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="grid gap-4 md:grid-cols-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 개정교육과정 <span className="text-red-500">*</span>
               </label>
               <select
@@ -258,8 +258,8 @@ export function SubjectsManager() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">
                 교과 <span className="text-red-500">*</span>
               </label>
               <select
@@ -276,8 +276,8 @@ export function SubjectsManager() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">이름</label>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700">이름</label>
               <input
                 type="text"
                 value={formData.name}
@@ -287,8 +287,8 @@ export function SubjectsManager() {
               />
             </div>
             <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="mb-1 block text-sm font-medium text-gray-700">정렬 순서</label>
+              <div className="flex flex-1 flex-col gap-1">
+                <label className="block text-sm font-medium text-gray-700">정렬 순서</label>
                 <input
                   type="number"
                   value={formData.display_order}
