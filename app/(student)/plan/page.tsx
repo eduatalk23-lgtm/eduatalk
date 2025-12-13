@@ -119,8 +119,13 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
           </Suspense>
         )}
 
-        {/* 재조정 추천 */}
-        <RescheduleRecommendations studentId={user.id} />
+        {/* 재조정 추천 - 플랜 그룹이 있을 때만 표시 */}
+        {planGroups.length > 0 && (
+          <RescheduleRecommendations 
+            key={planGroups.length} 
+            studentId={user.id} 
+          />
+        )}
 
         {/* 통계 카드 */}
         {planGroups.length > 0 && (
@@ -136,6 +141,7 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
         <div className="flex flex-col gap-4">
           {planGroups.length > 0 ? (
             <PlanGroupList 
+              key={planGroups.length}
               groups={planGroups} 
               planCounts={planCounts}
               planProgressData={planProgressData}
