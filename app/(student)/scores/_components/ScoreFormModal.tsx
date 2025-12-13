@@ -386,15 +386,15 @@ export function ScoreFormModal({
               <option value="2">2학기</option>
             </select>
             {errors.semester && touched.semester && (
-              <p className="mt-1 text-xs text-red-600">{errors.semester}</p>
+              <p className="text-xs text-red-600">{errors.semester}</p>
             )}
           </div>
 
           {/* 교과 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_group_id"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               교과 <span className="text-red-500">*</span>
             </label>
@@ -420,8 +420,8 @@ export function ScoreFormModal({
           </div>
 
           {/* 과목 */}
-          <div>
-            <label htmlFor="subject_id" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="subject_id" className="block text-sm font-medium text-gray-700">
               과목 <span className="text-red-500">*</span>
             </label>
             <select
@@ -445,15 +445,15 @@ export function ScoreFormModal({
               ))}
             </select>
             {errors.subject_id && touched.subject_id && (
-              <p className="mt-1 text-xs text-red-600">{errors.subject_id}</p>
+              <p className="text-xs text-red-600">{errors.subject_id}</p>
             )}
           </div>
 
           {/* 과목 유형 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_type_id"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               과목 유형 <span className="text-red-500">*</span>
             </label>
@@ -477,13 +477,13 @@ export function ScoreFormModal({
               ))}
             </select>
             {errors.subject_type_id && touched.subject_type_id && (
-              <p className="mt-1 text-xs text-red-600">{errors.subject_type_id}</p>
+              <p className="text-xs text-red-600">{errors.subject_type_id}</p>
             )}
           </div>
 
           {/* 학점수 */}
-          <div>
-            <label htmlFor="credit_hours" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="credit_hours" className="block text-sm font-medium text-gray-700">
               학점수 <span className="text-red-500">*</span>
             </label>
             <input
@@ -503,13 +503,13 @@ export function ScoreFormModal({
               }`}
             />
             {errors.credit_hours && touched.credit_hours && (
-              <p className="mt-1 text-xs text-red-600">{errors.credit_hours}</p>
+              <p className="text-xs text-red-600">{errors.credit_hours}</p>
             )}
           </div>
 
           {/* 원점수 */}
-          <div>
-            <label htmlFor="raw_score" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="raw_score" className="block text-sm font-medium text-gray-700">
               원점수 <span className="text-red-500">*</span>
             </label>
             <input
@@ -529,13 +529,13 @@ export function ScoreFormModal({
               }`}
             />
             {errors.raw_score && touched.raw_score && (
-              <p className="mt-1 text-xs text-red-600">{errors.raw_score}</p>
+              <p className="text-xs text-red-600">{errors.raw_score}</p>
             )}
           </div>
 
           {/* 성취도 등급 */}
-          <div>
-            <label htmlFor="grade_score" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="grade_score" className="block text-sm font-medium text-gray-700">
               성취도 등급 <span className="text-red-500">*</span>
             </label>
             <input
@@ -555,16 +555,16 @@ export function ScoreFormModal({
               }`}
             />
             {errors.grade_score && touched.grade_score && (
-              <p className="mt-1 text-xs text-red-600">{errors.grade_score}</p>
+              <p className="text-xs text-red-600">{errors.grade_score}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
+            <p className="text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
           </div>
 
           {/* 과목평균 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_average"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               과목평균
             </label>
@@ -582,10 +582,10 @@ export function ScoreFormModal({
           </div>
 
           {/* 표준편차 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="standard_deviation"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               표준편차
             </label>
@@ -604,10 +604,10 @@ export function ScoreFormModal({
           </div>
 
           {/* 수강자수 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="total_students"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               수강자수
             </label>
@@ -625,8 +625,8 @@ export function ScoreFormModal({
           </div>
 
           {/* 석차등급 */}
-          <div>
-            <label htmlFor="rank_grade" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="rank_grade" className="block text-sm font-medium text-gray-700">
               석차등급
             </label>
             <input
@@ -644,8 +644,8 @@ export function ScoreFormModal({
           </div>
 
           {/* 반 석차 */}
-          <div>
-            <label htmlFor="class_rank" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="class_rank" className="block text-sm font-medium text-gray-700">
               반 석차
             </label>
             <input

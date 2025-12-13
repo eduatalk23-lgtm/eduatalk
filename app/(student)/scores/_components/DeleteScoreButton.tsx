@@ -40,17 +40,19 @@ export function DeleteScoreButton({ id }: DeleteScoreButtonProps) {
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900">성적 삭제 확인</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              정말로 이 성적을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </p>
+          <div className="flex flex-col gap-6 rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-gray-900">성적 삭제 확인</h3>
+              <p className="text-sm text-gray-600">
+                정말로 이 성적을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+              </p>
+            </div>
             {error && (
-              <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
+              <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">
                 {error}
               </p>
             )}
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
                 disabled={isPending}

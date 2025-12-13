@@ -19,8 +19,8 @@ export function ScoreFilterBar({
 }: ScoreFilterBarProps) {
   return (
     <form action="/scores" method="get" className="flex flex-wrap items-end gap-4">
-      <div className="flex-1 min-w-[200px]">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+        <label className="block text-sm font-medium text-gray-700">
           교과 필터
         </label>
         <select
@@ -63,8 +63,8 @@ export function ScoreFilterBar({
         </select>
       </div>
 
-      <div className="flex-1 min-w-[200px]">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+        <label className="block text-sm font-medium text-gray-700">
           학기 필터
         </label>
         <select
@@ -107,8 +107,8 @@ export function ScoreFilterBar({
         </select>
       </div>
 
-      <div className="flex-1 min-w-[200px]">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="flex min-w-[200px] flex-1 flex-col gap-2">
+        <label className="block text-sm font-medium text-gray-700">
           검색 (과목명)
         </label>
         <input

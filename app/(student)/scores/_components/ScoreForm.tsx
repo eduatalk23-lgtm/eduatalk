@@ -52,12 +52,12 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
   );
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} className="flex flex-col gap-6">
       {/* 과목 유형 */}
-      <div>
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="subject_type"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           과목 유형 <span className="text-red-500">*</span>
         </label>
@@ -76,10 +76,10 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
       </div>
 
       {/* 학기 */}
-      <div>
+      <div className="flex flex-col gap-1">
         <label
           htmlFor="semester"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           학기 <span className="text-red-500">*</span>
         </label>
@@ -92,16 +92,16 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
           defaultValue={initialData?.semester ?? ""}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="text-xs text-gray-500">
           형식: 학년-학기 (예: 1-1, 2-2)
         </p>
       </div>
 
       {/* 교과 */}
-      <div>
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="course"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           교과 <span className="text-red-500">*</span>
         </label>
@@ -117,10 +117,10 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
       </div>
 
       {/* 세부 과목명 */}
-      <div>
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="course_detail"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           세부 과목명 <span className="text-red-500">*</span>
         </label>
@@ -136,10 +136,10 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
       </div>
 
       {/* 원점수 */}
-      <div>
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="raw_score"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           원점수 <span className="text-red-500">*</span>
         </label>
@@ -157,10 +157,10 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
       </div>
 
       {/* 등급 */}
-      <div>
+      <div className="flex flex-col gap-1">
         <label
           htmlFor="grade"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           등급 <span className="text-red-500">*</span>
         </label>
@@ -175,14 +175,14 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
           defaultValue={initialData?.grade ?? ""}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-600"
         />
-        <p className="mt-1 text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
+        <p className="text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
       </div>
 
       {/* 평가 유형 */}
-      <div>
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="score_type_detail"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           평가 유형 <span className="text-red-500">*</span>
         </label>
@@ -202,10 +202,10 @@ export function ScoreForm({ action, initialData }: ScoreFormProps) {
       </div>
 
       {/* 시험일 */}
-      <div>
+      <div className="flex flex-col gap-2">
         <label
           htmlFor="test_date"
-          className="block text-sm font-medium text-gray-700 mb-2"
+          className="block text-sm font-medium text-gray-700"
         >
           시험일 <span className="text-red-500">*</span>
         </label>
