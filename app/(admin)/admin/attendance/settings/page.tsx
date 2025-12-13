@@ -15,10 +15,10 @@ export default async function AttendanceSettingsPage() {
   }
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8">
+    <div className="flex flex-col gap-8 p-6 md:p-10">
+      <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-gray-900">출석 설정</h1>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           출석 관련 위치 및 SMS 알림 설정을 관리할 수 있습니다.
         </p>
       </div>

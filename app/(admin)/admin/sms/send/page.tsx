@@ -124,8 +124,8 @@ export default async function SMSSendPage() {
   }
 
   return (
-    <div className="p-6 md:p-10">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="flex flex-col gap-6 p-6 md:p-10">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">SMS 발송</h1>
         <Link
           href="/admin/sms/results"
@@ -137,29 +137,29 @@ export default async function SMSSendPage() {
 
       {/* 학생 목록 조회 에러 안내 */}
       {studentsError && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-800">
             학생 목록을 불러오는 중 오류가 발생했습니다.
           </p>
-          <p className="mt-1 text-xs text-red-700">
+          <p className="text-xs text-red-700">
             에러 코드: {studentsError.code || "알 수 없음"}
           </p>
-          <p className="mt-1 text-xs text-red-600">
+          <p className="text-xs text-red-600">
             {studentsError.message || "알 수 없는 오류"}
           </p>
           {studentsError.hint && (
-            <p className="mt-1 text-xs text-red-600">힌트: {studentsError.hint}</p>
+            <p className="text-xs text-red-600">힌트: {studentsError.hint}</p>
           )}
         </div>
       )}
 
       {/* 학생이 없는 경우 안내 */}
       {!studentsError && (!studentsForSMS || studentsForSMS.length === 0) && (
-        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+        <div className="flex flex-col gap-1 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
           <p className="text-sm font-medium text-yellow-800">
             등록된 학생이 없습니다.
           </p>
-          <p className="mt-1 text-xs text-yellow-700">
+          <p className="text-xs text-yellow-700">
             학생 관리 페이지에서 학생을 등록한 후 SMS 발송을 이용할 수 있습니다.
           </p>
         </div>

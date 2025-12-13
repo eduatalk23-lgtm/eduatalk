@@ -99,8 +99,8 @@ export function BasicInfoSection({
   const hasChanges = classValue !== (student.class || "");
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">기본 정보</h2>
         <StudentActions
           studentId={student.id}
@@ -110,20 +110,20 @@ export function BasicInfoSection({
         />
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="text-sm text-gray-500">이름</div>
-          <div className="mt-1 text-lg font-medium text-gray-900">
+          <div className="text-lg font-medium text-gray-900">
             {student.name ?? "-"}
           </div>
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="text-sm text-gray-500">학년</div>
-          <div className="mt-1 text-lg font-medium text-gray-900">
+          <div className="text-lg font-medium text-gray-900">
             {student.grade ?? "-"}
           </div>
         </div>
-        <div>
-          <div className="mb-1 flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500">반</div>
             {isAdmin && !editingClass && (
               <button
@@ -169,22 +169,22 @@ export function BasicInfoSection({
               </div>
             </div>
           ) : (
-            <div className="mt-1 text-lg font-medium text-gray-900">
+            <div className="text-lg font-medium text-gray-900">
               {student.class ?? "-"}
             </div>
           )}
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="text-sm text-gray-500">생년월일</div>
-          <div className="mt-1 text-lg font-medium text-gray-900">
+          <div className="text-lg font-medium text-gray-900">
             {student.birth_date
               ? new Date(student.birth_date).toLocaleDateString("ko-KR")
               : "-"}
           </div>
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="text-sm text-gray-500">계정 상태</div>
-          <div className="mt-1">
+          <div>
             {student.is_active === false ? (
               <span className="inline-flex rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-800">
                 비활성화

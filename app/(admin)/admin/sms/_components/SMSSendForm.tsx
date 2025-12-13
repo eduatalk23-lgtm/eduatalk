@@ -279,13 +279,13 @@ export function SMSSendForm({
 
   return (
     <>
-      <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">SMS 발송</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">SMS 발송</h2>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {/* 발송 모드 선택 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <Label>발송 모드</Label>
-            <div className="mt-2 flex gap-4">
+            <div className="flex gap-4">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
@@ -321,9 +321,9 @@ export function SMSSendForm({
 
           {/* 발송 대상자 선택 (일괄 발송 모드) */}
           {sendMode === "bulk" && (
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>발송 대상자 선택</Label>
-                <div className="mt-2">
+                <div>
                   <SMSRecipientSelector
                     students={students}
                     selectedStudentIds={selectedStudentIds}
@@ -336,9 +336,9 @@ export function SMSSendForm({
           )}
 
           {/* 전송 대상자 선택 (단일/일괄 발송 모두) */}
-          <div>
+          <div className="flex flex-col gap-2">
             <Label>전송 대상자</Label>
-            <div className="mt-2 flex gap-4">
+            <div className="flex gap-4">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
@@ -388,9 +388,9 @@ export function SMSSendForm({
               />
 
               {/* 수신자 전화번호 입력 */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="phone">수신자 전화번호 *</Label>
-                <div className="mt-2 flex gap-2">
+                <div className="flex gap-2">
                   <Input
                     id="phone"
                     type="tel"
@@ -420,7 +420,7 @@ export function SMSSendForm({
                   )}
                 </div>
                 {selectedStudentName && (
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="text-xs text-gray-600">
                     선택된 학생: {selectedStudentName}
                   </p>
                 )}
@@ -459,11 +459,11 @@ export function SMSSendForm({
             selectedTemplateObj.variables.filter(
               (v) => v !== "학원명" && v !== "학생명"
             ).length > 0 && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                <Label className="mb-2 block text-sm font-medium text-gray-700">
+              <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <Label className="block text-sm font-medium text-gray-700">
                   템플릿 변수 입력
                 </Label>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   {selectedTemplateObj.variables
                     .filter((v) => v !== "학원명" && v !== "학생명")
                     .map((variable) => (
