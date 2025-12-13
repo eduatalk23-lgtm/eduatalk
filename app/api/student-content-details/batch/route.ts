@@ -13,6 +13,9 @@ import {
   handleApiError,
 } from "@/lib/api";
 
+// 캐시 설정: 배치 API도 동일하게 5분 캐시
+export const revalidate = 300;
+
 type BatchRequest = {
   contents: Array<{
     contentId: string;
@@ -65,8 +68,8 @@ export async function POST(request: NextRequest) {
       return apiUnauthorized();
     }
 
-    const body: BatchRequest = await request.json();
-    const { contents, includeMetadata = false } = body;
+    const body: BatchRequest & { student_id?: string } = await request.json();
+    const { contents, includeMetadata = false, student_id } = body;
 
     if (!contents || !Array.isArray(contents) || contents.length === 0) {
       return apiBadRequest("contents 배열이 필요하며, 최소 1개 이상의 항목이 필요합니다.");
@@ -77,8 +80,13 @@ export async function POST(request: NextRequest) {
       return apiBadRequest("한 번에 최대 20개까지 조회할 수 있습니다.");
     }
 
+    // 관리자/컨설턴트의 경우 student_id가 필요
+    if ((role === "admin" || role === "consultant") && !student_id) {
+      return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
+    }
+
     const supabase = await createSupabaseServerClient();
-    const targetStudentId = role === "student" ? user.userId : user.userId; // TODO: 관리자/컨설턴트의 경우 student_id 파라미터 지원
+    const targetStudentId = role === "student" ? user.userId : student_id!;
 
     // 콘텐츠를 타입별로 분류
     const bookIds: string[] = [];
@@ -95,16 +103,43 @@ export async function POST(request: NextRequest) {
     });
 
     // 병렬로 배치 조회 수행
-    const [bookDetailsMap, lectureEpisodesMap] = await Promise.all([
+    // 상세 정보와 메타데이터를 동시에 조회하여 성능 최적화
+    const selectBookFields = includeMetadata
+      ? "id, total_pages, master_content_id, subject, semester, revision, difficulty_level, publisher"
+      : "id, total_pages, master_content_id";
+    const selectLectureFields = includeMetadata
+      ? "id, total_episodes, master_content_id, subject, semester, revision, difficulty_level, platform"
+      : "id, total_episodes, master_content_id";
+
+    const [
+      bookDetailsMap,
+      lectureEpisodesMap,
+      booksDataResult,
+      lecturesDataResult,
+    ] = await Promise.all([
       bookIds.length > 0
         ? getStudentBookDetailsBatch(bookIds, targetStudentId)
         : Promise.resolve(new Map()),
       lectureIds.length > 0
         ? getStudentLectureEpisodesBatch(lectureIds, targetStudentId)
         : Promise.resolve(new Map()),
+      bookIds.length > 0
+        ? supabase
+            .from("books")
+            .select(selectBookFields)
+            .in("id", bookIds)
+            .eq("student_id", targetStudentId)
+        : Promise.resolve({ data: null }),
+      lectureIds.length > 0
+        ? supabase
+            .from("lectures")
+            .select(selectLectureFields)
+            .in("id", lectureIds)
+            .eq("student_id", targetStudentId)
+        : Promise.resolve({ data: null }),
     ]);
 
-    // 메타데이터 조회 (필요한 경우)
+    // 메타데이터 및 총량 정보 맵 생성
     const metadataMap = new Map<
       string,
       {
@@ -116,17 +151,25 @@ export async function POST(request: NextRequest) {
         platform?: string | null;
       }
     >();
+    const totalPagesMap = new Map<string, number | null>();
+    const totalEpisodesMap = new Map<string, number | null>();
+    const masterContentIdMap = new Map<string, string | null>();
 
-    if (includeMetadata) {
-      // 교재 메타데이터 배치 조회
-      if (bookIds.length > 0) {
-        const { data: booksData } = await supabase
-          .from("books")
-          .select("id, subject, semester, revision, difficulty_level, publisher")
-          .in("id", bookIds)
-          .eq("student_id", targetStudentId);
-
-        booksData?.forEach((book) => {
+    // 교재 데이터 처리
+    if (booksDataResult.data) {
+      booksDataResult.data.forEach((book: {
+        id: string;
+        total_pages: number | null;
+        master_content_id: string | null;
+        subject?: string | null;
+        semester?: string | null;
+        revision?: string | null;
+        difficulty_level?: string | null;
+        publisher?: string | null;
+      }) => {
+        totalPagesMap.set(book.id, book.total_pages);
+        masterContentIdMap.set(book.id, book.master_content_id);
+        if (includeMetadata) {
           metadataMap.set(book.id, {
             subject: book.subject,
             semester: book.semester,
@@ -134,18 +177,25 @@ export async function POST(request: NextRequest) {
             difficulty_level: book.difficulty_level,
             publisher: book.publisher,
           });
-        });
-      }
+        }
+      });
+    }
 
-      // 강의 메타데이터 배치 조회
-      if (lectureIds.length > 0) {
-        const { data: lecturesData } = await supabase
-          .from("lectures")
-          .select("id, subject, semester, revision, difficulty_level, platform")
-          .in("id", lectureIds)
-          .eq("student_id", targetStudentId);
-
-        lecturesData?.forEach((lecture) => {
+    // 강의 데이터 처리
+    if (lecturesDataResult.data) {
+      lecturesDataResult.data.forEach((lecture: {
+        id: string;
+        total_episodes: number | null;
+        master_content_id: string | null;
+        subject?: string | null;
+        semester?: string | null;
+        revision?: string | null;
+        difficulty_level?: string | null;
+        platform?: string | null;
+      }) => {
+        totalEpisodesMap.set(lecture.id, lecture.total_episodes);
+        masterContentIdMap.set(lecture.id, lecture.master_content_id);
+        if (includeMetadata) {
           metadataMap.set(lecture.id, {
             subject: lecture.subject,
             semester: lecture.semester,
@@ -153,12 +203,117 @@ export async function POST(request: NextRequest) {
             difficulty_level: lecture.difficulty_level,
             platform: lecture.platform,
           });
-        });
-      }
+        }
+      });
+    }
+
+    // master_content_id가 있지만 total_pages/total_episodes가 없는 경우 마스터에서 조회 (fallback)
+    const masterBookIds = Array.from(masterContentIdMap.entries())
+      .filter(([contentId, masterId]) => {
+        const contentType = contentMap.get(contentId);
+        return (
+          contentType === "book" &&
+          masterId &&
+          !totalPagesMap.get(contentId)
+        );
+      })
+      .map(([, masterId]) => masterId!);
+    const masterLectureIds = Array.from(masterContentIdMap.entries())
+      .filter(([contentId, masterId]) => {
+        const contentType = contentMap.get(contentId);
+        return (
+          contentType === "lecture" &&
+          masterId &&
+          !totalEpisodesMap.get(contentId)
+        );
+      })
+      .map(([, masterId]) => masterId!);
+
+    const [masterBooksResult, masterLecturesResult] = await Promise.all([
+      masterBookIds.length > 0
+        ? supabase
+            .from("master_books")
+            .select("id, total_pages")
+            .in("id", masterBookIds)
+        : Promise.resolve({ data: null }),
+      masterLectureIds.length > 0
+        ? supabase
+            .from("master_lectures")
+            .select("id, total_episodes")
+            .in("id", masterLectureIds)
+        : Promise.resolve({ data: null }),
+    ]);
+
+    // 마스터 데이터로 fallback 처리
+    if (masterBooksResult.data) {
+      masterBooksResult.data.forEach((book: {
+        id: string;
+        total_pages: number | null;
+      }) => {
+        // master_content_id로 역매핑하여 contentId 찾기
+        for (const [contentId, masterId] of masterContentIdMap.entries()) {
+          if (masterId === book.id && contentMap.get(contentId) === "book") {
+            if (!totalPagesMap.has(contentId) || !totalPagesMap.get(contentId)) {
+              totalPagesMap.set(contentId, book.total_pages);
+            }
+            break;
+          }
+        }
+      });
+    }
+
+    if (masterLecturesResult.data) {
+      masterLecturesResult.data.forEach((lecture: {
+        id: string;
+        total_episodes: number | null;
+      }) => {
+        // master_content_id로 역매핑하여 contentId 찾기
+        for (const [contentId, masterId] of masterContentIdMap.entries()) {
+          if (
+            masterId === lecture.id &&
+            contentMap.get(contentId) === "lecture"
+          ) {
+            if (
+              !totalEpisodesMap.has(contentId) ||
+              !totalEpisodesMap.get(contentId)
+            ) {
+              totalEpisodesMap.set(contentId, lecture.total_episodes);
+            }
+            break;
+          }
+        }
+      });
     }
 
     // 결과를 통합하여 응답 생성
-    const response: BatchResponse = {};
+    const response: BatchResponse & {
+      [contentId: string]: {
+        details?: Array<{
+          id: string;
+          page_number?: number;
+          episode_number?: number;
+          major_unit?: string | null;
+          minor_unit?: string | null;
+          title?: string | null;
+        }>;
+        episodes?: Array<{
+          id: string;
+          episode_number: number;
+          title: string | null;
+          duration?: number | null;
+        }>;
+        total_pages?: number | null;
+        total_episodes?: number | null;
+        metadata?: {
+          subject?: string | null;
+          semester?: string | null;
+          revision?: string | null;
+          difficulty_level?: string | null;
+          publisher?: string | null;
+          platform?: string | null;
+        };
+      };
+    } = {};
 
     contents.forEach((content) => {
       const contentType = contentMap.get(content.contentId);
@@ -173,6 +328,7 @@ export async function POST(request: NextRequest) {
             major_unit: d.major_unit,
             minor_unit: d.minor_unit,
           })),
+          total_pages: totalPagesMap.get(content.contentId) ?? null,
           metadata,
         };
       } else {
@@ -184,6 +340,7 @@ export async function POST(request: NextRequest) {
             title: e.title,
             duration: e.duration ?? null,
           })),
+          total_episodes: totalEpisodesMap.get(content.contentId) ?? null,
           metadata,
         };
       }

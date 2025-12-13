@@ -82,6 +82,12 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([0]));
   const [visibleWeeks, setVisibleWeeks] = useState<Set<number>>(new Set([0]));
 
+  // onUpdate를 useRef로 안정화하여 함수 재생성 방지
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   // 선택된 블록 세트의 블록 데이터 추출
   const selectedBlockSetBlocks = useMemo(() => {
     if (isTemplateMode && !data.block_set_id) {
@@ -168,10 +174,17 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         const cached = scheduleCache.get(params);
         if (cached) {
           setResult(cached);
-          onUpdate({
-            schedule_summary: cached.summary,
-            daily_schedule: cached.daily_schedule,
-          });
+          // 값 비교 후 업데이트
+          const hasChanged =
+            JSON.stringify(cached.summary) !== JSON.stringify(data.schedule_summary) ||
+            JSON.stringify(cached.daily_schedule) !== JSON.stringify(data.daily_schedule);
+          
+          if (hasChanged) {
+            onUpdateRef.current({
+              schedule_summary: cached.summary,
+              daily_schedule: cached.daily_schedule,
+            });
+          }
           setLoading(false);
           return;
         }
@@ -263,10 +276,17 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         scheduleCache.set(params, result);
 
         setResult(result);
-        onUpdate({
-          schedule_summary: result.summary,
-          daily_schedule: result.daily_schedule,
-        });
+        // 값 비교 후 업데이트
+        const hasChanged =
+          JSON.stringify(result.summary) !== JSON.stringify(data.schedule_summary) ||
+          JSON.stringify(result.daily_schedule) !== JSON.stringify(data.daily_schedule);
+        
+        if (hasChanged) {
+          onUpdateRef.current({
+            schedule_summary: result.summary,
+            daily_schedule: result.daily_schedule,
+          });
+        }
       } catch (err) {
         console.error("[SchedulePreviewPanel] 스케줄 계산 실패:", err);
         setError(
@@ -278,15 +298,17 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       }
     },
     [
-      onUpdate,
+      // onUpdate 제거 (onUpdateRef 사용)
       selectedBlockSetBlocks,
       isTemplateMode,
       isCampMode,
       campTemplateId,
+      data.schedule_summary, // 비교를 위해 추가
+      data.daily_schedule, // 비교를 위해 추가
     ]
   );
 
-  // 파라미터 변경 시 재계산 (debounce 500ms)
+  // 파라미터 변경 시 재계산 (debounce 1000ms)
   useEffect(() => {
     if (!scheduleParams) {
       setLoading(false);
@@ -297,7 +319,7 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
 
     const timer = setTimeout(() => {
       calculateSchedule(scheduleParams);
-    }, 500);
+    }, 1000); // 500ms → 1000ms로 증가
 
     return () => clearTimeout(timer);
   }, [scheduleParams, calculateSchedule]);

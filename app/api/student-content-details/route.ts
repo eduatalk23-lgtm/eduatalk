@@ -10,6 +10,9 @@ import {
   handleApiError,
 } from "@/lib/api";
 
+// 캐시 설정: 콘텐츠 상세 정보는 자주 변경되지 않으므로 5분 캐시
+export const revalidate = 300;
+
 /**
  * 학생 콘텐츠 상세 정보 조회 API
  * GET /api/student-content-details?contentType=book&contentId=...&student_id=...
@@ -46,88 +49,92 @@ export async function GET(request: NextRequest) {
     const targetStudentId = role === "student" ? user.userId : studentId!;
 
     if (contentType === "book") {
-      const details = await getStudentBookDetails(contentId, targetStudentId);
+      // 병렬 처리: 상세 정보와 메타데이터를 동시에 조회
+      // books 테이블 조회를 단일 쿼리로 통합 (total_pages, master_content_id, 메타데이터 필드 포함)
+      const selectFields = includeMetadata
+        ? "total_pages, master_content_id, subject, semester, revision, difficulty_level, publisher"
+        : "total_pages, master_content_id";
 
-      // 총 페이지수 조회
-      const { data: studentBook } = await supabase
-        .from("books")
-        .select("total_pages, master_content_id")
-        .eq("id", contentId)
-        .eq("student_id", targetStudentId)
-        .maybeSingle();
+      const [details, { data: studentBook }] = await Promise.all([
+        getStudentBookDetails(contentId, targetStudentId),
+        supabase
+          .from("books")
+          .select(selectFields)
+          .eq("id", contentId)
+          .eq("student_id", targetStudentId)
+          .maybeSingle(),
+      ]);
 
       let totalPages: number | null = studentBook?.total_pages || null;
 
-      // master_content_id가 있으면 마스터에서도 조회 (fallback)
-      if (!totalPages && studentBook?.master_content_id) {
-        const { data: masterBook } = await supabase
-          .from("master_books")
-          .select("total_pages")
-          .eq("id", studentBook.master_content_id)
-          .maybeSingle();
-        totalPages = masterBook?.total_pages || null;
-      }
+      // master_content_id가 있으면 마스터에서도 조회 (fallback) - 조건부 병렬 처리
+      const masterBookPromise = !totalPages && studentBook?.master_content_id
+        ? supabase
+            .from("master_books")
+            .select("total_pages")
+            .eq("id", studentBook.master_content_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null });
 
-      if (includeMetadata) {
-        const { data: bookData } = await supabase
-          .from("books")
-          .select("subject, semester, revision, difficulty_level, publisher")
-          .eq("id", contentId)
-          .eq("student_id", targetStudentId)
-          .maybeSingle();
+      const { data: masterBook } = await masterBookPromise;
+      totalPages = totalPages || masterBook?.total_pages || null;
 
-        return apiSuccess({
-          details,
-          total_pages: totalPages,
-          metadata: bookData || null,
-        });
-      }
-
-      return apiSuccess({ 
+      return apiSuccess({
         details,
         total_pages: totalPages,
+        metadata: includeMetadata && studentBook
+          ? {
+              subject: studentBook.subject,
+              semester: studentBook.semester,
+              revision: studentBook.revision,
+              difficulty_level: studentBook.difficulty_level,
+              publisher: studentBook.publisher,
+            }
+          : undefined,
       });
     } else if (contentType === "lecture") {
-      const episodes = await getStudentLectureEpisodes(contentId, targetStudentId);
+      // 병렬 처리: episode 정보와 메타데이터를 동시에 조회
+      // lectures 테이블 조회를 단일 쿼리로 통합 (master_content_id, total_episodes, 메타데이터 필드 포함)
+      const selectFields = includeMetadata
+        ? "master_content_id, total_episodes, subject, semester, revision, difficulty_level, platform"
+        : "master_content_id, total_episodes";
 
-      // 총 회차 조회
-      const { data: studentLecture } = await supabase
-        .from("lectures")
-        .select("master_content_id")
-        .eq("id", contentId)
-        .eq("student_id", targetStudentId)
-        .maybeSingle();
-
-      let totalEpisodes: number | null = null;
-
-      // master_content_id가 있으면 마스터에서 조회
-      if (studentLecture?.master_content_id) {
-        const { data: masterLecture } = await supabase
-          .from("master_lectures")
-          .select("total_episodes")
-          .eq("id", studentLecture.master_content_id)
-          .maybeSingle();
-        totalEpisodes = masterLecture?.total_episodes || null;
-      }
-
-      if (includeMetadata) {
-        const { data: lectureData } = await supabase
+      const [episodes, { data: studentLecture }] = await Promise.all([
+        getStudentLectureEpisodes(contentId, targetStudentId),
+        supabase
           .from("lectures")
-          .select("subject, semester, revision, difficulty_level, platform")
+          .select(selectFields)
           .eq("id", contentId)
           .eq("student_id", targetStudentId)
-          .maybeSingle();
+          .maybeSingle(),
+      ]);
 
-        return apiSuccess({
-          episodes,
-          total_episodes: totalEpisodes,
-          metadata: lectureData || null,
-        });
-      }
+      let totalEpisodes: number | null = studentLecture?.total_episodes || null;
 
-      return apiSuccess({ 
+      // master_content_id가 있으면 마스터에서도 조회 (fallback) - 조건부 병렬 처리
+      const masterLecturePromise = !totalEpisodes && studentLecture?.master_content_id
+        ? supabase
+            .from("master_lectures")
+            .select("total_episodes")
+            .eq("id", studentLecture.master_content_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null });
+
+      const { data: masterLecture } = await masterLecturePromise;
+      totalEpisodes = totalEpisodes || masterLecture?.total_episodes || null;
+
+      return apiSuccess({
         episodes,
         total_episodes: totalEpisodes,
+        metadata: includeMetadata && studentLecture
+          ? {
+              subject: studentLecture.subject,
+              semester: studentLecture.semester,
+              revision: studentLecture.revision,
+              difficulty_level: studentLecture.difficulty_level,
+              platform: studentLecture.platform,
+            }
+          : undefined,
       });
     } else {
       return apiBadRequest("지원하지 않는 콘텐츠 타입입니다. book 또는 lecture를 사용하세요.");
