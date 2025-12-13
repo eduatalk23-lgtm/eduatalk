@@ -532,8 +532,8 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 {data.scheduler_type === "1730_timetable" && (
                   <div className="group relative">
                     <Info className="h-3.5 w-3.5 text-gray-600 hover:text-gray-800" />
-                    <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-600 shadow-lg group-hover:block">
-                      <div className="space-y-1">
+                    <div className="absolute bottom-full left-1/2 z-10 hidden w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-2 text-xs text-gray-600 shadow-lg group-hover:block">
+                      <div className="flex flex-col gap-1">
                         <div className="font-semibold">유형별 안내</div>
                         <div className="border-t border-gray-100 pt-1">
                           <div className="font-medium text-gray-900">
