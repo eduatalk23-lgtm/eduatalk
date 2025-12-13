@@ -356,10 +356,10 @@ export function MockScoreFormModal({
 
         <div className="grid gap-6 sm:grid-cols-2">
           {/* 학년 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="grade"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               학년 <span className="text-red-500">*</span>
             </label>
@@ -381,15 +381,15 @@ export function MockScoreFormModal({
               <option value="3">3학년</option>
             </select>
             {errors.grade && touched.grade && (
-              <p className="mt-1 text-xs text-red-600">{errors.grade}</p>
+              <p className="text-xs text-red-600">{errors.grade}</p>
             )}
           </div>
 
           {/* 시험 유형 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="examType"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               시험 유형 <span className="text-red-500">*</span>
             </label>
@@ -413,15 +413,15 @@ export function MockScoreFormModal({
               ))}
             </select>
             {errors.examType && touched.examType && (
-              <p className="mt-1 text-xs text-red-600">{errors.examType}</p>
+              <p className="text-xs text-red-600">{errors.examType}</p>
             )}
           </div>
 
           {/* 회차 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="examRound"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               회차 <span className="text-red-500">*</span>
             </label>
@@ -445,15 +445,15 @@ export function MockScoreFormModal({
               ))}
             </select>
             {errors.examRound && touched.examRound && (
-              <p className="mt-1 text-xs text-red-600">{errors.examRound}</p>
+              <p className="text-xs text-red-600">{errors.examRound}</p>
             )}
           </div>
 
           {/* 교과 */}
-          <div>
+          <div className="flex flex-col gap-2">
             <label
               htmlFor="subject_group_id"
-              className="mb-2 block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-gray-700"
             >
               교과 <span className="text-red-500">*</span>
             </label>
@@ -480,8 +480,8 @@ export function MockScoreFormModal({
 
           {/* 과목 */}
           {needsSubject && (
-            <div>
-              <label htmlFor="subject_id" className="mb-2 block text-sm font-medium text-gray-700">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="subject_id" className="block text-sm font-medium text-gray-700">
                 과목 <span className="text-red-500">*</span>
               </label>
               <select
@@ -505,14 +505,14 @@ export function MockScoreFormModal({
                 ))}
               </select>
               {errors.subject_id && touched.subject_id && (
-                <p className="mt-1 text-xs text-red-600">{errors.subject_id}</p>
+                <p className="text-xs text-red-600">{errors.subject_id}</p>
               )}
             </div>
           )}
 
           {/* 표준점수 */}
-          <div>
-            <label htmlFor="standard_score" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="standard_score" className="block text-sm font-medium text-gray-700">
               표준점수 {!isEnglishOrKoreanHistory && <span className="text-red-500">*</span>}
               {isEnglishOrKoreanHistory && (
                 <span className="text-xs text-gray-500 font-normal">(영어/한국사 제외)</span>
@@ -535,13 +535,13 @@ export function MockScoreFormModal({
               }`}
             />
             {errors.standard_score && touched.standard_score && (
-              <p className="mt-1 text-xs text-red-600">{errors.standard_score}</p>
+              <p className="text-xs text-red-600">{errors.standard_score}</p>
             )}
           </div>
 
           {/* 백분위 */}
-          <div>
-            <label htmlFor="percentile" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="percentile" className="block text-sm font-medium text-gray-700">
               백분위 {!isEnglishOrKoreanHistory && <span className="text-red-500">*</span>}
               {isEnglishOrKoreanHistory && (
                 <span className="text-xs text-gray-500 font-normal">(영어/한국사 제외)</span>
@@ -566,13 +566,13 @@ export function MockScoreFormModal({
               }`}
             />
             {errors.percentile && touched.percentile && (
-              <p className="mt-1 text-xs text-red-600">{errors.percentile}</p>
+              <p className="text-xs text-red-600">{errors.percentile}</p>
             )}
           </div>
 
           {/* 등급 */}
-          <div>
-            <label htmlFor="grade_score" className="mb-2 block text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="grade_score" className="block text-sm font-medium text-gray-700">
               등급 <span className="text-red-500">*</span>
             </label>
             <input
@@ -592,9 +592,9 @@ export function MockScoreFormModal({
               }`}
             />
             {errors.grade_score && touched.grade_score && (
-              <p className="mt-1 text-xs text-red-600">{errors.grade_score}</p>
+              <p className="text-xs text-red-600">{errors.grade_score}</p>
             )}
-            <p className="mt-1 text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
+            <p className="text-xs text-gray-500">1등급이 가장 높고, 9등급이 가장 낮습니다.</p>
           </div>
         </div>
 

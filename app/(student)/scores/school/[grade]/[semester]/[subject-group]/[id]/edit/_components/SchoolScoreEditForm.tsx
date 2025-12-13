@@ -58,7 +58,7 @@ export function SchoolScoreEditForm({
   };
 
   return (
-    <form action={handleSubmit} className="space-y-6">
+    <form action={handleSubmit} className="flex flex-col gap-6">
       {/* Hidden fields */}
       <input type="hidden" name="grade" value={grade} />
       <input type="hidden" name="semester" value={semester} />
@@ -71,10 +71,10 @@ export function SchoolScoreEditForm({
       )}
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <div>
+        <div className="flex flex-col gap-2">
           <label
             htmlFor="subject_type"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-700"
           >
             과목 유형 <span className="text-red-500">*</span>
           </label>
@@ -92,10 +92,10 @@ export function SchoolScoreEditForm({
           </select>
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <label
             htmlFor="subject_name"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-700"
           >
             세부 과목명 <span className="text-red-500">*</span>
           </label>
@@ -110,10 +110,10 @@ export function SchoolScoreEditForm({
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <label
             htmlFor="raw_score"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-700"
           >
             원점수
           </label>
@@ -128,10 +128,10 @@ export function SchoolScoreEditForm({
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <label
             htmlFor="grade_score"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-gray-700"
           >
             성취도 등급 <span className="text-red-500">*</span>
           </label>
