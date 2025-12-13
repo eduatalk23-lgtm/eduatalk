@@ -214,12 +214,12 @@ export default function AddedContentsList({
                                             }
                                             className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
                                           />
-                                          <div className="flex-1 text-xs">
+                                          <div className="flex flex-1 items-center gap-2 text-xs">
                                             <span className="font-medium">
                                               페이지 {detail.page_number}
                                             </span>
                                             {detail.major_unit && (
-                                              <span className="ml-2 text-gray-500">
+                                              <span className="text-gray-500">
                                                 · {detail.major_unit}
                                                 {detail.minor_unit &&
                                                   ` - ${detail.minor_unit}`}
@@ -253,12 +253,12 @@ export default function AddedContentsList({
                                           }
                                           className="h-3 w-3 border-gray-300 text-blue-600 focus:ring-blue-500"
                                         />
-                                        <div className="flex-1 text-xs">
+                                        <div className="flex flex-1 items-center gap-2 text-xs">
                                           <span className="font-medium">
                                             {episode.episode_number}회차
                                           </span>
                                           {episode.episode_title && (
-                                            <span className="ml-2 text-gray-500">
+                                            <span className="text-gray-500">
                                               · {episode.episode_title}
                                             </span>
                                           )}
@@ -300,12 +300,12 @@ export default function AddedContentsList({
                                             }
                                             className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500"
                                           />
-                                          <div className="flex-1 text-xs">
+                                          <div className="flex flex-1 items-center gap-2 text-xs">
                                             <span className="font-medium">
                                               페이지 {detail.page_number}
                                             </span>
                                             {detail.major_unit && (
-                                              <span className="ml-2 text-gray-500">
+                                              <span className="text-gray-500">
                                                 · {detail.major_unit}
                                                 {detail.minor_unit &&
                                                   ` - ${detail.minor_unit}`}
@@ -339,12 +339,12 @@ export default function AddedContentsList({
                                           }
                                           className="h-3 w-3 border-gray-300 text-green-600 focus:ring-green-500"
                                         />
-                                        <div className="flex-1 text-xs">
+                                        <div className="flex flex-1 items-center gap-2 text-xs">
                                           <span className="font-medium">
                                             {episode.episode_number}회차
                                           </span>
                                           {episode.episode_title && (
-                                            <span className="ml-2 text-gray-500">
+                                            <span className="text-gray-500">
                                               · {episode.episode_title}
                                             </span>
                                           )}

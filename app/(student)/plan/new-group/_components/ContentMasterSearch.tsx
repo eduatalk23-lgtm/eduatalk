@@ -400,7 +400,7 @@ export function ContentMasterSearch({
                     type="button"
                     onClick={() => handleCopy(master.id)}
                     disabled={copyingId === master.id}
-                    className="ml-4 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
                   >
                     {copyingId === master.id ? "복사 중..." : "가져오기"}
                   </button>
