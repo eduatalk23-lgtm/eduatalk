@@ -104,12 +104,12 @@ export function ContentAllocationUI({
         return (
           <div
             key={subject}
-            className="rounded-lg border border-gray-200 bg-white p-4"
+            className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4"
           >
-            <h3 className="mb-3 text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-gray-900">
               {subject}
             </h3>
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {contents.map((content) => {
                 const effectiveAlloc = getEffectiveAllocation(content);
                 const subjectType = effectiveAlloc.subject_type;

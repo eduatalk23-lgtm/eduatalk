@@ -49,25 +49,25 @@ export default function BlockSetDetail({
   };
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
       {/* 뒤로가기 버튼 및 헤더 */}
-      <div className="mb-6">
+      <div className="flex flex-col gap-4">
         <button
           type="button"
           onClick={handleBack}
-          className="mb-4 text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2"
+          className="text-sm text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-2"
         >
           <span>←</span>
           <span>목록으로 돌아가기</span>
         </button>
         
         <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold text-gray-900">
               {blockSet.name}
             </h1>
             {blockSet.description && (
-              <p className="text-sm text-gray-600 mb-2">{blockSet.description}</p>
+              <p className="text-sm text-gray-600">{blockSet.description}</p>
             )}
             {isActive && (
               <span className="inline-block px-3 py-1 text-sm font-medium text-indigo-700 bg-indigo-100 rounded">
@@ -80,7 +80,7 @@ export default function BlockSetDetail({
 
       {/* 잘못된 블록 경고 */}
       {blocks.length > 0 && (
-        <div className="mb-6">
+        <div>
           <InvalidBlockWarning blocks={blocks} />
         </div>
       )}
@@ -97,7 +97,7 @@ export default function BlockSetDetail({
       )}
 
       {/* 탭 메뉴 */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="border-b border-gray-200">
         <nav className="-mb-px flex gap-4">
           <button
             type="button"

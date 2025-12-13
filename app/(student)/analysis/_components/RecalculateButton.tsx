@@ -26,7 +26,7 @@ export function RecalculateButton() {
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       <button
         onClick={handleRecalculate}
         disabled={isPending}
@@ -35,7 +35,7 @@ export function RecalculateButton() {
         {isPending ? "재계산 중..." : "Risk Index 재계산"}
       </button>
       {error && (
-        <p className="mt-2 text-xs text-red-600">{error}</p>
+        <p className="text-xs text-red-600">{error}</p>
       )}
     </div>
   );

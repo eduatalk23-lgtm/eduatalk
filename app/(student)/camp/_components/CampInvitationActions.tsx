@@ -18,7 +18,7 @@ export function CampInvitationActions({
 }: CampInvitationActionsProps) {
   return (
     <div
-      className="ml-4 flex flex-col items-end gap-2"
+      className="flex flex-col items-end gap-2"
       onClick={(e) => e.stopPropagation()}
     >
       {/* 초대 상태가 pending인 경우 */}

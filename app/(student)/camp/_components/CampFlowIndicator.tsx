@@ -92,10 +92,10 @@ export function CampFlowIndicator({ currentStep, invitation, className }: CampFl
   };
 
   return (
-    <div className={cn("rounded-lg border border-gray-200 bg-white p-4", className)}>
-      <h3 className="mb-4 text-sm font-semibold text-gray-900">진행 상태</h3>
+    <div className={cn("flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-4", className)}>
+      <h3 className="text-sm font-semibold text-gray-900">진행 상태</h3>
       
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {steps.map((step, index) => (
           <div key={step.id} className="flex items-start gap-3">
             {/* Icon */}
@@ -107,7 +107,7 @@ export function CampFlowIndicator({ currentStep, invitation, className }: CampFl
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h4 className={cn(
                   "text-sm font-semibold",
@@ -126,7 +126,7 @@ export function CampFlowIndicator({ currentStep, invitation, className }: CampFl
                 )}
               </div>
               <p className={cn(
-                "mt-0.5 text-xs",
+                "text-xs",
                 step.status === "pending" ? "text-gray-400" : "text-gray-600"
               )}>
                 {step.description}
@@ -136,7 +136,7 @@ export function CampFlowIndicator({ currentStep, invitation, className }: CampFl
             {/* Connector line (except for last item) */}
             {index < steps.length - 1 && (
               <div className={cn(
-                "absolute left-[31px] mt-10 h-6 w-0.5",
+                "absolute left-[31px] top-10 h-6 w-0.5",
                 step.status === "completed" ? "bg-green-500" : "bg-gray-200"
               )} />
             )}

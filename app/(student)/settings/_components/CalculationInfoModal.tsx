@@ -170,7 +170,7 @@ export function CalculationInfoModal({
                 <p className="text-sm font-medium text-gray-900">
                   2022 개정
                 </p>
-                <ul className="text-sm text-gray-700 flex flex-col gap-1 ml-4 list-disc">
+                <ul className="text-sm text-gray-700 flex flex-col gap-1 pl-4 list-disc">
                   <li>중학교: 2024년 중1 입학부터</li>
                   <li>고등학교: 2027년 고1 입학부터</li>
                 </ul>
@@ -179,7 +179,7 @@ export function CalculationInfoModal({
                 <p className="text-sm font-medium text-gray-900">
                   2015 개정
                 </p>
-                <ul className="text-sm text-gray-700 flex flex-col gap-1 ml-4 list-disc">
+                <ul className="text-sm text-gray-700 flex flex-col gap-1 pl-4 list-disc">
                   <li>중학교: 2015년 중1 입학부터</li>
                   <li>고등학교: 2018년 고1 입학부터</li>
                 </ul>
@@ -188,7 +188,7 @@ export function CalculationInfoModal({
                 <p className="text-sm font-medium text-gray-900">
                   2009 개정
                 </p>
-                <ul className="text-sm text-gray-700 flex flex-col gap-1 ml-4 list-disc">
+                <ul className="text-sm text-gray-700 flex flex-col gap-1 pl-4 list-disc">
                   <li>2015년 이전 입학자</li>
                 </ul>
               </div>
@@ -200,7 +200,7 @@ export function CalculationInfoModal({
               주의사항
             </h3>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <ul className="text-sm text-amber-900 flex flex-col gap-2 ml-4 list-disc">
+              <ul className="text-sm text-amber-900 flex flex-col gap-2 pl-4 list-disc">
                 <li>
                   생년월일과 학년이 다를 수 있는 경우(유급, 조기입학 등)가 있으므로,
                   실제 학년 정보를 정확히 입력해주세요.

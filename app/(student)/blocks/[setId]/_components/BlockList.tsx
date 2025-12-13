@@ -68,8 +68,8 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
   })).filter((group) => group.blocks.length > 0);
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-medium text-gray-900">시간 블록 목록</h2>
         {onAddBlock && (
           <button

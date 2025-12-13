@@ -51,9 +51,9 @@ export function CampInvitationCard({
       onClick={handleCardClick}
       className="block cursor-pointer rounded-lg border border-gray-200 bg-white p-6 transition hover:border-indigo-300 hover:shadow-md"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2 flex-1">
+          <div className="flex items-center gap-2">
             {invitation.template?.program_type && (
               <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-800">
                 {invitation.template.program_type}
@@ -64,19 +64,19 @@ export function CampInvitationCard({
             {invitation.template?.name || "캠프 프로그램"}
           </h3>
           {invitation.template?.description && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               {invitation.template.description}
             </p>
           )}
           {/* 캠프 장소 */}
           {invitation.template?.camp_location && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               장소: {invitation.template.camp_location}
             </p>
           )}
           {/* 캠프 기간 */}
           {invitation.template?.camp_start_date && invitation.template?.camp_end_date && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               기간: {new Date(invitation.template.camp_start_date).toLocaleDateString("ko-KR", {
                 year: "numeric",
                 month: "long",
@@ -89,7 +89,7 @@ export function CampInvitationCard({
             </p>
           )}
           {/* 플랜 상태 표시 */}
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             {invitation.planGroupId ? (
               <>
                 {/* 상태 뱃지 및 설명 */}

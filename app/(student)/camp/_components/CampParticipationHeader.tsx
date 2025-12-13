@@ -50,12 +50,12 @@ export function CampParticipationHeader({
       )}
 
       {/* Title and description */}
-      <div>
+      <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-gray-700">캠프 프로그램</p>
         <h1 className="text-3xl font-semibold text-gray-900">
           {template.name}
         </h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {template.program_type && (
             <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
               {template.program_type}
@@ -63,7 +63,7 @@ export function CampParticipationHeader({
           )}
         </div>
         {template.description && (
-          <p className="mt-2 text-sm text-gray-700">{template.description}</p>
+          <p className="text-sm text-gray-700">{template.description}</p>
         )}
       </div>
 
