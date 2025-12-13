@@ -33,9 +33,9 @@ export function DailyBreakdownSection({ breakdown }: DailyBreakdownSectionProps)
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">요일별 학습 상세</h3>
-      <div className="space-y-4">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-900">요일별 학습 상세</h3>
+      <div className="flex flex-col gap-4">
         {breakdown.map((day) => (
           <div key={day.date} className="rounded-lg border border-gray-200 bg-gray-50">
             <button
@@ -62,9 +62,9 @@ export function DailyBreakdownSection({ breakdown }: DailyBreakdownSectionProps)
               </div>
             </button>
             {expandedDay === day.date && (
-              <div className="border-t border-gray-200 bg-white p-4">
+              <div className="flex flex-col gap-2 border-t border-gray-200 bg-white p-4">
                 {day.contents.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {day.contents.map((content, index) => (
                       <div
                         key={index}

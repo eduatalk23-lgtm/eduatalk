@@ -34,14 +34,14 @@ export function WeeklyChartsSection({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {/* 요일별 학습시간 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900">요일별 학습시간</h3>
+      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900">요일별 학습시간</h3>
         <WeeklyTimeBarChart data={studyTimeByDay} />
       </div>
 
       {/* 과목별 학습시간 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900">과목별 학습시간</h3>
+      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900">과목별 학습시간</h3>
         {studyTimeBySubject.length > 0 ? (
           <SubjectTimePieChart data={studyTimeBySubject} />
         ) : (
@@ -52,8 +52,8 @@ export function WeeklyChartsSection({
       </div>
 
       {/* 플랜 실행률 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900">요일별 플랜 실행률</h3>
+      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+        <h3 className="text-lg font-semibold text-gray-900">요일별 플랜 실행률</h3>
         <PlanCompletionLineChart data={planCompletionByDay} />
       </div>
     </div>

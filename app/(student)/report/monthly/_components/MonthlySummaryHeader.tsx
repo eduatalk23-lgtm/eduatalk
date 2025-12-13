@@ -34,15 +34,15 @@ export function MonthlySummaryHeader({
   const goalChangeData = formatChange(goalRateChange);
 
   return (
-    <div className="mb-8 rounded-2xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
-      <div className="mb-4 text-center">
+    <div className="flex flex-col gap-6 rounded-2xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
+      <div className="text-center">
         <h2 className="text-2xl font-semibold text-gray-900">{monthLabel}</h2>
       </div>
       <div className="grid gap-6 sm:grid-cols-3">
         {/* 총 학습시간 */}
-        <div className="text-center">
-          <div className="mb-2 text-sm font-medium text-gray-600">총 학습시간</div>
-          <div className="mb-1 flex items-baseline justify-center gap-1">
+        <div className="flex flex-col gap-2 text-center">
+          <div className="text-sm font-medium text-gray-600">총 학습시간</div>
+          <div className="flex items-baseline justify-center gap-1">
             <span className="text-5xl font-bold text-indigo-600">{hours}</span>
             <span className="text-2xl font-semibold text-indigo-600">시간</span>
             {minutes > 0 && (
@@ -65,9 +65,9 @@ export function MonthlySummaryHeader({
         </div>
 
         {/* 플랜 실행률 */}
-        <div className="text-center">
-          <div className="mb-2 text-sm font-medium text-gray-600">플랜 실행률</div>
-          <div className="mb-1 flex items-baseline justify-center gap-1">
+        <div className="flex flex-col gap-2 text-center">
+          <div className="text-sm font-medium text-gray-600">플랜 실행률</div>
+          <div className="flex items-baseline justify-center gap-1">
             <span className="text-5xl font-bold text-purple-600">{completionRate}</span>
             <span className="text-2xl font-semibold text-purple-600">%</span>
           </div>
@@ -84,9 +84,9 @@ export function MonthlySummaryHeader({
         </div>
 
         {/* 목표 달성률 */}
-        <div className="text-center">
-          <div className="mb-2 text-sm font-medium text-gray-600">목표 달성률</div>
-          <div className="mb-1 flex items-baseline justify-center gap-1">
+        <div className="flex flex-col gap-2 text-center">
+          <div className="text-sm font-medium text-gray-600">목표 달성률</div>
+          <div className="flex items-baseline justify-center gap-1">
             <span className="text-5xl font-bold text-emerald-600">{goalRate}</span>
             <span className="text-2xl font-semibold text-emerald-600">%</span>
           </div>

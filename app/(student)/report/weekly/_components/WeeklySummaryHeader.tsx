@@ -32,12 +32,12 @@ export function WeeklySummaryHeader({
   const goalChangeData = formatChange(goalProgressChange);
 
   return (
-    <div className="mb-8 rounded-2xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
+    <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-8 shadow-sm">
       <div className="grid gap-6 sm:grid-cols-3">
         {/* 총 학습시간 */}
-        <div className="text-center">
-          <div className="mb-2 text-sm font-medium text-gray-600">총 학습시간</div>
-          <div className="mb-1 flex items-baseline justify-center gap-1">
+        <div className="flex flex-col gap-2 text-center">
+          <div className="text-sm font-medium text-gray-600">총 학습시간</div>
+          <div className="flex items-baseline justify-center gap-1">
             <span className="text-5xl font-bold text-indigo-600">
               {hours}
             </span>
@@ -62,9 +62,9 @@ export function WeeklySummaryHeader({
         </div>
 
         {/* 플랜 실행률 */}
-        <div className="text-center">
-          <div className="mb-2 text-sm font-medium text-gray-600">플랜 실행률</div>
-          <div className="mb-1 flex items-baseline justify-center gap-1">
+        <div className="flex flex-col gap-2 text-center">
+          <div className="text-sm font-medium text-gray-600">플랜 실행률</div>
+          <div className="flex items-baseline justify-center gap-1">
             <span className="text-5xl font-bold text-purple-600">
               {planCompletionRate}
             </span>
@@ -83,9 +83,9 @@ export function WeeklySummaryHeader({
         </div>
 
         {/* 목표 달성률 */}
-        <div className="text-center">
-          <div className="mb-2 text-sm font-medium text-gray-600">목표 달성률</div>
-          <div className="mb-1 flex items-baseline justify-center gap-1">
+        <div className="flex flex-col gap-2 text-center">
+          <div className="text-sm font-medium text-gray-600">목표 달성률</div>
+          <div className="flex items-baseline justify-center gap-1">
             <span className="text-5xl font-bold text-emerald-600">
               {goalProgressRate}
             </span>

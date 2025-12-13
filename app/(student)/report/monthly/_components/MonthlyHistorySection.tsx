@@ -51,9 +51,9 @@ export function MonthlyHistorySection({ events }: MonthlyHistorySectionProps) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">이번 달 주요 활동</h3>
-      <div className="space-y-3">
+    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h3 className="text-lg font-semibold text-gray-900">이번 달 주요 활동</h3>
+      <div className="flex flex-col gap-3">
         {events.map((event) => {
           const eventDate = new Date(event.createdAt);
           const dateStr = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
@@ -65,9 +65,9 @@ export function MonthlyHistorySection({ events }: MonthlyHistorySectionProps) {
                   {eventTypeLabels[event.eventType] || event.eventType}
                 </div>
               </div>
-              <div className="flex-1">
+              <div className="flex flex-1 flex-col gap-1">
                 <p className="text-sm text-gray-900">{formatEventDetail(event.eventType, event.detail)}</p>
-                <p className="mt-1 text-xs text-gray-500">{dateStr}</p>
+                <p className="text-xs text-gray-500">{dateStr}</p>
               </div>
             </div>
           );
