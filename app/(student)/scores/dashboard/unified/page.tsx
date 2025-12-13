@@ -152,7 +152,7 @@ export default async function UnifiedScoreDashboardPage() {
   } = dashboardData;
 
   return (
-    <section className="mx-auto max-w-6xl p-6 md:p-8">
+    <section className={getContainerClass("DASHBOARD", "md")}>
       <div className="flex flex-col gap-6">
         <PageHeader
           title="성적 대시보드"

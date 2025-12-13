@@ -12,6 +12,7 @@ import { PlanCalendarView } from "./_components/PlanCalendarView";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { formatDateString } from "@/lib/date/calendarUtils";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PlanCalendarPageProps = {
   searchParams: Promise<{ view?: string }>;
@@ -50,7 +51,7 @@ export default async function PlanCalendarPage({
 
     if (activePlanGroups.length === 0) {
       return (
-        <section className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
+        <section className={getContainerClass("LIST", "md")}>
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
             <div className="mx-auto flex max-w-md flex-col gap-4">
               <div className="text-6xl">📅</div>
@@ -279,7 +280,7 @@ export default async function PlanCalendarPage({
       : 0;
 
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
+      <section className={getContainerClass("LIST", "md")}>
         <div className="flex flex-col gap-6">
           {/* 페이지 헤더 - 카드 스타일 */}
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -368,7 +369,7 @@ export default async function PlanCalendarPage({
     
     // 사용자 친화적인 에러 메시지 표시
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-6 md:py-10">
+      <section className={getContainerClass("LIST", "md")}>
         <div className="rounded-xl border border-red-200 bg-red-50 p-10 text-center">
           <div className="mx-auto flex max-w-md flex-col gap-4">
             <div className="text-6xl">⚠️</div>

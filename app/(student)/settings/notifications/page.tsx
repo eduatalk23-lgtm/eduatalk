@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NotificationSettingsView } from "./_components/NotificationSettingsView";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function NotificationSettingsPage() {
   const supabase = await createSupabaseServerClient();
@@ -40,7 +41,7 @@ export default async function NotificationSettingsPage() {
 
   return (
     <div className="p-6 md:p-8">
-      <div className="mx-auto max-w-2xl">
+      <div className={getContainerClass("FORM", "md")}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-semibold">알림 설정</h1>

@@ -5,6 +5,7 @@ import { ScoreTypeTabs } from "../../../_components/ScoreTypeTabs";
 import { getSchoolScores } from "@/lib/data/studentScores";
 import { getSubjectHierarchyOptimized, getActiveCurriculumRevision } from "@/lib/data/subjects";
 import { SchoolScoresView } from "./_components/SchoolScoresView";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {
   params: Promise<{
@@ -59,7 +60,7 @@ export default async function SchoolScoresPage({
   const successMessage = paramsQuery.success;
 
   return (
-    <section className="mx-auto max-w-6xl p-6 md:p-8">
+    <section className={getContainerClass("DASHBOARD", "md")}>
       <div className="mb-6 flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-gray-900">내신 성적</h1>
         <p className="text-sm text-gray-600">

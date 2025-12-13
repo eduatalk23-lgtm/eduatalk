@@ -18,6 +18,7 @@ import { getCampTemplate } from "@/lib/data/campTemplates";
 import { getPlanById } from "@/lib/data/studentPlans";
 import { getTodayPlans } from "@/lib/data/todayPlans";
 import { perfTime } from "@/lib/utils/perfLog";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type CampTodayPageProps = {
   searchParams?:
@@ -148,7 +149,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   if (activeCampPlanGroups.length === 0) {
     pageTimer.end();
     return (
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+      <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <div>
@@ -235,7 +236,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
       initialProgress={todayProgress}
       initialPlansData={plansDataForContext}
     >
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+      <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePassword } from "@/app/(student)/actions/accountActions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default function AccountSettingsPage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="p-6 md:p-8">
-      <div className="mx-auto max-w-2xl">
+      <div className={getContainerClass("FORM", "md")}>
         <h1 className="text-h1">계정 관리</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { BookEditForm } from "./BookEditForm";
 import { Book } from "@/app/types/content";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function EditBookPage({
   params,
@@ -42,7 +43,7 @@ export default async function EditBookPage({
   if (!book) notFound();
 
   return (
-    <section className="mx-auto w-full max-w-lg px-4 py-10">
+    <section className={getContainerClass("FORM", "lg")}>
       <Link
         href={`/contents/books/${book.id}`}
         className="text-sm text-gray-500 transition hover:text-gray-900"

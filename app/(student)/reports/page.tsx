@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { collectReportData } from "./_utils";
 import { ReportView } from "./_components/ReportView";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function ReportsPage({
   searchParams,
@@ -23,7 +24,7 @@ export default async function ReportsPage({
   const reportData = await collectReportData(supabase, user.id, period);
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-10">
+    <section className={getContainerClass("DASHBOARD", "lg")}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-semibold text-gray-900">학습 리포트</h1>

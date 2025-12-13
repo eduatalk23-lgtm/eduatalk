@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentCampInvitations } from "../actions/campActions";
 import { CampInvitationCard } from "./_components/CampInvitationCard";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function CampPage() {
   const supabase = await createSupabaseServerClient();
@@ -57,7 +58,7 @@ export default async function CampPage() {
   );
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-4 py-10">
+    <section className={getContainerClass("LIST", "lg")}>
       <div className="mb-8">
         <p className="text-sm font-medium text-gray-500">캠프 프로그램</p>
         <h1 className="text-3xl font-semibold text-gray-900">캠프 참여</h1>

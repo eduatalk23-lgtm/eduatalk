@@ -5,6 +5,7 @@ import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { fetchAllStudentContents } from "@/lib/data/planContents";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type EditPlanGroupPageProps = {
   params: Promise<{ id: string }>;
@@ -57,7 +58,7 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   return (
     <>
       <ScrollToTop />
-      <section className="mx-auto w-full max-w-4xl px-4 py-10">
+      <section className={getContainerClass("LIST", "lg")}>
         <div className="mb-8">
         <div>
           <p className="text-sm font-medium text-gray-800">학습 플랜</p>

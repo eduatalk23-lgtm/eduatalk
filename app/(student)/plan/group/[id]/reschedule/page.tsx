@@ -13,6 +13,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { RescheduleWizard } from "./_components/RescheduleWizard";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type ReschedulePageProps = {
   params: Promise<{ id: string }>;
@@ -79,7 +80,7 @@ export default async function ReschedulePage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
+    <div className={getContainerClass("CAMP_PLAN", "md")}>
       <div className="flex flex-col gap-6">
         {/* 헤더 */}
         <div className="flex items-center justify-between">

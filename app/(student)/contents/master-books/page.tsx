@@ -10,6 +10,7 @@ import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
+import { getContainerClass } from "@/lib/constants/layout";
 
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterBookFilters) {
@@ -199,7 +200,7 @@ export default async function StudentMasterBooksPage({
   });
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
+    <section className={getContainerClass("LIST", "lg")}>
       <div className="flex flex-col gap-8">
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

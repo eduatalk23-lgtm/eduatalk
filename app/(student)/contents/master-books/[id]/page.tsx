@@ -5,6 +5,7 @@ import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeade
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
 import { BookDetailsDisplay } from "@/app/(student)/contents/_components/BookDetailsDisplay";
 import { CopyMasterBookButton } from "./_components/CopyMasterBookButton";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function StudentMasterBookDetailPage({
   params,
@@ -19,7 +20,7 @@ export default async function StudentMasterBookDetailPage({
   if (!book) notFound();
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
+    <section className={getContainerClass("CONTENT_DETAIL", "lg")}>
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <ContentHeader
           title={book.title}

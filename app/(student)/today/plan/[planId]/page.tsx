@@ -11,6 +11,7 @@ import {
   formatTime,
   formatTimestamp,
 } from "@/app/(student)/today/_utils/planGroupUtils";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PlanCompletionMode = "today" | "camp";
 
@@ -121,7 +122,7 @@ export default async function PlanExecutionPage({
   const backLinkText = mode === "camp" ? "캠프 일정으로 돌아가기" : "Today로 돌아가기";
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+    <div className={getContainerClass("FORM", "md")}>
       <div className="flex flex-col gap-6">
         <Link
           href={backLinkHref}

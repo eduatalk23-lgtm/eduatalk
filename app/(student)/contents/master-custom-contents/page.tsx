@@ -6,6 +6,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterCustomContents, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterCustomContentFilters } from "@/lib/data/contentMasters";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function StudentMasterCustomContentsPage({
   searchParams,
@@ -43,7 +44,7 @@ export default async function StudentMasterCustomContentsPage({
   const curriculumRevisions = await getCurriculumRevisions().catch(() => []);
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
+    <section className={getContainerClass("LIST", "lg")}>
       <div className="flex flex-col gap-8">
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LectureEditForm } from "./LectureEditForm";
 import { Lecture } from "@/app/types/content";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function EditLecturePage({
   params,
@@ -42,7 +43,7 @@ export default async function EditLecturePage({
   if (!lecture) notFound();
 
   return (
-    <section className="mx-auto w-full max-w-lg px-4 py-10">
+    <section className={getContainerClass("FORM", "lg")}>
       <Link
         href={`/contents/lectures/${lecture.id}`}
         className="text-sm text-gray-500 transition hover:text-gray-900"

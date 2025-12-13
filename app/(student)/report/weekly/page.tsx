@@ -17,6 +17,7 @@ import { WeeklyCoachingSection } from "./_components/WeeklyCoachingSection";
 import { getWeeklyCoaching } from "@/app/(student)/report/weekly/coachingAction";
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function WeeklyReportPage() {
   const supabase = await createSupabaseServerClient();
@@ -73,7 +74,7 @@ export default async function WeeklyReportPage() {
       goalProgress.totalGoals > 0;
 
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "lg")}>
         {/* 헤더 */}
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -151,7 +152,7 @@ export default async function WeeklyReportPage() {
   } catch (error) {
     console.error("[report/weekly] 페이지 로드 실패", error);
     return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+      <section className={getContainerClass("DASHBOARD", "lg")}>
         <div className="rounded-lg border border-red-200 bg-red-50 p-6">
           <h2 className="text-lg font-semibold text-red-900 mb-2">오류가 발생했습니다</h2>
           <p className="text-sm text-red-700 mb-4">

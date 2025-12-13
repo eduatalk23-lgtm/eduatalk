@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { getContainerClass } from "@/lib/constants/layout";
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -14,7 +15,7 @@ export default function Error({ error, reset }: ErrorProps) {
   }, [error]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className={getContainerClass("DASHBOARD", "lg")}>
       <ErrorState
         title="오류가 발생했습니다"
         message={error.message || "예상치 못한 오류가 발생했습니다."}

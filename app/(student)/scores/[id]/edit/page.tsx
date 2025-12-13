@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { updateStudentScore } from "@/app/actions/scores";
 import { ScoreForm } from "../../_components/ScoreForm";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type ScoreRow = {
   id: string;
@@ -50,7 +51,7 @@ export default async function EditScorePage({ params }: EditScorePageProps) {
   const scoreData = score as ScoreRow;
 
   return (
-    <section className="mx-auto max-w-2xl px-4 py-10">
+    <section className={getContainerClass("FORM", "lg")}>
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-gray-900">성적 수정</h1>
         <p className="mt-2 text-sm text-gray-500">

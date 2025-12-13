@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { fetchAllStudentContents } from "@/lib/data/planContents";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -65,7 +66,7 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
   return (
     <>
       <ScrollToTop />
-      <section className="mx-auto w-full max-w-4xl px-4 py-10">
+      <section className={getContainerClass("LIST", "lg")}>
         <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">

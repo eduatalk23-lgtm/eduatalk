@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import BlockSetDetail from "./_components/BlockSetDetail";
+import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {
   params: Promise<{ setId: string }>;
@@ -53,7 +54,7 @@ export default async function BlockSetDetailPage({ params }: PageProps) {
   const isActive = student?.active_block_set_id === setId;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 md:py-10">
+    <section className={getContainerClass("DASHBOARD", "md")}>
       <BlockSetDetail
         blockSet={blockSet}
         blocks={(blocks as Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>) ?? []}

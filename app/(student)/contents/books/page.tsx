@@ -3,6 +3,7 @@ import Link from "next/link";
 import { addBook } from "@/app/(student)/actions/contentActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function BooksPage() {
   const supabase = await createSupabaseServerClient();
@@ -19,7 +20,7 @@ export default async function BooksPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <section className="mx-auto max-w-xl px-4 py-10">
+    <section className={getContainerClass("FORM", "lg")}>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">교재 등록</h1>
         <Link

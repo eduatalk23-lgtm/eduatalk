@@ -10,6 +10,7 @@ import { LectureEpisodesDisplay } from "@/app/(student)/contents/_components/Lec
 import { CopyMasterLectureButton } from "./_components/CopyMasterLectureButton";
 import { secondsToMinutes } from "@/lib/utils/duration";
 import { formatGradeLevel } from "@/lib/utils/formatGradeLevel";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function StudentMasterLectureDetailPage({
   params,
@@ -37,7 +38,7 @@ export default async function StudentMasterLectureDetailPage({
   }
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
+    <section className={getContainerClass("CONTENT_DETAIL", "lg")}>
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <ContentHeader
           title={lecture.title}

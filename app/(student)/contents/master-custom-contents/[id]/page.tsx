@@ -5,6 +5,7 @@ import { getMasterCustomContentById } from "@/lib/data/contentMasters";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
 import { CopyMasterCustomContentButton } from "./_components/CopyMasterCustomContentButton";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function StudentMasterCustomContentDetailPage({
   params,
@@ -24,7 +25,7 @@ export default async function StudentMasterCustomContentDetailPage({
   if (!content) notFound();
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
+    <section className={getContainerClass("CONTENT_DETAIL", "lg")}>
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <ContentHeader
           title={content.title}

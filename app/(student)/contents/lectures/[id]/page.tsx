@@ -7,6 +7,7 @@ import { Lecture } from "@/app/types/content";
 import { LectureDetailTabs } from "./_components/LectureDetailTabs";
 import { getMasterLectureById } from "@/lib/data/contentMasters";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function LectureDetailPage({
   params,
@@ -178,7 +179,7 @@ export default async function LectureDetailPage({
   const deleteAction = deleteLecture.bind(null, lecture.id);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
+    <section className={getContainerClass("CONTENT_DETAIL", "lg")}>
       <div className="rounded-2xl border bg-white p-8 shadow-sm">
         <Suspense fallback={<SuspenseFallback />}>
           <LectureDetailTabs
