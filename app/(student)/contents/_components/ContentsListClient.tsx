@@ -104,10 +104,10 @@ export function ContentsListClient({
   };
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       {/* 전체 선택 체크박스 */}
       {list.length > 0 && (
-        <div className="mb-3 flex items-center gap-2 px-1">
+        <div className="flex items-center gap-2 px-1">
           <input
             type="checkbox"
             checked={allSelected}
@@ -128,7 +128,7 @@ export function ContentsListClient({
         </div>
       )}
 
-      <ul className="grid gap-4 mb-6">
+      <ul className="grid gap-4">
         {list.map((item) => (
           <ContentCard
             key={item.id}

@@ -267,14 +267,16 @@ export function ScoreConsistencyAnalysis({
 
       {!schoolConsistency && !mockConsistency && !crossConsistency && (
         <div className="col-span-full rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-          <div className="mx-auto max-w-md">
-            <div className="mb-4 text-6xl">📊</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">
-              일관성 분석 데이터가 없습니다
-            </h3>
-            <p className="text-sm text-gray-500">
-              충분한 성적 데이터를 등록하면 일관성 분석이 제공됩니다.
-            </p>
+          <div className="mx-auto flex max-w-md flex-col gap-4">
+            <div className="text-6xl">📊</div>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-lg font-semibold text-gray-900">
+                일관성 분석 데이터가 없습니다
+              </h3>
+              <p className="text-sm text-gray-500">
+                충분한 성적 데이터를 등록하면 일관성 분석이 제공됩니다.
+              </p>
+            </div>
           </div>
         </div>
       )}

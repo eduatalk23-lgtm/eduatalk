@@ -31,7 +31,7 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
   }));
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
@@ -58,7 +58,7 @@ export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
           />
         </PieChart>
       </ResponsiveContainer>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {chartData.map((item, index) => (
           <div key={item.name} className="flex items-center gap-2 text-sm">
             <div

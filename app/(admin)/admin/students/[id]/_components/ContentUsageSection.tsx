@@ -1,4 +1,6 @@
 import { getStudentContentUsageForAdmin } from "@/lib/data/admin/studentData";
+import { StatCard } from "@/components/molecules/StatCard";
+import ProgressBar from "@/components/atoms/ProgressBar";
 
 const contentTypeLabels: Record<string, string> = {
   book: "책",
@@ -44,71 +46,72 @@ export async function ContentUsageSection({ studentId }: { studentId: string }) 
 
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">콘텐츠 사용 현황</h2>
+        <div className="flex flex-col gap-6">
+          <h2 className="text-xl font-semibold text-gray-900">콘텐츠 사용 현황</h2>
 
-        {/* 통계 */}
-        <div className="mb-6 grid grid-cols-3 gap-4">
-          <div className="rounded-lg bg-blue-50 p-4">
-            <div className="text-sm text-blue-600">책</div>
-            <div className="mt-1 text-2xl font-bold text-blue-700">
-              {contentUsage.books.length}개
-            </div>
+          {/* 통계 */}
+          <div className="grid grid-cols-3 gap-4">
+            <StatCard
+              label="책"
+              value={`${contentUsage.books.length}개`}
+              color="blue"
+            />
+            <StatCard
+              label="강의"
+              value={`${contentUsage.lectures.length}개`}
+              color="purple"
+            />
+            <StatCard
+              label="커스텀"
+              value={`${contentUsage.customContents.length}개`}
+              color="emerald"
+            />
           </div>
-          <div className="rounded-lg bg-purple-50 p-4">
-            <div className="text-sm text-purple-600">강의</div>
-            <div className="mt-1 text-2xl font-bold text-purple-700">
-              {contentUsage.lectures.length}개
-            </div>
-          </div>
-          <div className="rounded-lg bg-emerald-50 p-4">
-            <div className="text-sm text-emerald-600">커스텀</div>
-            <div className="mt-1 text-2xl font-bold text-emerald-700">
-              {contentUsage.customContents.length}개
-            </div>
-          </div>
-        </div>
 
-        {/* 진행 중인 콘텐츠 */}
-        <div>
-          <h3 className="mb-3 text-sm font-medium text-gray-700">진행 중인 콘텐츠 (상위 10개)</h3>
-          {contentsWithProgress.length === 0 ? (
-            <p className="text-sm text-gray-500">진행 중인 콘텐츠가 없습니다.</p>
-          ) : (
-            <div className="space-y-3">
-              {contentsWithProgress.map((content) => (
-                <div
-                  key={content.key}
-                  className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                        {contentTypeLabels[content.type] ?? content.type}
-                      </span>
-                      <span className="font-medium text-gray-900">{content.title}</span>
-                      {content.subject && (
-                        <span className="text-xs text-gray-500">· {content.subject}</span>
+          {/* 진행 중인 콘텐츠 */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-gray-700">진행 중인 콘텐츠 (상위 10개)</h3>
+            {contentsWithProgress.length === 0 ? (
+              <p className="text-sm text-gray-500">진행 중인 콘텐츠가 없습니다.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {contentsWithProgress.map((content) => (
+                  <div
+                    key={content.key}
+                    className="rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50"
+                  >
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                            {contentTypeLabels[content.type] ?? content.type}
+                          </span>
+                          <span className="font-medium text-gray-900">{content.title}</span>
+                          {content.subject && (
+                            <span className="text-xs text-gray-500">· {content.subject}</span>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {content.progress}%
+                        </span>
+                      </div>
+                      <ProgressBar
+                        value={Math.min(100, content.progress)}
+                        max={100}
+                        color="indigo"
+                        height="sm"
+                      />
+                      {content.completedAmount > 0 && (
+                        <div className="text-xs text-gray-500">
+                          완료량: {content.completedAmount}
+                        </div>
                       )}
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {content.progress}%
-                    </span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-gray-200">
-                    <div
-                      className="h-2 rounded-full bg-indigo-600 transition-all"
-                      style={{ width: `${Math.min(100, content.progress)}%` }}
-                    />
-                  </div>
-                  {content.completedAmount > 0 && (
-                    <div className="mt-1 text-xs text-gray-500">
-                      완료량: {content.completedAmount}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );

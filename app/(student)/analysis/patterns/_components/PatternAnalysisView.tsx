@@ -1,5 +1,7 @@
 "use client";
 
+import ProgressBar from "@/components/atoms/ProgressBar";
+
 type DayStats = {
   totalSeconds: number;
   planCount: number;
@@ -56,31 +58,37 @@ export function PatternAnalysisView({
       {/* 주요 인사이트 */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-6">
-          <div className="mb-2 text-sm font-medium text-indigo-700">가장 활발한 요일</div>
-          <div className="text-2xl font-bold text-indigo-900">
-            {weekdays[mostActiveDay.day]}요일
-          </div>
-          <div className="mt-1 text-sm text-indigo-600">
-            {formatTime(mostActiveDay.totalSeconds)} ({mostActiveDay.planCount}개 플랜)
+          <div className="flex flex-col gap-1">
+            <div className="text-sm font-medium text-indigo-700">가장 활발한 요일</div>
+            <div className="text-2xl font-bold text-indigo-900">
+              {weekdays[mostActiveDay.day]}요일
+            </div>
+            <div className="text-sm text-indigo-600">
+              {formatTime(mostActiveDay.totalSeconds)} ({mostActiveDay.planCount}개 플랜)
+            </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
-          <div className="mb-2 text-sm font-medium text-blue-700">가장 활발한 시간대</div>
-          <div className="text-2xl font-bold text-blue-900">
-            {formatHour(mostActiveHour.hour)}
-          </div>
-          <div className="mt-1 text-sm text-blue-600">
-            {formatTime(mostActiveHour.seconds)} 학습
+          <div className="flex flex-col gap-1">
+            <div className="text-sm font-medium text-blue-700">가장 활발한 시간대</div>
+            <div className="text-2xl font-bold text-blue-900">
+              {formatHour(mostActiveHour.hour)}
+            </div>
+            <div className="text-sm text-blue-600">
+              {formatTime(mostActiveHour.seconds)} 학습
+            </div>
           </div>
         </div>
 
         <div className="rounded-xl border border-purple-200 bg-purple-50 p-6">
-          <div className="mb-2 text-sm font-medium text-purple-700">주간 평균 학습 시간</div>
-          <div className="text-2xl font-bold text-purple-900">
-            {formatTime(averageWeeklySeconds)}
+          <div className="flex flex-col gap-1">
+            <div className="text-sm font-medium text-purple-700">주간 평균 학습 시간</div>
+            <div className="text-2xl font-bold text-purple-900">
+              {formatTime(averageWeeklySeconds)}
+            </div>
+            <div className="text-sm text-purple-600">최근 4주 평균</div>
           </div>
-          <div className="mt-1 text-sm text-purple-600">최근 4주 평균</div>
         </div>
       </div>
 
@@ -90,17 +98,23 @@ export function PatternAnalysisView({
           <div className="flex items-start gap-3">
             <span className="text-2xl">⚠️</span>
             <div className="flex-1">
-              <h3 className="mb-2 text-lg font-semibold text-yellow-900">학습 지연 감지</h3>
-              <p className="mb-3 text-sm text-yellow-800">
-                최근 3일간의 평균 학습 시간이 이전 3일 대비 {delayPercentage}% 감소했습니다.
-              </p>
-              <div className="rounded-lg bg-white p-3">
-                <p className="text-sm font-medium text-yellow-900">💡 제안:</p>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-yellow-800">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-lg font-semibold text-yellow-900">학습 지연 감지</h3>
+                  <p className="text-sm text-yellow-800">
+                    최근 3일간의 평균 학습 시간이 이전 3일 대비 {delayPercentage}% 감소했습니다.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-3">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-medium text-yellow-900">💡 제안:</p>
+                    <ul className="list-inside list-disc space-y-1 text-sm text-yellow-800">
                   <li>주말에 보충 학습 시간을 추가해보세요</li>
                   <li>일부 플랜을 다음 주로 이동하는 것을 고려해보세요</li>
-                  <li>학습 목표를 재검토해보세요</li>
-                </ul>
+                      <li>학습 목표를 재검토해보세요</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -109,149 +123,158 @@ export function PatternAnalysisView({
 
       {/* 요일별 학습 분포 */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">요일별 학습 분포</h2>
-        <div className="space-y-3">
-          {weekdays.map((day, index) => {
-            const stats = byDayOfWeek[index] || { totalSeconds: 0, planCount: 0 };
-            const percentage = (stats.totalSeconds / maxDaySeconds) * 100;
-
-            return (
-              <div key={index} className="flex items-center gap-4">
-                <div className="w-12 text-sm font-medium text-gray-700">{day}</div>
-                <div className="flex-1">
-                  <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
-                    <span>{formatTime(stats.totalSeconds)}</span>
-                    <span>{stats.planCount}개 플랜</span>
-                  </div>
-                  <div className="h-4 overflow-hidden rounded-full bg-gray-200">
-                    <div
-                      className="h-full bg-indigo-600 transition-all"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 시간대별 학습 분포 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">시간대별 학습 분포</h2>
-        <div className="grid grid-cols-12 gap-2">
-          {Array.from({ length: 24 }, (_, hour) => {
-            const seconds = byHour[hour] || 0;
-            const percentage = (seconds / maxHourSeconds) * 100;
-            const height = Math.max(percentage, 5); // 최소 5% 높이
-
-            return (
-              <div key={hour} className="flex flex-col items-center">
-                <div className="mb-1 text-xs text-gray-600">{hour}</div>
-                <div className="relative w-full">
-                  <div
-                    className="w-full rounded-t bg-indigo-600 transition-all"
-                    style={{ height: `${height}%`, minHeight: "20px" }}
-                    title={`${formatHour(hour)}: ${formatTime(seconds)}`}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 text-center text-xs text-gray-500">
-          각 막대는 해당 시간대에 시작한 학습의 총 시간을 나타냅니다
-        </div>
-      </div>
-
-      {/* 주간 학습 추이 */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">주간 학습 추이</h2>
-        <div className="space-y-3">
-          {weeklyTrend.map((week) => {
-            const percentage = (week.totalSeconds / maxWeekSeconds) * 100;
-
-            return (
-              <div key={week.week} className="flex items-center gap-4">
-                <div className="w-20 text-sm font-medium text-gray-700">
-                  {week.week}주 전
-                </div>
-                <div className="flex-1">
-                  <div className="mb-1 flex items-center justify-between text-xs text-gray-600">
-                    <span>{formatTime(week.totalSeconds)}</span>
-                  </div>
-                  <div className="h-4 overflow-hidden rounded-full bg-gray-200">
-                    <div
-                      className="h-full bg-purple-600 transition-all"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 학습 히트맵 (최근 4주) */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">학습 강도 히트맵</h2>
-        <div className="overflow-x-auto">
-          <div className="inline-block min-w-full">
-            <div className="mb-2 grid grid-cols-8 gap-1">
-              <div className="text-xs text-gray-600"></div>
-              {weekdays.map((day) => (
-                <div key={day} className="text-center text-xs font-medium text-gray-700">
-                  {day}
-                </div>
-              ))}
-            </div>
-            {Array.from({ length: 4 }, (_, weekIndex) => {
-              const weekStart = new Date();
-              weekStart.setDate(weekStart.getDate() - (weekIndex * 7) - 6);
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">요일별 학습 분포</h2>
+          <div className="flex flex-col gap-3">
+            {weekdays.map((day, index) => {
+              const stats = byDayOfWeek[index] || { totalSeconds: 0, planCount: 0 };
+              const percentage = (stats.totalSeconds / maxDaySeconds) * 100;
 
               return (
-                <div key={weekIndex} className="mb-1 grid grid-cols-8 gap-1">
-                  <div className="text-xs text-gray-600">
-                    {4 - weekIndex}주 전
+                <div key={index} className="flex items-center gap-4">
+                  <div className="w-12 text-sm font-medium text-gray-700">{day}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <span>{formatTime(stats.totalSeconds)}</span>
+                      <span>{stats.planCount}개 플랜</span>
+                    </div>
+                    <ProgressBar
+                      value={percentage}
+                      max={100}
+                      color="indigo"
+                      height="sm"
+                    />
                   </div>
-                  {weekdays.map((_, dayIndex) => {
-                    const date = new Date(weekStart);
-                    date.setDate(weekStart.getDate() + dayIndex);
-                    const dateStr = date.toISOString().slice(0, 10);
-                    const stats = byDate[dateStr] || { totalSeconds: 0, planCount: 0 };
-
-                    // 강도 계산 (0-3 레벨)
-                    const maxSeconds = Math.max(
-                      ...Object.values(byDate).map((s) => s.totalSeconds),
-                      1
-                    );
-                    const intensity = Math.min(
-                      Math.floor((stats.totalSeconds / maxSeconds) * 4),
-                      3
-                    );
-
-                    const intensityColors = [
-                      "bg-gray-100", // 0
-                      "bg-green-200", // 1
-                      "bg-green-400", // 2
-                      "bg-green-600", // 3
-                    ];
-
-                    return (
-                      <div
-                        key={dayIndex}
-                        className={`aspect-square rounded ${intensityColors[intensity]}`}
-                        title={`${dateStr}: ${formatTime(stats.totalSeconds)}`}
-                      />
-                    );
-                  })}
                 </div>
               );
             })}
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600">
+      </div>
+
+      {/* 시간대별 학습 분포 */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">시간대별 학습 분포</h2>
+          <div className="grid grid-cols-12 gap-2">
+            {Array.from({ length: 24 }, (_, hour) => {
+              const seconds = byHour[hour] || 0;
+              const percentage = (seconds / maxHourSeconds) * 100;
+              const height = Math.max(percentage, 5); // 최소 5% 높이
+
+              return (
+                <div key={hour} className="flex flex-col items-center gap-1">
+                  <div className="text-xs text-gray-600">{hour}</div>
+                  <div className="relative w-full">
+                    <div
+                      className="w-full rounded-t bg-indigo-600 transition-all"
+                      style={{ height: `${height}%`, minHeight: "20px" }}
+                      title={`${formatHour(hour)}: ${formatTime(seconds)}`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-center text-xs text-gray-500">
+            각 막대는 해당 시간대에 시작한 학습의 총 시간을 나타냅니다
+          </div>
+        </div>
+      </div>
+
+      {/* 주간 학습 추이 */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">주간 학습 추이</h2>
+          <div className="flex flex-col gap-3">
+            {weeklyTrend.map((week) => {
+              const percentage = (week.totalSeconds / maxWeekSeconds) * 100;
+
+              return (
+                <div key={week.week} className="flex items-center gap-4">
+                  <div className="w-20 text-sm font-medium text-gray-700">
+                    {week.week}주 전
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <span>{formatTime(week.totalSeconds)}</span>
+                    </div>
+                    <ProgressBar
+                      value={percentage}
+                      max={100}
+                      color="violet"
+                      height="sm"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 학습 히트맵 (최근 4주) */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900">학습 강도 히트맵</h2>
+          <div className="overflow-x-auto">
+            <div className="inline-block min-w-full">
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-8 gap-1">
+                  <div className="text-xs text-gray-600"></div>
+                  {weekdays.map((day) => (
+                    <div key={day} className="text-center text-xs font-medium text-gray-700">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                {Array.from({ length: 4 }, (_, weekIndex) => {
+                  const weekStart = new Date();
+                  weekStart.setDate(weekStart.getDate() - (weekIndex * 7) - 6);
+
+                  return (
+                    <div key={weekIndex} className="grid grid-cols-8 gap-1">
+                      <div className="text-xs text-gray-600">
+                        {4 - weekIndex}주 전
+                      </div>
+                      {weekdays.map((_, dayIndex) => {
+                        const date = new Date(weekStart);
+                        date.setDate(weekStart.getDate() + dayIndex);
+                        const dateStr = date.toISOString().slice(0, 10);
+                        const stats = byDate[dateStr] || { totalSeconds: 0, planCount: 0 };
+
+                        // 강도 계산 (0-3 레벨)
+                        const maxSeconds = Math.max(
+                          ...Object.values(byDate).map((s) => s.totalSeconds),
+                          1
+                        );
+                        const intensity = Math.min(
+                          Math.floor((stats.totalSeconds / maxSeconds) * 4),
+                          3
+                        );
+
+                        const intensityColors = [
+                          "bg-gray-100", // 0
+                          "bg-green-200", // 1
+                          "bg-green-400", // 2
+                          "bg-green-600", // 3
+                        ];
+
+                        return (
+                          <div
+                            key={dayIndex}
+                            className={`aspect-square rounded ${intensityColors[intensity]}`}
+                            title={`${dateStr}: ${formatTime(stats.totalSeconds)}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-4 text-xs text-gray-600">
           <div className="flex items-center gap-1">
             <div className="h-3 w-3 rounded bg-gray-100" />
             <span>낮음</span>

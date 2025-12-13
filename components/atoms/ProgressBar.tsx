@@ -99,6 +99,7 @@ function ProgressBarComponent({
             finalColorClass,
             barClassName
           )}
+          // 동적 width는 인라인 스타일이 필요 (Tailwind arbitrary values는 빌드 시점에 생성되어야 함)
           style={{ width: `${percentage}%` }}
           role="progressbar"
           aria-valuenow={Math.round(percentage)}

@@ -8,6 +8,7 @@ import { SMSLogsTable } from "./_components/SMSLogsTable";
 import { Card, CardContent } from "@/components/molecules/Card";
 import { SMSLogsFilters } from "./_components/SMSLogsFilters";
 import { SMSLogsPagination } from "./_components/SMSLogsPagination";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function SMSLogsPage({
   searchParams,
@@ -57,57 +58,55 @@ export default async function SMSLogsPage({
 
   return (
     <div className="p-6 md:p-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">출석 SMS 발송 로그</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          출석 관련 SMS 발송 이력을 확인할 수 있습니다.
-        </p>
-      </div>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="출석 SMS 발송 로그"
+          description="출석 관련 SMS 발송 이력을 확인할 수 있습니다."
+        />
 
-      {/* 필터 */}
-      <div className="mb-6">
+        {/* 필터 */}
         <SMSLogsFilters currentFilters={filters} />
+
+        {/* 통계 */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card>
+            <CardContent>
+              <div className="text-sm text-gray-500">전체 로그</div>
+              <div className="text-2xl font-semibold text-gray-900">{total}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-sm text-gray-500">성공</div>
+              <div className="text-2xl font-semibold text-green-600">
+                {logs.filter((log) => log.status === "sent" || log.status === "delivered").length}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-sm text-gray-500">실패</div>
+              <div className="text-2xl font-semibold text-red-600">
+                {logs.filter((log) => log.status === "failed").length}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent>
+              <div className="text-sm text-gray-500">대기</div>
+              <div className="text-2xl font-semibold text-amber-600">
+                {logs.filter((log) => log.status === "pending").length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 로그 테이블 */}
+        <SMSLogsTable logs={logs} />
+
+        {/* 페이지네이션 */}
+        <SMSLogsPagination currentPage={page} totalPages={totalPages} />
       </div>
-
-      {/* 통계 */}
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent>
-            <div className="text-sm text-gray-500">전체 로그</div>
-            <div className="text-2xl font-semibold text-gray-900">{total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-sm text-gray-500">성공</div>
-            <div className="text-2xl font-semibold text-green-600">
-              {logs.filter((log) => log.status === "sent" || log.status === "delivered").length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-sm text-gray-500">실패</div>
-            <div className="text-2xl font-semibold text-red-600">
-              {logs.filter((log) => log.status === "failed").length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="text-sm text-gray-500">대기</div>
-            <div className="text-2xl font-semibold text-amber-600">
-              {logs.filter((log) => log.status === "pending").length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 로그 테이블 */}
-      <SMSLogsTable logs={logs} />
-
-      {/* 페이지네이션 */}
-      <SMSLogsPagination currentPage={page} totalPages={totalPages} />
     </div>
   );
 }

@@ -400,10 +400,11 @@ export function BlockSetSection({
               {/* 추가된 블록 목록 */}
               {addedBlocks.length > 0 && (
                 <div className="rounded-lg border border-gray-200 bg-white p-4">
-                  <h3 className="mb-2 text-sm font-semibold text-gray-900">
-                    추가된 블록 ({addedBlocks.length}개)
-                  </h3>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      추가된 블록 ({addedBlocks.length}개)
+                    </h3>
+                    <div className="space-y-2">
                     {addedBlocks.map((block, index) => {
                       const dayNames = [
                         "일",
@@ -433,6 +434,7 @@ export function BlockSetSection({
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 </div>
               )}
