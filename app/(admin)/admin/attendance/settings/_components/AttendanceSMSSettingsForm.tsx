@@ -139,12 +139,12 @@ export function AttendanceSMSSettingsForm() {
     <Card>
       <CardHeader title="출석 SMS 알림 설정" />
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <Label htmlFor="check_in_enabled">입실 알림</Label>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   학생이 입실할 때 학부모에게 SMS를 발송합니다.
                   <br />
                   <span className="text-gray-400">
@@ -167,9 +167,9 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <Label htmlFor="check_out_enabled">퇴실 알림</Label>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   학생이 퇴실할 때 학부모에게 SMS를 발송합니다.
                   <br />
                   <span className="text-gray-400">
@@ -192,9 +192,9 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <Label htmlFor="absent_enabled">결석 알림</Label>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   학생이 결석할 때 학부모에게 SMS를 발송합니다.
                 </p>
               </div>
@@ -211,9 +211,9 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col gap-1">
                 <Label htmlFor="late_enabled">지각 알림</Label>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   학생이 지각할 때 학부모에게 SMS를 발송합니다.
                 </p>
               </div>
@@ -230,19 +230,19 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-col gap-1 flex-1">
+                <div className="flex items-center gap-2">
                   <Label htmlFor="student_checkin_enabled">
                     학생 직접 체크인 시 발송
                   </Label>
                   {!formData.attendance_sms_student_checkin_enabled && (
                     <Badge variant="warning" size="xs">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      <AlertTriangle className="h-3 w-3" />
                       중요
                     </Badge>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="text-xs text-gray-500">
                   학생이 QR코드나 위치로 직접 체크인/퇴실할 때도 SMS를
                   발송합니다.
                 </p>
@@ -294,10 +294,10 @@ export function AttendanceSMSSettingsForm() {
             </div>
 
             <div className="pt-4 border-t">
-              <div className="space-y-3">
-                <div>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
                   <Label htmlFor="sms_recipient">SMS 수신자 선택</Label>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="text-xs text-gray-500">
                     출석 알림 SMS를 받을 학부모를 선택하세요.
                   </p>
                 </div>

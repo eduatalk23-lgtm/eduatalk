@@ -36,8 +36,8 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
   if (linkedStudents.length === 0) {
     return (
       <section className={getContainerClass("DASHBOARD", "md")}>
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-yellow-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-yellow-200 bg-yellow-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-yellow-900">
             연결된 자녀가 없습니다
           </h2>
           <p className="text-sm text-yellow-700">
@@ -66,8 +66,8 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
   if (!hasAccess) {
     return (
       <section className={getContainerClass("DASHBOARD", "md")}>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900">
             접근 권한이 없습니다
           </h2>
         </div>
@@ -107,10 +107,10 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
     return (
       <section className={getContainerClass("DASHBOARD", "md")}>
         {/* 헤더 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
             <h1 className="text-3xl font-semibold text-gray-900">월간 학습 리포트</h1>
-            <p className="mt-1 text-sm text-gray-500">{reportData.period.monthLabel}</p>
+            <p className="text-sm text-gray-500">{reportData.period.monthLabel}</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -123,7 +123,7 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
         </div>
 
         {/* 학생 선택 */}
-        <div className="mb-6">
+        <div>
           <StudentSelector
             students={linkedStudents}
             selectedStudentId={selectedStudentId}
@@ -131,13 +131,13 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
         </div>
 
         {hasData && (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
             자녀의 월간 학습 리포트입니다. 상담이나 공유용으로 활용해 보세요.
           </div>
         )}
 
         {/* 월 네비게이션 */}
-        <div className="mb-6">
+        <div>
           <MonthNavigation currentMonth={monthDate} />
         </div>
 
@@ -163,13 +163,13 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
             />
 
             {/* 그래프 섹션 */}
-            <div className="mb-8">
+            <div>
               <MonthlyCharts reportData={reportData} />
             </div>
 
             {/* 과목 분석 */}
             {(reportData.subjects.strong.length > 0 || reportData.subjects.weak.length > 0) && (
-              <div className="mb-8">
+              <div>
                 <SubjectAnalysisSection
                   strongSubjects={reportData.subjects.strong}
                   weakSubjects={reportData.subjects.weak}
@@ -179,21 +179,21 @@ export default async function ParentMonthlyReportPage({ searchParams }: PageProp
 
             {/* 목표 진행률 */}
             {reportData.goals.goals.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <GoalProgressSection goals={reportData.goals.goals} />
               </div>
             )}
 
             {/* 콘텐츠 진행률 */}
             {reportData.content.progressList.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <ContentProgressSection progressList={reportData.content.progressList} />
               </div>
             )}
 
             {/* 히스토리 */}
             {reportData.history.events.length > 0 && (
-              <div className="mb-8">
+              <div>
                 <MonthlyHistorySection events={reportData.history.events} />
               </div>
             )}

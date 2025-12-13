@@ -241,8 +241,8 @@ export function SubjectGroupManagement({
               value={selectedRevisionId || ""}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="flex flex-col gap-1">
+                <label className="block text-sm font-medium text-gray-700">
                   교과 그룹명 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -253,8 +253,8 @@ export function SubjectGroupManagement({
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="flex flex-col gap-1">
+                <label className="block text-sm font-medium text-gray-700">
                   표시 순서
                 </label>
                 <input
@@ -395,8 +395,8 @@ export function SubjectGroupManagement({
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
-                  <div className="w-32">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex flex-col gap-1 w-32">
+                    <label className="block text-sm font-medium text-gray-700">
                       과목구분
                     </label>
                     <select
@@ -411,8 +411,8 @@ export function SubjectGroupManagement({
                       ))}
                     </select>
                   </div>
-                  <div className="w-24">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex flex-col gap-1 w-24">
+                    <label className="block text-sm font-medium text-gray-700">
                       순서
                     </label>
                     <input

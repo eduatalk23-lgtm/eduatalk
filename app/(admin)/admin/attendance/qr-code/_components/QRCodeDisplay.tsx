@@ -128,12 +128,14 @@ export function QRCodeDisplay() {
     return (
       <Card>
         <CardContent>
-          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
-            {error}
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">
+              {error}
+            </div>
+            <Button onClick={loadQRCode}>
+              다시 시도
+            </Button>
           </div>
-          <Button onClick={loadQRCode} className="mt-4">
-            다시 시도
-          </Button>
         </CardContent>
       </Card>
     );
@@ -171,9 +173,9 @@ export function QRCodeDisplay() {
           </div>
 
           {qrCodeInfo && (
-            <div className="rounded-lg bg-gray-50 p-4 text-sm">
-              <p className="font-semibold mb-2 text-gray-900">QR 코드 정보:</p>
-              <div className="space-y-1 text-gray-700">
+            <div className="flex flex-col gap-2 rounded-lg bg-gray-50 p-4 text-sm">
+              <p className="font-semibold text-gray-900">QR 코드 정보:</p>
+              <div className="flex flex-col gap-1 text-gray-700">
                 <p>
                   생성 시간:{" "}
                   {new Date(qrCodeInfo.created_at).toLocaleString("ko-KR")}
@@ -193,9 +195,9 @@ export function QRCodeDisplay() {
             </div>
           )}
 
-          <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
-            <p className="font-semibold mb-2">사용 방법:</p>
-            <ul className="list-disc list-inside space-y-1 text-blue-700">
+          <div className="flex flex-col gap-2 rounded-lg bg-blue-50 p-4 text-sm text-blue-800">
+            <p className="font-semibold">사용 방법:</p>
+            <ul className="list-disc list-inside flex flex-col gap-1 text-blue-700">
               <li>이 QR 코드를 출력하여 학원 입구에 부착하세요.</li>
               <li>학생들이 출석 체크 페이지에서 이 QR 코드를 스캔합니다.</li>
               <li>QR 코드는 24시간마다 갱신하는 것을 권장합니다.</li>
