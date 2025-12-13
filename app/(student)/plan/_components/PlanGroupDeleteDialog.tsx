@@ -87,17 +87,17 @@ export function PlanGroupDeleteDialog({
               <p className="text-sm font-medium text-orange-800">
                 캠프 프로그램 플랜은 삭제할 수 없습니다.
               </p>
-              <p className="mt-1 text-xs text-orange-700">
+              <p className="text-xs text-orange-700">
                 캠프 참여 메뉴에서 플랜을 관리해주세요. 제출 전까지는 수정이 가능합니다.
               </p>
             </div>
           )}
           {!canDelete && !isCampPlan && groupStatus && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+            <div className="flex flex-col gap-1 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
               <p className="text-sm font-medium text-yellow-800">
                 현재 상태에서는 삭제할 수 없습니다.
               </p>
-              <p className="mt-1 text-xs text-yellow-700">
+              <p className="text-xs text-yellow-700">
                 {PlanStatusManager.getConstraints(groupStatus).description}
               </p>
             </div>

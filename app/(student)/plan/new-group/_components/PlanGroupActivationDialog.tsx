@@ -84,14 +84,14 @@ export function PlanGroupActivationDialog({
       <DialogContent>
         <div className="flex flex-col gap-4">
           {activeGroupNames.length > 0 && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <p className="mb-2 text-sm font-medium text-yellow-800">
+            <div className="flex flex-col gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <p className="text-sm font-medium text-yellow-800">
                 현재 활성화된 플랜 그룹이 있습니다.
               </p>
-              <p className="mb-3 text-sm text-yellow-700">
+              <p className="text-sm text-yellow-700">
                 이 플랜 그룹을 활성화하면 다음 플랜 그룹이 자동으로 비활성화됩니다:
               </p>
-              <ul className="ml-4 list-disc space-y-1">
+              <ul className="flex flex-col gap-1 pl-4 list-disc">
                 {activeGroupNames.map((name, index) => (
                   <li key={index} className="text-sm text-yellow-700">
                     {name || "플랜 그룹"}
