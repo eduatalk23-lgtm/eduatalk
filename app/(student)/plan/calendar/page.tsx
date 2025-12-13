@@ -285,9 +285,9 @@ export default async function PlanCalendarPage({
           {/* 페이지 헤더 - 카드 스타일 */}
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">플랜 캘린더</h1>
-                <p className="text-sm text-gray-600 mb-3">
+              <div className="flex flex-col gap-3 flex-1">
+                <h1 className="text-3xl font-bold text-gray-900">플랜 캘린더</h1>
+                <p className="text-sm text-gray-600">
                   활성화된 플랜 그룹의 플랜을 캘린더 형식으로 확인하세요
                 </p>
                 {/* 활성 플랜 그룹 정보 표시 */}
@@ -309,23 +309,23 @@ export default async function PlanCalendarPage({
               
               {/* 통계 요약 */}
               <div className="flex flex-wrap gap-3 md:flex-nowrap">
-                <div className="flex flex-col items-center rounded-lg bg-gray-50 px-4 py-3 border border-gray-200 min-w-[80px]">
-                  <span className="text-xs font-medium text-gray-500 mb-1">총 플랜</span>
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-gray-50 px-4 py-3 border border-gray-200 min-w-[80px]">
+                  <span className="text-xs font-medium text-gray-500">총 플랜</span>
                   <span className="text-2xl font-bold text-gray-900">{totalPlans}</span>
                 </div>
-                <div className="flex flex-col items-center rounded-lg bg-green-50 px-4 py-3 border border-green-200 min-w-[80px]">
-                  <span className="text-xs font-medium text-green-700 mb-1">완료</span>
+                <div className="flex flex-col items-center gap-1 rounded-lg bg-green-50 px-4 py-3 border border-green-200 min-w-[80px]">
+                  <span className="text-xs font-medium text-green-700">완료</span>
                   <span className="text-2xl font-bold text-green-600">{completedPlans}</span>
                 </div>
                 {activePlans > 0 && (
-                  <div className="flex flex-col items-center rounded-lg bg-blue-50 px-4 py-3 border border-blue-200 min-w-[80px]">
-                    <span className="text-xs font-medium text-blue-700 mb-1">진행중</span>
+                  <div className="flex flex-col items-center gap-1 rounded-lg bg-blue-50 px-4 py-3 border border-blue-200 min-w-[80px]">
+                    <span className="text-xs font-medium text-blue-700">진행중</span>
                     <span className="text-2xl font-bold text-blue-600">{activePlans}</span>
                   </div>
                 )}
                 {averageProgress > 0 && (
-                  <div className="flex flex-col items-center rounded-lg bg-indigo-50 px-4 py-3 border border-indigo-200 min-w-[80px]">
-                    <span className="text-xs font-medium text-indigo-700 mb-1">평균 진행률</span>
+                  <div className="flex flex-col items-center gap-1 rounded-lg bg-indigo-50 px-4 py-3 border border-indigo-200 min-w-[80px]">
+                    <span className="text-xs font-medium text-indigo-700">평균 진행률</span>
                     <span className="text-2xl font-bold text-indigo-600">{averageProgress}%</span>
                   </div>
                 )}
@@ -333,9 +333,9 @@ export default async function PlanCalendarPage({
             </div>
             {/* 불일치 경고 */}
             {hasUnmatchedPlans && (
-              <div className="mt-4 rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800 shadow-sm">
-                <div className="font-bold mb-1">⚠️ 플랜 그룹 불일치 감지</div>
-                <div className="text-xs space-y-1">
+              <div className="flex flex-col gap-4 rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800 shadow-sm">
+                <div className="font-bold">⚠️ 플랜 그룹 불일치 감지</div>
+                <div className="flex flex-col gap-1 text-xs">
                   {unmatchedGroupIds.length > 0 && (
                     <div>
                       활성화되지 않은 플랜 그룹의 플랜이 포함되어 있습니다: {unmatchedGroupIds.length}개

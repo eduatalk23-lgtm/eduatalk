@@ -96,8 +96,8 @@ export default async function AnalysisPage() {
         />
 
       {riskAnalyses.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center shadow-sm">
-          <p className="text-lg text-gray-500 mb-4">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-12 text-center shadow-sm">
+          <p className="text-lg text-gray-500">
             분석할 성적 데이터가 없습니다.
           </p>
           <Link

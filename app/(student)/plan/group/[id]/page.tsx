@@ -594,11 +594,11 @@ export default async function PlanGroupDetailPage({
                   />
                 </svg>
               </div>
-              <div className="flex-1">
+              <div className="flex flex-col gap-1 flex-1">
                 <h3 className="text-sm font-semibold text-blue-900">
                   관리자 검토 중
                 </h3>
-                <p className="mt-1 text-sm text-blue-700">
+                <p className="text-sm text-blue-700">
                   캠프 참여 정보를 제출하셨습니다. 관리자가 남은 단계를 진행한
                   후 플랜이 생성됩니다.
                 </p>
@@ -635,29 +635,29 @@ export default async function PlanGroupDetailPage({
 
             {/* 핵심 정보 */}
             <div className="grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
+              <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium text-gray-800">플랜 목적</dt>
-                <dd className="mt-1 text-sm font-semibold text-gray-900">
+                <dd className="text-sm font-semibold text-gray-900">
                   {group.plan_purpose
                     ? planPurposeLabels[group.plan_purpose] ||
                       group.plan_purpose
                     : "—"}
                 </dd>
               </div>
-              <div>
+              <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium text-gray-800">
                   스케줄러 유형
                 </dt>
-                <dd className="mt-1 text-sm font-semibold text-gray-900">
+                <dd className="text-sm font-semibold text-gray-900">
                   {group.scheduler_type
                     ? schedulerTypeLabels[group.scheduler_type] ||
                       group.scheduler_type
                     : "—"}
                 </dd>
               </div>
-              <div>
+              <div className="flex flex-col gap-1">
                 <dt className="text-xs font-medium text-gray-800">학습 기간</dt>
-                <dd className="mt-1 text-sm font-semibold text-gray-900">
+                <dd className="text-sm font-semibold text-gray-900">
                   {group.period_start && group.period_end
                     ? `${new Date(group.period_start).toLocaleDateString(
                         "ko-KR",
@@ -676,11 +676,11 @@ export default async function PlanGroupDetailPage({
                 </dd>
               </div>
               {group.target_date && (
-                <div>
+                <div className="flex flex-col gap-1">
                   <dt className="text-xs font-medium text-gray-800">
                     목표 날짜
                   </dt>
-                  <dd className="mt-1 text-sm font-semibold text-gray-900">
+                  <dd className="text-sm font-semibold text-gray-900">
                     {new Date(group.target_date).toLocaleDateString("ko-KR")}
                   </dd>
                 </div>

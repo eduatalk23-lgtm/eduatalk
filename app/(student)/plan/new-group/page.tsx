@@ -67,14 +67,14 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
     <>
       <ScrollToTop />
       <section className={getContainerClass("LIST", "lg")}>
-        <div className="mb-8">
+        <div className="flex flex-col gap-8">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
+          <div className="flex flex-col gap-2 flex-1">
             <p className="text-sm font-medium text-gray-500">학습 플랜</p>
             <h1 className="text-3xl font-semibold text-gray-900">
               새 학습 플랜 그룹 만들기
             </h1>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="text-sm text-gray-500">
               목적과 기간을 설정하고, 학습 대상 콘텐츠를 선택하여 맞춤형 학습 계획을 생성하세요.
             </p>
           </div>
@@ -85,7 +85,6 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
             목록으로 돌아가기
           </Link>
         </div>
-      </div>
 
       <PlanGroupWizard
         initialBlockSets={blockSets || []}
@@ -96,6 +95,7 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
         }}
         initialData={initialData}
       />
+      </div>
     </section>
     </>
   );

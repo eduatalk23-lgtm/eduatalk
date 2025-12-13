@@ -17,11 +17,11 @@ export default async function ScoreInputPage() {
   if (!activeCurriculum) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
+        <div className="flex flex-col gap-2 text-center">
           <h2 className="text-lg font-semibold text-gray-900">
             개정교육과정 정보가 없습니다
           </h2>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-gray-600">
             관리자에게 문의하세요.
           </p>
         </div>
