@@ -287,30 +287,30 @@ export function CampTemplateDetail({
                 )}
               </p>
             </div>
-            <div>
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">
                 생성일
               </label>
-              <p className="mt-1 text-sm text-gray-700">
+              <p className="text-sm text-gray-700">
                 {new Date(template.created_at).toLocaleDateString("ko-KR")}
               </p>
             </div>
             {template.description && (
-              <div className="md:col-span-2">
+              <div className="flex flex-col gap-1 md:col-span-2">
                 <label className="text-sm font-medium text-gray-700">
                   설명
                 </label>
-                <p className="mt-1 text-sm text-gray-700">
+                <p className="text-sm text-gray-700">
                   {template.description}
                 </p>
               </div>
             )}
             {template.camp_start_date && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
                   캠프 시작일
                 </label>
-                <p className="mt-1 text-sm text-gray-700">
+                <p className="text-sm text-gray-700">
                   {new Date(template.camp_start_date).toLocaleDateString(
                     "ko-KR"
                   )}
@@ -318,21 +318,21 @@ export function CampTemplateDetail({
               </div>
             )}
             {template.camp_end_date && (
-              <div>
+              <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
                   캠프 종료일
                 </label>
-                <p className="mt-1 text-sm text-gray-700">
+                <p className="text-sm text-gray-700">
                   {new Date(template.camp_end_date).toLocaleDateString("ko-KR")}
                 </p>
               </div>
             )}
             {template.camp_location && (
-              <div className="md:col-span-2">
+              <div className="flex flex-col gap-1 md:col-span-2">
                 <label className="text-sm font-medium text-gray-700">
                   캠프 장소
                 </label>
-                <p className="mt-1 text-sm text-gray-700">
+                <p className="text-sm text-gray-700">
                   {template.camp_location}
                 </p>
               </div>
@@ -349,11 +349,11 @@ export function CampTemplateDetail({
             <div className="grid gap-4 md:grid-cols-2">
               {/* 학습 기간 */}
               {templateData?.period_start && templateData?.period_end && (
-                <div className="md:col-span-2">
+                <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-sm font-medium text-gray-700">
                     학습 기간
                   </label>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p className="text-sm text-gray-700">
                     {new Date(
                       templateData.period_start
                     ).toLocaleDateString("ko-KR")}{" "}
@@ -367,11 +367,11 @@ export function CampTemplateDetail({
 
               {/* 스케줄러 유형 */}
               {templateData?.scheduler_type && (
-                <div>
+                <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700">
                     스케줄러 유형
                   </label>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p className="text-sm text-gray-700">
                     {schedulerTypeLabels[
                       templateData.scheduler_type
                     ] || templateData.scheduler_type}
@@ -381,11 +381,11 @@ export function CampTemplateDetail({
 
               {/* 플랜 목적 */}
               {templateData?.plan_purpose && (
-                <div>
+                <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700">
                     플랜 목적
                   </label>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p className="text-sm text-gray-700">
                     {planPurposeLabels[
                       templateData.plan_purpose
                     ] || templateData.plan_purpose}
@@ -395,11 +395,11 @@ export function CampTemplateDetail({
 
               {/* 학습일/복습일 주기 */}
               {templateData?.study_review_cycle && (
-                <div>
+                <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700">
                     학습일/복습일 주기
                   </label>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p className="text-sm text-gray-700">
                     학습일{" "}
                     {templateData.study_review_cycle.study_days || 0}
                     일 / 복습일{" "}
@@ -411,11 +411,11 @@ export function CampTemplateDetail({
 
               {/* 목표 날짜 */}
               {templateData?.target_date && (
-                <div>
+                <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-gray-700">
                     목표 날짜
                   </label>
-                  <p className="mt-1 text-sm text-gray-700">
+                  <p className="text-sm text-gray-700">
                     {new Date(
                       templateData.target_date
                     ).toLocaleDateString("ko-KR")}
@@ -425,11 +425,11 @@ export function CampTemplateDetail({
 
               {/* 학생 입력 허용 필드 */}
               {templateData?.templateLockedFields?.step1 && (
-                <div className="md:col-span-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-700">
                     학생 입력 허용 필드
                   </label>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {templateData.templateLockedFields.step1
                       .allow_student_name && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
@@ -474,11 +474,11 @@ export function CampTemplateDetail({
 
               {/* 블록 세트 정보 */}
               {templateBlockSet && (
-                <div className="md:col-span-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
                   <label className="text-sm font-medium text-gray-700">
                     블록 세트
                   </label>
-                  <div className="mt-2 space-y-3">
+                  <div className="flex flex-col gap-3">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
                         {templateBlockSet.name}
@@ -559,7 +559,7 @@ export function CampTemplateDetail({
             템플릿은 복구할 수 없습니다.
           </p>
           {invitations.length > 0 && (
-            <div className="mt-4 rounded-lg bg-yellow-50 p-3">
+            <div className="rounded-lg bg-yellow-50 p-3">
               <p className="text-sm font-medium text-yellow-800">
                 ⚠️ 이 템플릿에 {invitations.length}개의 초대가 연결되어
                 있습니다.
