@@ -20,6 +20,7 @@ import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
 import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { updatePlanGroupDraftAction } from "./update";
+import { validateAllocations } from "@/lib/utils/subjectAllocation";
 
 /**
  * 플랜 그룹을 생성하는 내부 함수입니다.

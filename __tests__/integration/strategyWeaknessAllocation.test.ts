@@ -169,20 +169,20 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
   describe("전략과목 주당 배정 일수 정확도 테스트", () => {
     it("전략과목은 주당 2일 배정", () => {
       const cycleDays: CycleDayInfo[] = [
-        { date: "2024-01-01", day_type: "study", week_number: 1 },
-        { date: "2024-01-02", day_type: "study", week_number: 1 },
-        { date: "2024-01-03", day_type: "study", week_number: 1 },
-        { date: "2024-01-04", day_type: "study", week_number: 1 },
-        { date: "2024-01-05", day_type: "study", week_number: 1 },
-        { date: "2024-01-06", day_type: "study", week_number: 1 },
-        { date: "2024-01-07", day_type: "review", week_number: 1 },
-        { date: "2024-01-08", day_type: "study", week_number: 2 },
-        { date: "2024-01-09", day_type: "study", week_number: 2 },
-        { date: "2024-01-10", day_type: "study", week_number: 2 },
-        { date: "2024-01-11", day_type: "study", week_number: 2 },
-        { date: "2024-01-12", day_type: "study", week_number: 2 },
-        { date: "2024-01-13", day_type: "study", week_number: 2 },
-        { date: "2024-01-14", day_type: "review", week_number: 2 },
+        { date: "2024-01-01", day_type: "study", cycle_day_number: 1, cycle_number: 1 },
+        { date: "2024-01-02", day_type: "study", cycle_day_number: 2, cycle_number: 1 },
+        { date: "2024-01-03", day_type: "study", cycle_day_number: 3, cycle_number: 1 },
+        { date: "2024-01-04", day_type: "study", cycle_day_number: 4, cycle_number: 1 },
+        { date: "2024-01-05", day_type: "study", cycle_day_number: 5, cycle_number: 1 },
+        { date: "2024-01-06", day_type: "study", cycle_day_number: 6, cycle_number: 1 },
+        { date: "2024-01-07", day_type: "review", cycle_day_number: 7, cycle_number: 1 },
+        { date: "2024-01-08", day_type: "study", cycle_day_number: 1, cycle_number: 2 },
+        { date: "2024-01-09", day_type: "study", cycle_day_number: 2, cycle_number: 2 },
+        { date: "2024-01-10", day_type: "study", cycle_day_number: 3, cycle_number: 2 },
+        { date: "2024-01-11", day_type: "study", cycle_day_number: 4, cycle_number: 2 },
+        { date: "2024-01-12", day_type: "study", cycle_day_number: 5, cycle_number: 2 },
+        { date: "2024-01-13", day_type: "study", cycle_day_number: 6, cycle_number: 2 },
+        { date: "2024-01-14", day_type: "review", cycle_day_number: 7, cycle_number: 2 },
       ];
 
       const allocation = {
@@ -207,20 +207,20 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
 
     it("전략과목은 주당 3일 배정", () => {
       const cycleDays: CycleDayInfo[] = [
-        { date: "2024-01-01", day_type: "study", week_number: 1 },
-        { date: "2024-01-02", day_type: "study", week_number: 1 },
-        { date: "2024-01-03", day_type: "study", week_number: 1 },
-        { date: "2024-01-04", day_type: "study", week_number: 1 },
-        { date: "2024-01-05", day_type: "study", week_number: 1 },
-        { date: "2024-01-06", day_type: "study", week_number: 1 },
-        { date: "2024-01-07", day_type: "review", week_number: 1 },
-        { date: "2024-01-08", day_type: "study", week_number: 2 },
-        { date: "2024-01-09", day_type: "study", week_number: 2 },
-        { date: "2024-01-10", day_type: "study", week_number: 2 },
-        { date: "2024-01-11", day_type: "study", week_number: 2 },
-        { date: "2024-01-12", day_type: "study", week_number: 2 },
-        { date: "2024-01-13", day_type: "study", week_number: 2 },
-        { date: "2024-01-14", day_type: "review", week_number: 2 },
+        { date: "2024-01-01", day_type: "study", cycle_day_number: 1, cycle_number: 1 },
+        { date: "2024-01-02", day_type: "study", cycle_day_number: 2, cycle_number: 1 },
+        { date: "2024-01-03", day_type: "study", cycle_day_number: 3, cycle_number: 1 },
+        { date: "2024-01-04", day_type: "study", cycle_day_number: 4, cycle_number: 1 },
+        { date: "2024-01-05", day_type: "study", cycle_day_number: 5, cycle_number: 1 },
+        { date: "2024-01-06", day_type: "study", cycle_day_number: 6, cycle_number: 1 },
+        { date: "2024-01-07", day_type: "review", cycle_day_number: 7, cycle_number: 1 },
+        { date: "2024-01-08", day_type: "study", cycle_day_number: 1, cycle_number: 2 },
+        { date: "2024-01-09", day_type: "study", cycle_day_number: 2, cycle_number: 2 },
+        { date: "2024-01-10", day_type: "study", cycle_day_number: 3, cycle_number: 2 },
+        { date: "2024-01-11", day_type: "study", cycle_day_number: 4, cycle_number: 2 },
+        { date: "2024-01-12", day_type: "study", cycle_day_number: 5, cycle_number: 2 },
+        { date: "2024-01-13", day_type: "study", cycle_day_number: 6, cycle_number: 2 },
+        { date: "2024-01-14", day_type: "review", cycle_day_number: 7, cycle_number: 2 },
       ];
 
       const allocation = {
@@ -245,20 +245,20 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
 
     it("전략과목은 주당 4일 배정", () => {
       const cycleDays: CycleDayInfo[] = [
-        { date: "2024-01-01", day_type: "study", week_number: 1 },
-        { date: "2024-01-02", day_type: "study", week_number: 1 },
-        { date: "2024-01-03", day_type: "study", week_number: 1 },
-        { date: "2024-01-04", day_type: "study", week_number: 1 },
-        { date: "2024-01-05", day_type: "study", week_number: 1 },
-        { date: "2024-01-06", day_type: "study", week_number: 1 },
-        { date: "2024-01-07", day_type: "review", week_number: 1 },
-        { date: "2024-01-08", day_type: "study", week_number: 2 },
-        { date: "2024-01-09", day_type: "study", week_number: 2 },
-        { date: "2024-01-10", day_type: "study", week_number: 2 },
-        { date: "2024-01-11", day_type: "study", week_number: 2 },
-        { date: "2024-01-12", day_type: "study", week_number: 2 },
-        { date: "2024-01-13", day_type: "study", week_number: 2 },
-        { date: "2024-01-14", day_type: "review", week_number: 2 },
+        { date: "2024-01-01", day_type: "study", cycle_day_number: 1, cycle_number: 1 },
+        { date: "2024-01-02", day_type: "study", cycle_day_number: 2, cycle_number: 1 },
+        { date: "2024-01-03", day_type: "study", cycle_day_number: 3, cycle_number: 1 },
+        { date: "2024-01-04", day_type: "study", cycle_day_number: 4, cycle_number: 1 },
+        { date: "2024-01-05", day_type: "study", cycle_day_number: 5, cycle_number: 1 },
+        { date: "2024-01-06", day_type: "study", cycle_day_number: 6, cycle_number: 1 },
+        { date: "2024-01-07", day_type: "review", cycle_day_number: 7, cycle_number: 1 },
+        { date: "2024-01-08", day_type: "study", cycle_day_number: 1, cycle_number: 2 },
+        { date: "2024-01-09", day_type: "study", cycle_day_number: 2, cycle_number: 2 },
+        { date: "2024-01-10", day_type: "study", cycle_day_number: 3, cycle_number: 2 },
+        { date: "2024-01-11", day_type: "study", cycle_day_number: 4, cycle_number: 2 },
+        { date: "2024-01-12", day_type: "study", cycle_day_number: 5, cycle_number: 2 },
+        { date: "2024-01-13", day_type: "study", cycle_day_number: 6, cycle_number: 2 },
+        { date: "2024-01-14", day_type: "review", cycle_day_number: 7, cycle_number: 2 },
       ];
 
       const allocation = {
@@ -285,20 +285,20 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
   describe("취약과목 전체 학습일 배정 테스트", () => {
     it("취약과목은 모든 학습일에 배정", () => {
       const cycleDays: CycleDayInfo[] = [
-        { date: "2024-01-01", day_type: "study", week_number: 1 },
-        { date: "2024-01-02", day_type: "study", week_number: 1 },
-        { date: "2024-01-03", day_type: "study", week_number: 1 },
-        { date: "2024-01-04", day_type: "study", week_number: 1 },
-        { date: "2024-01-05", day_type: "study", week_number: 1 },
-        { date: "2024-01-06", day_type: "study", week_number: 1 },
-        { date: "2024-01-07", day_type: "review", week_number: 1 },
-        { date: "2024-01-08", day_type: "study", week_number: 2 },
-        { date: "2024-01-09", day_type: "study", week_number: 2 },
-        { date: "2024-01-10", day_type: "study", week_number: 2 },
-        { date: "2024-01-11", day_type: "study", week_number: 2 },
-        { date: "2024-01-12", day_type: "study", week_number: 2 },
-        { date: "2024-01-13", day_type: "study", week_number: 2 },
-        { date: "2024-01-14", day_type: "review", week_number: 2 },
+        { date: "2024-01-01", day_type: "study", cycle_day_number: 1, cycle_number: 1 },
+        { date: "2024-01-02", day_type: "study", cycle_day_number: 2, cycle_number: 1 },
+        { date: "2024-01-03", day_type: "study", cycle_day_number: 3, cycle_number: 1 },
+        { date: "2024-01-04", day_type: "study", cycle_day_number: 4, cycle_number: 1 },
+        { date: "2024-01-05", day_type: "study", cycle_day_number: 5, cycle_number: 1 },
+        { date: "2024-01-06", day_type: "study", cycle_day_number: 6, cycle_number: 1 },
+        { date: "2024-01-07", day_type: "review", cycle_day_number: 7, cycle_number: 1 },
+        { date: "2024-01-08", day_type: "study", cycle_day_number: 1, cycle_number: 2 },
+        { date: "2024-01-09", day_type: "study", cycle_day_number: 2, cycle_number: 2 },
+        { date: "2024-01-10", day_type: "study", cycle_day_number: 3, cycle_number: 2 },
+        { date: "2024-01-11", day_type: "study", cycle_day_number: 4, cycle_number: 2 },
+        { date: "2024-01-12", day_type: "study", cycle_day_number: 5, cycle_number: 2 },
+        { date: "2024-01-13", day_type: "study", cycle_day_number: 6, cycle_number: 2 },
+        { date: "2024-01-14", day_type: "review", cycle_day_number: 7, cycle_number: 2 },
       ];
 
       const allocation = {
@@ -321,20 +321,20 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
 
     it("취약과목은 복습일에는 배정되지 않음", () => {
       const cycleDays: CycleDayInfo[] = [
-        { date: "2024-01-01", day_type: "study", week_number: 1 },
-        { date: "2024-01-02", day_type: "study", week_number: 1 },
-        { date: "2024-01-03", day_type: "study", week_number: 1 },
-        { date: "2024-01-04", day_type: "study", week_number: 1 },
-        { date: "2024-01-05", day_type: "study", week_number: 1 },
-        { date: "2024-01-06", day_type: "study", week_number: 1 },
-        { date: "2024-01-07", day_type: "review", week_number: 1 },
-        { date: "2024-01-08", day_type: "study", week_number: 2 },
-        { date: "2024-01-09", day_type: "study", week_number: 2 },
-        { date: "2024-01-10", day_type: "study", week_number: 2 },
-        { date: "2024-01-11", day_type: "study", week_number: 2 },
-        { date: "2024-01-12", day_type: "study", week_number: 2 },
-        { date: "2024-01-13", day_type: "study", week_number: 2 },
-        { date: "2024-01-14", day_type: "review", week_number: 2 },
+        { date: "2024-01-01", day_type: "study", cycle_day_number: 1, cycle_number: 1 },
+        { date: "2024-01-02", day_type: "study", cycle_day_number: 2, cycle_number: 1 },
+        { date: "2024-01-03", day_type: "study", cycle_day_number: 3, cycle_number: 1 },
+        { date: "2024-01-04", day_type: "study", cycle_day_number: 4, cycle_number: 1 },
+        { date: "2024-01-05", day_type: "study", cycle_day_number: 5, cycle_number: 1 },
+        { date: "2024-01-06", day_type: "study", cycle_day_number: 6, cycle_number: 1 },
+        { date: "2024-01-07", day_type: "review", cycle_day_number: 7, cycle_number: 1 },
+        { date: "2024-01-08", day_type: "study", cycle_day_number: 1, cycle_number: 2 },
+        { date: "2024-01-09", day_type: "study", cycle_day_number: 2, cycle_number: 2 },
+        { date: "2024-01-10", day_type: "study", cycle_day_number: 3, cycle_number: 2 },
+        { date: "2024-01-11", day_type: "study", cycle_day_number: 4, cycle_number: 2 },
+        { date: "2024-01-12", day_type: "study", cycle_day_number: 5, cycle_number: 2 },
+        { date: "2024-01-13", day_type: "study", cycle_day_number: 6, cycle_number: 2 },
+        { date: "2024-01-14", day_type: "review", cycle_day_number: 7, cycle_number: 2 },
       ];
 
       const allocation = {
