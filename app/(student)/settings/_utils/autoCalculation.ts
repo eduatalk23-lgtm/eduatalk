@@ -28,3 +28,4 @@ export function calculateCurriculumRevisionValue(
   return calculateCurriculumRevision(grade, birthDate || null, schoolType);
 }
 
+

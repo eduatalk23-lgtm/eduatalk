@@ -19,12 +19,16 @@ CREATE INDEX IF NOT EXISTS idx_terms_contents_content_type_is_active ON terms_co
 
 -- updated_at 자동 업데이트 트리거
 CREATE OR REPLACE FUNCTION update_terms_contents_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trigger_update_terms_contents_updated_at
   BEFORE UPDATE ON terms_contents

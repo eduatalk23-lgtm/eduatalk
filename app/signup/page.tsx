@@ -11,6 +11,7 @@ import FormInput from "@/components/ui/FormInput";
 import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
 import FormCheckbox from "@/components/ui/FormCheckbox";
+import { TermsModal } from "./_components/TermsModal";
 
 type SignupState = {
   error?: string;
@@ -31,6 +32,9 @@ export default function SignupPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedRole, setSelectedRole] = useState<"student" | "parent" | "">("");
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
+  const [marketingModalOpen, setMarketingModalOpen] = useState(false);
 
   // 기관 목록 로드
   useEffect(() => {
@@ -199,14 +203,16 @@ export default function SignupPage() {
               required
               label={
                 <>
-                  <a
-                    href="/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTermsModalOpen(true);
+                    }}
                     className="text-indigo-600 hover:text-indigo-800 underline"
                   >
                     이용약관
-                  </a>
+                  </button>
                   에 동의합니다 <span className="text-red-500">(필수)</span>
                 </>
               }
@@ -218,14 +224,16 @@ export default function SignupPage() {
               required
               label={
                 <>
-                  <a
-                    href="/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPrivacyModalOpen(true);
+                    }}
                     className="text-indigo-600 hover:text-indigo-800 underline"
                   >
                     개인정보취급방침
-                  </a>
+                  </button>
                   에 동의합니다 <span className="text-red-500">(필수)</span>
                 </>
               }
@@ -254,6 +262,26 @@ export default function SignupPage() {
           pendingText="회원가입 중..."
         />
       </form>
+
+      {/* 약관 모달 */}
+      <TermsModal
+        open={termsModalOpen}
+        onOpenChange={setTermsModalOpen}
+        contentType="terms"
+        title="이용약관"
+      />
+      <TermsModal
+        open={privacyModalOpen}
+        onOpenChange={setPrivacyModalOpen}
+        contentType="privacy"
+        title="개인정보취급방침"
+      />
+      <TermsModal
+        open={marketingModalOpen}
+        onOpenChange={setMarketingModalOpen}
+        contentType="marketing"
+        title="마케팅 활용 동의"
+      />
     </section>
   );
 }

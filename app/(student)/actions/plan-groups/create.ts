@@ -85,6 +85,21 @@ async function _createPlanGroup(
     data.study_review_cycle
   );
 
+  // subject_allocations와 content_allocations 검증
+  const subjectAllocations = mergedSchedulerOptions.subject_allocations;
+  const contentAllocations = mergedSchedulerOptions.content_allocations;
+  if (subjectAllocations || contentAllocations) {
+    const validation = validateAllocations(contentAllocations, subjectAllocations);
+    if (!validation.valid) {
+      console.warn("[_createPlanGroup] 전략과목/취약과목 설정 검증 실패:", {
+        errors: validation.errors,
+        subjectAllocations,
+        contentAllocations,
+      });
+      // 검증 실패 시에도 계속 진행하되, 경고만 출력
+    }
+  }
+
   // daily_schedule 검증 (time_slots 포함 여부 확인)
   if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
     const missingTimeSlots = data.daily_schedule.filter(

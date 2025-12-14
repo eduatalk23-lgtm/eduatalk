@@ -1,6 +1,7 @@
 
 import { WizardData } from "../PlanGroupWizard";
 import { ContentInfo } from "./types";
+import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
 
 type ContentAllocationUIProps = {
   data: WizardData;
@@ -58,42 +59,30 @@ export function ContentAllocationUI({
     onUpdate({ content_allocations: updatedAllocations });
   };
 
-  // 폴백 메커니즘: content_allocations → subject_allocations → default
-  const getEffectiveAllocation = (content: (typeof contentInfos)[0]) => {
-    // 1순위: 콘텐츠별 설정
-    const contentAlloc = (data.content_allocations || []).find(
-      (a) =>
-        a.content_type === content.content_type &&
-        a.content_id === content.content_id
+  // 폴백 메커니즘: 공통 유틸리티 함수 사용
+  const getEffectiveAllocationForContent = (content: (typeof contentInfos)[0]) => {
+    return getEffectiveAllocation(
+      {
+        content_type: content.content_type,
+        content_id: content.content_id,
+        subject_category: content.subject_category || undefined,
+        subject: null,
+        subject_id: undefined,
+      },
+      data.content_allocations?.map((a) => ({
+        content_type: a.content_type as "book" | "lecture" | "custom",
+        content_id: a.content_id,
+        subject_type: a.subject_type,
+        weekly_days: a.weekly_days,
+      })),
+      data.subject_allocations?.map((a) => ({
+        subject_id: a.subject_id,
+        subject_name: a.subject_name,
+        subject_type: a.subject_type,
+        weekly_days: a.weekly_days,
+      })),
+      false // UI에서는 로깅 비활성화
     );
-    if (contentAlloc) {
-      return {
-        subject_type: contentAlloc.subject_type,
-        weekly_days: contentAlloc.weekly_days,
-        source: "content" as const,
-      };
-    }
-
-    // 2순위: 교과별 설정 (폴백)
-    if (content.subject_category) {
-      const subjectAlloc = (data.subject_allocations || []).find(
-        (a) => a.subject_name === content.subject_category
-      );
-      if (subjectAlloc) {
-        return {
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days,
-          source: "subject" as const,
-        };
-      }
-    }
-
-    // 3순위: 기본값
-    return {
-      subject_type: "weakness" as const,
-      weekly_days: undefined,
-      source: "default" as const,
-    };
   };
 
   return (
@@ -111,7 +100,7 @@ export function ContentAllocationUI({
             </h3>
             <div className="flex flex-col gap-3">
               {contents.map((content) => {
-                const effectiveAlloc = getEffectiveAllocation(content);
+                const effectiveAlloc = getEffectiveAllocationForContent(content);
                 const subjectType = effectiveAlloc.subject_type;
                 const weeklyDays = effectiveAlloc.weekly_days || 3;
                 const source = effectiveAlloc.source;

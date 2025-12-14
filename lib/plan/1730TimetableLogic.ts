@@ -16,6 +16,7 @@ import {
   SubjectConstraints,
   NonStudyTimeBlock,
 } from "@/lib/types/plan";
+import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
 
 export type DayType = "study" | "review" | "exclusion";
 
@@ -130,14 +131,8 @@ export function calculateStudyReviewCycle(
 /**
  * 콘텐츠의 전략/취약 설정을 가져옴 (폴백 메커니즘)
  * 
- * 우선순위:
- * 1. content_allocations (콘텐츠별 설정)
- * 2. subject_allocations (교과별 설정)
- *    - subject_id로 매칭 (가장 정확)
- *    - subject_name과 subject_category 정확 일치
- *    - subject_name에 subject_category가 포함되는지 확인 (부분 매칭)
- *    - subject 필드도 매칭 조건에 포함
- * 3. 기본값 (취약과목)
+ * @deprecated 이 함수는 하위 호환성을 위해 유지되지만, 
+ * 새로운 코드에서는 `lib/utils/subjectAllocation.ts`의 `getEffectiveAllocation` 함수를 사용하세요.
  * 
  * @param content - 콘텐츠 정보 (content_type, content_id, subject_category, subject, subject_id 포함)
  * @param contentAllocations - 콘텐츠별 설정 (선택사항)
@@ -165,77 +160,35 @@ export function getContentAllocation(
     weekly_days?: number;
   }>
 ): { subject_type: "strategy" | "weakness"; weekly_days?: number } {
-  
-  // 1순위: 콘텐츠별 설정
-  if (contentAllocations) {
-    const contentAlloc = contentAllocations.find(
-      a => a.content_type === content.content_type && a.content_id === content.content_id
-    );
-    if (contentAlloc) {
-      return {
-        subject_type: contentAlloc.subject_type,
-        weekly_days: contentAlloc.weekly_days
-      };
-    }
-  }
-  
-  // 2순위: 교과별 설정 (폴백)
-  if (subjectAllocations) {
-    // 2-1: subject_id로 매칭 (가장 정확)
-    if (content.subject_id) {
-      const subjectAlloc = subjectAllocations.find(
-        a => a.subject_id === content.subject_id
-      );
-      if (subjectAlloc) {
-        return {
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days
-        };
-      }
-    }
-    
-    // 2-2: subject_name과 subject_category 정확 일치
-    if (content.subject_category) {
-      const subjectAlloc = subjectAllocations.find(
-        a => a.subject_name === content.subject_category
-      );
-      if (subjectAlloc) {
-        return {
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days
-        };
-      }
-    }
-    
-    // 2-3: subject_name에 subject_category가 포함되는지 확인 (부분 매칭)
-    if (content.subject_category) {
-      const subjectAlloc = subjectAllocations.find(
-        a => a.subject_name.includes(content.subject_category!)
-      );
-      if (subjectAlloc) {
-        return {
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days
-        };
-      }
-    }
-    
-    // 2-4: subject 필드도 매칭 조건에 포함
-    if (content.subject) {
-      const subjectAlloc = subjectAllocations.find(
-        a => a.subject_name === content.subject || (content.subject && a.subject_name.includes(content.subject))
-      );
-      if (subjectAlloc) {
-        return {
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days
-        };
-      }
-    }
-  }
-  
-  // 3순위: 기본값 (취약과목)
-  return { subject_type: "weakness" };
+  // 공통 유틸리티 함수 사용 (로깅 활성화)
+  const result = getEffectiveAllocation(
+    {
+      content_type: content.content_type,
+      content_id: content.content_id,
+      subject_category: content.subject_category || undefined,
+      subject: content.subject || undefined,
+      subject_id: content.subject_id,
+    },
+    contentAllocations?.map((a) => ({
+      content_type: a.content_type as "book" | "lecture" | "custom",
+      content_id: a.content_id,
+      subject_type: a.subject_type,
+      weekly_days: a.weekly_days,
+    })),
+    subjectAllocations?.map((a) => ({
+      subject_id: a.subject_id,
+      subject_name: a.subject_name,
+      subject_type: a.subject_type,
+      weekly_days: a.weekly_days,
+    })),
+    true // 서버 로직에서는 로깅 활성화
+  );
+
+  // 기존 반환 타입과 호환되도록 source 필드 제거
+  return {
+    subject_type: result.subject_type,
+    weekly_days: result.weekly_days,
+  };
 }
 
 /**

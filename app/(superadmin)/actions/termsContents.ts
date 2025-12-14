@@ -7,7 +7,10 @@ import type { TermsContentType, TermsContentInput, TermsContent } from "@/lib/ty
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 
 /**
- * 새 약관 버전 생성
+ * 새 약관 버전 생성 (Super Admin 전용)
+ * 
+ * Super Admin만 사용 가능하며, 모든 버전을 생성/수정/활성화할 수 있습니다.
+ * RLS 정책을 우회하여 접근합니다.
  */
 export const createTermsContent = withErrorHandling(
   async (input: TermsContentInput): Promise<{ success: boolean; data?: TermsContent; error?: string }> => {
@@ -46,6 +49,15 @@ export const createTermsContent = withErrorHandling(
       .single();
 
     if (error) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (error.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
       console.error("[termsContents] 약관 생성 실패:", {
         input,
         error: error.message,
@@ -64,7 +76,10 @@ export const createTermsContent = withErrorHandling(
 );
 
 /**
- * 약관 내용 수정
+ * 약관 내용 수정 (Super Admin 전용)
+ * 
+ * Super Admin만 사용 가능하며, 모든 버전을 수정할 수 있습니다.
+ * RLS 정책을 우회하여 접근합니다.
  */
 export const updateTermsContent = withErrorHandling(
   async (
@@ -87,7 +102,20 @@ export const updateTermsContent = withErrorHandling(
       .eq("id", id)
       .single();
 
-    if (checkError || !existing) {
+    if (checkError) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (checkError.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+      throw new AppError("약관을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+
+    if (!existing) {
       throw new AppError("약관을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
     }
 
@@ -112,6 +140,15 @@ export const updateTermsContent = withErrorHandling(
       .single();
 
     if (error) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (error.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
       console.error("[termsContents] 약관 수정 실패:", {
         id,
         input,
@@ -131,7 +168,10 @@ export const updateTermsContent = withErrorHandling(
 );
 
 /**
- * 특정 버전 활성화 (이전 버전 자동 비활성화)
+ * 특정 버전 활성화 (이전 버전 자동 비활성화) (Super Admin 전용)
+ * 
+ * Super Admin만 사용 가능하며, 모든 버전을 활성화할 수 있습니다.
+ * RLS 정책을 우회하여 접근합니다.
  */
 export const activateTermsContent = withErrorHandling(
   async (id: string): Promise<{ success: boolean; error?: string }> => {
@@ -151,7 +191,20 @@ export const activateTermsContent = withErrorHandling(
       .eq("id", id)
       .single();
 
-    if (targetError || !target) {
+    if (targetError) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (targetError.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+      throw new AppError("약관을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+    }
+
+    if (!target) {
       throw new AppError("약관을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
     }
 
@@ -162,6 +215,15 @@ export const activateTermsContent = withErrorHandling(
       .eq("content_type", target.content_type);
 
     if (deactivateError) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (deactivateError.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
       console.error("[termsContents] 약관 비활성화 실패:", {
         contentType: target.content_type,
         error: deactivateError.message,
@@ -182,6 +244,15 @@ export const activateTermsContent = withErrorHandling(
       .eq("id", id);
 
     if (activateError) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (activateError.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
       console.error("[termsContents] 약관 활성화 실패:", {
         id,
         error: activateError.message,
@@ -200,7 +271,10 @@ export const activateTermsContent = withErrorHandling(
 );
 
 /**
- * 약관 목록 조회
+ * 약관 목록 조회 (Super Admin 전용)
+ * 
+ * Super Admin만 사용 가능하며, 모든 버전을 조회할 수 있습니다.
+ * RLS 정책을 우회하여 접근합니다.
  */
 export const getTermsContents = withErrorHandling(
   async (contentType: TermsContentType): Promise<{ success: boolean; data?: TermsContent[]; error?: string }> => {
@@ -220,6 +294,15 @@ export const getTermsContents = withErrorHandling(
       .order("version", { ascending: false });
 
     if (error) {
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (error.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
       console.error("[termsContents] 약관 목록 조회 실패:", {
         contentType,
         error: error.message,
@@ -238,7 +321,10 @@ export const getTermsContents = withErrorHandling(
 );
 
 /**
- * 활성 약관 조회 (Super Admin용)
+ * 활성 약관 조회 (Super Admin 전용)
+ * 
+ * Super Admin만 사용 가능하며, 모든 버전을 조회할 수 있습니다.
+ * RLS 정책을 우회하여 접근합니다.
  */
 export const getActiveTermsContent = withErrorHandling(
   async (contentType: TermsContentType): Promise<{ success: boolean; data?: TermsContent; error?: string }> => {
@@ -259,9 +345,18 @@ export const getActiveTermsContent = withErrorHandling(
       .single();
 
     if (error) {
+      // PGRST116: No rows returned
       if (error.code === "PGRST116") {
-        // No rows returned
         return { success: true, data: undefined };
+      }
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (error.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
       }
       console.error("[termsContents] 활성 약관 조회 실패:", {
         contentType,
@@ -281,7 +376,10 @@ export const getActiveTermsContent = withErrorHandling(
 );
 
 /**
- * ID로 약관 내용 조회 (Super Admin용)
+ * ID로 약관 내용 조회 (Super Admin 전용)
+ * 
+ * Super Admin만 사용 가능하며, 모든 버전을 조회할 수 있습니다.
+ * RLS 정책을 우회하여 접근합니다.
  */
 export const getTermsContentById = withErrorHandling(
   async (id: string): Promise<{ success: boolean; data?: TermsContent; error?: string }> => {
@@ -301,9 +399,18 @@ export const getTermsContentById = withErrorHandling(
       .single();
 
     if (error) {
+      // PGRST116: No rows returned
       if (error.code === "PGRST116") {
-        // No rows returned
         return { success: true, data: undefined };
+      }
+      // PGRST205: 테이블이 스키마 캐시에 없음
+      if (error.code === "PGRST205") {
+        throw new AppError(
+          "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
       }
       console.error("[termsContents] 약관 조회 실패:", {
         id,

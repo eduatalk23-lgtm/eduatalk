@@ -124,3 +124,4 @@ const handleStep7Complete = useCallback(async () => {
 - 향후 플랜 생성 상태를 확인하여 버튼 활성화/비활성화 로직을 추가할 수 있음
 - 템플릿 모드일 때는 Step 7이 표시되지 않으므로 완료 버튼도 표시되지 않음
 
+

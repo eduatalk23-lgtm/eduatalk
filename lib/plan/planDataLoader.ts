@@ -20,6 +20,7 @@ import type {
   WeekDatesMap,
 } from "@/lib/types/plan-generation";
 import type { PlanGroup, NonStudyTimeBlock } from "@/lib/types/plan";
+import { validateAllocations } from "@/lib/utils/subjectAllocation";
 
 // ============================================
 // 타입 정의
@@ -340,6 +341,38 @@ export function createScheduleCalculationOptions(
 ): ScheduleCalculationOptions {
   const groupOptions = group.scheduler_options as Record<string, unknown> | null;
 
+  // subject_allocations와 content_allocations 추출 및 검증
+  const subjectAllocations = groupOptions?.subject_allocations as
+    | Array<{
+        subject_id?: string;
+        subject_name: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+  const contentAllocations = groupOptions?.content_allocations as
+    | Array<{
+        content_type: "book" | "lecture" | "custom";
+        content_id: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+
+  // 데이터 검증
+  if (subjectAllocations || contentAllocations) {
+    const validation = validateAllocations(contentAllocations, subjectAllocations);
+    if (!validation.valid) {
+      console.warn("[createScheduleCalculationOptions] 전략과목/취약과목 설정 검증 실패:", {
+        groupId: group.id,
+        errors: validation.errors,
+        subjectAllocations,
+        contentAllocations,
+      });
+      // 검증 실패 시에도 계속 진행하되, 잘못된 설정은 무시
+    }
+  }
+
   return {
     scheduler_type: group.scheduler_type || "1730_timetable",
     scheduler_options: {
@@ -350,6 +383,9 @@ export function createScheduleCalculationOptions(
       lunch_time: schedulerOptions.lunch_time,
       camp_study_hours: schedulerOptions.camp_study_hours,
       self_study_hours: schedulerOptions.self_study_hours,
+      // subject_allocations와 content_allocations를 scheduler_options에 포함
+      subject_allocations: subjectAllocations,
+      content_allocations: contentAllocations,
     },
     use_self_study_with_blocks: true,
     enable_self_study_for_holidays:

@@ -21,6 +21,7 @@ import type {
 } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { normalizePlanPurpose } from "./utils";
+import { validateAllocations } from "@/lib/utils/subjectAllocation";
 
 /**
  * 플랜 그룹 임시저장 업데이트 (기존 draft 플랜 수정)
@@ -120,6 +121,22 @@ async function _updatePlanGroupDraft(
     console.log("[_updatePlanGroupDraft] 최종 mergedSchedulerOptions에 template_block_set_id 보존됨:", {
       template_block_set_id: mergedSchedulerOptions.template_block_set_id,
     });
+  }
+
+  // subject_allocations와 content_allocations 검증
+  const subjectAllocations = mergedSchedulerOptions.subject_allocations;
+  const contentAllocations = mergedSchedulerOptions.content_allocations;
+  if (subjectAllocations || contentAllocations) {
+    const validation = validateAllocations(contentAllocations, subjectAllocations);
+    if (!validation.valid) {
+      console.warn("[_updatePlanGroupDraft] 전략과목/취약과목 설정 검증 실패:", {
+        groupId,
+        errors: validation.errors,
+        subjectAllocations,
+        contentAllocations,
+      });
+      // 검증 실패 시에도 계속 진행하되, 경고만 출력
+    }
   }
 
   if (

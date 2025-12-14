@@ -12,6 +12,7 @@ import {
   calculateStudyReviewCycle,
   type CycleDayInfo,
 } from "@/lib/plan/1730TimetableLogic";
+import { validateAllocations } from "@/lib/utils/subjectAllocation";
 
 export type BlockInfo = {
   id: string;
@@ -823,14 +824,40 @@ function generate1730TimetablePlans(
   const weekSize = studyDays + reviewDays;
 
   // 전략과목/취약과목 설정 추출
-  const subjectAllocations = options?.subject_allocations;
-  const contentAllocations = options?.content_allocations;
+  const subjectAllocations = options?.subject_allocations as
+    | Array<{
+        subject_id?: string;
+        subject_name: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+  const contentAllocations = options?.content_allocations as
+    | Array<{
+        content_type: "book" | "lecture" | "custom";
+        content_id: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+
+  // 데이터 검증
+  const validation = validateAllocations(contentAllocations, subjectAllocations);
+  if (!validation.valid) {
+    console.warn("[generate1730TimetablePlans] 전략과목/취약과목 설정 검증 실패:", {
+      errors: validation.errors,
+      subjectAllocations,
+      contentAllocations,
+    });
+    // 검증 실패 시에도 계속 진행하되, 잘못된 설정은 무시
+  }
 
   console.log("[generate1730TimetablePlans] 전략과목/취약과목 설정:", {
     hasSubjectAllocations: !!subjectAllocations,
     subjectAllocationsCount: subjectAllocations?.length || 0,
     hasContentAllocations: !!contentAllocations,
     contentAllocationsCount: contentAllocations?.length || 0,
+    validationPassed: validation.valid,
     subjectAllocations: subjectAllocations,
     contentAllocations: contentAllocations,
   });
@@ -1139,12 +1166,20 @@ function generate1730TimetablePlans(
     
     // 학습일 플랜이 없는 경우 경고
     if (studyPlansByDate.size === 0) {
+      const errorMessage = `이 주차(${cycleNumber}주차)에는 학습일 플랜이 생성되지 않았습니다. 복습일 플랜도 생성되지 않습니다.`;
       console.warn("[generate1730TimetablePlans] 학습일 플랜이 생성되지 않음:", {
         cycleNumber,
         studyDaysList,
+        studyDaysCount: studyDaysList.length,
         totalContentsCount: sortedContents.length,
         contentsWithRangeMap: Array.from(contentRangeMap.keys()),
-        message: "이 주차에는 학습일 플랜이 생성되지 않았습니다. 복습일 플랜도 생성되지 않습니다.",
+        contentsWithRangeMapCount: contentRangeMap.size,
+        message: errorMessage,
+        possibleCauses: [
+          "전략과목/취약과목 설정이 올바르지 않음",
+          "학습일 배정 로직 오류",
+          "콘텐츠 범위 분할 실패",
+        ],
       });
     }
     

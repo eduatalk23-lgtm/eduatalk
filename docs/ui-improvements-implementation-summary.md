@@ -159,3 +159,4 @@ UI 개선 필요 페이지 분석 결과를 바탕으로 레이아웃 일관성,
 - [패딩 값 표준화 가이드](./ui-improvements-padding-standardization.md)
 - [프로젝트 가이드라인](../.cursor/rules/project_rule.mdc)
 
+

@@ -116,3 +116,4 @@ export default function MyPage() {
 - `components/layout/PageContainer.tsx`: 표준 컨테이너 컴포넌트
 - `components/layout/PageHeader.tsx`: 표준 헤더 컴포넌트
 
+

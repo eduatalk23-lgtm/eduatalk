@@ -200,3 +200,4 @@ type ToolCardProps = {
 2. **ESLint 규칙 추가**: margin 사용 금지 규칙 검토
 3. **시각적 회귀 테스트**: 수정 전후 스크린샷 비교
 
+

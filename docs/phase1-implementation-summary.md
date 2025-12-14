@@ -119,3 +119,4 @@ Phase 1 구현이 완료되었습니다. 다음 단계는:
 - [Phase 1 TODO 문서](./sidebar-missing-after-signup-fix-todo.md)
 - [구현 계획](./phase-1.plan.md)
 
+

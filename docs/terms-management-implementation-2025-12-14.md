@@ -8,6 +8,14 @@
 
 2025년 12월 14일
 
+## 수정 이력
+
+### 2025년 12월 14일 (에러 수정 및 최적화)
+- 마이그레이션 적용 완료
+- PGRST205 에러 처리 추가
+- 함수 네이밍 및 주석 개선
+- 타입 안전성 개선
+
 ## 주요 기능
 
 1. **약관 내용 저장 및 버전 관리**
@@ -73,19 +81,20 @@ CREATE TABLE terms_contents (
 
 ### 데이터 조회 유틸리티
 
-- `lib/data/termsContents.ts`: 약관 내용 조회 함수
-  - `getActiveTermsContent()`: 활성화된 약관 조회
-  - `getTermsContentHistory()`: 약관 버전 히스토리 조회
-  - `getTermsContentById()`: ID로 약관 조회
+- `lib/data/termsContents.ts`: 약관 내용 조회 함수 (공개 조회용)
+  - `getActiveTermsContent()`: 활성화된 약관 조회 (RLS 정책에 따라 활성 버전만 조회 가능)
+  - `getTermsContentHistory()`: 약관 버전 히스토리 조회 (RLS 정책에 따라 활성 버전만 조회 가능)
+  - `getTermsContentById()`: ID로 약관 조회 (RLS 정책에 따라 활성 버전만 조회 가능)
 
 ### Server Actions
 
-- `app/(superadmin)/actions/termsContents.ts`: Super Admin용 약관 관리 액션
+- `app/(superadmin)/actions/termsContents.ts`: Super Admin용 약관 관리 액션 (모든 버전 조회 가능)
   - `createTermsContent()`: 새 약관 버전 생성
   - `updateTermsContent()`: 약관 내용 수정
-  - `activateTermsContent()`: 특정 버전 활성화
-  - `getTermsContents()`: 약관 목록 조회
-  - `getActiveTermsContent()`: 활성 약관 조회
+  - `activateTermsContent()`: 특정 버전 활성화 (이전 버전 자동 비활성화)
+  - `getTermsContents()`: 약관 목록 조회 (모든 버전)
+  - `getActiveTermsContent()`: 활성 약관 조회 (Super Admin 전용)
+  - `getTermsContentById()`: ID로 약관 조회 (Super Admin 전용)
 
 ### Super Admin 관리 페이지
 
@@ -140,6 +149,9 @@ CREATE TABLE terms_contents (
 1. **RLS 정책**
    - Super Admin만 약관 내용을 생성/수정/활성화할 수 있음
    - 일반 사용자는 활성 버전만 조회 가능
+   - 정책 확인:
+     - `Super Admin can manage terms contents`: Super Admin의 모든 작업 허용
+     - `Users can view active terms contents`: 모든 사용자의 활성 버전 조회 허용
 
 2. **권한 검증**
    - 모든 Server Actions에서 Super Admin 권한 확인
@@ -148,6 +160,34 @@ CREATE TABLE terms_contents (
 3. **공개 API**
    - 인증 없이 접근 가능하지만 활성 버전만 반환
    - 캐싱 헤더로 성능 최적화
+
+4. **에러 처리**
+   - PGRST205 에러 (테이블이 스키마 캐시에 없음) 처리 추가
+   - 명확한 에러 메시지 제공
+
+## 에러 처리 개선
+
+### PGRST205 에러 처리
+
+마이그레이션이 적용되지 않았거나 스키마 캐시가 업데이트되지 않은 경우 발생하는 에러를 처리합니다.
+
+- **에러 코드**: `PGRST205` - "Could not find the table 'public.terms_contents' in the schema cache"
+- **처리 방법**: 모든 Server Actions와 데이터 조회 함수에 PGRST205 에러 처리 추가
+- **에러 메시지**: "약관 테이블을 찾을 수 없습니다. 데이터베이스 마이그레이션이 적용되었는지 확인해주세요."
+
+### 코드 최적화
+
+1. **함수 네이밍 및 주석**
+   - `lib/data/termsContents.ts`: 공개 조회용 함수임을 명시
+   - `app/(superadmin)/actions/termsContents.ts`: Super Admin 전용 함수임을 명시
+
+2. **타입 안전성**
+   - `TermsContentRow` 타입 정의 및 주석 추가
+   - 타입 단언 최소화
+
+3. **에러 처리 일관성**
+   - 모든 데이터베이스 쿼리에 PGRST205 에러 처리 추가
+   - 명확한 에러 메시지 제공
 
 ## 향후 개선 사항
 
@@ -163,6 +203,9 @@ CREATE TABLE terms_contents (
 
 4. **약관 템플릿**
    - 자주 사용되는 약관 템플릿 제공
+
+5. **스키마 캐시 새로고침**
+   - 마이그레이션 적용 후 자동 스키마 캐시 새로고침
 
 ## 참고 문서
 

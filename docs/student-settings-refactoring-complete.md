@@ -128,3 +128,4 @@ app/(student)/settings/
 - [학생 설정 페이지 리팩토링 계획](./student-settings-redesign-proposal.md)
 - [개발 가이드라인](../.cursor/rules/project_rule.mdc)
 
+
