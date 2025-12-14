@@ -140,8 +140,8 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                   "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
                   isCollapsed && "justify-center px-2",
                   singleItemActive
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                 )}
                 title={isCollapsed ? category.label : undefined}
               >
@@ -159,8 +159,8 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                     "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
                     isCollapsed && "justify-center px-2",
                     isActive
-                      ? "bg-indigo-50 text-indigo-700"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                   )}
                   title={isCollapsed ? category.label : undefined}
                 >
@@ -207,8 +207,8 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                             className={cn(
                               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
                               itemActive
-                                ? "bg-indigo-50 text-indigo-700"
-                                : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                                ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                                : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                             )}
                           >
                             {item.icon && <span>{item.icon}</span>}
@@ -227,8 +227,8 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                                     className={cn(
                                       "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
                                       childActive
-                                        ? "bg-indigo-100 text-indigo-800"
-                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                        ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200"
+                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                                     )}
                                   >
                                     {child.icon && <span className="text-xs">{child.icon}</span>}

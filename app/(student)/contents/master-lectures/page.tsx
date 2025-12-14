@@ -11,6 +11,7 @@ import { secondsToMinutes } from "@/lib/utils/duration";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";
+import { inlineButtonBase } from "@/lib/utils/darkMode";
 
 
 // 검색 결과 조회 함수 (캐싱 적용)
@@ -145,7 +146,7 @@ export default async function StudentMasterLecturesPage({
           </div>
           <Link
             href="/contents"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
           >
             ← 목록으로
           </Link>

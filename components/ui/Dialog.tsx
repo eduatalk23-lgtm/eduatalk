@@ -112,7 +112,7 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={cn(
-          "relative w-full rounded-lg border bg-white shadow-lg",
+          "relative w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg",
           "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
           "focus:outline-none",
           effectiveSize === "sm" && "max-w-sm",
@@ -131,7 +131,7 @@ export function Dialog({
         {showCloseButton && (
           <button
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200"
             aria-label="닫기"
           >
             <svg
@@ -151,20 +151,20 @@ export function Dialog({
         )}
 
         {(title || description) && (
-          <div className="flex flex-col gap-1.5 border-b border-gray-200 px-6 py-4">
+          <div className="flex flex-col gap-1.5 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
             {title && (
               <h2
                 id={titleId}
                 className={cn(
                   "text-lg font-semibold",
-                  variant === "destructive" ? "text-red-900" : "text-gray-900"
+                  variant === "destructive" ? "text-red-900 dark:text-red-300" : "text-gray-900 dark:text-gray-100"
                 )}
               >
                 {title}
               </h2>
             )}
             {description && (
-              <div id={descriptionId} className="text-sm text-gray-700">
+              <div id={descriptionId} className="text-sm text-gray-700 dark:text-gray-300">
                 {description}
               </div>
             )}
@@ -195,7 +195,7 @@ export function DialogFooter({ children, className }: DialogFooterProps) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse gap-2 border-t border-gray-200 px-6 py-4 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 border-t border-gray-200 dark:border-gray-700 px-6 py-4 sm:flex-row sm:justify-end",
         className
       )}
     >

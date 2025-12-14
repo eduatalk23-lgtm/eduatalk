@@ -22,13 +22,13 @@ export type BadgeProps = {
 };
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: "bg-gray-100 text-gray-800",
-  primary: "bg-gray-900 text-white",
-  success: "bg-green-100 text-green-800",
-  warning: "bg-amber-100 text-amber-800",
-  error: "bg-red-100 text-red-800",
-  info: "bg-blue-100 text-blue-800",
-  gray: "bg-gray-100 text-gray-600",
+  default: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
+  primary: "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900",
+  success: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+  warning: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300",
+  error: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+  info: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+  gray: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
 };
 
 const sizeClasses: Record<BadgeSize, string> = {

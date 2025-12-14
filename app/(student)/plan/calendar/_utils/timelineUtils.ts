@@ -218,17 +218,17 @@ export function buildTimelineSlots(
 export function getTimeSlotColorClass(type: TimeSlotType): string {
   switch (type) {
     case "학습시간":
-      return "bg-blue-50 border-blue-200 text-blue-800";
+      return "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200";
     case "점심시간":
-      return "bg-orange-50 border-orange-200 text-orange-800";
+      return "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200";
     case "학원일정":
-      return "bg-purple-50 border-purple-200 text-purple-800";
+      return "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200";
     case "이동시간":
-      return "bg-gray-50 border-gray-200 text-gray-800";
+      return "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200";
     case "자율학습":
-      return "bg-green-50 border-green-200 text-green-800";
+      return "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200";
     default:
-      return "bg-gray-50 border-gray-200 text-gray-800";
+      return "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200";
   }
 }
 

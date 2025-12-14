@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { getGradeColor } from "@/lib/constants/colors";
 import { Card } from "@/components/molecules/Card";
 import { Badge } from "@/components/atoms";
+import { inlineButtonBase, tableRowBase, divideDefault, textSecondary, textPrimary } from "@/lib/utils/darkMode";
 
 type MockScoreRow = {
   id: string;
@@ -208,21 +209,21 @@ export function MockScoreListTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className={divideDefault}>
               {filteredAndSortedScores.map((score) => {
                 const gradeColor = getGradeColor(score.grade_score);
                 return (
-                  <tr key={score.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                  <tr key={score.id} className={tableRowBase}>
+                    <td className={`px-4 py-3 text-sm ${textSecondary}`}>
                       {score.subject_name || "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className={`px-4 py-3 text-sm ${textSecondary}`}>
                       {score.exam_round || "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className={`px-4 py-3 text-sm ${textPrimary}`}>
                       {score.raw_score !== null ? score.raw_score : "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className={`px-4 py-3 text-sm ${textPrimary}`}>
                       {score.percentile !== null ? `${score.percentile}%` : "-"}
                     </td>
                     <td className="px-4 py-3 text-sm">
@@ -234,14 +235,14 @@ export function MockScoreListTable({
                           {score.grade_score}등급
                         </Badge>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/scores/mock/${grade}/${encodeURIComponent(subjectGroup)}/${encodeURIComponent(examType)}/${score.id}/edit`}
-                          className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                          className={inlineButtonBase("px-3 py-1.5 text-xs font-semibold")}
                         >
                           수정
                         </Link>

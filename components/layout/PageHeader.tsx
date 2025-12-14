@@ -34,9 +34,9 @@ export function PageHeader({
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2 flex-1 min-w-0">
-          <HeadingTag className="text-h1 text-gray-900">{title}</HeadingTag>
+          <HeadingTag className="text-h1 text-gray-900 dark:text-gray-100">{title}</HeadingTag>
           {description && (
-            <p className="text-body-2 text-gray-600">{description}</p>
+            <p className="text-body-2 text-gray-600 dark:text-gray-400">{description}</p>
           )}
         </div>
         {action && <div className="flex-shrink-0">{action}</div>}

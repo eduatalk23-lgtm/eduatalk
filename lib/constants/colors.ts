@@ -225,11 +225,11 @@ export function getDayTypeColor(
 
   // 일반 날짜
   return {
-    bg: "bg-white",
-    border: "border-secondary-200",
-    text: "text-secondary-600",
-    boldText: "text-secondary-900",
-    badge: "bg-secondary-100 text-secondary-800",
+    bg: "bg-white dark:bg-gray-800",
+    border: "border-secondary-200 dark:border-secondary-700",
+    text: "text-secondary-600 dark:text-secondary-400",
+    boldText: "text-secondary-900 dark:text-secondary-100",
+    badge: "bg-secondary-100 dark:bg-secondary-800 text-secondary-800 dark:text-secondary-200",
   };
 }
 

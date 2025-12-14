@@ -14,6 +14,7 @@ import { getPublishersForFilter, getPlatformsForFilter, getDifficultiesForMaster
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { inlineButtonBase } from "@/lib/utils/darkMode";
 
 type TabKey = "books" | "lectures" | "custom";
 
@@ -65,19 +66,19 @@ export default async function ContentsPage({
             <div className="flex gap-2 flex-wrap">
               <Link
                 href="/contents/master-books"
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
               >
                 📚 서비스 마스터 교재
               </Link>
               <Link
                 href="/contents/master-lectures"
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
               >
                 🎧 서비스 마스터 강의
               </Link>
               <Link
                 href="/contents/master-custom-contents"
-                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
               >
                 📝 서비스 마스터 커스텀 콘텐츠
               </Link>

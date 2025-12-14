@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getContainerClass } from "@/lib/constants/layout";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import Link from "next/link";
+import { inlineButtonBase } from "@/lib/utils/darkMode";
 
 type CampParticipationPageProps = {
   params: Promise<{ invitationId: string }>;
@@ -376,7 +377,7 @@ export default async function CampParticipationPage({
           </div>
           <Link
             href="/camp"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
           >
             목록으로 돌아가기
           </Link>

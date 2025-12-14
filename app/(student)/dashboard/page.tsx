@@ -197,21 +197,21 @@ function QuickActionCard({
 }) {
   const colorClasses = {
     indigo:
-      "border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 hover:from-indigo-100 hover:to-indigo-200/50 text-indigo-900 hover:shadow-lg",
-    blue: "border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:from-blue-100 hover:to-blue-200/50 text-blue-900 hover:shadow-lg",
+      "border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 hover:from-indigo-100 hover:to-indigo-200/50 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/30 text-indigo-900 dark:text-indigo-200 hover:shadow-lg",
+    blue: "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 text-blue-900 dark:text-blue-200 hover:shadow-lg",
     purple:
-      "border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50 hover:from-purple-100 hover:to-purple-200/50 text-purple-900 hover:shadow-lg",
+      "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200/50 dark:hover:from-purple-800/40 dark:hover:to-purple-700/30 text-purple-900 dark:text-purple-200 hover:shadow-lg",
     orange:
-      "border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100/50 hover:from-orange-100 hover:to-orange-200/50 text-orange-900 hover:shadow-lg",
-    green: "border-green-200 bg-gradient-to-br from-green-50 to-green-100/50 hover:from-green-100 hover:to-green-200/50 text-green-900 hover:shadow-lg",
-    red: "border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 hover:from-red-100 hover:to-red-200/50 text-red-900 hover:shadow-lg",
-    teal: "border-teal-200 bg-gradient-to-br from-teal-50 to-teal-100/50 hover:from-teal-100 hover:to-teal-200/50 text-teal-900 hover:shadow-lg",
-    cyan: "border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100/50 hover:from-cyan-100 hover:to-cyan-200/50 text-cyan-900 hover:shadow-lg",
-    amber: "border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50 hover:from-amber-100 hover:to-amber-200/50 text-amber-900 hover:shadow-lg",
-    pink: "border-pink-200 bg-gradient-to-br from-pink-50 to-pink-100/50 hover:from-pink-100 hover:to-pink-200/50 text-pink-900 hover:shadow-lg",
-    violet: "border-violet-200 bg-gradient-to-br from-violet-50 to-violet-100/50 hover:from-violet-100 hover:to-violet-200/50 text-violet-900 hover:shadow-lg",
-    emerald: "border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 hover:from-emerald-100 hover:to-emerald-200/50 text-emerald-900 hover:shadow-lg",
-    sky: "border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100/50 hover:from-sky-100 hover:to-sky-200/50 text-sky-900 hover:shadow-lg",
+      "border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200/50 dark:hover:from-orange-800/40 dark:hover:to-orange-700/30 text-orange-900 dark:text-orange-200 hover:shadow-lg",
+    green: "border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 hover:from-green-100 hover:to-green-200/50 dark:hover:from-green-800/40 dark:hover:to-green-700/30 text-green-900 dark:text-green-200 hover:shadow-lg",
+    red: "border-red-200 dark:border-red-800 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 hover:from-red-100 hover:to-red-200/50 dark:hover:from-red-800/40 dark:hover:to-red-700/30 text-red-900 dark:text-red-200 hover:shadow-lg",
+    teal: "border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-800/20 hover:from-teal-100 hover:to-teal-200/50 dark:hover:from-teal-800/40 dark:hover:to-teal-700/30 text-teal-900 dark:text-teal-200 hover:shadow-lg",
+    cyan: "border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/30 dark:to-cyan-800/20 hover:from-cyan-100 hover:to-cyan-200/50 dark:hover:from-cyan-800/40 dark:hover:to-cyan-700/30 text-cyan-900 dark:text-cyan-200 hover:shadow-lg",
+    amber: "border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 hover:from-amber-100 hover:to-amber-200/50 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 text-amber-900 dark:text-amber-200 hover:shadow-lg",
+    pink: "border-pink-200 dark:border-pink-800 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-900/30 dark:to-pink-800/20 hover:from-pink-100 hover:to-pink-200/50 dark:hover:from-pink-800/40 dark:hover:to-pink-700/30 text-pink-900 dark:text-pink-200 hover:shadow-lg",
+    violet: "border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/30 dark:to-violet-800/20 hover:from-violet-100 hover:to-violet-200/50 dark:hover:from-violet-800/40 dark:hover:to-violet-700/30 text-violet-900 dark:text-violet-200 hover:shadow-lg",
+    emerald: "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:to-emerald-800/20 hover:from-emerald-100 hover:to-emerald-200/50 dark:hover:from-emerald-800/40 dark:hover:to-emerald-700/30 text-emerald-900 dark:text-emerald-200 hover:shadow-lg",
+    sky: "border-sky-200 dark:border-sky-800 bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/30 dark:to-sky-800/20 hover:from-sky-100 hover:to-sky-200/50 dark:hover:from-sky-800/40 dark:hover:to-sky-700/30 text-sky-900 dark:text-sky-200 hover:shadow-lg",
   };
 
   return (

@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { getGradeColor } from "@/lib/constants/colors";
 import { Card } from "@/components/molecules/Card";
 import { Badge } from "@/components/atoms";
+import { inlineButtonBase, tableRowBase, divideDefault, textSecondary, textPrimary } from "@/lib/utils/darkMode";
 
 type SchoolScoreRow = {
   id: string;
@@ -177,53 +178,53 @@ export function ScoreListTable({
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                   과목 유형
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                   세부 과목명
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                   <button
                     onClick={() => handleSort("raw_score")}
-                    className="flex items-center gap-1 hover:text-gray-900"
+                    className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
                   >
                     원점수 <SortIcon field="raw_score" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                   <button
                     onClick={() => handleSort("grade_score")}
-                    className="flex items-center gap-1 hover:text-gray-900"
+                    className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
                   >
                     등급 <SortIcon field="grade_score" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                   <button
                     onClick={() => handleSort("class_rank")}
-                    className="flex items-center gap-1 hover:text-gray-900"
+                    className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
                   >
                     반 석차 <SortIcon field="class_rank" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
                   작업
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className={divideDefault}>
               {filteredAndSortedScores.map((score) => {
                 const gradeColor = getGradeColor(score.grade_score);
                 return (
-                  <tr key={score.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                  <tr key={score.id} className={tableRowBase}>
+                    <td className={`px-4 py-3 text-sm ${textSecondary}`}>
                       {score.subject_type || "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className={`px-4 py-3 text-sm ${textSecondary}`}>
                       {score.subject_name || "-"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
+                    <td className={`px-4 py-3 text-sm ${textPrimary}`}>
                       {score.raw_score !== null ? score.raw_score : "-"}
                     </td>
                     <td className="px-4 py-3 text-sm">
@@ -235,17 +236,17 @@ export function ScoreListTable({
                           {score.grade_score}등급
                         </Badge>
                       ) : (
-                        <span className="text-gray-400">-</span>
+                        <span className="text-gray-400 dark:text-gray-500">-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
+                    <td className={`px-4 py-3 text-sm ${textSecondary}`}>
                       {score.class_rank !== null ? `${score.class_rank}등` : "-"}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/scores/school/${grade}/${semester}/${encodeURIComponent(subjectGroup)}/${score.id}/edit`}
-                          className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                          className={inlineButtonBase("px-3 py-1.5 text-xs font-semibold")}
                         >
                           수정
                         </Link>

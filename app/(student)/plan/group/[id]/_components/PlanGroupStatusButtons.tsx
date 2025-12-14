@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updatePlanGroupStatus, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
+import { cn } from "@/lib/cn";
 
 type PlanGroupStatusButtonsProps = {
   groupId: string;
@@ -84,8 +85,8 @@ export function PlanGroupStatusButtons({
 
   if (availableTransitions.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <p className="text-sm text-gray-800">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4">
+        <p className="text-sm text-gray-800 dark:text-gray-200">
           현재 상태에서는 상태 변경이 불가능합니다.
         </p>
       </div>
@@ -104,13 +105,14 @@ export function PlanGroupStatusButtons({
             type="button"
             onClick={() => handleStatusChange(status)}
             disabled={isPending}
-            className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={cn(
+              "inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
               isDestructive
-                ? "border-red-300 text-red-700 hover:bg-red-50"
+                ? "border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                 : status === "active"
-                ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
-                : "border-gray-300 text-gray-700 hover:bg-gray-50"
-            }`}
+                ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40"
+                : "border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+            )}
           >
             {isPending ? "처리 중..." : buttonLabel}
           </button>
