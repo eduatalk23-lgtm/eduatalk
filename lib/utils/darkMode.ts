@@ -56,3 +56,59 @@ export const cardBase = cn(
   borderDefault
 );
 
+// 상태 색상 유틸리티
+
+/**
+ * 목표 상태 색상 (Goal Progress용)
+ */
+export const goalStatusColors: Record<string, string> = {
+  scheduled: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
+  in_progress: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+  completed: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+  failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+};
+
+/**
+ * 플랜 상태 색상 (Plan Status용)
+ */
+export const planStatusColors: Record<string, string> = {
+  active: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+  paused: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
+  completed: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300",
+  cancelled: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+};
+
+/**
+ * 위험도 레벨 색상 (Admin Dashboard용)
+ */
+export const riskLevelColors: Record<string, string> = {
+  high: "bg-red-500 dark:bg-red-600 text-white",
+  medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
+  low: "bg-green-500 dark:bg-green-600 text-white",
+};
+
+/**
+ * 위험도 점수에 따른 색상 클래스 반환
+ * @param riskScore 위험도 점수 (0-100)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getRiskColorClasses(riskScore: number): string {
+  if (riskScore >= 70) {
+    return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800";
+  }
+  if (riskScore >= 50) {
+    return "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800";
+  }
+  return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800";
+}
+
+/**
+ * 위험도 섹션용 그라디언트 배경 (Admin Dashboard용)
+ */
+export const riskSectionGradient = cn(
+  "rounded-xl border border-red-200 dark:border-red-800",
+  "bg-gradient-to-br from-red-50 to-red-100/50",
+  "dark:from-red-900/30 dark:to-red-800/20",
+  "p-5 md:p-6 shadow-sm"
+);
+

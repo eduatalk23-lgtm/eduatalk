@@ -2,6 +2,8 @@
 
 import React from "react";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
+import { getRiskColorClasses, textPrimary, textMuted, borderDefault, bgPage } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type MockWeakSubjectSectionProps = {
   mockScores: MockScoreRow[];
@@ -160,13 +162,13 @@ export function MockWeakSubjectSection({
 
   if (weakSubjects.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+      <div className={cn("rounded-xl border border-dashed p-12 text-center", "border-gray-300 dark:border-gray-700", bgPage)}>
         <div className="mx-auto flex flex-col gap-2 max-w-md">
           <div className="text-6xl">✅</div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className={cn("text-lg font-semibold", textPrimary)}>
             취약 과목이 없습니다
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className={cn("text-sm", textMuted)}>
             현재 모의고사 성적이 안정적입니다. 계속 유지하세요!
           </p>
         </div>
@@ -174,38 +176,32 @@ export function MockWeakSubjectSection({
     );
   }
 
-  const getRiskColor = (riskScore: number) => {
-    if (riskScore >= 70) return "text-red-600 bg-red-50 border-red-200";
-    if (riskScore >= 50) return "text-orange-600 bg-orange-50 border-orange-200";
-    return "text-yellow-600 bg-yellow-50 border-yellow-200";
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {weakSubjects.map((item, index) => (
         <div
           key={`${item.subject}-${index}`}
-          className={`rounded-lg border p-6 ${getRiskColor(item.riskScore)}`}
+          className={cn("rounded-lg border p-6", getRiskColorClasses(item.riskScore))}
         >
           <div className="flex items-start justify-between">
             <div className="flex flex-col gap-2 flex-1">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold">{item.subject}</h3>
-                <span className="text-xs font-medium px-2 py-1 rounded bg-white/50">
+                <h3 className={cn("text-lg font-semibold", textPrimary)}>{item.subject}</h3>
+                <span className="text-xs font-medium px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50">
                   모의고사
                 </span>
-                <span className="text-sm font-bold">
+                <span className={cn("text-sm font-bold", textPrimary)}>
                   Risk Score: {item.riskScore}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
                 {item.reasons.map((reason, idx) => (
-                  <p key={idx} className="text-sm">
+                  <p key={idx} className={cn("text-sm", textPrimary)}>
                     • {reason}
                   </p>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-4 text-xs opacity-75">
+              <div className={cn("flex flex-wrap gap-4 text-xs", textMuted)}>
                 {item.recentPercentiles.length > 0 && (
                   <p>
                     최근 백분위: {item.recentPercentiles.map(p => p.toFixed(1)).join(", ")}% (평균: {item.averagePercentile.toFixed(1)}%)

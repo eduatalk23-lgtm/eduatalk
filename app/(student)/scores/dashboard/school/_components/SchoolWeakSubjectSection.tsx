@@ -3,6 +3,8 @@
 import React from "react";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
 import { EmptyState } from "@/components/molecules/EmptyState";
+import { getRiskColorClasses, textPrimary, textMuted } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type SchoolWeakSubjectSectionProps = {
   schoolScores: SchoolScoreRow[];
@@ -156,39 +158,33 @@ export function SchoolWeakSubjectSection({
     );
   }
 
-  const getRiskColor = (riskScore: number) => {
-    if (riskScore >= 70) return "text-red-600 bg-red-50 border-red-200";
-    if (riskScore >= 50) return "text-orange-600 bg-orange-50 border-orange-200";
-    return "text-yellow-600 bg-yellow-50 border-yellow-200";
-  };
-
   return (
     <div className="flex flex-col gap-4">
       {weakSubjects.map((item, index) => (
         <div
           key={`${item.subject}-${index}`}
-          className={`rounded-lg border p-6 ${getRiskColor(item.riskScore)}`}
+          className={cn("rounded-lg border p-6", getRiskColorClasses(item.riskScore))}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 flex flex-col gap-2">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-semibold">{item.subject}</h3>
-                <span className="text-xs font-medium px-2 py-1 rounded bg-white/50">
+                <h3 className={cn("text-lg font-semibold", textPrimary)}>{item.subject}</h3>
+                <span className="text-xs font-medium px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50">
                   내신
                 </span>
-                <span className="text-sm font-bold">
+                <span className={cn("text-sm font-bold", textPrimary)}>
                   Risk Score: {item.riskScore}
                 </span>
               </div>
               <div className="flex flex-col gap-1">
                 {item.reasons.map((reason, idx) => (
-                  <p key={idx} className="text-sm">
+                  <p key={idx} className={cn("text-sm", textPrimary)}>
                     • {reason}
                   </p>
                 ))}
               </div>
               {item.recentGrades.length > 0 && (
-                <p className="text-xs opacity-75">
+                <p className={cn("text-xs", textMuted)}>
                   최근 등급: {item.recentGrades.join(", ")} (평균:{" "}
                   {item.averageGrade.toFixed(1)})
                 </p>

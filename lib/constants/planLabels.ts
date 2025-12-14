@@ -34,12 +34,13 @@ export const statusLabels: Record<string, string> = {
   cancelled: "중단", // 기존 데이터 호환성을 위해 유지 (새로는 paused 사용)
 };
 
-export const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  paused: "bg-yellow-100 text-yellow-800",
-  completed: "bg-purple-100 text-purple-800",
-  cancelled: "bg-red-100 text-red-800",
-};
+import { planStatusColors } from "@/lib/utils/darkMode";
+
+/**
+ * @deprecated planStatusColors 사용 권장
+ * 기존 코드 호환성을 위해 유지
+ */
+export const statusColors: Record<string, string> = planStatusColors;
 
 export const contentTypeLabels: Record<string, string> = {
   book: "📚 책",

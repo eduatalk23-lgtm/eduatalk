@@ -17,6 +17,8 @@ import {
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/molecules/StatCard";
 import { getWeekRange } from "@/lib/date/weekRange";
+import { riskLevelColors, textPrimary, textSecondary, textMuted, bgSurface, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -618,19 +620,19 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 위험 학생 리스트 */}
-        <div className="rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-red-100/50 p-5 md:p-6 shadow-sm">
+        <div className={cn(
+          "rounded-xl border p-5 md:p-6 shadow-sm",
+          "border-red-200 dark:border-red-800",
+          "bg-gradient-to-br from-red-50 to-red-100/50",
+          "dark:from-red-900/30 dark:to-red-800/20"
+        )}>
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-red-900">🚨 위험 학생 리스트</h2>
+            <h2 className={cn("text-lg md:text-xl font-semibold", "text-red-900 dark:text-red-300")}>🚨 위험 학생 리스트</h2>
             {atRiskStudents.length === 0 ? (
-              <p className="text-sm text-red-600">위험 학생이 없습니다.</p>
+              <p className={cn("text-sm", "text-red-600 dark:text-red-400")}>위험 학생이 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {atRiskStudents.map((student) => {
-                  const levelColors = {
-                    high: "bg-red-500 text-white",
-                    medium: "bg-yellow-500 text-white",
-                    low: "bg-green-500 text-white",
-                  };
                   const levelLabels = {
                     high: "높음",
                     medium: "보통",
@@ -640,19 +642,24 @@ export default async function AdminDashboardPage() {
                     <Link
                       key={student.studentId}
                       href={`/admin/students/${student.studentId}`}
-                      className="flex items-center gap-4 rounded-lg border border-red-200 bg-white p-3 transition hover:bg-red-50"
+                      className={cn(
+                        "flex items-center gap-4 rounded-lg border p-3 transition",
+                        "border-red-200 dark:border-red-800",
+                        bgSurface,
+                        "hover:bg-red-50 dark:hover:bg-red-900/30"
+                      )}
                     >
                       <div className="flex items-center gap-3">
                         <span
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${levelColors[student.level]}`}
+                          className={cn("rounded-full px-2 py-1 text-xs font-semibold", riskLevelColors[student.level])}
                         >
                           {levelLabels[student.level]}
                         </span>
-                        <span className="font-medium text-gray-900">{student.name}</span>
-                        <span className="text-xs text-gray-500">({student.riskScore}점)</span>
+                        <span className={cn("font-medium", textPrimary)}>{student.name}</span>
+                        <span className={cn("text-xs", textMuted)}>({student.riskScore}점)</span>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm text-red-600 line-clamp-2">
+                        <p className={cn("text-sm line-clamp-2", "text-red-600 dark:text-red-400")}>
                           {student.reasons.length > 0
                             ? student.reasons[0]
                             : "위험 요인 없음"}
