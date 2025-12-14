@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 
 type SchoolGradeDistributionChartProps = {
   schoolScores: SchoolScoreRow[];
@@ -113,16 +114,16 @@ export function SchoolGradeDistributionChart({
               }}
             />
             <Legend />
-            <Bar dataKey="count" fill="#6366f1" name="개수" />
-            <Bar dataKey="percentage" fill="#8b5cf6" name="비율(%)" />
+            <Bar dataKey="count" fill={getChartColor(0)} name="개수" />
+            <Bar dataKey="percentage" fill={getChartColor(1)} name="비율(%)" />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* 학년별 등급 분포 */}
       {gradeDistribution.grades.length > 0 && (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             학년별 등급 분포
           </h3>
           <ResponsiveContainer width="100%" height={300}>

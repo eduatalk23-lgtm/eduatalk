@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { MockScoreRow } from "../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 import { EmptyState } from "@/components/molecules/EmptyState";
 
 type MockExamTrendSectionProps = {
@@ -196,7 +197,7 @@ export function MockExamTrendSection({
           <Line
             type="monotone"
             dataKey="평가원"
-            stroke="#6366f1"
+            stroke={getChartColor(0)}
             strokeWidth={2}
             name="평가원"
             dot={{ r: 4 }}
@@ -205,7 +206,7 @@ export function MockExamTrendSection({
           <Line
             type="monotone"
             dataKey="교육청"
-            stroke="#8b5cf6"
+            stroke={getChartColor(1)}
             strokeWidth={2}
             name="교육청"
             dot={{ r: 4 }}
@@ -214,7 +215,7 @@ export function MockExamTrendSection({
           <Line
             type="monotone"
             dataKey="사설"
-            stroke="#ec4899"
+            stroke={getChartColor(2)}
             strokeWidth={2}
             name="사설"
             dot={{ r: 4 }}

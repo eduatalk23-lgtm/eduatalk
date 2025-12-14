@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { getChartColor } from "@/lib/constants/colors";
 
 type WeeklyTimeBarChartProps = {
   data: Array<{
@@ -27,7 +28,7 @@ export function WeeklyTimeBarChart({ data }: WeeklyTimeBarChartProps) {
           formatter={(value: number) => [`${value}분`, "학습시간"]}
           labelStyle={{ color: "#374151" }}
         />
-        <Bar dataKey="minutes" fill="#6366f1" radius={[8, 8, 0, 0]} />
+        <Bar dataKey="minutes" fill={getChartColor(0)} radius={[8, 8, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

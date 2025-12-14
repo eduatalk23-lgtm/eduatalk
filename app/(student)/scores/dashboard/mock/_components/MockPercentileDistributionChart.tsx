@@ -14,6 +14,7 @@ import {
   Line,
 } from "recharts";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 
 type MockPercentileDistributionChartProps = {
   mockScores: MockScoreRow[];
@@ -162,16 +163,16 @@ export function MockPercentileDistributionChart({
               }}
             />
             <Legend />
-            <Bar dataKey="count" fill="#6366f1" name="개수" />
-            <Bar dataKey="percentage" fill="#8b5cf6" name="비율(%)" />
+            <Bar dataKey="count" fill={getChartColor(0)} name="개수" />
+            <Bar dataKey="percentage" fill={getChartColor(1)} name="비율(%)" />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* 시험 유형별 백분위 분포 */}
       {typeDistribution.types.length > 0 && (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             시험 유형별 백분위 분포
           </h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -185,12 +186,11 @@ export function MockPercentileDistributionChart({
               <Tooltip formatter={(value: number) => `${value}%`} />
               <Legend />
               {typeDistribution.types.map((type, index) => {
-                const colors = ["#6366f1", "#8b5cf6", "#ec4899"];
                 return (
                   <Bar
                     key={type}
                     dataKey={type}
-                    fill={colors[index % colors.length]}
+                    fill={getChartColor(index)}
                     name={type}
                   />
                 );
@@ -202,8 +202,8 @@ export function MockPercentileDistributionChart({
 
       {/* 회차별 평균 백분위 추이 */}
       {roundTrend.length > 0 && (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm lg:col-span-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             회차별 평균 백분위 추이
           </h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -219,7 +219,7 @@ export function MockPercentileDistributionChart({
               <Line
                 type="monotone"
                 dataKey="average"
-                stroke="#6366f1"
+                stroke={getChartColor(0)}
                 strokeWidth={2}
                 name="평균 백분위"
                 dot={{ r: 6 }}

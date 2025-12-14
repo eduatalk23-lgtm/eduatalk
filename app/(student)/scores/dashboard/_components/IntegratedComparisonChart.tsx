@@ -18,6 +18,7 @@ import {
   Bar,
 } from "recharts";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 
 type IntegratedComparisonChartProps = {
   schoolScores: SchoolScoreRow[];
@@ -240,7 +241,7 @@ export function IntegratedComparisonChart({
             <Line
               type="monotone"
               dataKey="내신"
-              stroke="#6366f1"
+              stroke={getChartColor(0)}
               strokeWidth={2}
               name="내신 평균 등급"
               dot={{ r: 6 }}
@@ -249,7 +250,7 @@ export function IntegratedComparisonChart({
             <Line
               type="monotone"
               dataKey="모의고사"
-              stroke="#8b5cf6"
+              stroke={getChartColor(1)}
               strokeWidth={2}
               name="모의고사 평균 등급"
               dot={{ r: 6 }}
@@ -278,8 +279,8 @@ export function IntegratedComparisonChart({
                 }}
               />
               <Legend />
-              <Bar dataKey="내신" fill="#6366f1" name="내신 평균 등급" />
-              <Bar dataKey="모의고사" fill="#8b5cf6" name="모의고사 평균 등급" />
+              <Bar dataKey="내신" fill={getChartColor(0)} name="내신 평균 등급" />
+              <Bar dataKey="모의고사" fill={getChartColor(1)} name="모의고사 평균 등급" />
             </BarChart>
           </ResponsiveContainer>
           

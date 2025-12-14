@@ -12,6 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { getChartColor } from "@/lib/constants/colors";
 
 type Student = {
   id: string;
@@ -101,7 +102,7 @@ export function ComparePageClient({ students }: ComparePageClientProps) {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="학습시간" fill="#4f46e5" />
+                <Bar dataKey="학습시간" fill={getChartColor(0)} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -116,7 +117,7 @@ export function ComparePageClient({ students }: ComparePageClientProps) {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="플랜실행률" fill="#10b981" />
+                <Bar dataKey="플랜실행률" fill={getChartColor(4)} />
               </BarChart>
             </ResponsiveContainer>
           </div>

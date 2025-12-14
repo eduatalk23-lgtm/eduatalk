@@ -17,6 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { SchoolScoreRow } from "../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 import { EmptyState } from "@/components/molecules/EmptyState";
 
 type SemesterChartsSectionProps = {
@@ -114,7 +115,7 @@ export function SemesterChartsSection({
           <Line
             type="monotone"
             dataKey="averageGrade"
-            stroke="#6366f1"
+            stroke={getChartColor(0)}
             strokeWidth={2}
             name="평균 등급"
             dot={{ r: 6 }}

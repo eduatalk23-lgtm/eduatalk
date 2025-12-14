@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import type { CourseAverageGrade } from "../_utils";
+import { getChartColor } from "@/lib/constants/colors";
 
 type CourseAverageChartProps = {
   data: CourseAverageGrade[];
@@ -47,7 +48,7 @@ export function CourseAverageChart({ data }: CourseAverageChartProps) {
           }}
         />
         <Legend />
-        <Bar dataKey="평균 등급" fill="#6366f1" name="평균 등급" />
+        <Bar dataKey="평균 등급" fill={getChartColor(0)} name="평균 등급" />
       </BarChart>
     </ResponsiveContainer>
   );

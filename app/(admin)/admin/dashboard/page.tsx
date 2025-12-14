@@ -487,19 +487,19 @@ export default async function AdminDashboardPage() {
 
         {/* KPI 카드 */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-gray-500">전체 학생 수</div>
-              <div className="text-3xl md:text-4xl font-bold text-gray-900">{studentStats.total}</div>
+              <div className="text-sm font-medium text-gray-500 dark:text-gray-400">전체 학생 수</div>
+              <div className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">{studentStats.total}</div>
             </div>
           </div>
-          <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-indigo-700">이번주 학습한 학생</div>
-              <div className="text-3xl md:text-4xl font-bold text-indigo-600">
+              <div className="text-sm font-medium text-indigo-700 dark:text-indigo-300">이번주 학습한 학생</div>
+              <div className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
                 {studentStats.activeThisWeek}
               </div>
-              <div className="text-xs font-medium text-indigo-600">
+              <div className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
                 {studentStats.total > 0
                   ? Math.round((studentStats.activeThisWeek / studentStats.total) * 100)
                   : 0}
@@ -507,11 +507,11 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
           </div>
-          <div className="rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-green-100/50 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-green-700">성적 입력 학생</div>
-              <div className="text-3xl md:text-4xl font-bold text-green-600">{studentStats.withScores}</div>
-              <div className="text-xs font-medium text-green-600">
+              <div className="text-sm font-medium text-green-700 dark:text-green-300">성적 입력 학생</div>
+              <div className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">{studentStats.withScores}</div>
+              <div className="text-xs font-medium text-green-600 dark:text-green-400">
                 {studentStats.total > 0
                   ? Math.round((studentStats.withScores / studentStats.total) * 100)
                   : 0}
@@ -519,11 +519,11 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
           </div>
-          <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-purple-700">이번주 플랜 학생</div>
-              <div className="text-3xl md:text-4xl font-bold text-purple-600">{studentStats.withPlans}</div>
-              <div className="text-xs font-medium text-purple-600">
+              <div className="text-sm font-medium text-purple-700 dark:text-purple-300">이번주 플랜 학생</div>
+              <div className="text-3xl md:text-4xl font-bold text-purple-600 dark:text-purple-400">{studentStats.withPlans}</div>
+              <div className="text-xs font-medium text-purple-600 dark:text-purple-400">
                 {studentStats.total > 0
                   ? Math.round((studentStats.withPlans / studentStats.total) * 100)
                   : 0}
@@ -534,26 +534,26 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 이번주 학습시간 Top5 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900">이번주 학습시간 Top5</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">이번주 학습시간 Top5</h2>
             {topStudyTime.length === 0 ? (
-              <p className="text-sm text-gray-500">데이터가 없습니다.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {topStudyTime.map((student, index) => (
                   <Link
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 hover:shadow-sm"
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                         {index + 1}
                       </span>
-                      <span className="font-medium text-gray-900">{student.name}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{student.name}</span>
                     </div>
-                    <span className="text-sm text-gray-600">{student.minutes}분</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{student.minutes}분</span>
                   </Link>
                 ))}
               </div>
@@ -562,26 +562,26 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 이번주 플랜 실행률 Top5 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900">이번주 플랜 실행률 Top5</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">이번주 플랜 실행률 Top5</h2>
             {topPlanCompletion.length === 0 ? (
-              <p className="text-sm text-gray-500">데이터가 없습니다.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {topPlanCompletion.map((student, index) => (
                   <Link
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 hover:shadow-sm"
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                         {index + 1}
                       </span>
-                      <span className="font-medium text-gray-900">{student.name}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{student.name}</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {student.completionRate}%
                     </span>
                   </Link>
@@ -592,26 +592,26 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 최근 목표 달성 Top3 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900">최근 목표 달성 Top3</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">최근 목표 달성 Top3</h2>
             {topGoalAchievement.length === 0 ? (
-              <p className="text-sm text-gray-500">데이터가 없습니다.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {topGoalAchievement.map((student, index) => (
                   <Link
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3 transition hover:bg-gray-50 hover:shadow-sm"
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-sm font-semibold text-green-700">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-sm font-semibold text-green-700 dark:text-green-300">
                         {index + 1}
                       </span>
-                      <span className="font-medium text-gray-900">{student.name}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{student.name}</span>
                     </div>
-                    <span className="text-sm text-gray-600">{student.count}개 달성</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{student.count}개 달성</span>
                   </Link>
                 ))}
               </div>
@@ -674,26 +674,26 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 최근 상담노트 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900">최근 상담노트</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">최근 상담노트</h2>
             {recentNotes.length === 0 ? (
-              <p className="text-sm text-gray-500">상담노트가 없습니다.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">상담노트가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {recentNotes.map((note) => (
                   <Link
                     key={note.id}
                     href={`/admin/students/${note.studentId}`}
-                    className="block rounded-lg border border-gray-200 p-4 transition hover:bg-gray-50 hover:shadow-sm"
+                    className="block rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-gray-900">{note.studentName}</span>
-                      <span className="text-xs text-gray-500">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{note.studentName}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(note.createdAt).toLocaleDateString("ko-KR")}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">{note.note}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{note.note}</p>
                   </Link>
                 ))}
               </div>

@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 
 type CompareSectionProps = {
   schoolScores: SchoolScoreRow[];
@@ -112,8 +113,8 @@ export function CompareSection({
             }}
           />
           <Legend />
-          <Bar dataKey="내신" fill="#6366f1" name="내신 평균 등급" />
-          <Bar dataKey="모의고사" fill="#8b5cf6" name="모의고사 평균 등급" />
+          <Bar dataKey="내신" fill={getChartColor(0)} name="내신 평균 등급" />
+          <Bar dataKey="모의고사" fill={getChartColor(1)} name="모의고사 평균 등급" />
         </BarChart>
       </ResponsiveContainer>
     </div>

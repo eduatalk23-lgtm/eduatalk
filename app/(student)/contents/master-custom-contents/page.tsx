@@ -138,7 +138,7 @@ export default async function StudentMasterCustomContentsPage({
                       </div>
                       {content.total_page_or_time && (
                         <div className="flex justify-between">
-                          <dt className="font-medium text-gray-700">
+                          <dt className="font-medium text-gray-700 dark:text-gray-300">
                             {content.content_type === "book" ? "총 페이지" : "총 시간"}
                           </dt>
                           <dd>
@@ -149,7 +149,7 @@ export default async function StudentMasterCustomContentsPage({
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <dt className="font-medium text-gray-700">난이도</dt>
+                        <dt className="font-medium text-gray-700 dark:text-gray-300">난이도</dt>
                         <dd>{content.difficulty_level || "—"}</dd>
                       </div>
                     </dl>

@@ -56,6 +56,51 @@ export const cardBase = cn(
   borderDefault
 );
 
+/**
+ * 카드 스타일 패턴 (계획에 따른 추가 패턴)
+ */
+export const cardStyles = {
+  base: cn(
+    "rounded-xl border shadow-sm",
+    "border-gray-200 dark:border-gray-700",
+    "bg-white dark:bg-gray-800"
+  ),
+  hover: "transition-shadow hover:shadow-md",
+  padding: {
+    sm: "p-4",
+    md: "p-5 md:p-6",
+    lg: "p-6 md:p-8",
+  },
+};
+
+/**
+ * 텍스트 색상 패턴 (계획에 따른 추가 패턴)
+ */
+export const textStyles = {
+  primary: "text-gray-900 dark:text-gray-100",
+  secondary: "text-gray-600 dark:text-gray-400",
+  tertiary: "text-gray-500 dark:text-gray-500",
+  muted: "text-gray-400 dark:text-gray-500",
+};
+
+/**
+ * 보더 색상 패턴 (계획에 따른 추가 패턴)
+ */
+export const borderStyles = {
+  default: "border-gray-200 dark:border-gray-700",
+  light: "border-gray-100 dark:border-gray-800",
+  medium: "border-gray-300 dark:border-gray-600",
+};
+
+/**
+ * 배경 색상 패턴 (계획에 따른 추가 패턴)
+ */
+export const bgStyles = {
+  white: "bg-white dark:bg-gray-800",
+  gray: "bg-gray-50 dark:bg-gray-900",
+  card: "bg-white dark:bg-gray-800",
+};
+
 // 상태 색상 유틸리티
 
 /**

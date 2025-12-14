@@ -17,6 +17,7 @@ import {
   Radar,
 } from "recharts";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
+import { getChartColor } from "@/lib/constants/colors";
 
 type MockExamTypeComparisonChartProps = {
   mockScores: MockScoreRow[];
@@ -239,9 +240,9 @@ export function MockExamTypeComparisonChart({
               }}
             />
             <Legend />
-            <Bar dataKey="평가원" fill="#6366f1" name="평가원" />
-            <Bar dataKey="교육청" fill="#8b5cf6" name="교육청" />
-            <Bar dataKey="사설" fill="#ec4899" name="사설" />
+            <Bar dataKey="평가원" fill={getChartColor(0)} name="평가원" />
+            <Bar dataKey="교육청" fill={getChartColor(1)} name="교육청" />
+            <Bar dataKey="사설" fill={getChartColor(2)} name="사설" />
           </BarChart>
         </ResponsiveContainer>
       ) : (
@@ -260,22 +261,22 @@ export function MockExamTypeComparisonChart({
             <Radar
               name="평가원"
               dataKey="평가원"
-              stroke="#6366f1"
-              fill="#6366f1"
+              stroke={getChartColor(0)}
+              fill={getChartColor(0)}
               fillOpacity={0.6}
             />
             <Radar
               name="교육청"
               dataKey="교육청"
-              stroke="#8b5cf6"
-              fill="#8b5cf6"
+              stroke={getChartColor(1)}
+              fill={getChartColor(1)}
               fillOpacity={0.6}
             />
             <Radar
               name="사설"
               dataKey="사설"
-              stroke="#ec4899"
-              fill="#ec4899"
+              stroke={getChartColor(2)}
+              fill={getChartColor(2)}
               fillOpacity={0.6}
             />
             <Tooltip
