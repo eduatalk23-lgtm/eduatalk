@@ -532,6 +532,12 @@ const superadminCategories: NavigationCategory[] = [
         href: "/superadmin/curriculum-settings",
         icon: "📚",
       },
+      {
+        id: "superadmin-terms-management",
+        label: "약관 관리",
+        href: "/superadmin/terms-management",
+        icon: "📄",
+      },
     ],
   },
 ];
