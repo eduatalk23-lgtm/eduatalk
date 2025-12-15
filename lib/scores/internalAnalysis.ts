@@ -13,7 +13,6 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -126,11 +125,18 @@ export async function getInternalAnalysis(
     }
   }
 
-  // 3. 교과군별 GPA 계산
-  // subject_group_id를 통해 subject_groups 조인 필요
+  // 3. 교과군별 GPA 계산 (Relational Query로 한 번에 조인)
   let subjectQuery = supabase
     .from("student_internal_scores")
-    .select("rank_grade, credit_hours, subject_group_id")
+    .select(`
+      rank_grade,
+      credit_hours,
+      subject_group_id,
+      subject_group:subject_groups (
+        id,
+        name
+      )
+    `)
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .not("rank_grade", "is", null)
@@ -149,56 +155,29 @@ export async function getInternalAnalysis(
   // 교과군별 GPA 계산
   const subjectStrength: Record<string, number> = {};
   if (subjectData && subjectData.length > 0) {
-    // subject_group_id 목록 추출
-    const subjectGroupIds = subjectData
-      .map((row) => row.subject_group_id)
-      .filter((id): id is string => id != null);
+    // 교과군별로 그룹화 (조인 결과에서 직접 subject_group.name 사용)
+    const subjectGroups: Record<string, { totalGradeCredit: number; totalCredit: number }> = {};
 
-    if (subjectGroupIds.length > 0) {
-      // subject_groups 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
-      const adminClient = createSupabaseAdminClient();
-      const groupsClient = adminClient || supabase;
+    for (const row of subjectData) {
+      // Relational Query 결과에서 subject_group.name 추출
+      const subjectGroupName = (row as any).subject_group?.name;
+      if (!subjectGroupName) continue;
 
-      const { data: subjectGroupsData, error: sgError } = await groupsClient
-        .from("subject_groups")
-        .select("id, name")
-        .in("id", subjectGroupIds);
+      const rankGrade = Number(row.rank_grade) || 0;
+      const creditHours = Number(row.credit_hours) || 0;
 
-      if (sgError) {
-        console.error("[scores/internalAnalysis] 교과 그룹 정보 조회 실패", sgError);
-      } else if (subjectGroupsData) {
-        // subject_group_id → 교과군명 매핑 생성
-        const subjectGroupMap = new Map(
-          subjectGroupsData.map((sg) => [sg.id, sg.name])
-        );
+      if (!subjectGroups[subjectGroupName]) {
+        subjectGroups[subjectGroupName] = { totalGradeCredit: 0, totalCredit: 0 };
+      }
 
-        // 교과군별로 그룹화
-        const subjectGroups: Record<string, { totalGradeCredit: number; totalCredit: number }> = {};
+      subjectGroups[subjectGroupName].totalGradeCredit += rankGrade * creditHours;
+      subjectGroups[subjectGroupName].totalCredit += creditHours;
+    }
 
-        for (const row of subjectData) {
-          const subjectGroupId = row.subject_group_id;
-          if (!subjectGroupId) continue;
-
-          const subjectGroupName = subjectGroupMap.get(subjectGroupId);
-          if (!subjectGroupName) continue;
-
-          const rankGrade = Number(row.rank_grade) || 0;
-          const creditHours = Number(row.credit_hours) || 0;
-
-          if (!subjectGroups[subjectGroupName]) {
-            subjectGroups[subjectGroupName] = { totalGradeCredit: 0, totalCredit: 0 };
-          }
-
-          subjectGroups[subjectGroupName].totalGradeCredit += rankGrade * creditHours;
-          subjectGroups[subjectGroupName].totalCredit += creditHours;
-        }
-
-        // 교과군별 GPA 계산
-        for (const [name, { totalGradeCredit, totalCredit }] of Object.entries(subjectGroups)) {
-          if (totalCredit > 0) {
-            subjectStrength[name] = totalGradeCredit / totalCredit;
-          }
-        }
+    // 교과군별 GPA 계산
+    for (const [name, { totalGradeCredit, totalCredit }] of Object.entries(subjectGroups)) {
+      if (totalCredit > 0) {
+        subjectStrength[name] = totalGradeCredit / totalCredit;
       }
     }
   }

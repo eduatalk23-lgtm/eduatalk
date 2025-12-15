@@ -1,111 +1,17 @@
-import Link from "next/link";
+/**
+ * @deprecated 이 페이지는 레거시 내신 성적 대시보드입니다.
+ * 새로운 통합 성적 대시보드(/scores/dashboard/unified)로 리다이렉트됩니다.
+ * 
+ * 레거시 컴포넌트들:
+ * - SemesterChartsSection, SubjectTrendSection
+ * - SchoolSummarySection, SchoolWeakSubjectSection, SchoolInsightPanel
+ * 
+ * 새로운 대시보드는 /api/students/[id]/score-dashboard API를 사용합니다.
+ */
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ScoreTypeTabs } from "../../_components/ScoreTypeTabs";
-import { DashboardSubTabs } from "../_components/DashboardSubTabs";
-import { fetchSchoolScores } from "../_utils/scoreQueries";
-import { SemesterChartsSection } from "../_components/SemesterChartsSection";
-import { SubjectTrendSection } from "../_components/SubjectTrendSection";
-import { Card } from "@/components/molecules/Card";
-import { EmptyState } from "@/components/molecules/EmptyState";
-import { SchoolSummarySection } from "./_components/SchoolSummarySection";
-import { SchoolWeakSubjectSection } from "./_components/SchoolWeakSubjectSection";
-import { SchoolInsightPanel } from "./_components/SchoolInsightPanel";
-import { SchoolDetailedMetrics } from "./_components/SchoolDetailedMetrics";
-import { SchoolHeatmapChart } from "./_components/SchoolHeatmapChart";
-import { SchoolGradeDistributionChart } from "./_components/SchoolGradeDistributionChart";
-import { getContainerClass } from "@/lib/constants/layout";
-import { PageHeader } from "@/components/layout/PageHeader";
 
 export default async function SchoolScoresDashboardPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
-  // 내신 성적 조회
-  const schoolScores = await fetchSchoolScores(user.id);
-
-  return (
-    <section className={getContainerClass("DASHBOARD", "md")}>
-      <div className="flex flex-col gap-6">
-        <PageHeader
-          title="내신 성적 대시보드"
-          description="내신 성적을 학년·학기별로 분석하고 시각화합니다."
-        />
-
-        {/* 탭 네비게이션 */}
-        <div className="flex flex-col gap-4">
-        <ScoreTypeTabs />
-        <DashboardSubTabs />
-      </div>
-
-      {schoolScores.length === 0 ? (
-        <EmptyState
-          icon="📚"
-          title="등록된 내신 성적이 없습니다"
-          description="내신 성적을 등록하면 대시보드가 표시됩니다."
-          actionLabel="내신 성적 입력"
-          actionHref="/scores/school/1/1"
-        />
-      ) : (
-        <div className="flex flex-col gap-8">
-          {/* 내신 성적 요약 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">내신 성적 요약</h2>
-            <SchoolSummarySection schoolScores={schoolScores} />
-          </div>
-
-          {/* 내신 학기별 변화 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">학기별 변화</h2>
-            <Card>
-              <SemesterChartsSection schoolScores={schoolScores} />
-            </Card>
-          </div>
-
-          {/* 교과별 성적 트렌드 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">교과별 성적 변화</h2>
-            <Card>
-              <SubjectTrendSection schoolScores={schoolScores} />
-            </Card>
-          </div>
-
-          {/* 상세 지표 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">상세 지표</h2>
-            <SchoolDetailedMetrics schoolScores={schoolScores} />
-          </div>
-
-          {/* 히트맵 및 분포 차트 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">히트맵 및 분포 분석</h2>
-            <Card>
-              <SchoolHeatmapChart schoolScores={schoolScores} />
-            </Card>
-            <Card>
-              <SchoolGradeDistributionChart schoolScores={schoolScores} />
-            </Card>
-          </div>
-
-          {/* 취약 과목 분석 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">취약 과목 분석</h2>
-            <SchoolWeakSubjectSection schoolScores={schoolScores} />
-          </div>
-
-          {/* 학습 인사이트 */}
-          <div className="flex flex-col gap-4">
-            <h2 className="text-h2 text-gray-900">학습 인사이트</h2>
-            <SchoolInsightPanel schoolScores={schoolScores} />
-          </div>
-        </div>
-      )}
-      </div>
-    </section>
-  );
+  // 통합 성적 대시보드로 리다이렉트
+  redirect("/scores/dashboard/unified");
 }
 

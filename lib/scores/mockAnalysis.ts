@@ -9,7 +9,6 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -140,13 +139,25 @@ export async function getMockAnalysis(
   const examDate = latestExam.exam_date;
   const examTitle = latestExam.exam_title || "";
 
-  // 2. 해당 시험의 과목별 성적 조회
-  // 같은 exam_date와 exam_title의 시험을 그룹화
-  // student_mock_scores → subjects → subject_groups 순으로 조인
-  // Supabase의 중첩 조인이 제대로 작동하지 않을 수 있으므로, 두 단계로 나누어 조회
+  // 2. 해당 시험의 과목별 성적 조회 (Relational Query로 한 번에 조인)
+  // student_mock_scores → subjects → subject_groups 순으로 중첩 조인
   let query = supabase
     .from("student_mock_scores")
-    .select("percentile, standard_score, grade_score, subject_id")
+    .select(`
+      percentile,
+      standard_score,
+      grade_score,
+      subject_id,
+      subject:subjects (
+        id,
+        name,
+        subject_group_id,
+        subject_group:subject_groups (
+          id,
+          name
+        )
+      )
+    `)
     .eq("tenant_id", tenantId)
     .eq("student_id", studentId)
     .eq("exam_date", examDate)
@@ -188,20 +199,8 @@ export async function getMockAnalysis(
     };
   }
 
-  console.log(
-    "[scores/mockAnalysis] 조회된 모의고사 성적:",
-    JSON.stringify(mockScores, null, 2)
-  );
-
-  // subject_id 목록 추출
-  const subjectIds = mockScores
-    .map((score) => score.subject_id)
-    .filter((id): id is string => id != null);
-
-  console.log("[scores/mockAnalysis] 추출된 subject_ids:", subjectIds);
-
-  if (subjectIds.length === 0) {
-    console.warn("[scores/mockAnalysis] subject_id가 없습니다");
+  if (!mockScores || mockScores.length === 0) {
+    console.warn("[scores/mockAnalysis] 모의고사 성적 데이터가 없습니다");
     return {
       recentExam: {
         examDate: examDate || "",
@@ -213,114 +212,13 @@ export async function getMockAnalysis(
     };
   }
 
-  // subjects 조회 (subject_group_id 포함)
-  // 주의: subjects 테이블은 전역 관리이므로 tenant_id 컬럼이 없음
-  // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
-  const adminClient = createSupabaseAdminClient();
-  const subjectsClient = adminClient || supabase;
-
-  const { data: subjectsData, error: subjectsError } = await subjectsClient
-    .from("subjects")
-    .select("id, subject_group_id")
-    .in("id", subjectIds);
-
-  console.log(
-    "[scores/mockAnalysis] 조회된 subjects 데이터:",
-    JSON.stringify(subjectsData, null, 2)
-  );
-
-  if (subjectsError) {
-    console.error("[scores/mockAnalysis] 과목 정보 조회 실패", subjectsError);
-    return {
-      recentExam: {
-        examDate: examDate || "",
-        examTitle,
-      },
-      avgPercentile: null,
-      totalStdScore: null,
-      best3GradeSum: null,
-    };
-  }
-
-  if (!subjectsData || subjectsData.length === 0) {
-    console.warn("[scores/mockAnalysis] subjects 데이터가 없습니다");
-    return {
-      recentExam: {
-        examDate: examDate || "",
-        examTitle,
-      },
-      avgPercentile: null,
-      totalStdScore: null,
-      best3GradeSum: null,
-    };
-  }
-
-  // subject_group_id 목록 추출
-  const subjectGroupIds = subjectsData
-    .map((subject) => subject.subject_group_id)
-    .filter((id): id is string => id != null);
-
-  if (subjectGroupIds.length === 0) {
-    console.warn("[scores/mockAnalysis] subject_group_id가 없습니다");
-    return {
-      recentExam: {
-        examDate: examDate || "",
-        examTitle,
-      },
-      avgPercentile: null,
-      totalStdScore: null,
-      best3GradeSum: null,
-    };
-  }
-
-  // subject_groups 조회
-  // 주의: subject_groups 테이블은 전역 관리이므로 tenant_id 컬럼이 없음
-  // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
-  const { data: subjectGroupsData, error: sgError } = await subjectsClient
-    .from("subject_groups")
-    .select("id, name")
-    .in("id", subjectGroupIds);
-
-  if (sgError) {
-    console.error("[scores/mockAnalysis] 교과 그룹 정보 조회 실패", sgError);
-    return {
-      recentExam: {
-        examDate: examDate || "",
-        examTitle,
-      },
-      avgPercentile: null,
-      totalStdScore: null,
-      best3GradeSum: null,
-    };
-  }
-
-  // subject_id → subject_group_id → subject_group_name 매핑 생성
-  const subjectGroupMap = new Map(
-    (subjectGroupsData || []).map((sg) => [sg.id, sg.name])
-  );
-  const subjectToGroupMap = new Map(
-    subjectsData.map((s) => [s.id, s.subject_group_id])
-  );
-
-  const subjectMap = new Map<string, string>();
-  for (const [subjectId, subjectGroupId] of subjectToGroupMap.entries()) {
-    const subjectGroupName = subjectGroupId
-      ? subjectGroupMap.get(subjectGroupId)
-      : null;
-    if (subjectGroupName) {
-      subjectMap.set(subjectId, subjectGroupName);
-    }
-  }
-
-  console.log(
-    "[scores/mockAnalysis] 생성된 subjectMap:",
-    Array.from(subjectMap.entries())
-  );
-
-  // 데이터 변환
+  // 데이터 변환 (조인 결과에서 직접 subject_group_name 추출)
   const rows: MockRow[] = mockScores
-    .map((score) => {
-      const subjectGroupName = subjectMap.get(score.subject_id) || "";
+    .map((score: any) => {
+      // Relational Query 결과에서 subject_group_name 추출
+      const subjectGroupName =
+        score.subject?.subject_group?.name || "";
+      
       return {
         subject_group_name: subjectGroupName,
         percentile: score.percentile != null ? Number(score.percentile) : null,

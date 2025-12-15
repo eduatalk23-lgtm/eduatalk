@@ -8,6 +8,11 @@ import {
 } from "@/lib/metrics/studyTime";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
+import {
+  getTodayInTimezone,
+  getStartOfDayUTC,
+  getEndOfDayUTC,
+} from "@/lib/utils/dateUtils";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -34,15 +39,12 @@ export async function calculateTodayProgress(
   excludeCampMode: boolean = false
 ): Promise<TodayProgress> {
   try {
-    // targetDate가 없으면 오늘 날짜 사용
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayDate = targetDate || today.toISOString().slice(0, 10);
+    // targetDate가 없으면 오늘 날짜 사용 (KST 기준)
+    const todayDate = targetDate || getTodayInTimezone("Asia/Seoul");
 
-    // 계산할 날짜 설정
-    const target = new Date(todayDate + "T00:00:00");
-    const targetEnd = new Date(target);
-    targetEnd.setHours(23, 59, 59, 999);
+    // 계산할 날짜 설정 (KST 기준으로 하루의 시작과 끝을 UTC로 변환)
+    const target = getStartOfDayUTC(todayDate, "Asia/Seoul");
+    const targetEnd = getEndOfDayUTC(todayDate, "Asia/Seoul");
     const targetEndStr = targetEnd.toISOString();
 
     // 1. 해당 날짜의 플랜 조회
@@ -78,7 +80,7 @@ export async function calculateTodayProgress(
       isCompletedPlan(plan)
     ).length;
 
-    // 2. 해당 날짜의 세션 조회 및 학습 시간 계산
+    // 2. 해당 날짜의 세션 조회 및 학습 시간 계산 (UTC 범위 사용)
     const sessions = await getSessionsInRange({
       studentId,
       tenantId,

@@ -1,4 +1,10 @@
 import { getSessionsInRange } from "@/lib/data/studentSessions";
+import {
+  getTodayInTimezone,
+  getStartOfDayUTC,
+  getEndOfDayUTC,
+  formatDateInTimezone,
+} from "@/lib/utils/dateUtils";
 
 /**
  * 연속 학습일 계산
@@ -9,30 +15,30 @@ export async function calculateStreak(
   tenantId?: string | null
 ): Promise<number> {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // 오늘 날짜를 KST 기준으로 가져오기
+    const todayStr = getTodayInTimezone("Asia/Seoul");
     
-    // 최근 30일 범위 계산
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    // 최근 30일 범위 계산 (KST 기준)
+    const todayDate = new Date(todayStr + "T00:00:00");
+    const thirtyDaysAgoDate = new Date(todayDate);
+    thirtyDaysAgoDate.setDate(todayDate.getDate() - 30);
+    const thirtyDaysAgoStr = formatDateInTimezone(thirtyDaysAgoDate, "Asia/Seoul");
 
-    const startDate = thirtyDaysAgo.toISOString();
-    const endDate = new Date(today);
-    endDate.setHours(23, 59, 59, 999);
-    const endDateStr = endDate.toISOString();
+    // UTC 범위로 변환
+    const startDate = getStartOfDayUTC(thirtyDaysAgoStr, "Asia/Seoul");
+    const endDate = getEndOfDayUTC(todayStr, "Asia/Seoul");
 
-    // 최근 30일 세션 조회
+    // 최근 30일 세션 조회 (UTC 범위 사용)
     const sessions = await getSessionsInRange({
       studentId,
       tenantId,
       dateRange: {
-        start: startDate,
-        end: endDateStr,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
       },
     });
 
-    // 날짜별 학습 시간 집계 (분 단위)
+    // 날짜별 학습 시간 집계 (분 단위, KST 기준)
     const dailyMinutes = new Map<string, number>();
 
     sessions.forEach((session) => {
@@ -40,23 +46,23 @@ export async function calculateStreak(
         return;
       }
 
+      // 세션 시작 시간을 KST 기준 날짜로 변환
       const sessionDate = new Date(session.started_at);
-      sessionDate.setHours(0, 0, 0, 0);
-      const dateKey = sessionDate.toISOString().slice(0, 10);
+      const dateKey = formatDateInTimezone(sessionDate, "Asia/Seoul");
 
       const minutes = Math.floor(session.duration_seconds / 60);
       const currentMinutes = dailyMinutes.get(dateKey) || 0;
       dailyMinutes.set(dateKey, currentMinutes + minutes);
     });
 
-    // 연속 학습일 계산 (오늘부터 역순으로)
+    // 연속 학습일 계산 (오늘부터 역순으로, KST 기준)
     let streak = 0;
-    const currentDate = new Date(today);
+    const todayDateObj = new Date(todayStr + "T00:00:00");
 
     for (let i = 0; i < 30; i++) {
-      const checkDate = new Date(currentDate);
-      checkDate.setDate(currentDate.getDate() - i);
-      const dateKey = checkDate.toISOString().slice(0, 10);
+      const checkDate = new Date(todayDateObj);
+      checkDate.setDate(todayDateObj.getDate() - i);
+      const dateKey = formatDateInTimezone(checkDate, "Asia/Seoul");
 
       const minutes = dailyMinutes.get(dateKey) || 0;
 

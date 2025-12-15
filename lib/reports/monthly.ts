@@ -498,59 +498,17 @@ export async function getMonthlyWeakSubjectTrend(
     const studyTime = await getMonthlyStudyTime(supabase, studentId, monthStart, monthEnd);
 
     // 과목별 성적 변화 계산
-    const monthStartStr = monthStart.toISOString().slice(0, 10);
-    const monthEndStr = monthEnd.toISOString().slice(0, 10);
-    const lastMonthStart = new Date(monthStart);
-    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
-    const lastMonthEnd = new Date(monthEnd);
-    lastMonthEnd.setMonth(lastMonthEnd.getMonth() - 1);
+    // ⚠️ DEPRECATED: student_scores 테이블은 더 이상 존재하지 않습니다.
+    // student_internal_scores와 student_mock_scores를 조합하여 사용해야 합니다.
+    // 현재는 성적 변화 계산을 건너뛰고 riskMap만 사용합니다.
+    console.warn(
+      "[DEPRECATED] getMonthlyWeakSubjectTrend의 student_scores 참조는 제거되었습니다. " +
+      "student_internal_scores와 student_mock_scores를 조합하여 사용하도록 수정이 필요합니다."
+    );
 
-    const selectScores = () =>
-      supabase
-        .from("student_scores")
-        .select("subject_type,grade,test_date")
-        .order("test_date", { ascending: false });
-
-    let { data: scores, error } = await selectScores()
-      .eq("student_id", studentId)
-      .gte("test_date", lastMonthStart.toISOString().slice(0, 10))
-      .lte("test_date", monthEndStr);
-
-    if (error && error.code === "42703") {
-      ({ data: scores, error } = await selectScores()
-        .gte("test_date", lastMonthStart.toISOString().slice(0, 10))
-        .lte("test_date", monthEndStr));
-    }
-
-    const scoreRows = (scores as Array<{
-      subject_type?: string | null;
-      grade?: number | null;
-      test_date?: string | null;
-    }> | null) ?? [];
-
-    // 과목별 최신 등급
+    // 과목별 최신 등급 (현재는 빈 Map으로 설정)
+    // TODO: student_internal_scores와 student_mock_scores를 조합하여 과목별 등급 계산
     const subjectGrades = new Map<string, { thisMonth: number | null; lastMonth: number | null }>();
-    scoreRows.forEach((s) => {
-      if (!s.subject_type) return;
-      const subject = s.subject_type;
-      const grade = s.grade ?? null;
-      const testDate = s.test_date ?? "";
-
-      if (!subjectGrades.has(subject)) {
-        subjectGrades.set(subject, { thisMonth: null, lastMonth: null });
-      }
-
-      const data = subjectGrades.get(subject)!;
-      if (testDate >= monthStartStr && testDate <= monthEndStr) {
-        if (data.thisMonth === null || grade !== null) {
-          data.thisMonth = grade;
-        }
-      } else if (testDate >= lastMonthStart.toISOString().slice(0, 10) && testDate < monthStartStr) {
-        if (data.lastMonth === null || grade !== null) {
-          data.lastMonth = grade;
-        }
-      }
-    });
 
     // 취약 과목 리스트 생성
     const subjects: MonthlyWeakSubjectTrend["subjects"] = Array.from(riskMap.entries())

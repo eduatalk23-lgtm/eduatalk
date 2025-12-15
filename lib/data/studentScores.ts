@@ -94,7 +94,15 @@ export type MockScore = {
 };
 
 /**
- * 통합 성적 목록 조회 (student_scores)
+ * 통합 성적 목록 조회 (레거시)
+ *
+ * ⚠️ 이 함수는 더 이상 존재하지 않는 student_scores 테이블을 참조합니다.
+ * 
+ * @deprecated getInternalScores와 getMockScores를 별도로 사용하거나, 
+ * 통합 대시보드의 경우 fetchScoreDashboard API를 사용하세요.
+ * 
+ * 이 함수는 하위 호환성을 위해 유지되지만, student_internal_scores와 
+ * student_mock_scores를 조합하여 반환합니다.
  */
 export async function getStudentScores(
   studentId: string,
@@ -105,62 +113,17 @@ export async function getStudentScores(
     course?: string;
   }
 ): Promise<StudentScore[]> {
-  const supabase = await createSupabaseServerClient();
+  console.warn(
+    "[DEPRECATED] getStudentScores는 더 이상 사용되지 않습니다. getInternalScores, getMockScores 또는 fetchScoreDashboard API를 사용하세요."
+  );
 
-  const selectScores = () =>
-    supabase.from("student_scores").select("*").eq("student_id", studentId);
-
-  let query = selectScores();
-
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
-
-  if (filters?.subjectType) {
-    query = query.eq("subject_type", filters.subjectType);
-  }
-
-  if (filters?.semester) {
-    query = query.eq("semester", filters.semester);
-  }
-
-  if (filters?.course) {
-    query = query.eq("course", filters.course);
-  }
-
-  query = query
-    .order("test_date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  let { data, error } = await query;
-
-  if (error && error.code === "42703") {
-    // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const fallbackQuery = supabase.from("student_scores").select("*");
-
-    if (filters?.subjectType) {
-      fallbackQuery.eq("subject_type", filters.subjectType);
-    }
-
-    if (filters?.semester) {
-      fallbackQuery.eq("semester", filters.semester);
-    }
-
-    if (filters?.course) {
-      fallbackQuery.eq("course", filters.course);
-    }
-
-    ({ data, error } = await fallbackQuery
-      .order("test_date", { ascending: false })
-      .order("created_at", { ascending: false }));
-  }
-
-  if (error) {
-    console.error("[data/studentScores] 통합 성적 조회 실패", error);
-    return [];
-  }
-
-  return (data as StudentScore[] | null) ?? [];
+  // student_scores 테이블이 더 이상 존재하지 않으므로 빈 배열 반환
+  // 실제로는 getInternalScores와 getMockScores를 조합하여 사용해야 함
+  console.warn(
+    "[DEPRECATED] student_scores 테이블은 student_internal_scores와 student_mock_scores로 분리되었습니다."
+  );
+  
+  return [];
 }
 
 /**

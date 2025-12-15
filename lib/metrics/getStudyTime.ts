@@ -1,5 +1,10 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
+import {
+  getStartOfDayUTC,
+  getEndOfDayUTC,
+  formatDateInTimezone,
+} from "@/lib/utils/dateUtils";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -22,21 +27,38 @@ export async function getStudyTime(
   weekEnd: Date
 ): Promise<StudyTimeMetrics> {
   try {
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+    // weekStart와 weekEnd를 KST 기준으로 해석하여 UTC 범위로 변환
+    const weekStartStr = formatDateInTimezone(weekStart, "Asia/Seoul");
+    const weekEndStr = formatDateInTimezone(weekEnd, "Asia/Seoul");
 
-    // 지난 주 범위 계산
+    // 지난 주 범위 계산 (KST 기준)
     const lastWeekStart = new Date(weekStart);
     lastWeekStart.setDate(weekStart.getDate() - 7);
     const lastWeekEnd = new Date(weekEnd);
     lastWeekEnd.setDate(weekEnd.getDate() - 7);
-    const lastWeekStartStr = lastWeekStart.toISOString().slice(0, 10);
-    const lastWeekEndStr = lastWeekEnd.toISOString().slice(0, 10);
+    const lastWeekStartStr = formatDateInTimezone(lastWeekStart, "Asia/Seoul");
+    const lastWeekEndStr = formatDateInTimezone(lastWeekEnd, "Asia/Seoul");
 
-    // 이번 주 및 지난 주 세션 조회
+    // UTC 범위로 변환
+    const weekStartUTC = getStartOfDayUTC(weekStartStr, "Asia/Seoul");
+    const weekEndUTC = getEndOfDayUTC(weekEndStr, "Asia/Seoul");
+    const lastWeekStartUTC = getStartOfDayUTC(lastWeekStartStr, "Asia/Seoul");
+    const lastWeekEndUTC = getEndOfDayUTC(lastWeekEndStr, "Asia/Seoul");
+
+    // 이번 주 및 지난 주 세션 조회 (UTC 범위 사용)
     const [thisWeekSessions, lastWeekSessions] = await Promise.all([
-      getSessionsByDateRange(supabase, studentId, weekStartStr, weekEndStr),
-      getSessionsByDateRange(supabase, studentId, lastWeekStartStr, lastWeekEndStr),
+      getSessionsByDateRange(
+        supabase,
+        studentId,
+        weekStartUTC.toISOString().slice(0, 10),
+        weekEndUTC.toISOString().slice(0, 10)
+      ),
+      getSessionsByDateRange(
+        supabase,
+        studentId,
+        lastWeekStartUTC.toISOString().slice(0, 10),
+        lastWeekEndUTC.toISOString().slice(0, 10)
+      ),
     ]);
 
     // 학습시간 계산 (초 단위)
