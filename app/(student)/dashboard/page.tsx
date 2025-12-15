@@ -11,6 +11,8 @@ import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { perfTime } from "@/lib/utils/perfLog";
 import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
+import { bgSurface, textPrimary, textSecondary, borderDefault, getGradientCardClasses, type GradientColor } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type StudentRow = {
   id: string;
@@ -62,23 +64,23 @@ export default async function DashboardPage() {
       <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6 md:gap-8">
           {/* 상단: 학생 인사 + 요약 */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 md:p-8 shadow-md">
+          <div className={cn("rounded-2xl border p-6 md:p-8 shadow-md", bgSurface, borderDefault)}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-h1 text-gray-900">
+                  <h1 className={cn("text-h1", textPrimary)}>
                   안녕하세요, {studentName}님
                 </h1>
-                  <p className="text-sm md:text-base text-gray-600">
+                  <p className={cn("text-sm md:text-base", textSecondary)}>
                   오늘도 열심히 학습하시는 모습이 멋집니다!
                 </p>
                 </div>
 
                 <div className="flex items-baseline gap-3 pt-2">
-                  <span className="text-4xl md:text-5xl font-bold text-indigo-600">
+                  <span className="text-4xl md:text-5xl font-bold text-indigo-600 dark:text-indigo-400">
                     {todayProgress}%
                   </span>
-                  <span className="text-base md:text-lg text-gray-600">
+                  <span className={cn("text-base md:text-lg", textSecondary)}>
                     오늘 학습 진행률
                   </span>
                 </div>
@@ -91,7 +93,7 @@ export default async function DashboardPage() {
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">
-            <h2 className="text-h2 text-gray-900">주요 기능</h2>
+            <h2 className={cn("text-h2", textPrimary)}>주요 기능</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
               {getDashboardCategories().map((category) => {
                 let description = "";
@@ -184,31 +186,15 @@ function QuickActionCard({
   title: string;
   description: string;
   icon: string;
-  color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal" | "cyan" | "amber" | "pink" | "violet" | "emerald" | "sky";
+  color: GradientColor;
 }) {
-  const colorClasses = {
-    indigo:
-      "border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 hover:from-indigo-100 hover:to-indigo-200/50 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/30 text-indigo-900 dark:text-indigo-200 hover:shadow-lg",
-    blue: "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 text-blue-900 dark:text-blue-200 hover:shadow-lg",
-    purple:
-      "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200/50 dark:hover:from-purple-800/40 dark:hover:to-purple-700/30 text-purple-900 dark:text-purple-200 hover:shadow-lg",
-    orange:
-      "border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200/50 dark:hover:from-orange-800/40 dark:hover:to-orange-700/30 text-orange-900 dark:text-orange-200 hover:shadow-lg",
-    green: "border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 hover:from-green-100 hover:to-green-200/50 dark:hover:from-green-800/40 dark:hover:to-green-700/30 text-green-900 dark:text-green-200 hover:shadow-lg",
-    red: "border-red-200 dark:border-red-800 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 hover:from-red-100 hover:to-red-200/50 dark:hover:from-red-800/40 dark:hover:to-red-700/30 text-red-900 dark:text-red-200 hover:shadow-lg",
-    teal: "border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-800/20 hover:from-teal-100 hover:to-teal-200/50 dark:hover:from-teal-800/40 dark:hover:to-teal-700/30 text-teal-900 dark:text-teal-200 hover:shadow-lg",
-    cyan: "border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/30 dark:to-cyan-800/20 hover:from-cyan-100 hover:to-cyan-200/50 dark:hover:from-cyan-800/40 dark:hover:to-cyan-700/30 text-cyan-900 dark:text-cyan-200 hover:shadow-lg",
-    amber: "border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 hover:from-amber-100 hover:to-amber-200/50 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 text-amber-900 dark:text-amber-200 hover:shadow-lg",
-    pink: "border-pink-200 dark:border-pink-800 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-900/30 dark:to-pink-800/20 hover:from-pink-100 hover:to-pink-200/50 dark:hover:from-pink-800/40 dark:hover:to-pink-700/30 text-pink-900 dark:text-pink-200 hover:shadow-lg",
-    violet: "border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/30 dark:to-violet-800/20 hover:from-violet-100 hover:to-violet-200/50 dark:hover:from-violet-800/40 dark:hover:to-violet-700/30 text-violet-900 dark:text-violet-200 hover:shadow-lg",
-    emerald: "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:to-emerald-800/20 hover:from-emerald-100 hover:to-emerald-200/50 dark:hover:from-emerald-800/40 dark:hover:to-emerald-700/30 text-emerald-900 dark:text-emerald-200 hover:shadow-lg",
-    sky: "border-sky-200 dark:border-sky-800 bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/30 dark:to-sky-800/20 hover:from-sky-100 hover:to-sky-200/50 dark:hover:from-sky-800/40 dark:hover:to-sky-700/30 text-sky-900 dark:text-sky-200 hover:shadow-lg",
-  };
-
   return (
     <Link
       href={href}
-      className={`h-full rounded-xl border-2 p-5 md:p-6 transition-all duration-200 hover:scale-[1.02] flex flex-col ${colorClasses[color]}`}
+      className={cn(
+        "h-full rounded-xl border-2 p-5 md:p-6 transition-all duration-200 hover:scale-[1.02] flex flex-col",
+        getGradientCardClasses(color)
+      )}
     >
       <div className="flex flex-col gap-3 flex-1">
         <div className="flex items-start gap-3 md:gap-4">

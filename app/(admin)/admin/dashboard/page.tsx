@@ -487,10 +487,10 @@ export default async function AdminDashboardPage() {
 
         {/* KPI 카드 */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow", bgSurface, borderDefault)}>
             <div className="flex flex-col gap-1">
-              <div className="text-sm font-medium text-gray-500 dark:text-gray-400">전체 학생 수</div>
-              <div className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">{studentStats.total}</div>
+              <div className={cn("text-sm font-medium", textMuted)}>전체 학생 수</div>
+              <div className={cn("text-3xl md:text-4xl font-bold", textPrimary)}>{studentStats.total}</div>
             </div>
           </div>
           <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -562,26 +562,31 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 이번주 플랜 실행률 Top5 */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
+        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">이번주 플랜 실행률 Top5</h2>
+            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>이번주 플랜 실행률 Top5</h2>
             {topPlanCompletion.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
+              <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {topPlanCompletion.map((student, index) => (
                   <Link
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
+                      bgSurface,
+                      borderDefault,
+                      "hover:bg-gray-50 dark:hover:bg-gray-700"
+                    )}
                   >
                     <div className="flex items-center gap-3">
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                         {index + 1}
                       </span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{student.name}</span>
+                      <span className={cn("font-medium", textPrimary)}>{student.name}</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    <span className={cn("text-sm font-semibold", textPrimary)}>
                       {student.completionRate}%
                     </span>
                   </Link>

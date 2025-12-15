@@ -12,6 +12,8 @@ import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
 import { getDayTypeColor } from "@/lib/constants/colors";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+import { textPrimary, textSecondary, textMuted, bgSurface, bgPage, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 // 큰 모달 컴포넌트는 동적 import로 코드 스플리팅
 const DayTimelineModal = dynamic(
@@ -150,7 +152,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
         <div className="grid grid-cols-7 gap-2">
           {weekdays.map((day, index) => (
             <div key={index} className="text-center">
-              <div className="text-sm font-semibold text-gray-700">
+              <div className={cn("text-sm font-semibold", textSecondary)}>
                 {day}
               </div>
             </div>
@@ -216,11 +218,11 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
 
                 {/* 플랜 및 학원일정 통계 */}
                 {(dayPlans.length > 0 || dayAcademySchedules.length > 0) && (
-                  <div className="rounded-lg bg-white/60 p-2">
+                  <div className={cn("rounded-lg p-2 bg-white/60 dark:bg-gray-800/60")}>
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div className="text-center">
-                        <div className="font-bold text-gray-900">{dayPlans.length}</div>
-                        <div className="text-gray-500">플랜</div>
+                        <div className={cn("font-bold", textPrimary)}>{dayPlans.length}</div>
+                        <div className={textMuted}>플랜</div>
                       </div>
                       <div className="text-center">
                         <div className="font-bold text-green-600">
@@ -279,7 +281,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                           <div className="flex items-center gap-1">
                             <span className="text-sm">🏫</span>
                             <div className="flex-1">
-                              <div className="font-medium text-gray-900">
+                              <div className={cn("font-medium", textPrimary)}>
                                 {slot.academy.academy_name || "학원"}
                               </div>
                               <div className="text-gray-600">
@@ -315,8 +317,8 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                             const cardBorderClass = isCompleted
                               ? "border-green-300 bg-green-50"
                               : isActive
-                              ? "border-blue-300 bg-blue-50"
-                              : "border-gray-200 bg-white";
+                              ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30"
+                              : cn(bgSurface, borderDefault);
 
                             // 연결된 플랜인지 확인
                             const isConnected = connectedPlanIds.has(plan.id);
@@ -329,7 +331,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                                 <div className="flex flex-col gap-1">
                                   {/* 1행: 플랜 시작시간 */}
                                   {plan.start_time && (
-                                    <div className="font-semibold text-gray-900">
+                                    <div className={cn("font-semibold", textPrimary)}>
                                       {plan.start_time}
                                     </div>
                                   )}
@@ -337,7 +339,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                                   <div className="flex items-center gap-1">
                                   <span className="text-sm">{contentTypeIcon}</span>
                                   {plan.contentSubjectCategory && (
-                                    <span className="font-medium text-gray-700">
+                                    <span className={cn("font-medium", textSecondary)}>
                                       {plan.contentSubjectCategory}
                                     </span>
                                   )}
@@ -372,9 +374,9 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                         items.push(
                           <div
                             key={`${dateStr}-study-empty-${slotIndex}`}
-                            className="rounded border border-gray-200 bg-gray-50 p-2 text-xs"
+                            className={cn("rounded border p-2 text-xs", bgPage, borderDefault)}
                           >
-                            <div className="text-center text-gray-400">
+                            <div className={cn("text-center", textMuted)}>
                               {slot.start} ~ {slot.end} 학습시간
                             </div>
                           </div>

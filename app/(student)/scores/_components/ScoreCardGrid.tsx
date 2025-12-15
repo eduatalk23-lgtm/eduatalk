@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/molecules/EmptyState";
 import { Plus, Filter, ArrowUpDown, FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { VirtualizedList } from "@/lib/components/VirtualizedList";
+import { bgSurface, textPrimary, textSecondary, textMuted, borderDefault, bgPage } from "@/lib/utils/darkMode";
 
 type ScoreCardGridProps = {
   initialGrade?: number;
@@ -204,7 +205,7 @@ function ScoreCardGridComponent({
   return (
     <div className="flex flex-col gap-4">
       {/* 필터 및 정렬 바 */}
-      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className={cn("flex flex-col gap-3 rounded-lg border p-4", bgSurface, borderDefault)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
@@ -212,8 +213,8 @@ function ScoreCardGridComponent({
               className={cn(
                 "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
                 showFilters
-                  ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  ? "border-indigo-500 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                  : cn(bgSurface, borderDefault, textSecondary, "hover:bg-gray-50 dark:hover:bg-gray-800")
               )}
             >
               <Filter className="h-4 w-4" />
@@ -230,7 +231,7 @@ function ScoreCardGridComponent({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
+            <span className={cn("text-sm", textSecondary)}>
               총 {filteredAndSortedScores.length}개
             </span>
           </div>
@@ -238,16 +239,21 @@ function ScoreCardGridComponent({
 
         {/* 필터 패널 */}
         {showFilters && (
-          <div className="grid gap-4 border-t border-gray-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className={cn("grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5", borderDefault)}>
             {/* 학년 필터 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
+              <label className={cn("block text-xs font-medium", textSecondary)}>
                 학년
               </label>
               <select
                 value={filterGrade}
                 onChange={(e) => setFilterGrade(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
+                  bgSurface,
+                  borderDefault,
+                  textPrimary
+                )}
               >
                 <option value="all">전체</option>
                 {availableGrades.map((grade) => (
@@ -260,13 +266,18 @@ function ScoreCardGridComponent({
 
             {/* 학기 필터 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
+              <label className={cn("block text-xs font-medium", textSecondary)}>
                 학기
               </label>
               <select
                 value={filterSemester}
                 onChange={(e) => setFilterSemester(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
+                  bgSurface,
+                  borderDefault,
+                  textPrimary
+                )}
               >
                 <option value="all">전체</option>
                 {availableSemesters.map((semester) => (
@@ -279,7 +290,7 @@ function ScoreCardGridComponent({
 
             {/* 교과 필터 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
+              <label className={cn("block text-xs font-medium", textSecondary)}>
                 교과
               </label>
               <select
@@ -288,7 +299,12 @@ function ScoreCardGridComponent({
                   setFilterSubjectGroup(e.target.value);
                   setFilterSubject("all"); // 교과 변경 시 과목 필터 초기화
                 }}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
+                  bgSurface,
+                  borderDefault,
+                  textPrimary
+                )}
               >
                 <option value="all">전체</option>
                 {availableSubjectGroups.map((group) => (
@@ -301,13 +317,18 @@ function ScoreCardGridComponent({
 
             {/* 과목 필터 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
+              <label className={cn("block text-xs font-medium", textSecondary)}>
                 과목
               </label>
               <select
                 value={filterSubject}
                 onChange={(e) => setFilterSubject(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
+                  bgSurface,
+                  borderDefault,
+                  textPrimary
+                )}
               >
                 <option value="all">전체</option>
                 {availableSubjects.map((subject) => (
@@ -320,13 +341,18 @@ function ScoreCardGridComponent({
 
             {/* 과목 유형 필터 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
+              <label className={cn("block text-xs font-medium", textSecondary)}>
                 과목 유형
               </label>
               <select
                 value={filterSubjectType}
                 onChange={(e) => setFilterSubjectType(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={cn(
+                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
+                  bgSurface,
+                  borderDefault,
+                  textPrimary
+                )}
               >
                 <option value="all">전체</option>
                 {availableSubjectTypes.map((type) => (
@@ -339,12 +365,18 @@ function ScoreCardGridComponent({
 
             {/* 정렬 순서 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
+              <label className={cn("block text-xs font-medium", textSecondary)}>
                 정렬 순서
               </label>
               <button
                 onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition hover:bg-gray-50"
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition",
+                  bgSurface,
+                  borderDefault,
+                  textPrimary,
+                  "hover:bg-gray-50 dark:hover:bg-gray-800"
+                )}
               >
                 <ArrowUpDown className="h-4 w-4" />
                 {sortOrder === "asc" ? "오름차순" : "내림차순"}
@@ -357,8 +389,8 @@ function ScoreCardGridComponent({
       {/* 필터 적용 중일 때 결과가 없을 경우 */}
       {(filterGrade !== "all" || filterSemester !== "all" || filterSubjectGroup !== "all" || filterSubject !== "all" || filterSubjectType !== "all") &&
         filteredAndSortedScores.length === 0 && (
-          <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-8 text-center">
-            <p className="text-sm text-gray-500">
+          <div className={cn("flex flex-col gap-2 rounded-lg border p-8 text-center", bgSurface, borderDefault)}>
+            <p className={cn("text-sm", textMuted)}>
               선택한 필터 조건에 맞는 성적이 없습니다.
             </p>
             <button
@@ -369,7 +401,7 @@ function ScoreCardGridComponent({
                 setFilterSubject("all");
                 setFilterSubjectType("all");
               }}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
             >
               필터 초기화
             </button>
@@ -396,7 +428,7 @@ function ScoreCardGridComponent({
                 />
               </div>
             )}
-            className="rounded-xl border border-gray-200 bg-white p-4"
+            className={cn("rounded-xl border p-4", bgSurface, borderDefault)}
             overscan={3}
           />
         ) : (

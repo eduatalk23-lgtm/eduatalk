@@ -178,11 +178,11 @@ export function getDayTypeColor(
   // 오늘 날짜는 최우선
   if (isToday) {
     return {
-      bg: "bg-primary-50",
-      border: "border-primary-300",
-      text: "text-primary-600",
-      boldText: "text-primary-900",
-      badge: "bg-primary-100 text-primary-800",
+      bg: "bg-primary-50 dark:bg-primary-900/30",
+      border: "border-primary-300 dark:border-primary-700",
+      text: "text-primary-600 dark:text-primary-400",
+      boldText: "text-primary-900 dark:text-primary-100",
+      badge: "bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200",
     };
   }
 
@@ -193,33 +193,33 @@ export function getDayTypeColor(
     dayType === "개인일정"
   ) {
     return {
-      bg: "bg-error-50",
-      border: "border-error-300",
-      text: "text-error-600",
-      boldText: "text-error-900",
-      badge: "bg-error-100 text-error-800",
+      bg: "bg-error-50 dark:bg-error-900/30",
+      border: "border-error-300 dark:border-error-700",
+      text: "text-error-600 dark:text-error-400",
+      boldText: "text-error-900 dark:text-error-100",
+      badge: "bg-error-100 dark:bg-error-800 text-error-800 dark:text-error-200",
     };
   }
 
   // 학습일
   if (dayType === "학습일") {
     return {
-      bg: "bg-info-50",
-      border: "border-info-300",
-      text: "text-info-600",
-      boldText: "text-info-900",
-      badge: "bg-info-100 text-info-800",
+      bg: "bg-info-50 dark:bg-info-900/30",
+      border: "border-info-300 dark:border-info-700",
+      text: "text-info-600 dark:text-info-400",
+      boldText: "text-info-900 dark:text-info-100",
+      badge: "bg-info-100 dark:bg-info-800 text-info-800 dark:text-info-200",
     };
   }
 
   // 복습일
   if (dayType === "복습일") {
     return {
-      bg: "bg-warning-50",
-      border: "border-warning-300",
-      text: "text-warning-600",
-      boldText: "text-warning-900",
-      badge: "bg-warning-100 text-warning-800",
+      bg: "bg-warning-50 dark:bg-warning-900/30",
+      border: "border-warning-300 dark:border-warning-700",
+      text: "text-warning-600 dark:text-warning-400",
+      boldText: "text-warning-900 dark:text-warning-100",
+      badge: "bg-warning-100 dark:bg-warning-800 text-warning-800 dark:text-warning-200",
     };
   }
 
@@ -250,39 +250,39 @@ export function getRiskColor(riskScore: number): {
   if (riskScore >= 70) {
     // 매우 위험
     return {
-      text: "text-error-700",
-      bg: "bg-error-50",
-      border: "border-error-300",
-      badge: "bg-error-600 text-white",
+      text: "text-error-700 dark:text-error-400",
+      bg: "bg-error-50 dark:bg-error-900/30",
+      border: "border-error-300 dark:border-error-700",
+      badge: "bg-error-600 dark:bg-error-500 text-white",
       hex: "#ef4444", // red-500
     };
   }
   if (riskScore >= 50) {
     // 위험
     return {
-      text: "text-warning-700",
-      bg: "bg-warning-50",
-      border: "border-warning-300",
-      badge: "bg-warning-500 text-white",
+      text: "text-warning-700 dark:text-warning-400",
+      bg: "bg-warning-50 dark:bg-warning-900/30",
+      border: "border-warning-300 dark:border-warning-700",
+      badge: "bg-warning-500 dark:bg-warning-600 text-white",
       hex: "#f59e0b", // amber-500
     };
   }
   if (riskScore >= 30) {
     // 주의
     return {
-      text: "text-warning-600",
-      bg: "bg-warning-50",
-      border: "border-warning-200",
-      badge: "bg-warning-400 text-white",
+      text: "text-warning-600 dark:text-warning-400",
+      bg: "bg-warning-50 dark:bg-warning-900/30",
+      border: "border-warning-200 dark:border-warning-700",
+      badge: "bg-warning-400 dark:bg-warning-500 text-white",
       hex: "#eab308", // yellow-500
     };
   }
   // 양호
   return {
-    text: "text-success-700",
-    bg: "bg-success-50",
-    border: "border-success-200",
-    badge: "bg-success-500 text-white",
+    text: "text-success-700 dark:text-success-400",
+    bg: "bg-success-50 dark:bg-success-900/30",
+    border: "border-success-200 dark:border-success-700",
+    badge: "bg-success-500 dark:bg-success-600 text-white",
     hex: "#10b981", // emerald-500
   };
 }
@@ -308,21 +308,21 @@ export function getTrendColor(trend: "improved" | "declined" | "stable" | null):
 } {
   if (trend === "improved") {
     return {
-      text: "text-success-700",
-      bg: "bg-success-50",
+      text: "text-success-700 dark:text-success-400",
+      bg: "bg-success-50 dark:bg-success-900/30",
       icon: "↑",
     };
   }
   if (trend === "declined") {
     return {
-      text: "text-error-700",
-      bg: "bg-error-50",
+      text: "text-error-700 dark:text-error-400",
+      bg: "bg-error-50 dark:bg-error-900/30",
       icon: "↓",
     };
   }
   return {
-    text: "text-secondary-600",
-    bg: "bg-secondary-50",
+    text: "text-secondary-600 dark:text-secondary-400",
+    bg: "bg-secondary-50 dark:bg-secondary-900/30",
     icon: "→",
   };
 }

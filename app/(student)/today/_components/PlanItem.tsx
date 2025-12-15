@@ -11,6 +11,8 @@ import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { bgSurface, bgPage, textPrimary, textSecondary, textMuted, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type PlanItemProps = {
   plan: PlanWithContent;
@@ -185,26 +187,26 @@ function PlanItemComponent({
   if (viewMode === "single") {
     // 단일 뷰: 큰 화면으로 표시
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <div className={cn("rounded-lg border p-6 shadow-sm", bgSurface, borderDefault)}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">{contentTypeIcon}</span>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className={cn("text-lg font-semibold", textPrimary)}>
                 블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
               </h3>
             </div>
             <div className="flex flex-col gap-1">
               {plan.sequence && (
-                <p className="text-sm text-gray-600">회차: {plan.sequence}회차</p>
+                <p className={cn("text-sm", textSecondary)}>회차: {plan.sequence}회차</p>
               )}
               {pageRange && (
-                <p className="text-sm text-gray-600">범위: {pageRange}</p>
+                <p className={cn("text-sm", textSecondary)}>범위: {pageRange}</p>
               )}
             </div>
             {progress > 0 && (
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between text-xs text-gray-600">
+                <div className={cn("flex items-center justify-between text-xs", textSecondary)}>
                   <span>진행률</span>
                   <span>{progress}%</span>
                 </div>
@@ -250,24 +252,24 @@ function PlanItemComponent({
 
   // 일일 뷰: 컴팩트하게 표시
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className={cn("rounded-lg border p-4 shadow-sm", bgSurface, borderDefault)}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <span>{contentTypeIcon}</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className={cn("text-sm font-medium", textPrimary)}>
               블록 {plan.block_index ?? "-"}: {timeRange || "시간 미정"}
             </span>
           </div>
           <div className="flex items-center gap-1">
             {plan.sequence && (
-              <span className="text-xs text-gray-600">회차: {plan.sequence}회차</span>
+              <span className={cn("text-xs", textSecondary)}>회차: {plan.sequence}회차</span>
             )}
-            {pageRange && <span className="text-xs text-gray-600"> | {pageRange}</span>}
+            {pageRange && <span className={cn("text-xs", textSecondary)}> | {pageRange}</span>}
           </div>
           {progress > 0 && (
             <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between text-xs text-gray-600">
+              <div className={cn("flex items-center justify-between text-xs", textSecondary)}>
                 <span>진행률</span>
                 <span>{progress}%</span>
               </div>
@@ -282,20 +284,20 @@ function PlanItemComponent({
 
         {(showTimer || isRunning || isPaused || isCompleted) && (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between rounded-lg bg-gray-50 p-2">
-              <span className="text-xs text-gray-600">학습 시간</span>
-              <span className="text-sm font-bold text-indigo-600">
+            <div className={cn("flex items-center justify-between rounded-lg p-2", bgPage)}>
+              <span className={cn("text-xs", textSecondary)}>학습 시간</span>
+              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
                 {formatTime(elapsedSeconds)}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">
               {plan.actual_start_time && (
-                <div className="text-xs text-gray-500">
+                <div className={cn("text-xs", textMuted)}>
                   시작: {formatTimestamp(plan.actual_start_time)}
                 </div>
               )}
               {plan.pause_count != null && plan.pause_count > 0 && (
-                <div className="text-xs text-gray-500">
+                <div className={cn("text-xs", textMuted)}>
                   일시정지: {plan.pause_count}회
                 </div>
               )}

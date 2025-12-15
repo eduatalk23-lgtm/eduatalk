@@ -27,6 +27,8 @@ import { getTimeStats, getActivePlan } from "../_utils/planGroupUtils";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { bgSurface, bgPage, textPrimary, textSecondary, textMuted, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type PlanGroupCardProps = {
   group: PlanGroup;
@@ -352,7 +354,7 @@ function PlanGroupCardComponent({
           </div>
           <div className="flex flex-col gap-2">
             <div className="text-4xl">{contentInfo.icon}</div>
-            <h2 className="text-h2 text-gray-900">{contentInfo.title}</h2>
+            <h2 className={cn("text-h2", textPrimary)}>{contentInfo.title}</h2>
           </div>
         </div>
 
@@ -380,10 +382,10 @@ function PlanGroupCardComponent({
 
 
         {/* 전체 진행률 및 시간 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className={cn("rounded-lg border p-6 shadow-sm", bgSurface, borderDefault)}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 text-center">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className={cn("text-lg font-semibold", textPrimary)}>
                 전체 진행률
               </h3>
               <div className="text-3xl font-bold text-indigo-600">
@@ -397,8 +399,8 @@ function PlanGroupCardComponent({
             </div>
 
             <div className="flex flex-col gap-1 text-center">
-              <p className="text-sm text-gray-600">총 학습 시간</p>
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className={cn("text-sm", textSecondary)}>총 학습 시간</p>
+              <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                 {formatTime(aggregatedInfo.totalStudyTime)}
               </p>
             </div>
@@ -429,15 +431,15 @@ function PlanGroupCardComponent({
 
   // 일일 뷰: 컴팩트한 카드 형태
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className={cn("rounded-lg border p-4 shadow-sm", bgSurface, borderDefault)}>
       <div className="flex flex-col gap-4">
         {/* 카드 헤더 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg">{contentInfo.icon}</span>
-            <h3 className="font-semibold text-gray-900">{contentInfo.title}</h3>
+            <h3 className={cn("font-semibold", textPrimary)}>{contentInfo.title}</h3>
             {group.planNumber !== null && (
-              <span className="text-xs text-gray-500">
+              <span className={cn("text-xs", textMuted)}>
                 (plan_number: {group.planNumber})
               </span>
             )}
@@ -453,7 +455,7 @@ function PlanGroupCardComponent({
           />
         </div>
         {group.sequence && (
-          <p className="text-sm text-gray-600">({sequenceText})</p>
+          <p className={cn("text-sm", textSecondary)}>({sequenceText})</p>
         )}
 
         {/* 플랜 정보 (같은 plan_number를 가진 플랜은 하나만 표시) */}
@@ -483,18 +485,18 @@ function PlanGroupCardComponent({
         </div>
 
         {/* 집계 정보 */}
-        <div className="rounded-lg bg-gray-50 p-3">
+        <div className={cn("rounded-lg p-3", bgPage)}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">전체 진행률</span>
-              <span className="font-semibold text-gray-900">{aggregatedInfo.totalProgress}%</span>
+              <span className={textSecondary}>전체 진행률</span>
+              <span className={cn("font-semibold", textPrimary)}>{aggregatedInfo.totalProgress}%</span>
             </div>
             <ProgressBar
               value={aggregatedInfo.totalProgress}
               color="indigo"
               size="sm"
             />
-            <div className="flex items-center justify-between text-xs text-gray-500">
+            <div className={cn("flex items-center justify-between text-xs", textMuted)}>
               <span>총 학습 시간: {formatTime(aggregatedInfo.totalStudyTime)}</span>
               <span>
                 활성: {aggregatedInfo.activePlansCount} | 완료: {aggregatedInfo.completedPlansCount}

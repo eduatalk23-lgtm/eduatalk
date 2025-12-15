@@ -157,3 +157,203 @@ export const riskSectionGradient = cn(
   "p-5 md:p-6 shadow-sm"
 );
 
+// ============================================
+// 그라디언트 배경 유틸리티
+// ============================================
+
+/**
+ * 색상별 그라디언트 카드 스타일 생성
+ * QuickActionCard 등에서 사용하는 패턴
+ */
+export type GradientColor =
+  | "indigo"
+  | "blue"
+  | "purple"
+  | "orange"
+  | "green"
+  | "red"
+  | "teal"
+  | "cyan"
+  | "amber"
+  | "pink"
+  | "violet"
+  | "emerald"
+  | "sky";
+
+/**
+ * 색상별 그라디언트 카드 클래스 반환
+ */
+export function getGradientCardClasses(color: GradientColor): string {
+  const gradientMap: Record<GradientColor, string> = {
+    indigo:
+      "border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 hover:from-indigo-100 hover:to-indigo-200/50 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/30 text-indigo-900 dark:text-indigo-200 hover:shadow-lg",
+    blue: "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 text-blue-900 dark:text-blue-200 hover:shadow-lg",
+    purple:
+      "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200/50 dark:hover:from-purple-800/40 dark:hover:to-purple-700/30 text-purple-900 dark:text-purple-200 hover:shadow-lg",
+    orange:
+      "border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200/50 dark:hover:from-orange-800/40 dark:hover:to-orange-700/30 text-orange-900 dark:text-orange-200 hover:shadow-lg",
+    green:
+      "border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 hover:from-green-100 hover:to-green-200/50 dark:hover:from-green-800/40 dark:hover:to-green-700/30 text-green-900 dark:text-green-200 hover:shadow-lg",
+    red: "border-red-200 dark:border-red-800 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 hover:from-red-100 hover:to-red-200/50 dark:hover:from-red-800/40 dark:hover:to-red-700/30 text-red-900 dark:text-red-200 hover:shadow-lg",
+    teal: "border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-800/20 hover:from-teal-100 hover:to-teal-200/50 dark:hover:from-teal-800/40 dark:hover:to-teal-700/30 text-teal-900 dark:text-teal-200 hover:shadow-lg",
+    cyan: "border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/30 dark:to-cyan-800/20 hover:from-cyan-100 hover:to-cyan-200/50 dark:hover:from-cyan-800/40 dark:hover:to-cyan-700/30 text-cyan-900 dark:text-cyan-200 hover:shadow-lg",
+    amber:
+      "border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 hover:from-amber-100 hover:to-amber-200/50 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 text-amber-900 dark:text-amber-200 hover:shadow-lg",
+    pink: "border-pink-200 dark:border-pink-800 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-900/30 dark:to-pink-800/20 hover:from-pink-100 hover:to-pink-200/50 dark:hover:from-pink-800/40 dark:hover:to-pink-700/30 text-pink-900 dark:text-pink-200 hover:shadow-lg",
+    violet:
+      "border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/30 dark:to-violet-800/20 hover:from-violet-100 hover:to-violet-200/50 dark:hover:from-violet-800/40 dark:hover:to-violet-700/30 text-violet-900 dark:text-violet-200 hover:shadow-lg",
+    emerald:
+      "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:to-emerald-800/20 hover:from-emerald-100 hover:to-emerald-200/50 dark:hover:from-emerald-800/40 dark:hover:to-emerald-700/30 text-emerald-900 dark:text-emerald-200 hover:shadow-lg",
+    sky: "border-sky-200 dark:border-sky-800 bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/30 dark:to-sky-800/20 hover:from-sky-100 hover:to-sky-200/50 dark:hover:from-sky-800/40 dark:hover:to-sky-700/30 text-sky-900 dark:text-sky-200 hover:shadow-lg",
+  };
+  return gradientMap[color];
+}
+
+/**
+ * 일반적인 그라디언트 배경 유틸리티 (색상별)
+ */
+export function getGradientBackground(
+  color: "red" | "blue" | "green" | "yellow" | "purple" | "indigo",
+  variant: "subtle" | "medium" | "strong" = "medium"
+): string {
+  const variants = {
+    subtle: {
+      red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10",
+      blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10",
+      green:
+        "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10",
+      yellow:
+        "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10",
+      purple:
+        "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10",
+      indigo:
+        "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10",
+    },
+    medium: {
+      red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20",
+      blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20",
+      green:
+        "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20",
+      yellow:
+        "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/30 dark:to-yellow-800/20",
+      purple:
+        "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20",
+      indigo:
+        "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20",
+    },
+    strong: {
+      red: "bg-gradient-to-br from-red-100 to-red-200/50 dark:from-red-900/40 dark:to-red-800/30",
+      blue: "bg-gradient-to-br from-blue-100 to-blue-200/50 dark:from-blue-900/40 dark:to-blue-800/30",
+      green:
+        "bg-gradient-to-br from-green-100 to-green-200/50 dark:from-green-900/40 dark:to-green-800/30",
+      yellow:
+        "bg-gradient-to-br from-yellow-100 to-yellow-200/50 dark:from-yellow-900/40 dark:to-yellow-800/30",
+      purple:
+        "bg-gradient-to-br from-purple-100 to-purple-200/50 dark:from-purple-900/40 dark:to-purple-800/30",
+      indigo:
+        "bg-gradient-to-br from-indigo-100 to-indigo-200/50 dark:from-indigo-900/40 dark:to-indigo-800/30",
+    },
+  };
+  return variants[variant][color];
+}
+
+// ============================================
+// 테이블 스타일 통합
+// ============================================
+
+/**
+ * 테이블 헤더 스타일
+ */
+export const tableHeaderBase = cn(
+  "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider",
+  textMuted,
+  "bg-gray-50 dark:bg-gray-900/50"
+);
+
+/**
+ * 테이블 셀 기본 스타일
+ */
+export const tableCellBase = cn("px-4 py-3 text-sm");
+
+/**
+ * 테이블 컨테이너 스타일
+ */
+export const tableContainer = cn(
+  "overflow-hidden rounded-lg border",
+  borderDefault,
+  bgSurface
+);
+
+// ============================================
+// 카드 스타일 개선
+// ============================================
+
+/**
+ * 카드 스타일 통합 함수
+ * @param variant 카드 변형 (default, hover, interactive)
+ * @param padding 패딩 크기 (sm, md, lg)
+ * @param className 추가 클래스
+ */
+export function cardStyle(
+  variant: "default" | "hover" | "interactive" = "default",
+  padding: "sm" | "md" | "lg" = "md",
+  className?: string
+): string {
+  const base = cardStyles.base;
+  const paddingClass = cardStyles.padding[padding];
+  const variantClass =
+    variant === "hover"
+      ? cardStyles.hover
+      : variant === "interactive"
+        ? cn(cardStyles.hover, "cursor-pointer")
+        : "";
+
+  return cn(base, paddingClass, variantClass, className);
+}
+
+// ============================================
+// 인라인 버튼 스타일 확장
+// ============================================
+
+/**
+ * 인라인 버튼 스타일 (primary variant)
+ */
+export function inlineButtonPrimary(className?: string): string {
+  return cn(
+    "inline-flex items-center justify-center rounded-lg border transition",
+    "bg-indigo-600 dark:bg-indigo-500",
+    "text-white",
+    "border-indigo-600 dark:border-indigo-500",
+    "hover:bg-indigo-700 dark:hover:bg-indigo-600",
+    className
+  );
+}
+
+/**
+ * 인라인 버튼 스타일 (danger variant)
+ */
+export function inlineButtonDanger(className?: string): string {
+  return cn(
+    "inline-flex items-center justify-center rounded-lg border transition",
+    "bg-red-600 dark:bg-red-500",
+    "text-white",
+    "border-red-600 dark:border-red-500",
+    "hover:bg-red-700 dark:hover:bg-red-600",
+    className
+  );
+}
+
+/**
+ * 인라인 버튼 스타일 (success variant)
+ */
+export function inlineButtonSuccess(className?: string): string {
+  return cn(
+    "inline-flex items-center justify-center rounded-lg border transition",
+    "bg-green-600 dark:bg-green-500",
+    "text-white",
+    "border-green-600 dark:border-green-500",
+    "hover:bg-green-700 dark:hover:bg-green-600",
+    className
+  );
+}
+

@@ -5,6 +5,8 @@ import { PlanGroup } from "../_utils/planGroupUtils";
 import { PlanGroupCard } from "./PlanGroupCard";
 import { ViewMode } from "./ViewModeSelector";
 import { VirtualizedList } from "@/lib/components/VirtualizedList";
+import { bgPage, bgSurface, textPrimary, textMuted, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type DailyPlanViewProps = {
   groups: PlanGroup[];
@@ -25,14 +27,14 @@ export function DailyPlanView({
 }: DailyPlanViewProps) {
   if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+      <div className={cn("rounded-xl border border-dashed p-8 text-center", borderDefault, bgPage)}>
         <div className="mx-auto flex max-w-md flex-col gap-4">
           <div className="text-6xl">📚</div>
           <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className={cn("text-lg font-semibold", textPrimary)}>
               오늘 배울 내용이 없습니다
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className={cn("text-sm", textMuted)}>
               학습 플랜을 생성해보세요.
             </p>
           </div>
@@ -75,7 +77,7 @@ export function DailyPlanView({
         itemHeight={200} // PlanGroupCard의 예상 높이
         containerHeight={600} // 컨테이너 높이
         renderItem={renderGroup}
-        className="rounded-xl border border-gray-200 bg-white p-4"
+        className={cn("rounded-xl border p-4", bgSurface, borderDefault)}
         overscan={3}
       />
     );
