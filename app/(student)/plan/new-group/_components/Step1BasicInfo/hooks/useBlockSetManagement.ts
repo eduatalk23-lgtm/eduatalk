@@ -244,10 +244,11 @@ export function useBlockSetManagement({
                   blockFormData.append("block_set_id", blockSetId);
                   await addBlocksToMultipleDays(blockFormData);
                 }
-              } catch (error: any) {
+              } catch (error: unknown) {
                 // INFO: 접두사가 있는 경우 부분 성공 메시지로 처리
-                if (error?.message?.startsWith("INFO:")) {
-                  console.log("[Step1BasicInfo] 블록 추가 부분 성공:", error.message);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.startsWith("INFO:")) {
+                  console.log("[Step1BasicInfo] 블록 추가 부분 성공:", errorMessage);
                   // 부분 성공은 계속 진행
                 } else {
                   const planGroupError = toPlanGroupError(
@@ -370,10 +371,11 @@ export function useBlockSetManagement({
             } else {
               await addBlocksToMultipleDays(blockFormData);
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             // INFO: 접두사가 있는 경우 부분 성공 메시지로 처리
-            if (error?.message?.startsWith("INFO:")) {
-              console.log("[Step1BasicInfo] 블록 추가 부분 성공:", error.message);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.startsWith("INFO:")) {
+              console.log("[Step1BasicInfo] 블록 추가 부분 성공:", errorMessage);
               // 부분 성공은 계속 진행
             } else {
               const planGroupError = toPlanGroupError(

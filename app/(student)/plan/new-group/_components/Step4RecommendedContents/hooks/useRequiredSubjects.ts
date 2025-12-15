@@ -52,9 +52,8 @@ export function useRequiredSubjects({
 
     // 1-1. 이미 추가된 학생 콘텐츠의 subject_category
     data.student_contents.forEach((sc) => {
-      const subjectCategory = (sc as any).subject_category;
-      if (subjectCategory) {
-        selectedSubjectCategories.add(subjectCategory);
+      if (sc.subject_category) {
+        selectedSubjectCategories.add(sc.subject_category);
       }
     });
 
@@ -69,7 +68,7 @@ export function useRequiredSubjects({
     // 1-3. 이미 추가된 추천 콘텐츠
     data.recommended_contents.forEach((rc) => {
       const subjectCategory =
-        (rc as any).subject_category ||
+        rc.subject_category ||
         allRecommendedContents.find((c) => c.id === rc.content_id)
           ?.subject_category;
       if (subjectCategory) {
@@ -94,10 +93,8 @@ export function useRequiredSubjects({
 
     // 3-1. 학생 콘텐츠 카운트
     data.student_contents.forEach((sc) => {
-      const subjectCategory = (sc as any).subject_category;
-      const subject = (sc as any).subject;
-      if (subjectCategory) {
-        const key = subject ? `${subjectCategory}:${subject}` : subjectCategory;
+      if (sc.subject_category) {
+        const key = sc.subject ? `${sc.subject_category}:${sc.subject}` : sc.subject_category;
         contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
       }
     });
@@ -105,12 +102,11 @@ export function useRequiredSubjects({
     // 3-2. 추천 콘텐츠 카운트
     data.recommended_contents.forEach((rc) => {
       const subjectCategory =
-        (rc as any).subject_category ||
+        rc.subject_category ||
         allRecommendedContents.find((c) => c.id === rc.content_id)
           ?.subject_category;
-      const subject = (rc as any).subject;
       if (subjectCategory) {
-        const key = subject ? `${subjectCategory}:${subject}` : subjectCategory;
+        const key = rc.subject ? `${subjectCategory}:${rc.subject}` : subjectCategory;
         contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
       }
     });

@@ -308,7 +308,7 @@ function calculateDayType(
   periodStart: string,
   periodEnd: string,
   schedulerType: string | null,
-  schedulerOptions: any
+  schedulerOptions: { study_days?: number; review_days?: number } | null | undefined
 ): "학습일" | "복습일" | null {
   // 1730 Timetable이 아니면 null 반환
   if (schedulerType !== "1730_timetable") {
@@ -359,7 +359,7 @@ export function transformPlansToScheduleTable(
   periodStart: string,
   periodEnd?: string | null,
   schedulerType?: string | null,
-  schedulerOptions?: any,
+  schedulerOptions?: { study_days?: number; review_days?: number } | null,
   dateTimeSlots?: Record<string, Array<{
     type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
     start: string;

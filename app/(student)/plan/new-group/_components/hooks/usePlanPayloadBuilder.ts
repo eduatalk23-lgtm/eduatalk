@@ -11,10 +11,15 @@ import { validatePeriod } from "../utils/validationUtils";
  * 확장된 PlanContentInput 타입 (추천 관련 필드 포함)
  */
 type ExtendedPlanContentInput = PlanContentInput & {
+  title?: string;
+  subject_category?: string;
+  subject?: string;
   is_auto_recommended?: boolean;
   recommendation_source?: "auto" | "admin" | "template" | null;
   recommendation_reason?: string | null;
-  recommendation_metadata?: unknown;
+  recommendation_metadata?: Record<string, unknown> | null;
+  master_content_id?: string | null;
+  display_order?: number;
 };
 
 type UsePlanPayloadBuilderOptions = {
@@ -71,7 +76,7 @@ export function usePlanPayloadBuilder(
 
     const contentKeys = new Set<string>();
     // Relaxed type to allow extended properties during construction
-    const uniqueContents: any[] = [];
+    const uniqueContents: ExtendedPlanContentInput[] = [];
     const duplicateNames: string[] = [];
 
     allContents.forEach((c, idx) => {
@@ -80,13 +85,12 @@ export function usePlanPayloadBuilder(
       
         if (!contentKeys.has(key)) {
         contentKeys.add(key);
-        // Use 'as any' temporarily to merge extra properties like is_auto_recommended
         // student_contents에는 추천 필드가 없고, recommended_contents에만 있으므로 옵셔널 체이닝 사용
         const contentWithExtras = c as typeof c & {
           is_auto_recommended?: boolean;
           recommendation_source?: "auto" | "admin" | "template" | null;
           recommendation_reason?: string | null;
-          recommendation_metadata?: any;
+          recommendation_metadata?: Record<string, unknown> | null;
           master_content_id?: string | null;
         };
         uniqueContents.push({ 
@@ -168,10 +172,10 @@ export function usePlanPayloadBuilder(
 
       contents: uniqueContents.map((c): ExtendedPlanContentInput => {
          // Determine master_content_id precedence
-         let masterId = (c as any).master_content_id;
-         
+         let masterId = c.master_content_id;
+
          // If implicit from being a pure recommended content
-         if (!masterId && (c as any).is_auto_recommended) {
+         if (!masterId && c.is_auto_recommended) {
              // In auto recommendation, content_id is often the master id if it came from the master list
              masterId = c.content_id;
          }
@@ -184,16 +188,16 @@ export function usePlanPayloadBuilder(
             end_range: c.end_range,
             start_detail_id: c.start_detail_id ?? null,
             end_detail_id: c.end_detail_id ?? null,
-            display_order: (c as any).display_order, // Recalculated index
-            
-            // Optional / Metadata fields that PlanGroupCreationData might accept 
+            display_order: c.display_order,
+
+            // Optional / Metadata fields that PlanGroupCreationData might accept
             // (Need to cast or ensure type definition supports them)
             // The type definition says PlanContentInput does NOT have these recommendation fields ??
             // However, the backend accepts these fields, so we include them with proper typing
-            is_auto_recommended: (c as any).is_auto_recommended,
-            recommendation_source: (c as any).recommendation_source,
-            recommendation_reason: (c as any).recommendation_reason,
-            recommendation_metadata: (c as any).recommendation_metadata
+            is_auto_recommended: c.is_auto_recommended,
+            recommendation_source: c.recommendation_source,
+            recommendation_reason: c.recommendation_reason,
+            recommendation_metadata: c.recommendation_metadata
          };
       }) as unknown as PlanContentInput[], // Backend accepts extended fields but type definition is strict
 

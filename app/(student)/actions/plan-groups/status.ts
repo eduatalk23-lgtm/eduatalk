@@ -6,6 +6,7 @@ import { getPlanGroupById, updatePlanGroup } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
+import type { PlanStatus } from "@/lib/types/plan";
 
 /**
  * 플랜 그룹 상태 업데이트
@@ -29,8 +30,8 @@ async function _updatePlanGroupStatus(
 
   // 상태 전이 검증
   const statusValidation = PlanValidator.validateStatusTransition(
-    group.status as any,
-    status as any
+    group.status as PlanStatus,
+    status as PlanStatus
   );
   if (!statusValidation.valid) {
     throw new AppError(

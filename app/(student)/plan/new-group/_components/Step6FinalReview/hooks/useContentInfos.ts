@@ -9,6 +9,17 @@ import { WizardData } from "../../PlanGroupWizard";
 import { ContentInfo } from "../types";
 import { createBatchRequest, getContentType } from "@/lib/utils/contentDetailsUtils";
 
+type ContentMetadata = {
+  title?: string;
+  subject?: string | null;
+  subject_category?: string | null;
+  semester?: string | null;
+  revision?: string | null;
+  difficulty_level?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
+};
+
 type UseContentInfosProps = {
   data: WizardData;
   contents?: {
@@ -66,7 +77,7 @@ export function useContentInfos({
           requestBody.student_id = studentId;
         }
 
-        let batchMetadataMap = new Map<string, any>();
+        let batchMetadataMap = new Map<string, ContentMetadata>();
 
         try {
           const batchResponse = await fetch("/api/student-content-details/batch", {
@@ -95,9 +106,9 @@ export function useContentInfos({
 
         // 각 학생 콘텐츠 처리
         const studentPromises = data.student_contents.map(async (content) => {
-          let title = (content as any).title;
-          let subjectCategory = (content as any).subject_category;
-          let metadata = batchMetadataMap.get(content.content_id) || null;
+          let title = content.title;
+          let subjectCategory = content.subject_category;
+          let metadata: ContentMetadata | null = batchMetadataMap.get(content.content_id) || null;
 
           // 저장된 정보가 없으면 서버 액션으로 조회
           if (!title || !subjectCategory) {
@@ -165,11 +176,11 @@ export function useContentInfos({
       if (data.recommended_contents.length > 0) {
         const recommendedPromises = data.recommended_contents.map(
           async (content) => {
-            let title = (content as any).title;
-            let subjectCategory = (content as any).subject_category;
+            let title = content.title;
+            let subjectCategory = content.subject_category;
 
             // 저장된 정보가 없으면 서버 액션으로 조회 (마스터 콘텐츠)
-            let metadata: any = null;
+            let metadata: ContentMetadata | null = null;
             if (!title || !subjectCategory) {
               try {
                 const result = await fetchContentMetadataAction(
@@ -224,11 +235,10 @@ export function useContentInfos({
               end_range: content.end_range,
               isRecommended: true,
               // 자동 추천 정보 (content에 포함된 경우)
-              is_auto_recommended: (content as any).is_auto_recommended ?? false,
-              recommendation_source: (content as any).recommendation_source ?? null,
-              recommendation_reason: (content as any).recommendation_reason ?? null,
-              recommendation_metadata:
-                (content as any).recommendation_metadata ?? null,
+              is_auto_recommended: content.is_auto_recommended ?? false,
+              recommendation_source: content.recommendation_source ?? null,
+              recommendation_reason: content.recommendation_reason ?? null,
+              recommendation_metadata: content.recommendation_metadata ?? null,
               subject: metadata?.subject || null,
               semester: metadata?.semester || null,
               revision: metadata?.revision || null,

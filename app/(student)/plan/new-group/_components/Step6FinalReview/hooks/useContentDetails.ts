@@ -86,8 +86,8 @@ export function useContentDetails({
           setContentDetails(new Map([[contentKey, detailData]]));
 
           // 저장된 상세 정보 ID가 있으면 우선 사용, 없으면 현재 범위로 찾기
-          const savedStartDetailId = (content as any).start_detail_id;
-          const savedEndDetailId = (content as any).end_detail_id;
+          const savedStartDetailId = content.start_detail_id;
+          const savedEndDetailId = content.end_detail_id;
 
           if (savedStartDetailId || savedEndDetailId) {
             // 저장된 detail_id로 직접 선택

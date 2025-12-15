@@ -45,3 +45,6 @@ docs/*secret*.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# development tools
+SuperClaude_Framework/

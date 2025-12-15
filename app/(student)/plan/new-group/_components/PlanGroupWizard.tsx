@@ -143,7 +143,7 @@ export type WizardData = {
     is_auto_recommended?: boolean; // 자동 배정 플래그
     recommendation_source?: "auto" | "admin" | "template" | null; // 자동 배정 소스
     recommendation_reason?: string | null; // 추천 사유
-    recommendation_metadata?: any; // 추천 메타데이터
+    recommendation_metadata?: Record<string, unknown> | null; // 추천 메타데이터
   }>;
   // Step 2.5 - 스케줄 요약 정보 (Step 3에서 학습 범위 추천에 사용)
   schedule_summary?: {

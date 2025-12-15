@@ -361,10 +361,12 @@ export class PlanValidator {
       description: z.string().optional(),
     });
 
+    type NonStudyTimeBlockInput = z.infer<typeof nonStudyTimeBlockSchema>;
+
     const nonStudyTimeBlocksSchema = z
       .array(nonStudyTimeBlockSchema)
       .refine(
-        (blocks: any[]): boolean => {
+        (blocks: NonStudyTimeBlockInput[]): boolean => {
           // 시간 범위 검증 (start < end)
           if (!blocks) return true;
           for (const block of blocks) {
@@ -381,7 +383,7 @@ export class PlanValidator {
         }
       )
       .refine(
-        (blocks: any[]): boolean => {
+        (blocks: NonStudyTimeBlockInput[]): boolean => {
           // 중복 체크
           if (!blocks) return true;
           const keys = new Set<string>();

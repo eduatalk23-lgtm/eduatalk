@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
@@ -68,7 +68,7 @@ export async function createSupabaseServerClient(
         get(name: string) {
           return store.get(name)?.value;
         },
-        set(name: string, value: string, cookieOptions: any) {
+        set(name: string, value: string, cookieOptions: CookieOptions) {
           // Next.js 15에서는 Server Component에서 쿠키를 수정할 수 없습니다.
           // 쿠키 설정은 Server Action이나 Route Handler에서만 가능합니다.
           // 인증 토큰 갱신은 클라이언트 사이드에서 처리되므로, 
@@ -104,7 +104,7 @@ export async function createSupabaseServerClient(
             // 에러를 무시하여 unhandled rejection을 방지합니다
           }
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           // Next.js 15에서는 Server Component에서 쿠키를 수정할 수 없습니다.
           try {
             store.set(name, "", { ...options, maxAge: 0 });

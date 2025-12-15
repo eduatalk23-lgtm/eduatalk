@@ -13,6 +13,7 @@ import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import { fetchBlocksWithFallback } from "@/lib/utils/databaseFallback";
+import type { PlanGroupSchedulerOptions, TimeRange } from "@/lib/types/schedulerSettings";
 
 /**
  * 플랜 그룹의 플랜 목록 조회
@@ -188,7 +189,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   periodStart: string;
   periodEnd: string | null;
   schedulerType: string | null;
-  schedulerOptions: any;
+  schedulerOptions: PlanGroupSchedulerOptions | null;
   contents: Array<{
     id: string;
     title: string;
@@ -457,7 +458,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
   for (const result of studentContentResults) {
     if (result.type === "book" && result.data) {
-      result.data.forEach((book: any) => {
+      result.data.forEach((book) => {
         foundBookIds.add(book.id);
         contentsMap.set(book.id, {
           id: book.id,
@@ -468,7 +469,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
         });
       });
     } else if (result.type === "lecture" && result.data) {
-      result.data.forEach((lecture: any) => {
+      result.data.forEach((lecture) => {
         foundLectureIds.add(lecture.id);
         contentsMap.set(lecture.id, {
           id: lecture.id,
@@ -479,7 +480,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
         });
       });
     } else if (result.type === "custom" && result.data) {
-      result.data.forEach((custom: any) => {
+      result.data.forEach((custom) => {
         foundCustomIds.add(custom.id);
         contentsMap.set(custom.id, {
           id: custom.id,
@@ -523,7 +524,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
     for (const result of masterContentResults) {
       if (result.type === "book" && result.data) {
-        result.data.forEach((book: any) => {
+        result.data.forEach((book) => {
           contentsMap.set(book.id, {
             id: book.id,
             title: book.title || "",
@@ -533,7 +534,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
           });
         });
       } else if (result.type === "lecture" && result.data) {
-        result.data.forEach((lecture: any) => {
+        result.data.forEach((lecture) => {
           contentsMap.set(lecture.id, {
             id: lecture.id,
             title: lecture.title || "",
@@ -819,22 +820,25 @@ async function _getScheduleResultData(groupId: string): Promise<{
             travel_time: a.travel_time || undefined,
           })),
           (() => {
+            // Type-safe scheduler options access
+            const schedulerOpts = group.scheduler_options as PlanGroupSchedulerOptions | null;
             const options: CalculateOptions = {
               scheduler_type: "1730_timetable" as const,
-              scheduler_options: group.scheduler_options || null,
+              scheduler_options: schedulerOpts ? {
+                study_days: schedulerOpts.study_days,
+                review_days: schedulerOpts.review_days,
+              } : undefined,
               use_self_study_with_blocks: true, // 블록이 있어도 자율학습 시간 포함
               enable_self_study_for_holidays:
-                (group.scheduler_options as any)
+                (schedulerOpts as PlanGroupSchedulerOptions & { enable_self_study_for_holidays?: boolean })
                   ?.enable_self_study_for_holidays === true,
               enable_self_study_for_study_days:
-                (group.scheduler_options as any)
+                (schedulerOpts as PlanGroupSchedulerOptions & { enable_self_study_for_study_days?: boolean })
                   ?.enable_self_study_for_study_days === true,
-              lunch_time: (group.scheduler_options as any)?.lunch_time,
-              camp_study_hours: (group.scheduler_options as any)
-                ?.camp_study_hours,
-              camp_self_study_hours: (group.scheduler_options as any)
-                ?.camp_self_study_hours,
-              designated_holiday_hours: (group.scheduler_options as any)
+              lunch_time: schedulerOpts?.lunch_time as TimeRange | undefined,
+              camp_study_hours: schedulerOpts?.camp_study_hours as TimeRange | undefined,
+              camp_self_study_hours: schedulerOpts?.self_study_hours as TimeRange | undefined,
+              designated_holiday_hours: (schedulerOpts as PlanGroupSchedulerOptions & { designated_holiday_hours?: TimeRange })
                 ?.designated_holiday_hours,
             };
 

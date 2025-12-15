@@ -34,7 +34,7 @@ function StudentCategoryNavContent() {
   };
 
   return (
-    <nav className="flex items-center gap-4 overflow-x-auto border-b bg-white p-3" aria-label="주요 메뉴">
+    <nav className="flex items-center gap-4 overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3" aria-label="주요 메뉴">
       {studentCategories.map((category) => {
         const active = isActive(category.href);
         const Icon = category.icon;
@@ -45,8 +45,8 @@ function StudentCategoryNavContent() {
             href={category.href}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors ${
               active
-                ? "bg-gray-100 font-semibold text-indigo-600"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-gray-100 dark:bg-gray-700 font-semibold text-indigo-600 dark:text-indigo-400"
+                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
             }`}
             aria-current={active ? "page" : undefined}
           >
@@ -62,10 +62,10 @@ function StudentCategoryNavContent() {
 export function StudentCategoryNav() {
   return (
     <Suspense fallback={
-      <nav className="flex items-center gap-4 overflow-x-auto border-b bg-white p-3">
-        <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-200" />
-        <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-200" />
-        <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-200" />
+      <nav className="flex items-center gap-4 overflow-x-auto border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+        <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700" />
+        <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700" />
+        <div className="h-10 w-24 animate-pulse rounded-xl bg-gray-200 dark:bg-gray-700" />
       </nav>
     }>
       <StudentCategoryNavContent />

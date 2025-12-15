@@ -14,6 +14,8 @@ type AddedContentsListProps = {
     content_id: string;
     start_range: number;
     end_range: number;
+    title?: string;
+    subject_category?: string;
   }>;
   allRecommendedContents: RecommendedContent[];
   editingRangeIndex: number | null;
@@ -68,8 +70,8 @@ export default function AddedContentsList({
       </div>
       {contents.map((content, index) => {
         // 제목 및 과목 정보 조회
-        let title = (content as any).title;
-        let subjectCategory = (content as any).subject_category;
+        let title = content.title;
+        let subjectCategory = content.subject_category;
 
         // allRecommendedContents에서 조회
         const recommendedContent = allRecommendedContents.find(
