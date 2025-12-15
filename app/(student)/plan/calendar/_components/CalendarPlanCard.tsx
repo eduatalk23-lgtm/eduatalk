@@ -4,6 +4,8 @@ import { Clock, Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import { getContentTypeIcon } from "../../_shared/utils";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { bgSurface, borderDefault, textPrimary } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type PlanCardProps = {
   plan: PlanWithContent;
@@ -57,13 +59,13 @@ export function CalendarPlanCard({
       ? "border-green-300 dark:border-green-700"
       : isActive
       ? "border-blue-300 dark:border-blue-700"
-      : "border-gray-200 dark:border-gray-700";
+      : borderDefault;
     
     const bgColorClass = isCompleted
       ? "bg-green-50 dark:bg-green-900/30"
       : isActive
       ? "bg-blue-50 dark:bg-blue-900/30"
-      : "bg-white dark:bg-gray-800";
+      : bgSurface;
     
     // 연결된 경우 border 조정
     const borderClasses = isConnected
@@ -86,7 +88,7 @@ export function CalendarPlanCard({
         )}
         <div className="flex items-center gap-0.5 min-w-0">
           <span className="text-xs shrink-0">{contentTypeIcon}</span>
-          <span className="truncate font-medium text-gray-900 dark:text-gray-100 min-w-0 flex-1 text-[10px] leading-tight">
+          <span className={cn("truncate font-medium min-w-0 flex-1 text-[10px] leading-tight", textPrimary)}>
             {plan.contentSubjectCategory || plan.contentSubject || "-"}
           </span>
           {plan.contentEpisode && (
@@ -116,7 +118,7 @@ export function CalendarPlanCard({
           ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30"
           : isActive
           ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30"
-          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+          : cn(borderDefault, bgSurface)
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -163,7 +165,7 @@ export function CalendarPlanCard({
           {/* 2행: 교재명(또는 강의명) 회차 */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-xl md:text-2xl shrink-0">{contentTypeIcon}</span>
-            <h3 className="truncate text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 min-w-0 flex-1">{plan.contentTitle}</h3>
+            <h3 className={cn("truncate text-base md:text-lg font-semibold min-w-0 flex-1", textPrimary)}>{plan.contentTitle}</h3>
             {plan.contentEpisode && (
               <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-400">
                 {plan.contentEpisode}

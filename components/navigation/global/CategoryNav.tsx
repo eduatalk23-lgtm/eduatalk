@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { getCategoriesForRole, type NavigationRole, type NavigationCategory, type NavigationItem } from "./categoryConfig";
 import { resolveActiveCategory, isCategoryPath, isItemActive, type ActiveCategoryInfo } from "./resolveActiveCategory";
 import { useSidebar } from "@/components/layout/SidebarContext";
 import { isCampMode, ensurePathname, getActiveCategoryWithCampMode } from "@/lib/navigation/utils";
+import { getNavItemClasses, getCategoryHeaderClasses, getSubItemClasses, getChildItemClasses, navItemStyles } from "./navStyles";
 
 type CategoryNavProps = {
   role: NavigationRole;
@@ -68,7 +69,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
     }
   }, [activeCategoryInfo]);
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) {
@@ -78,7 +79,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
       }
       return next;
     });
-  };
+  }, []);
 
   const isCategoryActive = (category: NavigationCategory): boolean => {
     // activeCategoryInfo를 활용하여 중복 제거
@@ -88,12 +89,49 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
     return isCategoryPath(safePathname, category, searchParams);
   };
 
-  const handleLinkClick = () => {
+  const handleLinkClick = useCallback(() => {
     onNavigate?.();
-  };
+  }, [onNavigate]);
+
+  // 키보드 네비게이션을 위한 ref
+  const categoryRefs = useRef<Map<string, HTMLButtonElement | HTMLAnchorElement>>(new Map());
+
+  // 키보드 이벤트 핸들러
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, categoryId: string, index: number) => {
+    const categoriesList = Array.from(categories);
+    
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        const nextIndex = (index + 1) % categoriesList.length;
+        const nextCategory = categoriesList[nextIndex];
+        const nextRef = categoryRefs.current.get(nextCategory.id);
+        nextRef?.focus();
+        break;
+      
+      case "ArrowUp":
+        e.preventDefault();
+        const prevIndex = index === 0 ? categoriesList.length - 1 : index - 1;
+        const prevCategory = categoriesList[prevIndex];
+        const prevRef = categoryRefs.current.get(prevCategory.id);
+        prevRef?.focus();
+        break;
+      
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        toggleCategory(categoryId);
+        break;
+      
+      case "Escape":
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).blur();
+        break;
+    }
+  }, [categories, toggleCategory]);
 
   return (
-    <nav className={cn("flex flex-col gap-1", className)} aria-label="메인 네비게이션">
+    <nav className={cn("flex flex-col gap-1", className)} aria-label="메인 네비게이션" role="navigation">
       {categories.map((category) => {
         const isActive = isCategoryActive(category);
         const isExpanded = expandedCategories.has(category.id);
@@ -108,21 +146,22 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
             {/* 하위 메뉴가 1개인 경우: 카테고리 자체를 링크로 */}
             {singleItem ? (
               <Link
+                ref={(el) => {
+                  if (el) categoryRefs.current.set(category.id, el);
+                  else categoryRefs.current.delete(category.id);
+                }}
                 href={singleItemHref!}
                 onClick={handleLinkClick}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-                  "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-                  isCollapsed && "justify-center px-2",
-                  singleItemActive
-                    ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
-                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                )}
+                onKeyDown={(e) => handleKeyDown(e, category.id, categories.findIndex(c => c.id === category.id))}
+                className={getNavItemClasses({
+                  isActive: singleItemActive,
+                  isCollapsed,
+                })}
                 title={isCollapsed ? category.label : undefined}
                 aria-current={singleItemActive ? "page" : undefined}
               >
-                {category.icon && <span aria-hidden="true">{category.icon}</span>}
-                <span className={cn("transition-opacity", isCollapsed && "opacity-0 w-0 overflow-hidden")}>
+                {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
+                <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
                   {category.label}
                 </span>
               </Link>
@@ -130,22 +169,23 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
               <>
                 {/* 카테고리 헤더 */}
                 <button
+                  ref={(el) => {
+                    if (el) categoryRefs.current.set(category.id, el);
+                    else categoryRefs.current.delete(category.id);
+                  }}
                   onClick={() => toggleCategory(category.id)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
-                    "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-                    isCollapsed && "justify-center px-2",
-                    isActive
-                      ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
-                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                  )}
+                  onKeyDown={(e) => handleKeyDown(e, category.id, categories.findIndex(c => c.id === category.id))}
+                  className={getCategoryHeaderClasses({
+                    isActive,
+                    isCollapsed,
+                  })}
                   title={isCollapsed ? category.label : undefined}
                   aria-expanded={isExpanded}
                   aria-controls={`category-items-${category.id}`}
                 >
                   <div className="flex items-center gap-2">
-                    {category.icon && <span aria-hidden="true">{category.icon}</span>}
-                    <span className={cn("transition-opacity", isCollapsed && "opacity-0 w-0 overflow-hidden")}>
+                    {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
+                    <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
                       {category.label}
                     </span>
                   </div>
@@ -169,12 +209,16 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                 </button>
 
                 {/* 카테고리 아이템들 */}
-                {isExpanded && !isCollapsed && (
+                {!isCollapsed && (
                   <div
                     id={`category-items-${category.id}`}
-                    className="flex flex-col gap-1 pl-4"
+                    className={cn(
+                      "flex flex-col gap-1 pl-4 overflow-hidden transition-all duration-200 motion-reduce:transition-none",
+                      isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
+                    )}
                     role="group"
                     aria-label={`${category.label} 하위 메뉴`}
+                    aria-hidden={!isExpanded}
                   >
                     {category.items.map((item) => {
                       // 역할 체크
@@ -190,16 +234,12 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                           <Link
                             href={item.href}
                             onClick={handleLinkClick}
-                            className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-                              "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-                              itemActive
-                                ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
-                                : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                            )}
+                            className={getSubItemClasses({
+                              isActive: itemActive,
+                            })}
                             aria-current={itemActive ? "page" : undefined}
                           >
-                            {item.icon && <span aria-hidden="true">{item.icon}</span>}
+                            {item.icon && <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>}
                             <span>{item.label}</span>
                           </Link>
 
@@ -213,16 +253,12 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                                     key={child.id}
                                     href={child.href}
                                     onClick={handleLinkClick}
-                                    className={cn(
-                                      "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                                      "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
-                                      childActive
-                                        ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200"
-                                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                                    )}
+                                    className={getChildItemClasses({
+                                      isActive: childActive,
+                                    })}
                                     aria-current={childActive ? "page" : undefined}
                                   >
-                                    {child.icon && <span className="text-xs" aria-hidden="true">{child.icon}</span>}
+                                    {child.icon && <span className="flex-shrink-0" aria-hidden="true">{child.icon}</span>}
                                     <span>{child.label}</span>
                                   </Link>
                                 );

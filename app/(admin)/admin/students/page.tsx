@@ -21,12 +21,18 @@ import {
   textPrimary,
   textSecondary,
   textMuted,
+  textTertiary,
   borderDefault,
   borderInput,
   tableHeaderBase,
   tableCellBase,
   tableContainer,
   tableRowBase,
+  inlineButtonPrimary,
+  getGrayBgClasses,
+  getStatusBadgeColorClasses,
+  getIndigoTextClasses,
+  bgStyles,
 } from "@/lib/utils/darkMode";
 
 type SupabaseServerClient = Awaited<
@@ -376,7 +382,7 @@ export default async function AdminStudentsPage({
                 name="has_score"
                 value="true"
                 defaultChecked={hasScoreFilter}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
+                className={cn("rounded text-indigo-600 focus:ring-indigo-500", borderInput)}
               />
               <span className={cn("text-sm", textSecondary)}>성적 입력 학생만</span>
             </label>
@@ -395,7 +401,7 @@ export default async function AdminStudentsPage({
                 name="show_inactive"
                 value="true"
                 defaultChecked={showInactiveFilter}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
+                className={cn("rounded text-indigo-600 focus:ring-indigo-500", borderInput)}
               />
               <span className={cn("text-sm", textSecondary)}>비활성화 포함</span>
             </label>
@@ -426,7 +432,7 @@ export default async function AdminStudentsPage({
           {/* 검색 버튼 */}
           <button
             type="submit"
-            className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
+            className={cn("rounded-lg px-6 py-2 text-sm font-semibold text-white transition", inlineButtonPrimary())}
           >
             검색
           </button>
@@ -462,7 +468,7 @@ export default async function AdminStudentsPage({
         ) : (
           <div className={cn("overflow-x-auto rounded-lg shadow-sm", tableContainer)}>
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-900/50">
+            <thead className={cn(getGrayBgClasses("tableHeader"))}>
               <tr>
                 <th className={tableHeaderBase}>이름</th>
                 <th className={tableHeaderBase}>학년</th>
@@ -511,7 +517,7 @@ export default async function AdminStudentsPage({
                   </td>
                   <td className={cn(tableCellBase, textMuted)}>
                     {student.hasScore ? (
-                      <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-semibold text-green-700 dark:text-green-300">
+                      <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", getStatusBadgeColorClasses("success"))}>
                         입력됨
                       </span>
                     ) : (
@@ -522,11 +528,11 @@ export default async function AdminStudentsPage({
                   </td>
                   <td className={cn(tableCellBase, textMuted)}>
                     {student.is_active === false ? (
-                      <span className="rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-1 text-xs font-semibold text-red-700 dark:text-red-300">
+                      <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", getStatusBadgeColorClasses("error"))}>
                         비활성화
                       </span>
                     ) : (
-                      <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-semibold text-green-700 dark:text-green-300">
+                      <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", getStatusBadgeColorClasses("active"))}>
                         활성
                       </span>
                     )}
@@ -535,7 +541,7 @@ export default async function AdminStudentsPage({
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/admin/students/${student.id}`}
-                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
+                        className={getIndigoTextClasses("link")}
                       >
                         상세 보기
                       </Link>

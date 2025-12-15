@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
+import { bgSurface, borderDefault, textPrimary, textSecondary } from "@/lib/utils/darkMode";
 
 export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 
@@ -112,7 +113,9 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={cn(
-          "relative w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg",
+          "relative w-full rounded-lg border shadow-lg",
+          borderDefault,
+          bgSurface,
           "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
           "focus:outline-none",
           effectiveSize === "sm" && "max-w-sm",
@@ -151,20 +154,20 @@ export function Dialog({
         )}
 
         {(title || description) && (
-          <div className="flex flex-col gap-1.5 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className={cn("flex flex-col gap-1.5 border-b px-6 py-4", borderDefault)}>
             {title && (
               <h2
                 id={titleId}
                 className={cn(
                   "text-lg font-semibold",
-                  variant === "destructive" ? "text-red-900 dark:text-red-300" : "text-gray-900 dark:text-gray-100"
+                  variant === "destructive" ? "text-red-900 dark:text-red-300" : textPrimary
                 )}
               >
                 {title}
               </h2>
             )}
             {description && (
-              <div id={descriptionId} className="text-sm text-gray-700 dark:text-gray-300">
+              <div id={descriptionId} className={cn("text-sm", textSecondary)}>
                 {description}
               </div>
             )}
@@ -195,7 +198,8 @@ export function DialogFooter({ children, className }: DialogFooterProps) {
   return (
     <div
       className={cn(
-        "flex flex-col-reverse gap-2 border-t border-gray-200 dark:border-gray-700 px-6 py-4 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end",
+        borderDefault,
         className
       )}
     >

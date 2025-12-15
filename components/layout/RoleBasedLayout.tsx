@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, Suspense } from "react";
+import { ReactNode, Suspense, useEffect, useRef, useState } from "react";
 import { CategoryNav } from "@/components/navigation/global/CategoryNav";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { SignOutButton } from "@/app/_components/SignOutButton";
@@ -145,6 +145,42 @@ function MobileSidebar({
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
 }) {
   const { isMobileOpen, toggleMobile, closeMobile } = useSidebar();
+  const drawerRef = useRef<HTMLElement>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // body 스크롤 잠금
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileOpen]);
+
+  // 터치 제스처 처리
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    if (isLeftSwipe && isMobileOpen) {
+      closeMobile();
+    }
+  };
 
   return (
     <>
@@ -170,13 +206,18 @@ function MobileSidebar({
 
       {/* 드로어 */}
       <aside
+        ref={drawerRef}
         id="mobile-sidebar"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
         className={cn(
           "fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 transform transition-transform duration-300 ease-in-out motion-reduce:duration-0 md:hidden overflow-y-auto",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
         role="navigation"
         aria-label="모바일 메뉴"
+        aria-hidden={!isMobileOpen}
       >
         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 z-10">
           <div className="flex items-center justify-between gap-2">

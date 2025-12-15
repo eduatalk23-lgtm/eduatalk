@@ -10,7 +10,20 @@ import {
   duplicateBlockSet,
 } from "@/app/actions/blockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
-import { inputFieldBase, inlineButtonPrimary, modalCancelButton, textPrimary, textSecondary, textTertiary, textMuted, bgSurface, borderDefault, borderInput, bgStyles } from "@/lib/utils/darkMode";
+import { 
+  inputFieldBase, 
+  inlineButtonPrimary, 
+  modalCancelButton, 
+  textPrimary, 
+  textSecondary, 
+  textTertiary, 
+  textMuted, 
+  bgSurface, 
+  borderDefault, 
+  borderInput, 
+  bgStyles,
+  getGrayBgClasses,
+} from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type BlockSet = {
@@ -238,30 +251,30 @@ function BlockSetCreateForm({
   }
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+    <div className={cn("p-4 rounded-lg", bgSurface, borderDefault)}>
       <form action={formAction} className="flex flex-col gap-3">
         {state.error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
         )}
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">세트 이름</label>
+          <label className={cn("text-sm font-medium", textSecondary)}>세트 이름</label>
           <input
             type="text"
             name="name"
             placeholder="예: 여름방학용"
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm"
+            className={cn("px-3 py-2 rounded-lg text-sm", borderInput, bgSurface, textPrimary)}
             required
             maxLength={100}
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">설명 (선택)</label>
+          <label className={cn("text-sm font-medium", textSecondary)}>설명 (선택)</label>
           <textarea
             name="description"
             placeholder="세트에 대한 설명을 입력하세요"
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm"
+            className={cn("px-3 py-2 rounded-lg text-sm", borderInput, bgSurface, textPrimary)}
             rows={2}
             maxLength={500}
           />
@@ -279,7 +292,7 @@ function BlockSetCreateForm({
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            className={cn("flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50", getGrayBgClasses("dark"), textSecondary, "hover:bg-gray-300 dark:hover:bg-gray-600")}
           >
             취소
           </button>
@@ -327,7 +340,7 @@ function BlockSetEditForm({ set, onSuccess, onCancel }: BlockSetEditFormProps) {
         type="text"
         name="name"
         defaultValue={set.name}
-        className="px-2 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded text-sm flex-1"
+        className={cn("px-2 py-1 border rounded text-sm flex-1", borderInput, bgSurface, textPrimary)}
         required
         maxLength={100}
       />
@@ -342,7 +355,7 @@ function BlockSetEditForm({ set, onSuccess, onCancel }: BlockSetEditFormProps) {
         type="button"
         onClick={onCancel}
         disabled={isPending}
-        className="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+        className={cn("px-2 py-1 text-xs rounded transition-colors disabled:opacity-50", getGrayBgClasses("dark"), textSecondary, "hover:bg-gray-300 dark:hover:bg-gray-600")}
       >
         취소
       </button>

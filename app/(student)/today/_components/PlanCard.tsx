@@ -16,7 +16,15 @@ import { Clock } from "lucide-react";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
-import { cn, bgSurface, borderDefault, textPrimary, textSecondary } from "@/lib/utils/darkMode";
+import { 
+  bgSurface, 
+  borderDefault, 
+  textPrimary, 
+  textSecondary,
+  getIndigoTextClasses,
+  getIndigoBgClasses,
+} from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type PlanRunState = "idle" | "running" | "paused" | "completed";
 type PendingAction = "start" | "pause" | "resume" | "complete";
@@ -362,8 +370,8 @@ function PlanCardComponent({
         {/* 헤더 */}
         <div className="flex flex-col items-center gap-3 text-center">
           {planTimeRange && (
-            <div className={cn("inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-sm", bgSurface, "text-indigo-900 dark:text-indigo-300")}>
-              <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
+            <div className={cn("inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-sm", bgSurface, getIndigoTextClasses("heading"))}>
+              <Clock className={cn("h-4 w-4", getIndigoTextClasses("icon"))} aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
           )}
@@ -420,8 +428,8 @@ function PlanCardComponent({
         {/* 카드 헤더 */}
         <div className="flex flex-col gap-3 text-center sm:text-left">
           {planTimeRange && (
-            <div className={cn("inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-sm sm:self-start", bgSurface, "text-indigo-900 dark:text-indigo-300")}>
-              <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
+            <div className={cn("inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-sm sm:self-start", bgSurface, getIndigoTextClasses("heading"))}>
+              <Clock className={cn("h-4 w-4", getIndigoTextClasses("icon"))} aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
           )}
@@ -433,7 +441,7 @@ function PlanCardComponent({
             {onViewDetail && (
               <button
                 onClick={() => onViewDetail(group.planNumber)}
-                className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                className={cn("text-sm font-semibold", getIndigoTextClasses("link"))}
               >
                 상세보기 →
               </button>

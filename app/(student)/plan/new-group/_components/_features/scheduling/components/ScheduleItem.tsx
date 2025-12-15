@@ -12,6 +12,8 @@ import { formatNumber } from "@/lib/utils/formatNumber";
 import { TimelineBar } from "./TimelineBar";
 import { TimeSlotsWithPlans } from "./TimeSlotsWithPlans";
 import { dayTypeLabels, dayTypeColors } from "./scheduleUtils";
+import { getDayTypeBadgeClasses } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 export const ScheduleItem = memo(
   function ScheduleItem({
@@ -45,11 +47,12 @@ export const ScheduleItem = memo(
     const hasTimeSlots = schedule.time_slots && schedule.time_slots.length > 0;
 
     return (
-      <div className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+      <div className="border-b border-gray-100 dark:border-gray-800 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800">
         <div
-          className={`w-full px-4 py-3 ${
-            hasDetails || hasExclusion || hasTimeSlots ? "cursor-pointer" : ""
-          }`}
+          className={cn(
+            "w-full px-4 py-3",
+            (hasDetails || hasExclusion || hasTimeSlots) && "cursor-pointer"
+          )}
           onClick={() => {
             if (hasDetails || hasExclusion || hasTimeSlots) {
               onToggle();
@@ -60,13 +63,14 @@ export const ScheduleItem = memo(
             <div className="flex-1 min-w-0 pr-2">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {formatDate(schedule.date)}
                   </span>
                   <span
-                    className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                      dayTypeColors[schedule.day_type] || dayTypeColors["학습일"]
-                    }`}
+                    className={cn(
+                      "rounded-full border px-2 py-0.5 text-xs font-medium",
+                      getDayTypeBadgeClasses(schedule.day_type) || getDayTypeBadgeClasses("학습일")
+                    )}
                   >
                     {dayTypeLabels[schedule.day_type] || schedule.day_type}
                   </span>
@@ -103,7 +107,7 @@ export const ScheduleItem = memo(
                 const academyHours = calculateTimeFromSlots("학원일정");
 
                 return (
-                  <div className="flex flex-col gap-1 text-xs text-gray-600">
+                  <div className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
                     {isDesignatedHoliday ? (
                       // 지정휴일인 경우 자율학습 시간만 표기
                       <div className="flex items-center gap-4">
@@ -160,7 +164,7 @@ export const ScheduleItem = memo(
                 );
               })()}
               {schedule.note && (
-                <div className="text-xs text-gray-600">
+                <div className="text-xs text-gray-600 dark:text-gray-400">
                   {schedule.note}
                 </div>
               )}
@@ -169,9 +173,9 @@ export const ScheduleItem = memo(
             {(hasDetails || hasExclusion || hasTimeSlots) && (
               <div className="flex-shrink-0 relative z-10">
                 {isExpanded ? (
-                  <ChevronUp className="h-5 w-5 text-gray-600" />
+                  <ChevronUp className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-600" />
+                  <ChevronDown className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                 )}
               </div>
             )}
@@ -180,14 +184,14 @@ export const ScheduleItem = memo(
 
         {/* 확장된 상세 정보 */}
         {isExpanded && (hasDetails || hasExclusion || hasTimeSlots) && (
-          <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
+          <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3">
             <div className="flex flex-col gap-4">
               {/* 시간 타임라인 */}
               {hasTimeSlots && schedule.time_slots && (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-600" />
-                    <div className="text-xs font-medium text-gray-600">
+                    <Clock className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       시간 구성
                     </div>
                   </div>
@@ -209,10 +213,10 @@ export const ScheduleItem = memo(
               {/* 제외일 정보 */}
               {hasExclusion && schedule.exclusion && (
                 <div className="flex items-start gap-2">
-                  <XCircle className="h-4 w-4 flex-shrink-0 text-gray-600 self-start" />
+                  <XCircle className="h-4 w-4 flex-shrink-0 text-gray-600 dark:text-gray-400 self-start" />
                   <div className="flex-1">
                     <div className="flex flex-col gap-1">
-                      <div className="text-xs font-medium text-gray-600">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
                         {schedule.exclusion.exclusion_type === "휴가"
                           ? "휴가"
                           : schedule.exclusion.exclusion_type === "개인사정"
@@ -222,7 +226,7 @@ export const ScheduleItem = memo(
                           : "제외일"}
                       </div>
                       {schedule.exclusion.reason && (
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
                           {schedule.exclusion.reason}
                         </div>
                       )}
@@ -235,8 +239,8 @@ export const ScheduleItem = memo(
               {hasDetails && schedule.academy_schedules && (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-600" />
-                    <div className="text-xs font-medium text-gray-600">
+                    <Calendar className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       학원일정 ({schedule.academy_schedules.length}개)
                     </div>
                   </div>
@@ -244,18 +248,18 @@ export const ScheduleItem = memo(
                     {schedule.academy_schedules.map((academy, idx) => (
                       <div
                         key={idx}
-                        className="rounded border border-gray-200 bg-white px-2 py-1.5 text-xs"
+                        className="rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5 text-xs"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1 font-medium text-gray-900">
+                          <div className="flex items-center gap-1 font-medium text-gray-900 dark:text-gray-100">
                             <span>{academy.academy_name || "학원"}</span>
                             {academy.subject && (
-                              <span className="text-gray-600">
+                              <span className="text-gray-600 dark:text-gray-400">
                                 ({academy.subject})
                               </span>
                             )}
                           </div>
-                          <div className="text-gray-600">
+                          <div className="text-gray-600 dark:text-gray-400">
                             {academy.start_time} ~ {academy.end_time}
                           </div>
                         </div>

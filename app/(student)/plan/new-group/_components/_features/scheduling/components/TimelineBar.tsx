@@ -1,5 +1,8 @@
 "use client";
 
+import { getTimeSlotColorClasses, type TimeSlotType } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
+
 type TimeSlot = {
   type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
   start: string;
@@ -18,14 +21,26 @@ function timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-// 각 타입별 색상 매핑
-const slotColors: Record<TimeSlot["type"], string> = {
-  학습시간: "bg-blue-500",
-  점심시간: "bg-orange-400",
-  학원일정: "bg-purple-500",
-  이동시간: "bg-gray-400",
-  자율학습: "bg-green-500",
-};
+/**
+ * 타임슬롯 타입에 따른 배경색 클래스 반환
+ * TimelineBar의 막대 그래프용 색상 (텍스트 없이 배경만)
+ */
+function getSlotBackgroundColor(type: TimeSlotType): string {
+  switch (type) {
+    case "학습시간":
+      return "bg-blue-500 dark:bg-blue-600";
+    case "점심시간":
+      return "bg-orange-400 dark:bg-orange-500";
+    case "학원일정":
+      return "bg-purple-500 dark:bg-purple-600";
+    case "이동시간":
+      return "bg-gray-400 dark:bg-gray-500";
+    case "자율학습":
+      return "bg-green-500 dark:bg-green-600";
+    default:
+      return "bg-gray-400 dark:bg-gray-500";
+  }
+}
 
 // 각 타입별 라벨
 const slotLabels: Record<TimeSlot["type"], string> = {
@@ -99,7 +114,7 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
   return (
     <div className="flex flex-col gap-1.5 w-full" aria-label={`일정 구성: ${ariaLabel}`}>
       <div 
-        className="grid h-6 md:h-8 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+        className="grid h-6 md:h-8 w-full overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm"
         style={{ gridTemplateColumns }}
       >
         {normalizedPercentages.map((item, index) => {
@@ -114,7 +129,7 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
           return (
             <div
               key={`${item.type}-${index}`}
-              className={`flex items-center justify-center ${slotColors[item.type]} text-white transition-all`}
+              className={cn("flex items-center justify-center text-white transition-all", getSlotBackgroundColor(item.type))}
               title={`${slotLabels[item.type]}: ${item.durationHours.toFixed(1)}시간 (${item.start} - ${item.end})`}
             >
               {showLabel && (
@@ -129,10 +144,10 @@ export function TimelineBar({ timeSlots, totalHours }: TimelineBarProps) {
       
       {/* 범례 (타입별 색상 안내) - 토글 버튼과 겹치지 않도록 제거하거나 최소화 */}
       {slotData.length > 0 && (
-        <div className="flex flex-wrap gap-2 text-[10px] text-gray-600 max-w-full">
+        <div className="flex flex-wrap gap-2 text-[10px] text-gray-600 dark:text-gray-400 max-w-full">
           {Array.from(new Set(slotData.map(s => s.type))).map((type) => (
             <div key={type} className="flex items-center gap-1 flex-shrink-0">
-              <div className={`w-2 h-2 rounded-sm ${slotColors[type]}`} />
+              <div className={cn("w-2 h-2 rounded-sm", getSlotBackgroundColor(type))} />
               <span className="whitespace-nowrap">{slotLabels[type]}</span>
             </div>
           ))}

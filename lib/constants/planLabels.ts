@@ -37,6 +37,11 @@ export const statusLabels: Record<string, string> = {
 import { planStatusColors } from "@/lib/utils/darkMode";
 
 /**
+ * 플랜 상태 색상 (darkMode.ts에서 re-export)
+ */
+export { planStatusColors };
+
+/**
  * @deprecated planStatusColors 사용 권장
  * 기존 코드 호환성을 위해 유지
  */

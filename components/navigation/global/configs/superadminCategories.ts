@@ -3,81 +3,92 @@
  */
 
 import type { NavigationCategory } from "../types";
+import {
+  BarChart3,
+  Building2,
+  Users,
+  User,
+  Mail,
+  Link2,
+  Settings,
+  BookOpen,
+  FileText,
+} from "lucide-react";
 
 export const superadminCategories: NavigationCategory[] = [
   {
     id: "superadmin-dashboard",
     label: "대시보드",
-    icon: "📊",
+    icon: <BarChart3 className="w-4 h-4" />,
     items: [
       {
         id: "superadmin-dashboard-main",
         label: "대시보드",
         href: "/superadmin/dashboard",
-        icon: "📊",
+        icon: <BarChart3 className="w-4 h-4" />,
       },
     ],
   },
   {
     id: "superadmin-tenants",
     label: "기관 관리",
-    icon: "🏛️",
+    icon: <Building2 className="w-4 h-4" />,
     items: [
       {
         id: "superadmin-tenants-main",
         label: "기관 관리",
         href: "/superadmin/tenants",
-        icon: "🏛️",
+        icon: <Building2 className="w-4 h-4" />,
       },
     ],
   },
   {
     id: "superadmin-users",
     label: "사용자 관리",
-    icon: "👥",
+    icon: <Users className="w-4 h-4" />,
     items: [
       {
         id: "superadmin-admin-users",
         label: "관리자 계정",
         href: "/superadmin/admin-users",
-        icon: "👤",
+        icon: <User className="w-4 h-4" />,
       },
       {
         id: "superadmin-unverified-users",
         label: "미인증 가입 관리",
         href: "/superadmin/unverified-users",
-        icon: "✉️",
+        icon: <Mail className="w-4 h-4" />,
       },
       {
         id: "superadmin-tenantless-users",
         label: "테넌트 미할당 사용자",
         href: "/superadmin/tenantless-users",
-        icon: "🔗",
+        icon: <Link2 className="w-4 h-4" />,
       },
     ],
   },
   {
     id: "superadmin-settings",
     label: "설정",
-    icon: "⚙️",
+    icon: <Settings className="w-4 h-4" />,
     items: [
       {
         id: "superadmin-settings-main",
         label: "설정",
         href: "/superadmin/settings",
-        icon: "⚙️",
+        icon: <Settings className="w-4 h-4" />,
       },
       {
         id: "superadmin-curriculum-settings",
         label: "교육과정 설정",
         href: "/superadmin/curriculum-settings",
-        icon: "📚",
+        icon: <BookOpen className="w-4 h-4" />,
       },
       {
         id: "superadmin-terms-management",
         label: "약관 관리",
         href: "/superadmin/terms-management",
-        icon: "📄",
+        icon: <FileText className="w-4 h-4" />,
       },
     ],
   },

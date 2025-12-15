@@ -4,6 +4,15 @@ import type { PlanWithContent } from "../_types/plan";
 import type { AcademySchedule } from "@/lib/types/plan";
 import { getTimeSlotColorClass, getTimeSlotIcon } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
+import { 
+  bgSurface, 
+  textPrimary, 
+  textTertiary,
+  textMuted,
+  getSemiTransparentBgClasses,
+  borderInput,
+} from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type TimelineSlot = {
   start: string;
@@ -32,7 +41,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
     <div className="relative flex gap-4">
       {/* 시간대 라인 */}
       <div className="flex flex-col items-center gap-2">
-        <div className="rounded-lg bg-white dark:bg-gray-800 px-4 py-2 text-base font-bold text-gray-900 dark:text-gray-100 shadow-md border-2 border-gray-300 dark:border-gray-600">
+        <div className={cn("rounded-lg px-4 py-2 text-base font-bold shadow-md border-2", borderInput, bgSurface, textPrimary)}>
           {startHour}시
         </div>
         {!isLast && (
@@ -48,7 +57,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
             <div className="flex items-center gap-3">
               <span className="text-2xl">{icon}</span>
               {(slot.type === "학습시간" || slot.type === "학원일정") && (
-                <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                <span className={cn("text-lg font-bold", textPrimary)}>
                   {slot.start} ~ {slot.end}
                 </span>
               )}
@@ -68,12 +77,12 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
 
           {/* 학원일정 표시 */}
           {slot.type === "학원일정" && slot.academy && (
-            <div className="flex flex-col gap-1 rounded-lg bg-white/60 dark:bg-gray-800/60 p-3">
-              <div className="font-medium text-gray-900 dark:text-gray-100">
+            <div className={cn("flex flex-col gap-1 rounded-lg p-3", getSemiTransparentBgClasses("surface"))}>
+              <div className={cn("font-medium", textPrimary)}>
                 {slot.academy.academy_name || "학원"}
               </div>
               {slot.academy.subject && (
-                <div className="text-sm text-gray-600 dark:text-gray-400">
+                <div className={cn("text-sm", textTertiary)}>
                   {slot.academy.subject}
                 </div>
               )}
@@ -108,20 +117,20 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
 
           {/* 플랜이 없는 학습시간 */}
           {slot.type === "학습시간" && (!slot.plans || slot.plans.length === 0) && (
-            <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-3 text-center text-sm text-gray-400 dark:text-gray-500">
+            <div className={cn("rounded-lg p-3 text-center text-sm", getSemiTransparentBgClasses("surface"), textMuted)}>
               플랜 없음
             </div>
           )}
 
           {/* 특수 타임슬롯 (점심시간, 이동시간, 자율학습 등) */}
           {slot.type !== "학습시간" && slot.type !== "학원일정" && (
-            <div className="rounded-lg bg-white/60 dark:bg-gray-800/60 p-3">
+            <div className={cn("rounded-lg p-3", getSemiTransparentBgClasses("surface"))}>
               {slot.type === "점심시간" ? (
-                <div className="font-medium text-gray-900 dark:text-gray-100">맛있는 점심식사 드세요.</div>
+                <div className={cn("font-medium", textPrimary)}>맛있는 점심식사 드세요.</div>
               ) : slot.type === "자율학습" ? (
-                <div className="font-medium text-gray-900 dark:text-gray-100">완료하지 못한 학습 또는 복습을 진행하세요.</div>
+                <div className={cn("font-medium", textPrimary)}>완료하지 못한 학습 또는 복습을 진행하세요.</div>
               ) : (
-                <div className="font-medium text-gray-900 dark:text-gray-100">{slot.label || slot.type}</div>
+                <div className={cn("font-medium", textPrimary)}>{slot.label || slot.type}</div>
               )}
             </div>
           )}

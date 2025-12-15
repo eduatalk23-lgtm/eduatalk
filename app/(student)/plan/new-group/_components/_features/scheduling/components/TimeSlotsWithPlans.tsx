@@ -8,6 +8,8 @@ import {
   calculateEstimatedTime,
 } from "./scheduleUtils";
 import { PlanTable } from "./PlanTable";
+import { getTimeSlotColorClasses, type TimeSlotType } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 // 모든 시간 슬롯과 플랜을 함께 처리하는 컴포넌트
 export const TimeSlotsWithPlans = memo(
@@ -400,22 +402,7 @@ export const TimeSlotsWithPlans = memo(
     return (
       <>
         {timeSlots.map((slot, idx) => {
-          const getSlotColor = () => {
-            switch (slot.type) {
-              case "학습시간":
-                return "bg-blue-50 border-blue-200 text-blue-800";
-              case "점심시간":
-                return "bg-orange-50 border-orange-200 text-orange-800";
-              case "학원일정":
-                return "bg-purple-50 border-purple-200 text-purple-800";
-              case "이동시간":
-                return "bg-gray-50 border-gray-200 text-gray-800";
-              case "자율학습":
-                return "bg-green-50 border-green-200 text-green-800";
-              default:
-                return "bg-gray-50 border-gray-200 text-gray-800";
-            }
-          };
+          const slotColorClasses = getTimeSlotColorClasses(slot.type as TimeSlotType);
 
           // 학습시간 블록인 경우 해당 인덱스로 플랜 찾기
           const studySlotIdx = studySlotIndexMap.get(idx);
@@ -448,7 +435,7 @@ export const TimeSlotsWithPlans = memo(
           return (
             <div key={idx} className="flex flex-col gap-1.5">
               <div
-                className={`rounded border px-3 py-2 text-xs ${getSlotColor()}`}
+                className={cn("rounded border px-3 py-2 text-xs", slotColorClasses)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -457,7 +444,7 @@ export const TimeSlotsWithPlans = memo(
                       {slot.label || slot.type}
                     </span>
                   </div>
-                  <span className="text-gray-600">
+                  <span className="text-gray-600 dark:text-gray-400">
                     {slot.start} ~ {slot.end}
                   </span>
                 </div>
@@ -491,39 +478,26 @@ export const TimeSlotsWithPlans = memo(
                     // 플랜이 일부만 배치되어 남은 영역이 있을 때만 표시
                     return remainingRanges.length > 0 ? (
                       <div className="pl-4 flex flex-col gap-1.5">
-                        {remainingRanges.map((range, rangeIdx) => (
-                          <div
-                            key={rangeIdx}
-                            className={`rounded border px-3 py-2 text-xs ${
-                              range.type === "학습시간"
-                                ? "border-blue-200 bg-blue-50"
-                                : "border-green-200 bg-green-50"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span
-                                className={`font-medium ${
-                                  range.type === "학습시간"
-                                    ? "text-blue-800"
-                                    : "text-green-800"
-                                }`}
-                              >
-                                {range.type === "학습시간"
-                                  ? "학습 시간"
-                                  : "자율 학습 시간"}
-                              </span>
-                              <span
-                                className={`${
-                                  range.type === "학습시간"
-                                    ? "text-blue-800"
-                                    : "text-green-600"
-                                }`}
-                              >
-                                {range.start} ~ {range.end}
-                              </span>
+                        {remainingRanges.map((range, rangeIdx) => {
+                          const rangeColorClasses = getTimeSlotColorClasses(range.type as TimeSlotType);
+                          return (
+                            <div
+                              key={rangeIdx}
+                              className={cn("rounded border px-3 py-2 text-xs", rangeColorClasses)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">
+                                  {range.type === "학습시간"
+                                    ? "학습 시간"
+                                    : "자율 학습 시간"}
+                                </span>
+                                <span>
+                                  {range.start} ~ {range.end}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : null;
                   })()}
@@ -542,7 +516,7 @@ export const TimeSlotsWithPlans = memo(
                       />
                     </div>
                   ) : unplacedCustomPlans.length > 0 ? (
-                    <div className="pl-4 text-xs text-gray-600 italic">
+                    <div className="pl-4 text-xs text-gray-600 dark:text-gray-400 italic">
                       (커스텀 플랜 {unplacedCustomPlans.length}개 - 시간 정보
                       없음)
                     </div>

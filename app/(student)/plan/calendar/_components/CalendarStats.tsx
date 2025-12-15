@@ -2,6 +2,8 @@
 
 import { StatCard } from "./StatCard";
 import type { PlanWithContent } from "../_types/plan";
+import { bgSurface, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type CalendarStatsProps = {
   plans: PlanWithContent[];
@@ -17,7 +19,7 @@ export function CalendarStats({ plans }: CalendarStatsProps) {
       : 0;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <div className={cn("flex flex-col gap-4 rounded-xl border p-4", borderDefault, bgSurface)}>
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">학습 통계</h3>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="총 플랜" value={totalPlans} color="gray" />

@@ -1,6 +1,7 @@
 import type { BlockData, ContentData } from "../../../utils/scheduleTransform";
 import type { Plan } from "./scheduleTypes";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+import { getDayTypeBadgeClasses } from "@/lib/utils/darkMode";
 
 export const dayTypeLabels: Record<string, string> = {
   학습일: "학습일",
@@ -10,12 +11,16 @@ export const dayTypeLabels: Record<string, string> = {
   개인일정: "개인일정",
 };
 
+/**
+ * @deprecated getDayTypeBadgeClasses() 사용 권장
+ * 날짜 타입별 색상 클래스 반환 (하위 호환성 유지)
+ */
 export const dayTypeColors: Record<string, string> = {
-  학습일: "bg-blue-100 text-blue-800 border-blue-200",
-  복습일: "bg-green-100 text-green-800 border-green-200",
-  지정휴일: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  휴가: "bg-gray-100 text-gray-800 border-gray-200",
-  개인일정: "bg-purple-100 text-purple-800 border-purple-200",
+  학습일: getDayTypeBadgeClasses("학습일"),
+  복습일: getDayTypeBadgeClasses("복습일"),
+  지정휴일: getDayTypeBadgeClasses("지정휴일"),
+  휴가: getDayTypeBadgeClasses("휴가"),
+  개인일정: getDayTypeBadgeClasses("개인일정"),
 };
 
 export function timeToMinutes(time: string): number {

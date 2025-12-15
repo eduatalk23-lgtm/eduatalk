@@ -5,6 +5,25 @@ import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { deleteSchool } from "@/app/(admin)/actions/schoolActions";
 import type { School } from "@/lib/data/schools";
+import { 
+  bgSurface, 
+  bgPage, 
+  bgHover,
+  borderDefault, 
+  borderInput,
+  textPrimary, 
+  textSecondary,
+  textTertiary,
+  textMuted,
+  tableHeaderBase,
+  tableCellBase,
+  getGrayBgClasses,
+  getIndigoTextClasses,
+  getRedTextClasses,
+  getRedBgClasses,
+  tableRowHover,
+} from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type SchoolTableProps = {
   schools: School[];
@@ -69,14 +88,14 @@ export default function SchoolTable({
 
   if (schools.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800">
+      <div className={cn("rounded-xl border border-dashed p-12 text-center", borderInput, bgPage)}>
         <div className="mx-auto flex max-w-md flex-col gap-6">
           <div className="text-6xl">🏫</div>
           <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className={cn("text-lg font-semibold", textPrimary)}>
               검색 결과가 없습니다
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className={cn("text-sm", textSecondary)}>
               다른 검색 조건으로 시도해보세요.
             </p>
           </div>
@@ -88,73 +107,73 @@ export default function SchoolTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-          <thead className="bg-gray-50 dark:bg-gray-900">
+        <table className={cn("w-full border-collapse rounded-lg border", borderDefault, bgSurface)}>
+          <thead className={cn(getGrayBgClasses("tableHeader"))}>
             <tr>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, textPrimary)}>
                 순서
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 학교명
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 타입
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 유형
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 지역
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 주소
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 전화번호
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 등록일
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
+              <th className={cn("border-b px-4 py-3 text-left text-sm font-semibold", borderDefault, tableHeaderBase, textPrimary)}>
                 작업
               </th>
             </tr>
           </thead>
           <tbody>
             {schools.map((school, index) => (
-              <tr key={school.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+              <tr key={school.id} className={cn("transition-colors", tableRowHover)}>
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {index + 1}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900 dark:border-gray-700 dark:text-gray-100">
+                <td className={cn("border-b px-4 py-3 text-sm font-medium", borderDefault, tableCellBase, textPrimary)}>
                   {school.name}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {school.type}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {getTypeAttribute(school)}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {school.region || "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {school.address || "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {school.phone || "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase, textTertiary)}>
                   {school.created_at
                     ? new Date(school.created_at).toLocaleDateString("ko-KR")
                     : "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm dark:border-gray-700">
+                <td className={cn("border-b px-4 py-3 text-sm", borderDefault, tableCellBase)}>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => onEdit(school)}
-                      className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                      className={getIndigoTextClasses("link")}
                     >
                       수정
                     </button>
@@ -162,7 +181,7 @@ export default function SchoolTable({
                       type="button"
                       onClick={() => handleDeleteClick(school)}
                       disabled={deletingId === school.id}
-                      className="text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                      className={cn("disabled:opacity-50", getRedTextClasses("link"))}
                     >
                       삭제
                     </button>
@@ -185,7 +204,7 @@ export default function SchoolTable({
           maxWidth="md"
         >
           <div className="py-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className={cn("text-sm", textTertiary)}>
               이 작업은 되돌릴 수 없으며, 학교의 모든 정보가 삭제됩니다.
             </p>
           </div>
@@ -193,7 +212,7 @@ export default function SchoolTable({
             <button
               type="button"
               onClick={() => setShowDeleteDialog(false)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              className={cn("rounded-lg border px-4 py-2 text-sm font-semibold transition", borderInput, bgSurface, textSecondary, bgHover)}
             >
               취소
             </button>
@@ -201,7 +220,7 @@ export default function SchoolTable({
               type="button"
               onClick={handleDeleteConfirm}
               disabled={deletingId === schoolToDelete.id}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:bg-red-400"
+              className={cn("rounded-lg px-4 py-2 text-sm font-semibold transition", getRedBgClasses("danger"))}
             >
               {deletingId === schoolToDelete.id ? "삭제 중..." : "삭제하기"}
             </button>

@@ -26,11 +26,160 @@ import { cn } from "@/lib/cn";
  * @see {@link https://next-themes.vercel.app/ next-themes}
  */
 
+// ============================================
+// CSS 변수 기반 유틸리티 (Tailwind CSS 4 호환)
+// ============================================
+
+/**
+ * CSS 변수를 직접 사용하는 유틸리티 함수
+ * globals.css에 정의된 CSS 변수를 활용하여 더 유연한 테마 관리
+ * 
+ * @note Tailwind CSS 4의 @theme 시스템과 연동
+ */
+export const textPrimaryVar = "text-[var(--text-primary)]";
+export const textSecondaryVar = "text-[var(--text-secondary)]";
+export const textTertiaryVar = "text-[var(--text-tertiary)]";
+export const textPlaceholderVar = "text-[var(--text-placeholder)]";
+export const textDisabledVar = "text-[var(--text-disabled)]";
+export const bgSurfaceVar = "bg-[var(--background)]";
+export const bgPageVar = "bg-[var(--background)]";
+export const textForegroundVar = "text-[var(--foreground)]";
+
+// ============================================
+// 제네릭 색상 클래스 유틸리티
+// ============================================
+
+/**
+ * 제네릭 색상 클래스 반환 함수
+ * 중복된 색상 매핑 패턴을 통합하여 코드 중복을 제거
+ * 
+ * @param color 색상 값
+ * @param colorMap 색상 매핑 객체
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ * 
+ * @example
+ * ```tsx
+ * const statCardColors = {
+ *   gray: "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
+ *   green: "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200",
+ * } as const;
+ * 
+ * const classes = getColorClasses("gray", statCardColors);
+ * ```
+ */
+export function getColorClasses<T extends string>(
+  color: T,
+  colorMap: Record<T, string>
+): string {
+  return colorMap[color] ?? "";
+}
+
+// ============================================
+// 기본 색상 유틸리티
+// ============================================
+
 // 배경색
 export const bgSurface = "bg-white dark:bg-gray-800";
 export const bgPage = "bg-gray-50 dark:bg-gray-900";
 export const bgHover = "hover:bg-gray-50 dark:hover:bg-gray-800";
 export const bgHoverStrong = "hover:bg-gray-100 dark:hover:bg-gray-700";
+
+// ============================================
+// 상태별 색상 유틸리티 (Hover, Focus, Disabled)
+// ============================================
+
+/**
+ * Hover 상태 색상 클래스 반환
+ * 
+ * @param variant hover 스타일 변형 (light, medium, strong)
+ * @returns hover 상태 배경색 클래스
+ * 
+ * @example
+ * ```tsx
+ * import { getHoverColorClasses } from "@/lib/utils/darkMode";
+ * 
+ * <button className={cn("px-4 py-2", bgSurface, getHoverColorClasses("medium"))}>
+ *   버튼
+ * </button>
+ * ```
+ */
+export function getHoverColorClasses(variant: "light" | "medium" | "strong" = "medium"): string {
+  switch (variant) {
+    case "light":
+      return "hover:bg-gray-50 dark:hover:bg-gray-800";
+    case "medium":
+      return "hover:bg-gray-100 dark:hover:bg-gray-700";
+    case "strong":
+      return "hover:bg-gray-200 dark:hover:bg-gray-600";
+    default:
+      return "hover:bg-gray-100 dark:hover:bg-gray-700";
+  }
+}
+
+/**
+ * Focus 상태 색상 클래스 반환
+ * 
+ * @param variant focus 스타일 변형 (ring, outline, none)
+ * @param color focus 색상 (primary, secondary, error, success)
+ * @returns focus 상태 색상 클래스
+ * 
+ * @example
+ * ```tsx
+ * import { getFocusColorClasses } from "@/lib/utils/darkMode";
+ * 
+ * <input className={cn("px-4 py-2", borderInput, getFocusColorClasses("ring", "primary"))} />
+ * ```
+ */
+export function getFocusColorClasses(
+  variant: "ring" | "outline" | "none" = "ring",
+  color: "primary" | "secondary" | "error" | "success" = "primary"
+): string {
+  if (variant === "none") {
+    return "";
+  }
+
+  const colorMap: Record<string, string> = {
+    primary: "focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400",
+    secondary: "focus:ring-gray-500 dark:focus:ring-gray-400 focus:border-gray-500 dark:focus:border-gray-400",
+    error: "focus:ring-red-500 dark:focus:ring-red-400 focus:border-red-500 dark:focus:border-red-400",
+    success: "focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400",
+  };
+
+  if (variant === "ring") {
+    return `${colorMap[color]} focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800`;
+  }
+
+  // outline variant
+  return colorMap[color];
+}
+
+/**
+ * Disabled 상태 색상 클래스 반환
+ * 
+ * @param variant disabled 스타일 변형 (opacity, muted, full)
+ * @returns disabled 상태 색상 클래스
+ * 
+ * @example
+ * ```tsx
+ * import { getDisabledColorClasses } from "@/lib/utils/darkMode";
+ * 
+ * <button disabled className={cn("px-4 py-2", getDisabledColorClasses("opacity"))}>
+ *   버튼
+ * </button>
+ * ```
+ */
+export function getDisabledColorClasses(variant: "opacity" | "muted" | "full" = "opacity"): string {
+  switch (variant) {
+    case "opacity":
+      return "opacity-50 cursor-not-allowed";
+    case "muted":
+      return "opacity-60 cursor-not-allowed text-gray-400 dark:text-gray-500";
+    case "full":
+      return "opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500";
+    default:
+      return "opacity-50 cursor-not-allowed";
+  }
+}
 
 // 텍스트 색상
 export const textPrimary = "text-gray-900 dark:text-gray-100";
@@ -44,6 +193,11 @@ export const borderInput = "border-gray-300 dark:border-gray-700";
 export const divideDefault = "divide-gray-200 dark:divide-gray-700";
 
 // 인라인 버튼 스타일 (가장 많이 사용되는 패턴)
+/**
+ * 인라인 버튼 기본 스타일
+ * @param className 추가 클래스
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
 export function inlineButtonBase(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
@@ -55,6 +209,11 @@ export function inlineButtonBase(className?: string): string {
   );
 }
 
+/**
+ * 인라인 버튼 보조 스타일
+ * @param className 추가 클래스
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
 export function inlineButtonSecondary(className?: string): string {
   return cn(
     "inline-flex items-center justify-center rounded-lg border transition",
@@ -71,24 +230,31 @@ export const tableRowHover = "hover:bg-gray-50 dark:hover:bg-gray-800";
 export const tableRowBase = cn(tableRowHover, "transition-colors");
 
 /**
+ * 테이블 행 variant 타입
+ */
+export type TableRowVariant = "default" | "hover" | "striped" | "selected";
+
+/**
+ * 테이블 행 variant 스타일 매핑 (성능 최적화: 상수 객체로 변환)
+ */
+const tableRowVariantStyles: Record<TableRowVariant, string> = {
+  default: "",
+  hover: tableRowHover,
+  striped: "odd:bg-gray-50 dark:odd:bg-gray-900/50",
+  selected: "bg-indigo-50 dark:bg-indigo-900/30 border-l-4 border-indigo-500 dark:border-indigo-400",
+} as const;
+
+/**
  * 테이블 행 스타일 통합 함수
  * @param variant 행 스타일 변형 (default, hover, striped, selected)
  * @param className 추가 클래스
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
 export function tableRowStyles(
-  variant: "default" | "hover" | "striped" | "selected" = "default",
+  variant: TableRowVariant = "default",
   className?: string
 ): string {
-  const baseStyles = "transition-colors";
-  
-  const variantStyles = {
-    default: "",
-    hover: tableRowHover,
-    striped: "odd:bg-gray-50 dark:odd:bg-gray-900/50",
-    selected: "bg-indigo-50 dark:bg-indigo-900/30 border-l-4 border-indigo-500 dark:border-indigo-400",
-  };
-
-  return cn(baseStyles, variantStyles[variant], className);
+  return cn("transition-colors", tableRowVariantStyles[variant], className);
 }
 
 // 카드 스타일
@@ -256,80 +422,106 @@ export type GradientColor =
   | "sky";
 
 /**
+ * 그라디언트 카드 색상 매핑 (제네릭 함수 사용)
+ */
+const gradientCardColorMap: Record<GradientColor, string> = {
+  indigo:
+    "border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 hover:from-indigo-100 hover:to-indigo-200/50 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/30 text-indigo-900 dark:text-indigo-200 hover:shadow-lg",
+  blue: "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 text-blue-900 dark:text-blue-200 hover:shadow-lg",
+  purple:
+    "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200/50 dark:hover:from-purple-800/40 dark:hover:to-purple-700/30 text-purple-900 dark:text-purple-200 hover:shadow-lg",
+  orange:
+    "border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200/50 dark:hover:from-orange-800/40 dark:hover:to-orange-700/30 text-orange-900 dark:text-orange-200 hover:shadow-lg",
+  green:
+    "border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 hover:from-green-100 hover:to-green-200/50 dark:hover:from-green-800/40 dark:hover:to-green-700/30 text-green-900 dark:text-green-200 hover:shadow-lg",
+  red: "border-red-200 dark:border-red-800 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 hover:from-red-100 hover:to-red-200/50 dark:hover:from-red-800/40 dark:hover:to-red-700/30 text-red-900 dark:text-red-200 hover:shadow-lg",
+  teal: "border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-800/20 hover:from-teal-100 hover:to-teal-200/50 dark:hover:from-teal-800/40 dark:hover:to-teal-700/30 text-teal-900 dark:text-teal-200 hover:shadow-lg",
+  cyan: "border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/30 dark:to-cyan-800/20 hover:from-cyan-100 hover:to-cyan-200/50 dark:hover:from-cyan-800/40 dark:hover:to-cyan-700/30 text-cyan-900 dark:text-cyan-200 hover:shadow-lg",
+  amber:
+    "border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 hover:from-amber-100 hover:to-amber-200/50 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 text-amber-900 dark:text-amber-200 hover:shadow-lg",
+  pink: "border-pink-200 dark:border-pink-800 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-900/30 dark:to-pink-800/20 hover:from-pink-100 hover:to-pink-200/50 dark:hover:from-pink-800/40 dark:hover:to-pink-700/30 text-pink-900 dark:text-pink-200 hover:shadow-lg",
+  violet:
+    "border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/30 dark:to-violet-800/20 hover:from-violet-100 hover:to-violet-200/50 dark:hover:from-violet-800/40 dark:hover:to-violet-700/30 text-violet-900 dark:text-violet-200 hover:shadow-lg",
+  emerald:
+    "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:to-emerald-800/20 hover:from-emerald-100 hover:to-emerald-200/50 dark:hover:from-emerald-800/40 dark:hover:to-emerald-700/30 text-emerald-900 dark:text-emerald-200 hover:shadow-lg",
+  sky: "border-sky-200 dark:border-sky-800 bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/30 dark:to-sky-800/20 hover:from-sky-100 hover:to-sky-200/50 dark:hover:from-sky-800/40 dark:hover:to-sky-700/30 text-sky-900 dark:text-sky-200 hover:shadow-lg",
+} as const;
+
+/**
  * 색상별 그라디언트 카드 클래스 반환
+ * @param color 그라디언트 색상
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
 export function getGradientCardClasses(color: GradientColor): string {
-  const gradientMap: Record<GradientColor, string> = {
-    indigo:
-      "border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 hover:from-indigo-100 hover:to-indigo-200/50 dark:hover:from-indigo-800/40 dark:hover:to-indigo-700/30 text-indigo-900 dark:text-indigo-200 hover:shadow-lg",
-    blue: "border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 hover:from-blue-100 hover:to-blue-200/50 dark:hover:from-blue-800/40 dark:hover:to-blue-700/30 text-blue-900 dark:text-blue-200 hover:shadow-lg",
-    purple:
-      "border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 hover:from-purple-100 hover:to-purple-200/50 dark:hover:from-purple-800/40 dark:hover:to-purple-700/30 text-purple-900 dark:text-purple-200 hover:shadow-lg",
-    orange:
-      "border-orange-200 dark:border-orange-800 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 hover:from-orange-100 hover:to-orange-200/50 dark:hover:from-orange-800/40 dark:hover:to-orange-700/30 text-orange-900 dark:text-orange-200 hover:shadow-lg",
-    green:
-      "border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 hover:from-green-100 hover:to-green-200/50 dark:hover:from-green-800/40 dark:hover:to-green-700/30 text-green-900 dark:text-green-200 hover:shadow-lg",
-    red: "border-red-200 dark:border-red-800 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 hover:from-red-100 hover:to-red-200/50 dark:hover:from-red-800/40 dark:hover:to-red-700/30 text-red-900 dark:text-red-200 hover:shadow-lg",
-    teal: "border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-900/30 dark:to-teal-800/20 hover:from-teal-100 hover:to-teal-200/50 dark:hover:from-teal-800/40 dark:hover:to-teal-700/30 text-teal-900 dark:text-teal-200 hover:shadow-lg",
-    cyan: "border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-900/30 dark:to-cyan-800/20 hover:from-cyan-100 hover:to-cyan-200/50 dark:hover:from-cyan-800/40 dark:hover:to-cyan-700/30 text-cyan-900 dark:text-cyan-200 hover:shadow-lg",
-    amber:
-      "border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-800/20 hover:from-amber-100 hover:to-amber-200/50 dark:hover:from-amber-800/40 dark:hover:to-amber-700/30 text-amber-900 dark:text-amber-200 hover:shadow-lg",
-    pink: "border-pink-200 dark:border-pink-800 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-900/30 dark:to-pink-800/20 hover:from-pink-100 hover:to-pink-200/50 dark:hover:from-pink-800/40 dark:hover:to-pink-700/30 text-pink-900 dark:text-pink-200 hover:shadow-lg",
-    violet:
-      "border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-900/30 dark:to-violet-800/20 hover:from-violet-100 hover:to-violet-200/50 dark:hover:from-violet-800/40 dark:hover:to-violet-700/30 text-violet-900 dark:text-violet-200 hover:shadow-lg",
-    emerald:
-      "border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:to-emerald-800/20 hover:from-emerald-100 hover:to-emerald-200/50 dark:hover:from-emerald-800/40 dark:hover:to-emerald-700/30 text-emerald-900 dark:text-emerald-200 hover:shadow-lg",
-    sky: "border-sky-200 dark:border-sky-800 bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-900/30 dark:to-sky-800/20 hover:from-sky-100 hover:to-sky-200/50 dark:hover:from-sky-800/40 dark:hover:to-sky-700/30 text-sky-900 dark:text-sky-200 hover:shadow-lg",
-  };
-  return gradientMap[color];
+  return getColorClasses(color, gradientCardColorMap);
 }
 
 /**
+ * 그라디언트 배경 색상 타입
+ */
+export type GradientBackgroundColor = "red" | "blue" | "green" | "yellow" | "purple" | "indigo";
+
+/**
+ * 그라디언트 배경 variant 타입
+ */
+export type GradientBackgroundVariant = "subtle" | "medium" | "strong";
+
+/**
+ * 그라디언트 배경 색상 매핑 (성능 최적화: 상수 객체로 변환)
+ */
+const gradientBackgroundMap: Record<
+  GradientBackgroundVariant,
+  Record<GradientBackgroundColor, string>
+> = {
+  subtle: {
+    red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10",
+    blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10",
+    green:
+      "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10",
+    yellow:
+      "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10",
+    purple:
+      "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10",
+    indigo:
+      "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10",
+  },
+  medium: {
+    red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20",
+    blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20",
+    green:
+      "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20",
+    yellow:
+      "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/30 dark:to-yellow-800/20",
+    purple:
+      "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20",
+    indigo:
+      "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20",
+  },
+  strong: {
+    red: "bg-gradient-to-br from-red-100 to-red-200/50 dark:from-red-900/40 dark:to-red-800/30",
+    blue: "bg-gradient-to-br from-blue-100 to-blue-200/50 dark:from-blue-900/40 dark:to-blue-800/30",
+    green:
+      "bg-gradient-to-br from-green-100 to-green-200/50 dark:from-green-900/40 dark:to-green-800/30",
+    yellow:
+      "bg-gradient-to-br from-yellow-100 to-yellow-200/50 dark:from-yellow-900/40 dark:to-yellow-800/30",
+    purple:
+      "bg-gradient-to-br from-purple-100 to-purple-200/50 dark:from-purple-900/40 dark:to-purple-800/30",
+    indigo:
+      "bg-gradient-to-br from-indigo-100 to-indigo-200/50 dark:from-indigo-900/40 dark:to-indigo-800/30",
+  },
+} as const;
+
+/**
  * 일반적인 그라디언트 배경 유틸리티 (색상별)
+ * @param color 그라디언트 색상
+ * @param variant 그라디언트 강도 (subtle, medium, strong)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
 export function getGradientBackground(
-  color: "red" | "blue" | "green" | "yellow" | "purple" | "indigo",
-  variant: "subtle" | "medium" | "strong" = "medium"
+  color: GradientBackgroundColor,
+  variant: GradientBackgroundVariant = "medium"
 ): string {
-  const variants = {
-    subtle: {
-      red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10",
-      blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10",
-      green:
-        "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10",
-      yellow:
-        "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/20 dark:to-yellow-800/10",
-      purple:
-        "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10",
-      indigo:
-        "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10",
-    },
-    medium: {
-      red: "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20",
-      blue: "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20",
-      green:
-        "bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20",
-      yellow:
-        "bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/30 dark:to-yellow-800/20",
-      purple:
-        "bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20",
-      indigo:
-        "bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20",
-    },
-    strong: {
-      red: "bg-gradient-to-br from-red-100 to-red-200/50 dark:from-red-900/40 dark:to-red-800/30",
-      blue: "bg-gradient-to-br from-blue-100 to-blue-200/50 dark:from-blue-900/40 dark:to-blue-800/30",
-      green:
-        "bg-gradient-to-br from-green-100 to-green-200/50 dark:from-green-900/40 dark:to-green-800/30",
-      yellow:
-        "bg-gradient-to-br from-yellow-100 to-yellow-200/50 dark:from-yellow-900/40 dark:to-yellow-800/30",
-      purple:
-        "bg-gradient-to-br from-purple-100 to-purple-200/50 dark:from-purple-900/40 dark:to-purple-800/30",
-      indigo:
-        "bg-gradient-to-br from-indigo-100 to-indigo-200/50 dark:from-indigo-900/40 dark:to-indigo-800/30",
-    },
-  };
-  return variants[variant][color];
+  return gradientBackgroundMap[variant][color];
 }
 
 // ============================================
@@ -364,26 +556,42 @@ export const tableContainer = cn(
 // ============================================
 
 /**
+ * 카드 variant 타입
+ */
+export type CardVariant = "default" | "hover" | "interactive";
+
+/**
+ * 카드 padding 타입
+ */
+export type CardPadding = "sm" | "md" | "lg";
+
+/**
+ * 카드 스타일 상수 객체 (성능 최적화: 함수 호출 오버헤드 제거)
+ */
+export const cardStyleVariants: Record<CardVariant, string> = {
+  default: "",
+  hover: cardStyles.hover,
+  interactive: cn(cardStyles.hover, "cursor-pointer"),
+} as const;
+
+/**
  * 카드 스타일 통합 함수
  * @param variant 카드 변형 (default, hover, interactive)
  * @param padding 패딩 크기 (sm, md, lg)
  * @param className 추가 클래스
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
 export function cardStyle(
-  variant: "default" | "hover" | "interactive" = "default",
-  padding: "sm" | "md" | "lg" = "md",
+  variant: CardVariant = "default",
+  padding: CardPadding = "md",
   className?: string
 ): string {
-  const base = cardStyles.base;
-  const paddingClass = cardStyles.padding[padding];
-  const variantClass =
-    variant === "hover"
-      ? cardStyles.hover
-      : variant === "interactive"
-        ? cn(cardStyles.hover, "cursor-pointer")
-        : "";
-
-  return cn(base, paddingClass, variantClass, className);
+  return cn(
+    cardStyles.base,
+    cardStyles.padding[padding],
+    cardStyleVariants[variant],
+    className
+  );
 }
 
 // ============================================
@@ -692,27 +900,45 @@ export const modalCancelButton = cn(
 // ============================================
 
 /**
+ * StatCard용 색상 타입
+ */
+export type StatCardColor = "gray" | "green" | "blue" | "indigo" | "red" | "amber" | "purple";
+
+/**
+ * StatCard용 색상 매핑 (제네릭 함수 사용)
+ */
+const statCardColorMap: Record<StatCardColor, string> = {
+  gray: "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
+  green: "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200",
+  blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200",
+  indigo: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200",
+  red: "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200",
+  amber: "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200",
+  purple: "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200",
+} as const;
+
+/**
  * StatCard용 색상 클래스 반환
  * @param color StatCard 색상 타입
  * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
-export function getStatCardColorClasses(
-  color: "gray" | "green" | "blue" | "indigo" | "red" | "amber" | "purple"
-): string {
-  const colorMap: Record<
-    "gray" | "green" | "blue" | "indigo" | "red" | "amber" | "purple",
-    string
-  > = {
-    gray: "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
-    green: "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200",
-    blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200",
-    indigo: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200",
-    red: "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200",
-    amber: "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200",
-    purple: "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200",
-  };
-  return colorMap[color];
+export function getStatCardColorClasses(color: StatCardColor): string {
+  return getColorClasses(color, statCardColorMap);
 }
+
+/**
+ * 위험도 레벨 타입
+ */
+export type RiskLevel = "high" | "medium" | "low";
+
+/**
+ * 위험도 레벨별 카드 스타일 매핑 (제네릭 함수 사용)
+ */
+const riskLevelCardMap: Record<RiskLevel, string> = {
+  high: "border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/30",
+  medium: "border-yellow-500 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30",
+  low: "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/30",
+} as const;
 
 /**
  * 위험도 레벨별 카드 스타일 (border + background)
@@ -720,36 +946,48 @@ export function getStatCardColorClasses(
  * @param level 위험도 레벨
  * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
-export function getRiskLevelCardClasses(level: "high" | "medium" | "low"): string {
-  const levelMap: Record<"high" | "medium" | "low", string> = {
-    high: "border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/30",
-    medium: "border-yellow-500 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30",
-    low: "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/30",
-  };
-  return levelMap[level];
+export function getRiskLevelCardClasses(level: RiskLevel): string {
+  return getColorClasses(level, riskLevelCardMap);
 }
+
+/**
+ * MetricCard용 색상 타입
+ */
+export type MetricCardColor = "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow";
+
+/**
+ * MetricCard용 색상 매핑 (배경 + 텍스트)
+ */
+const metricCardColorMap: Record<MetricCardColor, string> = {
+  indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300",
+  purple: "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
+  blue: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+  green: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+  red: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300",
+  orange: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+  yellow: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300",
+} as const;
+
+/**
+ * MetricCard용 값 텍스트 색상 매핑
+ */
+const metricCardValueColorMap: Record<MetricCardColor, string> = {
+  indigo: "text-indigo-900 dark:text-indigo-200",
+  purple: "text-purple-900 dark:text-purple-200",
+  blue: "text-blue-900 dark:text-blue-200",
+  green: "text-green-900 dark:text-green-200",
+  red: "text-red-900 dark:text-red-200",
+  orange: "text-orange-900 dark:text-orange-200",
+  yellow: "text-yellow-900 dark:text-yellow-200",
+} as const;
 
 /**
  * MetricCard용 색상 클래스 반환
  * @param color MetricCard 색상 타입
  * @returns 다크모드를 포함한 Tailwind 클래스 문자열 (배경 + 텍스트)
  */
-export function getMetricCardColorClasses(
-  color: "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow"
-): string {
-  const colorMap: Record<
-    "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow",
-    string
-  > = {
-    indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300",
-    purple: "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
-    blue: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
-    green: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300",
-    red: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300",
-    orange: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
-    yellow: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300",
-  };
-  return colorMap[color];
+export function getMetricCardColorClasses(color: MetricCardColor): string {
+  return getColorClasses(color, metricCardColorMap);
 }
 
 /**
@@ -757,22 +995,8 @@ export function getMetricCardColorClasses(
  * @param color MetricCard 색상 타입
  * @returns 다크모드를 포함한 Tailwind 클래스 문자열
  */
-export function getMetricCardValueColorClasses(
-  color: "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow"
-): string {
-  const colorMap: Record<
-    "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow",
-    string
-  > = {
-    indigo: "text-indigo-900 dark:text-indigo-200",
-    purple: "text-purple-900 dark:text-purple-200",
-    blue: "text-blue-900 dark:text-blue-200",
-    green: "text-green-900 dark:text-green-200",
-    red: "text-red-900 dark:text-red-200",
-    orange: "text-orange-900 dark:text-orange-200",
-    yellow: "text-yellow-900 dark:text-yellow-200",
-  };
-  return colorMap[color];
+export function getMetricCardValueColorClasses(color: MetricCardColor): string {
+  return getColorClasses(color, metricCardValueColorMap);
 }
 
 /**
@@ -799,6 +1023,17 @@ export function getBadgeStyle(variant: "default" | "subtle" = "default"): string
 export type TimeSlotType = "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
 
 /**
+ * 타임슬롯 색상 매핑 (제네릭 함수 사용)
+ */
+const timeSlotColorMap: Record<TimeSlotType, string> = {
+  "학습시간": "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
+  "점심시간": "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200",
+  "학원일정": "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200",
+  "이동시간": "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200",
+  "자율학습": "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200",
+} as const;
+
+/**
  * 타임슬롯 색상 클래스 반환
  * 
  * 타임슬롯 타입에 따라 적절한 다크모드 색상 클래스를 반환합니다.
@@ -816,13 +1051,298 @@ export type TimeSlotType = "학습시간" | "점심시간" | "학원일정" | "�
  * ```
  */
 export function getTimeSlotColorClasses(type: TimeSlotType): string {
-  const colorMap: Record<TimeSlotType, string> = {
-    "학습시간": "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
-    "점심시간": "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200",
-    "학원일정": "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200",
-    "이동시간": "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200",
-    "자율학습": "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200",
-  };
-  return colorMap[type];
+  return getColorClasses(type, timeSlotColorMap);
+}
+
+// ============================================
+// 날짜 타입 배지 색상 유틸리티
+// ============================================
+
+/**
+ * 날짜 타입 타입
+ * 
+ * 플랜 그룹 스케줄에서 사용되는 날짜 유형을 나타냅니다.
+ */
+export type DayTypeBadge = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정";
+
+/**
+ * 날짜 타입 배지 색상 매핑 (제네릭 함수 사용)
+ * 
+ * 배지(badge) 형태로 사용되는 날짜 타입별 색상 클래스를 반환합니다.
+ * 배경, 텍스트, 테두리 색상을 포함합니다.
+ */
+const dayTypeBadgeColorMap: Record<DayTypeBadge, string> = {
+  "학습일": "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+  "복습일": "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800",
+  "지정휴일": "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
+  "휴가": "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700",
+  "개인일정": "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800",
+} as const;
+
+/**
+ * 날짜 타입 배지 색상 클래스 반환
+ * 
+ * 날짜 타입에 따라 적절한 다크모드 색상 클래스를 반환합니다.
+ * 배지 형태의 UI 요소에 사용됩니다.
+ * 
+ * @param type 날짜 타입
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열 (배경 + 텍스트 + 테두리)
+ * 
+ * @example
+ * ```tsx
+ * import { getDayTypeBadgeClasses } from "@/lib/utils/darkMode";
+ * 
+ * <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", getDayTypeBadgeClasses("학습일"))}>
+ *   학습일
+ * </span>
+ * ```
+ */
+export function getDayTypeBadgeClasses(type: DayTypeBadge | string): string {
+  if (type in dayTypeBadgeColorMap) {
+    return getColorClasses(type as DayTypeBadge, dayTypeBadgeColorMap);
+  }
+  // 기본값: 학습일 색상
+  return dayTypeBadgeColorMap["학습일"];
+}
+
+// ============================================
+// Indigo 색상 유틸리티 (2025년 최적화)
+// ============================================
+
+/**
+ * Indigo 텍스트 색상 타입
+ */
+export type IndigoTextVariant = "default" | "icon" | "link" | "heading";
+
+/**
+ * Indigo 텍스트 색상 매핑 (제네릭 함수 사용)
+ */
+const indigoTextColorMap: Record<IndigoTextVariant, string> = {
+  default: "text-indigo-600 dark:text-indigo-400",
+  icon: "text-indigo-500 dark:text-indigo-400",
+  link: "text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300",
+  heading: "text-indigo-900 dark:text-indigo-300",
+} as const;
+
+/**
+ * Indigo 텍스트 색상 클래스 반환
+ * @param variant Indigo 텍스트 변형 (default, icon, link, heading)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ * 
+ * @example
+ * ```tsx
+ * import { getIndigoTextClasses } from "@/lib/utils/darkMode";
+ * 
+ * <span className={getIndigoTextClasses("heading")}>제목</span>
+ * <a className={getIndigoTextClasses("link")}>링크</a>
+ * ```
+ */
+export function getIndigoTextClasses(variant: IndigoTextVariant = "default"): string {
+  return getColorClasses(variant, indigoTextColorMap);
+}
+
+/**
+ * Indigo 배경 색상 타입
+ */
+export type IndigoBgVariant = "button" | "badge" | "card";
+
+/**
+ * Indigo 배경 색상 매핑 (제네릭 함수 사용)
+ */
+const indigoBgColorMap: Record<IndigoBgVariant, string> = {
+  button: "bg-indigo-600 dark:bg-indigo-500 hover:bg-indigo-700 dark:hover:bg-indigo-600 text-white",
+  badge: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-300",
+  card: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200",
+} as const;
+
+/**
+ * Indigo 배경 색상 클래스 반환
+ * @param variant Indigo 배경 변형 (button, badge, card)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ * 
+ * @example
+ * ```tsx
+ * import { getIndigoBgClasses } from "@/lib/utils/darkMode";
+ * 
+ * <button className={getIndigoBgClasses("button")}>버튼</button>
+ * <span className={getIndigoBgClasses("badge")}>배지</span>
+ * ```
+ */
+export function getIndigoBgClasses(variant: IndigoBgVariant = "button"): string {
+  return getColorClasses(variant, indigoBgColorMap);
+}
+
+/**
+ * Indigo 색상 클래스 통합 함수 (텍스트 + 배경)
+ * @param textVariant 텍스트 변형
+ * @param bgVariant 배경 변형 (선택사항)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getIndigoColorClasses(
+  textVariant?: IndigoTextVariant,
+  bgVariant?: IndigoBgVariant
+): string {
+  const classes: string[] = [];
+  if (textVariant) {
+    classes.push(getIndigoTextClasses(textVariant));
+  }
+  if (bgVariant) {
+    classes.push(getIndigoBgClasses(bgVariant));
+  }
+  return classes.join(" ");
+}
+
+// ============================================
+// 상태 배지 색상 유틸리티 함수 (2025년 최적화)
+// ============================================
+
+/**
+ * 상태 배지 색상 타입
+ */
+export type StatusBadgeVariant = 
+  | "success" 
+  | "error" 
+  | "warning" 
+  | "info" 
+  | "active" 
+  | "inactive" 
+  | "pending"
+  | "completed"
+  | "failed"
+  | "default";
+
+/**
+ * 상태 배지 색상 클래스 반환 함수
+ * @param variant 상태 배지 변형
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ * 
+ * @example
+ * ```tsx
+ * import { getStatusBadgeColorClasses } from "@/lib/utils/darkMode";
+ * 
+ * <span className={cn("rounded-full px-2 py-1", getStatusBadgeColorClasses("success"))}>
+ *   성공
+ * </span>
+ * ```
+ */
+export function getStatusBadgeColorClasses(variant: StatusBadgeVariant): string {
+  return statusBadgeColors[variant] ?? statusBadgeColors.default;
+}
+
+// ============================================
+// 반투명 배경 유틸리티 (2025년 최적화)
+// ============================================
+
+/**
+ * 반투명 배경 타입
+ */
+export type SemiTransparentBgVariant = "surface" | "card";
+
+/**
+ * 반투명 배경 색상 매핑
+ */
+const semiTransparentBgMap: Record<SemiTransparentBgVariant, string> = {
+  surface: "bg-white/60 dark:bg-gray-800/60",
+  card: "bg-white/80 dark:bg-gray-800/80",
+} as const;
+
+/**
+ * 반투명 배경 색상 클래스 반환
+ * @param variant 반투명 배경 변형 (surface, card)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ * 
+ * @example
+ * ```tsx
+ * import { getSemiTransparentBgClasses } from "@/lib/utils/darkMode";
+ * 
+ * <div className={getSemiTransparentBgClasses("surface")}>내용</div>
+ * ```
+ */
+export function getSemiTransparentBgClasses(variant: SemiTransparentBgVariant = "surface"): string {
+  return getColorClasses(variant, semiTransparentBgMap);
+}
+
+// ============================================
+// Gray 배경 유틸리티 확장 (2025년 최적화)
+// ============================================
+
+/**
+ * Gray 배경 타입
+ */
+export type GrayBgVariant = "light" | "medium" | "dark" | "tableHeader";
+
+/**
+ * Gray 배경 색상 매핑
+ */
+const grayBgColorMap: Record<GrayBgVariant, string> = {
+  light: "bg-gray-50 dark:bg-gray-900",
+  medium: "bg-gray-100 dark:bg-gray-800",
+  dark: "bg-gray-200 dark:bg-gray-700",
+  tableHeader: "bg-gray-50 dark:bg-gray-900/50",
+} as const;
+
+/**
+ * Gray 배경 색상 클래스 반환
+ * @param variant Gray 배경 변형 (light, medium, dark, tableHeader)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ * 
+ * @example
+ * ```tsx
+ * import { getGrayBgClasses } from "@/lib/utils/darkMode";
+ * 
+ * <div className={getGrayBgClasses("tableHeader")}>테이블 헤더</div>
+ * ```
+ */
+export function getGrayBgClasses(variant: GrayBgVariant = "light"): string {
+  return getColorClasses(variant, grayBgColorMap);
+}
+
+// ============================================
+// Red 색상 유틸리티 (2025년 최적화)
+// ============================================
+
+/**
+ * Red 텍스트 색상 타입
+ */
+export type RedTextVariant = "default" | "link" | "error";
+
+/**
+ * Red 텍스트 색상 매핑
+ */
+const redTextColorMap: Record<RedTextVariant, string> = {
+  default: "text-red-600 dark:text-red-400",
+  link: "text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300",
+  error: "text-red-600 dark:text-red-400",
+} as const;
+
+/**
+ * Red 텍스트 색상 클래스 반환
+ * @param variant Red 텍스트 변형 (default, link, error)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getRedTextClasses(variant: RedTextVariant = "default"): string {
+  return getColorClasses(variant, redTextColorMap);
+}
+
+/**
+ * Red 배경 색상 타입
+ */
+export type RedBgVariant = "button" | "danger";
+
+/**
+ * Red 배경 색상 매핑
+ */
+const redBgColorMap: Record<RedBgVariant, string> = {
+  button: "bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white",
+  danger: "bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600 text-white",
+} as const;
+
+/**
+ * Red 배경 색상 클래스 반환
+ * @param variant Red 배경 변형 (button, danger)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getRedBgClasses(variant: RedBgVariant = "button"): string {
+  return getColorClasses(variant, redBgColorMap);
 }
 
