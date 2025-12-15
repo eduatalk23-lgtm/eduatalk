@@ -532,7 +532,7 @@ function PlanGroupWizardInner({
   });
 
   // Submission Hook
-  const { executeSave, handleSubmit } = usePlanSubmission({
+  const { executeSave, handleSubmit, isSubmitting: isSubmittingFromHook } = usePlanSubmission({
       wizardData,
       draftGroupId,
       setDraftGroupId: setDraftId,
@@ -545,7 +545,13 @@ function PlanGroupWizardInner({
       isAdminContinueMode,
       isAdminMode: isAdminMode || false,
       onSaveRequest,
+      mode,
   });
+
+  // isSubmitting 상태 동기화
+  useEffect(() => {
+    setSubmitting(isSubmittingFromHook);
+  }, [isSubmittingFromHook, setSubmitting]);
 
   // Alias for backward compatibility / readability
   const handleSaveDraft = executeSave;
