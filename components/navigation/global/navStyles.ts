@@ -138,7 +138,7 @@ export const categoryHeaderStyles = {
  * 하위 메뉴 아이템 스타일
  */
 export const subItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition",
+  base: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
   focus: navItemStyles.focus,
   active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
   inactive: navItemStyles.inactive,
@@ -148,7 +148,7 @@ export const subItemStyles = {
  * 자식 메뉴 아이템 스타일 (3단계)
  */
 export const childItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition",
+  base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium transition",
   focus: navItemStyles.focus,
   active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray[600]} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText}`,

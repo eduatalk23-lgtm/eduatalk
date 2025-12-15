@@ -237,48 +237,52 @@ shadcn/ui 모범 사례를 참고하여 전체 구조를 단순화하고 일관�
 - 3단계 메뉴 들여쓰기: 24px → 16px (-8px)
 - **총 추가 공간**: 약 18px 확보
 
-## 하위 메뉴 UI 최적화
+## 하위 메뉴 UI 최적화 및 보더 잘림 문제 해결
 
 ### 문제점
-하위 메뉴 구조가 복잡하고 공간 활용이 비효율적이었습니다:
-- 하위 메뉴 컨테이너 `pl-4` + 아이템 `px-3` = 총 28px 들여쓰기
-- 활성 상태에서 추가 패딩으로 인한 공간 부족
-- 3단계 메뉴가 더 깊어져서 공간이 부족함
+하위 메뉴 구조가 복잡하고 공간 활용이 비효율적이었으며, 선택 효과의 보더가 잘리는 문제가 있었습니다:
+- 네비게이션 섹션의 `px-4` 패딩 때문에 선택 효과가 잘림
+- 하위 메뉴 컨테이너의 `overflow-hidden`으로 인해 보더가 잘림
+- 하위 메뉴 아이템의 패딩이 부족하여 보더가 표시되지 않음
 
 ### 해결 방안
 
-1. **하위 메뉴 컨테이너 들여쓰기 조정**
-   ```typescript
-   // 변경 전: pl-4 (16px)
-   // 변경 후: pl-3 (12px)
-   ```
+#### 1. 하위 메뉴 컨테이너 개선
+```typescript
+// 변경 전
+className="flex flex-col gap-1 pl-3 overflow-hidden ..."
 
-2. **하위 메뉴 아이템 패딩 최적화**
-   ```typescript
-   // 변경 전
-   base: "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-   
-   // 변경 후
-   base: "flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition",
-   ```
+// 변경 후
+className="flex flex-col gap-1 pl-3 -mx-4 overflow-visible ..."
+```
+- `-mx-4`: 네비게이션 섹션의 패딩(`px-4`)을 넘어서도록 negative margin 적용
+- `overflow-visible`: 보더가 잘리지 않도록 overflow 변경
 
-3. **활성 상태 패딩 조정**
-   ```typescript
-   // 변경 전: pl-3 (12px)
-   // 변경 후: pl-2.5 (10px)
-   ```
+#### 2. 하위 메뉴 아이템 패딩 증가
+```typescript
+// 변경 전
+base: "flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition",
 
-4. **3단계 메뉴 컨테이너 조정**
-   ```typescript
-   // 변경 전: pl-4 (16px)
-   // 변경 후: pl-3 (12px)
-   ```
+// 변경 후
+base: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+```
+- `px-2` → `px-4`: 좌우 패딩을 늘려 보더가 잘리지 않도록 함
+
+#### 3. 3단계 메뉴 아이템 패딩 증가
+```typescript
+// 변경 전
+base: "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition",
+
+// 변경 후
+base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium transition",
+```
+- `px-2` → `px-4`: 일관성 유지 및 보더 표시 개선
 
 ### 개선 효과
-- 공간 효율성 향상: 총 들여쓰기 28px → 22px (약 21% 감소)
-- 시각적 계층 구조 명확화: 적절한 들여쓰기로 가독성 향상
-- 일관성 향상: 모든 레벨에서 일관된 spacing 규칙 적용
-- 선택 효과 개선: 활성 상태에서도 충분한 공간 확보
+- 보더 잘림 문제 해결: negative margin과 overflow-visible로 보더가 완전히 표시됨
+- 선택 효과 개선: 활성 상태의 배경색과 보더가 전체 너비로 표시됨
+- 시각적 일관성 향상: 모든 레벨에서 동일한 패딩 규칙 적용
+- 공간 활용 최적화: negative margin으로 패딩을 넘어서면서도 공간 효율성 유지
 
 ## 향후 개선 사항
 

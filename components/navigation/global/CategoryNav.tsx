@@ -320,7 +320,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                   }}
                   id={`category-items-${category.id}`}
                   className={cn(
-                    "flex flex-col gap-1 pl-3 overflow-hidden transition-all duration-300 ease-in-out motion-reduce:transition-none",
+                    "flex flex-col gap-1 pl-3 -mx-4 overflow-visible transition-all duration-300 ease-in-out motion-reduce:transition-none",
                     isExpanded ? "opacity-100" : "max-h-0 opacity-0",
                     isExpanded && "will-change-[max-height,opacity]"
                   )}
