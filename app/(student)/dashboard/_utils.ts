@@ -753,6 +753,59 @@ export async function fetchContentTypeProgress(
 }
 
 /**
+ * 대시보드 전용 경량 쿼리 - 오늘 플랜 요약 정보만 조회
+ * 메모, 상세 설명 등 불필요한 필드 제외하여 초기 렌더링 속도 향상
+ */
+export type DashboardSummary = {
+  id: string;
+  title: string;
+  progress: number | null;
+  actual_start_time: string | null;
+  actual_end_time: string | null;
+};
+
+export async function getDashboardSummary(
+  supabase: SupabaseServerClient,
+  studentId: string,
+  todayDate: string
+): Promise<DashboardSummary[]> {
+  try {
+    // 필요한 컬럼만 명시적으로 select (메모, 상세 설명 제외)
+    // content_title과 progress는 denormalized 필드이므로 조인 불필요
+    const { data: plans, error } = await supabase
+      .from("student_plan")
+      .select("id, content_title, progress, actual_start_time, actual_end_time")
+      .eq("student_id", studentId)
+      .eq("plan_date", todayDate)
+      .order("block_index", { ascending: true });
+
+    if (error) {
+      // 컬럼이 없는 경우 (42703 에러) 기본값 반환
+      if (error.code === "42703") {
+        return [];
+      }
+      throw error;
+    }
+
+    if (!plans || plans.length === 0) {
+      return [];
+    }
+
+    // denormalized 필드 활용하여 추가 쿼리 없이 변환
+    return plans.map((plan) => ({
+      id: plan.id,
+      title: plan.content_title || "학습 계획",
+      progress: plan.progress ?? null,
+      actual_start_time: plan.actual_start_time ?? null,
+      actual_end_time: plan.actual_end_time ?? null,
+    }));
+  } catch (error) {
+    console.error("[dashboard] 대시보드 요약 조회 실패", error);
+    return [];
+  }
+}
+
+/**
  * 오늘 학습 진행률만 간단히 조회 (전체 플랜 데이터 불필요)
  */
 export async function fetchTodayProgress(
@@ -806,7 +859,46 @@ export async function fetchTodayProgress(
 }
 
 /**
+ * 활성 학습 중인 플랜 ID만 조회 (최소한의 쿼리)
+ * 지연 로딩을 위해 서버에서는 ID만 확인
+ */
+export async function fetchActivePlanIdOnly(
+  supabase: SupabaseServerClient,
+  studentId: string,
+  todayDate: string
+): Promise<string | null> {
+  try {
+    // 오늘 날짜의 플랜 중 시작했지만 완료하지 않은 플랜의 ID만 조회
+    const { data: activePlans, error } = await supabase
+      .from("student_plan")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("plan_date", todayDate)
+      .not("actual_start_time", "is", null)
+      .is("actual_end_time", null)
+      .order("actual_start_time", { ascending: false })
+      .limit(1);
+
+    // 컬럼이 없는 경우 (42703 에러) null 반환
+    if (error && error.code === "42703") {
+      return null;
+    }
+
+    if (error) throw error;
+    if (!activePlans || activePlans.length === 0) {
+      return null;
+    }
+
+    return activePlans[0].id;
+  } catch (error) {
+    console.error("[dashboard] 활성 플랜 ID 조회 실패", error);
+    return null;
+  }
+}
+
+/**
  * 활성 학습 중인 플랜 간단 조회 (콘텐츠 맵 불필요, 최소한의 정보만)
+ * 최적화: content_title (denormalized) 필드 활용하여 콘텐츠 조인 제거
  */
 export async function fetchActivePlanSimple(
   supabase: SupabaseServerClient,
@@ -815,10 +907,11 @@ export async function fetchActivePlanSimple(
 ): Promise<ActivePlan | null> {
   try {
     // 오늘 날짜의 플랜 중 시작했지만 완료하지 않은 플랜 조회
+    // content_title 필드를 포함하여 콘텐츠 테이블 조인 불필요
     const selectQuery = supabase
       .from("student_plan")
       .select(
-        "id,actual_start_time,actual_end_time,paused_duration_seconds,pause_count,content_type,content_id"
+        "id,actual_start_time,actual_end_time,paused_duration_seconds,pause_count,content_type,content_id,content_title"
       )
       .eq("student_id", studentId)
       .eq("plan_date", todayDate);
@@ -856,39 +949,42 @@ export async function fetchActivePlanSimple(
 
     const isPaused = activeSession?.paused_at && !activeSession?.resumed_at;
 
-    // 콘텐츠 제목만 간단히 조회 (콘텐츠 맵 전체 불필요)
+    // content_title이 있으면 사용, 없으면 콘텐츠 테이블에서 조회 (fallback)
     const contentType = toContentType(plan.content_type);
-    let title = "학습 중";
+    let title = plan.content_title || "학습 중";
 
-    try {
-      if (contentType === "book") {
-        const { data: book } = await supabase
-          .from("books")
-          .select("title")
-          .eq("id", plan.content_id)
-          .eq("student_id", studentId)
-          .maybeSingle();
-        title = book?.title || "책";
-      } else if (contentType === "lecture") {
-        const { data: lecture } = await supabase
-          .from("lectures")
-          .select("title")
-          .eq("id", plan.content_id)
-          .eq("student_id", studentId)
-          .maybeSingle();
-        title = lecture?.title || "강의";
-      } else if (contentType === "custom") {
-        const { data: custom } = await supabase
-          .from("student_custom_contents")
-          .select("title")
-          .eq("id", plan.content_id)
-          .eq("student_id", studentId)
-          .maybeSingle();
-        title = custom?.title || "커스텀 콘텐츠";
+    // content_title이 없는 경우에만 콘텐츠 테이블 조회 (최적화: 대부분의 경우 조회 불필요)
+    if (!plan.content_title && plan.content_id) {
+      try {
+        if (contentType === "book") {
+          const { data: book } = await supabase
+            .from("books")
+            .select("title")
+            .eq("id", plan.content_id)
+            .eq("student_id", studentId)
+            .maybeSingle();
+          title = book?.title || "책";
+        } else if (contentType === "lecture") {
+          const { data: lecture } = await supabase
+            .from("lectures")
+            .select("title")
+            .eq("id", plan.content_id)
+            .eq("student_id", studentId)
+            .maybeSingle();
+          title = lecture?.title || "강의";
+        } else if (contentType === "custom") {
+          const { data: custom } = await supabase
+            .from("student_custom_contents")
+            .select("title")
+            .eq("id", plan.content_id)
+            .eq("student_id", studentId)
+            .maybeSingle();
+          title = custom?.title || "커스텀 콘텐츠";
+        }
+      } catch (contentError) {
+        console.warn("[dashboard] 콘텐츠 제목 조회 실패 (계속 진행)", contentError);
+        // 제목 조회 실패해도 계속 진행
       }
-    } catch (contentError) {
-      console.warn("[dashboard] 콘텐츠 제목 조회 실패 (계속 진행)", contentError);
-      // 제목 조회 실패해도 계속 진행
     }
 
     return {

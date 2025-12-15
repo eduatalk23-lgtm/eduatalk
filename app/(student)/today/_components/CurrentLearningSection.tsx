@@ -1,4 +1,4 @@
-import { fetchActivePlan } from "@/app/(student)/dashboard/_utils";
+import { fetchActivePlanIdOnly } from "@/app/(student)/dashboard/_utils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { ActiveLearningWidget } from "@/app/(student)/dashboard/_components/ActiveLearningWidget";
@@ -20,15 +20,16 @@ export async function CurrentLearningSection({ campMode = false }: CurrentLearni
     today.setHours(0, 0, 0, 0);
     const todayDate = formatDateString(today);
 
-    const activePlan = await fetchActivePlan(supabase, user.userId, todayDate);
+    // 지연 로딩을 위해 activePlanId만 확인
+    const activePlanId = await fetchActivePlanIdOnly(supabase, user.userId, todayDate);
 
-    if (!activePlan) {
+    if (!activePlanId) {
       return null;
     }
 
     return (
       <div>
-        <ActiveLearningWidget activePlan={activePlan} campMode={campMode} />
+        <ActiveLearningWidget activePlanId={activePlanId} campMode={campMode} />
       </div>
     );
   } catch (error) {

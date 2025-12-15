@@ -5,8 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   fetchTodayProgress,
-  fetchActivePlanSimple,
-  type ActivePlan,
+  fetchActivePlanIdOnly,
 } from "./_utils";
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { perfTime } from "@/lib/utils/perfLog";
@@ -47,11 +46,11 @@ export default async function DashboardPage() {
   today.setHours(0, 0, 0, 0);
   const todayDate = today.toISOString().slice(0, 10);
 
-  // 최소 데이터만 조회
+  // 최소 데이터만 조회 (지연 로딩을 위해 activePlanId만 확인)
   const dataTimer = perfTime("[dashboard] data - minimal");
-  const [todayProgress, activePlan] = await Promise.all([
+  const [todayProgress, activePlanId] = await Promise.all([
     fetchTodayProgress(supabase, user.id, todayDate),
-    fetchActivePlanSimple(supabase, user.id, todayDate),
+    fetchActivePlanIdOnly(supabase, user.id, todayDate),
   ]);
   dataTimer.end();
 
@@ -87,8 +86,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* 실시간 학습 중 위젯 */}
-          {activePlan && <ActiveLearningWidget activePlan={activePlan} />}
+          {/* 실시간 학습 중 위젯 (지연 로딩) */}
+          {activePlanId && <ActiveLearningWidget activePlanId={activePlanId} />}
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">

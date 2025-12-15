@@ -6,25 +6,19 @@ import { pausePlan, resumePlan } from "@/app/(student)/today/actions/todayAction
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { buildPlanExecutionUrl } from "@/app/(student)/today/_utils/navigationUtils";
-
-type ActivePlan = {
-  id: string;
-  title: string;
-  contentType: "book" | "lecture" | "custom";
-  actualStartTime: string;
-  pausedDurationSeconds: number;
-  pauseCount: number;
-  isPaused: boolean;
-};
+import { useActivePlanDetails } from "@/lib/hooks/useActivePlanDetails";
 
 type ActiveLearningWidgetProps = {
-  activePlan: ActivePlan | null;
+  activePlanId: string | null;
   campMode?: boolean;
 };
 
-export function ActiveLearningWidget({ activePlan: initialActivePlan, campMode = false }: ActiveLearningWidgetProps) {
+export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveLearningWidgetProps) {
   const router = useRouter();
-  const [activePlan, setActivePlan] = useState(initialActivePlan);
+  const { data: activePlan, isLoading: isPlanLoading } = useActivePlanDetails({
+    planId: activePlanId,
+    enabled: !!activePlanId,
+  });
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -72,7 +66,6 @@ export function ActiveLearningWidget({ activePlan: initialActivePlan, campMode =
     try {
       const result = await pausePlan(activePlan.id);
       if (result.success) {
-        setActivePlan((prev) => prev ? { ...prev, isPaused: true } : null);
         router.refresh();
       } else {
         // "이미 일시정지된 상태입니다" 에러는 무시 (중복 호출 방지)
@@ -91,13 +84,27 @@ export function ActiveLearningWidget({ activePlan: initialActivePlan, campMode =
     try {
       const result = await resumePlan(activePlan.id);
       if (result.success) {
-        setActivePlan((prev) => prev ? { ...prev, isPaused: false } : null);
         router.refresh();
       }
     } finally {
       setIsLoading(false);
     }
   };
+
+  // 로딩 중 스켈레톤 UI
+  if (isPlanLoading) {
+    return (
+      <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 shadow-sm animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎯</span>
+            <h3 className="text-lg font-semibold text-gray-900">현재 학습 중</h3>
+          </div>
+        </div>
+        <div className="h-20 bg-gray-200 rounded"></div>
+      </div>
+    );
+  }
 
   if (!activePlan) {
     return null;
