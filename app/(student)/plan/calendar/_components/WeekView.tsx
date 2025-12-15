@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, memo } from "react";
+import dynamic from "next/dynamic";
 import { Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
@@ -9,8 +10,17 @@ import { getWeekStart, formatDateString, isToday } from "@/lib/date/calendarUtil
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
-import { DayTimelineModal } from "./DayTimelineModal";
 import { getDayTypeColor } from "@/lib/constants/colors";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+
+// 큰 모달 컴포넌트는 동적 import로 코드 스플리팅
+const DayTimelineModal = dynamic(
+  () => import("./DayTimelineModal").then((mod) => ({ default: mod.DayTimelineModal })),
+  {
+    loading: () => <LoadingSkeleton />,
+    ssr: false,
+  }
+);
 
 type WeekViewProps = {
   plans: PlanWithContent[];

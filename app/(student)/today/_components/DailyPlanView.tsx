@@ -4,6 +4,7 @@ import { useMemo, useCallback } from "react";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { PlanGroupCard } from "./PlanGroupCard";
 import { ViewMode } from "./ViewModeSelector";
+import { VirtualizedList } from "@/lib/components/VirtualizedList";
 
 type DailyPlanViewProps = {
   groups: PlanGroup[];
@@ -42,38 +43,51 @@ export function DailyPlanView({
     );
   }
 
-  // 그룹 렌더링 결과를 메모이제이션하여 중복 렌더링 방지
-  // onViewDetail을 직접 전달하여 인라인 함수 생성 방지
-  const renderedGroups = useMemo(
-    () =>
-      groups.map((group, index) => {
-        const contentKey = group.plan
-          ? `${group.plan.content_type}:${group.plan.content_id}`
-          : "";
-        const totalPages = totalPagesMap.get(contentKey);
-        const memo = memos.get(group.planNumber);
+  // 그룹 렌더링 함수
+  const renderGroup = useCallback(
+    (group: PlanGroup, index: number) => {
+      const contentKey = group.plan
+        ? `${group.plan.content_type}:${group.plan.content_id}`
+        : "";
+      const totalPages = totalPagesMap.get(contentKey);
+      const memo = memos.get(group.planNumber);
 
-        return (
-          <div key={`group-${group.planNumber}-${index}`}>
-            <PlanGroupCard
-              group={group}
-              viewMode="daily"
-              sessions={sessions}
-              planDate={planDate}
-              memo={memo}
-              totalPages={totalPages}
-              onViewDetail={onViewDetail}
-              campMode={campMode}
-            />
-          </div>
-        );
-      }),
-    [groups, sessions, planDate, memos, totalPagesMap, onViewDetail, campMode]
+      return (
+        <div key={`group-${group.planNumber}-${index}`}>
+          <PlanGroupCard
+            group={group}
+            viewMode="daily"
+            sessions={sessions}
+            planDate={planDate}
+            memo={memo}
+            totalPages={totalPages}
+            onViewDetail={onViewDetail}
+            campMode={campMode}
+          />
+        </div>
+      );
+    },
+    [sessions, planDate, memos, totalPagesMap, onViewDetail, campMode]
   );
 
+  // 플랜 그룹이 10개 이상일 때 가상화 적용
+  if (groups.length > 10) {
+    return (
+      <VirtualizedList
+        items={groups}
+        itemHeight={200} // PlanGroupCard의 예상 높이
+        containerHeight={600} // 컨테이너 높이
+        renderItem={renderGroup}
+        className="rounded-xl border border-gray-200 bg-white p-4"
+        overscan={3}
+      />
+    );
+  }
+
+  // 10개 이하일 때는 일반 렌더링
   return (
     <div className="flex flex-col gap-4">
-      {renderedGroups}
+      {groups.map((group, index) => renderGroup(group, index))}
     </div>
   );
 }

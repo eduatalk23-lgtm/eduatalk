@@ -7,6 +7,7 @@ import { ScoreCard } from "./ScoreCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { Plus, Filter, ArrowUpDown, FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { VirtualizedList } from "@/lib/components/VirtualizedList";
 
 type ScoreCardGridProps = {
   initialGrade?: number;
@@ -375,21 +376,44 @@ function ScoreCardGridComponent({
           </div>
         )}
 
-      {/* 카드 그리드 */}
+      {/* 카드 그리드 - 20개 이상일 때 가상화 적용 */}
       {filteredAndSortedScores.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAndSortedScores.map((item) => (
-            <ScoreCard
-              key={item.score.id}
-              score={item.score}
-              subjectGroupName={item.subjectGroupName}
-              subjectName={item.subjectName}
-              subjectTypeName={item.subjectTypeName}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
+        filteredAndSortedScores.length > 20 ? (
+          <VirtualizedList
+            items={filteredAndSortedScores}
+            itemHeight={180} // ScoreCard의 예상 높이
+            containerHeight={600} // 컨테이너 높이
+            renderItem={(item, index) => (
+              <div className="p-2">
+                <ScoreCard
+                  key={item.score.id}
+                  score={item.score}
+                  subjectGroupName={item.subjectGroupName}
+                  subjectName={item.subjectName}
+                  subjectTypeName={item.subjectTypeName}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+              </div>
+            )}
+            className="rounded-xl border border-gray-200 bg-white p-4"
+            overscan={3}
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredAndSortedScores.map((item) => (
+              <ScoreCard
+                key={item.score.id}
+                score={item.score}
+                subjectGroupName={item.subjectGroupName}
+                subjectName={item.subjectName}
+                subjectTypeName={item.subjectTypeName}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        )
       )}
     </div>
   );

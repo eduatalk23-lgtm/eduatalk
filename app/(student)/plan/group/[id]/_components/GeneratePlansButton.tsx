@@ -2,9 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { getPlansByGroupIdAction } from "@/app/(student)/actions/planGroupActions";
 import { PlanStatus } from "@/lib/types/plan";
-import { PlanPreviewDialog } from "./PlanPreviewDialog";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+
+// 큰 모달 컴포넌트는 동적 import로 코드 스플리팅
+const PlanPreviewDialog = dynamic(
+  () => import("./PlanPreviewDialog").then((mod) => ({ default: mod.PlanPreviewDialog })),
+  {
+    loading: () => <LoadingSkeleton />,
+    ssr: false,
+  }
+);
 
 type GeneratePlansButtonProps = {
   groupId: string;
