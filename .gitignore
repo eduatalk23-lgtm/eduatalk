@@ -48,3 +48,7 @@ next-env.d.ts
 
 # development tools
 SuperClaude_Framework/
+
+# repomix analysis outputs
+repomix*.xml
+repomix-phase*.xml
