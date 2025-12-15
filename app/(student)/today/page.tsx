@@ -7,9 +7,11 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getTodayPlans } from "@/lib/data/todayPlans";
 import { perfTime } from "@/lib/utils/perfLog";
+import { Suspense } from "react";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPlansSection } from "./_components/TodayPlansSection";
 import { TodayAchievementsSection } from "./_components/TodayAchievementsSection";
+import { TodayAchievementsAsyncWithSuspense } from "./_components/TodayAchievementsAsync";
 import { TodayPageContextProvider } from "./_components/TodayPageContext";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
 import { CompletionToast } from "./_components/CompletionToast";
@@ -129,13 +131,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   }
 
   // Step 4: todayPlans 캐시 사용
+  // Statistics는 Suspense로 별도 처리하므로 includeProgress: false
   const todayPlansTimer = perfTime("[today] data - todayPlans");
   const todayPlansDataPromise = getTodayPlans({
     studentId: userId,
     tenantId: tenantContext?.tenantId || null,
     date: targetProgressDate,
     camp: false, // 일반 모드
-    includeProgress: true,
+    includeProgress: false, // Statistics는 Suspense로 별도 처리
     narrowQueries: true,
     useCache: true,
     cacheTtlSeconds: 120,
@@ -164,15 +167,8 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   const [todayPlansData] = await Promise.all([todayPlansDataPromise]);
   todayPlansTimer.end();
 
-  // todayPlansData에서 todayProgress 추출 (없으면 기본값)
-  const todayProgress = todayPlansData?.todayProgress ?? {
-    todayStudyMinutes: 0,
-    planCompletedCount: 0,
-    planTotalCount: 0,
-    achievementScore: 0,
-  };
-
   // todayPlansData를 PlansResponse 형태로 변환
+  // Statistics는 Suspense로 별도 처리하므로 todayProgress 제외
   const plansDataForContext = todayPlansData
     ? {
         plans: todayPlansData.plans,
@@ -180,14 +176,23 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         planDate: todayPlansData.planDate,
         isToday: todayPlansData.isToday,
         serverNow: todayPlansData.serverNow,
-        todayProgress: todayPlansData.todayProgress,
+        // todayProgress는 Suspense로 별도 처리
+        todayProgress: undefined,
       }
     : undefined;
+
+  // 초기 progress는 기본값 (Suspense로 실제 값이 로딩됨)
+  const initialProgress = {
+    todayStudyMinutes: 0,
+    planCompletedCount: 0,
+    planTotalCount: 0,
+    achievementScore: 0,
+  };
 
   const page = (
     <TodayPageContextProvider
       initialProgressDate={targetProgressDate}
-      initialProgress={todayProgress}
+      initialProgress={initialProgress}
       initialPlansData={plansDataForContext}
     >
       <div className={getContainerClass("DASHBOARD", "md")}>
@@ -206,7 +211,8 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             </div>
             <div className="lg:col-span-4">
               <div className="sticky top-6 flex flex-col gap-4">
-                <TodayAchievementsSection />
+                {/* Statistics를 Suspense로 비동기 처리 */}
+                <TodayAchievementsAsyncWithSuspense selectedDate={targetProgressDate} />
               </div>
             </div>
           </div>

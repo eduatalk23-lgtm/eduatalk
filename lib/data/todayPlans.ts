@@ -1,6 +1,5 @@
-import { getPlansForStudent } from "@/lib/data/studentPlans";
+import { getPlansForStudent, type Plan } from "@/lib/data/studentPlans";
 import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
-import { getContentsByIds } from "@/lib/data/studentContents";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
@@ -20,6 +19,118 @@ function normalizeIsoDate(value: string | null): string | null {
   }
   const date = new Date(value + "T00:00:00Z");
   return Number.isNaN(date.getTime()) ? null : value;
+}
+
+/**
+ * View를 사용하여 플랜 조회 (콘텐츠 정보 포함)
+ * today_plan_view를 사용하여 Application-side Join을 제거
+ */
+async function getPlansFromView(options: {
+  studentId: string;
+  tenantId: string | null;
+  planDate?: string;
+  dateRange?: { start: string; end: string };
+  planGroupIds?: string[];
+}): Promise<Plan[]> {
+  const supabase = await createSupabaseServerClient();
+  
+  // View에서 필요한 필드만 조회 (view_* 필드 포함)
+  const selectPlans = () =>
+    supabase
+      .from("today_plan_view")
+      .select(
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,created_at,updated_at"
+      )
+      .eq("student_id", options.studentId);
+
+  let query = selectPlans();
+
+  if (options.tenantId) {
+    query = query.eq("tenant_id", options.tenantId);
+  }
+
+  if (options.planDate) {
+    const planDateStr = options.planDate.slice(0, 10);
+    query = query.eq("plan_date", planDateStr);
+  } else if (options.dateRange) {
+    const startStr = options.dateRange.start.slice(0, 10);
+    const endStr = options.dateRange.end.slice(0, 10);
+    query = query.gte("plan_date", startStr).lte("plan_date", endStr);
+  }
+
+  if (options.planGroupIds && options.planGroupIds.length > 0) {
+    const validGroupIds = options.planGroupIds.filter(
+      (id) => id && typeof id === "string" && id.trim().length > 0
+    );
+    if (validGroupIds.length > 0) {
+      query = query.in("plan_group_id", validGroupIds);
+    } else {
+      return [];
+    }
+  }
+
+  query = query
+    .order("plan_date", { ascending: true })
+    .order("block_index", { ascending: true });
+
+  const { data, error } = await query;
+
+  if (error) {
+    // View가 없거나 오류 발생 시 기존 함수로 fallback
+    console.warn("[data/todayPlans] View 조회 실패, 기존 방식으로 fallback:", error);
+    return getPlansForStudent({
+      studentId: options.studentId,
+      tenantId: options.tenantId,
+      planDate: options.planDate,
+      dateRange: options.dateRange,
+      planGroupIds: options.planGroupIds,
+    });
+  }
+
+  // View 결과를 Plan 타입으로 변환 (denormalized 필드 우선, View 필드는 fallback)
+  const plans = (data || []).map((row: any) => {
+    const plan: Plan = {
+      id: row.id,
+      tenant_id: row.tenant_id,
+      student_id: row.student_id,
+      plan_date: row.plan_date,
+      block_index: row.block_index,
+      content_type: row.content_type,
+      content_id: row.content_id,
+      chapter: row.chapter,
+      planned_start_page_or_time: row.planned_start_page_or_time,
+      planned_end_page_or_time: row.planned_end_page_or_time,
+      completed_amount: row.completed_amount,
+      progress: row.progress,
+      is_reschedulable: row.is_reschedulable,
+      plan_group_id: row.plan_group_id,
+      start_time: row.start_time,
+      end_time: row.end_time,
+      actual_start_time: row.actual_start_time,
+      actual_end_time: row.actual_end_time,
+      total_duration_seconds: row.total_duration_seconds,
+      paused_duration_seconds: row.paused_duration_seconds,
+      pause_count: row.pause_count,
+      plan_number: row.plan_number,
+      sequence: row.sequence,
+      day_type: row.day_type,
+      week: row.week,
+      day: row.day,
+      is_partial: row.is_partial,
+      is_continued: row.is_continued,
+      // denormalized 필드: 우선순위는 content_title > view_content_title
+      content_title: row.content_title || row.view_content_title || null,
+      content_subject: row.content_subject || row.view_content_subject || null,
+      content_subject_category: row.content_subject_category || row.view_content_subject_category || null,
+      content_category: row.content_category || row.view_content_category || null,
+      memo: row.memo,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+    return plan;
+  });
+
+  return plans;
 }
 
 export type TodayPlansResponse = {
@@ -174,8 +285,9 @@ export async function getTodayPlans(
     planGroupIds = nonCampPlanGroups.map((g) => g.id);
   }
 
-  // 선택한 날짜 플랜 조회
-  let plans = await getPlansForStudent({
+  // 선택한 날짜 플랜 조회 (View 사용으로 최적화)
+  // today_plan_view를 통해 콘텐츠 정보가 이미 조인되어 있음
+  let plans = await getPlansFromView({
     studentId,
     tenantId,
     planDate: targetDate,
@@ -191,7 +303,7 @@ export async function getTodayPlans(
     shortRangeEndDate.setDate(shortRangeEndDate.getDate() + 30);
     const shortRangeEndDateStr = shortRangeEndDate.toISOString().slice(0, 10);
 
-    let futurePlans = await getPlansForStudent({
+    let futurePlans = await getPlansFromView({
       studentId,
       tenantId,
       dateRange: {
@@ -206,7 +318,7 @@ export async function getTodayPlans(
       longRangeEndDate.setDate(longRangeEndDate.getDate() + 180);
       const longRangeEndDateStr = longRangeEndDate.toISOString().slice(0, 10);
 
-      futurePlans = await getPlansForStudent({
+      futurePlans = await getPlansFromView({
         studentId,
         tenantId,
         dateRange: {
@@ -273,42 +385,8 @@ export async function getTodayPlans(
     };
   }
 
-  // 콘텐츠 정보 조회 (최적화: 필요한 ID만 조회)
-  // Note: First run can be slow (~59s) due to cold start, connection pooling, or index warmup.
-  // Subsequent runs should be ~190ms. This code is hardened to prevent large IN clauses and malformed queries.
-  
-  // Extract and deduplicate content IDs (defensive: filter out null/undefined/empty)
-  const bookIds = [...new Set(
-    plans
-      .filter((p) => p.content_type === "book" && p.content_id && typeof p.content_id === "string")
-      .map((p) => p.content_id as string)
-  )];
-  const lectureIds = [...new Set(
-    plans
-      .filter((p) => p.content_type === "lecture" && p.content_id && typeof p.content_id === "string")
-      .map((p) => p.content_id as string)
-  )];
-  const customIds = [...new Set(
-    plans
-      .filter((p) => p.content_type === "custom" && p.content_id && typeof p.content_id === "string")
-      .map((p) => p.content_id as string)
-  )];
-
-  // 공통 함수 사용하여 콘텐츠 조회
-  const { books, lectures, customContents } = await getContentsByIds(
-    bookIds,
-    lectureIds,
-    customIds,
-    studentId,
-    tenantId
-  );
-
-  // 데이터 enrich 시작 (메모리 연산만 측정, DB 쿼리는 별도 측정)
-  // Step 1: Build maps (O(n) where n = content count)
-  const contentMap = new Map<string, unknown>();
-  books.forEach((book) => contentMap.set(`book:${book.id}`, book));
-  lectures.forEach((lecture) => contentMap.set(`lecture:${lecture.id}`, lecture));
-  customContents.forEach((custom) => contentMap.set(`custom:${custom.id}`, custom));
+  // 콘텐츠 정보는 View를 통해 조인되어 있음 (today_plan_view)
+  // 별도의 콘텐츠 조회 쿼리 불필요 (Application-side Join 제거)
 
   // 진행률 조회 (최적화: 필요한 콘텐츠만 조회)
   // 필요한 콘텐츠의 (content_type, content_id) 쌍만 조회
@@ -521,25 +599,67 @@ export async function getTodayPlans(
     'content_category'
   ]);
 
+  // View를 통해 가져온 정보를 사용하여 content 객체 생성
   const plansWithContent: PlanWithContent[] = plans.map((plan) => {
-    // Pre-compute content key once per plan
     const contentKey = plan.content_type && plan.content_id 
       ? `${plan.content_type}:${plan.content_id}` 
       : null;
     
-    // Direct Map lookups (O(1) each)
-    const content = contentKey ? contentMap.get(contentKey) : undefined;
+    // Progress는 여전히 별도 조회 필요 (student_content_progress 테이블)
     const progress = contentKey ? (progressMap.get(contentKey) ?? null) : null;
     const session = sessionMap.get(plan.id);
+
+    // View에서 가져온 정보를 사용하여 content 객체 생성
+    // denormalized 필드가 이미 plan에 포함되어 있음
+    let content: Book | Lecture | CustomContent | undefined = undefined;
+    if (plan.content_id && plan.content_title) {
+      const baseContent = {
+        id: plan.content_id,
+        tenant_id: plan.tenant_id || null,
+        student_id: plan.student_id,
+        title: plan.content_title,
+        subject: plan.content_subject || null,
+        created_at: plan.created_at || null,
+        updated_at: plan.updated_at || null,
+      };
+
+      if (plan.content_type === "book") {
+        content = {
+          ...baseContent,
+          revision: null,
+          semester: null,
+          subject_category: plan.content_subject_category || null,
+          publisher: null,
+          difficulty_level: null,
+          total_pages: null,
+          notes: null,
+        } as Book;
+      } else if (plan.content_type === "lecture") {
+        content = {
+          ...baseContent,
+          revision: null,
+          semester: null,
+          subject_category: plan.content_subject_category || null,
+          platform: null,
+          difficulty_level: null,
+          duration: null,
+          notes: null,
+        } as Lecture;
+      } else if (plan.content_type === "custom") {
+        content = {
+          ...baseContent,
+          content_type: null,
+          total_page_or_time: null,
+        } as CustomContent;
+      }
+    }
 
     // Optimized: Use helper function for field exclusion (more efficient than destructuring)
     const planWithoutDenormalized = excludeFields(plan, denormalizedFields);
 
-    // Optimized: Reuse session object from sessionMap (no need to recreate)
-    // sessionMap already contains the properly formatted object
     // Optimized: Use Object.assign for better performance than spread
     const result = Object.assign({}, planWithoutDenormalized, {
-      content: content as Book | Lecture | CustomContent | undefined,
+      content: content,
       progress: progress ?? plan.progress ?? null,
       session: session,
     }) as PlanWithContent;
