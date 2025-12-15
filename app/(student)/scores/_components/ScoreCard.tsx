@@ -50,29 +50,29 @@ function ScoreCardComponent({
   const scoreFields = (
     <>
       <div className="flex flex-col gap-1">
-        <span className={`text-xs font-medium ${textMuted}`}>원점수</span>
-        <span className={`text-base font-semibold ${textPrimary}`}>
+        <span className={cn("text-xs font-medium", textMuted)}>원점수</span>
+        <span className={cn("text-base font-semibold", textPrimary)}>
           {score.raw_score != null ? score.raw_score.toLocaleString() : "-"}
         </span>
       </div>
       <div className="flex flex-col gap-1">
-        <span className={`text-xs font-medium ${textMuted}`}>학점수</span>
-        <span className={`text-base font-semibold ${textPrimary}`}>
+        <span className={cn("text-xs font-medium", textMuted)}>학점수</span>
+        <span className={cn("text-base font-semibold", textPrimary)}>
           {score.credit_hours !== null ? score.credit_hours : "-"}
         </span>
       </div>
       {score.subject_average !== null && (
         <div className="flex flex-col gap-1">
-          <span className={`text-xs font-medium ${textMuted}`}>과목평균</span>
-          <span className={`text-base font-semibold ${textPrimary}`}>
+          <span className={cn("text-xs font-medium", textMuted)}>과목평균</span>
+          <span className={cn("text-base font-semibold", textPrimary)}>
             {score.subject_average}
           </span>
         </div>
       )}
       {score.class_rank !== null && (
         <div className="flex flex-col gap-1">
-          <span className={`text-xs font-medium ${textMuted}`}>반 석차</span>
-          <span className={`text-base font-semibold ${textPrimary}`}>
+          <span className={cn("text-xs font-medium", textMuted)}>반 석차</span>
+          <span className={cn("text-base font-semibold", textPrimary)}>
             {score.class_rank}등
           </span>
         </div>
@@ -86,26 +86,26 @@ function ScoreCardComponent({
       {/* 기본 정보 */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <span className={`text-xs ${textMuted}`}>과목명</span>
-          <p className={`text-sm font-medium ${textPrimary}`}>
+          <span className={cn("text-xs", textMuted)}>과목명</span>
+          <p className={cn("text-sm font-medium", textPrimary)}>
             {subjectName || score.subject_name || "-"}
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <span className={`text-xs ${textMuted}`}>교과</span>
-          <p className={`text-sm font-medium ${textPrimary}`}>
+          <span className={cn("text-xs", textMuted)}>교과</span>
+          <p className={cn("text-sm font-medium", textPrimary)}>
             {subjectGroupName || score.subject_group || "-"}
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <span className={`text-xs ${textMuted}`}>과목 유형</span>
-          <p className={`text-sm font-medium ${textPrimary}`}>
+          <span className={cn("text-xs", textMuted)}>과목 유형</span>
+          <p className={cn("text-sm font-medium", textPrimary)}>
             {subjectTypeName || score.subject_type || "-"}
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <span className={`text-xs ${textMuted}`}>학년/학기</span>
-          <p className={`text-sm font-medium ${textPrimary}`}>
+          <span className={cn("text-xs", textMuted)}>학년/학기</span>
+          <p className={cn("text-sm font-medium", textPrimary)}>
             {score.grade}학년 {score.semester}학기
           </p>
         </div>
@@ -113,10 +113,10 @@ function ScoreCardComponent({
 
       {/* 성적 정보 */}
       <div className={cn("flex flex-col gap-4 border-t pt-4", borderDefault)}>
-        <h3 className={`text-sm font-semibold ${textPrimary}`}>성적 정보</h3>
+        <h3 className={cn("text-sm font-semibold", textPrimary)}>성적 정보</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col gap-1">
-            <span className={`text-xs ${textMuted}`}>등급</span>
+            <span className={cn("text-xs", textMuted)}>등급</span>
             <div className="flex items-center gap-2">
               {score.grade_score !== null && (
                 <div
@@ -129,58 +129,58 @@ function ScoreCardComponent({
                 </div>
               )}
               {score.grade_score === null && (
-                <span className={`text-sm font-medium ${textPrimary}`}>-</span>
+                <span className={cn("text-sm font-medium", textPrimary)}>-</span>
               )}
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className={`text-xs ${textMuted}`}>원점수</span>
-            <p className={`text-sm font-medium ${textPrimary}`}>
+            <span className={cn("text-xs", textMuted)}>원점수</span>
+            <p className={cn("text-sm font-medium", textPrimary)}>
               {score.raw_score != null ? score.raw_score : "-"}
             </p>
           </div>
           <div className="flex flex-col gap-1">
-            <span className={`text-xs ${textMuted}`}>학점수</span>
-            <p className={`text-sm font-medium ${textPrimary}`}>
+            <span className={cn("text-xs", textMuted)}>학점수</span>
+            <p className={cn("text-sm font-medium", textPrimary)}>
               {score.credit_hours !== null ? score.credit_hours : "-"}
             </p>
           </div>
           {score.subject_average !== null && (
             <div className="flex flex-col gap-1">
-              <span className={`text-xs ${textMuted}`}>과목평균</span>
-              <p className={`text-sm font-medium ${textPrimary}`}>
+              <span className={cn("text-xs", textMuted)}>과목평균</span>
+              <p className={cn("text-sm font-medium", textPrimary)}>
                 {score.subject_average}
               </p>
             </div>
           )}
           {score.standard_deviation !== null && (
             <div className="flex flex-col gap-1">
-              <span className={`text-xs ${textMuted}`}>표준편차</span>
-              <p className={`text-sm font-medium ${textPrimary}`}>
+              <span className={cn("text-xs", textMuted)}>표준편차</span>
+              <p className={cn("text-sm font-medium", textPrimary)}>
                 {score.standard_deviation}
               </p>
             </div>
           )}
           {score.total_students !== null && (
             <div className="flex flex-col gap-1">
-              <span className={`text-xs ${textMuted}`}>수강자수</span>
-              <p className={`text-sm font-medium ${textPrimary}`}>
+              <span className={cn("text-xs", textMuted)}>수강자수</span>
+              <p className={cn("text-sm font-medium", textPrimary)}>
                 {score.total_students}명
               </p>
             </div>
           )}
           {score.rank_grade !== null && (
             <div className="flex flex-col gap-1">
-              <span className={`text-xs ${textMuted}`}>석차등급</span>
-              <p className={`text-sm font-medium ${textPrimary}`}>
+              <span className={cn("text-xs", textMuted)}>석차등급</span>
+              <p className={cn("text-sm font-medium", textPrimary)}>
                 {score.rank_grade}등급
               </p>
             </div>
           )}
           {score.class_rank !== null && (
             <div className="flex flex-col gap-1">
-              <span className={`text-xs ${textMuted}`}>반 석차</span>
-              <p className={`text-sm font-medium ${textPrimary}`}>
+              <span className={cn("text-xs", textMuted)}>반 석차</span>
+              <p className={cn("text-sm font-medium", textPrimary)}>
                 {score.class_rank}등
               </p>
             </div>

@@ -1,14 +1,18 @@
 /**
  * 테마 관련 유틸리티 클래스
- * 자주 사용되는 다크모드 클래스 조합을 제공합니다.
  * 
- * 주의: 3곳 이상에서 사용되는 패턴만 여기에 정의합니다.
- * 과도한 추상화를 지양합니다.
+ * @deprecated 이 파일은 기존 코드 호환성을 위해 유지됩니다.
+ * 새로운 코드는 @/lib/utils/darkMode에서 직접 import하세요.
+ * 
+ * 이 파일은 darkMode.ts의 re-export와 기존 themeClasses 객체를 제공합니다.
  */
 
+// darkMode.ts의 모든 export를 re-export
+export * from "./darkMode";
+
 /**
- * 카드 스타일 클래스 조합
- * 배경색과 테두리를 포함합니다.
+ * 카드 스타일 클래스 조합 (기존 코드 호환성 유지)
+ * @deprecated darkMode.ts의 bgSurface, borderDefault, cardBase 등을 사용하세요.
  */
 export const themeClasses = {
   /**

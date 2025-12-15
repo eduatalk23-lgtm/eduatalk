@@ -17,6 +17,18 @@ import {
 } from "@/lib/api/scoreDashboardUtils";
 import { StudentSelector } from "../_components/StudentSelector";
 import Link from "next/link";
+import { cn } from "@/lib/cn";
+import {
+  bgSurface,
+  bgPage,
+  bgHover,
+  textPrimary,
+  textSecondary,
+  textTertiary,
+  textMuted,
+  borderDefault,
+  borderInput,
+} from "@/lib/utils/darkMode";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -142,14 +154,19 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold text-gray-900">성적 현황</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className={cn("text-3xl font-semibold", textPrimary)}>성적 현황</h1>
+          <p className={cn("text-sm", textMuted)}>
             자녀의 내신 및 모의고사 성적을 확인하세요
           </p>
         </div>
         <Link
           href="/parent/dashboard"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className={cn(
+            "rounded-lg border px-4 py-2 text-sm font-medium transition",
+            borderInput,
+            textSecondary,
+            bgHover
+          )}
         >
           대시보드로 돌아가기
         </Link>
@@ -164,22 +181,34 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
-          <p className="text-sm font-medium text-red-700">
+        <div className={cn(
+          "rounded-xl border p-8 text-center",
+          "border-red-200 dark:border-red-800",
+          "bg-red-50 dark:bg-red-900/30"
+        )}>
+          <p className="text-sm font-medium text-red-700 dark:text-red-300">
             성적 정보를 불러오는 중 오류가 발생했습니다.
           </p>
-          <p className="mt-2 text-xs text-red-600">{error}</p>
+          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>
         </div>
       ) : !dashboardData ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-500">등록된 성적이 없습니다.</p>
+        <div className={cn(
+          "rounded-xl border p-8 text-center",
+          borderDefault,
+          bgPage
+        )}>
+          <p className={cn("text-sm", textMuted)}>등록된 성적이 없습니다.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
           {/* 내신 분석 */}
           {dashboardData.internalAnalysis.totalGpa !== null && (
-            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900">내신 분석</h2>
+            <div className={cn(
+              "flex flex-col gap-4 rounded-xl border p-6 shadow-sm",
+              borderDefault,
+              bgSurface
+            )}>
+              <h2 className={cn("text-lg font-semibold", textPrimary)}>내신 분석</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 p-4">
                   <div className="text-sm text-indigo-600">전체 GPA</div>
@@ -206,12 +235,16 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
               </div>
               {Object.keys(dashboardData.internalAnalysis.subjectStrength).length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-sm font-medium text-gray-700">교과군별 평점</h3>
+                  <h3 className={cn("text-sm font-medium", textSecondary)}>교과군별 평점</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(dashboardData.internalAnalysis.subjectStrength).map(([subject, gpa]) => (
-                      <div key={subject} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-2">
-                        <span className="text-sm text-gray-700">{subject}</span>
-                        <span className="text-sm font-semibold text-gray-900">{gpa.toFixed(2)}</span>
+                      <div key={subject} className={cn(
+                        "flex items-center justify-between rounded-lg border p-2",
+                        borderDefault,
+                        bgSurface
+                      )}>
+                        <span className={cn("text-sm", textSecondary)}>{subject}</span>
+                        <span className={cn("text-sm font-semibold", textPrimary)}>{gpa.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -222,8 +255,12 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
 
           {/* 모의고사 분석 */}
           {dashboardData.mockAnalysis.recentExam !== null && (
-            <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900">모의고사 분석</h2>
+            <div className={cn(
+              "flex flex-col gap-4 rounded-xl border p-6 shadow-sm",
+              borderDefault,
+              bgSurface
+            )}>
+              <h2 className={cn("text-lg font-semibold", textPrimary)}>모의고사 분석</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {dashboardData.mockAnalysis.recentExam && (
                   <div className="flex flex-col gap-1 rounded-lg bg-purple-50 p-4">
@@ -246,9 +283,12 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
                 )}
               </div>
               {dashboardData.mockAnalysis.best3GradeSum !== null && (
-                <div className="flex flex-col gap-1 rounded-lg bg-gray-50 p-3">
-                  <div className="text-sm text-gray-600">상위 3개 등급 합</div>
-                  <div className="text-xl font-bold text-gray-900">
+                <div className={cn(
+                  "flex flex-col gap-1 rounded-lg p-3",
+                  bgPage
+                )}>
+                  <div className={cn("text-sm", textTertiary)}>상위 3개 등급 합</div>
+                  <div className={cn("text-xl font-bold", textPrimary)}>
                     {dashboardData.mockAnalysis.best3GradeSum}
                   </div>
                 </div>

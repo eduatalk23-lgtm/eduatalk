@@ -496,3 +496,42 @@ export function sectionHeaderDescriptionStyles(size: "sm" | "md" | "lg" = "md"):
   );
 }
 
+// ============================================
+// Parent 페이지용 유틸리티
+// ============================================
+
+/**
+ * Parent 페이지용 위험 신호 스타일
+ */
+export const riskSignalStyles = {
+  container: cn(
+    "rounded-xl border-2 border-red-300 dark:border-red-800",
+    "bg-red-50 dark:bg-red-900/30",
+    "p-6 shadow-sm"
+  ),
+  title: "text-lg font-semibold text-red-900 dark:text-red-200",
+  description: "text-sm text-red-700 dark:text-red-300",
+  card: cn(
+    "rounded-lg border-2 border-red-300 dark:border-red-800",
+    "bg-white dark:bg-gray-800",
+    "p-4"
+  ),
+  cardTitle: "text-base font-semibold text-red-900 dark:text-red-200",
+  cardValue: "text-lg font-bold text-red-600 dark:text-red-400",
+  cardText: "text-xs text-gray-700 dark:text-gray-300",
+};
+
+// ============================================
+// Admin 페이지용 유틸리티
+// ============================================
+
+/**
+ * Admin 대시보드용 레벨 색상
+ * riskLevelColors와 동일하지만 명시적으로 Admin용으로 제공
+ */
+export const adminLevelColors: Record<string, string> = {
+  high: "bg-red-500 dark:bg-red-600 text-white",
+  medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
+  low: "bg-green-500 dark:bg-green-600 text-white",
+};
+
