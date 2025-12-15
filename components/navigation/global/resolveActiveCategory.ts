@@ -8,29 +8,13 @@ import type {
   NavigationRole,
 } from "./categoryConfig";
 import { getCategoriesForRole } from "./categoryConfig";
+import { parseHref, isPathActive } from "./categoryNavUtils";
 
 export type ActiveCategoryInfo = {
   category: NavigationCategory;
   activeItem: NavigationItem | null;
   isCategoryActive: boolean;
 };
-
-/**
- * href에서 쿼리 파라미터를 분리하여 pathname과 queryParams로 반환
- */
-function parseHref(href: string): { pathname: string; queryParams: Record<string, string> } {
-  const [pathname, queryString] = href.split("?");
-  const queryParams: Record<string, string> = {};
-  
-  if (queryString) {
-    const params = new URLSearchParams(queryString);
-    params.forEach((value, key) => {
-      queryParams[key] = value;
-    });
-  }
-  
-  return { pathname: pathname || href, queryParams };
-}
 
 /**
  * 두 쿼리 파라미터 객체가 일치하는지 확인
@@ -60,75 +44,44 @@ function matchQueryParams(
 }
 
 /**
- * 경로가 특정 href와 매칭되는지 확인
- */
-function isPathActive(
-  pathname: string,
-  href: string,
-  exactMatch: boolean = false,
-  searchParams?: URLSearchParams | null,
-  itemQueryParams?: Record<string, string>
-): boolean {
-  // href에서 쿼리 파라미터 분리
-  const { pathname: hrefPathname, queryParams: hrefQueryParams } = parseHref(href);
-  
-  // pathname 매칭 확인
-  let pathnameMatches = false;
-  if (exactMatch) {
-    pathnameMatches = pathname === hrefPathname;
-  } else {
-    pathnameMatches = pathname === hrefPathname || pathname.startsWith(`${hrefPathname}/`);
-  }
-  
-  if (!pathnameMatches) {
-    return false;
-  }
-  
-  // 쿼리 파라미터가 있는 경우 매칭 확인
-  const hasQueryParams = itemQueryParams && Object.keys(itemQueryParams).length > 0;
-  const hasHrefQueryParams = Object.keys(hrefQueryParams).length > 0;
-  
-  if (hasQueryParams || hasHrefQueryParams) {
-    // itemQueryParams가 있으면 그것을 우선 사용, 없으면 href에서 파싱한 것 사용
-    const paramsToMatch = itemQueryParams || hrefQueryParams;
-    return matchQueryParams(searchParams || null, paramsToMatch);
-  }
-  
-  return true;
-}
-
-/**
  * 특정 아이템이 현재 경로와 활성 상태인지 확인
+ * 정확한 매칭을 우선하고, 부모 아이템은 자식이 active일 때 active로 표시하지 않음
  */
 export function isItemActive(
   pathname: string,
   item: NavigationItem,
   searchParams?: URLSearchParams | null
 ): boolean {
-  // href에서 쿼리 파라미터 분리
-  const { pathname: itemPathname } = parseHref(item.href);
-  
-  // 정확히 일치해야 하는 경우
+  // 1. 정확히 일치해야 하는 경우
   if (item.exactMatch) {
     return isPathActive(pathname, item.href, true, searchParams, item.queryParams);
   }
 
-  // startsWith 매칭
+  // 2. 정확한 경로 매칭 확인 (exactMatch가 false여도 정확히 일치하면 true)
+  const exactMatch = isPathActive(pathname, item.href, true, searchParams, item.queryParams);
+  if (exactMatch) {
+    return true;
+  }
+
+  // 3. children이 있는 경우, children의 active 여부 확인
+  if (item.children) {
+    const hasActiveChild = item.children.some(child => 
+      isItemActive(pathname, child, searchParams)
+    );
+    
+    // 자식이 active이면 부모는 active로 표시하지 않음
+    if (hasActiveChild) {
+      return false;
+    }
+  }
+
+  // 4. startsWith 매칭 (children이 없거나 모두 비활성일 때만)
   if (isPathActive(pathname, item.href, false, searchParams, item.queryParams)) {
     return true;
   }
 
-  // 동적 라우트 매칭 (children이 있는 경우, 동적 세그먼트 포함 경로 검사)
-  if (item.children) {
-    for (const child of item.children) {
-      if (isItemActive(pathname, child, searchParams)) {
-        return true;
-      }
-    }
-  }
-
-  // 동적 세그먼트 패턴 매칭 (예: /contents/books/[id] 형태)
-  // href에 [id] 같은 패턴이 있거나, pathname이 부모 경로의 하위 경로인 경우
+  // 5. 동적 세그먼트 패턴 매칭 (예: /contents/books/[id] 형태)
+  const { pathname: itemPathname } = parseHref(item.href);
   const itemSegments = itemPathname.split("/").filter(Boolean);
   const pathSegments = pathname.split("/").filter(Boolean);
   

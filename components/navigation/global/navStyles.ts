@@ -6,6 +6,55 @@
 import { cn } from "@/lib/cn";
 
 /**
+ * z-index 계층 구조 상수
+ * 명확한 레이어링을 위한 중앙 집중식 관리
+ */
+export const zIndexLayers = {
+  // 기본 레이어
+  base: 0,
+  
+  // 사이드바 레이어
+  sidebar: 10,
+  sidebarHeader: 20,
+  sidebarFooter: 20,
+  
+  // 모바일 상단 네비게이션
+  mobileNav: 40,
+  
+  // 오버레이 레이어
+  overlay: 45,
+  
+  // 드로어 레이어
+  drawer: 50,
+  drawerHeader: 60,
+  
+  // 모달/팝오버 레이어
+  modal: 50,
+  popover: 50,
+  tooltip: 50,
+  
+  // 최상위 레이어
+  top: 100,
+} as const;
+
+/**
+ * 애니메이션 duration 상수
+ */
+export const animationDurations = {
+  fast: "duration-200",
+  normal: "duration-300",
+  slow: "duration-500",
+} as const;
+
+/**
+ * 사이드바 너비 상수
+ */
+export const sidebarWidths = {
+  collapsed: "w-16",
+  expanded: "w-72",
+} as const;
+
+/**
  * 디자인 시스템 컬러 토큰
  */
 export const designTokens = {
@@ -40,6 +89,12 @@ export const designTokens = {
 };
 
 /**
+ * 공통 활성 상태 스타일 (중복 제거)
+ * border-l을 위한 padding-left와 border 스타일을 통합
+ */
+const activeBorderStyle = "pl-[9px] border-l-2";
+
+/**
  * 네비게이션 아이템 기본 스타일
  */
 export const navItemStyles = {
@@ -49,8 +104,8 @@ export const navItemStyles = {
   // 포커스 스타일
   focus: designTokens.focus.ring,
   
-  // 활성 상태
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} border-l-2 ${designTokens.colors.primary.border}`,
+  // 활성 상태 - border-l을 위한 padding-left 추가
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
   
   // 비활성 상태
   inactive: `${designTokens.colors.gray[700]} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText}`,
@@ -79,7 +134,7 @@ export const categoryHeaderStyles = {
 export const subItemStyles = {
   base: "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} border-l-2 ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
   inactive: navItemStyles.inactive,
 };
 
@@ -89,7 +144,7 @@ export const subItemStyles = {
 export const childItemStyles = {
   base: "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} border-l-2 ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray[600]} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText}`,
 };
 
@@ -172,6 +227,14 @@ export function getChildItemClasses({
 }
 
 /**
+ * 툴팁 스타일 (Breadcrumbs 등에서 사용)
+ */
+export const tooltipStyles = {
+  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-[50] pointer-events-none",
+  arrow: "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100",
+};
+
+/**
  * Breadcrumbs 스타일
  */
 export const breadcrumbStyles = {
@@ -216,21 +279,27 @@ export const layoutStyles = {
   
   // Transition
   transition: "transition-colors",
-  transitionAll: "transition-all duration-300 ease-in-out",
+  transitionAll: `transition-all ${animationDurations.normal} ease-in-out`,
   
   // Focus
   focusRing: designTokens.focus.ring,
+  
+  // 스크롤 가능한 컨테이너
+  scrollableContainer: "overflow-y-auto",
+  
+  // 전체 화면 높이
+  fullHeight: "h-screen",
 };
 
 /**
  * 사이드바 스타일
  */
 export const sidebarStyles = {
-  container: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} ${layoutStyles.transitionAll}`,
-  header: `${layoutStyles.borderBottom} ${layoutStyles.padding4}`,
+  container: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} ${layoutStyles.transitionAll} z-[10]`,
+  header: `${layoutStyles.borderBottom} ${layoutStyles.padding4} sticky top-0 z-[20] ${layoutStyles.bgWhite}`,
   tenantInfo: `${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${layoutStyles.padding3}`,
-  navSection: layoutStyles.padding4,
-  footer: `${layoutStyles.borderTop} ${layoutStyles.padding4}`,
+  navSection: "px-3 py-4",
+  footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
   logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
   expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary[50]} hover:bg-indigo-100 dark:hover:bg-indigo-900/50 ${designTokens.colors.primary[500]} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
@@ -240,9 +309,9 @@ export const sidebarStyles = {
  * 모바일 네비게이션 스타일
  */
 export const mobileNavStyles = {
-  overlay: "fixed inset-0 bg-black/50 z-40 md:hidden",
-  drawer: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} z-50 ${layoutStyles.transitionAll} motion-reduce:duration-0 md:hidden overflow-y-auto`,
-  header: `sticky top-0 ${layoutStyles.bgWhite} ${layoutStyles.borderBottom} ${layoutStyles.padding4} z-10`,
+  overlay: "fixed inset-0 bg-black/50 z-[45] md:hidden",
+  drawer: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} z-[50] ${layoutStyles.transitionAll} motion-reduce:duration-0 md:hidden ${layoutStyles.scrollableContainer}`,
+  header: `sticky top-0 ${layoutStyles.bgWhite} ${layoutStyles.borderBottom} ${layoutStyles.padding4} z-[60]`,
   hamburgerButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} md:hidden ${layoutStyles.focusRing}`,
   closeButton: `p-1.5 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
   tenantCard: `rounded-lg ${layoutStyles.bgGray50} ${layoutStyles.padding2}`,

@@ -11,7 +11,7 @@ import { useSidebar } from "./SidebarContext";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { mapRoleForNavigation } from "@/lib/navigation/utils";
-import { layoutStyles, sidebarStyles, mobileNavStyles } from "@/components/navigation/global/navStyles";
+import { layoutStyles, sidebarStyles, mobileNavStyles, sidebarWidths } from "@/components/navigation/global/navStyles";
 
 type RoleBasedLayoutProps = {
   role: "student" | "admin" | "parent" | "consultant" | "superadmin";
@@ -125,10 +125,15 @@ function MobileSidebar({
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeProgress, setSwipeProgress] = useState<number>(0);
 
-  // body 스크롤 잠금
+  // body 스크롤 잠금 및 포커스 트랩
   useEffect(() => {
     if (isMobileOpen) {
       document.body.style.overflow = "hidden";
+      // 포커스를 드로어로 이동
+      const firstFocusable = drawerRef.current?.querySelector<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus();
     } else {
       document.body.style.overflow = "";
     }
@@ -136,6 +141,22 @@ function MobileSidebar({
       document.body.style.overflow = "";
     };
   }, [isMobileOpen]);
+
+  // ESC 키로 드로어 닫기
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMobileOpen) {
+        closeMobile();
+      }
+    };
+
+    if (isMobileOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => {
+        document.removeEventListener("keydown", handleEscape);
+      };
+    }
+  }, [isMobileOpen, closeMobile]);
 
   // 터치 제스처 처리
   const minSwipeDistance = 100;
@@ -193,7 +214,7 @@ function MobileSidebar({
       {isMobileOpen && (
         <div
           className={cn(
-            swipeProgress > 0 ? mobileNavStyles.overlaySwipe : mobileNavStyles.overlay,
+            mobileNavStyles.overlay,
             swipeProgress > 0 && "transition-opacity duration-300"
           )}
           style={
@@ -202,7 +223,13 @@ function MobileSidebar({
               : undefined
           }
           onClick={closeMobile}
-          aria-hidden="true"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              closeMobile();
+            }
+          }}
+          aria-hidden={!isMobileOpen}
+          tabIndex={-1}
         />
       )}
 
@@ -216,16 +243,16 @@ function MobileSidebar({
         className={cn(
           mobileNavStyles.drawer,
           "fixed top-0 left-0 h-full w-64",
-          isMobileOpen 
-            ? swipeProgress > 0 
-              ? "translate-x-[var(--swipe-progress)]" 
-              : "translate-x-0"
-            : "-translate-x-full",
+          isMobileOpen && swipeProgress === 0
+            ? "translate-x-0"
+            : !isMobileOpen
+            ? "-translate-x-full"
+            : "", // swipeProgress > 0일 때는 인라인 스타일 사용
           swipeProgress === 0 && "transition-transform duration-300 ease-in-out"
         )}
         style={
           isMobileOpen && swipeProgress > 0
-            ? ({ "--swipe-progress": `${Math.max(0, -swipeProgress * 100)}%` } as React.CSSProperties & { "--swipe-progress": string })
+            ? { transform: `translateX(${Math.max(-100, -swipeProgress * 100)}%)` }
             : undefined
         }
         role="navigation"
@@ -282,7 +309,7 @@ export function RoleBasedLayout({
           className={cn(
             sidebarStyles.container,
             "hidden md:block",
-            isCollapsed ? "w-16" : "w-64"
+            isCollapsed ? sidebarWidths.collapsed : sidebarWidths.expanded
           )}
         >
           <div className="sticky top-0 h-screen overflow-y-auto">
@@ -300,7 +327,7 @@ export function RoleBasedLayout({
       <main id="main-content" className="flex-1 flex flex-col">
         {/* 상단 네비게이션 (모바일용) */}
         {showSidebar && (
-          <nav className={cn("md:hidden sticky top-0 z-50", layoutStyles.borderBottom, layoutStyles.bgWhite)}>
+          <nav className={cn("md:hidden sticky top-0 z-[40]", layoutStyles.borderBottom, layoutStyles.bgWhite)}>
             <div className={cn("flex flex-col gap-2", layoutStyles.padding4)}>
               <div className={layoutStyles.flexBetween}>
                 <LogoSection

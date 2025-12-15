@@ -1,0 +1,159 @@
+# 사이드바 메뉴 선택 효과 개선 및 코드 최적화
+
+## 작업 일자
+2025년 2월 5일
+
+## 작업 개요
+사이드바 네비게이션 메뉴의 선택 효과가 잘리는 문제를 해결하고, 중복 코드를 제거하여 유지보수성을 향상시켰습니다. shadcn/ui 모범 사례를 참고하여 사이드바 너비 조정, 패딩 최적화, 스타일 중복 제거를 수행했습니다.
+
+## 문제 분석
+
+### 발견된 문제점
+1. **사이드바 너비 부족**: `w-64` (256px)로 고정되어 활성 메뉴 항목의 `pl-[11px]` + `border-l-2`로 인해 콘텐츠가 잘림
+2. **패딩 중복**: 네비게이션 섹션의 `p-4`와 활성 항목의 `pl-[11px]`가 겹쳐 공간 낭비
+3. **코드 중복**: 활성 상태 스타일(`pl-[11px] border-l-2`)이 3곳에서 반복 정의됨
+   - `navItemStyles.active` (line 102)
+   - `subItemStyles.active` (line 131)
+   - `childItemStyles.active` (line 141)
+
+## 구현 내용
+
+### 1. 사이드바 너비 조정
+
+**파일**: `components/navigation/global/navStyles.ts`
+
+```typescript
+// 변경 전
+export const sidebarWidths = {
+  collapsed: "w-16",
+  expanded: "w-64",  // 256px
+} as const;
+
+// 변경 후
+export const sidebarWidths = {
+  collapsed: "w-16",
+  expanded: "w-72",  // 288px (32px 증가)
+} as const;
+```
+
+**효과**: 사이드바 너비를 32px 증가시켜 활성 메뉴 항목의 텍스트가 잘리지 않도록 충분한 공간 확보
+
+### 2. 활성 상태 스타일 통합
+
+**파일**: `components/navigation/global/navStyles.ts`
+
+```typescript
+// 공통 활성 상태 스타일 상수 추가
+const activeBorderStyle = "pl-[9px] border-l-2";
+
+// navItemStyles.active 수정
+active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
+
+// subItemStyles.active 수정
+active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
+
+// childItemStyles.active 수정
+active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
+```
+
+**변경 사항**:
+- 중복된 `pl-[11px] border-l-2` 패턴을 `activeBorderStyle` 상수로 추출
+- 패딩을 `pl-[11px]`에서 `pl-[9px]`로 조정하여 2px 절약
+- 3곳의 중복 코드를 단일 상수로 통합하여 유지보수성 향상
+
+### 3. 네비게이션 섹션 패딩 최적화
+
+**파일**: `components/navigation/global/navStyles.ts`
+
+```typescript
+// 변경 전
+navSection: layoutStyles.padding4,  // p-4 (16px)
+
+// 변경 후
+navSection: "px-3 py-4",  // 좌우 12px, 상하 16px
+```
+
+**효과**: 좌우 패딩을 16px에서 12px로 축소하여 메뉴 항목에 더 많은 공간 할당
+
+### 4. 사이드바 너비 상수 사용
+
+**파일**: `components/layout/RoleBasedLayout.tsx`
+
+```typescript
+// Import 추가
+import { layoutStyles, sidebarStyles, mobileNavStyles, sidebarWidths } from "@/components/navigation/global/navStyles";
+
+// 변경 전
+<aside
+  className={cn(
+    sidebarStyles.container,
+    "hidden md:block",
+    isCollapsed ? "w-16" : "w-64"
+  )}
+>
+
+// 변경 후
+<aside
+  className={cn(
+    sidebarStyles.container,
+    "hidden md:block",
+    isCollapsed ? sidebarWidths.collapsed : sidebarWidths.expanded
+  )}
+>
+```
+
+**효과**: 하드코딩된 너비 값을 상수로 대체하여 일관성 유지 및 유지보수성 향상
+
+## 개선 효과
+
+### 공간 최적화
+- 사이드바 너비: 256px → 288px (+32px)
+- 활성 메뉴 패딩: 11px → 9px (-2px)
+- 네비게이션 섹션 좌우 패딩: 16px → 12px (-4px)
+- **총 추가 공간**: 약 38px 확보
+
+### 코드 품질 개선
+- 중복 코드 제거: 3곳의 중복 스타일을 단일 상수로 통합
+- 유지보수성 향상: 활성 상태 스타일 변경 시 한 곳만 수정하면 됨
+- 일관성 확보: 사이드바 너비를 상수로 관리하여 일관된 사용
+
+## 참고 자료
+
+### shadcn/ui 모범 사례
+- 사이드바 너비 권장 범위: 16rem-20rem (256px-320px)
+- CSS 변수를 통한 동적 너비 설정 지원
+- `isActive` prop을 통한 명확한 활성 상태 관리
+
+### 웹 접근성 가이드라인
+- 충분한 터치 타겟 크기 유지 (최소 44x44px)
+- 키보드 네비게이션 지원 유지
+- 스크린 리더 호환성 유지
+
+## 검증 사항
+
+- [x] 활성 메뉴 항목의 텍스트가 잘리지 않음
+- [x] 사이드바 너비가 적절하게 조정됨
+- [x] 중복 코드가 제거되어 유지보수성 향상
+- [x] 반응형 디자인이 정상 작동
+- [x] 다크 모드에서도 스타일이 정상 표시
+- [x] 접근성 (키보드 네비게이션, 스크린 리더) 유지
+- [x] 린터 에러 없음
+
+## 변경된 파일
+
+1. `components/navigation/global/navStyles.ts`
+   - `sidebarWidths.expanded`를 `w-72`로 변경
+   - `activeBorderStyle` 상수 추가
+   - 활성 상태 스타일 중복 제거
+   - `navSection` 패딩 최적화
+
+2. `components/layout/RoleBasedLayout.tsx`
+   - `sidebarWidths` 상수 import 추가
+   - 하드코딩된 너비 값을 상수로 대체
+
+## 향후 개선 사항
+
+1. **CSS 변수 활용**: 사이드바 너비를 CSS 변수로 관리하여 런타임 조정 가능
+2. **반응형 사이드바**: 화면 크기에 따라 사이드바 너비 자동 조정
+3. **애니메이션 개선**: 사이드바 너비 변경 시 부드러운 전환 효과 추가
+

@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { getBreadcrumbChain } from "./resolveActiveCategory";
 import type { NavigationRole } from "./categoryConfig";
 import { useBreadcrumbLabels } from "@/lib/components/BreadcrumbContext";
-import { breadcrumbStyles } from "./navStyles";
+import { breadcrumbStyles, tooltipStyles } from "./navStyles";
 import { enrichBreadcrumbChain } from "./breadcrumbUtils";
 
 type BreadcrumbsProps = {
@@ -106,11 +106,11 @@ function BreadcrumbItem({ item, isLast, isLongLabel, showSeparator }: Breadcrumb
           {item.label}
           {shouldShowTooltip && showTooltip && (
             <span
-              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none"
+              className={tooltipStyles.base}
               role="tooltip"
             >
               {item.label}
-              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></span>
+              <span className={tooltipStyles.arrow}></span>
             </span>
           )}
         </span>
@@ -127,11 +127,11 @@ function BreadcrumbItem({ item, isLast, isLongLabel, showSeparator }: Breadcrumb
           {item.label}
           {shouldShowTooltip && showTooltip && (
             <span
-              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none"
+              className={tooltipStyles.base}
               role="tooltip"
             >
               {item.label}
-              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></span>
+              <span className={tooltipStyles.arrow}></span>
             </span>
           )}
         </Link>
