@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { getCategoriesForRole, type NavigationRole, type NavigationCategory, type NavigationItem } from "./categoryConfig";
-import { resolveActiveCategory, isCategoryPath } from "./resolveActiveCategory";
+import { resolveActiveCategory, isCategoryPath, isItemActive, type ActiveCategoryInfo } from "./resolveActiveCategory";
 import { useSidebar } from "@/components/layout/SidebarContext";
+import { isCampMode, ensurePathname } from "@/lib/navigation/utils";
 
 type CategoryNavProps = {
   role: NavigationRole;
@@ -17,20 +18,26 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
   const { isCollapsed } = useSidebar();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const categories = getCategoriesForRole(role);
+  const safePathname = ensurePathname(pathname);
   
-  // 캠프 모드 감지: /plan/group/[id] 경로이고 camp=true 쿼리 파라미터가 있는 경우
-  // 또는 /camp/calendar, /camp/today 경로인 경우
-  const isCampMode = 
-    (pathname?.startsWith("/plan/group/") && searchParams?.get("camp") === "true") ||
-    pathname?.startsWith("/camp/");
+  // categories 메모이제이션 (role이 변경될 때만 재계산)
+  const categories = useMemo(
+    () => getCategoriesForRole(role),
+    [role]
+  );
   
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
-    // 현재 활성 카테고리 초기 확장
-    let active = resolveActiveCategory(pathname || "", role);
+  // campMode 메모이제이션 (pathname, searchParams 변경 시만 재계산)
+  const campMode = useMemo(
+    () => isCampMode(pathname, searchParams),
+    [pathname, searchParams]
+  );
+  
+  // 활성 카테고리 정보를 계산 (useMemo로 값 직접 계산)
+  const activeCategoryInfo = useMemo((): ActiveCategoryInfo | null => {
+    let active = resolveActiveCategory(safePathname, role);
     
     // 캠프 모드인 경우 "캠프 참여" 카테고리 활성화
-    if (isCampMode && role === "student") {
+    if (campMode && role === "student") {
       const campCategory = categories.find((cat) => cat.id === "camp");
       if (campCategory) {
         active = {
@@ -41,8 +48,36 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
       }
     }
     
+    return active;
+  }, [safePathname, role, campMode, categories]);
+  
+  // 초기 상태 설정 (초기화 함수 내부에서 직접 계산)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
+    // 초기 렌더링 시 직접 계산 (SSR 안전)
+    let active = resolveActiveCategory(safePathname, role);
+    const initialCampMode = isCampMode(pathname, searchParams);
+    if (initialCampMode && role === "student") {
+      const campCategory = categories.find((cat) => cat.id === "camp");
+      if (campCategory) {
+        active = {
+          category: campCategory,
+          activeItem: campCategory.items[0] || null,
+          isCategoryActive: true,
+        };
+      }
+    }
     return new Set(active ? [active.category.id] : [categories[0]?.id].filter(Boolean));
   });
+
+  // pathname 변경 시 활성 카테고리 자동 확장
+  useEffect(() => {
+    if (activeCategoryInfo) {
+      setExpandedCategories((prev) => {
+        if (prev.has(activeCategoryInfo.category.id)) return prev;
+        return new Set([...prev, activeCategoryInfo.category.id]);
+      });
+    }
+  }, [activeCategoryInfo]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories((prev) => {
@@ -56,68 +91,13 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
     });
   };
 
-  const isItemActive = (item: NavigationItem): boolean => {
-    if (!pathname) return false;
-    
-    // exactMatch 체크
-    if (item.exactMatch) {
-      return pathname === item.href;
-    }
-    
-    // startsWith 매칭
-    if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-      return true;
-    }
-
-    // children 검색
-    if (item.children) {
-      if (item.children.some((child) => isItemActive(child))) {
-        return true;
-      }
-      // children 중 하나라도 활성화되면 부모도 활성화
-    }
-
-    // 동적 라우트 매칭 (예: /contents/books → /contents/books/[id])
-    // item.href가 부모 경로이고, pathname이 그 하위 동적 라우트인 경우
-    const pathSegments = pathname.split("/").filter(Boolean);
-    const itemSegments = item.href.split("/").filter(Boolean);
-    
-    // 경로 길이가 같거나 더 길고, 앞부분이 일치하는 경우
-    if (pathSegments.length >= itemSegments.length) {
-      const matches = itemSegments.every((seg, idx) => seg === pathSegments[idx]);
-      if (matches && pathSegments.length > itemSegments.length) {
-        // 마지막 세그먼트가 ID 형태인 경우 (동적 라우트)
-        const lastSegment = pathSegments[pathSegments.length - 1];
-        if (lastSegment.match(/^[0-9a-f-]{8,}$/i) || lastSegment.length > 15) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  };
-
   const isCategoryActive = (category: NavigationCategory): boolean => {
-    // 캠프 모드인 경우 "캠프 참여" 카테고리만 활성화
-    if (isCampMode && role === "student") {
-      return category.id === "camp";
+    // activeCategoryInfo를 활용하여 중복 제거
+    if (activeCategoryInfo) {
+      return activeCategoryInfo.category.id === category.id;
     }
-    return isCategoryPath(pathname || "", category);
+    return isCategoryPath(safePathname, category);
   };
-
-  let activeInfo = resolveActiveCategory(pathname || "", role);
-  
-  // 캠프 모드인 경우 "캠프 참여" 카테고리 활성화
-  if (isCampMode && role === "student") {
-    const campCategory = categories.find((cat) => cat.id === "camp");
-    if (campCategory) {
-      activeInfo = {
-        category: campCategory,
-        activeItem: campCategory.items[0] || null,
-        isCategoryActive: true,
-      };
-    }
-  }
 
   return (
     <nav className={cn("flex flex-col gap-1", className)}>
@@ -128,7 +108,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
         // 하위 메뉴가 1개인 경우 바로 링크로 처리
         const singleItem = category.items.length === 1 && !category.items[0].children;
         const singleItemHref = singleItem ? category.items[0].href : null;
-        const singleItemActive = singleItem ? isItemActive(category.items[0]) : false;
+        const singleItemActive = singleItem ? isItemActive(safePathname, category.items[0]) : false;
 
         return (
           <div key={category.id} className="flex flex-col gap-1">
@@ -197,7 +177,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                         return null;
                       }
 
-                      const itemActive = isItemActive(item);
+                      const itemActive = isItemActive(safePathname, item);
 
                       return (
                         <div key={item.id}>
@@ -219,7 +199,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                           {item.children && item.children.length > 0 && (
                             <div className="flex flex-col gap-1 pl-6">
                               {item.children.map((child) => {
-                                const childActive = isItemActive(child);
+                                const childActive = isItemActive(safePathname, child);
                                 return (
                                   <Link
                                     key={child.id}
