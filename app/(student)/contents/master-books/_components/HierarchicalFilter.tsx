@@ -1,19 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSubjectHierarchy } from "@/lib/contexts/SubjectHierarchyContext";
+import { updateFilterParams, updateMultipleFilterParams, clearFilterParams } from "@/lib/utils/shallowRouting";
+import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 
 type CurriculumRevision = {
-  id: string;
-  name: string;
-};
-
-type SubjectGroup = {
-  id: string;
-  name: string;
-};
-
-type Subject = {
   id: string;
   name: string;
 };
@@ -56,182 +49,127 @@ export function HierarchicalFilter({
   basePath = "/contents/master-books",
 }: HierarchicalFilterProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { hierarchy, loading: hierarchyLoading, getSubjectGroups, getSubjectsByGroup, loadHierarchy } = useSubjectHierarchy();
 
+  // 필터 상태 (URL 파라미터와 동기화)
   const [selectedCurriculumRevisionId, setSelectedCurriculumRevisionId] = useState(
-    initialCurriculumRevisionId || ""
+    initialCurriculumRevisionId || searchParams.get("curriculum_revision_id") || ""
   );
   const [selectedSubjectGroupId, setSelectedSubjectGroupId] = useState(
-    initialSubjectGroupId || ""
+    initialSubjectGroupId || searchParams.get("subject_group_id") || ""
   );
-  const [selectedSubjectId, setSelectedSubjectId] = useState(initialSubjectId || "");
-  const [selectedPublisherId, setSelectedPublisherId] = useState(initialPublisherId || "");
-  const [selectedPlatformId, setSelectedPlatformId] = useState(initialPlatformId || "");
-  const [search, setSearch] = useState(searchQuery);
+  const [selectedSubjectId, setSelectedSubjectId] = useState(
+    initialSubjectId || searchParams.get("subject_id") || ""
+  );
+  const [selectedPublisherId, setSelectedPublisherId] = useState(
+    initialPublisherId || searchParams.get("publisher_id") || ""
+  );
+  const [selectedPlatformId, setSelectedPlatformId] = useState(
+    initialPlatformId || searchParams.get("platform_id") || ""
+  );
+  const [search, setSearch] = useState(searchQuery || searchParams.get("search") || "");
 
-  const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
-  // 교과별 과목을 Map으로 관리 (교과 ID → 과목 목록)
-  const [subjectsMap, setSubjectsMap] = useState<Map<string, Subject[]>>(new Map());
-  const [loadingGroups, setLoadingGroups] = useState(false);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-
-  // 현재 선택된 교과의 과목 목록
-  const currentSubjects = selectedSubjectGroupId 
-    ? subjectsMap.get(selectedSubjectGroupId) || []
+  // Context에서 교과 목록 가져오기
+  const subjectGroups = selectedCurriculumRevisionId
+    ? getSubjectGroups(selectedCurriculumRevisionId)
     : [];
 
-  // 초기 마운트 시 초기값이 있을 경우 병렬로 데이터 로드
+  // 현재 선택된 교과의 과목 목록 (Context에서 가져오기)
+  const currentSubjects = selectedSubjectGroupId
+    ? getSubjectsByGroup(selectedSubjectGroupId)
+    : [];
+
+  // 초기 마운트 시 계층 데이터 로드
   useEffect(() => {
-    if (initialCurriculumRevisionId) {
-      // 초기값이 있으면 즉시 로드
-      loadHierarchyData(initialCurriculumRevisionId, initialSubjectGroupId, initialSubjectId);
+    if (selectedCurriculumRevisionId) {
+      loadHierarchy(selectedCurriculumRevisionId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCurriculumRevisionId, loadHierarchy]);
+
+  // 개정교육과정 변경 핸들러
+  const handleCurriculumRevisionChange = useCallback((curriculumRevisionId: string) => {
+    setSelectedCurriculumRevisionId(curriculumRevisionId);
+    setSelectedSubjectGroupId("");
+    setSelectedSubjectId("");
+
+    // URL 즉시 업데이트 (Shallow Routing)
+    updateMultipleFilterParams(
+      router,
+      pathname,
+      {
+        curriculum_revision_id: curriculumRevisionId || null,
+        subject_group_id: null,
+        subject_id: null,
+      }
+    );
+
+    // 계층 데이터 로드
+    if (curriculumRevisionId) {
+      loadHierarchy(curriculumRevisionId);
+    }
+  }, [router, pathname, loadHierarchy]);
+
+  // 교과 변경 핸들러
+  const handleSubjectGroupChange = useCallback((subjectGroupId: string) => {
+    setSelectedSubjectGroupId(subjectGroupId);
+    setSelectedSubjectId("");
+
+    // URL 즉시 업데이트 (Shallow Routing)
+    updateMultipleFilterParams(
+      router,
+      pathname,
+      {
+        subject_group_id: subjectGroupId || null,
+        subject_id: null,
+      }
+    );
+  }, [router, pathname]);
+
+  // 과목 변경 핸들러
+  const handleSubjectChange = useCallback((subjectId: string) => {
+    setSelectedSubjectId(subjectId);
+
+    // URL 즉시 업데이트 (Shallow Routing)
+    updateFilterParams(router, pathname, "subject_id", subjectId || null);
+  }, [router, pathname]);
+
+  // 출판사 변경 핸들러
+  const handlePublisherChange = useCallback((publisherId: string) => {
+    setSelectedPublisherId(publisherId);
+    updateFilterParams(router, pathname, "publisher_id", publisherId || null);
+  }, [router, pathname]);
+
+  // 플랫폼 변경 핸들러
+  const handlePlatformChange = useCallback((platformId: string) => {
+    setSelectedPlatformId(platformId);
+    updateFilterParams(router, pathname, "platform_id", platformId || null);
+  }, [router, pathname]);
+
+  // 검색어 변경 핸들러
+  const handleSearchChange = useCallback((searchValue: string) => {
+    setSearch(searchValue);
+    // 검색어는 submit 시에만 URL에 반영
   }, []);
 
-  // 개정교육과정 변경 시 교과와 과목 목록 병렬 로드 (초기 로드 제외)
-  useEffect(() => {
-    // 초기값과 다른 경우에만 로드 (중복 로딩 방지)
-    if (
-      selectedCurriculumRevisionId &&
-      selectedCurriculumRevisionId !== initialCurriculumRevisionId
-    ) {
-      loadHierarchyData(selectedCurriculumRevisionId);
-    } else if (!selectedCurriculumRevisionId) {
-      setSubjectGroups([]);
-      setSubjectsMap(new Map());
-      setSelectedSubjectGroupId("");
-      setSelectedSubjectId("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCurriculumRevisionId]);
-
-  // 교과 변경 시 과목 초기화 (이미 로드된 데이터 사용)
-  useEffect(() => {
-    // 교과가 변경되고 초기값과 다르면 과목 초기화
-    if (
-      selectedSubjectGroupId &&
-      selectedSubjectGroupId !== initialSubjectGroupId &&
-      !subjectsMap.has(selectedSubjectGroupId)
-    ) {
-      // 모든 과목이 이미 로드되어야 하는데 없는 경우에만 개별 로드
-      setLoadingSubjects(true);
-      fetch(`/api/subjects?subject_group_id=${selectedSubjectGroupId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const newSubjects = data.data || [];
-          setSubjectsMap((prev) => {
-            const next = new Map(prev);
-            next.set(selectedSubjectGroupId, newSubjects);
-            return next;
-          });
-          setLoadingSubjects(false);
-        })
-        .catch((err) => {
-          console.error("과목 목록 로드 실패:", err);
-          setLoadingSubjects(false);
-        });
-    }
-
-    // 교과 변경 시 과목 초기화 (초기값이 아닌 경우)
-    if (selectedSubjectGroupId !== initialSubjectGroupId) {
-      setSelectedSubjectId("");
-    }
-  }, [selectedSubjectGroupId, initialSubjectGroupId, subjectsMap]);
-
-  // 계층 구조 데이터 로드 (병렬 처리)
-  const loadHierarchyData = async (
-    curriculumRevisionId: string,
-    preserveSubjectGroupId?: string,
-    preserveSubjectId?: string
-  ) => {
-    setLoadingGroups(true);
-    setLoadingSubjects(true);
-
-    try {
-      // 교과와 과목을 함께 조회 (병렬 처리)
-      const response = await fetch(
-        `/api/subject-groups?curriculum_revision_id=${curriculumRevisionId}&include_subjects=true`
-      );
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || "데이터 로드 실패");
-      }
-
-      const groupsWithSubjects = result.data || [];
-      const groups: SubjectGroup[] = groupsWithSubjects.map(
-        (group: SubjectGroup & { subjects?: Subject[] }) => ({
-          id: group.id,
-          name: group.name,
-        })
-      );
-
-      // 교과별 과목을 Map으로 변환
-      const newSubjectsMap = new Map<string, Subject[]>();
-      groupsWithSubjects.forEach((group: SubjectGroup & { subjects?: Subject[] }) => {
-        if (group.subjects && group.subjects.length > 0) {
-          newSubjectsMap.set(group.id, group.subjects);
-        }
-      });
-
-      setSubjectGroups(groups);
-      setSubjectsMap(newSubjectsMap);
-
-      // 초기값 보존
-      if (preserveSubjectGroupId && newSubjectsMap.has(preserveSubjectGroupId)) {
-        setSelectedSubjectGroupId(preserveSubjectGroupId);
-        // 해당 교과의 과목 목록이 있고 preserveSubjectId가 있으면 설정
-        const subjects = newSubjectsMap.get(preserveSubjectGroupId) || [];
-        if (preserveSubjectId && subjects.some((s) => s.id === preserveSubjectId)) {
-          setSelectedSubjectId(preserveSubjectId);
-        }
-      } else if (!preserveSubjectGroupId) {
-        // 초기값이 없으면 초기화
-        setSelectedSubjectGroupId("");
-        setSelectedSubjectId("");
-      }
-
-      setLoadingGroups(false);
-      setLoadingSubjects(false);
-    } catch (err) {
-      console.error("계층 구조 데이터 로드 실패:", err);
-      setLoadingGroups(false);
-      setLoadingSubjects(false);
-      setSubjectGroups([]);
-      setSubjectsMap(new Map());
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  // 검색 제출
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams();
-    
-    if (selectedCurriculumRevisionId) {
-      params.set("curriculum_revision_id", selectedCurriculumRevisionId);
-    }
-    if (selectedSubjectGroupId) {
-      params.set("subject_group_id", selectedSubjectGroupId);
-    }
-    if (selectedSubjectId) {
-      params.set("subject_id", selectedSubjectId);
-    }
-    if (contentType === "book" && selectedPublisherId) {
-      params.set("publisher_id", selectedPublisherId);
-    }
-    if (contentType === "lecture" && selectedPlatformId) {
-      params.set("platform_id", selectedPlatformId);
-    }
-    if (search.trim()) {
-      params.set("search", search.trim());
-    }
+    const searchValue = search.trim() || "";
+    updateFilterParams(router, pathname, "search", searchValue || null);
+  }, [router, pathname, search]);
 
-    router.push(`${basePath}?${params.toString()}`);
-  };
-
-  const handleReset = () => {
-    router.push(basePath);
-  };
+  // 필터 초기화
+  const handleReset = useCallback(() => {
+    setSelectedCurriculumRevisionId("");
+    setSelectedSubjectGroupId("");
+    setSelectedSubjectId("");
+    setSelectedPublisherId("");
+    setSelectedPlatformId("");
+    setSearch("");
+    clearFilterParams(router, pathname);
+  }, [router, pathname]);
 
   return (
     <form
@@ -245,7 +183,7 @@ export function HierarchicalFilter({
         </label>
         <select
           value={selectedCurriculumRevisionId}
-          onChange={(e) => setSelectedCurriculumRevisionId(e.target.value)}
+          onChange={(e) => handleCurriculumRevisionChange(e.target.value)}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         >
           <option value="">전체</option>
@@ -262,12 +200,12 @@ export function HierarchicalFilter({
         <label className="text-xs font-medium text-gray-700">교과</label>
         <select
           value={selectedSubjectGroupId}
-          onChange={(e) => setSelectedSubjectGroupId(e.target.value)}
+          onChange={(e) => handleSubjectGroupChange(e.target.value)}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-          disabled={!selectedCurriculumRevisionId || loadingGroups}
+          disabled={!selectedCurriculumRevisionId || hierarchyLoading}
         >
           <option value="">전체</option>
-          {loadingGroups ? (
+          {hierarchyLoading ? (
             <option value="">로딩 중...</option>
           ) : (
             subjectGroups.map((group) => (
@@ -284,12 +222,12 @@ export function HierarchicalFilter({
         <label className="text-xs font-medium text-gray-700">과목</label>
         <select
           value={selectedSubjectId}
-          onChange={(e) => setSelectedSubjectId(e.target.value)}
+          onChange={(e) => handleSubjectChange(e.target.value)}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-          disabled={!selectedSubjectGroupId || loadingSubjects}
+          disabled={!selectedSubjectGroupId || hierarchyLoading}
         >
           <option value="">전체</option>
-          {loadingSubjects ? (
+          {hierarchyLoading ? (
             <option value="">로딩 중...</option>
           ) : (
             currentSubjects.map((subject) => (
@@ -307,7 +245,7 @@ export function HierarchicalFilter({
           <label className="text-xs font-medium text-gray-700">출판사</label>
           <select
             value={selectedPublisherId}
-            onChange={(e) => setSelectedPublisherId(e.target.value)}
+            onChange={(e) => handlePublisherChange(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
@@ -326,7 +264,7 @@ export function HierarchicalFilter({
           <label className="text-xs font-medium text-gray-700">플랫폼</label>
           <select
             value={selectedPlatformId}
-            onChange={(e) => setSelectedPlatformId(e.target.value)}
+            onChange={(e) => handlePlatformChange(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
             <option value="">전체</option>
@@ -347,7 +285,13 @@ export function HierarchicalFilter({
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSubmit(e as any);
+            }
+          }}
           placeholder={contentType === "book" ? "교재명 입력" : "강의명 입력"}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
