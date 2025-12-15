@@ -8,5 +8,5 @@
  */
 
 // 모든 타입을 re-export
-export * from "./plan";
+export * from "./plan/index";
 

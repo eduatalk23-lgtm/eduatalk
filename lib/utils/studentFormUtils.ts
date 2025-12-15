@@ -56,12 +56,19 @@ export function formatGradeDisplay(
  * @deprecated lib/utils/phone.ts의 함수들을 사용하세요.
  * 하위 호환성을 위해 유지됩니다.
  */
-export {
+import {
   extractPhoneDigits,
   normalizePhoneNumber,
   formatPhoneNumber,
   validatePhoneNumber,
 } from "./phone";
+
+export {
+  extractPhoneDigits,
+  normalizePhoneNumber,
+  formatPhoneNumber,
+  validatePhoneNumber,
+};
 
 /**
  * 폼 필드별 유효성 검증
