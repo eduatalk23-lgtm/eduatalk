@@ -1,18 +1,67 @@
 /**
- * 데이터베이스 컬럼 누락 시 fallback 처리를 위한 유틸리티 함수
+ * 데이터베이스 에러 fallback 처리를 위한 유틸리티 함수
  * 
- * PostgreSQL 에러 코드 42703 (undefined_column)을 처리하기 위한 공통 함수
+ * 다양한 에러 타입에 대한 fallback 처리를 지원합니다.
  */
 
 /**
  * 컬럼 누락 에러인지 확인
+ * PostgreSQL 에러 코드 42703 (undefined_column)
  */
 export function isColumnMissingError(error: any): boolean {
   return error?.code === "42703";
 }
 
 /**
+ * 범용 에러 fallback 처리 함수
+ * 
+ * 에러 판단 로직을 주입받아 다양한 에러 타입에 대응할 수 있습니다.
+ * 
+ * @param operation 원본 쿼리 함수
+ * @param fallbackOperation fallback 쿼리 함수
+ * @param shouldFallback 에러 판단 로직 (에러 객체를 받아 boolean 반환)
+ * @returns 쿼리 결과
+ * 
+ * @example
+ * ```typescript
+ * // 컬럼 누락 에러 처리
+ * const result = await withErrorFallback(
+ *   () => query(),
+ *   () => fallbackQuery(),
+ *   isColumnMissingError
+ * );
+ * 
+ * // 커스텀 에러 판단 로직
+ * const result = await withErrorFallback(
+ *   () => query(),
+ *   () => fallbackQuery(),
+ *   (error) => error?.code === "42703" || error?.code === "42P01"
+ * );
+ * ```
+ */
+export async function withErrorFallback<T, E = any>(
+  operation: () => Promise<{ data: T | null; error: E }>,
+  fallbackOperation: () => Promise<{ data: T | null; error: E }>,
+  shouldFallback: (error: E) => boolean
+): Promise<{ data: T | null; error: E }> {
+  const result = await operation();
+  
+  if (result.error && shouldFallback(result.error)) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[withErrorFallback] Primary query failed, attempting fallback.", {
+        error: result.error,
+      });
+    }
+    return await fallbackOperation();
+  }
+  
+  return result;
+}
+
+/**
  * 컬럼 누락 시 fallback 쿼리를 실행하는 헬퍼 함수
+ * 
+ * @deprecated withErrorFallback을 사용하세요. 하위 호환성을 위해 유지됩니다.
  * 
  * @param query 원본 쿼리 함수
  * @param fallbackQuery fallback 쿼리 함수 (컬럼 제외)
@@ -24,16 +73,11 @@ export async function withColumnFallback<T>(
   fallbackQuery: () => Promise<{ data: T | null; error: any }>,
   missingColumn: string
 ): Promise<{ data: T | null; error: any }> {
-  const result = await query();
-  
-  if (isColumnMissingError(result.error)) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(`[withColumnFallback] ${missingColumn} 컬럼이 없어 fallback 사용`);
-    }
-    return await fallbackQuery();
-  }
-  
-  return result;
+  return withErrorFallback(
+    query,
+    fallbackQuery,
+    isColumnMissingError
+  );
 }
 
 /**

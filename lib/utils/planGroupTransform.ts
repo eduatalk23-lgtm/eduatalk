@@ -5,8 +5,34 @@
  */
 
 import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, SchedulerOptions, TimeSettings } from "@/lib/types/plan";
+import type { ContentDetail } from "@/lib/data/planContents";
 import { classifyPlanContents } from "@/lib/data/planContents";
 import { logError } from "@/lib/errors/handler";
+
+/**
+ * 변환 과정에서 필요한 외부 의존성 데이터
+ * 
+ * 이 타입은 의존성 주입 패턴을 적용하기 위해 정의되었습니다.
+ * 외부에서 필요한 데이터를 주입받아 순수 함수로 변환할 수 있도록 합니다.
+ */
+export type TransformationContext = {
+  // 콘텐츠 분류 결과 (외부에서 주입)
+  classifiedContents?: {
+    studentContents: Array<ContentDetail>;
+    recommendedContents: Array<ContentDetail>;
+  };
+  
+  // 캠프 템플릿 데이터 (외부에서 주입)
+  templateData?: {
+    exclusions?: Array<{ exclusion_date: string }>;
+    academySchedules?: Array<{
+      day_of_week: number;
+      start_time: string;
+      end_time: string;
+    }>;
+    blockSetId?: string;
+  };
+};
 
 /**
  * WizardData 타입 (PlanGroupWizard에서 사용)
@@ -94,46 +120,33 @@ export type PartialWizardData = {
 };
 
 /**
- * PlanGroup 데이터를 WizardData 형식으로 변환
+ * PlanGroup 데이터를 WizardData 형식으로 변환 (순수 함수 버전)
+ * 
+ * 의존성 주입 패턴을 적용한 순수 함수입니다.
+ * 외부에서 필요한 데이터를 context로 주입받습니다.
  * 
  * @param group 플랜 그룹 데이터
  * @param contents 플랜 콘텐츠 목록
  * @param exclusions 제외일 목록
  * @param academySchedules 학원 일정 목록
- * @param studentId 학생 ID (콘텐츠 분류에 사용)
+ * @param context 변환 과정에서 필요한 외부 의존성 데이터
  * @returns WizardData 형식의 초기 데이터
  */
-export async function transformPlanGroupToWizardData(
+export function transformPlanGroupToWizardDataPure(
   group: PlanGroup,
   contents: PlanContent[],
   exclusions: PlanExclusion[],
   academySchedules: AcademySchedule[],
-  studentId: string
-): Promise<PartialWizardData> {
-  // 콘텐츠 분류 (통합 함수 사용)
-  const { studentContents, recommendedContents } = await classifyPlanContents(contents, studentId);
+  context: TransformationContext = {}
+): PartialWizardData {
+  // 콘텐츠 분류 결과 사용 (context에서 주입받거나 빈 배열)
+  const { studentContents, recommendedContents } = context.classifiedContents ?? {
+    studentContents: [],
+    recommendedContents: [],
+  };
 
-  // 캠프 플랜인 경우 템플릿의 block_set_id 조회
-  let blockSetId = group.block_set_id || "";
-  if (group.plan_type === "camp" && group.camp_template_id && !blockSetId) {
-    try {
-      const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
-      const schedulerOptions = (group.scheduler_options as (SchedulerOptions & Partial<TimeSettings>) | null) ?? {};
-      const templateBlockSetId = await getTemplateBlockSetId(
-        group.camp_template_id,
-        schedulerOptions as Record<string, unknown>
-      );
-      if (templateBlockSetId) {
-        blockSetId = templateBlockSetId;
-      }
-    } catch (error) {
-      logError(error, {
-        function: "transformPlanGroupToWizardData",
-        campTemplateId: group.camp_template_id,
-        groupId: group.id,
-      });
-    }
-  }
+  // 캠프 플랜인 경우 템플릿의 block_set_id 조회 (context에서 주입받음)
+  const blockSetId = context.templateData?.blockSetId || group.block_set_id || "";
 
   // scheduler_options에서 time_settings 추출
   const schedulerOptions = (group.scheduler_options as (SchedulerOptions & Partial<TimeSettings>) | null) ?? {};
@@ -220,24 +233,9 @@ export async function transformPlanGroupToWizardData(
       };
     }),
     // 제외일 변환: 캠프 플랜인 경우 템플릿 제외일인지 확인하여 source/is_locked 설정
-    exclusions: await (async () => {
-      // 캠프 플랜인 경우 템플릿 데이터 조회
-      let templateExclusions: Array<{ exclusion_date: string }> = [];
-      if (group.plan_type === "camp" && group.camp_template_id) {
-        try {
-          const { getCampTemplate } = await import("@/lib/data/campTemplates");
-          const template = await getCampTemplate(group.camp_template_id);
-          if (template?.template_data?.exclusions) {
-            templateExclusions = template.template_data.exclusions;
-          }
-          // 템플릿이 없으면 빈 배열로 처리 (정상적인 상황일 수 있음)
-        } catch (error) {
-          console.error("[planGroupTransform] 템플릿 데이터 조회 실패", {
-            camp_template_id: group.camp_template_id,
-            error,
-          });
-        }
-      }
+    exclusions: (() => {
+      // 템플릿 제외일 (context에서 주입받음)
+      const templateExclusions = context.templateData?.exclusions ?? [];
 
       // 날짜 비교를 위해 정규화 (YYYY-MM-DD 형식으로 통일)
       const normalizeDate = (date: string) => {
@@ -272,28 +270,9 @@ export async function transformPlanGroupToWizardData(
       });
     })(),
     // 학원 일정 변환: 캠프 플랜인 경우 템플릿 학원 일정인지 확인하여 source/is_locked 설정
-    academy_schedules: await (async () => {
-      // 캠프 플랜인 경우 템플릿 데이터 조회
-      let templateAcademySchedules: Array<{
-        day_of_week: number;
-        start_time: string;
-        end_time: string;
-      }> = [];
-      if (group.plan_type === "camp" && group.camp_template_id) {
-        try {
-          const { getCampTemplate } = await import("@/lib/data/campTemplates");
-          const template = await getCampTemplate(group.camp_template_id);
-          if (template?.template_data?.academy_schedules) {
-            templateAcademySchedules = template.template_data.academy_schedules;
-          }
-          // 템플릿이 없으면 빈 배열로 처리 (정상적인 상황일 수 있음)
-        } catch (error) {
-          console.error("[planGroupTransform] 템플릿 데이터 조회 실패 (academy_schedules)", {
-            camp_template_id: group.camp_template_id,
-            error,
-          });
-        }
-      }
+    academy_schedules: (() => {
+      // 템플릿 학원 일정 (context에서 주입받음)
+      const templateAcademySchedules = context.templateData?.academySchedules ?? [];
 
       // 템플릿 학원 일정을 Set으로 변환 (비교용)
       const templateScheduleKeys = new Set(
@@ -338,5 +317,94 @@ export async function transformPlanGroupToWizardData(
     additional_period_reallocation: group.additional_period_reallocation || undefined,
     non_study_time_blocks: group.non_study_time_blocks || undefined,
   };
+}
+
+/**
+ * PlanGroup 데이터를 WizardData 형식으로 변환 (기존 버전, 하위 호환성 유지)
+ * 
+ * @deprecated 새로운 코드는 transformPlanGroupToWizardDataPure를 사용하세요.
+ * 이 함수는 내부적으로 외부 의존성을 조회한 후 순수 함수를 호출합니다.
+ * 
+ * @param group 플랜 그룹 데이터
+ * @param contents 플랜 콘텐츠 목록
+ * @param exclusions 제외일 목록
+ * @param academySchedules 학원 일정 목록
+ * @param studentId 학생 ID (콘텐츠 분류에 사용)
+ * @returns WizardData 형식의 초기 데이터
+ */
+export async function transformPlanGroupToWizardData(
+  group: PlanGroup,
+  contents: PlanContent[],
+  exclusions: PlanExclusion[],
+  academySchedules: AcademySchedule[],
+  studentId: string
+): Promise<PartialWizardData> {
+  // 콘텐츠 분류 (통합 함수 사용)
+  const classifiedContents = await classifyPlanContents(contents, studentId);
+
+  // 캠프 플랜인 경우 템플릿 데이터 조회
+  let templateData: TransformationContext["templateData"] = undefined;
+  if (group.plan_type === "camp" && group.camp_template_id) {
+    try {
+      // 템플릿 데이터 조회
+      const [{ getCampTemplate }, { getTemplateBlockSetId }] = await Promise.all([
+        import("@/lib/data/campTemplates"),
+        import("@/lib/plan/blocks"),
+      ]);
+
+      const [template, blockSetId] = await Promise.all([
+        getCampTemplate(group.camp_template_id),
+        !group.block_set_id
+          ? getTemplateBlockSetId(
+              group.camp_template_id,
+              (group.scheduler_options as Record<string, unknown>) ?? {}
+            )
+          : Promise.resolve(group.block_set_id),
+      ]);
+
+      templateData = {
+        exclusions: template?.template_data?.exclusions,
+        academySchedules: template?.template_data?.academy_schedules,
+        blockSetId: blockSetId || undefined,
+      };
+    } catch (error) {
+      logError(error, {
+        function: "transformPlanGroupToWizardData",
+        campTemplateId: group.camp_template_id,
+        groupId: group.id,
+      });
+    }
+  } else if (group.plan_type === "camp" && !group.block_set_id) {
+    // block_set_id만 조회 (템플릿 데이터는 없지만 block_set_id가 필요한 경우)
+    try {
+      const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
+      const schedulerOptions = (group.scheduler_options as (SchedulerOptions & Partial<TimeSettings>) | null) ?? {};
+      const templateBlockSetId = await getTemplateBlockSetId(
+        group.camp_template_id!,
+        schedulerOptions as Record<string, unknown>
+      );
+      if (templateBlockSetId) {
+        templateData = { blockSetId: templateBlockSetId };
+      }
+    } catch (error) {
+      logError(error, {
+        function: "transformPlanGroupToWizardData",
+        campTemplateId: group.camp_template_id,
+        groupId: group.id,
+      });
+    }
+  }
+
+  // 순수 함수 호출
+  return transformPlanGroupToWizardDataPure(
+    group,
+    contents,
+    exclusions,
+    academySchedules,
+    {
+      classifiedContents,
+      templateData,
+    }
+  );
 }
 
