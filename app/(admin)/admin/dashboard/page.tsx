@@ -534,26 +534,31 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 이번주 학습시간 Top5 */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
+        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">이번주 학습시간 Top5</h2>
+            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>이번주 학습시간 Top5</h2>
             {topStudyTime.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
+              <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {topStudyTime.map((student, index) => (
                   <Link
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
+                      bgSurface,
+                      borderDefault,
+                      "hover:bg-gray-50 dark:hover:bg-gray-700"
+                    )}
                   >
                     <div className="flex items-center gap-3">
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                         {index + 1}
                       </span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{student.name}</span>
+                      <span className={cn("font-medium", textPrimary)}>{student.name}</span>
                     </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{student.minutes}분</span>
+                    <span className={cn("text-sm", textSecondary)}>{student.minutes}분</span>
                   </Link>
                 ))}
               </div>
@@ -597,26 +602,31 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 최근 목표 달성 Top3 */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
+        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">최근 목표 달성 Top3</h2>
+            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>최근 목표 달성 Top3</h2>
             {topGoalAchievement.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">데이터가 없습니다.</p>
+              <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {topGoalAchievement.map((student, index) => (
                   <Link
                     key={student.studentId}
                     href={`/admin/students/${student.studentId}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-3 transition hover:shadow-sm",
+                      bgSurface,
+                      borderDefault,
+                      "hover:bg-gray-50 dark:hover:bg-gray-700"
+                    )}
                   >
                     <div className="flex items-center gap-3">
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 text-sm font-semibold text-green-700 dark:text-green-300">
                         {index + 1}
                       </span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{student.name}</span>
+                      <span className={cn("font-medium", textPrimary)}>{student.name}</span>
                     </div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{student.count}개 달성</span>
+                    <span className={cn("text-sm", textSecondary)}>{student.count}개 달성</span>
                   </Link>
                 ))}
               </div>
@@ -679,26 +689,31 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* 최근 상담노트 */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:p-6 shadow-sm">
+        <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm", bgSurface, borderDefault)}>
           <div className="flex flex-col gap-4">
-            <h2 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100">최근 상담노트</h2>
+            <h2 className={cn("text-lg md:text-xl font-semibold", textPrimary)}>최근 상담노트</h2>
             {recentNotes.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">상담노트가 없습니다.</p>
+              <p className={cn("text-sm", textMuted)}>상담노트가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {recentNotes.map((note) => (
                   <Link
                     key={note.id}
                     href={`/admin/students/${note.studentId}`}
-                    className="block rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-sm"
+                    className={cn(
+                      "block rounded-lg border p-4 transition hover:shadow-sm",
+                      bgSurface,
+                      borderDefault,
+                      "hover:bg-gray-50 dark:hover:bg-gray-700"
+                    )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{note.studentName}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className={cn("font-medium", textPrimary)}>{note.studentName}</span>
+                      <span className={cn("text-xs", textMuted)}>
                         {new Date(note.createdAt).toLocaleDateString("ko-KR")}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{note.note}</p>
+                    <p className={cn("text-sm line-clamp-2", textSecondary)}>{note.note}</p>
                   </Link>
                 ))}
               </div>

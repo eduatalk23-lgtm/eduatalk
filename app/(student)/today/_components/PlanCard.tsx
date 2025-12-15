@@ -16,6 +16,7 @@ import { Clock } from "lucide-react";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
+import { cn, bgSurface, borderDefault, textPrimary, textSecondary } from "@/lib/utils/darkMode";
 
 type PlanRunState = "idle" | "running" | "paused" | "completed";
 type PendingAction = "start" | "pause" | "resume" | "complete";
@@ -361,25 +362,25 @@ function PlanCardComponent({
         {/* 헤더 */}
         <div className="flex flex-col items-center gap-3 text-center">
           {planTimeRange && (
-            <div className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-1 text-sm font-semibold text-indigo-900 shadow-sm dark:bg-gray-800 dark:text-indigo-300">
+            <div className={cn("inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-sm", bgSurface, "text-indigo-900 dark:text-indigo-300")}>
               <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
           )}
           <div className="text-4xl">{contentInfo.icon}</div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{contentInfo.title}</h2>
+          <h2 className={cn("text-2xl font-bold", textPrimary)}>{contentInfo.title}</h2>
           <div className="flex items-center gap-3">
             <span className="text-4xl" aria-hidden="true">
               {planChapterIcon}
             </span>
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <span className={cn("text-sm font-semibold", textPrimary)}>
                 {group.plan.chapter || "챕터 정보 없음"}
               </span>
             </div>
           </div>
           {planRangeLabel && (
-            <div className="text-sm text-gray-600 dark:text-gray-400">{planRangeLabel}</div>
+            <div className={cn("text-sm", textSecondary)}>{planRangeLabel}</div>
           )}
         </div>
 
@@ -414,12 +415,12 @@ function PlanCardComponent({
 
   // 일일 뷰 - 모바일 친화적 카드 레이아웃
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 dark:border-gray-700 dark:bg-gray-800">
+    <div className={cn("rounded-xl border p-4 shadow-sm transition hover:shadow-md sm:p-5", borderDefault, bgSurface)}>
       <div className="flex flex-col gap-4 sm:gap-5">
         {/* 카드 헤더 */}
         <div className="flex flex-col gap-3 text-center sm:text-left">
           {planTimeRange && (
-            <div className="inline-flex items-center justify-center gap-2 self-center rounded-md bg-white px-3 py-1 text-xs font-semibold text-indigo-900 shadow-sm sm:self-start dark:bg-gray-700 dark:text-indigo-300">
+            <div className={cn("inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-sm sm:self-start", bgSurface, "text-indigo-900 dark:text-indigo-300")}>
               <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
@@ -427,12 +428,12 @@ function PlanCardComponent({
           <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-lg">
               <span>{contentInfo.icon}</span>
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{contentInfo.title}</h3>
+              <h3 className={cn("font-semibold", textPrimary)}>{contentInfo.title}</h3>
             </div>
             {onViewDetail && (
               <button
                 onClick={() => onViewDetail(group.planNumber)}
-                className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
               >
                 상세보기 →
               </button>
@@ -443,12 +444,12 @@ function PlanCardComponent({
               <span className="text-3xl" aria-hidden="true">
                 {planChapterIcon}
               </span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <span className={cn("text-sm font-semibold", textPrimary)}>
                 {group.plan.chapter || "챕터 정보 없음"}
               </span>
             </div>
             {planRangeLabel && (
-              <div className="text-sm text-gray-600 dark:text-gray-400">{planRangeLabel}</div>
+              <div className={cn("text-sm", textSecondary)}>{planRangeLabel}</div>
             )}
           </div>
         </div>

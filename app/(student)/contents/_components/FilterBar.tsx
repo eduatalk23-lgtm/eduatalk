@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { cn, bgSurface, borderInput, textPrimary, textSecondary } from "@/lib/utils/darkMode";
 
 type TabKey = "books" | "lectures";
 
@@ -68,7 +69,7 @@ export function FilterBar({
 
       {/* 검색 */}
       <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[200px]">
-        <label className="text-xs font-medium text-gray-700">
+        <label className={cn("text-xs font-medium", textSecondary)}>
           검색
         </label>
         <input
@@ -76,19 +77,19 @@ export function FilterBar({
           name="search"
           defaultValue={searchQuery ?? ""}
           placeholder={activeTab === "books" ? "교재명으로 검색..." : "강의명으로 검색..."}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
         />
       </div>
 
       {/* 개정교육과정 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">
+        <label className={cn("text-xs font-medium", textSecondary)}>
           개정교육과정
         </label>
         <select
           name="revision"
           defaultValue={revisionFilter ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
           aria-label="개정교육과정 선택"
         >
           <option value="">전체</option>
@@ -102,11 +103,11 @@ export function FilterBar({
 
       {/* 학년/학기 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">학년/학기</label>
+        <label className={cn("text-xs font-medium", textSecondary)}>학년/학기</label>
         <select
           name="semester"
           defaultValue={semesterFilter ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
           aria-label="학년/학기 선택"
         >
           <option value="">전체</option>
@@ -120,11 +121,11 @@ export function FilterBar({
 
       {/* 교과 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">교과</label>
+        <label className={cn("text-xs font-medium", textSecondary)}>교과</label>
         <select
           name="subject_category"
           defaultValue={subjectCategoryFilter ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
           aria-label="교과 선택"
         >
           <option value="">전체</option>
@@ -138,11 +139,11 @@ export function FilterBar({
 
       {/* 과목 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">과목</label>
+        <label className={cn("text-xs font-medium", textSecondary)}>과목</label>
         <select
           name="subject"
           defaultValue={subjectFilter ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
           aria-label="과목 선택"
         >
           <option value="">전체</option>
@@ -157,11 +158,11 @@ export function FilterBar({
       {/* 출판사 (교재만) */}
       {activeTab === "books" && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">출판사</label>
+          <label className={cn("text-xs font-medium", textSecondary)}>출판사</label>
           <select
             name="publisher"
             defaultValue={publisherFilter ?? ""}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+            className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
             aria-label="출판사 선택"
           >
             <option value="">전체</option>
@@ -177,11 +178,11 @@ export function FilterBar({
       {/* 플랫폼 (강의만) */}
       {activeTab === "lectures" && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-gray-700">플랫폼</label>
+          <label className={cn("text-xs font-medium", textSecondary)}>플랫폼</label>
           <select
             name="platform"
             defaultValue={platformFilter ?? ""}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+            className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
             aria-label="플랫폼 선택"
           >
             <option value="">전체</option>
@@ -196,11 +197,11 @@ export function FilterBar({
 
       {/* 난이도 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">난이도</label>
+        <label className={cn("text-xs font-medium", textSecondary)}>난이도</label>
         <select
           name="difficulty"
           defaultValue={difficultyFilter ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
           aria-label="난이도 선택"
         >
           <option value="">전체</option>
@@ -214,11 +215,11 @@ export function FilterBar({
 
       {/* 정렬 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-700">정렬</label>
+        <label className={cn("text-xs font-medium", textSecondary)}>정렬</label>
         <select
           name="sort"
           defaultValue={sortBy}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          className={cn("rounded-md border px-3 py-1.5 text-sm focus:outline-none", borderInput, bgSurface, textPrimary, "focus:border-gray-900 dark:focus:border-gray-400")}
           aria-label="정렬 순서 선택"
         >
           <option value="created_at_desc">최신순</option>
@@ -233,7 +234,7 @@ export function FilterBar({
       {/* 검색 버튼 */}
       <button
         type="submit"
-        className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700 whitespace-nowrap"
+        className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600 whitespace-nowrap"
       >
         검색
       </button>
@@ -242,7 +243,7 @@ export function FilterBar({
       {hasAnyFilter && (
         <Link
           href={baseUrl}
-          className="rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          className={cn("rounded-lg border px-4 py-1.5 text-sm font-semibold transition", borderInput, bgSurface, textSecondary, "hover:bg-gray-50 dark:hover:bg-gray-700")}
         >
           초기화
         </Link>

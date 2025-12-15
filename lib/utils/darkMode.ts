@@ -49,6 +49,27 @@ export function inlineButtonSecondary(className?: string): string {
 export const tableRowHover = "hover:bg-gray-50 dark:hover:bg-gray-800";
 export const tableRowBase = cn(tableRowHover, "transition-colors");
 
+/**
+ * 테이블 행 스타일 통합 함수
+ * @param variant 행 스타일 변형 (default, hover, striped, selected)
+ * @param className 추가 클래스
+ */
+export function tableRowStyles(
+  variant: "default" | "hover" | "striped" | "selected" = "default",
+  className?: string
+): string {
+  const baseStyles = "transition-colors";
+  
+  const variantStyles = {
+    default: "",
+    hover: tableRowHover,
+    striped: "odd:bg-gray-50 dark:odd:bg-gray-900/50",
+    selected: "bg-indigo-50 dark:bg-indigo-900/30 border-l-4 border-indigo-500 dark:border-indigo-400",
+  };
+
+  return cn(baseStyles, variantStyles[variant], className);
+}
+
 // 카드 스타일
 export const cardBase = cn(
   "rounded-xl border shadow-sm",
@@ -130,6 +151,39 @@ export const riskLevelColors: Record<string, string> = {
   high: "bg-red-500 dark:bg-red-600 text-white",
   medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
   low: "bg-green-500 dark:bg-green-600 text-white",
+};
+
+/**
+ * 통합 상태 배지 색상 객체
+ * 다양한 상태에 대한 일관된 색상 제공
+ */
+export const statusBadgeColors: Record<string, string> = {
+  // 기본 상태
+  default: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
+  active: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+  inactive: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+  pending: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
+  
+  // 목표 상태 (goalStatusColors와 동일)
+  scheduled: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200",
+  in_progress: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
+  completed: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+  failed: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+  
+  // 플랜 상태 (planStatusColors와 동일)
+  paused: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
+  cancelled: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+  
+  // 위험도 (riskLevelColors와 동일)
+  high: "bg-red-500 dark:bg-red-600 text-white",
+  medium: "bg-yellow-500 dark:bg-yellow-600 text-white",
+  low: "bg-green-500 dark:bg-green-600 text-white",
+  
+  // 기타 상태
+  success: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300",
+  warning: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300",
+  error: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300",
+  info: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300",
 };
 
 /**
@@ -354,6 +408,91 @@ export function inlineButtonSuccess(className?: string): string {
     "border-green-600 dark:border-green-500",
     "hover:bg-green-700 dark:hover:bg-green-600",
     className
+  );
+}
+
+// ============================================
+// 입력 그룹 스타일
+// ============================================
+
+/**
+ * 입력 그룹 컨테이너 스타일
+ * 여러 입력 필드를 그룹화할 때 사용
+ */
+export const inputGroupStyles = cn(
+  "flex flex-col gap-2",
+  "p-4 rounded-lg border",
+  borderDefault,
+  bgSurface
+);
+
+/**
+ * 입력 그룹 레이블 스타일
+ */
+export const inputGroupLabelStyles = cn(
+  "text-sm font-medium",
+  textPrimary
+);
+
+/**
+ * 입력 그룹 설명 스타일
+ */
+export const inputGroupDescriptionStyles = cn(
+  "text-xs",
+  textSecondary
+);
+
+/**
+ * 입력 그룹 에러 스타일
+ */
+export const inputGroupErrorStyles = cn(
+  "text-xs font-medium",
+  "text-red-600 dark:text-red-400"
+);
+
+// ============================================
+// 섹션 헤더 스타일
+// ============================================
+
+/**
+ * 섹션 헤더 컨테이너 스타일
+ */
+export const sectionHeaderContainerStyles = cn(
+  "flex items-start justify-between gap-4"
+);
+
+/**
+ * 섹션 헤더 제목 스타일
+ * @param size 헤더 크기 (sm, md, lg)
+ */
+export function sectionHeaderTitleStyles(size: "sm" | "md" | "lg" = "md"): string {
+  const sizeClasses = {
+    sm: "text-base",
+    md: "text-lg",
+    lg: "text-xl",
+  };
+  
+  return cn(
+    "font-semibold",
+    textPrimary,
+    sizeClasses[size]
+  );
+}
+
+/**
+ * 섹션 헤더 설명 스타일
+ * @param size 설명 크기 (sm, md, lg)
+ */
+export function sectionHeaderDescriptionStyles(size: "sm" | "md" | "lg" = "md"): string {
+  const sizeClasses = {
+    sm: "text-xs",
+    md: "text-sm",
+    lg: "text-base",
+  };
+  
+  return cn(
+    textSecondary,
+    sizeClasses[size]
   );
 }
 

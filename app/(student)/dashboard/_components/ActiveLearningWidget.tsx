@@ -94,14 +94,14 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
   // 로딩 중 스켈레톤 UI
   if (isPlanLoading) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 shadow-sm animate-pulse">
+      <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 shadow-sm animate-pulse">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎯</span>
-            <h3 className="text-lg font-semibold text-gray-900">현재 학습 중</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">현재 학습 중</h3>
           </div>
         </div>
-        <div className="h-20 bg-gray-200 rounded"></div>
+        <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
       </div>
     );
   }
@@ -117,21 +117,21 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
   }[activePlan.contentType];
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🎯</span>
-          <h3 className="text-lg font-semibold text-gray-900">현재 학습 중</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">현재 학습 중</h3>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xl">{contentTypeIcon}</span>
-          <h4 className="font-semibold text-gray-900">{activePlan.title}</h4>
+          <h4 className="font-semibold text-gray-900 dark:text-gray-100">{activePlan.title}</h4>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-gray-600">
+        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
             <span className="font-medium">학습 시간: {formatTime(elapsedSeconds)}</span>
