@@ -329,7 +329,11 @@ export function Step1BasicInfo({
                   checked={data.plan_purpose === purpose.value}
                   onChange={() => {
                     if (!editable) return;
-                    onUpdate({ plan_purpose: purpose.value as any });
+                    onUpdate({ 
+                      plan_purpose: (purpose.value === "내신대비" || purpose.value === "모의고사(수능)" || purpose.value === "")
+                        ? purpose.value
+                        : "" as WizardData["plan_purpose"]
+                    });
                   }}
                   disabled={isDisabled(
                     isCampMode && !canStudentInputPlanPurpose
@@ -416,16 +420,18 @@ export function Step1BasicInfo({
                 name="scheduler_type"
                 value={type.value}
                 checked={data.scheduler_type === type.value}
-                onChange={() => {
-                  if (!editable) return;
-                  if (isCampMode && !canStudentInputSchedulerType) return;
-                  onUpdate({
-                    scheduler_type: type.value as any,
-                    scheduler_options: undefined, // 유형 변경 시 옵션 초기화
-                  });
-                  // 유형 변경 시 설명도 초기화
-                  setShow1730Desc(false);
-                }}
+                  onChange={() => {
+                    if (!editable) return;
+                    if (isCampMode && !canStudentInputSchedulerType) return;
+                    onUpdate({
+                      scheduler_type: (type.value === "1730_timetable" || type.value === "")
+                        ? type.value
+                        : "" as WizardData["scheduler_type"],
+                      scheduler_options: undefined, // 유형 변경 시 옵션 초기화
+                    });
+                    // 유형 변경 시 설명도 초기화
+                    setShow1730Desc(false);
+                  }}
                 disabled={isDisabled(isCampMode && !canStudentInputSchedulerType)}
                 className="hidden"
                 aria-invalid={!!fieldErrors?.get("scheduler_type")}

@@ -140,6 +140,22 @@ export const submitCampParticipation = withErrorHandling(
       );
     }
 
+    // Zod 스키마로 부분 데이터 검증
+    const { validatePartialWizardDataSafe } = await import("@/lib/schemas/planWizardSchema");
+    const validation = validatePartialWizardDataSafe(wizardData);
+    if (!validation.success) {
+      const errorMessages = validation.error.errors.map((err) => {
+        const path = err.path.join(".");
+        return `${path}: ${err.message}`;
+      });
+      throw new AppError(
+        `입력 데이터 검증 실패: ${errorMessages.join(", ")}`,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
       throw new AppError(
@@ -248,7 +264,27 @@ export const submitCampParticipation = withErrorHandling(
       );
     }
 
-    const templateData = template.template_data as Partial<WizardData>;
+    // template_data 타입 검증 및 변환
+    const templateDataRaw = template.template_data;
+    let templateData: Partial<WizardData> = {};
+    
+    if (templateDataRaw && typeof templateDataRaw === "object") {
+      // Zod 부분 스키마로 검증 (템플릿 데이터는 일부 필드만 있을 수 있음)
+      const { validatePartialWizardDataSafe } = await import("@/lib/schemas/planWizardSchema");
+      const templateValidation = validatePartialWizardDataSafe(templateDataRaw);
+      if (templateValidation.success) {
+        templateData = templateValidation.data;
+      } else {
+        // 검증 실패 시 경고만 출력하고 원본 데이터 사용 (하위 호환성)
+        console.warn("[campActions] 템플릿 데이터 검증 실패, 원본 데이터 사용:", {
+          errors: templateValidation.error.errors.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        });
+        templateData = templateDataRaw as Partial<WizardData>;
+      }
+    }
 
     // 연결 테이블에서 템플릿에 연결된 블록 세트 조회
     let templateBlockSetId: string | null = null;
@@ -267,7 +303,7 @@ export const submitCampParticipation = withErrorHandling(
 
     // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
     const templateExclusions = (templateData.exclusions || []).map(
-      (exclusion: any) => ({
+      (exclusion) => ({
         ...exclusion,
         source: "template" as const,
         is_locked: true,
@@ -275,7 +311,7 @@ export const submitCampParticipation = withErrorHandling(
     );
 
     const templateAcademySchedules = (templateData.academy_schedules || []).map(
-      (schedule: any) => ({
+      (schedule) => ({
         ...schedule,
         source: "template" as const,
         is_locked: true,
@@ -352,7 +388,9 @@ export const submitCampParticipation = withErrorHandling(
       if (!mergedData.scheduler_options) {
         mergedData.scheduler_options = {};
       }
-      (mergedData.scheduler_options as any).template_block_set_id = blockSetId;
+      if (typeof mergedData.scheduler_options === "object" && mergedData.scheduler_options !== null) {
+        (mergedData.scheduler_options as Record<string, unknown>).template_block_set_id = blockSetId;
+      }
       console.log(
         "[campActions] mergedData.scheduler_options에 template_block_set_id 추가:",
         {
@@ -363,15 +401,47 @@ export const submitCampParticipation = withErrorHandling(
     }
 
     // 플랜 그룹 생성 (기존 액션 재사용)
+    // mergedData를 완전한 WizardData로 변환 (필수 필드 채우기)
+    const fullWizardData: WizardData = {
+      name: mergedData.name || "",
+      plan_purpose: mergedData.plan_purpose || "",
+      scheduler_type: mergedData.scheduler_type || "1730_timetable",
+      scheduler_options: mergedData.scheduler_options,
+      period_start: mergedData.period_start || "",
+      period_end: mergedData.period_end || "",
+      target_date: mergedData.target_date,
+      block_set_id: mergedData.block_set_id || "",
+      exclusions: mergedData.exclusions || [],
+      academy_schedules: mergedData.academy_schedules || [],
+      time_settings: mergedData.time_settings,
+      student_contents: mergedData.student_contents || [],
+      recommended_contents: mergedData.recommended_contents || [],
+      study_review_cycle: mergedData.study_review_cycle,
+      student_level: mergedData.student_level,
+      subject_allocations: mergedData.subject_allocations,
+      subject_constraints: mergedData.subject_constraints,
+      additional_period_reallocation: mergedData.additional_period_reallocation,
+      non_study_time_blocks: mergedData.non_study_time_blocks,
+      daily_schedule: mergedData.daily_schedule,
+      templateLockedFields: mergedData.templateLockedFields,
+      plan_type: mergedData.plan_type,
+      camp_template_id: mergedData.camp_template_id,
+      camp_invitation_id: mergedData.camp_invitation_id,
+      show_required_subjects_ui: mergedData.show_required_subjects_ui,
+      content_allocations: mergedData.content_allocations,
+      allocation_mode: mergedData.allocation_mode,
+    };
+    
     const { syncWizardDataToCreationData } = await import(
       "@/lib/utils/planGroupDataSync"
     );
-    const creationData = syncWizardDataToCreationData(mergedData as WizardData);
+    const creationData = syncWizardDataToCreationData(fullWizardData);
 
     console.log("[campActions] syncWizardDataToCreationData 호출 후:", {
       creationData_scheduler_options: creationData.scheduler_options,
-      has_template_block_set_id: !!(creationData.scheduler_options as any)
-        ?.template_block_set_id,
+      has_template_block_set_id: !!(creationData.scheduler_options && typeof creationData.scheduler_options === "object"
+        ? (creationData.scheduler_options as Record<string, unknown>).template_block_set_id
+        : false),
     });
 
     // 디버깅: 병합된 학원 일정 확인
@@ -390,14 +460,14 @@ export const submitCampParticipation = withErrorHandling(
     // 학생 콘텐츠의 master_content_id 조회 (배치 조회)
     const masterContentIdMap = new Map<string, string | null>();
     const studentContentIds = (wizardData.student_contents || []).filter(
-      (c: any) => c.content_type === "book" || c.content_type === "lecture"
+      (c) => c.content_type === "book" || c.content_type === "lecture"
     );
     const bookIds = studentContentIds
-      .filter((c: any) => c.content_type === "book")
-      .map((c: any) => c.content_id);
+      .filter((c) => c.content_type === "book")
+      .map((c) => c.content_id);
     const lectureIds = studentContentIds
-      .filter((c: any) => c.content_type === "lecture")
-      .map((c: any) => c.content_id);
+      .filter((c) => c.content_type === "lecture")
+      .map((c) => c.content_id);
 
     console.log("[campActions] 학생 콘텐츠 master_content_id 조회 시작:", {
       invitationId,
@@ -471,13 +541,13 @@ export const submitCampParticipation = withErrorHandling(
 
       // start_detail_id와 end_detail_id가 이미 c에 포함되어 있으므로 스프레드로 유지됨
       // 명시적으로 보존 확인을 위한 로깅
-      const startDetailId = (c as any).start_detail_id ?? null;
-      const endDetailId = (c as any).end_detail_id ?? null;
+      const startDetailId = "start_detail_id" in c ? (c.start_detail_id ?? null) : null;
+      const endDetailId = "end_detail_id" in c ? (c.end_detail_id ?? null) : null;
 
       // 캠프모드 콘텐츠 정보 로깅 (디버깅용)
       if (
         wizardData.student_contents?.some(
-          (sc: any) => sc.content_id === c.content_id
+          (sc) => sc.content_id === c.content_id
         )
       ) {
         console.log("[campActions] 학생 추가 콘텐츠 정보:", {
@@ -494,7 +564,7 @@ export const submitCampParticipation = withErrorHandling(
       // 추천 콘텐츠 정보 로깅 (디버깅용)
       if (
         wizardData.recommended_contents?.some(
-          (rc: any) => rc.content_id === c.content_id
+          (rc) => rc.content_id === c.content_id
         )
       ) {
         console.log("[campActions] 학생 선택 추천 콘텐츠 정보:", {

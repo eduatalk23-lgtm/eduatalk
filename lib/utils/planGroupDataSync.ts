@@ -13,6 +13,7 @@ import type {
 } from "@/lib/types/plan";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
+import { validateWizardDataSafe, validatePartialWizardDataSafe } from "@/lib/schemas/planWizardSchema";
 
 /**
  * WizardData를 PlanGroupCreationData로 변환
@@ -22,56 +23,74 @@ export function syncWizardDataToCreationData(
   wizardData: WizardData
 ): PlanGroupCreationData {
   try {
+    // Zod 스키마로 입력 데이터 검증
+    const validation = validateWizardDataSafe(wizardData);
+    if (!validation.success) {
+      const errorMessages = validation.error.errors.map((err) => {
+        const path = err.path.join(".");
+        return `${path}: ${err.message}`;
+      });
+      throw new PlanGroupError(
+        `데이터 검증 실패: ${errorMessages.join(", ")}`,
+        PlanGroupErrorCodes.VALIDATION_FAILED,
+        "입력된 데이터 형식이 올바르지 않습니다. 페이지를 새로고침해주세요.",
+        false,
+        { validationErrors: errorMessages }
+      );
+    }
+    
+    // 검증된 데이터 사용
+    const validatedData = validation.data;
     // 1. scheduler_options 구성
     const schedulerOptions: Record<string, unknown> = {
-      ...(wizardData.scheduler_options || {}),
+      ...(validatedData.scheduler_options || {}),
     };
 
     // study_review_cycle을 scheduler_options에 병합
-    if (wizardData.study_review_cycle) {
-      schedulerOptions.study_days = wizardData.study_review_cycle.study_days;
-      schedulerOptions.review_days = wizardData.study_review_cycle.review_days;
-    } else if (wizardData.scheduler_options?.study_days || wizardData.scheduler_options?.review_days) {
+    if (validatedData.study_review_cycle) {
+      schedulerOptions.study_days = validatedData.study_review_cycle.study_days;
+      schedulerOptions.review_days = validatedData.study_review_cycle.review_days;
+    } else if (validatedData.scheduler_options?.study_days || validatedData.scheduler_options?.review_days) {
       // scheduler_options에 이미 있는 경우 그대로 사용
-      schedulerOptions.study_days = wizardData.scheduler_options.study_days;
-      schedulerOptions.review_days = wizardData.scheduler_options.review_days;
+      schedulerOptions.study_days = validatedData.scheduler_options.study_days;
+      schedulerOptions.review_days = validatedData.scheduler_options.review_days;
     }
 
     // time_settings를 scheduler_options에 안전하게 병합 (보호 필드 자동 보호)
     let finalSchedulerOptions = schedulerOptions;
-    if (wizardData.time_settings) {
-      finalSchedulerOptions = mergeTimeSettingsSafely(schedulerOptions, wizardData.time_settings);
+    if (validatedData.time_settings) {
+      finalSchedulerOptions = mergeTimeSettingsSafely(schedulerOptions, validatedData.time_settings);
     }
 
     // subject_allocations와 content_allocations를 scheduler_options에 저장
-    if (wizardData.subject_allocations) {
-      finalSchedulerOptions.subject_allocations = wizardData.subject_allocations;
+    if (validatedData.subject_allocations) {
+      finalSchedulerOptions.subject_allocations = validatedData.subject_allocations;
     }
-    if (wizardData.content_allocations) {
-      finalSchedulerOptions.content_allocations = wizardData.content_allocations;
+    if (validatedData.content_allocations) {
+      finalSchedulerOptions.content_allocations = validatedData.content_allocations;
     }
-    if (wizardData.student_level) {
-      finalSchedulerOptions.student_level = wizardData.student_level;
+    if (validatedData.student_level) {
+      finalSchedulerOptions.student_level = validatedData.student_level;
     }
 
     // 2. daily_schedule 유효성 검증 및 필터링
-    const periodStart = new Date(wizardData.period_start);
-    const periodEnd = new Date(wizardData.period_end);
+    const periodStart = new Date(validatedData.period_start);
+    const periodEnd = new Date(validatedData.period_end);
     
     // 추가 기간이 있으면 유효한 기간 범위 확장
     let validStart = periodStart;
     let validEnd = periodEnd;
     
-    if (wizardData.additional_period_reallocation) {
-      const additionalStart = new Date(wizardData.additional_period_reallocation.period_start);
-      const additionalEnd = new Date(wizardData.additional_period_reallocation.period_end);
+    if (validatedData.additional_period_reallocation) {
+      const additionalStart = new Date(validatedData.additional_period_reallocation.period_start);
+      const additionalEnd = new Date(validatedData.additional_period_reallocation.period_end);
       
       // 유효한 기간: 원래 기간 + 추가 기간
       validStart = periodStart < additionalStart ? periodStart : additionalStart;
       validEnd = periodEnd > additionalEnd ? periodEnd : additionalEnd;
     }
     
-    const validatedDailySchedule = wizardData.daily_schedule?.filter(
+    const validatedDailySchedule = validatedData.daily_schedule?.filter(
       (schedule) => {
         try {
           const scheduleDate = new Date(schedule.date);
@@ -89,8 +108,8 @@ export function syncWizardDataToCreationData(
 
     // 3. 콘텐츠 데이터 검증 및 변환
     const allContents = [
-      ...wizardData.student_contents,
-      ...wizardData.recommended_contents,
+      ...validatedData.student_contents,
+      ...validatedData.recommended_contents,
     ];
 
     // 중복 콘텐츠 검증
@@ -116,7 +135,7 @@ export function syncWizardDataToCreationData(
 
     // 4. PlanGroupCreationData 구성
     // plan_purpose 변환: 빈 문자열은 null, "모의고사(수능)"은 "모의고사"로 변환
-    const wizardPlanPurpose = wizardData.plan_purpose as string;
+    const wizardPlanPurpose = validatedData.plan_purpose;
     const normalizedPlanPurpose: PlanPurpose | null =
       !wizardPlanPurpose || wizardPlanPurpose === ""
         ? null
@@ -132,25 +151,25 @@ export function syncWizardDataToCreationData(
         : (wizardSchedulerType as SchedulerType);
 
     const creationData: PlanGroupCreationData = {
-      name: wizardData.name || null,
+      name: validatedData.name || null,
       plan_purpose: normalizedPlanPurpose || "모의고사", // Default fallback if null
       scheduler_type: normalizedSchedulerType || "1730_timetable", // Default fallback if null
       scheduler_options:
         Object.keys(finalSchedulerOptions).length > 0 ? finalSchedulerOptions : null,
-      period_start: wizardData.period_start || new Date().toISOString().split('T')[0], // Fallback to today
-      period_end: wizardData.period_end || new Date().toISOString().split('T')[0],
-      target_date: wizardData.target_date || null,
-      block_set_id: wizardData.block_set_id || null,
+      period_start: validatedData.period_start || new Date().toISOString().split('T')[0], // Fallback to today
+      period_end: validatedData.period_end || new Date().toISOString().split('T')[0],
+      target_date: validatedData.target_date || null,
+      block_set_id: validatedData.block_set_id || null,
       contents: allContents.map((c, idx) => {
         // PlanContentInput 타입에 맞게 구성
         // master_content_id 설정
         let masterContentId: string | null = null;
         // 1. WizardData에서 명시적으로 설정된 경우 우선 사용
-        if ("master_content_id" in c && c.master_content_id) {
+        if (c.master_content_id) {
           masterContentId = c.master_content_id;
         } else {
           // 2. 추천 콘텐츠인 경우: content_id 자체가 마스터 콘텐츠 ID
-          const isRecommended = wizardData.recommended_contents.some(
+          const isRecommended = validatedData.recommended_contents.some(
             (rc) => rc.content_id === c.content_id && rc.content_type === c.content_type
           );
           if (isRecommended) {
@@ -180,8 +199,8 @@ export function syncWizardDataToCreationData(
         if ("is_auto_recommended" in c && c.is_auto_recommended !== undefined) {
           contentItem.is_auto_recommended = c.is_auto_recommended;
         }
-        if ("recommendation_source" in c && c.recommendation_source) {
-          contentItem.recommendation_source = (c.recommendation_source as any) as "auto" | "admin" | "template" | null;
+        if (c.recommendation_source) {
+          contentItem.recommendation_source = c.recommendation_source;
         }
         if ("recommendation_reason" in c && c.recommendation_reason) {
           contentItem.recommendation_reason = typeof c.recommendation_reason === 'string' ? c.recommendation_reason : null;
@@ -192,12 +211,12 @@ export function syncWizardDataToCreationData(
 
         return contentItem;
       }),
-      exclusions: wizardData.exclusions.map((e) => ({
+      exclusions: validatedData.exclusions.map((e) => ({
         exclusion_date: e.exclusion_date,
         exclusion_type: e.exclusion_type as ExclusionType,
         reason: e.reason || null,
       })),
-      academy_schedules: wizardData.academy_schedules.map((s) => ({
+      academy_schedules: validatedData.academy_schedules.map((s) => ({
         day_of_week: s.day_of_week,
         start_time: s.start_time,
         end_time: s.end_time,
@@ -206,13 +225,13 @@ export function syncWizardDataToCreationData(
         travel_time: s.travel_time,
       })),
       // 1730 Timetable 추가 필드
-      study_review_cycle: wizardData.study_review_cycle,
-      student_level: wizardData.student_level,
-      subject_allocations: wizardData.subject_allocations,
-      subject_constraints: wizardData.subject_constraints
+      study_review_cycle: validatedData.study_review_cycle,
+      student_level: validatedData.student_level,
+      subject_allocations: validatedData.subject_allocations,
+      subject_constraints: validatedData.subject_constraints
         ? {
-            ...wizardData.subject_constraints,
-            required_subjects: wizardData.subject_constraints.required_subjects?.map(
+            ...validatedData.subject_constraints,
+            required_subjects: validatedData.subject_constraints.required_subjects?.map(
               (req) => ({
                 subject_category: req.subject_category,
                 subject: req.subject_category, // fallback
@@ -228,8 +247,8 @@ export function syncWizardDataToCreationData(
             ),
           }
         : undefined,
-      additional_period_reallocation: wizardData.additional_period_reallocation,
-      non_study_time_blocks: wizardData.non_study_time_blocks,
+      additional_period_reallocation: validatedData.additional_period_reallocation,
+      non_study_time_blocks: validatedData.non_study_time_blocks,
       // Step 2.5에서 생성된 일별 스케줄 정보
       daily_schedule: validatedDailySchedule || null,
     };
@@ -306,7 +325,9 @@ export function syncCreationDataToWizardData(data: {
     const { group, contents, exclusions, academySchedules } = data;
 
     // scheduler_options에서 time_settings 추출
-    const schedulerOptions = (group.scheduler_options as any) || {};
+    const schedulerOptions = (group.scheduler_options && typeof group.scheduler_options === "object") 
+      ? group.scheduler_options as Record<string, unknown>
+      : {};
     const timeSettings: WizardData["time_settings"] = {
       lunch_time: schedulerOptions.lunch_time,
       camp_study_hours: schedulerOptions.camp_study_hours,
@@ -368,10 +389,16 @@ export function syncCreationDataToWizardData(data: {
       };
 
       if (c.is_auto_recommended || c.recommendation_source) {
+        // recommendation_source 타입 검증
+        const recommendationSource = c.recommendation_source;
+        const validSource = recommendationSource === "auto" || recommendationSource === "admin" || recommendationSource === "template"
+          ? recommendationSource
+          : null;
+        
         recommendedContents.push({
           ...contentItem,
           is_auto_recommended: c.is_auto_recommended ?? false,
-          recommendation_source: (c.recommendation_source as any) ?? null,
+          recommendation_source: validSource,
           recommendation_reason: c.recommendation_reason ?? null,
         });
       } else {
@@ -382,11 +409,21 @@ export function syncCreationDataToWizardData(data: {
     // WizardData 구성
     // plan_purpose 변환: null은 빈 문자열로, PlanPurpose는 그대로 사용
     const wizardPlanPurpose: WizardData["plan_purpose"] =
-      group.plan_purpose === null ? "" : (group.plan_purpose as WizardData["plan_purpose"]);
+      group.plan_purpose === null || group.plan_purpose === ""
+        ? ""
+        : (group.plan_purpose === "모의고사" || group.plan_purpose === "수능")
+          ? "모의고사(수능)"
+          : group.plan_purpose === "내신대비"
+            ? "내신대비"
+            : "";
 
     // scheduler_type 변환: null은 빈 문자열로, SchedulerType은 그대로 사용
     const wizardSchedulerType: WizardData["scheduler_type"] =
-      group.scheduler_type === null ? "" : (group.scheduler_type as WizardData["scheduler_type"]);
+      group.scheduler_type === null || group.scheduler_type === ""
+        ? ""
+        : group.scheduler_type === "1730_timetable"
+          ? "1730_timetable"
+          : "";
 
     const wizardData: WizardData = {
       name: group.name || "",
@@ -432,6 +469,18 @@ export function syncCreationDataToWizardData(data: {
       non_study_time_blocks: group.non_study_time_blocks || undefined,
       daily_schedule: group.daily_schedule || undefined,
     };
+
+    // 출력 데이터 검증 (부분 스키마 사용 - DB에서 온 데이터는 일부 필드가 없을 수 있음)
+    const outputValidation = validatePartialWizardDataSafe(wizardData);
+    if (!outputValidation.success) {
+      // 검증 실패는 경고만 출력하고 데이터는 반환 (하위 호환성)
+      console.warn("[syncCreationDataToWizardData] 출력 데이터 검증 실패:", {
+        errors: outputValidation.error.errors.map((err) => ({
+          path: err.path.join("."),
+          message: err.message,
+        })),
+      });
+    }
 
     return wizardData;
   } catch (error) {

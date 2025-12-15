@@ -156,12 +156,19 @@ function createInitialState(
     period_end: initialData?.period_end || "",
     target_date: initialData?.target_date || undefined,
     block_set_id: initialData?.block_set_id || "",
-    scheduler_options: {
-      ...(initialData?.scheduler_options || {}),
-      study_days: (initialData?.scheduler_options as any)?.study_days || initialData?.study_review_cycle?.study_days || 6,
-      review_days: (initialData?.scheduler_options as any)?.review_days || initialData?.study_review_cycle?.review_days || 1,
-      student_level: initialData?.student_level || (initialData?.scheduler_options as any)?.student_level,
-    },
+    scheduler_options: (() => {
+      const schedulerOptions = initialData?.scheduler_options;
+      const schedulerOptionsRecord = schedulerOptions && typeof schedulerOptions === "object"
+        ? schedulerOptions as Record<string, unknown>
+        : {};
+      
+      return {
+        ...schedulerOptionsRecord,
+        study_days: (schedulerOptionsRecord.study_days as number | undefined) || initialData?.study_review_cycle?.study_days || 6,
+        review_days: (schedulerOptionsRecord.review_days as number | undefined) || initialData?.study_review_cycle?.review_days || 1,
+        student_level: initialData?.student_level || (schedulerOptionsRecord.student_level as "high" | "medium" | "low" | undefined),
+      };
+    })(),
     exclusions: initialData?.exclusions?.map((e) => ({
       exclusion_date: e.exclusion_date,
       exclusion_type: e.exclusion_type,
@@ -182,13 +189,38 @@ function createInitialState(
     time_settings: initialData?.time_settings,
     student_contents: initialContentsState.student_contents,
     recommended_contents: initialContentsState.recommended_contents,
-    study_review_cycle: initialData?.study_review_cycle || {
-      study_days: (initialData?.scheduler_options as any)?.study_days || 6,
-      review_days: (initialData?.scheduler_options as any)?.review_days || 1,
-    },
-    student_level: initialData?.student_level || (initialData?.scheduler_options as any)?.student_level,
-    subject_allocations: initialData?.subject_allocations || (initialData?.scheduler_options as any)?.subject_allocations,
-    content_allocations: (initialData?.scheduler_options as any)?.content_allocations,
+    study_review_cycle: initialData?.study_review_cycle || (() => {
+      const schedulerOptions = initialData?.scheduler_options;
+      const schedulerOptionsRecord = schedulerOptions && typeof schedulerOptions === "object"
+        ? schedulerOptions as Record<string, unknown>
+        : {};
+      
+      return {
+        study_days: (schedulerOptionsRecord.study_days as number | undefined) || 6,
+        review_days: (schedulerOptionsRecord.review_days as number | undefined) || 1,
+      };
+    })(),
+    student_level: initialData?.student_level || (() => {
+      const schedulerOptions = initialData?.scheduler_options;
+      const schedulerOptionsRecord = schedulerOptions && typeof schedulerOptions === "object"
+        ? schedulerOptions as Record<string, unknown>
+        : {};
+      return schedulerOptionsRecord.student_level as "high" | "medium" | "low" | undefined;
+    })(),
+    subject_allocations: initialData?.subject_allocations || (() => {
+      const schedulerOptions = initialData?.scheduler_options;
+      const schedulerOptionsRecord = schedulerOptions && typeof schedulerOptions === "object"
+        ? schedulerOptions as Record<string, unknown>
+        : {};
+      return schedulerOptionsRecord.subject_allocations as WizardData["subject_allocations"];
+    })(),
+    content_allocations: (() => {
+      const schedulerOptions = initialData?.scheduler_options;
+      const schedulerOptionsRecord = schedulerOptions && typeof schedulerOptions === "object"
+        ? schedulerOptions as Record<string, unknown>
+        : {};
+      return schedulerOptionsRecord.content_allocations as WizardData["content_allocations"];
+    })(),
     subject_constraints: initialData?.subject_constraints,
     additional_period_reallocation: initialData?.additional_period_reallocation,
     non_study_time_blocks: initialData?.non_study_time_blocks,
