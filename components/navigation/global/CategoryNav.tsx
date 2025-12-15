@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { getCategoriesForRole, type NavigationRole, type NavigationCategory, type NavigationItem } from "./categoryConfig";
 import { resolveActiveCategory, isCategoryPath, isItemActive, type ActiveCategoryInfo } from "./resolveActiveCategory";
 import { useSidebar } from "@/components/layout/SidebarContext";
-import { isCampMode, ensurePathname } from "@/lib/navigation/utils";
+import { isCampMode, ensurePathname, getActiveCategoryWithCampMode } from "@/lib/navigation/utils";
 
 type CategoryNavProps = {
   role: NavigationRole;
@@ -34,38 +34,26 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
   
   // 활성 카테고리 정보를 계산 (useMemo로 값 직접 계산)
   const activeCategoryInfo = useMemo((): ActiveCategoryInfo | null => {
-    let active = resolveActiveCategory(safePathname, role);
-    
-    // 캠프 모드인 경우 "캠프 참여" 카테고리 활성화
-    if (campMode && role === "student") {
-      const campCategory = categories.find((cat) => cat.id === "camp");
-      if (campCategory) {
-        active = {
-          category: campCategory,
-          activeItem: campCategory.items[0] || null,
-          isCategoryActive: true,
-        };
-      }
-    }
-    
-    return active;
-  }, [safePathname, role, campMode, categories]);
+    return getActiveCategoryWithCampMode(
+      safePathname,
+      role,
+      searchParams,
+      categories,
+      campMode
+    );
+  }, [safePathname, role, campMode, categories, searchParams]);
   
   // 초기 상태 설정 (초기화 함수 내부에서 직접 계산)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
     // 초기 렌더링 시 직접 계산 (SSR 안전)
-    let active = resolveActiveCategory(safePathname, role);
     const initialCampMode = isCampMode(pathname, searchParams);
-    if (initialCampMode && role === "student") {
-      const campCategory = categories.find((cat) => cat.id === "camp");
-      if (campCategory) {
-        active = {
-          category: campCategory,
-          activeItem: campCategory.items[0] || null,
-          isCategoryActive: true,
-        };
-      }
-    }
+    const active = getActiveCategoryWithCampMode(
+      safePathname,
+      role,
+      searchParams,
+      categories,
+      initialCampMode
+    );
     return new Set(active ? [active.category.id] : [categories[0]?.id].filter(Boolean));
   });
 
@@ -96,7 +84,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
     if (activeCategoryInfo) {
       return activeCategoryInfo.category.id === category.id;
     }
-    return isCategoryPath(safePathname, category);
+    return isCategoryPath(safePathname, category, searchParams);
   };
 
   return (
@@ -108,7 +96,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
         // 하위 메뉴가 1개인 경우 바로 링크로 처리
         const singleItem = category.items.length === 1 && !category.items[0].children;
         const singleItemHref = singleItem ? category.items[0].href : null;
-        const singleItemActive = singleItem ? isItemActive(safePathname, category.items[0]) : false;
+        const singleItemActive = singleItem ? isItemActive(safePathname, category.items[0], searchParams) : false;
 
         return (
           <div key={category.id} className="flex flex-col gap-1">
@@ -177,7 +165,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                         return null;
                       }
 
-                      const itemActive = isItemActive(safePathname, item);
+                      const itemActive = isItemActive(safePathname, item, searchParams);
 
                       return (
                         <div key={item.id}>
@@ -199,7 +187,7 @@ export function CategoryNav({ role, className }: CategoryNavProps) {
                           {item.children && item.children.length > 0 && (
                             <div className="flex flex-col gap-1 pl-6">
                               {item.children.map((child) => {
-                                const childActive = isItemActive(safePathname, child);
+                                const childActive = isItemActive(safePathname, child, searchParams);
                                 return (
                                   <Link
                                     key={child.id}

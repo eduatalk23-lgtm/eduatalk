@@ -16,53 +16,146 @@ export type ActiveCategoryInfo = {
 };
 
 /**
+ * href에서 쿼리 파라미터를 분리하여 pathname과 queryParams로 반환
+ */
+function parseHref(href: string): { pathname: string; queryParams: Record<string, string> } {
+  const [pathname, queryString] = href.split("?");
+  const queryParams: Record<string, string> = {};
+  
+  if (queryString) {
+    const params = new URLSearchParams(queryString);
+    params.forEach((value, key) => {
+      queryParams[key] = value;
+    });
+  }
+  
+  return { pathname: pathname || href, queryParams };
+}
+
+/**
+ * 두 쿼리 파라미터 객체가 일치하는지 확인
+ */
+function matchQueryParams(
+  currentParams: URLSearchParams | null,
+  itemQueryParams?: Record<string, string>
+): boolean {
+  // item에 queryParams가 없으면 쿼리 파라미터 매칭 불필요
+  if (!itemQueryParams || Object.keys(itemQueryParams).length === 0) {
+    return true;
+  }
+  
+  // currentParams가 없으면 item에 queryParams가 있으면 매칭 실패
+  if (!currentParams) {
+    return false;
+  }
+  
+  // item의 모든 queryParams가 currentParams에 일치하는지 확인
+  for (const [key, value] of Object.entries(itemQueryParams)) {
+    if (currentParams.get(key) !== value) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
  * 경로가 특정 href와 매칭되는지 확인
  */
 function isPathActive(
   pathname: string,
   href: string,
-  exactMatch: boolean = false
+  exactMatch: boolean = false,
+  searchParams?: URLSearchParams | null,
+  itemQueryParams?: Record<string, string>
 ): boolean {
+  // href에서 쿼리 파라미터 분리
+  const { pathname: hrefPathname, queryParams: hrefQueryParams } = parseHref(href);
+  
+  // pathname 매칭 확인
+  let pathnameMatches = false;
   if (exactMatch) {
-    return pathname === href;
+    pathnameMatches = pathname === hrefPathname;
+  } else {
+    pathnameMatches = pathname === hrefPathname || pathname.startsWith(`${hrefPathname}/`);
   }
-  // startsWith 매칭 (동적 라우트 지원)
-  return pathname === href || pathname.startsWith(`${href}/`);
+  
+  if (!pathnameMatches) {
+    return false;
+  }
+  
+  // 쿼리 파라미터가 있는 경우 매칭 확인
+  const hasQueryParams = itemQueryParams && Object.keys(itemQueryParams).length > 0;
+  const hasHrefQueryParams = Object.keys(hrefQueryParams).length > 0;
+  
+  if (hasQueryParams || hasHrefQueryParams) {
+    // itemQueryParams가 있으면 그것을 우선 사용, 없으면 href에서 파싱한 것 사용
+    const paramsToMatch = itemQueryParams || hrefQueryParams;
+    return matchQueryParams(searchParams || null, paramsToMatch);
+  }
+  
+  return true;
 }
 
 /**
  * 특정 아이템이 현재 경로와 활성 상태인지 확인
  */
-export function isItemActive(pathname: string, item: NavigationItem): boolean {
+export function isItemActive(
+  pathname: string,
+  item: NavigationItem,
+  searchParams?: URLSearchParams | null
+): boolean {
+  // href에서 쿼리 파라미터 분리
+  const { pathname: itemPathname } = parseHref(item.href);
+  
   // 정확히 일치해야 하는 경우
   if (item.exactMatch) {
-    return pathname === item.href;
+    return isPathActive(pathname, item.href, true, searchParams, item.queryParams);
   }
 
   // startsWith 매칭
-  if (isPathActive(pathname, item.href, false)) {
+  if (isPathActive(pathname, item.href, false, searchParams, item.queryParams)) {
     return true;
   }
 
   // 동적 라우트 매칭 (children이 있는 경우, 동적 세그먼트 포함 경로 검사)
   if (item.children) {
     for (const child of item.children) {
-      if (isItemActive(pathname, child)) {
+      if (isItemActive(pathname, child, searchParams)) {
         return true;
       }
     }
   }
 
   // 동적 세그먼트 패턴 매칭 (예: /contents/books/[id] 형태)
-  if (
-    item.href.includes("[") ||
-    pathname.includes("/[") ||
-    pathname.match(/\/[^/]+\/[^/]+$/)
-  ) {
-    // 부모 경로 확인 (예: /contents/books/[id] → /contents/books)
-    const parentHref = item.href.replace(/\/\[.+?\]/g, "");
-    if (pathname.startsWith(parentHref) && pathname !== parentHref) {
-      return true;
+  // href에 [id] 같은 패턴이 있거나, pathname이 부모 경로의 하위 경로인 경우
+  const itemSegments = itemPathname.split("/").filter(Boolean);
+  const pathSegments = pathname.split("/").filter(Boolean);
+  
+  // 부모 경로 매칭 확인 (itemPathname이 pathname의 부모 경로인지)
+  if (pathSegments.length > itemSegments.length) {
+    let matches = true;
+    for (let i = 0; i < itemSegments.length; i++) {
+      if (itemSegments[i] !== pathSegments[i]) {
+        matches = false;
+        break;
+      }
+    }
+    
+    if (matches) {
+      // 마지막 세그먼트가 UUID나 긴 ID 형태인지 확인
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      const isDynamicSegment = 
+        lastSegment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ||
+        lastSegment.length > 15;
+      
+      if (isDynamicSegment) {
+        // 쿼리 파라미터가 있는 경우 매칭 확인
+        if (item.queryParams && Object.keys(item.queryParams).length > 0) {
+          return matchQueryParams(searchParams || null, item.queryParams);
+        }
+        return true;
+      }
     }
   }
 
@@ -74,20 +167,21 @@ export function isItemActive(pathname: string, item: NavigationItem): boolean {
  */
 function findActiveItemInCategory(
   pathname: string,
-  category: NavigationCategory
+  category: NavigationCategory,
+  searchParams?: URLSearchParams | null
 ): NavigationItem | null {
   for (const item of category.items) {
     // 역할 체크는 호출부에서 처리 (여기서는 단순 매칭만)
 
     // 직접 매칭
-    if (isItemActive(pathname, item)) {
+    if (isItemActive(pathname, item, searchParams)) {
       return item;
     }
 
     // children 검색
     if (item.children) {
       for (const child of item.children) {
-        if (isItemActive(pathname, child)) {
+        if (isItemActive(pathname, child, searchParams)) {
           return item; // 부모 아이템 반환
         }
       }
@@ -102,12 +196,13 @@ function findActiveItemInCategory(
  */
 export function resolveActiveCategory(
   pathname: string,
-  role: NavigationRole
+  role: NavigationRole,
+  searchParams?: URLSearchParams | null
 ): ActiveCategoryInfo | null {
   const categories = getCategoriesForRole(role);
 
   for (const category of categories) {
-    const activeItem = findActiveItemInCategory(pathname, category);
+    const activeItem = findActiveItemInCategory(pathname, category, searchParams);
 
     if (activeItem) {
       return {
@@ -119,12 +214,15 @@ export function resolveActiveCategory(
 
     // 카테고리 자체가 활성화된 경우 (카테고리의 기본 경로와 일치)
     const categoryPath = category.items[0]?.href;
-    if (categoryPath && isPathActive(pathname, categoryPath)) {
-      return {
-        category,
-        activeItem: category.items[0],
-        isCategoryActive: true,
-      };
+    if (categoryPath) {
+      const { pathname: categoryPathname, queryParams: categoryQueryParams } = parseHref(categoryPath);
+      if (isPathActive(pathname, categoryPath, false, searchParams, categoryQueryParams)) {
+        return {
+          category,
+          activeItem: category.items[0],
+          isCategoryActive: true,
+        };
+      }
     }
   }
 
@@ -137,15 +235,16 @@ export function resolveActiveCategory(
  */
 export function isCategoryPath(
   pathname: string,
-  category: NavigationCategory
+  category: NavigationCategory,
+  searchParams?: URLSearchParams | null
 ): boolean {
   for (const item of category.items) {
-    if (isPathActive(pathname, item.href)) {
+    if (isPathActive(pathname, item.href, false, searchParams, item.queryParams)) {
       return true;
     }
     if (item.children) {
       for (const child of item.children) {
-        if (isPathActive(pathname, child.href)) {
+        if (isPathActive(pathname, child.href, false, searchParams, child.queryParams)) {
           return true;
         }
       }
@@ -168,7 +267,7 @@ export function getBreadcrumbChain(
   const homeHref =
     role === "student"
       ? "/dashboard"
-      : role === "admin"
+      : role === "admin" || role === "consultant"
       ? "/admin/dashboard"
       : role === "superadmin"
       ? "/superadmin/dashboard"
@@ -176,7 +275,7 @@ export function getBreadcrumbChain(
   const homeLabel =
     role === "student"
       ? "홈"
-      : role === "admin"
+      : role === "admin" || role === "consultant"
       ? "관리자 홈"
       : role === "superadmin"
       ? "Super Admin 홈"
@@ -407,6 +506,23 @@ function getSegmentLabel(segment: string, role: NavigationRole): string {
       edit: "수정",
     },
     admin: {
+      admin: "관리자",
+      dashboard: "대시보드",
+      students: "학생 관리",
+      consulting: "상담 노트",
+      attendance: "출석 관리",
+      sms: "SMS 발송 이력",
+      reports: "리포트",
+      compare: "비교 분석",
+      settings: "설정",
+      tenant: "기관 설정",
+      tools: "도구",
+      superadmin: "Super Admin",
+      tenants: "기관 관리",
+      subjects: "교과/과목 관리",
+      schools: "학교 관리",
+    },
+    consultant: {
       admin: "관리자",
       dashboard: "대시보드",
       students: "학생 관리",

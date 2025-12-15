@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useSidebar } from "./SidebarContext";
 import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { mapRoleForNavigation } from "@/lib/navigation/utils";
 
 type RoleBasedLayoutProps = {
   role: "student" | "admin" | "parent" | "consultant" | "superadmin";
@@ -110,9 +111,7 @@ function SidebarContent({
       {/* 카테고리 네비게이션 */}
       <div className="p-4">
         <CategoryNav
-          role={
-            role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role
-          }
+          role={mapRoleForNavigation(role)}
         />
       </div>
 
@@ -206,9 +205,7 @@ function MobileSidebar({
             {/* 카테고리 네비게이션 */}
             <div className="p-4">
           <CategoryNav
-            role={
-              role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role
-            }
+            role={mapRoleForNavigation(role)}
           />
             </div>
 
@@ -298,7 +295,7 @@ export function RoleBasedLayout({
         {/* Breadcrumbs */}
         {showSidebar && (
           <Suspense fallback={null}>
-            <Breadcrumbs role={role === "consultant" ? "admin" : role === "superadmin" ? "superadmin" : role} />
+            <Breadcrumbs role={mapRoleForNavigation(role)} />
           </Suspense>
         )}
 

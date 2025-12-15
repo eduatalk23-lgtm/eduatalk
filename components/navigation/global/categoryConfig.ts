@@ -20,6 +20,7 @@ export const categoryConfig: Record<NavigationRole, NavigationCategory[]> = {
   admin: adminCategories,
   parent: parentCategories,
   superadmin: superadminCategories,
+  consultant: adminCategories, // consultant는 admin과 동일한 카테고리 사용
 };
 
 /**
