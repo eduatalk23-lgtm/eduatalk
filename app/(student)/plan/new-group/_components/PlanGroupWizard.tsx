@@ -8,6 +8,7 @@ import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { scrollToTop, scrollToField } from "@/lib/utils/scroll";
 import { getFirstErrorFieldId } from "./hooks/useWizardValidation";
+import { PlanWizardProvider, usePlanWizard } from "./PlanWizardContext";
 import {
   createPlanGroupAction,
   savePlanGroupDraftAction,
@@ -373,7 +374,11 @@ function denormalizePlanPurpose(purpose: string | null | undefined): "" | "내�
   return "";
 }
 
-export function PlanGroupWizard({
+/**
+ * PlanGroupWizard 내부 컴포넌트
+ * PlanWizardProvider 내부에서 사용되며, usePlanWizard 훅을 통해 상태에 접근합니다.
+ */
+function PlanGroupWizardInner({
   initialBlockSets = [],
   initialContents = { books: [], lectures: [], custom: [] },
   initialData,
@@ -389,6 +394,31 @@ export function PlanGroupWizard({
   const router = useRouter();
   const toast = useToast();
   
+  // PlanWizardContext에서 상태 가져오기
+  const {
+    state: {
+      wizardData,
+      currentStep,
+      validationErrors,
+      validationWarnings,
+      fieldErrors,
+      draftGroupId,
+      isSubmitting,
+    },
+    updateData,
+    updateDataFn,
+    nextStep,
+    prevStep,
+    setStep,
+    setErrors,
+    setWarnings,
+    setFieldError,
+    clearFieldError,
+    clearValidation,
+    setDraftId,
+    setSubmitting,
+  } = usePlanWizard();
+
   // 모드 통합 관리
   const mode = useMemo(() => createWizardMode({
     isCampMode,
@@ -398,36 +428,7 @@ export function PlanGroupWizard({
     isEditMode,
   }), [isCampMode, isTemplateMode, isAdminMode, isAdminContinueMode, isEditMode]);
   
-  // _startStep이 있으면 해당 단계로 초기화 (관리자 남은 단계 진행 모드)
-  const initialStep = initialData?._startStep 
-    ? (initialData._startStep as WizardStep)
-    : 1;
-
-  const initialContentsState = useMemo(() => {
-    if (initialData?.student_contents || initialData?.recommended_contents) {
-      return {
-        student_contents: initialData.student_contents || [],
-        recommended_contents: initialData.recommended_contents || [],
-      };
-    }
-    // 기존 구조: contents가 있으면 모두 student_contents로 처리
-    if (initialData?.contents) {
-      return {
-        student_contents: initialData.contents,
-        recommended_contents: [],
-      };
-    }
-    return {
-      student_contents: [],
-      recommended_contents: [],
-    };
-  }, [initialData]);
-
-  const [currentStep, setCurrentStep] = useState<WizardStep>(initialStep);
   const [blockSets, setBlockSets] = useState(initialBlockSets);
-  
-  // WizardData 초기값 설정
-  const [wizardData, setWizardData] = useState<WizardData>(() => ({
     name: initialData?.name || "",
     // plan_purpose 정규화 처리
     plan_purpose: denormalizePlanPurpose(initialData?.plan_purpose),
@@ -517,24 +518,12 @@ export function PlanGroupWizard({
     } : undefined),
   }));
 
-  // State for Draft and Template
-  const [draftGroupId, setDraftGroupId] = useState<string | null>(
-    initialData?.groupId || null
-  );
   const templateId = initialData?.templateId;
   const templateProgramType = initialData?.templateProgramType || "기타";
   const templateStatus = initialData?.templateStatus || "draft";
 
-  // 디버깅: templateId 확인
-  // if (isTemplateMode && !templateId && process.env.NODE_ENV === "development") { ... }
-
   // Validation Hook
   const {
-    validationErrors,
-    validationWarnings,
-    fieldErrors,
-    setValidationErrors,
-    setValidationWarnings,
     validateStep,
     clearValidationState
   } = useWizardValidation({
@@ -543,13 +532,13 @@ export function PlanGroupWizard({
   });
 
   // Submission Hook
-  const { isSubmitting, executeSave, handleSubmit } = usePlanSubmission({
+  const { executeSave, handleSubmit } = usePlanSubmission({
       wizardData,
       draftGroupId,
-      setDraftGroupId,
+      setDraftGroupId: setDraftId,
       currentStep,
-      setCurrentStep,
-      setValidationErrors,
+      setCurrentStep: setStep,
+      setValidationErrors: setErrors,
       isCampMode,
       campInvitationId,
       initialData,
@@ -564,9 +553,9 @@ export function PlanGroupWizard({
   // 초기 검증 에러 처리 (usePlanSubmission/validation 초기화와 충돌 방지 위해 hook 이후에 처리하거나 hook 내부로 이동 권장되지만, 우선 여기서 상태 동기화)
   useEffect(() => {
      if (initialData?._validationErrors) {
-         setValidationErrors(initialData._validationErrors);
+         setErrors(initialData._validationErrors);
      }
-  }, [initialData, setValidationErrors]);
+  }, [initialData, setErrors]);
   
   // Removed isPending/startTransition as usePlanSubmission handles loading state
   // const [isPending, startTransition] = useTransition();
@@ -605,16 +594,11 @@ export function PlanGroupWizard({
     updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)
   ) => {
     if (typeof updates === "function") {
-      setWizardData((prev) => {
-        const partialUpdates = updates(prev);
-        return { ...prev, ...partialUpdates };
-      });
+      updateDataFn(updates);
     } else {
-      setWizardData((prev) => ({ ...prev, ...updates }));
+      updateData(updates);
     }
-    setValidationErrors([]);
-    setValidationWarnings([]);
-  }, [setValidationErrors, setValidationWarnings]);
+  }, [updateData, updateDataFn]);
 
   // validateStep Logic replaced by useWizardValidation hook
 
@@ -659,7 +643,7 @@ export function PlanGroupWizard({
 
     // isAdminContinueMode일 때 Step 3에서 Step 4로 이동 가능하도록 추가
     if (mode.isAdminContinueMode && currentStep === 3) {
-      setCurrentStep(4);
+      setStep(4);
       return;
     }
 
@@ -696,16 +680,16 @@ export function PlanGroupWizard({
           return; // handleSubmit 내부에서 단계 이동 처리
         }
       } else {
-        setCurrentStep((prev) => (prev + 1) as WizardStep);
+        nextStep();
       }
     }
-  }, [currentStep, validateStep, mode, handleSubmit]);
+  }, [currentStep, validateStep, mode, handleSubmit, setStep, nextStep]);
 
   const handleBack = useCallback(() => {
     if (canGoBack(currentStep, mode)) {
-      setCurrentStep((prev) => (prev - 1) as WizardStep);
+      prevStep();
     }
-  }, [currentStep, mode]);
+  }, [currentStep, mode, prevStep]);
 
   // Step 7 완료 핸들러
   const handleStep7Complete = useCallback(async () => {
@@ -998,7 +982,7 @@ export function PlanGroupWizard({
         {currentStep === 6 && !isTemplateMode && (
           <Step6Simplified
             data={wizardData}
-            onEditStep={(step) => setCurrentStep(step)}
+            onEditStep={(step) => setStep(step)}
             isCampMode={isCampMode}
             isAdminContinueMode={isAdminContinueMode}
             onUpdate={isAdminContinueMode ? updateWizardData : undefined}
@@ -1062,5 +1046,65 @@ export function PlanGroupWizard({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * PlanGroupWizard 외부 컴포넌트
+ * PlanWizardProvider로 래핑하여 Context를 제공합니다.
+ */
+export function PlanGroupWizard(props: PlanGroupWizardProps) {
+  const initialStep = props.initialData?._startStep 
+    ? (props.initialData._startStep as WizardStep)
+    : 1;
+  
+  const initialDraftId = props.initialData?.groupId || null;
+
+  // 초기 콘텐츠 상태 처리
+  const initialContentsState = useMemo(() => {
+    if (props.initialData?.student_contents || props.initialData?.recommended_contents) {
+      return {
+        student_contents: props.initialData.student_contents || [],
+        recommended_contents: props.initialData.recommended_contents || [],
+      };
+    }
+    // 기존 구조: contents가 있으면 모두 student_contents로 처리
+    if (props.initialData?.contents) {
+      return {
+        student_contents: props.initialData.contents,
+        recommended_contents: [],
+      };
+    }
+    return {
+      student_contents: [],
+      recommended_contents: [],
+    };
+  }, [props.initialData]);
+
+  // 초기 데이터 준비 (PlanWizardContext의 createInitialState와 동일한 로직)
+  const initialWizardData = useMemo(() => {
+    const denormalizePlanPurpose = (purpose: string | null | undefined): "" | "내신대비" | "모의고사(수능)" => {
+      if (!purpose) return "";
+      if (purpose === "수능" || purpose === "모의고사") return "모의고사(수능)";
+      if (purpose === "내신대비" || purpose === "모의고사(수능)") return purpose as "내신대비" | "모의고사(수능)";
+      return "";
+    };
+
+    return {
+      ...props.initialData,
+      student_contents: initialContentsState.student_contents,
+      recommended_contents: initialContentsState.recommended_contents,
+      plan_purpose: denormalizePlanPurpose(props.initialData?.plan_purpose),
+    } as Partial<WizardData>;
+  }, [props.initialData, initialContentsState]);
+
+  return (
+    <PlanWizardProvider
+      initialData={initialWizardData}
+      initialStep={initialStep}
+      initialDraftId={initialDraftId}
+    >
+      <PlanGroupWizardInner {...props} />
+    </PlanWizardProvider>
   );
 }
