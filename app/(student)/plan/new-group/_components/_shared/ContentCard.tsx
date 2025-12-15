@@ -18,6 +18,8 @@ export const ContentCard = React.memo(function ContentCard({
   readOnly = false,
   range,
   recommended,
+  isLoadingMetadata = false,
+  metadataError,
   onToggle,
   onRemove,
   onEditRange,
@@ -70,26 +72,37 @@ export const ContentCard = React.memo(function ContentCard({
 
             {/* 메타데이터 */}
             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-              {content.subject && (
-                <span className="rounded bg-gray-100 px-2 py-0.5">
-                  {content.subject}
-                </span>
-              )}
-              {content.semester && (
-                <span className="rounded bg-gray-100 px-2 py-0.5">
-                  {content.semester}
-                </span>
-              )}
-              {content.difficulty && (
-                <span className="rounded bg-gray-100 px-2 py-0.5">
-                  {content.difficulty}
-                </span>
-              )}
-              {content.publisher && (
-                <span className="text-gray-600">{content.publisher}</span>
-              )}
-              {content.platform && (
-                <span className="text-gray-600">{content.platform}</span>
+              {isLoadingMetadata ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                  <span>정보 불러오는 중...</span>
+                </div>
+              ) : metadataError ? (
+                <span className="text-red-600 text-xs">{metadataError}</span>
+              ) : (
+                <>
+                  {content.subject && (
+                    <span className="rounded bg-gray-100 px-2 py-0.5">
+                      {content.subject}
+                    </span>
+                  )}
+                  {content.semester && (
+                    <span className="rounded bg-gray-100 px-2 py-0.5">
+                      {content.semester}
+                    </span>
+                  )}
+                  {content.difficulty && (
+                    <span className="rounded bg-gray-100 px-2 py-0.5">
+                      {content.difficulty}
+                    </span>
+                  )}
+                  {content.publisher && (
+                    <span className="text-gray-600">{content.publisher}</span>
+                  )}
+                  {content.platform && (
+                    <span className="text-gray-600">{content.platform}</span>
+                  )}
+                </>
               )}
             </div>
 

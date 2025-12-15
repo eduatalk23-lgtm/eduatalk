@@ -32,6 +32,8 @@ export type SelectedContent = {
   master_content_id?: string | null;
   is_auto_recommended?: boolean; // 자동 배정 여부
   recommendation_source?: "auto" | "admin" | "template" | null; // 추천 소스
+  isLoadingMetadata?: boolean; // 메타데이터 로딩 중 플래그 (Optimistic UI)
+  metadataError?: string; // 메타데이터 로드 실패 시 에러 메시지
 };
 
 /**
@@ -180,6 +182,10 @@ export type ContentCardProps = {
     reason: string;
     scoreDetails?: RecommendedContent["scoreDetails"];
   };
+  
+  // 메타데이터 로딩 상태 (Optimistic UI)
+  isLoadingMetadata?: boolean;
+  metadataError?: string;
   
   // 이벤트 핸들러
   onToggle?: () => void;

@@ -272,7 +272,17 @@ export function RangeSettingModal({
           );
         }
         
-        setError(errorMessage);
+        // 에러가 발생해도 직접 입력은 가능하도록 에러를 경고로 처리
+        // 상세 정보가 없으면 빈 배열로 설정하여 직접 입력 모드로 전환
+        setDetails([]);
+        setError(null); // 에러를 null로 설정하여 직접 입력 모드 활성화
+        
+        // 총량 정보는 기본값으로 설정 (나중에 사용자가 입력할 수 있도록)
+        if (content.type === "book") {
+          setTotalPages(null);
+        } else {
+          setTotalEpisodes(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -440,22 +450,30 @@ export function RangeSettingModal({
                 {externalError}
               </div>
             ) : (
-              <ContentRangeInput
-                type={content.type}
-                details={details}
-                startDetailId={startDetailId}
-                endDetailId={endDetailId}
-                startRange={startRange}
-                endRange={endRange}
-                totalPages={totalPages}
-                totalEpisodes={totalEpisodes}
-                onStartChange={setStartDetailId}
-                onEndChange={setEndDetailId}
-                onStartRangeChange={setStartRange}
-                onEndRangeChange={setEndRange}
-                loading={loading}
-                error={error}
-              />
+              <>
+                {error && (
+                  <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                    <p className="font-medium">상세 정보를 불러올 수 없습니다.</p>
+                    <p className="mt-1 text-xs">범위를 직접 입력해주세요.</p>
+                  </div>
+                )}
+                <ContentRangeInput
+                  type={content.type}
+                  details={details}
+                  startDetailId={startDetailId}
+                  endDetailId={endDetailId}
+                  startRange={startRange}
+                  endRange={endRange}
+                  totalPages={totalPages}
+                  totalEpisodes={totalEpisodes}
+                  onStartChange={setStartDetailId}
+                  onEndChange={setEndDetailId}
+                  onStartRangeChange={setStartRange}
+                  onEndRangeChange={setEndRange}
+                  loading={loading}
+                  error={null}
+                />
+              </>
             )}
       </DialogContent>
       <DialogFooter>

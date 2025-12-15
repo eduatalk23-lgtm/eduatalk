@@ -50,9 +50,25 @@ export function StudentContentsPanel({
   const maxReached = currentTotal >= maxContents;
   const canAddMore = !maxReached;
 
+  // 메타데이터 업데이트 헬퍼 함수
+  const updateContentMetadata = useCallback(
+    (contentId: string, updater: (content: SelectedContent) => SelectedContent) => {
+      onUpdate((prevContents) => {
+        const index = prevContents.findIndex((c) => c.content_id === contentId);
+        if (index >= 0) {
+          const newContents = [...prevContents];
+          newContents[index] = updater(newContents[index]);
+          return newContents;
+        }
+        return prevContents;
+      });
+    },
+    [onUpdate]
+  );
+
   // 콘텐츠 선택/해제
   const handleContentSelect = useCallback(
-    async (contentId: string, type: "book" | "lecture" | "custom") => {
+    (contentId: string, type: "book" | "lecture" | "custom") => {
       if (!editable) return;
 
       // 이미 선택된 경우 무시
@@ -109,21 +125,7 @@ export function StudentContentsPanel({
         return;
       }
 
-      // 메타데이터 조회 (이미 캐시에 있으면 재사용)
-      let metadata = metadataCache.get(contentId);
-      if (!metadata) {
-        try {
-          const result = await fetchContentMetadataAction(contentId, type);
-          if (result.success && result.data) {
-            metadata = result.data;
-            setMetadataCache((prev) => new Map(prev).set(contentId, metadata!));
-          }
-        } catch (error) {
-          console.error("[StudentContentsPanel] 메타데이터 조회 실패:", error);
-        }
-      }
-
-      // 범위 설정 모달 열기
+      // 콘텐츠 정보 가져오기
       const content =
         type === "book"
           ? contents.books.find((b) => b.id === contentId)
@@ -131,6 +133,68 @@ export function StudentContentsPanel({
 
       if (!content) return;
 
+      // Optimistic UI: 즉시 임시 데이터로 추가
+      const tempContent: SelectedContent = {
+        content_type: type,
+        content_id: contentId,
+        start_range: 1, // 기본값
+        end_range: 100, // 기본값
+        title: content.title,
+        master_content_id: content.master_content_id || undefined,
+        isLoadingMetadata: true, // 메타데이터 로딩 중 플래그
+      };
+
+      // 즉시 UI 업데이트
+      const updated = [...selectedContents, tempContent];
+      onUpdate(updated);
+
+      // 백그라운드에서 메타데이터 조회
+      // 캐시 확인
+      const cachedMetadata = metadataCache.get(contentId);
+      if (cachedMetadata) {
+        // 캐시에 있으면 즉시 업데이트
+        updateContentMetadata(contentId, (content) => ({
+          ...content,
+          subject_category: cachedMetadata.subject || content.subject_category,
+          isLoadingMetadata: false,
+        }));
+        setMetadataCache((prev) => new Map(prev).set(contentId, cachedMetadata));
+      } else {
+        // 캐시에 없으면 서버에서 조회
+        fetchContentMetadataAction(contentId, type)
+          .then((result) => {
+            if (result.success && result.data) {
+              const metadata = result.data;
+              // 메타데이터 캐시에 저장
+              setMetadataCache((prev) => new Map(prev).set(contentId, metadata));
+
+              // 해당 항목의 메타데이터만 업데이트
+              updateContentMetadata(contentId, (content) => ({
+                ...content,
+                subject_category: metadata.subject || content.subject_category,
+                isLoadingMetadata: false,
+              }));
+            } else {
+              // 메타데이터 조회 실패
+              updateContentMetadata(contentId, (content) => ({
+                ...content,
+                isLoadingMetadata: false,
+                metadataError: result.error || "메타데이터를 불러올 수 없습니다.",
+              }));
+            }
+          })
+          .catch((error) => {
+            console.error("[StudentContentsPanel] 메타데이터 조회 실패:", error);
+            // 에러 처리
+            updateContentMetadata(contentId, (content) => ({
+              ...content,
+              isLoadingMetadata: false,
+              metadataError: "메타데이터를 불러올 수 없습니다.",
+            }));
+          });
+      }
+
+      // 범위 설정 모달 즉시 열기
       setRangeModalContent({
         id: contentId,
         type,
@@ -146,6 +210,7 @@ export function StudentContentsPanel({
       editable,
       metadataCache,
       selectedContents,
+      updateContentMetadata,
     ]
   );
 
@@ -265,6 +330,8 @@ export function StudentContentsPanel({
             start_detail_id: content.start_detail_id,
             end_detail_id: content.end_detail_id,
           }}
+          isLoadingMetadata={content.isLoadingMetadata}
+          metadataError={content.metadataError}
           onRemove={() => handleContentRemove(content.content_id)}
           onEditRange={() => handleEditRange(content)}
         />

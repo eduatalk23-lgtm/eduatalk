@@ -5,7 +5,6 @@ import {
   Calendar,
   Clock,
   AlertCircle,
-  Loader2,
   ChevronDown,
   ChevronUp,
   XCircle,
@@ -26,6 +25,8 @@ import type {
 import { getDefaultBlocks } from "@/lib/utils/defaultBlockSet";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { TimelineBar } from "../Step7ScheduleResult/TimelineBar";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { Skeleton } from "@/components/atoms/Skeleton";
 
 type SchedulePreviewPanelProps = {
   data: WizardData;
@@ -163,7 +164,68 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
     campTemplateId,
   ]);
 
-  // 스케줄 계산 (debounced)
+  // 스케줄 계산 파라미터를 debounce (750ms)
+  const debouncedScheduleParams = useDebounce(scheduleParams, 750);
+
+  // 값 비교 헬퍼 함수 (메모이제이션)
+  const compareScheduleData = useCallback(
+    (
+      newSummary: ScheduleAvailabilityResult["summary"],
+      newDailySchedule: DailySchedule[],
+      oldSummary: WizardData["schedule_summary"],
+      oldDailySchedule: WizardData["daily_schedule"]
+    ): boolean => {
+      // summary 비교
+      if (
+        !oldSummary ||
+        newSummary.total_days !== oldSummary.total_days ||
+        newSummary.total_study_days !== oldSummary.total_study_days ||
+        newSummary.total_review_days !== oldSummary.total_review_days ||
+        Math.round(newSummary.total_study_hours) !== Math.round(oldSummary.total_study_hours)
+      ) {
+        return true;
+      }
+
+      // daily_schedule 길이 비교
+      if (!oldDailySchedule || newDailySchedule.length !== oldDailySchedule.length) {
+        return true;
+      }
+
+      // daily_schedule 내용 비교 (첫 번째와 마지막 날짜만 확인하여 성능 최적화)
+      if (oldDailySchedule.length > 0) {
+        const firstNew = newDailySchedule[0];
+        const firstOld = oldDailySchedule[0];
+        const lastNew = newDailySchedule[newDailySchedule.length - 1];
+        const lastOld = oldDailySchedule[oldDailySchedule.length - 1];
+
+        if (
+          firstNew.date !== firstOld.date ||
+          firstNew.day_type !== firstOld.day_type ||
+          lastNew.date !== lastOld.date ||
+          lastNew.day_type !== lastOld.day_type
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    },
+    []
+  );
+
+  // data의 schedule_summary와 daily_schedule을 useRef로 안정화 (비교용)
+  const scheduleDataRef = useRef({
+    schedule_summary: data.schedule_summary,
+    daily_schedule: data.daily_schedule,
+  });
+  useEffect(() => {
+    scheduleDataRef.current = {
+      schedule_summary: data.schedule_summary,
+      daily_schedule: data.daily_schedule,
+    };
+  }, [data.schedule_summary, data.daily_schedule]);
+
+  // 스케줄 계산
   const calculateSchedule = useCallback(
     async (params: ScheduleCalculationParams) => {
       setLoading(true);
@@ -175,10 +237,13 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
         if (cached) {
           setResult(cached);
           // 값 비교 후 업데이트
-          const hasChanged =
-            JSON.stringify(cached.summary) !== JSON.stringify(data.schedule_summary) ||
-            JSON.stringify(cached.daily_schedule) !== JSON.stringify(data.daily_schedule);
-          
+          const hasChanged = compareScheduleData(
+            cached.summary,
+            cached.daily_schedule,
+            scheduleDataRef.current.schedule_summary,
+            scheduleDataRef.current.daily_schedule
+          );
+
           if (hasChanged) {
             onUpdateRef.current({
               schedule_summary: cached.summary,
@@ -277,10 +342,13 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
 
         setResult(result);
         // 값 비교 후 업데이트
-        const hasChanged =
-          JSON.stringify(result.summary) !== JSON.stringify(data.schedule_summary) ||
-          JSON.stringify(result.daily_schedule) !== JSON.stringify(data.daily_schedule);
-        
+        const hasChanged = compareScheduleData(
+          result.summary,
+          result.daily_schedule,
+          scheduleDataRef.current.schedule_summary,
+          scheduleDataRef.current.daily_schedule
+        );
+
         if (hasChanged) {
           onUpdateRef.current({
             schedule_summary: result.summary,
@@ -298,31 +366,26 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
       }
     },
     [
-      // onUpdate 제거 (onUpdateRef 사용)
       selectedBlockSetBlocks,
       isTemplateMode,
       isCampMode,
       campTemplateId,
-      data.schedule_summary, // 비교를 위해 추가
-      data.daily_schedule, // 비교를 위해 추가
+      data.additional_period_reallocation,
+      compareScheduleData,
     ]
   );
 
-  // 파라미터 변경 시 재계산 (debounce 1000ms)
+  // debounced 파라미터 변경 시 재계산
   useEffect(() => {
-    if (!scheduleParams) {
+    if (!debouncedScheduleParams) {
       setLoading(false);
       setResult(null);
       setError(null);
       return;
     }
 
-    const timer = setTimeout(() => {
-      calculateSchedule(scheduleParams);
-    }, 1000); // 500ms → 1000ms로 증가
-
-    return () => clearTimeout(timer);
-  }, [scheduleParams, calculateSchedule]);
+    calculateSchedule(debouncedScheduleParams);
+  }, [debouncedScheduleParams, calculateSchedule]);
 
   // 주차별 그룹화 및 통계 계산 (메모이제이션)
   const weeklySchedules = useMemo(() => {
@@ -421,10 +484,57 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <div className="flex items-center justify-center gap-3 py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-          <span className="text-sm text-gray-600">스케줄 계산 중...</span>
+      <div className="flex flex-col gap-6">
+        {/* 헤더 스켈레톤 */}
+        <div className="flex flex-col gap-1">
+          <Skeleton variant="text" height={28} width="200px" />
+          <Skeleton variant="text" height={16} width="300px" />
+        </div>
+
+        {/* 요약 통계 스켈레톤 */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4"
+            >
+              <Skeleton variant="rectangular" height={20} width="60px" />
+              <Skeleton variant="text" height={32} width="40px" />
+              <Skeleton variant="text" height={14} width="20px" />
+            </div>
+          ))}
+        </div>
+
+        {/* 주차별 스케줄 스켈레톤 */}
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+          <Skeleton variant="text" height={20} width="120px" />
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, weekIndex) => (
+              <div
+                key={weekIndex}
+                className="border border-gray-200 rounded-lg overflow-hidden"
+              >
+                <div className="w-full flex items-center justify-between p-4 bg-gray-50">
+                  <Skeleton variant="text" height={20} width="150px" />
+                  <Skeleton variant="rectangular" height={20} width={20} />
+                </div>
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 3 }).map((_, dayIndex) => (
+                    <div
+                      key={dayIndex}
+                      className="flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white"
+                    >
+                      <div className="flex items-center justify-between">
+                        <Skeleton variant="text" height={20} width="200px" />
+                        <Skeleton variant="text" height={16} width="60px" />
+                      </div>
+                      <Skeleton variant="rectangular" height={40} width="100%" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
