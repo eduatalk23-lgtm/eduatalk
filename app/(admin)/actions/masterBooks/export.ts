@@ -71,7 +71,7 @@ export async function exportMasterBooksToExcel(): Promise<Buffer> {
     })),
   };
 
-  return exportToExcel(sheets);
+  return await exportToExcel(sheets);
 }
 
 /**
@@ -126,6 +126,6 @@ export async function downloadMasterBooksTemplate(): Promise<Buffer> {
   };
 
   const { generateTemplateExcel } = await import("@/lib/utils/excel");
-  return generateTemplateExcel(sheets);
+  return await generateTemplateExcel(sheets);
 }
 

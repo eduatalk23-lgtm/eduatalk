@@ -89,7 +89,7 @@ export async function exportSubjectsToExcel(): Promise<Buffer> {
     })),
   };
 
-  return exportToExcel(sheets);
+  return await exportToExcel(sheets);
 }
 
 /**
@@ -141,6 +141,6 @@ export async function downloadSubjectsTemplate(): Promise<Buffer> {
   };
 
   const { generateTemplateExcel } = await import("@/lib/utils/excel");
-  return generateTemplateExcel(sheets);
+  return await generateTemplateExcel(sheets);
 }
 

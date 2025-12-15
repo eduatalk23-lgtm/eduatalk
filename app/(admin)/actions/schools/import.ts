@@ -56,7 +56,7 @@ export async function importSchoolsFromExcel(
   }
 
   // Excel 파일 검증
-  const validation = validateExcelFile(buffer, ["schools"]);
+  const validation = await validateExcelFile(buffer, ["schools"]);
   if (!validation.valid) {
     return {
       success: false,
@@ -65,7 +65,7 @@ export async function importSchoolsFromExcel(
   }
 
   // Excel 파일 파싱
-  const sheets = parseExcelFile(buffer);
+  const sheets = await parseExcelFile(buffer);
   const errors: string[] = [];
 
   try {

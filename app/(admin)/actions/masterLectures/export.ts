@@ -52,7 +52,7 @@ export async function exportMasterLecturesToExcel(): Promise<Buffer> {
     })),
   };
 
-  return exportToExcel(sheets);
+  return await exportToExcel(sheets);
 }
 
 /**
@@ -88,6 +88,6 @@ export async function downloadMasterLecturesTemplate(): Promise<Buffer> {
   };
 
   const { generateTemplateExcel } = await import("@/lib/utils/excel");
-  return generateTemplateExcel(sheets);
+  return await generateTemplateExcel(sheets);
 }
 

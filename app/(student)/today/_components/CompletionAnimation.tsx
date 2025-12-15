@@ -1,9 +1,9 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Sparkles } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
+import dynamic from "next/dynamic";
 
 const CONFETTI_COLORS = [
   "bg-pink-400",
@@ -23,35 +23,47 @@ type CompletionAnimationProps = {
   onAnimationComplete?: () => void;
 };
 
-export function CompletionAnimation({
+// framer-motion을 dynamic import로 로드
+function CompletionAnimationContent({
   show,
   planTitle = "학습 플랜",
   studyDuration,
   onAnimationComplete,
-}: CompletionAnimationProps) {
-  const [confetti, setConfetti] = useState<
-    Array<{ id: number; x: number; delay: number; colorIndex: number }>
-  >([]);
+  confetti,
+}: CompletionAnimationProps & {
+  confetti: Array<{ id: number; x: number; delay: number; colorIndex: number }>;
+}) {
+  const [motionComponents, setMotionComponents] = useState<{
+    motion: typeof import("framer-motion").motion;
+    AnimatePresence: typeof import("framer-motion").AnimatePresence;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (show) {
-      // 컨페티 생성
-      const items = Array.from({ length: 20 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        delay: Math.random() * 0.3,
-        colorIndex: i % CONFETTI_COLORS.length,
-      }));
-      setConfetti(items);
-
-      // 3초 후 애니메이션 완료 콜백
-      const timer = setTimeout(() => {
-        onAnimationComplete?.();
-      }, 3000);
-
-      return () => clearTimeout(timer);
+    if (show && !motionComponents) {
+      // framer-motion을 동적으로 로드
+      import("framer-motion")
+        .then((mod) => {
+          setMotionComponents({
+            motion: mod.motion,
+            AnimatePresence: mod.AnimatePresence,
+          });
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error("[CompletionAnimation] framer-motion 로드 실패", error);
+          setLoading(false);
+        });
+    } else if (!show) {
+      setLoading(false);
     }
-  }, [show, onAnimationComplete]);
+  }, [show, motionComponents]);
+
+  if (!show || loading || !motionComponents) {
+    return null;
+  }
+
+  const { motion, AnimatePresence } = motionComponents;
 
   return (
     <AnimatePresence>
@@ -149,6 +161,47 @@ export function CompletionAnimation({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+export function CompletionAnimation({
+  show,
+  planTitle = "학습 플랜",
+  studyDuration,
+  onAnimationComplete,
+}: CompletionAnimationProps) {
+  const [confetti, setConfetti] = useState<
+    Array<{ id: number; x: number; delay: number; colorIndex: number }>
+  >([]);
+
+  useEffect(() => {
+    if (show) {
+      // 컨페티 생성
+      const items = Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        delay: Math.random() * 0.3,
+        colorIndex: i % CONFETTI_COLORS.length,
+      }));
+      setConfetti(items);
+
+      // 3초 후 애니메이션 완료 콜백
+      const timer = setTimeout(() => {
+        onAnimationComplete?.();
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [show, onAnimationComplete]);
+
+  return (
+    <CompletionAnimationContent
+      show={show}
+      planTitle={planTitle}
+      studyDuration={studyDuration}
+      onAnimationComplete={onAnimationComplete}
+      confetti={confetti}
+    />
   );
 }
 

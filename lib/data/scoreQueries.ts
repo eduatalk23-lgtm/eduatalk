@@ -98,8 +98,13 @@ export async function getTermScores(
 }
 
 /**
- * 학생의 모든 학기 성적 조회
- * 
+ * 학생의 모든 학기 성적 조회 (최적화 버전)
+ *
+ * N+1 쿼리 문제를 해결하기 위해 3개의 쿼리만 실행합니다:
+ * 1. 모든 student_terms 조회
+ * 2. 모든 내신 성적 조회 (IN 조건)
+ * 3. 모든 모의고사 성적 조회 (IN 조건)
+ *
  * @param studentId - 학생 ID
  * @param tenantId - 테넌트 ID
  * @returns 학기별 성적 리스트
@@ -133,31 +138,55 @@ export async function getAllTermScores(
     return [];
   }
 
-  // 2. 각 학기별로 내신 성적과 모의고사 성적 조회
-  const results = await Promise.all(
-    terms.map(async (term) => {
-      // 내신 성적 조회
-      const { data: internalScores } = await supabase
-        .from("student_internal_scores")
-        .select("*")
-        .eq("student_term_id", term.id)
-        .order("created_at", { ascending: false });
+  const termIds = terms.map((term) => term.id);
 
-      // 모의고사 성적 조회 (student_term_id가 있는 경우만)
-      const { data: mockScores } = await supabase
-        .from("student_mock_scores")
-        .select("*")
-        .eq("student_term_id", term.id)
-        .order("exam_date", { ascending: false });
+  // 2. 모든 내신 성적과 모의고사 성적을 병렬로 조회 (단 2개의 추가 쿼리)
+  const [internalResult, mockResult] = await Promise.all([
+    supabase
+      .from("student_internal_scores")
+      .select("*")
+      .in("student_term_id", termIds)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("student_mock_scores")
+      .select("*")
+      .in("student_term_id", termIds)
+      .order("exam_date", { ascending: false }),
+  ]);
 
-      return {
-        term: term as Tables<"student_terms">,
-        internalScores: (internalScores as Tables<"student_internal_scores">[]) ?? [],
-        mockScores: (mockScores as Tables<"student_mock_scores">[]) ?? [],
-      };
-    })
-  );
+  if (internalResult.error) {
+    console.error("[data/scoreQueries] 내신 성적 조회 실패", internalResult.error);
+  }
+  if (mockResult.error) {
+    console.error("[data/scoreQueries] 모의고사 성적 조회 실패", mockResult.error);
+  }
 
-  return results;
+  const allInternalScores = (internalResult.data ?? []) as Tables<"student_internal_scores">[];
+  const allMockScores = (mockResult.data ?? []) as Tables<"student_mock_scores">[];
+
+  // 3. 학기별로 성적 그룹화 (JavaScript에서 O(n) 처리)
+  const internalByTermId = new Map<string, Tables<"student_internal_scores">[]>();
+  const mockByTermId = new Map<string, Tables<"student_mock_scores">[]>();
+
+  for (const score of allInternalScores) {
+    if (!score.student_term_id) continue;
+    const existing = internalByTermId.get(score.student_term_id) ?? [];
+    existing.push(score);
+    internalByTermId.set(score.student_term_id, existing);
+  }
+
+  for (const score of allMockScores) {
+    if (!score.student_term_id) continue;
+    const existing = mockByTermId.get(score.student_term_id) ?? [];
+    existing.push(score);
+    mockByTermId.set(score.student_term_id, existing);
+  }
+
+  // 4. 결과 조합
+  return terms.map((term) => ({
+    term: term as Tables<"student_terms">,
+    internalScores: internalByTermId.get(term.id) ?? [],
+    mockScores: mockByTermId.get(term.id) ?? [],
+  }));
 }
 

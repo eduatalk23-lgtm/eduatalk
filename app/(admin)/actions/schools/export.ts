@@ -53,7 +53,7 @@ export async function exportSchoolsToExcel(): Promise<Buffer> {
     })),
   };
 
-  return exportToExcel(sheets);
+  return await exportToExcel(sheets);
 }
 
 /**
@@ -89,6 +89,6 @@ export async function downloadSchoolsTemplate(): Promise<Buffer> {
   };
 
   const { generateTemplateExcel } = await import("@/lib/utils/excel");
-  return generateTemplateExcel(sheets);
+  return await generateTemplateExcel(sheets);
 }
 

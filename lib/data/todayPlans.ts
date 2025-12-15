@@ -370,36 +370,40 @@ export async function getTodayPlans(
   let isToday = targetDate === todayDate;
 
   // 오늘 플랜이 없으면 가장 가까운 미래 날짜의 플랜 찾기
+  // 최적화: 30일/180일 범위를 병렬로 조회하여 순차 대기 시간 제거
   if (!requestedDateParam && plans.length === 0) {
     const shortRangeEndDate = new Date(today);
     shortRangeEndDate.setDate(shortRangeEndDate.getDate() + 30);
     const shortRangeEndDateStr = shortRangeEndDate.toISOString().slice(0, 10);
 
-    let futurePlans = await getPlansFromView({
-      studentId,
-      tenantId,
-      dateRange: {
-        start: todayDate,
-        end: shortRangeEndDateStr,
-      },
-      planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
-    });
+    const longRangeEndDate = new Date(today);
+    longRangeEndDate.setDate(longRangeEndDate.getDate() + 180);
+    const longRangeEndDateStr = longRangeEndDate.toISOString().slice(0, 10);
 
-    if (futurePlans.length === 0) {
-      const longRangeEndDate = new Date(today);
-      longRangeEndDate.setDate(longRangeEndDate.getDate() + 180);
-      const longRangeEndDateStr = longRangeEndDate.toISOString().slice(0, 10);
-
-      futurePlans = await getPlansFromView({
+    // 병렬로 30일, 180일 범위 동시 조회
+    const [shortRangePlans, longRangePlans] = await Promise.all([
+      getPlansFromView({
         studentId,
         tenantId,
         dateRange: {
           start: todayDate,
+          end: shortRangeEndDateStr,
+        },
+        planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
+      }),
+      getPlansFromView({
+        studentId,
+        tenantId,
+        dateRange: {
+          start: shortRangeEndDateStr, // 30일 이후부터 180일까지만 조회 (중복 방지)
           end: longRangeEndDateStr,
         },
         planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
-      });
-    }
+      }),
+    ]);
+
+    // 30일 내 결과 우선, 없으면 180일 결과 사용
+    const futurePlans = shortRangePlans.length > 0 ? shortRangePlans : longRangePlans;
 
     if (futurePlans.length > 0) {
       const sortedPlans = futurePlans.sort((a, b) => {
@@ -462,8 +466,13 @@ export async function getTodayPlans(
   // 콘텐츠 정보는 View를 통해 조인되어 있음 (today_plan_view)
   // 별도의 콘텐츠 조회 쿼리 불필요 (Application-side Join 제거)
 
-  // 진행률 조회 (최적화: 필요한 콘텐츠만 조회)
-  // 필요한 콘텐츠의 (content_type, content_id) 쌍만 조회
+  // Wave 2: Queries that depend on plans (can run in parallel after plans are loaded)
+  // - progress (narrowed) - for content progress
+  // - activeSessions (narrowed) - for plan execution state
+  // - fullDaySessions (only if includeProgress) - for todayStudyMinutes calculation
+  const planIds = plans.map((p) => p.id);
+  
+  // 진행률 조회를 위한 콘텐츠 키 수집
   const contentKeys = new Set<string>();
   plans.forEach((plan) => {
     if (plan.content_type && plan.content_id) {
@@ -471,83 +480,33 @@ export async function getTodayPlans(
     }
   });
 
-  let progressData: Array<{
-    content_type: string;
-    content_id: string;
-    progress: number | null;
-  }> = [];
-
-  if (contentKeys.size > 0) {
-    // 각 content_type별로 그룹화하여 쿼리
-    const bookProgressIds: string[] = [];
-    const lectureProgressIds: string[] = [];
-    const customProgressIds: string[] = [];
-
-    contentKeys.forEach((key) => {
-      const [type, id] = key.split(":");
-      if (type === "book") bookProgressIds.push(id);
-      else if (type === "lecture") lectureProgressIds.push(id);
-      else if (type === "custom") customProgressIds.push(id);
-    });
-
-    const progressQueries = [];
-    if (bookProgressIds.length > 0) {
-      progressQueries.push(
-        supabase
-          .from("student_content_progress")
-          .select("content_type,content_id,progress")
-          .eq("student_id", studentId)
-          .eq("content_type", "book")
-          .in("content_id", bookProgressIds)
-      );
-    }
-    if (lectureProgressIds.length > 0) {
-      progressQueries.push(
-        supabase
-          .from("student_content_progress")
-          .select("content_type,content_id,progress")
-          .eq("student_id", studentId)
-          .eq("content_type", "lecture")
-          .in("content_id", lectureProgressIds)
-      );
-    }
-    if (customProgressIds.length > 0) {
-      progressQueries.push(
-        supabase
-          .from("student_content_progress")
-          .select("content_type,content_id,progress")
-          .eq("student_id", studentId)
-          .eq("content_type", "custom")
-          .in("content_id", customProgressIds)
-      );
-    }
-
-    if (progressQueries.length > 0) {
-      const results = await Promise.all(progressQueries);
-      results.forEach((result) => {
-        if (result.data) {
-          progressData.push(...result.data);
-        }
-      });
-    }
-  }
-
-  // Step 2: Build progress map (O(n) where n = progress records)
-  const progressMap = new Map<string, number | null>();
-  progressData.forEach((row) => {
-    if (row.content_type && row.content_id) {
-      const key = `${row.content_type}:${row.content_id}`;
-      progressMap.set(key, row.progress ?? null);
-    }
+  const allContentIds: string[] = [];
+  contentKeys.forEach((key) => {
+    const [, id] = key.split(":");
+    if (id) allContentIds.push(id);
   });
 
-  // Wave 2: Queries that depend on plans (can run in parallel after plans are loaded)
-  // - contents (books/lectures/custom) - already parallelized above
-  // - progress (narrowed) - already parallelized above
-  // - activeSessions (narrowed) - for plan execution state
-  // - fullDaySessions (only if includeProgress) - for todayStudyMinutes calculation
-  const planIds = plans.map((p) => p.id);
-  const [activeSessionsResult, fullDaySessionsResult] = await Promise.all([
+  // progress 조회와 sessions 조회를 병렬로 실행
+  const [progressResult, activeSessionsResult, fullDaySessionsResult] = await Promise.all([
+    // Query 0: Progress data (narrowed to content IDs)
+    (async () => {
+      if (allContentIds.length === 0) {
+        return [];
+      }
+      const { data: progressResult, error: progressError } = await supabase
+        .from("student_content_progress")
+        .select("content_type,content_id,progress")
+        .eq("student_id", studentId)
+        .in("content_id", allContentIds);
+
+      if (progressError) {
+        console.error("[data/todayPlans] 진행률 조회 실패", progressError);
+        return [];
+      }
+
+      return progressResult ?? [];
+    })(),
+    // Query 1: Active sessions for plan execution state (narrowed to plan IDs)
     // Query 1: Active sessions for plan execution state (narrowed to plan IDs) - 공통 함수 사용
     (async () => {
       if (planIds.length === 0) {
@@ -585,6 +544,17 @@ export async function getTodayPlans(
         })()
       : Promise.resolve([]),
   ]);
+
+  // Build progress map (O(n) where n = progress records)
+  const progressData = progressResult;
+  const progressMap = new Map<string, number | null>();
+  progressData.forEach((row) => {
+    if (row.content_type && row.content_id) {
+      const key = `${row.content_type}:${row.content_id}`;
+      progressMap.set(key, row.progress ?? null);
+    }
+  });
+
   const activeSessions = activeSessionsResult;
   const fullDaySessions = fullDaySessionsResult;
 

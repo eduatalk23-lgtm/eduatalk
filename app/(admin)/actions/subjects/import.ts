@@ -107,7 +107,7 @@ export async function importSubjectsFromExcel(
   }
 
   // Excel 파일 검증
-  const validation = validateExcelFile(buffer, [
+  const validation = await validateExcelFile(buffer, [
     "curriculum_revisions",
     "subject_groups",
     "subjects",
@@ -121,7 +121,7 @@ export async function importSubjectsFromExcel(
   }
 
   // Excel 파일 파싱
-  const sheets = parseExcelFile(buffer);
+  const sheets = await parseExcelFile(buffer);
   const errors: string[] = [];
 
   try {

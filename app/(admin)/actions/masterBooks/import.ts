@@ -103,7 +103,7 @@ export async function importMasterBooksFromExcel(
   }
 
   // Excel 파일 검증
-  const validation = validateExcelFile(buffer, ["master_books"]);
+  const validation = await validateExcelFile(buffer, ["master_books"]);
   if (!validation.valid) {
     return {
       success: false,
@@ -112,7 +112,7 @@ export async function importMasterBooksFromExcel(
   }
 
   // Excel 파일 파싱
-  const sheets = parseExcelFile(buffer);
+  const sheets = await parseExcelFile(buffer);
   const errors: string[] = [];
 
   try {

@@ -1,16 +1,16 @@
 /**
  * Excel 파일 처리 유틸리티
- * xlsx 라이브러리를 사용하여 Excel 파일을 읽고 쓸 수 있는 함수들을 제공합니다.
+ * xlsx 라이브러리를 동적으로 로드하여 Excel 파일을 읽고 쓸 수 있는 함수들을 제공합니다.
+ * 관리자 기능에서만 사용되므로 dynamic import로 번들 크기 최적화
  */
-
-import * as XLSX from "xlsx";
 
 /**
  * 데이터를 Excel 파일로 변환하여 Buffer 반환
  * @param sheets 시트별 데이터 (시트명: 데이터 배열)
  * @returns Excel 파일 Buffer
  */
-export function exportToExcel(sheets: Record<string, any[]>): Buffer {
+export async function exportToExcel(sheets: Record<string, any[]>): Promise<Buffer> {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
 
   // 각 시트를 워크북에 추가
@@ -40,9 +40,10 @@ export function exportToExcel(sheets: Record<string, any[]>): Buffer {
  * @param fileBuffer Excel 파일 Buffer
  * @returns 시트별 데이터 (시트명: 데이터 배열)
  */
-export function parseExcelFile(
+export async function parseExcelFile(
   fileBuffer: Buffer
-): Record<string, any[]> {
+): Promise<Record<string, any[]>> {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.read(fileBuffer, { type: "buffer" });
   const result: Record<string, any[]> = {};
 
@@ -65,11 +66,12 @@ export function parseExcelFile(
  * @param requiredSheets 필수 시트명 배열
  * @returns 검증 결과
  */
-export function validateExcelFile(
+export async function validateExcelFile(
   fileBuffer: Buffer,
   requiredSheets: string[] = []
-): { valid: boolean; error?: string } {
+): Promise<{ valid: boolean; error?: string }> {
   try {
+    const XLSX = await import("xlsx");
     const workbook = XLSX.read(fileBuffer, { type: "buffer" });
 
     // 필수 시트 확인
@@ -99,9 +101,10 @@ export function validateExcelFile(
  * @param sheets 시트별 헤더 정보 (시트명: 헤더 배열)
  * @returns Excel 파일 Buffer
  */
-export function generateTemplateExcel(
+export async function generateTemplateExcel(
   sheets: Record<string, string[]>
-): Buffer {
+): Promise<Buffer> {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
 
   // 각 시트를 워크북에 추가 (헤더만)
