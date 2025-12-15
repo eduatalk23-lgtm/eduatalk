@@ -9,6 +9,21 @@ import {
   getCurriculumRevisionsAction,
 } from "@/app/(admin)/actions/contentMetadataActions";
 import type { SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
+import { cn } from "@/lib/cn";
+import {
+  textPrimary,
+  textSecondary,
+  textTertiary,
+  bgSurface,
+  borderDefault,
+  borderInput,
+  bgStyles,
+  statusBadgeColors,
+  tableHeaderBase,
+  tableCellBase,
+  tableContainer,
+  divideDefault,
+} from "@/lib/utils/darkMode";
 
 export function SubjectCategoriesManager() {
   const [items, setItems] = useState<SubjectCategory[]>([]);
@@ -124,22 +139,22 @@ export function SubjectCategoriesManager() {
   const filteredItems = items;
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-700">로딩 중...</div>;
+    return <div className={cn("text-center py-8", textSecondary)}>로딩 중...</div>;
   }
 
   return (
     <div className="space-y-4">
       {/* 경고 메시지 */}
-      <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+      <div className="rounded-lg border border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 p-4">
         <div className="flex items-start gap-3">
-          <div className="text-yellow-600">⚠️</div>
+          <div className="text-yellow-600 dark:text-yellow-400">⚠️</div>
           <div className="flex flex-1 flex-col gap-1">
-            <h3 className="text-sm font-semibold text-yellow-800">주의</h3>
-            <p className="text-sm text-yellow-700">
+            <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">주의</h3>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
               이 페이지는 deprecated된 테이블을 사용합니다. 교과 관리는{" "}
               <a
                 href="/admin/subjects"
-                className="font-semibold text-yellow-800 underline hover:text-yellow-900"
+                className="font-semibold text-yellow-800 dark:text-yellow-200 underline hover:text-yellow-900 dark:hover:text-yellow-100"
               >
                 교과/과목 관리 페이지
               </a>
@@ -150,28 +165,28 @@ export function SubjectCategoriesManager() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">교과 관리</h2>
+        <h2 className={cn("text-xl font-semibold", textPrimary)}>교과 관리</h2>
         <button
           onClick={() => {
             setIsCreating(true);
             setEditingId(null);
             setFormData({ name: "", display_order: 0 });
           }}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
         >
           + 추가
         </button>
       </div>
 
       {/* 개정교육과정 필터 */}
-      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4">
-        <label className="block text-sm font-medium text-gray-700">
+      <div className={cn("flex flex-col gap-2 rounded-lg border p-4", borderDefault, bgSurface)}>
+        <label className={cn("block text-sm font-medium", textSecondary)}>
           개정교육과정 필터
         </label>
         <select
           value={selectedRevisionId}
           onChange={(e) => setSelectedRevisionId(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className={cn("w-full rounded-md border px-3 py-2 text-sm", borderInput, bgSurface, textPrimary)}
         >
           <option value="">전체</option>
           {revisions.map((rev) => (
@@ -184,16 +199,16 @@ export function SubjectCategoriesManager() {
 
       {/* 생성 폼 */}
       {isCreating && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className={cn("rounded-lg border p-4", borderDefault, bgSurface)}>
           <div className="grid gap-4 md:grid-cols-4">
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700">
-                개정교육과정 <span className="text-red-500">*</span>
+              <label className={cn("block text-sm font-medium", textSecondary)}>
+                개정교육과정 <span className="text-red-500 dark:text-red-400">*</span>
               </label>
               <select
                 value={selectedRevisionId}
                 onChange={(e) => setSelectedRevisionId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={cn("w-full rounded-md border px-3 py-2 text-sm", borderInput, bgSurface, textPrimary)}
               >
                 <option value="">선택하세요</option>
                 {revisions.map((rev) => (
@@ -204,36 +219,36 @@ export function SubjectCategoriesManager() {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700">이름</label>
+              <label className={cn("block text-sm font-medium", textSecondary)}>이름</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="예: 국어"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={cn("w-full rounded-md border px-3 py-2 text-sm", borderInput, bgSurface, textPrimary)}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700">정렬 순서</label>
+              <label className={cn("block text-sm font-medium", textSecondary)}>정렬 순서</label>
               <input
                 type="number"
                 value={formData.display_order}
                 onChange={(e) =>
                   setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={cn("w-full rounded-md border px-3 py-2 text-sm", borderInput, bgSurface, textPrimary)}
               />
             </div>
             <div className="flex items-end gap-2">
               <button
                 onClick={handleCreate}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
               >
                 저장
               </button>
               <button
                 onClick={cancelEdit}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className={cn("rounded-lg border px-4 py-2 text-sm font-semibold transition", borderInput, bgSurface, textSecondary, "hover:bg-gray-50 dark:hover:bg-gray-700")}
               >
                 취소
               </button>
@@ -243,31 +258,31 @@ export function SubjectCategoriesManager() {
       )}
 
       {/* 목록 */}
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className={cn("rounded-lg border overflow-hidden", borderDefault, bgSurface)}>
+        <table className={cn("min-w-full", divideDefault)}>
+          <thead className={bgStyles.gray}>
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
+              <th className={cn(tableHeaderBase, "px-6")}>
                 개정교육과정
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
+              <th className={cn(tableHeaderBase, "px-6")}>
                 이름
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
+              <th className={cn(tableHeaderBase, "px-6")}>
                 정렬 순서
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600">
+              <th className={cn(tableHeaderBase, "px-6")}>
                 상태
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-600">
+              <th className={cn(tableHeaderBase, "px-6 text-right")}>
                 작업
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className={cn(divideDefault, bgSurface)}>
             {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-700">
+                <td colSpan={5} className={cn(tableCellBase, "px-6 py-8 text-center text-sm", textSecondary)}>
                   데이터가 없습니다.
                 </td>
               </tr>
@@ -275,28 +290,28 @@ export function SubjectCategoriesManager() {
               filteredItems.map((item) =>
                 editingId === item.id ? (
                   <tr key={item.id}>
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className={cn(tableCellBase, "px-6 text-sm", textSecondary)}>
                       -
                     </td>
-                    <td className="px-6 py-4">
+                    <td className={cn(tableCellBase, "px-6")}>
                       <input
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        className={cn("w-full rounded-md border px-3 py-2 text-sm", borderInput, bgSurface, textPrimary)}
                       />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className={cn(tableCellBase, "px-6")}>
                       <input
                         type="number"
                         value={formData.display_order}
                         onChange={(e) =>
                           setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })
                         }
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                        className={cn("w-full rounded-md border px-3 py-2 text-sm", borderInput, bgSurface, textPrimary)}
                       />
                     </td>
-                    <td className="px-6 py-4">
+                    <td className={cn(tableCellBase, "px-6")}>
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -306,24 +321,24 @@ export function SubjectCategoriesManager() {
                               () => loadItems()
                             )
                           }
-                          className="rounded border-gray-300"
+                          className={cn("rounded", borderInput)}
                         />
-                        <span className="text-sm text-gray-700">
+                        <span className={cn("text-sm", textSecondary)}>
                           {item.is_active ? "활성" : "비활성"}
                         </span>
                       </label>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className={cn(tableCellBase, "px-6 text-right")}>
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => handleUpdate(item.id)}
-                          className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                          className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
                         >
                           저장
                         </button>
                         <button
                           onClick={cancelEdit}
-                          className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                          className={cn("rounded-lg border px-3 py-1 text-xs font-semibold transition", borderInput, bgSurface, textSecondary, "hover:bg-gray-50 dark:hover:bg-gray-700")}
                         >
                           취소
                         </button>
@@ -332,33 +347,32 @@ export function SubjectCategoriesManager() {
                   </tr>
                 ) : (
                   <tr key={item.id}>
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className={cn(tableCellBase, "px-6 text-sm", textSecondary)}>
                       -
                     </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{item.display_order}</td>
-                    <td className="px-6 py-4">
+                    <td className={cn(tableCellBase, "px-6 text-sm font-medium", textPrimary)}>{item.name}</td>
+                    <td className={cn(tableCellBase, "px-6 text-sm", textTertiary)}>{item.display_order}</td>
+                    <td className={cn(tableCellBase, "px-6")}>
                       <span
-                        className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                          item.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                        className={cn(
+                          "inline-flex rounded-full px-2 py-1 text-xs font-medium",
+                          item.is_active ? statusBadgeColors.active : statusBadgeColors.inactive
+                        )}
                       >
                         {item.is_active ? "활성" : "비활성"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className={cn(tableCellBase, "px-6 text-right")}>
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => startEdit(item)}
-                          className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                          className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
                         >
                           수정
                         </button>
                         <button
                           onClick={() => handleDelete(item.id)}
-                          className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-700"
+                          className="rounded-lg bg-red-600 dark:bg-red-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-red-700 dark:hover:bg-red-600"
                         >
                           삭제
                         </button>

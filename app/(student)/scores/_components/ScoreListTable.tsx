@@ -5,7 +5,21 @@ import { useState, useMemo, memo } from "react";
 import { getGradeColor } from "@/lib/constants/colors";
 import { Card } from "@/components/molecules/Card";
 import { Badge } from "@/components/atoms";
-import { inlineButtonBase, tableRowBase, divideDefault, textSecondary, textPrimary, textMuted } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
+import {
+  inlineButtonBase,
+  tableRowBase,
+  divideDefault,
+  textSecondary,
+  textPrimary,
+  textTertiary,
+  textMuted,
+  bgSurface,
+  borderDefault,
+  borderInput,
+  bgStyles,
+  tableHeaderBase,
+} from "@/lib/utils/darkMode";
 
 type SchoolScoreRow = {
   id: string;
@@ -111,7 +125,7 @@ function ScoreListTableComponent({
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <span className="text-gray-400">↕</span>;
+      return <span className={textMuted}>↕</span>;
     }
     return sortOrder === "asc" ? <span>↑</span> : <span>↓</span>;
   };
@@ -121,11 +135,16 @@ function ScoreListTableComponent({
       {/* 필터 및 정렬 컨트롤 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">과목 유형:</label>
+          <label className={cn("text-sm font-medium", textSecondary)}>과목 유형:</label>
           <select
             value={filterSubjectType}
             onChange={(e) => setFilterSubjectType(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className={cn(
+              "rounded-lg border px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+              borderInput,
+              bgSurface,
+              textPrimary
+            )}
           >
             <option value="all">전체</option>
             {subjectTypes.map((type) => (
@@ -135,37 +154,49 @@ function ScoreListTableComponent({
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className={cn("flex items-center gap-2 text-sm", textTertiary)}>
           <span>정렬:</span>
           <button
             onClick={() => handleSort("grade")}
-            className={`rounded px-2 py-1 text-xs transition hover:bg-gray-100 ${
-              sortField === "grade" ? "bg-gray-100 font-medium" : ""
-            }`}
+            className={cn(
+              "rounded px-2 py-1 text-xs transition",
+              sortField === "grade"
+                ? "bg-gray-100 dark:bg-gray-800 font-medium"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+            )}
           >
             학년 <SortIcon field="grade" />
           </button>
           <button
             onClick={() => handleSort("semester")}
-            className={`rounded px-2 py-1 text-xs transition hover:bg-gray-100 ${
-              sortField === "semester" ? "bg-gray-100 font-medium" : ""
-            }`}
+            className={cn(
+              "rounded px-2 py-1 text-xs transition",
+              sortField === "semester"
+                ? "bg-gray-100 dark:bg-gray-800 font-medium"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+            )}
           >
             학기 <SortIcon field="semester" />
           </button>
           <button
             onClick={() => handleSort("grade_score")}
-            className={`rounded px-2 py-1 text-xs transition hover:bg-gray-100 ${
-              sortField === "grade_score" ? "bg-gray-100 font-medium" : ""
-            }`}
+            className={cn(
+              "rounded px-2 py-1 text-xs transition",
+              sortField === "grade_score"
+                ? "bg-gray-100 dark:bg-gray-800 font-medium"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+            )}
           >
             등급 <SortIcon field="grade_score" />
           </button>
           <button
             onClick={() => handleSort("raw_score")}
-            className={`rounded px-2 py-1 text-xs transition hover:bg-gray-100 ${
-              sortField === "raw_score" ? "bg-gray-100 font-medium" : ""
-            }`}
+            className={cn(
+              "rounded px-2 py-1 text-xs transition",
+              sortField === "raw_score"
+                ? "bg-gray-100 dark:bg-gray-800 font-medium"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+            )}
           >
             원점수 <SortIcon field="raw_score" />
           </button>
@@ -176,39 +207,39 @@ function ScoreListTableComponent({
       <Card className="hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className={bgStyles.gray}>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <th className={cn(tableHeaderBase, "px-4")}>
                   과목 유형
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <th className={cn(tableHeaderBase, "px-4")}>
                   세부 과목명
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("raw_score")}
-                    className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
                   >
                     원점수 <SortIcon field="raw_score" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("grade_score")}
-                    className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
                   >
                     등급 <SortIcon field="grade_score" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("class_rank")}
-                    className="flex items-center gap-1 hover:text-gray-900 dark:hover:text-gray-100"
+                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
                   >
                     반 석차 <SortIcon field="class_rank" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <th className={cn(tableHeaderBase, "px-4")}>
                   작업
                 </th>
               </tr>
@@ -271,11 +302,11 @@ function ScoreListTableComponent({
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-900">
+                      <span className={cn("text-sm font-semibold", textPrimary)}>
                         {score.subject_name || "-"}
                       </span>
                       {score.subject_type && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                        <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400">
                           {score.subject_type}
                         </span>
                       )}
@@ -291,25 +322,31 @@ function ScoreListTableComponent({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
+                <div className={cn("grid grid-cols-2 gap-3 border-t pt-3", borderDefault)}>
                   <div>
-                    <p className="text-xs text-gray-500">원점수</p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className={cn("text-xs", textMuted)}>원점수</p>
+                    <p className={cn("text-sm font-medium", textPrimary)}>
                       {score.raw_score !== null ? score.raw_score : "-"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">반 석차</p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className={cn("text-xs", textMuted)}>반 석차</p>
+                    <p className={cn("text-sm font-medium", textPrimary)}>
                       {score.class_rank !== null ? `${score.class_rank}등` : "-"}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex gap-2 border-t border-gray-100 pt-3">
+                <div className={cn("flex gap-2 border-t pt-3", borderDefault)}>
                   <Link
                     href={`/scores/school/${grade}/${semester}/${encodeURIComponent(subjectGroup)}/${score.id}/edit`}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                    className={cn(
+                      "flex-1 rounded-lg border px-4 py-2 text-center text-sm font-semibold transition",
+                      borderInput,
+                      bgSurface,
+                      textSecondary,
+                      "hover:bg-gray-50 dark:hover:bg-gray-700"
+                    )}
                   >
                     수정
                   </Link>
@@ -326,7 +363,7 @@ function ScoreListTableComponent({
       {filteredAndSortedScores.length === 0 && (
         <Card>
           <div className="p-8 text-center">
-            <p className="text-sm text-gray-500">
+            <p className={cn("text-sm", textMuted)}>
               {filterSubjectType !== "all"
                 ? "해당 조건에 맞는 성적이 없습니다."
                 : "등록된 성적이 없습니다."}

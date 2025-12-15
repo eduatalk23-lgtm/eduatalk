@@ -6,7 +6,7 @@ import { Moon, Sun } from "lucide-react";
 import Button from "@/components/atoms/Button";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // hydration mismatch 방지
@@ -22,15 +22,20 @@ export function ThemeToggle() {
     );
   }
 
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
+
   return (
     <Button
       variant="ghost"
       size="sm"
       className="w-10 h-10 p-0"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      onClick={toggleTheme}
       aria-label="테마 전환"
+      title={resolvedTheme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
     >
-      {theme === "dark" ? (
+      {resolvedTheme === "dark" ? (
         <Sun className="h-5 w-5" />
       ) : (
         <Moon className="h-5 w-5" />
