@@ -59,9 +59,15 @@ export default function SignupPage() {
 
   // 회원가입 성공 시 리다이렉트
   useEffect(() => {
-    if (state?.redirect && state?.message && !state?.error) {
+    const redirectPath = state?.redirect;
+    if (redirectPath && !state?.error) {
       const timer = setTimeout(() => {
-        router.push(`${state.redirect}?message=${encodeURIComponent(state.message!)}`);
+        // redirect URL에 이미 쿼리 파라미터가 있으면 & 사용, 없으면 ? 사용
+        const separator = redirectPath.includes("?") ? "&" : "?";
+        const redirectUrl = state?.message
+          ? `${redirectPath}${separator}message=${encodeURIComponent(state.message)}`
+          : redirectPath;
+        router.push(redirectUrl);
       }, 500); // 짧은 딜레이로 메시지 표시 후 리다이렉트
       return () => clearTimeout(timer);
     }

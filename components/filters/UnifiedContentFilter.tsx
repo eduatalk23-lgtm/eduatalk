@@ -265,6 +265,7 @@ export function UnifiedContentFilter({
             value={values.curriculum_revision_id || ""}
             onChange={(e) => setValues((prev) => ({ ...prev, curriculum_revision_id: e.target.value }))}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            aria-label="개정교육과정 선택"
           >
             <option value="">전체</option>
             {filterOptions.curriculumRevisions.map((rev) => (
@@ -282,6 +283,7 @@ export function UnifiedContentFilter({
             onChange={(e) => setValues((prev) => ({ ...prev, subject_group_id: e.target.value }))}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             disabled={!values.curriculum_revision_id || loadingGroups}
+            aria-label="교과 선택"
           >
             <option value="">전체</option>
             {loadingGroups ? (
@@ -303,6 +305,7 @@ export function UnifiedContentFilter({
             onChange={(e) => setValues((prev) => ({ ...prev, subject_id: e.target.value }))}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
             disabled={!values.subject_group_id || loadingSubjects}
+            aria-label="과목 선택"
           >
             <option value="">전체</option>
             {loadingSubjects ? (
@@ -328,6 +331,7 @@ export function UnifiedContentFilter({
               value={values.publisher_id || ""}
               onChange={(e) => setValues((prev) => ({ ...prev, publisher_id: e.target.value }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              aria-label="출판사 선택"
             >
               <option value="">전체</option>
               {filterOptions.publishers?.map((publisher) => (
@@ -347,6 +351,7 @@ export function UnifiedContentFilter({
               value={values.platform_id || ""}
               onChange={(e) => setValues((prev) => ({ ...prev, platform_id: e.target.value }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              aria-label="플랫폼 선택"
             >
               <option value="">전체</option>
               {filterOptions.platforms?.map((platform) => (
@@ -366,6 +371,7 @@ export function UnifiedContentFilter({
               value={values.content_type || ""}
               onChange={(e) => setValues((prev) => ({ ...prev, content_type: e.target.value }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              aria-label="콘텐츠 유형 선택"
             >
               <option value="">전체</option>
               <option value="book">책</option>
@@ -384,6 +390,7 @@ export function UnifiedContentFilter({
               value={values.difficulty || ""}
               onChange={(e) => setValues((prev) => ({ ...prev, difficulty: e.target.value }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              aria-label="난이도 선택"
             >
               <option value="">전체</option>
               {filterOptions.difficulties?.map((diff) => (
@@ -420,6 +427,7 @@ export function UnifiedContentFilter({
               value={values.sort || defaultSort}
               onChange={(e) => setValues((prev) => ({ ...prev, sort: e.target.value }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              aria-label="정렬 순서 선택"
             >
               {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>

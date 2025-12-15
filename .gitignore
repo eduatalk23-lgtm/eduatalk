@@ -10,6 +10,9 @@
 !.yarn/releases
 !.yarn/versions
 
+# pnpm
+pnpm-lock.yaml
+
 # testing
 /coverage
 
@@ -31,13 +34,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
-
-# credentials and sensitive information
-docs/credentials.md
-docs/*credentials*.md
-docs/*password*.md
-docs/*secret*.md
+.env
+.env.development*
+.env.test*
+.env.production*
+.env.local*
 
 # vercel
 .vercel
@@ -46,9 +47,16 @@ docs/*secret*.md
 *.tsbuildinfo
 next-env.d.ts
 
-# development tools
-SuperClaude_Framework/
+# vscode
+.vscode/
 
-# repomix analysis outputs
-repomix*.xml
-repomix-phase*.xml
+# Git related
+*.patch
+*.log
+
+# mcp
+.cursor/mcp.json
+.mcp.json
+
+# other
+repomix-output.xml

@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ConsentData, ConsentMetadata, ConsentType } from "@/lib/types/auth";
 
 /**
@@ -6,14 +7,27 @@ import type { ConsentData, ConsentMetadata, ConsentType } from "@/lib/types/auth
  * @param userId 사용자 ID
  * @param consents 약관 동의 데이터
  * @param metadata 선택적 메타데이터 (IP 주소, User Agent)
+ * @param useAdmin 회원가입 시에는 세션이 없으므로 Admin 클라이언트 사용
  */
 export async function saveUserConsents(
   userId: string,
   consents: ConsentData,
-  metadata?: ConsentMetadata
+  metadata?: ConsentMetadata,
+  useAdmin: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 회원가입 시에는 세션이 없으므로 Admin 클라이언트 사용 (RLS 우회)
+    const supabase = useAdmin
+      ? createSupabaseAdminClient()
+      : await createSupabaseServerClient();
+
+    if (!supabase) {
+      console.error("[userConsents] 클라이언트 생성 실패");
+      return {
+        success: false,
+        error: "서버 설정 오류입니다. 관리자에게 문의하세요.",
+      };
+    }
 
     // 약관 동의 데이터를 배열로 변환
     const consentRecords: Array<{

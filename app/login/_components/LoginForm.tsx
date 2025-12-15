@@ -36,7 +36,7 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
     startTransition(async () => {
       try {
         const result = await signIn(formData); // 서버 액션 호출
-        
+
         // 이메일 인증이 필요한 경우
         if (result?.needsEmailVerification) {
           setError(result.error || "이메일 인증이 필요합니다.");
@@ -44,7 +44,7 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
           setVerificationEmail(result.email || emailValue);
           return;
         }
-        
+
         setError(null);
       } catch (err) {
         const errorMessage =
@@ -80,7 +80,7 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]"
+            className="rounded border px-3 py-2 [var(--text-primary)] placeholder:-[var(--text-placeholder)]"
             placeholder="you@example.com"
           />
         </label>
@@ -91,19 +91,24 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
             type="password"
             name="password"
             required
-            className="rounded border px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]"
+            className="rounded border px-3 py-2 [var(--text-primary)] placeholder:-[var(--text-placeholder)]"
             placeholder="••••••••"
           />
         </label>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="rememberMe"
-            className="h-4 w-4 rounded border-gray-300"
-          />
-          <span className="text-neutral-600">자동로그인</span>
-        </label>
+        <div className="flex items-center justify-between text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="rememberMe"
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <span className="text-neutral-600">자동로그인</span>
+          </label>
+          <Link href="/forgot-password" className="text-neutral-500 hover:text-black hover:underline">
+            비밀번호를 잊으셨나요?
+          </Link>
+        </div>
 
         {message && (
           <p className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">
