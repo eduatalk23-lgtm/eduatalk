@@ -19,6 +19,8 @@ import {
 } from "@/lib/constants/planLabels";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { getContainerClass } from "@/lib/constants/layout";
+import { parseCampConfiguration } from "@/lib/camp/campAdapter";
+import { getCampTemplate } from "@/lib/data/campTemplates";
 
 type PlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -162,7 +164,7 @@ export default async function PlanGroupDetailPage({
   const campParam = resolvedSearchParams?.camp;
   const isCampMode = group.plan_type === "camp" || campParam === "true";
 
-  // 캠프 모드일 때 템플릿 블록 세트 정보 조회
+  // 캠프 모드일 때 템플릿 블록 세트 정보 조회 (Adapter 패턴 사용)
   let templateBlocks: Array<{
     id: string;
     day_of_week: number;
@@ -175,364 +177,39 @@ export default async function PlanGroupDetailPage({
   if (isCampMode && group.camp_template_id) {
     try {
       // 템플릿 조회
-      const { data: template, error: templateError } = await supabase
-        .from("camp_templates")
-        .select("template_data")
-        .eq("id", group.camp_template_id)
-        .maybeSingle();
+      const template = await getCampTemplate(group.camp_template_id);
 
-      if (templateError) {
-        // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
-        const errorInfo: Record<string, unknown> = {};
-        
-        try {
-          if (templateError instanceof Error) {
-            errorInfo.message = templateError.message;
-            errorInfo.name = templateError.name;
-            errorInfo.stack = templateError.stack;
-          } else if (typeof templateError === "object" && templateError !== null) {
-            Object.keys(templateError).forEach((key) => {
-              try {
-                errorInfo[key] = (templateError as unknown as Record<string, unknown>)[key];
-              } catch {
-                // 속성 접근 실패 시 무시
-              }
-            });
-          } else {
-            errorInfo.value = String(templateError);
-          }
-          
-          const standardKeys = ["message", "code", "details", "hint", "statusCode"];
-          standardKeys.forEach((key) => {
-            if (key in templateError) {
-              try {
-                errorInfo[key] = (templateError as unknown as Record<string, unknown>)[key];
-              } catch {
-                // 속성 접근 실패 시 무시
-              }
-            }
-          });
-        } catch (extractError) {
-          errorInfo.extractionError = String(extractError);
-          errorInfo.rawError = String(templateError);
-        }
-        
-        if (Object.keys(errorInfo).length === 0) {
-          errorInfo.message = String(templateError);
-        }
-        
-        console.error(
-          "[PlanGroupDetailPage] 템플릿 조회 에러:",
-          errorInfo,
-          {
-            camp_template_id: group.camp_template_id,
-          },
-          "원본 에러:",
-          templateError
-        );
-      } else if (!template) {
+      if (!template) {
         console.warn(
           "[PlanGroupDetailPage] 템플릿을 찾을 수 없음:",
           group.camp_template_id
         );
       } else {
-        // template_data 안전하게 파싱
-        let templateData: any = null;
-        if (template.template_data) {
-          if (typeof template.template_data === "string") {
-            try {
-              templateData = JSON.parse(template.template_data);
-            } catch (parseError) {
-              console.error(
-                "[PlanGroupDetailPage] template_data 파싱 에러:",
-                parseError
-              );
-              templateData = null;
-            }
-          } else {
-            templateData = template.template_data;
-          }
-        }
+        // Adapter 패턴을 사용하여 캠프 설정 파싱
+        const campConfig = await parseCampConfiguration(
+          supabase,
+          group,
+          template,
+          tenantContext?.tenantId || null
+        );
 
-        // block_set_id 찾기: 여러 경로에서 확인
-        let blockSetId: string | null = null;
+        templateBlocks = campConfig.templateBlocks;
+        templateBlockSetName = campConfig.templateBlockSetName;
+        templateBlockSetId = campConfig.templateBlockSetId;
 
-        // 1. scheduler_options에서 template_block_set_id 확인 (campActions.ts에서 저장한 경로 - 우선 확인)
-        if (group.scheduler_options) {
-          let schedulerOptions: any = null;
-          if (typeof group.scheduler_options === "string") {
-            try {
-              schedulerOptions = JSON.parse(group.scheduler_options);
-            } catch (parseError) {
-              console.error(
-                "[PlanGroupDetailPage] scheduler_options 파싱 에러:",
-                parseError
-              );
-            }
-          } else {
-            schedulerOptions = group.scheduler_options;
-          }
-
-          if (schedulerOptions?.template_block_set_id) {
-            blockSetId = schedulerOptions.template_block_set_id;
-            console.log(
-              "[PlanGroupDetailPage] scheduler_options에서 template_block_set_id 발견:",
-              blockSetId
-            );
-          }
-        }
-
-        // 2. 연결 테이블에서 block_set_id 확인 (새로운 방식)
-        if (!blockSetId && group.camp_template_id) {
-          const { data: templateBlockSetLink } = await supabase
-            .from("camp_template_block_sets")
-            .select("tenant_block_set_id")
-            .eq("camp_template_id", group.camp_template_id)
-            .maybeSingle();
-
-          if (templateBlockSetLink) {
-            blockSetId = templateBlockSetLink.tenant_block_set_id;
-            console.log(
-              "[PlanGroupDetailPage] 연결 테이블에서 block_set_id 발견:",
-              blockSetId
-            );
-          }
-        }
-
-        // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
-        if (!blockSetId && templateData?.block_set_id) {
-          blockSetId = templateData.block_set_id;
-          console.log(
-            "[PlanGroupDetailPage] template_data에서 block_set_id 발견 (하위 호환성):",
-            blockSetId
-          );
-        }
-
-        if (blockSetId) {
-          // tenant_block_sets에서 블록 세트 조회 (올바른 테이블 사용)
-          console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 시도:", {
-            block_set_id: blockSetId,
-            template_id: group.camp_template_id,
-            tenant_id: tenantContext?.tenantId,
-          });
-
-          if (!tenantContext?.tenantId) {
-            console.warn("[PlanGroupDetailPage] tenant_id가 없어 블록 세트 조회 불가");
-          } else {
-            const { data: templateBlockSet, error: blockSetError } = await supabase
-              .from("tenant_block_sets")
-              .select("id, name")
-              .eq("id", blockSetId)
-              .eq("tenant_id", tenantContext.tenantId)
-              .maybeSingle();
-
-            console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 결과:", {
-              hasError: !!blockSetError,
-              hasData: !!templateBlockSet,
-              block_set_id: blockSetId,
-              tenant_id: tenantContext.tenantId,
-            });
-
-            if (blockSetError) {
-              // 에러 객체를 여러 방법으로 직렬화 시도
-              let errorStringified = "";
-              let errorSerialized = {};
-              
-              try {
-                errorStringified = JSON.stringify(blockSetError, null, 2);
-              } catch (stringifyError) {
-                errorStringified = `JSON.stringify 실패: ${String(stringifyError)}`;
-              }
-              
-              try {
-                // 순환 참조 문제 해결을 위한 Set
-                const seen = new WeakSet();
-                // 직렬화 가능한 속성만 추출
-                errorSerialized = JSON.parse(JSON.stringify(blockSetError, (key, value) => {
-                  // 순환 참조 방지
-                  if (typeof value === "object" && value !== null) {
-                    if (seen.has(value)) {
-                      return "[Circular]";
-                    }
-                    seen.add(value);
-                  }
-                  // 함수는 문자열로 변환
-                  if (typeof value === "function") {
-                    return `[Function: ${value.name || "anonymous"}]`;
-                  }
-                  return value;
-                }));
-              } catch (serializeError) {
-                errorSerialized = { serializationError: String(serializeError) };
-              }
-              
-              // 다양한 방법으로 에러 정보 추출
-              const errorInfo: Record<string, unknown> = {
-                // 기본 정보
-                errorExists: !!blockSetError,
-                errorType: typeof blockSetError,
-                errorConstructor: blockSetError?.constructor?.name,
-                
-                // 직렬화 결과
-                stringified: errorStringified,
-                serialized: errorSerialized,
-                
-                // 직접 접근
-                directMessage: (blockSetError as any)?.message,
-                directCode: (blockSetError as any)?.code,
-                directDetails: (blockSetError as any)?.details,
-                directHint: (blockSetError as any)?.hint,
-                directStatusCode: (blockSetError as any)?.statusCode,
-                
-                // toString 시도
-                toString: blockSetError?.toString?.(),
-                
-                // Object.keys 시도
-                keys: blockSetError && typeof blockSetError === "object" ? Object.keys(blockSetError) : null,
-                
-                // 모든 속성 시도 (안전하게)
-                allProperties: (() => {
-                  if (blockSetError && typeof blockSetError === "object") {
-                    const props: Record<string, unknown> = {};
-                    try {
-                      for (const key in blockSetError) {
-                        try {
-                          const value = (blockSetError as any)[key];
-                          if (typeof value !== "function") {
-                            props[key] = value;
-                          }
-                        } catch {
-                          props[key] = "[접근 불가]";
-                        }
-                      }
-                    } catch {
-                      // 무시
-                    }
-                    return props;
-                  }
-                  return null;
-                })(),
-              };
-              
-              console.error(
-                "[PlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
-                errorInfo,
-                "\n원본 에러 객체:",
-                blockSetError,
-                "\n에러 타입:",
-                typeof blockSetError,
-                "\n에러 생성자:",
-                blockSetError?.constructor?.name,
-                "\n쿼리 파라미터:",
-                {
-                  block_set_id: blockSetId,
-                  template_id: group.camp_template_id,
-                }
-              );
-            } else if (templateBlockSet) {
-              templateBlockSetId = templateBlockSet.id;
-              templateBlockSetName = templateBlockSet.name;
-              console.log("[PlanGroupDetailPage] 테넌트 블록 세트 조회 성공:", {
-                id: templateBlockSet.id,
-                name: templateBlockSet.name,
-              });
-
-              // tenant_blocks에서 블록 조회
-              const { data: blocks, error: blocksError } = await supabase
-                .from("tenant_blocks")
-                .select("id, day_of_week, start_time, end_time")
-                .eq("tenant_block_set_id", templateBlockSet.id)
-                .order("day_of_week", { ascending: true })
-                .order("start_time", { ascending: true });
-
-              if (blocksError) {
-                // Supabase 에러 객체의 주요 속성 추출 (더 안전한 처리)
-                const errorInfo: Record<string, unknown> = {};
-                
-                try {
-                  if (blocksError instanceof Error) {
-                    errorInfo.message = blocksError.message;
-                    errorInfo.name = blocksError.name;
-                    errorInfo.stack = blocksError.stack;
-                  } else if (typeof blocksError === "object" && blocksError !== null) {
-                    Object.keys(blocksError).forEach((key) => {
-                      try {
-                        errorInfo[key] = (blocksError as unknown as Record<string, unknown>)[key];
-                      } catch {
-                        // 속성 접근 실패 시 무시
-                      }
-                    });
-                  } else {
-                    errorInfo.value = String(blocksError);
-                  }
-                  
-                  const standardKeys = ["message", "code", "details", "hint", "statusCode"];
-                  standardKeys.forEach((key) => {
-                    if (key in blocksError) {
-                      try {
-                        errorInfo[key] = (blocksError as unknown as Record<string, unknown>)[key];
-                      } catch {
-                        // 속성 접근 실패 시 무시
-                      }
-                    }
-                  });
-                } catch (extractError) {
-                  errorInfo.extractionError = String(extractError);
-                  errorInfo.rawError = String(blocksError);
-                }
-                
-                if (Object.keys(errorInfo).length === 0) {
-                  errorInfo.message = String(blocksError);
-                }
-                
-                console.error(
-                  "[PlanGroupDetailPage] 템플릿 블록 조회 에러:",
-                  errorInfo,
-                  {
-                    tenant_block_set_id: templateBlockSet.id,
-                  },
-                  "원본 에러:",
-                  blocksError
-                );
-              } else if (blocks && blocks.length > 0) {
-                templateBlocks = blocks.map((b) => ({
-                  id: b.id,
-                  day_of_week: b.day_of_week,
-                  start_time: b.start_time,
-                  end_time: b.end_time,
-                }));
-                console.log("[PlanGroupDetailPage] 템플릿 블록 조회 성공:", {
-                  count: templateBlocks.length,
-                  blocks: templateBlocks,
-                });
-              } else {
-                console.warn("[PlanGroupDetailPage] 템플릿 블록이 없음:", {
-                  tenant_block_set_id: templateBlockSet.id,
-                });
-              }
-            } else {
-              console.warn(
-                "[PlanGroupDetailPage] 템플릿 블록 세트를 찾을 수 없음:",
-                {
-                  block_set_id: blockSetId,
-                  template_id: group.camp_template_id,
-                }
-              );
-            }
-          }
-        } else {
-          console.warn("[PlanGroupDetailPage] block_set_id를 찾을 수 없음:", {
-            template_id: group.camp_template_id,
-            template_data_has_block_set_id: !!templateData?.block_set_id,
-            scheduler_options_has_template_block_set_id:
-              !!(typeof group.scheduler_options === "object"
-                ? (group.scheduler_options as any)?.template_block_set_id
-                : null),
-          });
-        }
+        console.log("[PlanGroupDetailPage] 캠프 설정 파싱 완료:", {
+          blockSetId: campConfig.blockSetId,
+          templateBlocksCount: templateBlocks.length,
+          templateBlockSetName,
+          templateBlockSetId,
+          isLegacy: campConfig.isLegacy,
+        });
       }
     } catch (error) {
-      console.error("[PlanGroupDetailPage] 템플릿 블록 조회 중 에러:", error);
+      console.error(
+        "[PlanGroupDetailPage] 템플릿 블록 조회 중 에러:",
+        error
+      );
     }
   }
 

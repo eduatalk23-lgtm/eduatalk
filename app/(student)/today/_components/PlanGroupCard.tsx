@@ -36,7 +36,6 @@ type PlanGroupCardProps = {
   memo?: string | null; // 메모 내용
   totalPages?: number; // 콘텐츠 총량 (범위 조정용)
   onViewDetail?: (planNumber: number | null) => void; // 일일 뷰에서 단일 뷰로 전환할 때
-  campMode?: boolean; // 캠프 모드 여부
 };
 
 function PlanGroupCardComponent({
@@ -47,8 +46,9 @@ function PlanGroupCardComponent({
   memo,
   totalPages,
   onViewDetail,
-  campMode = false,
 }: PlanGroupCardProps) {
+  // 캠프 모드는 group.plan_type으로 자동 판단
+  const campMode = group.plan_type === "camp";
   const router = useRouter();
   const timerStore = usePlanTimerStore();
   const { showError } = useToast();

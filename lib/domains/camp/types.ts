@@ -112,3 +112,23 @@ export type CampInvitationActionResult = {
   invitation?: CampInvitation;
 };
 
+// ============================================
+// Adapter 관련 타입
+// ============================================
+
+/**
+ * 캠프 플랜 설정 정보 (campAdapter에서 사용)
+ */
+export type CampPlanConfig = {
+  blockSetId: string | null;
+  templateBlocks: Array<{
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  }>;
+  templateBlockSetName: string | null;
+  templateBlockSetId: string | null;
+  isLegacy: boolean;
+};
+

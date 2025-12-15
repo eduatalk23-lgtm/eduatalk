@@ -13,7 +13,6 @@ type DailyPlanViewProps = {
   memos: Map<number | null, string | null>; // planNumber -> memo
   totalPagesMap: Map<string, number>; // contentKey -> totalPages
   onViewDetail: (planNumber: number | null) => void;
-  campMode?: boolean; // 캠프 모드 여부
 };
 
 export function DailyPlanView({
@@ -23,7 +22,6 @@ export function DailyPlanView({
   memos,
   totalPagesMap,
   onViewDetail,
-  campMode = false,
 }: DailyPlanViewProps) {
   if (groups.length === 0) {
     return (
@@ -62,12 +60,11 @@ export function DailyPlanView({
             memo={memo}
             totalPages={totalPages}
             onViewDetail={onViewDetail}
-            campMode={campMode}
           />
         </div>
       );
     },
-    [sessions, planDate, memos, totalPagesMap, onViewDetail, campMode]
+    [sessions, planDate, memos, totalPagesMap, onViewDetail]
   );
 
   // 플랜 그룹이 10개 이상일 때 가상화 적용

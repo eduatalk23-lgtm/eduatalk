@@ -12,7 +12,8 @@ import {
   statusLabels,
   statusColors,
 } from "@/lib/constants/planLabels";
-import { getCampTemplateImpactSummary } from "@/lib/data/campTemplates";
+import { getCampTemplateImpactSummary, getCampTemplate } from "@/lib/data/campTemplates";
+import { parseCampConfiguration } from "@/lib/camp/campAdapter";
 
 type AdminPlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -127,7 +128,7 @@ export default async function AdminPlanGroupDetailPage({
   // 캠프 모드 확인
   const isCampMode = group.plan_type === "camp";
 
-  // 캠프 모드일 때 템플릿 블록 세트 정보 조회
+  // 캠프 모드일 때 템플릿 블록 세트 정보 조회 (Adapter 패턴 사용)
   let templateBlocks: Array<{
     id: string;
     day_of_week: number;
@@ -139,147 +140,34 @@ export default async function AdminPlanGroupDetailPage({
 
   if (isCampMode && group.camp_template_id) {
     try {
-      // block_set_id 찾기: camp_template_id로 직접 조회 (가장 간단하고 명확한 방법)
-      let blockSetId: string | null = null;
+      // 템플릿 조회
+      const template = await getCampTemplate(group.camp_template_id);
 
-      // 1. 연결 테이블에서 직접 조회 (가장 직접적인 방법)
-      if (group.camp_template_id) {
-        const { data: templateBlockSetLink, error: linkError } = await supabase
-          .from("camp_template_block_sets")
-          .select("tenant_block_set_id")
-          .eq("camp_template_id", group.camp_template_id)
-          .maybeSingle();
+      if (!template) {
+        console.warn(
+          "[AdminPlanGroupDetailPage] 템플릿을 찾을 수 없음:",
+          group.camp_template_id
+        );
+      } else {
+        // Adapter 패턴을 사용하여 캠프 설정 파싱
+        const campConfig = await parseCampConfiguration(
+          supabase,
+          group,
+          template,
+          tenantContext?.tenantId || null
+        );
 
-        if (linkError) {
-          console.error(
-            "[AdminPlanGroupDetailPage] 템플릿 블록 세트 연결 조회 에러:",
-            linkError
-          );
-        } else if (templateBlockSetLink) {
-          blockSetId = templateBlockSetLink.tenant_block_set_id;
-          console.log(
-            "[AdminPlanGroupDetailPage] 연결 테이블에서 block_set_id 발견:",
-            blockSetId
-          );
-        }
-      }
+        templateBlocks = campConfig.templateBlocks;
+        templateBlockSetName = campConfig.templateBlockSetName;
+        templateBlockSetId = campConfig.templateBlockSetId;
 
-      // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
-      if (!blockSetId && group.scheduler_options) {
-        let schedulerOptions: any = null;
-        if (typeof group.scheduler_options === "string") {
-          try {
-            schedulerOptions = JSON.parse(group.scheduler_options);
-          } catch (parseError) {
-            console.error(
-              "[AdminPlanGroupDetailPage] scheduler_options 파싱 에러:",
-              parseError
-            );
-          }
-        } else {
-          schedulerOptions = group.scheduler_options;
-        }
-
-        if (schedulerOptions?.template_block_set_id) {
-          blockSetId = schedulerOptions.template_block_set_id;
-          console.log(
-            "[AdminPlanGroupDetailPage] scheduler_options에서 template_block_set_id 발견 (Fallback):",
-            blockSetId
-          );
-        }
-      }
-
-      // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
-      if (!blockSetId) {
-        const { data: template, error: templateError } = await supabase
-          .from("camp_templates")
-          .select("template_data")
-          .eq("id", group.camp_template_id)
-          .maybeSingle();
-
-        if (!templateError && template?.template_data) {
-          try {
-            let templateData: any = null;
-            if (typeof template.template_data === "string") {
-              templateData = JSON.parse(template.template_data);
-            } else {
-              templateData = template.template_data;
-            }
-
-            if (templateData?.block_set_id) {
-              blockSetId = templateData.block_set_id;
-              console.log(
-                "[AdminPlanGroupDetailPage] template_data에서 block_set_id 발견 (하위 호환성):",
-                blockSetId
-              );
-            }
-          } catch (parseError) {
-            console.error(
-              "[AdminPlanGroupDetailPage] template_data 파싱 에러:",
-              parseError
-            );
-          }
-        }
-      }
-
-      console.log("[AdminPlanGroupDetailPage] 최종 blockSetId:", blockSetId);
-
-      if (blockSetId) {
-        // tenant_block_sets에서 블록 세트 조회 (올바른 테이블 사용)
-        const { data: templateBlockSet, error: blockSetError } = await supabase
-          .from("tenant_block_sets")
-          .select("id, name")
-          .eq("id", blockSetId)
-          .eq("tenant_id", tenantContext.tenantId)
-          .maybeSingle();
-
-        if (blockSetError) {
-          console.error(
-            "[AdminPlanGroupDetailPage] 템플릿 블록 세트 조회 에러:",
-            blockSetError
-          );
-        } else if (templateBlockSet) {
-          templateBlockSetName = templateBlockSet.name;
-          templateBlockSetId = templateBlockSet.id;
-
-          // tenant_blocks 테이블에서 블록 조회 (올바른 테이블 사용)
-          const { data: blocks, error: blocksError } = await supabase
-            .from("tenant_blocks")
-            .select("id, day_of_week, start_time, end_time")
-            .eq("tenant_block_set_id", templateBlockSet.id)
-            .order("day_of_week", { ascending: true })
-            .order("start_time", { ascending: true });
-
-          if (blocksError) {
-            console.error(
-              "[AdminPlanGroupDetailPage] 템플릿 블록 조회 에러:",
-              blocksError
-            );
-          } else if (blocks && blocks.length > 0) {
-            templateBlocks = blocks.map((b) => ({
-              id: b.id,
-              day_of_week: b.day_of_week,
-              start_time: b.start_time,
-              end_time: b.end_time,
-            }));
-
-            console.log(
-              "[AdminPlanGroupDetailPage] 템플릿 블록 조회 성공:",
-              {
-                blockSetName: templateBlockSetName,
-                blockCount: templateBlocks.length,
-              }
-            );
-          } else {
-            console.warn(
-              "[AdminPlanGroupDetailPage] 템플릿 블록이 없음:",
-              {
-                blockSetId: templateBlockSet.id,
-                blockSetName: templateBlockSetName,
-              }
-            );
-          }
-        }
+        console.log("[AdminPlanGroupDetailPage] 캠프 설정 파싱 완료:", {
+          blockSetId: campConfig.blockSetId,
+          templateBlocksCount: templateBlocks.length,
+          templateBlockSetName,
+          templateBlockSetId,
+          isLegacy: campConfig.isLegacy,
+        });
       }
     } catch (error) {
       console.error("[AdminPlanGroupDetailPage] 템플릿 블록 조회 중 에러:", error);
