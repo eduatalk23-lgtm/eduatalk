@@ -662,6 +662,15 @@ export function Step6Simplified({
   const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
   const onEditStep = onEditStepProp ?? (setStep ? (step: 1 | 2 | 4) => setStep(step as any) : undefined);
 
+  // data가 없으면 에러 메시지 표시
+  if (!data) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+        <p className="text-sm text-red-800">데이터를 불러올 수 없습니다.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
@@ -679,7 +688,7 @@ export function Step6Simplified({
         <CollapsibleSection
           title="기본 정보"
           defaultOpen={false}
-          onEdit={() => onEditStep(1)}
+          onEdit={onEditStep ? () => onEditStep(1) : undefined}
           editLabel="Step 1로 돌아가기"
         >
           <BasicInfoSummary data={data} />
@@ -689,7 +698,7 @@ export function Step6Simplified({
         <CollapsibleSection
           title="시간 설정"
           defaultOpen={false}
-          onEdit={() => onEditStep(2)}
+          onEdit={onEditStep ? () => onEditStep(2) : undefined}
           editLabel="Step 2로 돌아가기"
         >
           <TimeSettingsSummary data={data} />
@@ -699,7 +708,7 @@ export function Step6Simplified({
         <CollapsibleSection
           title="콘텐츠 선택"
           defaultOpen={true}
-          onEdit={() => onEditStep(4)}
+          onEdit={onEditStep ? () => onEditStep(4) : undefined}
           editLabel="Step 4로 돌아가기"
         >
           <ContentsSummary data={data} isCampMode={isCampMode} />

@@ -56,14 +56,23 @@ export function Step2TimeSettings({
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
   const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
-  const periodStart = periodStartProp ?? contextData?.period_start;
-  const periodEnd = periodEndProp ?? contextData?.period_end;
+  const periodStart = periodStartProp ?? contextData?.period_start ?? "";
+  const periodEnd = periodEndProp ?? contextData?.period_end ?? "";
   const finalGroupId = groupId ?? draftGroupId ?? undefined;
   const finalOnNavigateToStep = onNavigateToStep 
     ? (step: number | WizardStep) => onNavigateToStep(step as WizardStep)
     : setStep 
     ? (step: number | WizardStep) => setStep(step as WizardStep)
     : () => {}; // fallback to no-op
+
+  // data가 없으면 에러 메시지 표시
+  if (!data) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+        <p className="text-sm text-red-800">데이터를 불러올 수 없습니다.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

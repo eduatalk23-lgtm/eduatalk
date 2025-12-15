@@ -104,6 +104,15 @@ export function Step1BasicInfo({
   const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
   const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
 
+  // data가 없으면 에러 메시지 표시
+  if (!data) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+        <p className="text-sm text-red-800">데이터를 불러올 수 없습니다.</p>
+      </div>
+    );
+  }
+
   // 템플릿 고정 필드 확인
   // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)
   const lockedFields = data.templateLockedFields?.step1 || {};
@@ -115,7 +124,7 @@ export function Step1BasicInfo({
 
   // 템플릿 모드에서 학생 입력 허용 토글 (공통 유틸리티 사용)
   const toggleFieldControl = (fieldName: keyof NonNullable<TemplateLockedFields["step1"]>) => {
-    if (!isTemplateMode) return;
+    if (!isTemplateMode || !data) return;
 
     const currentLocked = data.templateLockedFields?.step1;
     const newLocked = toggleFieldControlUtil(fieldName, currentLocked);
