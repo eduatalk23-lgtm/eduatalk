@@ -26,6 +26,50 @@ type RoleBasedLayoutProps = {
   } | null;
 };
 
+function SharedSidebarContent({
+  role,
+  tenantInfo,
+  isCollapsed,
+  variant = "desktop",
+  onNavigate,
+}: {
+  role: RoleBasedLayoutProps["role"];
+  tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
+  isCollapsed: boolean;
+  variant?: "desktop" | "mobile";
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      {tenantInfo && role !== "superadmin" && (
+        <TenantInfo 
+          tenantInfo={tenantInfo} 
+          isCollapsed={isCollapsed} 
+          variant={variant === "mobile" ? "mobile" : "sidebar"} 
+        />
+      )}
+      <div className={sidebarStyles.navSection}>
+        <CategoryNav
+          role={mapRoleForNavigation(role)}
+          onNavigate={onNavigate}
+        />
+      </div>
+      <div className={sidebarStyles.footer}>
+        <div 
+          className={cn("transition-opacity", isCollapsed && variant === "desktop" && "opacity-0")}
+          aria-hidden={isCollapsed && variant === "desktop"}
+          hidden={isCollapsed && variant === "desktop"}
+        >
+          <div className={layoutStyles.flexBetween}>
+            <SignOutButton />
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function SidebarContent({
   role,
   dashboardHref,
@@ -53,28 +97,13 @@ function SidebarContent({
         />
       </div>
 
-      {/* 기관 정보 (Superadmin 제외 모든 역할) */}
-      {tenantInfo && role !== "superadmin" && (
-        <TenantInfo tenantInfo={tenantInfo} isCollapsed={isCollapsed} variant="sidebar" />
-      )}
-
-      {/* 카테고리 네비게이션 */}
-      <div className={sidebarStyles.navSection}>
-        <CategoryNav
-          role={mapRoleForNavigation(role)}
-          onNavigate={onNavigate}
-        />
-      </div>
-
-      {/* 하단 링크 */}
-      <div className={sidebarStyles.footer}>
-        <div className={cn("transition-opacity", isCollapsed && "opacity-0")}>
-          <div className={layoutStyles.flexBetween}>
-            <SignOutButton />
-            <ThemeToggle />
-          </div>
-        </div>
-      </div>
+      <SharedSidebarContent
+        role={role}
+        tenantInfo={tenantInfo}
+        isCollapsed={isCollapsed}
+        variant="desktop"
+        onNavigate={onNavigate}
+      />
     </>
   );
 }
@@ -163,7 +192,15 @@ function MobileSidebar({
       {/* 오버레이 */}
       {isMobileOpen && (
         <div
-          className={mobileNavStyles.overlay}
+          className={cn(
+            swipeProgress > 0 ? mobileNavStyles.overlaySwipe : mobileNavStyles.overlay,
+            swipeProgress > 0 && "transition-opacity duration-300"
+          )}
+          style={
+            swipeProgress > 0
+              ? { opacity: 0.5 * (1 - swipeProgress) }
+              : undefined
+          }
           onClick={closeMobile}
           aria-hidden="true"
         />
@@ -178,15 +215,19 @@ function MobileSidebar({
         onTouchEnd={onTouchEnd}
         className={cn(
           mobileNavStyles.drawer,
-          "fixed top-0 left-0 h-full w-64 transform",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-        style={{
-          transform: isMobileOpen 
-            ? `translateX(${Math.max(0, -swipeProgress * 100)}%)` 
+          "fixed top-0 left-0 h-full w-64",
+          isMobileOpen 
+            ? swipeProgress > 0 
+              ? "translate-x-[var(--swipe-progress)]" 
+              : "translate-x-0"
             : "-translate-x-full",
-          transition: swipeProgress > 0 ? "none" : undefined,
-        }}
+          swipeProgress === 0 && "transition-transform duration-300 ease-in-out"
+        )}
+        style={
+          isMobileOpen && swipeProgress > 0
+            ? ({ "--swipe-progress": `${Math.max(0, -swipeProgress * 100)}%` } as React.CSSProperties & { "--swipe-progress": string })
+            : undefined
+        }
         role="navigation"
         aria-label="모바일 메뉴"
         aria-hidden={!isMobileOpen}
@@ -210,26 +251,13 @@ function MobileSidebar({
           </div>
         </div>
 
-        {/* 기관 정보 */}
-        {tenantInfo && role !== "superadmin" && (
-          <TenantInfo tenantInfo={tenantInfo} variant="mobile" />
-        )}
-
-        {/* 카테고리 네비게이션 */}
-        <div className={sidebarStyles.navSection}>
-          <CategoryNav
-            role={mapRoleForNavigation(role)}
-            onNavigate={closeMobile}
-          />
-        </div>
-
-        {/* 하단 링크 */}
-        <div className={sidebarStyles.footer}>
-          <div className={layoutStyles.flexBetween}>
-            <SignOutButton />
-            <ThemeToggle />
-          </div>
-        </div>
+        <SharedSidebarContent
+          role={role}
+          tenantInfo={tenantInfo}
+          isCollapsed={false}
+          variant="mobile"
+          onNavigate={closeMobile}
+        />
       </aside>
     </>
   );

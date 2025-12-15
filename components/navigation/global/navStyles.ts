@@ -6,6 +6,40 @@
 import { cn } from "@/lib/cn";
 
 /**
+ * 디자인 시스템 컬러 토큰
+ */
+export const designTokens = {
+  colors: {
+    primary: {
+      50: "bg-indigo-50 dark:bg-indigo-900/30",
+      100: "bg-indigo-100 dark:bg-indigo-900/50",
+      500: "text-indigo-700 dark:text-indigo-300",
+      700: "text-indigo-700 dark:text-indigo-300",
+      800: "text-indigo-800 dark:text-indigo-200",
+      border: "border-indigo-500",
+      borderLight: "border-indigo-200 dark:border-indigo-800",
+    },
+    gray: {
+      50: "bg-gray-50 dark:bg-gray-800",
+      100: "bg-gray-100 dark:bg-gray-800",
+      200: "text-gray-200 dark:text-gray-200",
+      400: "text-gray-400 dark:text-gray-400",
+      500: "text-gray-500 dark:text-gray-400",
+      600: "text-gray-600 dark:text-gray-400",
+      700: "text-gray-700 dark:text-gray-200",
+      800: "bg-gray-800 dark:bg-gray-700",
+      900: "bg-gray-900 dark:bg-gray-100",
+      hoverBg: "hover:bg-gray-100 dark:hover:bg-gray-800",
+      hoverText: "hover:text-gray-900 dark:hover:text-gray-100",
+      hoverBgLight: "hover:bg-gray-50 dark:hover:bg-gray-800",
+    },
+  },
+  focus: {
+    ring: "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+  },
+};
+
+/**
  * 네비게이션 아이템 기본 스타일
  */
 export const navItemStyles = {
@@ -13,13 +47,13 @@ export const navItemStyles = {
   base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
   
   // 포커스 스타일
-  focus: "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+  focus: designTokens.focus.ring,
   
   // 활성 상태
-  active: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-500",
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} border-l-2 ${designTokens.colors.primary.border}`,
   
   // 비활성 상태
-  inactive: "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
+  inactive: `${designTokens.colors.gray[700]} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText}`,
   
   // 축소 모드
   collapsed: "justify-center px-2",
@@ -45,7 +79,7 @@ export const categoryHeaderStyles = {
 export const subItemStyles = {
   base: "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
   focus: navItemStyles.focus,
-  active: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-500",
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} border-l-2 ${designTokens.colors.primary.border}`,
   inactive: navItemStyles.inactive,
 };
 
@@ -55,8 +89,8 @@ export const subItemStyles = {
 export const childItemStyles = {
   base: "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
   focus: navItemStyles.focus,
-  active: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 border-l-2 border-indigo-500",
-  inactive: "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
+  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} border-l-2 ${designTokens.colors.primary.border}`,
+  inactive: `${designTokens.colors.gray[600]} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText}`,
 };
 
 /**
@@ -141,11 +175,11 @@ export function getChildItemClasses({
  * Breadcrumbs 스타일
  */
 export const breadcrumbStyles = {
-  container: "flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700",
+  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm ${designTokens.colors.gray[600]} ${designTokens.colors.gray[50]} border-b border-gray-100 dark:border-gray-700`,
   list: "flex items-center gap-1 flex-wrap max-w-full",
-  separator: "text-gray-400 dark:text-gray-500",
-  link: "hover:text-gray-900 dark:hover:text-gray-100 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px] transition",
-  current: "font-medium text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]",
+  separator: designTokens.colors.gray[400],
+  link: `${designTokens.colors.gray.hoverText} truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px] transition`,
+  current: `font-medium ${designTokens.colors.gray[900]} truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]`,
 };
 
 /**
@@ -185,7 +219,7 @@ export const layoutStyles = {
   transitionAll: "transition-all duration-300 ease-in-out",
   
   // Focus
-  focusRing: "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+  focusRing: designTokens.focus.ring,
 };
 
 /**
@@ -199,7 +233,7 @@ export const sidebarStyles = {
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4}`,
   logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
-  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ${layoutStyles.transition} border border-indigo-200 dark:border-indigo-800 ${layoutStyles.focusRing}`,
+  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary[50]} hover:bg-indigo-100 dark:hover:bg-indigo-900/50 ${designTokens.colors.primary[500]} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
 };
 
 /**

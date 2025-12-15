@@ -81,6 +81,17 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
     }
   }, [activeCategoryInfo]);
 
+  // 카테고리 높이 측정
+  useEffect(() => {
+    const heights = new Map<string, number>();
+    categoryContentRefs.current.forEach((element, categoryId) => {
+      if (element) {
+        heights.set(categoryId, element.scrollHeight);
+      }
+    });
+    setCategoryHeights(heights);
+  }, [expandedCategories, categories]);
+
   const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {
       // 불필요한 업데이트 방지: 이미 포함되어 있고 다른 항목이 없으면 변경하지 않음
@@ -97,13 +108,9 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
     });
   }, []);
 
-  const isCategoryActive = (category: NavigationCategory): boolean => {
-    // activeCategoryInfo를 활용하여 중복 제거
-    if (activeCategoryInfo) {
-      return activeCategoryInfo.category.id === category.id;
-    }
-    return isCategoryPath(safePathname, category, searchParams);
-  };
+  const isCategoryActive = useCallback((category: NavigationCategory): boolean => {
+    return activeCategoryInfo?.category.id === category.id ?? false;
+  }, [activeCategoryInfo]);
 
   const handleLinkClick = useCallback(() => {
     onNavigate?.();
@@ -113,6 +120,10 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
   const categoryRefs = useRef<Map<string, HTMLButtonElement | HTMLAnchorElement>>(new Map());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchStringRef = useRef<string>("");
+  
+  // 카테고리 아이템 컨테이너 높이 측정을 위한 ref
+  const categoryContentRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [categoryHeights, setCategoryHeights] = useState<Map<string, number>>(new Map());
 
   // 타입 검색 기능 (getKeyForSearch)
   const getKeyForSearch = useCallback((search: string, fromKey?: string | null): string | null => {
@@ -123,9 +134,10 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
 
   // 키보드 이벤트 핸들러
   const handleKeyDown = useCallback((e: React.KeyboardEvent, categoryId: string, index: number) => {
-    const categoriesList = Array.from(categories);
-    
-    switch (e.key) {
+    try {
+      const categoriesList = Array.from(categories);
+      
+      switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
         const nextIndex = getNextCategoryIndex(index, categoriesList.length);
@@ -193,6 +205,9 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
           }, 500);
         }
         break;
+      }
+    } catch (error) {
+      console.error("Keyboard navigation error:", error);
     }
   }, [categories, toggleCategory, getKeyForSearch]);
 
@@ -238,9 +253,11 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
               aria-current={singleItemActive ? "page" : undefined}
             >
               {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
-              <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
-                {category.label}
-              </span>
+              {!isCollapsed ? (
+                <span className="transition-opacity">{category.label}</span>
+              ) : (
+                <span className="sr-only">{category.label}</span>
+              )}
             </Link>
           ) : (
             <>
@@ -263,14 +280,17 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
               >
                 <div className="flex items-center gap-2">
                   {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
-                  <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
-                    {category.label}
-                  </span>
+                  {!isCollapsed ? (
+                    <span className="transition-opacity">{category.label}</span>
+                  ) : (
+                    <span className="sr-only">{category.label}</span>
+                  )}
                 </div>
                 {!isCollapsed && (
                   <svg
                     className={cn(
                       "h-4 w-4 transition-transform flex-shrink-0 motion-reduce:transition-none",
+                      isExpanded && "will-change-transform",
                       isExpanded ? "rotate-180" : ""
                     )}
                     fill="none"
@@ -280,7 +300,6 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                     viewBox="0 0 24 24"
                     stroke="currentColor"
                     aria-hidden="true"
-                    style={isExpanded ? { willChange: "transform" } : undefined}
                   >
                     <path d="M19 9l-7 7-7-7" />
                   </svg>
@@ -295,15 +314,24 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
               {/* 카테고리 아이템들 */}
               {!isCollapsed && (
                 <div
+                  ref={(el) => {
+                    if (el) categoryContentRefs.current.set(category.id, el);
+                    else categoryContentRefs.current.delete(category.id);
+                  }}
                   id={`category-items-${category.id}`}
                   className={cn(
                     "flex flex-col gap-1 pl-4 overflow-hidden transition-all duration-300 ease-in-out motion-reduce:transition-none",
-                    isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
+                    isExpanded ? "opacity-100" : "max-h-0 opacity-0",
+                    isExpanded && "will-change-[max-height,opacity]"
                   )}
+                  style={
+                    isExpanded && categoryHeights.has(category.id)
+                      ? { maxHeight: `${categoryHeights.get(category.id)}px` }
+                      : undefined
+                  }
                   role="group"
                   aria-label={`${category.label} 하위 메뉴`}
                   aria-hidden={!isExpanded}
-                  style={isExpanded ? { willChange: "max-height, opacity" } : undefined}
                 >
                     {filterCategoryItemsByRole(category.items, role).map((item) => {
                       const itemActive = isItemActive(safePathname, item, searchParams);
@@ -355,7 +383,20 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
         </div>
       );
     });
-  }, [categories, expandedCategories, activeCategoryInfo, isCollapsed, safePathname, searchParams, role, handleLinkClick, handleKeyDown, toggleCategory, isCategoryActive]);
+  }, [
+    categories, 
+    expandedCategories, 
+    activeCategoryInfo?.category.id, // 전체 객체 대신 ID만
+    isCollapsed, 
+    safePathname, 
+    searchParams, 
+    role, 
+    handleLinkClick, 
+    handleKeyDown, 
+    toggleCategory, 
+    isCategoryActive,
+    categoryHeights,
+  ]);
 
   return (
     <nav className={cn("flex flex-col gap-1", className)} aria-label="메인 네비게이션" role="navigation">
