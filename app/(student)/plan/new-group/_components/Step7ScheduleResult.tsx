@@ -7,6 +7,11 @@ import {
   generatePlansFromGroupAction,
   checkPlansExistAction,
 } from "@/app/(student)/actions/planGroupActions";
+import { 
+  CACHE_STALE_TIME_DYNAMIC, 
+  CACHE_STALE_TIME_STABLE,
+  CACHE_GC_TIME_STABLE 
+} from "@/lib/constants/queryCache";
 import { ScheduleTableView } from "./Step7ScheduleResult/ScheduleTableView";
 import type {
   ContentData,
@@ -31,18 +36,16 @@ export function Step7ScheduleResult({
   const { data: plansCheck, isLoading: isCheckingPlans } = useQuery({
     queryKey: ["plansExist", groupId],
     queryFn: () => checkPlansExistAction(groupId),
-    staleTime: 1000 * 60, // 1분간 캐시 유지
+    staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분간 캐시 유지
   });
 
   // 플랜 생성 뮤테이션
   const generatePlansMutation = useMutation({
     mutationFn: () => generatePlansFromGroupAction(groupId),
     onSuccess: async () => {
-      // 플랜 생성 후 관련 쿼리 캐시 무효화 및 재조회
+      // 플랜 생성 후 관련 쿼리만 무효화 (invalidate만으로 충분, refetchQueries 제거)
       await queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["planSchedule", groupId] });
-      // plansCheck를 즉시 재조회하여 hasPlans 상태 업데이트
-      await queryClient.refetchQueries({ queryKey: ["plansExist", groupId] });
     },
   });
 
@@ -116,8 +119,8 @@ export function Step7ScheduleResult({
       };
     },
     enabled: Boolean(plansCheck?.hasPlans || generatePlansMutation.isSuccess),
-    staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
-    gcTime: 1000 * 60 * 10, // 10분간 메모리 유지
+    staleTime: CACHE_STALE_TIME_STABLE, // 5분간 캐시 유지 (Stable Data)
+    gcTime: CACHE_GC_TIME_STABLE, // 15분간 메모리 유지
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,

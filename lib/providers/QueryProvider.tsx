@@ -19,10 +19,10 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // 서버 상태와의 동기화를 위해 staleTime을 짧게 설정
+            // 서버 상태와의 동기화를 위해 staleTime을 짧게 설정 (Dynamic Data 기준)
             staleTime: 1000 * 60, // 1분
             // 캐시 유지 시간
-            gcTime: 1000 * 60 * 5, // 5분 (이전 cacheTime)
+            gcTime: 1000 * 60 * 10, // 10분 (이전 cacheTime)
             // 재시도 설정
             retry: 1,
             // 에러 발생 시 재시도 전 대기 시간

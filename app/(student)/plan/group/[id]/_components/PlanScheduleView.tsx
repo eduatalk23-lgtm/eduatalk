@@ -4,6 +4,10 @@ import { useImperativeHandle, forwardRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { getScheduleResultDataAction } from "@/app/(student)/actions/planGroupActions";
+import { 
+  CACHE_STALE_TIME_STABLE,
+  CACHE_GC_TIME_STABLE 
+} from "@/lib/constants/queryCache";
 import { ScheduleTableView } from "@/app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import type {
@@ -50,8 +54,8 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
         blocks: result.blocks || [],
       };
     },
-    staleTime: 1000 * 60 * 5, // 5분간 캐시 유지
-    gcTime: 1000 * 60 * 10, // 10분간 메모리 유지
+    staleTime: CACHE_STALE_TIME_STABLE, // 5분간 캐시 유지 (Stable Data)
+    gcTime: CACHE_GC_TIME_STABLE, // 15분간 메모리 유지
     refetchOnWindowFocus: false, // 윈도우 포커스 시 자동 재요청 방지
     refetchOnMount: false, // 마운트 시 자동 재요청 방지 (캐시된 데이터가 있으면 사용)
     refetchOnReconnect: false, // 네트워크 재연결 시 자동 재요청 방지

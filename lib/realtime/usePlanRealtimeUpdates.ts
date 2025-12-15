@@ -37,8 +37,9 @@ export function usePlanRealtimeUpdates({
         },
         (payload) => {
           console.log("[Realtime] Plan updated:", payload);
-          // 플랜 목록 쿼리 무효화
-          queryClient.invalidateQueries({ queryKey: ["plans", planDate] });
+          // 특정 planDate와 userId에 해당하는 플랜 목록 쿼리만 무효화
+          queryClient.invalidateQueries({ queryKey: ["plans", userId, planDate] });
+          // today 관련 쿼리는 부분 매칭으로 무효화
           queryClient.invalidateQueries({ queryKey: ["today", "plans"] });
         }
       )
@@ -57,8 +58,9 @@ export function usePlanRealtimeUpdates({
         },
         (payload) => {
           console.log("[Realtime] Session updated:", payload);
-          // 세션 쿼리 무효화
-          queryClient.invalidateQueries({ queryKey: ["sessions", planDate] });
+          // 특정 planDate와 userId에 해당하는 세션 쿼리만 무효화
+          queryClient.invalidateQueries({ queryKey: ["sessions", userId, planDate] });
+          // today 관련 쿼리는 부분 매칭으로 무효화
           queryClient.invalidateQueries({ queryKey: ["today", "progress"] });
         }
       )

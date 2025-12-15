@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
+import { CACHE_STALE_TIME_DYNAMIC } from "@/lib/constants/queryCache";
 
 type UsePlansOptions = {
   studentId: string;
@@ -26,7 +27,7 @@ export function usePlans({
       });
     },
     enabled,
-    staleTime: 1000 * 30, // 30초
+    staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분 (Dynamic Data)
   });
 }
 
