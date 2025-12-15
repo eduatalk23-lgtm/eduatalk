@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/cn";
 import { getBreadcrumbChain } from "./resolveActiveCategory";
 import type { NavigationRole } from "./categoryConfig";
@@ -46,34 +46,103 @@ export function Breadcrumbs({ role, className, dynamicLabels: propDynamicLabels 
       aria-label="Breadcrumb"
     >
       <ol className={breadcrumbStyles.list}>
-        {enrichedChain.map((item, index) => (
-          <li key={`${item.href}-${index}`} className="flex items-center gap-1 flex-shrink-0">
-            {index > 0 && (
-              <span className={breadcrumbStyles.separator} aria-hidden="true">
-                /
-              </span>
-            )}
-            {index === enrichedChain.length - 1 ? (
-              // 마지막 항목은 현재 페이지 (비활성화)
-              <span
-                className={breadcrumbStyles.current}
-                aria-current="page"
-              >
-                {item.label}
-              </span>
-            ) : (
-              // 나머지 항목은 링크
-              <Link
-                href={item.href}
-                className={breadcrumbStyles.link}
-              >
-                {item.label}
-              </Link>
-            )}
-          </li>
-        ))}
+        {enrichedChain.map((item, index) => {
+          const isLast = index === enrichedChain.length - 1;
+          const isLongLabel = item.label.length > 15;
+          
+          return (
+            <BreadcrumbItem
+              key={`${item.href}-${index}`}
+              item={item}
+              isLast={isLast}
+              isLongLabel={isLongLabel}
+              showSeparator={index > 0}
+            />
+          );
+        })}
       </ol>
     </nav>
+  );
+}
+
+type BreadcrumbItemProps = {
+  item: { label: string; href: string };
+  isLast: boolean;
+  isLongLabel: boolean;
+  showSeparator: boolean;
+};
+
+function BreadcrumbItem({ item, isLast, isLongLabel, showSeparator }: BreadcrumbItemProps) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const itemRef = useRef<HTMLElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useEffect(() => {
+    if (itemRef.current && isLongLabel) {
+      const element = itemRef.current;
+      setIsOverflowing(element.scrollWidth > element.clientWidth);
+    }
+  }, [isLongLabel]);
+
+  const shouldShowTooltip = isLongLabel && isOverflowing;
+
+  const content = (
+    <>
+      {showSeparator && (
+        <span className={breadcrumbStyles.separator} aria-hidden="true">
+          /
+        </span>
+      )}
+      {isLast ? (
+        <span
+          ref={itemRef as React.RefObject<HTMLSpanElement>}
+          className={breadcrumbStyles.current}
+          aria-current="page"
+          onMouseEnter={() => shouldShowTooltip && setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          onFocus={() => shouldShowTooltip && setShowTooltip(true)}
+          onBlur={() => setShowTooltip(false)}
+        >
+          {item.label}
+          {shouldShowTooltip && showTooltip && (
+            <span
+              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none"
+              role="tooltip"
+            >
+              {item.label}
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></span>
+            </span>
+          )}
+        </span>
+      ) : (
+        <Link
+          ref={itemRef as React.RefObject<HTMLAnchorElement>}
+          href={item.href}
+          className={cn(breadcrumbStyles.link, "relative")}
+          onMouseEnter={() => shouldShowTooltip && setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          onFocus={() => shouldShowTooltip && setShowTooltip(true)}
+          onBlur={() => setShowTooltip(false)}
+        >
+          {item.label}
+          {shouldShowTooltip && showTooltip && (
+            <span
+              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none"
+              role="tooltip"
+            >
+              {item.label}
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100"></span>
+            </span>
+          )}
+        </Link>
+      )}
+    </>
+  );
+
+  return (
+    <li className="flex items-center gap-1 flex-shrink-0 relative">
+      {content}
+    </li>
   );
 }
 

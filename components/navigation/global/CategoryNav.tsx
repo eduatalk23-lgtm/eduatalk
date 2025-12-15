@@ -9,6 +9,18 @@ import { resolveActiveCategory, isCategoryPath, isItemActive, type ActiveCategor
 import { useSidebar } from "@/components/layout/SidebarContext";
 import { isCampMode, ensurePathname, getActiveCategoryWithCampMode } from "@/lib/navigation/utils";
 import { getNavItemClasses, getCategoryHeaderClasses, getSubItemClasses, getChildItemClasses, navItemStyles } from "./navStyles";
+import {
+  isSingleItemCategory,
+  getSingleItemHref,
+  isSingleItemActive,
+  getCategoryIndex,
+  getCategoryAriaLabel,
+  getCategoryDescription,
+  getNextCategoryIndex,
+  getPrevCategoryIndex,
+  findCategoryBySearch,
+  filterCategoryItemsByRole,
+} from "./categoryNavUtils";
 
 type CategoryNavProps = {
   role: NavigationRole;
@@ -71,6 +83,10 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
 
   const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {
+      // 불필요한 업데이트 방지: 이미 포함되어 있고 다른 항목이 없으면 변경하지 않음
+      if (prev.has(categoryId) && prev.size === 1) {
+        return prev;
+      }
       const next = new Set(prev);
       if (next.has(categoryId)) {
         next.delete(categoryId);
@@ -95,6 +111,15 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
 
   // 키보드 네비게이션을 위한 ref
   const categoryRefs = useRef<Map<string, HTMLButtonElement | HTMLAnchorElement>>(new Map());
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchStringRef = useRef<string>("");
+
+  // 타입 검색 기능 (getKeyForSearch)
+  const getKeyForSearch = useCallback((search: string, fromKey?: string | null): string | null => {
+    const categoriesList = Array.from(categories);
+    const matchedCategory = findCategoryBySearch(search, categoriesList, fromKey);
+    return matchedCategory?.id ?? null;
+  }, [categories]);
 
   // 키보드 이벤트 핸들러
   const handleKeyDown = useCallback((e: React.KeyboardEvent, categoryId: string, index: number) => {
@@ -103,7 +128,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        const nextIndex = (index + 1) % categoriesList.length;
+        const nextIndex = getNextCategoryIndex(index, categoriesList.length);
         const nextCategory = categoriesList[nextIndex];
         const nextRef = categoryRefs.current.get(nextCategory.id);
         nextRef?.focus();
@@ -111,10 +136,26 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
       
       case "ArrowUp":
         e.preventDefault();
-        const prevIndex = index === 0 ? categoriesList.length - 1 : index - 1;
+        const prevIndex = getPrevCategoryIndex(index, categoriesList.length);
         const prevCategory = categoriesList[prevIndex];
         const prevRef = categoryRefs.current.get(prevCategory.id);
         prevRef?.focus();
+        break;
+      
+      case "Home":
+        e.preventDefault();
+        if (categoriesList.length > 0) {
+          const firstRef = categoryRefs.current.get(categoriesList[0].id);
+          firstRef?.focus();
+        }
+        break;
+      
+      case "End":
+        e.preventDefault();
+        if (categoriesList.length > 0) {
+          const lastRef = categoryRefs.current.get(categoriesList[categoriesList.length - 1].id);
+          lastRef?.focus();
+        }
         break;
       
       case "Enter":
@@ -127,72 +168,109 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
         e.preventDefault();
         (e.currentTarget as HTMLElement).blur();
         break;
+      
+      default:
+        // 타입 검색 기능 (문자 입력)
+        if (e.key.length === 1 && /[a-zA-Z가-힣]/.test(e.key)) {
+          e.preventDefault();
+          
+          // 검색 문자열 누적
+          if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+          }
+          
+          searchStringRef.current += e.key.toLowerCase();
+          const matchedKey = getKeyForSearch(searchStringRef.current, categoryId);
+          
+          if (matchedKey) {
+            const matchedRef = categoryRefs.current.get(matchedKey);
+            matchedRef?.focus();
+          }
+          
+          // 500ms 후 검색 문자열 초기화
+          searchTimeoutRef.current = setTimeout(() => {
+            searchStringRef.current = "";
+          }, 500);
+        }
+        break;
     }
-  }, [categories, toggleCategory]);
+  }, [categories, toggleCategory, getKeyForSearch]);
 
-  return (
-    <nav className={cn("flex flex-col gap-1", className)} aria-label="메인 네비게이션" role="navigation">
-      {categories.map((category) => {
-        const isActive = isCategoryActive(category);
-        const isExpanded = expandedCategories.has(category.id);
-        
-        // 하위 메뉴가 1개인 경우 바로 링크로 처리
-        const singleItem = category.items.length === 1 && !category.items[0].children;
-        const singleItemHref = singleItem ? category.items[0].href : null;
-        const singleItemActive = singleItem ? isItemActive(safePathname, category.items[0], searchParams) : false;
+  // cleanup
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
-        return (
-          <div key={category.id} className="flex flex-col gap-1">
-            {/* 하위 메뉴가 1개인 경우: 카테고리 자체를 링크로 */}
-            {singleItem ? (
-              <Link
+  // 카테고리 렌더링 결과 메모이제이션
+  const categoryElements = useMemo(() => {
+    return categories.map((category) => {
+      const isActive = isCategoryActive(category);
+      const isExpanded = expandedCategories.has(category.id);
+      
+      // 하위 메뉴가 1개인 경우 바로 링크로 처리
+      const singleItem = isSingleItemCategory(category);
+      const singleItemHref = getSingleItemHref(category);
+      const singleItemActive = isSingleItemActive(category, safePathname, searchParams);
+      const categoryIndex = getCategoryIndex(category.id, categories);
+
+      return (
+        <div key={category.id} className="flex flex-col gap-1">
+          {/* 하위 메뉴가 1개인 경우: 카테고리 자체를 링크로 */}
+          {singleItem && singleItemHref ? (
+            <Link
+              ref={(el) => {
+                if (el) categoryRefs.current.set(category.id, el);
+                else categoryRefs.current.delete(category.id);
+              }}
+              href={singleItemHref}
+              onClick={handleLinkClick}
+              onKeyDown={(e) => handleKeyDown(e, category.id, categoryIndex)}
+              className={getNavItemClasses({
+                isActive: singleItemActive,
+                isCollapsed,
+              })}
+              aria-label={getCategoryAriaLabel(category, isCollapsed)}
+              aria-describedby={isCollapsed ? undefined : `category-desc-${category.id}`}
+              aria-current={singleItemActive ? "page" : undefined}
+            >
+              {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
+              <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
+                {category.label}
+              </span>
+            </Link>
+          ) : (
+            <>
+              {/* 카테고리 헤더 */}
+              <button
                 ref={(el) => {
                   if (el) categoryRefs.current.set(category.id, el);
                   else categoryRefs.current.delete(category.id);
                 }}
-                href={singleItemHref!}
-                onClick={handleLinkClick}
-                onKeyDown={(e) => handleKeyDown(e, category.id, categories.findIndex(c => c.id === category.id))}
-                className={getNavItemClasses({
-                  isActive: singleItemActive,
+                onClick={() => toggleCategory(category.id)}
+                onKeyDown={(e) => handleKeyDown(e, category.id, categoryIndex)}
+                className={getCategoryHeaderClasses({
+                  isActive,
                   isCollapsed,
                 })}
-                title={isCollapsed ? category.label : undefined}
-                aria-current={singleItemActive ? "page" : undefined}
+                aria-label={isCollapsed ? category.label : undefined}
+                aria-describedby={isCollapsed ? undefined : `category-desc-${category.id}`}
+                aria-expanded={isExpanded}
+                aria-controls={`category-items-${category.id}`}
               >
-                {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
-                <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
-                  {category.label}
-                </span>
-              </Link>
-            ) : (
-              <>
-                {/* 카테고리 헤더 */}
-                <button
-                  ref={(el) => {
-                    if (el) categoryRefs.current.set(category.id, el);
-                    else categoryRefs.current.delete(category.id);
-                  }}
-                  onClick={() => toggleCategory(category.id)}
-                  onKeyDown={(e) => handleKeyDown(e, category.id, categories.findIndex(c => c.id === category.id))}
-                  className={getCategoryHeaderClasses({
-                    isActive,
-                    isCollapsed,
-                  })}
-                  title={isCollapsed ? category.label : undefined}
-                  aria-expanded={isExpanded}
-                  aria-controls={`category-items-${category.id}`}
-                >
-                  <div className="flex items-center gap-2">
-                    {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
-                    <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
-                      {category.label}
-                    </span>
-                  </div>
-                  {!isCollapsed && (
+                <div className="flex items-center gap-2">
+                  {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
+                  <span className={cn("transition-opacity", isCollapsed && navItemStyles.textHidden)}>
+                    {category.label}
+                  </span>
+                </div>
+                {!isCollapsed && (
                   <svg
                     className={cn(
-                        "h-4 w-4 transition-transform flex-shrink-0 motion-reduce:transition-none",
+                      "h-4 w-4 transition-transform flex-shrink-0 motion-reduce:transition-none",
                       isExpanded ? "rotate-180" : ""
                     )}
                     fill="none"
@@ -202,79 +280,86 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                     viewBox="0 0 24 24"
                     stroke="currentColor"
                     aria-hidden="true"
+                    style={isExpanded ? { willChange: "transform" } : undefined}
                   >
                     <path d="M19 9l-7 7-7-7" />
                   </svg>
+                )}
+              </button>
+              {!isCollapsed && (
+                <span id={`category-desc-${category.id}`} className="sr-only">
+                  {getCategoryDescription(category)}
+                </span>
+              )}
+
+              {/* 카테고리 아이템들 */}
+              {!isCollapsed && (
+                <div
+                  id={`category-items-${category.id}`}
+                  className={cn(
+                    "flex flex-col gap-1 pl-4 overflow-hidden transition-all duration-300 ease-in-out motion-reduce:transition-none",
+                    isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
                   )}
-                </button>
-
-                {/* 카테고리 아이템들 */}
-                {!isCollapsed && (
-                  <div
-                    id={`category-items-${category.id}`}
-                    className={cn(
-                      "flex flex-col gap-1 pl-4 overflow-hidden transition-all duration-200 motion-reduce:transition-none",
-                      isExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"
-                    )}
-                    role="group"
-                    aria-label={`${category.label} 하위 메뉴`}
-                    aria-hidden={!isExpanded}
-                  >
-                    {category.items.map((item) => {
-                      // 역할 체크
-                      if (item.roles && !item.roles.includes(role)) {
-                        return null;
-                      }
-
+                  role="group"
+                  aria-label={`${category.label} 하위 메뉴`}
+                  aria-hidden={!isExpanded}
+                  style={isExpanded ? { willChange: "max-height, opacity" } : undefined}
+                >
+                    {filterCategoryItemsByRole(category.items, role).map((item) => {
                       const itemActive = isItemActive(safePathname, item, searchParams);
 
-                      return (
-                        <div key={item.id}>
-                          {/* 메인 아이템 */}
-                          <Link
-                            href={item.href}
-                            onClick={handleLinkClick}
-                            className={getSubItemClasses({
-                              isActive: itemActive,
-                            })}
-                            aria-current={itemActive ? "page" : undefined}
-                          >
-                            {item.icon && <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>}
-                            <span>{item.label}</span>
-                          </Link>
+                    return (
+                      <div key={item.id}>
+                        {/* 메인 아이템 */}
+                        <Link
+                          href={item.href}
+                          onClick={handleLinkClick}
+                          className={getSubItemClasses({
+                            isActive: itemActive,
+                          })}
+                          aria-current={itemActive ? "page" : undefined}
+                        >
+                          {item.icon && <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>}
+                          <span>{item.label}</span>
+                        </Link>
 
-                          {/* Children 아이템 (예: 콘텐츠 > 교재 > 등록) */}
-                          {item.children && item.children.length > 0 && (
-                            <div className="flex flex-col gap-1 pl-6" role="group" aria-label={`${item.label} 하위 메뉴`}>
-                              {item.children.map((child) => {
-                                const childActive = isItemActive(safePathname, child, searchParams);
-                                return (
-                                  <Link
-                                    key={child.id}
-                                    href={child.href}
-                                    onClick={handleLinkClick}
-                                    className={getChildItemClasses({
-                                      isActive: childActive,
-                                    })}
-                                    aria-current={childActive ? "page" : undefined}
-                                  >
-                                    {child.icon && <span className="flex-shrink-0" aria-hidden="true">{child.icon}</span>}
-                                    <span>{child.label}</span>
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        );
-      })}
+                        {/* Children 아이템 (예: 콘텐츠 > 교재 > 등록) */}
+                        {item.children && item.children.length > 0 && (
+                          <div className="flex flex-col gap-1 pl-6" role="group" aria-label={`${item.label} 하위 메뉴`}>
+                            {item.children.map((child) => {
+                              const childActive = isItemActive(safePathname, child, searchParams);
+                              return (
+                                <Link
+                                  key={child.id}
+                                  href={child.href}
+                                  onClick={handleLinkClick}
+                                  className={getChildItemClasses({
+                                    isActive: childActive,
+                                  })}
+                                  aria-current={childActive ? "page" : undefined}
+                                >
+                                  {child.icon && <span className="flex-shrink-0" aria-hidden="true">{child.icon}</span>}
+                                  <span>{child.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+    });
+  }, [categories, expandedCategories, activeCategoryInfo, isCollapsed, safePathname, searchParams, role, handleLinkClick, handleKeyDown, toggleCategory, isCategoryActive]);
+
+  return (
+    <nav className={cn("flex flex-col gap-1", className)} aria-label="메인 네비게이션" role="navigation">
+      {categoryElements}
     </nav>
   );
 }

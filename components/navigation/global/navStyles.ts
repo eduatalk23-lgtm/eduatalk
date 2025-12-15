@@ -144,7 +144,73 @@ export const breadcrumbStyles = {
   container: "flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700",
   list: "flex items-center gap-1 flex-wrap max-w-full",
   separator: "text-gray-400 dark:text-gray-500",
-  link: "hover:text-gray-900 dark:hover:text-gray-100 truncate max-w-[150px] sm:max-w-[200px] transition",
-  current: "font-medium text-gray-900 dark:text-gray-100 truncate max-w-[150px] sm:max-w-[200px]",
+  link: "hover:text-gray-900 dark:hover:text-gray-100 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px] transition",
+  current: "font-medium text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]",
+};
+
+/**
+ * 레이아웃 공통 스타일 (RoleBasedLayout에서 사용)
+ */
+export const layoutStyles = {
+  // Border 스타일
+  borderBottom: "border-b border-gray-200 dark:border-gray-700",
+  borderTop: "border-t border-gray-200 dark:border-gray-700",
+  borderRight: "border-r border-gray-200 dark:border-gray-700",
+  
+  // Flex 레이아웃
+  flexCenter: "flex items-center gap-2",
+  flexBetween: "flex items-center justify-between gap-2",
+  flexColCenter: "flex flex-col items-center gap-3",
+  
+  // Padding
+  padding4: "p-4",
+  padding3: "px-4 py-3",
+  padding2: "px-3 py-2",
+  
+  // Background
+  bgGray50: "bg-gray-50 dark:bg-gray-800",
+  bgWhite: "bg-white dark:bg-gray-800",
+  
+  // Text
+  textHeading: "text-gray-900 dark:text-gray-100",
+  textMuted: "text-gray-500 dark:text-gray-400",
+  textSecondary: "text-gray-600 dark:text-gray-400",
+  
+  // Hover
+  hoverBg: "hover:bg-gray-100 dark:hover:bg-gray-700",
+  hoverText: "hover:text-gray-900 dark:hover:text-gray-100",
+  
+  // Transition
+  transition: "transition-colors",
+  transitionAll: "transition-all duration-300 ease-in-out",
+  
+  // Focus
+  focusRing: "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+};
+
+/**
+ * 사이드바 스타일
+ */
+export const sidebarStyles = {
+  container: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} ${layoutStyles.transitionAll}`,
+  header: `${layoutStyles.borderBottom} ${layoutStyles.padding4}`,
+  tenantInfo: `${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${layoutStyles.padding3}`,
+  navSection: layoutStyles.padding4,
+  footer: `${layoutStyles.borderTop} ${layoutStyles.padding4}`,
+  logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
+  collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
+  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 ${layoutStyles.transition} border border-indigo-200 dark:border-indigo-800 ${layoutStyles.focusRing}`,
+};
+
+/**
+ * 모바일 네비게이션 스타일
+ */
+export const mobileNavStyles = {
+  overlay: "fixed inset-0 bg-black/50 z-40 md:hidden",
+  drawer: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} z-50 ${layoutStyles.transitionAll} motion-reduce:duration-0 md:hidden overflow-y-auto`,
+  header: `sticky top-0 ${layoutStyles.bgWhite} ${layoutStyles.borderBottom} ${layoutStyles.padding4} z-10`,
+  hamburgerButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} md:hidden ${layoutStyles.focusRing}`,
+  closeButton: `p-1.5 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
+  tenantCard: `rounded-lg ${layoutStyles.bgGray50} ${layoutStyles.padding2}`,
 };
 
