@@ -8,6 +8,7 @@ import {
   calculateExamYearValue,
   calculateCurriculumRevisionValue,
 } from "../_utils/autoCalculation";
+import { isFormDataEqual } from "../_utils/formComparison";
 
 type UseAutoCalculationProps = {
   formData: StudentFormData;
@@ -29,11 +30,17 @@ export function useAutoCalculation({
   isSaving,
 }: UseAutoCalculationProps) {
   const isSavingRef = useRef(false);
+  const prevInitialFormDataRef = useRef<StudentFormData | null>(initialFormData);
 
   // isSaving 변경 시 ref 업데이트
   useEffect(() => {
     isSavingRef.current = isSaving;
   }, [isSaving]);
+
+  // initialFormData 변경 추적
+  useEffect(() => {
+    prevInitialFormDataRef.current = initialFormData;
+  }, [initialFormData]);
 
   // 입시년도 자동 계산
   useEffect(() => {
@@ -78,9 +85,11 @@ export function useAutoCalculation({
     }
   }, [
     formData.grade,
+    formData.exam_year,
     schoolType,
     autoCalculateFlags.examYear,
-    initialFormData,
+    // initialFormData 대신 필요한 필드만 추적
+    initialFormData?.exam_year,
     updateFormData,
     setInitialFormData,
   ]);
@@ -130,9 +139,11 @@ export function useAutoCalculation({
   }, [
     formData.grade,
     formData.birth_date,
+    formData.curriculum_revision,
     schoolType,
     autoCalculateFlags.curriculum,
-    initialFormData,
+    // initialFormData 대신 필요한 필드만 추적
+    initialFormData?.curriculum_revision,
     updateFormData,
     setInitialFormData,
   ]);

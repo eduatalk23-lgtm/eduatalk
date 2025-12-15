@@ -73,7 +73,7 @@ export default function ExclusionManagement({
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <p className="text-sm text-gray-500">로딩 중...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">로딩 중...</p>
       </div>
     );
   }
@@ -152,39 +152,39 @@ export default function ExclusionManagement({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+      <div className="flex flex-col gap-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 p-4 text-sm text-blue-800 dark:text-blue-300">
         <p className="font-medium">📌 학습 제외 일정은 학생별 전역으로 관리됩니다.</p>
-        <p className="text-xs text-blue-700">
+        <p className="text-xs text-blue-700 dark:text-blue-400">
           등록한 제외일은 모든 플랜 그룹에서 공통으로 적용됩니다.
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">학습 제외 일정</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">학습 제외 일정</h3>
         </div>
 
         {/* 제외일 추가 폼 */}
         {isAdding && (
-          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-1">
-                <label className="block text-xs font-medium text-gray-700">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                   날짜 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                   value={newExclusionDate}
                   onChange={(e) => setNewExclusionDate(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="block text-xs font-medium text-gray-700">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                   유형 <span className="text-red-500">*</span>
                 </label>
                 <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                   value={newExclusionType}
                   onChange={(e) =>
                     setNewExclusionType(e.target.value as typeof newExclusionType)
@@ -198,12 +198,12 @@ export default function ExclusionManagement({
                 </select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="block text-xs font-medium text-gray-700">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                   사유 (선택사항)
                 </label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                   placeholder="예: 가족 여행"
                   value={newExclusionReason}
                   onChange={(e) => setNewExclusionReason(e.target.value)}
@@ -215,7 +215,7 @@ export default function ExclusionManagement({
                 type="button"
                 onClick={handleAddExclusion}
                 disabled={isPending || !newExclusionDate}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                className="rounded-lg bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-gray-500"
               >
                 {isPending ? "추가 중..." : "추가"}
               </button>
@@ -227,7 +227,7 @@ export default function ExclusionManagement({
                   setNewExclusionReason("");
                 }}
                 disabled={isPending}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 취소
               </button>
@@ -254,22 +254,22 @@ export default function ExclusionManagement({
               );
 
               return (
-                <div key={type} className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                <div key={type} className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     {typeLabel} ({exclusions.length}개)
                   </h4>
                   <div className="flex flex-col gap-2">
                     {exclusions.map((exclusion) => (
                       <div
                         key={exclusion.id}
-                        className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3"
+                        className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3"
                       >
                         <div className="flex flex-col gap-1 flex-1">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {exclusion.exclusion_date}
                           </div>
                           {exclusion.reason && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               {exclusion.reason}
                             </div>
                           )}
@@ -278,7 +278,7 @@ export default function ExclusionManagement({
                           type="button"
                           onClick={() => handleDeleteExclusion(exclusion.id)}
                           disabled={isPending}
-                          className="rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                           title="삭제"
                         >
                           <Trash2 className="h-4 w-4" />

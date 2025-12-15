@@ -33,7 +33,7 @@ const FormCheckbox = memo(function FormCheckbox({
           id={inputId}
           type="checkbox"
           className={cn(
-            "mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600",
+            "mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-600 dark:bg-gray-700",
             error && "border-red-500",
             className
           )}
@@ -42,14 +42,14 @@ const FormCheckbox = memo(function FormCheckbox({
           {...props}
         />
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm text-gray-700">{label}</span>
+          <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
           {description && (
-            <span className="text-xs text-gray-500">{description}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{description}</span>
           )}
         </div>
       </label>
       {error && (
-        <span id={errorId} className="text-xs text-red-600" role="alert">
+        <span id={errorId} className="text-xs text-red-600 dark:text-red-400" role="alert">
           {error}
         </span>
       )}

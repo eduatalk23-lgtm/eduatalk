@@ -4,6 +4,73 @@ type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
+/**
+ * 플랜 쿼리 필터 옵션 (공통)
+ */
+type PlanQueryOptions = {
+  studentId: string;
+  tenantId?: string | null;
+  planDate?: string;
+  dateRange?: { start: string; end: string };
+  planGroupIds?: string[];
+  contentType?: string;
+};
+
+/**
+ * 공통 플랜 쿼리 빌더
+ * getPlansForStudent와 getPlansFromView에서 공통으로 사용
+ */
+export function buildPlanQuery(
+  supabase: SupabaseServerClient,
+  tableName: "student_plan" | "today_plan_view",
+  selectFields: string,
+  options: PlanQueryOptions
+) {
+  let query = supabase
+    .from(tableName)
+    .select(selectFields)
+    .eq("student_id", options.studentId);
+
+  if (options.tenantId) {
+    query = query.eq("tenant_id", options.tenantId);
+  }
+
+  if (options.planDate) {
+    const planDateStr =
+      typeof options.planDate === "string"
+        ? options.planDate.slice(0, 10)
+        : String(options.planDate).slice(0, 10);
+    query = query.eq("plan_date", planDateStr);
+  } else if (options.dateRange) {
+    const startStr =
+      typeof options.dateRange.start === "string"
+        ? options.dateRange.start.slice(0, 10)
+        : String(options.dateRange.start).slice(0, 10);
+    const endStr =
+      typeof options.dateRange.end === "string"
+        ? options.dateRange.end.slice(0, 10)
+        : String(options.dateRange.end).slice(0, 10);
+    query = query.gte("plan_date", startStr).lte("plan_date", endStr);
+  }
+
+  if (options.contentType) {
+    query = query.eq("content_type", options.contentType);
+  }
+
+  if (options.planGroupIds && options.planGroupIds.length > 0) {
+    const validGroupIds = options.planGroupIds.filter(
+      (id) => id && typeof id === "string" && id.trim().length > 0
+    );
+    if (validGroupIds.length > 0) {
+      query = query.in("plan_group_id", validGroupIds);
+    }
+  }
+
+  return query
+    .order("plan_date", { ascending: true })
+    .order("block_index", { ascending: true });
+}
+
 // ============================================
 // 플랜 업데이트 제한 정책 (Phase 2)
 // ============================================
@@ -156,76 +223,34 @@ export async function getPlansForStudent(
 ): Promise<Plan[]> {
   const supabase = await createSupabaseServerClient();
 
-  const selectPlans = () =>
-    supabase
-      .from("student_plan")
-      .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at"
-      )
-      .eq("student_id", filters.studentId);
-
-  let query = selectPlans();
-
-  if (filters.tenantId) {
-    query = query.eq("tenant_id", filters.tenantId);
-  }
-
-  if (filters.planDate) {
-    // planDate를 문자열로 변환 (YYYY-MM-DD 형식)
-    const planDateStr =
-      typeof filters.planDate === "string"
-        ? filters.planDate.slice(0, 10)
-        : String(filters.planDate).slice(0, 10);
-    query = query.eq("plan_date", planDateStr);
-  } else if (filters.dateRange) {
-    // dateRange의 start와 end를 문자열로 변환 (YYYY-MM-DD 형식)
-    const startStr =
-      typeof filters.dateRange.start === "string"
-        ? filters.dateRange.start.slice(0, 10)
-        : String(filters.dateRange.start).slice(0, 10);
-
-    const endStr =
-      typeof filters.dateRange.end === "string"
-        ? filters.dateRange.end.slice(0, 10)
-        : String(filters.dateRange.end).slice(0, 10);
-
-    query = query.gte("plan_date", startStr).lte("plan_date", endStr);
-  }
-
-  if (filters.contentType) {
-    query = query.eq("content_type", filters.contentType);
-  }
-
+  // planGroupIds 유효성 검사
   if (filters.planGroupIds && filters.planGroupIds.length > 0) {
-    // plan_group_id가 NULL이 아닌 값만 필터링
-    // .in() 메서드는 배열의 값들 중 하나와 일치하는 행을 반환
-    try {
-      // planGroupIds가 유효한 UUID 배열인지 확인
-      const validGroupIds = filters.planGroupIds.filter(
-        (id) => id && typeof id === "string" && id.trim().length > 0
+    const validGroupIds = filters.planGroupIds.filter(
+      (id) => id && typeof id === "string" && id.trim().length > 0
+    );
+    if (validGroupIds.length === 0) {
+      console.warn(
+        "[data/studentPlans] 유효한 planGroupIds가 없습니다:",
+        filters.planGroupIds
       );
-
-      if (validGroupIds.length > 0) {
-        query = query.in("plan_group_id", validGroupIds);
-      } else {
-        console.warn(
-          "[data/studentPlans] 유효한 planGroupIds가 없습니다:",
-          filters.planGroupIds
-        );
-        return []; // 유효한 ID가 없으면 빈 배열 반환
-      }
-    } catch (filterError) {
-      console.error(
-        "[data/studentPlans] planGroupIds 필터링 중 오류:",
-        filterError
-      );
-      // 필터링 실패 시 전체 조회로 폴백
+      return [];
     }
   }
 
-  query = query
-    .order("plan_date", { ascending: true })
-    .order("block_index", { ascending: true });
+  // 공통 쿼리 빌더 사용
+  const query = buildPlanQuery(
+    supabase,
+    "student_plan",
+    "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at",
+    {
+      studentId: filters.studentId,
+      tenantId: filters.tenantId,
+      planDate: filters.planDate,
+      dateRange: filters.dateRange,
+      planGroupIds: filters.planGroupIds,
+      contentType: filters.contentType,
+    }
+  );
 
   let { data, error } = await query;
 

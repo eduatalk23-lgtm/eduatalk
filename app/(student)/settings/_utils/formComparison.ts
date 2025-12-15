@@ -37,4 +37,25 @@ function arraysEqual<T>(a: T[], b: T[]): boolean {
   return a.every((val, index) => val === b[index]);
 }
 
+/**
+ * 두 FormData 객체가 동일한지 비교 (깊은 비교)
+ * hasFormDataChanges의 반대 로직을 사용하여 동일성 확인
+ */
+export function isFormDataEqual(
+  a: StudentFormData | null,
+  b: StudentFormData | null
+): boolean {
+  // 둘 다 null이면 동일
+  if (!a && !b) return true;
+  
+  // 하나만 null이면 다름
+  if (!a || !b) return false;
+  
+  // 같은 참조면 동일
+  if (a === b) return true;
+  
+  // hasFormDataChanges의 반대: 변경사항이 없으면 동일
+  return !hasFormDataChanges(a, b);
+}
+
 

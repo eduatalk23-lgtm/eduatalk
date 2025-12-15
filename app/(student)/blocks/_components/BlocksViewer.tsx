@@ -88,11 +88,11 @@ export default function BlocksViewer({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex flex-col gap-4 bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+          <div key={i} className="flex flex-col gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 animate-pulse">
+            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
             <div className="flex flex-col gap-2">
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
             </div>
           </div>
         ))}
@@ -131,18 +131,18 @@ export default function BlocksViewer({
             {blockSetsWithStats.map((set) => (
               <div
                 key={set.id}
-                className={`bg-white border-2 rounded-lg p-6 transition-all hover:shadow-md flex flex-col gap-4 ${
+                className={`bg-white dark:bg-gray-800 border-2 rounded-lg p-6 transition-all hover:shadow-md flex flex-col gap-4 ${
                   activeSetId === set.id
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-gray-200 hover:border-gray-300"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                 }`}
               >
                 {/* 헤더 */}
                 <div className="flex items-start justify-between">
                   <div className="flex flex-1 flex-col gap-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{set.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{set.name}</h3>
                     {activeSetId === set.id && (
-                      <span className="inline-block px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded">
+                      <span className="inline-block px-2 py-1 text-xs font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50 rounded">
                         활성
                       </span>
                     )}
@@ -169,7 +169,7 @@ export default function BlocksViewer({
                         alert(error.message || "세트 삭제에 실패했습니다.");
                       }
                     }}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                     title="세트 삭제"
                   >
                     <svg
@@ -191,29 +191,29 @@ export default function BlocksViewer({
 
                 {/* 설명 */}
                 {set.description && (
-                  <p className="text-sm text-gray-600">{set.description}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{set.description}</p>
                 )}
 
                 {/* 통계 정보 */}
                 <div className="flex flex-col gap-2 flex-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">블록 개수</span>
-                    <span className="font-medium text-gray-900">{set.blockCount}개</span>
+                    <span className="text-gray-600 dark:text-gray-400">블록 개수</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{set.blockCount}개</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">주간 총 시간</span>
-                    <span className="font-medium text-gray-900">
+                    <span className="text-gray-600 dark:text-gray-400">주간 총 시간</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
                       {set.totalHours}시간 {set.remainingMinutes}분
                     </span>
                   </div>
                   {set.blockCount > 0 && (
-                    <div className="flex flex-col gap-1 pt-2 border-t border-gray-200">
-                      <div className="text-xs text-gray-500">요일별 블록</div>
+                    <div className="flex flex-col gap-1 pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">요일별 블록</div>
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(set.dayDistribution).map(([day, count]) => (
                           <span
                             key={day}
-                            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
+                            className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded"
                           >
                             {day} {count}
                           </span>
@@ -311,52 +311,52 @@ function BlockSetCreateForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="flex flex-col gap-4 bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+      <div className="flex flex-col gap-4 bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">새 블록 세트 추가</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">새 블록 세트 추가</h3>
           <button
             type="button"
             onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             disabled={isPending}
           >
             <span className="text-2xl">×</span>
           </button>
         </div>
-        
+
         <form action={formAction} className="flex flex-col gap-4">
           {state.error && (
-            <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{state.error}</p>
+            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
           )}
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">세트 이름</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">세트 이름</label>
             <input
               type="text"
               name="name"
               placeholder="예: 여름방학용"
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm"
               required
               maxLength={100}
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">설명 (선택)</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">설명 (선택)</label>
             <textarea
               name="description"
               placeholder="세트에 대한 설명을 입력하세요"
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm"
               rows={2}
               maxLength={500}
             />
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-gray-200 pt-4">
-            <h4 className="text-sm font-medium text-gray-700">시간 블록 추가 (선택)</h4>
-            
+          <div className="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">시간 블록 추가 (선택)</h4>
+
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">추가할 요일 선택</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">추가할 요일 선택</label>
               <div className="flex flex-wrap gap-2">
                 {[
                   { value: 0, label: "일" },
@@ -374,7 +374,7 @@ function BlockSetCreateForm({
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       selectedWeekdays.includes(day.value)
                         ? "bg-indigo-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}
                   >
                     {day.label}요일
@@ -385,22 +385,22 @@ function BlockSetCreateForm({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">시작 시간</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">시작 시간</label>
                 <input
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">종료 시간</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">종료 시간</label>
                 <input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -418,7 +418,7 @@ function BlockSetCreateForm({
               type="button"
               onClick={onCancel}
               disabled={isPending}
-              className="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50"
+              className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
             >
               취소
             </button>

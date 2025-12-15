@@ -121,12 +121,12 @@ export function DeviceManagement() {
   if (loading) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+        <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         <div className="flex flex-col gap-4">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-24 bg-gray-100 rounded-lg animate-pulse"
+              className="h-24 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse"
             />
           ))}
         </div>
@@ -140,18 +140,18 @@ export function DeviceManagement() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           로그인 기기 관리
         </h2>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           로그인한 기기 목록을 확인하고 관리할 수 있습니다. 의심스러운 기기가
           있다면 즉시 로그아웃하세요.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-          <p className="text-sm text-red-800">{error}</p>
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-4">
+          <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
         </div>
       )}
 
@@ -159,10 +159,10 @@ export function DeviceManagement() {
       {currentSession && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
               현재 기기
             </h3>
-            <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">
+            <span className="px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 rounded-full">
               활성
             </span>
           </div>
@@ -170,19 +170,19 @@ export function DeviceManagement() {
             <div className="flex items-start justify-between">
               <div className="flex flex-col gap-2 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {currentSession.device_name || "알 수 없는 기기"}
                   </span>
                 </div>
                 {currentSession.ip_address && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     IP: {currentSession.ip_address}
                   </p>
                 )}
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   마지막 활동: {formatDate(currentSession.last_active_at)}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
                   로그인: {formatDate(currentSession.created_at)}
                 </p>
               </div>
@@ -195,14 +195,14 @@ export function DeviceManagement() {
       {otherSessions.length > 0 && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
               다른 기기 ({otherSessions.length}개)
             </h3>
             <button
               type="button"
               onClick={handleRevokeAllOther}
               disabled={revokingAll}
-              className="text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {revokingAll ? "처리 중..." : "모두 로그아웃"}
             </button>
@@ -211,25 +211,25 @@ export function DeviceManagement() {
             {otherSessions.map((session) => (
               <div
                 key={session.id}
-                className="rounded-lg border border-gray-200 bg-white p-4"
+                className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col gap-2 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {session.device_name || "알 수 없는 기기"}
                         </span>
                       </div>
                       {session.ip_address && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           IP: {session.ip_address}
                         </p>
                       )}
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         마지막 활동: {formatDate(session.last_active_at)}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         로그인: {formatDate(session.created_at)}
                       </p>
                     </div>
@@ -237,7 +237,7 @@ export function DeviceManagement() {
                       type="button"
                       onClick={() => handleRevokeSession(session.id)}
                       disabled={revokingSessionId === session.id}
-                      className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                     {revokingSessionId === session.id
                       ? "처리 중..."
@@ -253,8 +253,8 @@ export function DeviceManagement() {
 
       {/* 세션이 없는 경우 */}
       {sessions.length === 0 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-sm text-gray-500">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-8 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             로그인한 기기가 없습니다.
           </p>
         </div>

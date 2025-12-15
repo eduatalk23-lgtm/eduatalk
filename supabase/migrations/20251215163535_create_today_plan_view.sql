@@ -15,7 +15,8 @@ SELECT
   -- Content subject from joined tables (fallback)
   COALESCE(b.subject, l.subject, c.subject) as view_content_subject,
   -- Content subject category from joined tables (fallback)
-  COALESCE(b.subject_category, l.subject_category, c.subject_category) as view_content_subject_category,
+  -- Note: student_custom_contents doesn't have subject_category, so only use b and l
+  COALESCE(b.subject_category, l.subject_category, NULL) as view_content_subject_category,
   -- Content category from joined tables (fallback, custom_contents doesn't have this)
   COALESCE(b.content_category, l.content_category, NULL) as view_content_category
 FROM student_plan sp

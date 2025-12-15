@@ -35,7 +35,7 @@ const FormInput = memo(function FormInput({
         {...props}
       />
       {error && (
-        <span id={errorId} className="text-xs text-red-600" role="alert">
+        <span id={errorId} className="text-xs text-red-600 dark:text-red-400" role="alert">
           {error}
         </span>
       )}

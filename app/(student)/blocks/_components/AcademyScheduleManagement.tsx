@@ -392,10 +392,10 @@ export default function AcademyScheduleManagement({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+      <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 p-4 text-sm text-blue-800 dark:text-blue-300">
         <div className="flex flex-col gap-1">
           <p className="font-medium">📌 학원 단위로 관리합니다.</p>
-          <p className="text-xs text-blue-700">
+          <p className="text-xs text-blue-700 dark:text-blue-400">
             학원을 등록하고, 각 학원에 대해 요일별 일정을 설정할 수 있습니다.
           </p>
         </div>
@@ -412,42 +412,42 @@ export default function AcademyScheduleManagement({
 
       {/* 학원 목록 및 관리 */}
       {(academies.length > 0 || isAddingAcademy || editingAcademyId) && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex flex-col gap-4">
             {academies.length > 0 && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">학원 목록</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">학원 목록</h3>
               </div>
             )}
 
             {/* 학원 추가/수정 폼 */}
             {(isAddingAcademy || editingAcademyId) && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
                 <div className="flex flex-col gap-3">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     {editingAcademyId ? "학원 수정" : "학원 추가"}
                   </h4>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                         학원 이름 <span className="text-red-500">*</span>
                       </label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                   placeholder="예: 수학 학원"
                   value={newAcademyName}
                   onChange={(e) => setNewAcademyName(e.target.value)}
                 />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                         이동시간 (분) <span className="text-red-500">*</span>
                       </label>
                 <input
                   type="number"
                   min="0"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                   placeholder="60"
                   value={newAcademyTravelTime}
                   onChange={(e) => setNewAcademyTravelTime(e.target.value)}
@@ -459,7 +459,7 @@ export default function AcademyScheduleManagement({
                 type="button"
                 onClick={editingAcademyId ? handleUpdateAcademy : handleAddAcademy}
                 disabled={isPending || !newAcademyName.trim()}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                className="rounded-lg bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-gray-500"
               >
                 {isPending ? (editingAcademyId ? "수정 중..." : "추가 중...") : (editingAcademyId ? "수정" : "추가")}
               </button>
@@ -472,7 +472,7 @@ export default function AcademyScheduleManagement({
                   setNewAcademyTravelTime("60");
                 }}
                 disabled={isPending}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 취소
               </button>
@@ -489,8 +489,8 @@ export default function AcademyScheduleManagement({
                 key={academy.id}
                 className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
                   selectedAcademyId === academy.id
-                    ? "border-gray-900 bg-gray-50"
-                    : "border-gray-200 bg-white"
+                    ? "border-gray-900 dark:border-gray-400 bg-gray-50 dark:bg-gray-700"
+                    : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
                 }`}
               >
                 <div className="flex-1">
@@ -498,15 +498,15 @@ export default function AcademyScheduleManagement({
                     <button
                       type="button"
                       onClick={() => setSelectedAcademyId(academy.id)}
-                      className="text-sm font-medium text-gray-900 hover:text-gray-700"
+                      className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300"
                     >
                       {academy.name}
                     </button>
                     {selectedAcademyId === academy.id && (
-                      <span className="text-xs text-gray-500">(선택됨)</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">(선택됨)</span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
                     이동시간: {academy.travel_time}분 | 일정: {academy.schedules.length}개
                   </div>
                 </div>
@@ -515,7 +515,7 @@ export default function AcademyScheduleManagement({
                     type="button"
                     onClick={() => handleStartEditAcademy(academy)}
                     disabled={isPending || editingAcademyId !== null}
-                    className="rounded p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                     title="수정"
                   >
                     <Pencil className="h-4 w-4" />
@@ -524,7 +524,7 @@ export default function AcademyScheduleManagement({
                     type="button"
                     onClick={() => handleDeleteAcademy(academy.id)}
                     disabled={isPending || editingAcademyId !== null}
-                    className="rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                     title="삭제"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -534,12 +534,12 @@ export default function AcademyScheduleManagement({
             ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">등록된 학원이 없습니다. 위에서 학원을 추가해주세요.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">등록된 학원이 없습니다. 위에서 학원을 추가해주세요.</p>
           )}
 
           {!selectedAcademy && academies.length > 0 && (
-            <div className="rounded-lg border border-gray-200 bg-white p-6 text-center">
-              <p className="text-sm text-gray-500">위에서 학원을 선택해주세요.</p>
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">위에서 학원을 선택해주세요.</p>
             </div>
           )}
           </div>
@@ -548,12 +548,12 @@ export default function AcademyScheduleManagement({
 
       {/* 선택된 학원의 일정 관리 */}
       {selectedAcademy && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <h3 className="text-lg font-semibold text-gray-900">{selectedAcademy.name}</h3>
-                <p className="text-xs text-gray-500">이동시간: {selectedAcademy.travel_time}분</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{selectedAcademy.name}</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">이동시간: {selectedAcademy.travel_time}분</p>
               </div>
             {!isAddingSchedule && !editingScheduleId && (
               <button
@@ -566,7 +566,7 @@ export default function AcademyScheduleManagement({
                   setScheduleEndTime("10:00");
                   setScheduleSubject("");
                 }}
-                className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
                 <Plus className="h-4 w-4" />
                 일정 추가
@@ -576,14 +576,14 @@ export default function AcademyScheduleManagement({
 
             {/* 일정 추가/수정 폼 */}
             {(isAddingSchedule || editingScheduleId) && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
                 <div className="flex flex-col gap-3">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     {editingScheduleId ? "일정 수정" : "일정 추가"}
                   </h4>
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-2">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                         요일 (다중 선택 가능) <span className="text-red-500">*</span>
                       </label>
                   <div className="flex flex-wrap gap-2">
@@ -594,8 +594,8 @@ export default function AcademyScheduleManagement({
                         onClick={() => toggleDay(index)}
                         className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                           selectedDays.includes(index)
-                            ? "border-gray-900 bg-gray-900 text-white"
-                            : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            ? "border-gray-900 dark:border-gray-400 bg-gray-900 dark:bg-gray-200 text-white dark:text-gray-900"
+                            : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
                         }`}
                       >
                         {label}
@@ -605,34 +605,34 @@ export default function AcademyScheduleManagement({
                   </div>
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                         시작 시간 <span className="text-red-500">*</span>
                       </label>
                     <input
                       type="time"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                       value={scheduleStartTime}
                       onChange={(e) => setScheduleStartTime(e.target.value)}
                     />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                         종료 시간 <span className="text-red-500">*</span>
                       </label>
                     <input
                       type="time"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                       value={scheduleEndTime}
                       onChange={(e) => setScheduleEndTime(e.target.value)}
                     />
                     </div>
                     <div className="flex flex-col gap-1">
-                      <label className="block text-xs font-medium text-gray-700">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                         과목 <span className="text-red-500">*</span>
                       </label>
                     <input
                       type="text"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
                       placeholder="예: 수학"
                       value={scheduleSubject}
                       onChange={(e) => setScheduleSubject(e.target.value)}
@@ -650,7 +650,7 @@ export default function AcademyScheduleManagement({
                       !scheduleSubject.trim() ||
                       scheduleStartTime >= scheduleEndTime
                     }
-                    className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
+                    className="rounded-lg bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-gray-500"
                   >
                     {isPending
                       ? editingScheduleId
@@ -671,7 +671,7 @@ export default function AcademyScheduleManagement({
                       setScheduleSubject("");
                     }}
                     disabled={isPending}
-                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     취소
                   </button>
@@ -684,23 +684,23 @@ export default function AcademyScheduleManagement({
           {selectedAcademySchedules.length > 0 ? (
             <div className="flex flex-col gap-3">
               {Object.entries(schedulesByDay).map(([day, daySchedules]) => (
-                <div key={day} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div key={day} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
                   <div className="flex flex-col gap-2">
-                    <h4 className="text-sm font-semibold text-gray-900">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {weekdayLabels[Number(day)]}
                     </h4>
                     <div className="flex flex-col gap-2">
                     {daySchedules.map((schedule) => (
                       <div
                         key={schedule.id}
-                        className="flex items-center justify-between rounded border border-gray-200 bg-white px-3 py-2"
+                        className="flex items-center justify-between rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2"
                       >
                         <div className="flex-1">
                           <div className="flex flex-col gap-1">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {schedule.start_time} ~ {schedule.end_time}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               {schedule.subject}
                             </div>
                           </div>
@@ -710,7 +710,7 @@ export default function AcademyScheduleManagement({
                             type="button"
                             onClick={() => handleStartEditSchedule(schedule)}
                             disabled={isPending || editingScheduleId !== null}
-                            className="rounded p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                             title="수정"
                           >
                             <Pencil className="h-4 w-4" />
@@ -719,7 +719,7 @@ export default function AcademyScheduleManagement({
                             type="button"
                             onClick={() => handleDeleteSchedule(schedule.id)}
                             disabled={isPending || editingScheduleId !== null}
-                            className="rounded p-1 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                             title="삭제"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -733,7 +733,7 @@ export default function AcademyScheduleManagement({
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">등록된 일정이 없습니다. 위에서 일정을 추가해주세요.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">등록된 일정이 없습니다. 위에서 일정을 추가해주세요.</p>
           )}
         </div>
         </div>

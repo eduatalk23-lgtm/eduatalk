@@ -13,6 +13,46 @@ export function isColumnMissingError(error: any): boolean {
 }
 
 /**
+ * View 또는 테이블이 존재하지 않는 에러인지 확인
+ * PostgreSQL 에러 코드 PGRST205 (table/view not found in schema cache)
+ */
+export function isViewNotFoundError(error: any): boolean {
+  return error?.code === "PGRST205";
+}
+
+/**
+ * View 존재 여부를 확인하는 헬퍼 함수
+ * 
+ * @param supabase Supabase 클라이언트
+ * @param viewName 확인할 View 이름
+ * @returns View 존재 여부
+ */
+export async function checkViewExists(
+  supabase: any,
+  viewName: string
+): Promise<boolean> {
+  try {
+    // 간단한 쿼리로 View 존재 여부 확인
+    const { error } = await supabase
+      .from(viewName)
+      .select("1")
+      .limit(0);
+    
+    // PGRST205 에러는 View가 없다는 의미
+    if (error?.code === "PGRST205") {
+      return false;
+    }
+    
+    // 다른 에러는 View가 존재하지만 다른 문제가 있다는 의미
+    // (예: 권한 문제, RLS 정책 등)
+    return !error;
+  } catch (error) {
+    // 예외 발생 시 View가 없다고 간주
+    return false;
+  }
+}
+
+/**
  * 범용 에러 fallback 처리 함수
  * 
  * 에러 판단 로직을 주입받아 다양한 에러 타입에 대응할 수 있습니다.

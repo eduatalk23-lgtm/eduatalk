@@ -133,28 +133,28 @@ export default function NewBookPage() {
   return (
     <section className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold text-gray-900">📚 책 등록하기</h1>
-        <p className="text-sm text-gray-500">새로운 교재를 등록하세요.</p>
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">📚 책 등록하기</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">새로운 교재를 등록하세요.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           {/* 교재명 */}
           <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               교재명 <span className="text-red-500">*</span>
             </label>
             <input
               name="title"
               required
               placeholder="교재명을 입력하세요"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           {/* 개정교육과정 */}
           <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               개정교육과정
             </label>
             <select
@@ -164,7 +164,7 @@ export default function NewBookPage() {
                 setSelectedSubjectGroupId("");
                 setSelectedSubjectId("");
               }}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">선택하세요</option>
               {revisions.map((rev) => (
@@ -177,7 +177,7 @@ export default function NewBookPage() {
 
           {/* 교과 */}
           <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700">교과</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">교과</label>
             <select
               value={selectedSubjectGroupId}
               onChange={(e) => {
@@ -185,7 +185,7 @@ export default function NewBookPage() {
                 setSelectedSubjectId("");
               }}
               disabled={!selectedRevisionId}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
             >
               <option value="">
                 {selectedRevisionId ? "선택하세요" : "개정교육과정을 먼저 선택하세요"}
@@ -200,12 +200,12 @@ export default function NewBookPage() {
 
           {/* 과목 */}
           <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700">과목</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">과목</label>
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
               disabled={!selectedSubjectGroupId}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
             >
               <option value="">
                 {selectedSubjectGroupId ? "선택하세요" : "교과를 먼저 선택하세요"}
@@ -220,11 +220,11 @@ export default function NewBookPage() {
 
           {/* 출판사 */}
           <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700">출판사</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">출판사</label>
             <select
               value={selectedPublisherId}
               onChange={(e) => setSelectedPublisherId(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">선택하세요</option>
               {publishers.map((publisher) => (
@@ -237,7 +237,7 @@ export default function NewBookPage() {
 
           {/* 총 페이지 */}
           <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               총 페이지 <span className="text-red-500">*</span>
             </label>
             <input
@@ -246,18 +246,18 @@ export default function NewBookPage() {
               required
               min="1"
               placeholder="예: 255"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
           {/* 난이도 */}
           <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               난이도
             </label>
             <select
               name="difficulty"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">선택하세요</option>
               <option value="개념">개념</option>
@@ -268,14 +268,14 @@ export default function NewBookPage() {
 
           {/* 메모 */}
           <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               메모
             </label>
             <textarea
               name="notes"
               rows={3}
               placeholder="메모를 입력하세요"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -294,7 +294,7 @@ export default function NewBookPage() {
           </button>
           <Link
             href="/contents"
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             취소
           </Link>

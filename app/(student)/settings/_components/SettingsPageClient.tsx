@@ -102,6 +102,22 @@ export default function SettingsPageClient({
 
   const isInitialSetup = !initialData;
 
+  // 기본 폼 데이터를 useMemo로 안정화하여 매번 새로운 객체 생성 방지
+  const defaultFormData = useMemo<StudentFormData>(() => ({
+    name: "",
+    school_id: "",
+    grade: "",
+    birth_date: "",
+    gender: "",
+    phone: "",
+    mother_phone: "",
+    father_phone: "",
+    exam_year: "",
+    curriculum_revision: "",
+    desired_university_ids: [],
+    desired_career_field: "",
+  }), []);
+
   const {
     formData,
     errors,
@@ -113,30 +129,9 @@ export default function SettingsPageClient({
     setInitialFormData,
     resetForm,
   } = useSettingsForm({
-    initialFormData: resolvedInitialFormData || {
-      name: "",
-      school_id: "",
-      grade: "",
-      birth_date: "",
-      gender: "",
-      phone: "",
-      mother_phone: "",
-      father_phone: "",
-      exam_year: "",
-      curriculum_revision: "",
-      desired_university_ids: [],
-      desired_career_field: "",
-    },
+    initialFormData: resolvedInitialFormData ?? defaultFormData,
     isInitialSetup,
   });
-
-  // 초기 폼 데이터가 로드되면 설정
-  useEffect(() => {
-    if (resolvedInitialFormData) {
-      setFormData(resolvedInitialFormData);
-      setInitialFormData(resolvedInitialFormData);
-    }
-  }, [resolvedInitialFormData, setFormData, setInitialFormData]);
 
   // school_id로부터 학교 타입 조회
   useEffect(() => {

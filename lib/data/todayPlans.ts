@@ -4,12 +4,19 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { getSessionsInRange, getActiveSessionsForPlans } from "@/lib/data/studentSessions";
+import {
+  getSessionsInRange,
+  getActiveSessionsForPlans,
+} from "@/lib/data/studentSessions";
 import {
   calculatePlanStudySeconds,
   buildActiveSessionMap,
 } from "@/lib/metrics/studyTime";
 import { perfTime } from "@/lib/utils/perfLog";
+import {
+  withErrorFallback,
+  isViewNotFoundError,
+} from "@/lib/utils/databaseFallback";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -24,6 +31,8 @@ function normalizeIsoDate(value: string | null): string | null {
 /**
  * View를 사용하여 플랜 조회 (콘텐츠 정보 포함)
  * today_plan_view를 사용하여 Application-side Join을 제거
+ *
+ * View가 없거나 에러 발생 시 자동으로 getPlansForStudent()로 fallback
  */
 async function getPlansFromView(options: {
   studentId: string;
@@ -33,52 +42,105 @@ async function getPlansFromView(options: {
   planGroupIds?: string[];
 }): Promise<Plan[]> {
   const supabase = await createSupabaseServerClient();
-  
-  // View에서 필요한 필드만 조회 (view_* 필드 포함)
-  const selectPlans = () =>
-    supabase
-      .from("today_plan_view")
-      .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,created_at,updated_at"
-      )
-      .eq("student_id", options.studentId);
 
-  let query = selectPlans();
-
-  if (options.tenantId) {
-    query = query.eq("tenant_id", options.tenantId);
-  }
-
-  if (options.planDate) {
-    const planDateStr = options.planDate.slice(0, 10);
-    query = query.eq("plan_date", planDateStr);
-  } else if (options.dateRange) {
-    const startStr = options.dateRange.start.slice(0, 10);
-    const endStr = options.dateRange.end.slice(0, 10);
-    query = query.gte("plan_date", startStr).lte("plan_date", endStr);
-  }
-
+  // planGroupIds 유효성 검사
   if (options.planGroupIds && options.planGroupIds.length > 0) {
     const validGroupIds = options.planGroupIds.filter(
       (id) => id && typeof id === "string" && id.trim().length > 0
     );
-    if (validGroupIds.length > 0) {
-      query = query.in("plan_group_id", validGroupIds);
-    } else {
+    if (validGroupIds.length === 0) {
       return [];
     }
   }
 
-  query = query
-    .order("plan_date", { ascending: true })
-    .order("block_index", { ascending: true });
+  // View에서 필요한 필드만 조회 (view_* 필드 포함)
+  const queryPlansFromView = async () => {
+    // 공통 쿼리 빌더 사용
+    const { buildPlanQuery } = await import("@/lib/data/studentPlans");
+    const query = buildPlanQuery(
+      supabase,
+      "today_plan_view",
+      "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,created_at,updated_at",
+      {
+        studentId: options.studentId,
+        tenantId: options.tenantId,
+        planDate: options.planDate,
+        dateRange: options.dateRange,
+        planGroupIds: options.planGroupIds,
+      }
+    );
+    return await query;
+  };
 
-  const { data, error } = await query;
+  // Fallback 함수: 기존 방식으로 조회
+  const fallbackQuery = async (): Promise<{
+    data: any[] | null;
+    error: any;
+  }> => {
+    try {
+      const plans = await getPlansForStudent({
+        studentId: options.studentId,
+        tenantId: options.tenantId,
+        planDate: options.planDate,
+        dateRange: options.dateRange,
+        planGroupIds: options.planGroupIds,
+      });
+      return { data: plans, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  };
 
-  if (error) {
-    // View가 없거나 오류 발생 시 기존 함수로 fallback
-    console.warn("[data/todayPlans] View 조회 실패, 기존 방식으로 fallback:", error);
-    return getPlansForStudent({
+  // View 조회 시도, PGRST205 에러 발생 시 fallback
+  const result = await withErrorFallback(
+    queryPlansFromView,
+    fallbackQuery,
+    (error) => {
+      // PGRST205: View가 스키마 캐시에 없음
+      if (isViewNotFoundError(error)) {
+        // 개발 환경에서만 상세 로깅
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            "[data/todayPlans] today_plan_view not found, using fallback",
+            {
+              code: error?.code,
+              message: error?.message,
+              hint: error?.hint,
+            }
+          );
+        }
+        return true;
+      }
+      // 기타 에러는 fallback하지 않음 (실제 에러로 처리)
+      return false;
+    }
+  );
+
+  // 에러가 있고 fallback하지 않은 경우 (실제 에러)
+  if (result.error && !isViewNotFoundError(result.error)) {
+    // 구조화된 에러 로깅
+    const errorDetails = {
+      code: result.error?.code,
+      message: result.error?.message,
+      hint: result.error?.hint,
+      details: result.error?.details,
+      timestamp: new Date().toISOString(),
+      context: {
+        studentId: options.studentId,
+        tenantId: options.tenantId,
+        planDate: options.planDate,
+        hasDateRange: !!options.dateRange,
+        planGroupIdsCount: options.planGroupIds?.length || 0,
+      },
+    };
+
+    console.error(
+      "[data/todayPlans] View 조회 중 예상치 못한 에러",
+      errorDetails
+    );
+
+    // 실제 에러 발생 시에도 fallback으로 처리 (안정성 우선)
+    return await getPlansForStudent({
       studentId: options.studentId,
       tenantId: options.tenantId,
       planDate: options.planDate,
@@ -88,7 +150,7 @@ async function getPlansFromView(options: {
   }
 
   // View 결과를 Plan 타입으로 변환 (denormalized 필드 우선, View 필드는 fallback)
-  const plans = (data || []).map((row: any) => {
+  const plans = (result.data || []).map((row: any) => {
     const plan: Plan = {
       id: row.id,
       tenant_id: row.tenant_id,
@@ -121,8 +183,12 @@ async function getPlansFromView(options: {
       // denormalized 필드: 우선순위는 content_title > view_content_title
       content_title: row.content_title || row.view_content_title || null,
       content_subject: row.content_subject || row.view_content_subject || null,
-      content_subject_category: row.content_subject_category || row.view_content_subject_category || null,
-      content_category: row.content_category || row.view_content_category || null,
+      content_subject_category:
+        row.content_subject_category ||
+        row.view_content_subject_category ||
+        null,
+      content_category:
+        row.content_category || row.view_content_category || null,
       memo: row.memo,
       created_at: row.created_at,
       updated_at: row.updated_at,
@@ -135,13 +201,16 @@ async function getPlansFromView(options: {
 
 export type TodayPlansResponse = {
   plans: PlanWithContent[];
-  sessions: Record<string, {
-    isPaused: boolean;
-    startedAt?: string | null;
-    pausedAt?: string | null;
-    resumedAt?: string | null;
-    pausedDurationSeconds?: number | null;
-  }>;
+  sessions: Record<
+    string,
+    {
+      isPaused: boolean;
+      startedAt?: string | null;
+      pausedAt?: string | null;
+      resumedAt?: string | null;
+      pausedDurationSeconds?: number | null;
+    }
+  >;
   planDate: string;
   isToday: boolean;
   serverNow: number;
@@ -182,31 +251,31 @@ export type GetTodayPlansOptions = {
 
 /**
  * 서버 사이드에서 오늘의 플랜 데이터를 조회하는 헬퍼 함수
- * 
+ *
  * /api/today/plans API 라우트와 동일한 로직을 사용하지만,
  * 서버 컴포넌트에서 직접 호출할 수 있도록 설계됨.
- * 
+ *
  * @param options 조회 옵션
  * @returns 오늘의 플랜 데이터
  */
 export async function getTodayPlans(
   options: GetTodayPlansOptions
 ): Promise<TodayPlansResponse> {
-  const { 
-    studentId, 
-    tenantId, 
-    date, 
-    camp = false, 
-    includeProgress = true, 
+  const {
+    studentId,
+    tenantId,
+    date,
+    camp = false,
+    includeProgress = true,
     narrowQueries = false,
     useCache = true,
-    cacheTtlSeconds = 120
+    cacheTtlSeconds = 120,
   } = options;
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayDate = today.toISOString().slice(0, 10);
-  
+
   const requestedDateParam = normalizeIsoDate(date ?? null);
   const targetDate = requestedDateParam ?? todayDate;
 
@@ -218,7 +287,6 @@ export async function getTodayPlans(
   if (useCache) {
     const lookupTimer = perfTime("[todayPlans] cache - lookup");
     try {
-      
       // Build cache query with tenant_id handling (NULL-safe)
       // Use partial index: one for NULL tenant_id, one for non-NULL
       let cacheQuery = supabase
@@ -228,25 +296,29 @@ export async function getTodayPlans(
         .eq("plan_date", targetDate)
         .eq("is_camp_mode", !!camp)
         .gt("expires_at", new Date().toISOString()); // Only valid (non-expired) cache
-      
+
       // Handle tenant_id (NULL or value)
       if (tenantId) {
         cacheQuery = cacheQuery.eq("tenant_id", tenantId);
       } else {
         cacheQuery = cacheQuery.is("tenant_id", null);
       }
-      
-      const { data: cacheRow, error: cacheError } = await cacheQuery.maybeSingle();
-      
+
+      const { data: cacheRow, error: cacheError } =
+        await cacheQuery.maybeSingle();
+
       if (!cacheError && cacheRow) {
         lookupTimer.end();
         // Return cached result
         return cacheRow.payload as TodayPlansResponse;
       }
-      
+
       if (cacheError && cacheError.code !== "PGRST116") {
         // PGRST116 = no rows found (expected for cache miss)
-        console.warn("[todayPlans] cache lookup error (non-blocking):", cacheError);
+        console.warn(
+          "[todayPlans] cache lookup error (non-blocking):",
+          cacheError
+        );
       }
     } catch (error) {
       console.warn("[todayPlans] cache lookup failed (non-blocking):", error);
@@ -351,7 +423,9 @@ export async function getTodayPlans(
     try {
       // Use already loaded plans (no need to re-query)
       const planTotalCount = plans.length;
-      const planCompletedCount = plans.filter((plan) => !!plan.actual_end_time).length;
+      const planCompletedCount = plans.filter(
+        (plan) => !!plan.actual_end_time
+      ).length;
 
       // We'll compute todayStudyMinutes and achievementScore after fullDaySessions are loaded
       // Store intermediate values for later computation
@@ -397,8 +471,12 @@ export async function getTodayPlans(
     }
   });
 
-  let progressData: Array<{ content_type: string; content_id: string; progress: number | null }> = [];
-  
+  let progressData: Array<{
+    content_type: string;
+    content_id: string;
+    progress: number | null;
+  }> = [];
+
   if (contentKeys.size > 0) {
     // 각 content_type별로 그룹화하여 쿼리
     const bookProgressIds: string[] = [];
@@ -475,7 +553,11 @@ export async function getTodayPlans(
       if (planIds.length === 0) {
         return [];
       }
-      const activeSessions = await getActiveSessionsForPlans(planIds, studentId, tenantId);
+      const activeSessions = await getActiveSessionsForPlans(
+        planIds,
+        studentId,
+        tenantId
+      );
       // 기존 형식에 맞게 변환
       return activeSessions.map((session) => ({
         plan_id: session.plan_id,
@@ -533,7 +615,8 @@ export async function getTodayPlans(
       // (오늘 실행률 * 0.7) + (집중 타이머 누적/예상 * 0.3)
       const executionRate =
         todayProgress.planTotalCount > 0
-          ? (todayProgress.planCompletedCount / todayProgress.planTotalCount) * 100
+          ? (todayProgress.planCompletedCount / todayProgress.planTotalCount) *
+            100
           : 0;
 
       const expectedMinutes = todayProgress.planTotalCount * 60;
@@ -549,19 +632,25 @@ export async function getTodayPlans(
       todayProgress.todayStudyMinutes = todayStudyMinutes;
       todayProgress.achievementScore = achievementScore;
     } catch (error) {
-      console.error("[data/todayPlans] 오늘 진행률 최종 계산 실패 (비차단)", error);
+      console.error(
+        "[data/todayPlans] 오늘 진행률 최종 계산 실패 (비차단)",
+        error
+      );
       // Keep partial progress data
     }
   }
 
   // Step 3: Build session map (O(n) where n = active sessions)
-  const sessionMap = new Map<string, { 
-    isPaused: boolean; 
-    startedAt?: string | null;
-    pausedAt?: string | null; 
-    resumedAt?: string | null;
-    pausedDurationSeconds?: number | null;
-  }>();
+  const sessionMap = new Map<
+    string,
+    {
+      isPaused: boolean;
+      startedAt?: string | null;
+      pausedAt?: string | null;
+      resumedAt?: string | null;
+      pausedDurationSeconds?: number | null;
+    }
+  >();
   activeSessions?.forEach((session) => {
     if (session.plan_id) {
       const isPaused = !!session.paused_at && !session.resumed_at;
@@ -577,7 +666,7 @@ export async function getTodayPlans(
 
   // Step 4: Attach content/progress/session to plans (O(n) where n = plans)
   // Optimized: Remove destructuring and spread operations for better performance
-  
+
   // Helper function to exclude denormalized fields (more efficient than destructuring)
   const excludeFields = <T extends Record<string, any>>(
     obj: T,
@@ -593,20 +682,21 @@ export async function getTodayPlans(
   };
 
   const denormalizedFields = new Set([
-    'content_title',
-    'content_subject',
-    'content_subject_category',
-    'content_category'
+    "content_title",
+    "content_subject",
+    "content_subject_category",
+    "content_category",
   ]);
 
   // View를 통해 가져온 정보를 사용하여 content 객체 생성
   const plansWithContent: PlanWithContent[] = plans.map((plan) => {
-    const contentKey = plan.content_type && plan.content_id 
-      ? `${plan.content_type}:${plan.content_id}` 
-      : null;
-    
+    const contentKey =
+      plan.content_type && plan.content_id
+        ? `${plan.content_type}:${plan.content_id}`
+        : null;
+
     // Progress는 여전히 별도 조회 필요 (student_content_progress 테이블)
-    const progress = contentKey ? (progressMap.get(contentKey) ?? null) : null;
+    const progress = contentKey ? progressMap.get(contentKey) ?? null : null;
     const session = sessionMap.get(plan.id);
 
     // View에서 가져온 정보를 사용하여 content 객체 생성
@@ -668,13 +758,16 @@ export async function getTodayPlans(
   });
 
   // Step 5: Convert session map to object (O(n) where n = active sessions)
-  const sessionsObj: Record<string, { 
-    isPaused: boolean; 
-    startedAt?: string | null;
-    pausedAt?: string | null; 
-    resumedAt?: string | null;
-    pausedDurationSeconds?: number | null;
-  }> = {};
+  const sessionsObj: Record<
+    string,
+    {
+      isPaused: boolean;
+      startedAt?: string | null;
+      pausedAt?: string | null;
+      resumedAt?: string | null;
+      pausedDurationSeconds?: number | null;
+    }
+  > = {};
   sessionMap.forEach((value, key) => {
     sessionsObj[key] = value;
   });
@@ -693,28 +786,34 @@ export async function getTodayPlans(
     const storeTimer = perfTime("[todayPlans] cache - store");
     try {
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + (cacheTtlSeconds * 1000));
-      
+      const expiresAt = new Date(now.getTime() + cacheTtlSeconds * 1000);
+
       // Use upsert with single UNIQUE constraint
       // Constraint: today_plans_cache_unique_key (tenant_id, student_id, plan_date, is_camp_mode)
       // Always use all 4 columns for onConflict, regardless of tenant_id being NULL or not
       const { error: cacheError } = await supabase
         .from("today_plans_cache")
-        .upsert({
-          tenant_id: tenantId ?? null,
-          student_id: studentId,
-          plan_date: targetDate,
-          is_camp_mode: !!camp,
-          payload: result,
-          computed_at: now.toISOString(),
-          expires_at: expiresAt.toISOString(),
-          updated_at: now.toISOString(),
-        }, {
-          onConflict: "tenant_id,student_id,plan_date,is_camp_mode",
-        });
+        .upsert(
+          {
+            tenant_id: tenantId ?? null,
+            student_id: studentId,
+            plan_date: targetDate,
+            is_camp_mode: !!camp,
+            payload: result,
+            computed_at: now.toISOString(),
+            expires_at: expiresAt.toISOString(),
+            updated_at: now.toISOString(),
+          },
+          {
+            onConflict: "tenant_id,student_id,plan_date,is_camp_mode",
+          }
+        );
 
       if (cacheError) {
-        console.warn("[todayPlans] cache store error (non-blocking):", cacheError);
+        console.warn(
+          "[todayPlans] cache store error (non-blocking):",
+          cacheError
+        );
       }
     } catch (error) {
       console.warn("[todayPlans] cache store failed (non-blocking):", error);

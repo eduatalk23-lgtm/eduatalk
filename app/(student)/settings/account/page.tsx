@@ -67,24 +67,24 @@ export default function AccountSettingsPage() {
         <PageHeader title="계정 관리" />
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <section className="flex flex-col gap-4 rounded-lg border bg-white p-6 shadow-sm">
+          <section className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
             <h2 className="text-h2">비밀번호 변경</h2>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 현재 비밀번호 <span className="text-red-500">*</span>
               </label>
               <input
                 type="password"
                 name="current_password"
                 required
-                className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
                 placeholder="현재 비밀번호를 입력하세요"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 새 비밀번호 <span className="text-red-500">*</span>
               </label>
               <input
@@ -92,16 +92,16 @@ export default function AccountSettingsPage() {
                 name="new_password"
                 required
                 minLength={6}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
                 placeholder="새 비밀번호를 입력하세요 (최소 6자)"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 비밀번호는 최소 6자 이상이어야 합니다.
               </p>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 새 비밀번호 확인 <span className="text-red-500">*</span>
               </label>
               <input
@@ -109,7 +109,7 @@ export default function AccountSettingsPage() {
                 name="confirm_password"
                 required
                 minLength={6}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
                 placeholder="새 비밀번호를 다시 입력하세요"
               />
             </div>
@@ -120,7 +120,7 @@ export default function AccountSettingsPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               취소
             </button>
